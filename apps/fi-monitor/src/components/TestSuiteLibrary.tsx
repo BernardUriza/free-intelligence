@@ -807,24 +807,61 @@ export function TestSuiteLibrary() {
 
               {ragResult.results && ragResult.results.length > 0 ? (
                 <div className="rag-results-list">
-                  {ragResult.results.map((result: any, idx: number) => (
-                    <div key={idx} className="rag-chunk-result">
-                      <div className="rag-chunk-header">
-                        <span className="rag-chunk-index">#{idx + 1}</span>
-                        <span className="rag-chunk-filename">{result.filename}</span>
-                        <span className="rag-chunk-similarity">
-                          Similarity: {(result.similarity * 100).toFixed(1)}%
-                        </span>
+                  {ragResult.results.map((result: any, idx: number) => {
+                    const similarityPct = (result.similarity * 100).toFixed(1)
+                    const similarityNum = parseFloat(similarityPct)
+
+                    // Categorize relevance
+                    let relevanceBadge = { label: 'Low', class: 'low' }
+                    if (similarityNum >= 70) {
+                      relevanceBadge = { label: 'High', class: 'high' }
+                    } else if (similarityNum >= 50) {
+                      relevanceBadge = { label: 'Medium', class: 'medium' }
+                    }
+
+                    return (
+                      <div key={idx} className={`rag-chunk-result relevance-${relevanceBadge.class}`}>
+                        <div className="rag-chunk-header">
+                          <div className="rag-chunk-meta">
+                            <span className="rag-chunk-index">Result #{idx + 1}</span>
+                            <span className={`rag-relevance-badge badge-${relevanceBadge.class}`}>
+                              {relevanceBadge.label} Relevance
+                            </span>
+                          </div>
+                          <div className="rag-chunk-source">
+                            <span className="source-icon">📄</span>
+                            <span className="source-name">{result.filename}</span>
+                          </div>
+                        </div>
+
+                        {/* Similarity Progress Bar */}
+                        <div className="rag-similarity-container">
+                          <div className="rag-similarity-label">
+                            <span>Semantic Similarity</span>
+                            <span className="similarity-value">{similarityPct}%</span>
+                          </div>
+                          <div className="rag-similarity-bar">
+                            <div
+                              className={`similarity-fill fill-${relevanceBadge.class}`}
+                              style={{ width: `${similarityPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Chunk Content */}
+                        <div className="rag-chunk-content">
+                          <div className="content-label">Extracted Text:</div>
+                          <div className="content-text">{result.chunk}</div>
+                        </div>
                       </div>
-                      <div className="rag-chunk-content">
-                        {result.chunk}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="rag-result-content">
-                  No results found
+                  <div className="no-results-icon">🔍</div>
+                  <div className="no-results-text">No results found</div>
+                  <div className="no-results-hint">Try a different question or upload a relevant document</div>
                 </div>
               )}
 
