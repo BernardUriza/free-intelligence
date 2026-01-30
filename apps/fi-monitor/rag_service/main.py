@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import os
 import re
 import sys
+import time
 from contextlib import asynccontextmanager
+from typing import Any
 
 import numpy as np
 import torch
@@ -32,6 +35,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
+
+# Import our new modules
+from annotations import generate_annotations_for_document
+from metrics import compute_all_metrics
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # ============================================================================
 # Configuration
@@ -110,6 +120,21 @@ _model: SentenceTransformer | None = None
 #   }
 # }
 _document_store: dict[str, dict] = {}
+
+# Global storage for ground truth annotations
+# Structure: {
+#   "filename.pdf": [
+#       {
+#           "query": "What is normal blood sugar?",
+#           "relevant_chunks": [5, 12],
+#           "relevance_scores": [3, 2],
+#           "source": "llm_generated",
+#           "validated": False
+#       },
+#       ...
+#   ]
+# }
+_ground_truth_store: dict[str, list[dict[str, Any]]] = {}
 
 
 # ============================================================================
@@ -250,6 +275,90 @@ class RAGQueryResponse(BaseModel):
     query: str = Field(..., description="Original query")
     results: list[dict] = Field(..., description="List of results with chunk text and similarity score")
     device: str = Field(..., description="Device used for search")
+
+
+# ============================================================================
+# RAG Quality Metrics - Request/Response Models
+# ============================================================================
+
+
+class GenerateAnnotationsRequest(BaseModel):
+    """Request to auto-generate ground truth annotations with LLM."""
+
+    filename: str = Field(..., description="PDF filename to generate annotations for")
+    questions_per_chunk: int = Field(2, ge=1, le=5, description="Number of questions to generate per chunk")
+    model: str = Field("llama3.1:8b", description="Ollama model to use for generation")
+
+
+class GenerateAnnotationsResponse(BaseModel):
+    """Response from annotation generation."""
+
+    filename: str
+    annotations_count: int
+    chunks_processed: int
+    status: str
+    estimated_time_ms: int
+
+
+class AnnotationEntry(BaseModel):
+    """Single annotation entry."""
+
+    query: str
+    relevant_chunks: list[int]
+    relevance_scores: list[int]
+    source: str
+    validated: bool
+
+
+class AnnotationsResponse(BaseModel):
+    """Response for GET /rag/annotations/{filename}."""
+
+    filename: str
+    annotations: list[AnnotationEntry]
+    count: int
+
+
+class UpdateAnnotationRequest(BaseModel):
+    """Request to update/validate annotation manually."""
+
+    query: str
+    relevant_chunks: list[int]
+    relevance_scores: list[int]
+    validated: bool = True
+
+
+class EvaluateRequest(BaseModel):
+    """Request to evaluate single query quality."""
+
+    query: str
+    filename: str
+    top_k: int = Field(3, ge=1, le=10, description="Number of top results to evaluate")
+
+
+class EvaluateResponse(BaseModel):
+    """Response from single query evaluation."""
+
+    query: str
+    metrics: dict[str, float]
+    retrieved_chunks: list[int]
+    relevant_chunks: list[int]
+    relevance_scores: list[int]
+
+
+class BatchEvaluateRequest(BaseModel):
+    """Request to evaluate all queries in a document."""
+
+    filename: str
+    top_k: int = Field(3, ge=1, le=10)
+
+
+class BatchEvaluateResponse(BaseModel):
+    """Response from batch evaluation."""
+
+    filename: str
+    total_queries: int
+    avg_metrics: dict[str, float]
+    per_query_metrics: list[dict]
 
 
 # ============================================================================
@@ -661,6 +770,346 @@ async def clear_all_documents(
     print(f"[RAG Service] 🗑️  Cleared {count} documents from store")
 
     return {"status": "cleared", "count": count}
+
+
+# ============================================================================
+# RAG Quality Metrics Endpoints
+# ============================================================================
+
+
+@app.post("/rag/generate_annotations", response_model=GenerateAnnotationsResponse)
+async def generate_annotations(
+    request: GenerateAnnotationsRequest,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> GenerateAnnotationsResponse:
+    """Auto-generate ground truth annotations using Ollama LLM.
+
+    SECURITY: Requires API key authentication.
+
+    Args:
+        request: Annotation generation parameters
+        x_api_key: API key (from header)
+
+    Returns:
+        Count of generated annotations
+
+    Example:
+        curl -X POST http://localhost:11435/rag/generate_annotations \\
+             -H "X-API-Key: your-key" \\
+             -H "Content-Type: application/json" \\
+             -d '{"filename":"diabetes.pdf","questions_per_chunk":2}'
+    """
+    if x_api_key != RAG_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if request.filename not in _document_store:
+        raise HTTPException(status_code=404, detail=f"Document '{request.filename}' not found")
+
+    try:
+        start_time = time.time()
+
+        chunks = _document_store[request.filename]["chunks"]
+
+        # Generate annotations with LLM
+        annotations = await generate_annotations_for_document(
+            filename=request.filename,
+            chunks=chunks,
+            questions_per_chunk=request.questions_per_chunk,
+            model=request.model,
+        )
+
+        # Store in ground truth store
+        _ground_truth_store[request.filename] = annotations
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        print(
+            f"[RAG Service] ✅ Generated {len(annotations)} annotations for {request.filename} "
+            f"in {elapsed_ms}ms"
+        )
+
+        return GenerateAnnotationsResponse(
+            filename=request.filename,
+            annotations_count=len(annotations),
+            chunks_processed=len(chunks),
+            status="success",
+            estimated_time_ms=elapsed_ms,
+        )
+
+    except Exception as e:
+        print(f"[RAG Service] ❌ Annotation generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Annotation generation failed: {e}")
+
+
+@app.get("/rag/annotations/{filename}", response_model=AnnotationsResponse)
+async def get_annotations(
+    filename: str,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> AnnotationsResponse:
+    """Get existing ground truth annotations for a document.
+
+    SECURITY: Requires API key authentication.
+
+    Example:
+        curl -X GET http://localhost:11435/rag/annotations/diabetes.pdf \\
+             -H "X-API-Key: your-key"
+    """
+    if x_api_key != RAG_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if filename not in _ground_truth_store:
+        raise HTTPException(
+            status_code=404, detail=f"No annotations found for '{filename}'"
+        )
+
+    annotations = _ground_truth_store[filename]
+
+    return AnnotationsResponse(
+        filename=filename,
+        annotations=[AnnotationEntry(**ann) for ann in annotations],
+        count=len(annotations),
+    )
+
+
+@app.put("/rag/annotations/{filename}")
+async def update_annotation(
+    filename: str,
+    request: UpdateAnnotationRequest,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> dict:
+    """Update/validate annotation manually.
+
+    Use this to correct LLM-generated annotations.
+
+    Example:
+        curl -X PUT http://localhost:11435/rag/annotations/diabetes.pdf \\
+             -H "X-API-Key: your-key" \\
+             -H "Content-Type: application/json" \\
+             -d '{"query":"What is blood sugar?","relevant_chunks":[5],"relevance_scores":[3],"validated":true}'
+    """
+    if x_api_key != RAG_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if filename not in _ground_truth_store:
+        raise HTTPException(
+            status_code=404, detail=f"No annotations found for '{filename}'"
+        )
+
+    # Find and update annotation with matching query
+    annotations = _ground_truth_store[filename]
+    found = False
+
+    for ann in annotations:
+        if ann["query"] == request.query:
+            ann["relevant_chunks"] = request.relevant_chunks
+            ann["relevance_scores"] = request.relevance_scores
+            ann["validated"] = request.validated
+            ann["source"] = "manual"  # Mark as manually edited
+            found = True
+            break
+
+    if not found:
+        # Add new annotation
+        annotations.append(
+            {
+                "query": request.query,
+                "relevant_chunks": request.relevant_chunks,
+                "relevance_scores": request.relevance_scores,
+                "source": "manual",
+                "validated": request.validated,
+            }
+        )
+
+    print(f"[RAG Service] ✅ Updated annotation for '{filename}': {request.query}")
+
+    return {"status": "updated", "query": request.query, "validated": request.validated}
+
+
+@app.post("/rag/evaluate", response_model=EvaluateResponse)
+async def evaluate_query(
+    request: EvaluateRequest,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> EvaluateResponse:
+    """Evaluate quality of a single query using RAG metrics.
+
+    SECURITY: Requires API key authentication.
+
+    Returns: Recall@k, Precision@k, MRR, NDCG@k
+
+    Example:
+        curl -X POST http://localhost:11435/rag/evaluate \\
+             -H "X-API-Key: your-key" \\
+             -H "Content-Type: application/json" \\
+             -d '{"query":"What is blood sugar?","filename":"diabetes.pdf","top_k":3}'
+    """
+    if x_api_key != RAG_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if request.filename not in _document_store:
+        raise HTTPException(status_code=404, detail=f"Document '{request.filename}' not found")
+
+    if request.filename not in _ground_truth_store:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No ground truth annotations for '{request.filename}'. Generate annotations first.",
+        )
+
+    # 1. Execute RAG query internally
+    if _model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet")
+
+    try:
+        # Get query embedding
+        query_embedding = _model.encode(
+            [request.query], convert_to_numpy=True, show_progress_bar=False, device=DEVICE
+        )[0]
+
+        # Search in document
+        doc_data = _document_store[request.filename]
+        chunks = doc_data["chunks"]
+        embeddings = doc_data["embeddings"]
+
+        # Compute similarities
+        query_norm = query_embedding / np.linalg.norm(query_embedding)
+        embeddings_norm = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        similarities = embeddings_norm @ query_norm
+
+        # Get top-k chunk indices
+        top_indices = np.argsort(similarities)[::-1][: request.top_k]
+        retrieved_chunks = top_indices.tolist()
+
+        # 2. Find ground truth for this query
+        ground_truth_annotations = _ground_truth_store[request.filename]
+        ground_truth = None
+
+        for ann in ground_truth_annotations:
+            if ann["query"].strip().lower() == request.query.strip().lower():
+                ground_truth = ann
+                break
+
+        if not ground_truth:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No ground truth found for query: '{request.query}'",
+            )
+
+        relevant_chunks = ground_truth["relevant_chunks"]
+        relevance_scores_list = ground_truth["relevance_scores"]
+
+        # Build relevance scores dict
+        relevance_scores = {
+            chunk_id: score
+            for chunk_id, score in zip(relevant_chunks, relevance_scores_list)
+        }
+
+        # 3. Compute all metrics
+        metrics = compute_all_metrics(
+            retrieved=retrieved_chunks,
+            relevant=relevant_chunks,
+            relevance_scores=relevance_scores,
+            k=request.top_k,
+        )
+
+        print(
+            f"[RAG Service] 📊 Evaluated query '{request.query}': "
+            f"Recall@{request.top_k}={metrics[f'recall@{request.top_k}']:.2f}"
+        )
+
+        return EvaluateResponse(
+            query=request.query,
+            metrics=metrics,
+            retrieved_chunks=retrieved_chunks,
+            relevant_chunks=relevant_chunks,
+            relevance_scores=relevance_scores_list,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Evaluation failed: {e}")
+
+
+@app.post("/rag/batch_evaluate", response_model=BatchEvaluateResponse)
+async def batch_evaluate(
+    request: BatchEvaluateRequest,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> BatchEvaluateResponse:
+    """Evaluate all queries for a document (average metrics).
+
+    SECURITY: Requires API key authentication.
+
+    Example:
+        curl -X POST http://localhost:11435/rag/batch_evaluate \\
+             -H "X-API-Key: your-key" \\
+             -H "Content-Type: application/json" \\
+             -d '{"filename":"diabetes.pdf","top_k":3}'
+    """
+    if x_api_key != RAG_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    if request.filename not in _ground_truth_store:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No annotations for '{request.filename}'. Generate annotations first.",
+        )
+
+    annotations = _ground_truth_store[request.filename]
+
+    if not annotations:
+        raise HTTPException(status_code=404, detail=f"No queries found for '{request.filename}'")
+
+    # Evaluate each query
+    per_query_metrics = []
+    metric_sums: dict[str, float] = {}
+
+    for ann in annotations:
+        query = ann["query"]
+
+        # Call evaluate_query for each annotation
+        try:
+            eval_request = EvaluateRequest(
+                query=query, filename=request.filename, top_k=request.top_k
+            )
+
+            # Reuse evaluation logic
+            result = await evaluate_query(eval_request, x_api_key=x_api_key)
+
+            per_query_metrics.append(
+                {
+                    "query": query,
+                    "metrics": result.metrics,
+                    "retrieved_chunks": result.retrieved_chunks,
+                    "relevant_chunks": result.relevant_chunks,
+                }
+            )
+
+            # Accumulate sums for averaging
+            for metric_name, value in result.metrics.items():
+                metric_sums[metric_name] = metric_sums.get(metric_name, 0.0) + value
+
+        except HTTPException as e:
+            # Skip queries without ground truth
+            if e.status_code == 404:
+                continue
+            raise
+
+    # Compute averages
+    total_queries = len(per_query_metrics)
+    avg_metrics = {
+        metric_name: total / total_queries for metric_name, total in metric_sums.items()
+    }
+
+    print(
+        f"[RAG Service] 📊 Batch evaluated {request.filename}: "
+        f"{total_queries} queries, avg Recall@{request.top_k}={avg_metrics.get(f'recall@{request.top_k}', 0.0):.2f}"
+    )
+
+    return BatchEvaluateResponse(
+        filename=request.filename,
+        total_queries=total_queries,
+        avg_metrics=avg_metrics,
+        per_query_metrics=per_query_metrics,
+    )
 
 
 @app.get("/rag/health", response_model=HealthResponse)
