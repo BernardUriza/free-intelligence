@@ -25,7 +25,7 @@ from backend.core.domain.clinic.services.doctor_limits import (
     get_doctor_limit_info,
     validate_can_add_doctor,
 )
-from backend.api.audit.services.di_audit_service import get_audit_service
+from backend.api.audit.dependencies import get_audit_service
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.infrastructure.auth.utils import require_superadmin, validate_clinic_access

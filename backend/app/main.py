@@ -49,17 +49,15 @@ async def lifespan(app: FastAPI):
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
 
-    # Configure Event Bus with HDF5 store
-    try:
-        from infrastructure.events.application.event_bus import configure_event_bus
-        from infrastructure.events.infrastructure.hdf5_store import HDF5EventStore
-
-        event_store = HDF5EventStore()
-        configure_event_bus(event_store)
-        logger.info("EVENT_BUS_INITIALIZED", store="HDF5EventStore")
-    except Exception as e:
-        logger.warning("EVENT_BUS_INIT_FAILED", error=str(e))
-        # Don't fail startup - events will be fire-and-forget without persistence
+    # TODO(event-bus): Event bus refactored, needs update
+    # Configure Event Bus with in-memory store
+    # try:
+    #     from utils.common.event_bus import InMemoryEventBus
+    #     event_bus = InMemoryEventBus()
+    #     logger.info("EVENT_BUS_INITIALIZED", store="InMemoryEventBus")
+    # except Exception as e:
+    #     logger.warning("EVENT_BUS_INIT_FAILED", error=str(e))
+    #     # Don't fail startup - events will be fire-and-forget without persistence
 
     yield
 

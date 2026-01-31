@@ -33,6 +33,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # Assistant & Personas
     from backend.services.assistant.api.public import aurity_personas
+    from backend.services.assistant.api.public.assistant_history import router as assistant_history_router
 
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
@@ -84,6 +85,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # System Resources
     from backend.infrastructure.system.api.public import system_resources
+    from backend.infrastructure.system.api.public.system import router as system_info_router
 
     # Timeline
     from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
@@ -113,6 +115,12 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(public_workflows_router)  # AURITY orchestrator
     public_app.include_router(timeline.router)  # Timeline/sessions listing
     public_app.include_router(aurity_personas.router)  # Personas list (public)
+    public_app.include_router(
+        assistant_history_router,
+        prefix="/api/workflows/aurity/assistant/history",
+        tags=["assistant-history"],
+    )  # Assistant conversation history
+    public_app.include_router(system_info_router)  # System info (LLM status, disk usage)
     public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
     public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
     public_app.include_router(

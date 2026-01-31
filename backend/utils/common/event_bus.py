@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any, Dict, List
 
-from ..interfaces.ievent_bus import IEventBus
+from backend.infrastructure.interfaces.ievent_bus import IEventBus
 
 
 class InMemoryEventBus(IEventBus):

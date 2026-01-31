@@ -383,16 +383,59 @@ info: ## Show project information
 # Dev Commands (Active)
 # ============================================================================
 
-dev-all: ## Start all services with cloud-dev (tunnel + backend + frontend)
-	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all-cloud
+init-storage: ## Initialize HDF5 storage (corpus.h5)
+	@echo "📦 Initializing storage..."
+	@mkdir -p storage
+	@if [ ! -f storage/corpus.h5 ]; then \
+		echo "Creating corpus.h5..."; \
+		cd backend && PYTHONPATH=. $(PY) -c "import h5py; h5py.File('../storage/corpus.h5', 'w').close()"; \
+		echo "✅ corpus.h5 created"; \
+	else \
+		echo "✅ corpus.h5 already exists"; \
+	fi
 
-dev-all-local: ## Start all services without tunnel (local-only dev, faster)
-	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all
+dev-all-local: ## Start backend + frontend (local-only, no tunnel)
+	@echo "🚀 Starting Aurity dev stack (local-only)..."
+	@mkdir -p logs
+	@echo "📦 [1/3] Checking storage..."
+	@test -f storage/corpus.h5 || $(MAKE) init-storage
+	@echo "🔧 [2/3] Starting backend (port $(BACKEND_PORT))..."
+	@bash -c 'cd backend && PYTHONPATH=$(PWD) $(PY) -m uvicorn app.main:app --reload --port $(BACKEND_PORT) --log-level info > $(PWD)/logs/backend-dev.log 2>&1 & echo $$! > $(PWD)/logs/backend.pid'
+	@sleep 2
+	@echo "🎨 [3/3] Starting frontend (port $(FRONTEND_PORT))..."
+	@bash -c 'cd apps/aurity && pnpm dev --port $(FRONTEND_PORT) > $(PWD)/logs/frontend-aurity-dev.log 2>&1 & echo $$! > $(PWD)/logs/frontend.pid'
+	@sleep 3
+	@if [ -f logs/backend.pid ]; then echo "✅ Backend PID: $$(cat logs/backend.pid)"; else echo "⚠️  Backend PID file not created"; fi
+	@if [ -f logs/frontend.pid ]; then echo "✅ Frontend PID: $$(cat logs/frontend.pid)"; else echo "⚠️  Frontend PID file not created"; fi
+	@echo ""
+	@echo "  📊 Backend:  http://localhost:$(BACKEND_PORT)/api/health"
+	@echo "  🌐 Frontend: http://localhost:$(FRONTEND_PORT)"
+	@echo ""
+	@echo "  📝 Logs:"
+	@echo "     tail -f logs/backend-dev.log"
+	@echo "     tail -f logs/frontend-aurity-dev.log"
+	@echo ""
+	@echo "  🛑 Stop: make dev-kill"
 
-dev-kill: ## Nuclear cleanup - kill ALL FI processes
-	@PYTHONPATH=backend/src $(PY) -m fi_cli dev kill-all
+dev-all: dev-all-local ## Alias for dev-all-local (cloud-dev requires fi-monitor)
 
-dev-restart: dev-kill dev-all ## Restart everything (kill + start)
+dev-kill: ## Stop all dev services (backend + frontend)
+	@echo "🛑 Stopping dev services..."
+	@if [ -f logs/backend.pid ]; then \
+		kill $$(cat logs/backend.pid) 2>/dev/null || true; \
+		rm logs/backend.pid; \
+		echo "✅ Backend stopped"; \
+	fi
+	@if [ -f logs/frontend.pid ]; then \
+		kill $$(cat logs/frontend.pid) 2>/dev/null || true; \
+		rm logs/frontend.pid; \
+		echo "✅ Frontend stopped"; \
+	fi
+	@lsof -ti:$(BACKEND_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || true
+	@echo "✅ All services stopped"
+
+dev-restart: dev-kill dev-all-local ## Restart all services
 
 # ============================================================================
 # Turborepo Commands

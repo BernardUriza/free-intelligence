@@ -43,7 +43,7 @@ import tempfile
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.api.audit.services.di_audit_service import get_audit_service
+from backend.api.audit.dependencies import get_audit_service
 from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository

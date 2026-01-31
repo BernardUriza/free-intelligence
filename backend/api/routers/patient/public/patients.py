@@ -15,7 +15,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List
 
-from backend.api.audit.services.di_audit_service import get_audit_service
+from backend.api.audit.dependencies import get_audit_service
 from backend.database import get_db_dependency
 from backend.models.db_models import Patient
 from backend.utils.common.logging.logger import get_logger
