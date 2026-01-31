@@ -25,6 +25,7 @@ import io
 from typing import Any
 
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
+from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
 from backend.services.document.domain.models import (
     DocumentMetadata,
     DocumentOrigin,
@@ -131,9 +132,13 @@ class SearchResponse(BaseModel):
 
 
 def get_document_service() -> DocumentService:
-    """Get document service instance (singleton)."""
-    # In production, could use DI container or service registry
-    return DocumentService()
+    """Get document service instance with HDF5 repository.
+
+    Note: In production, this could use DI container to manage repository lifecycle.
+    For now, we create repository per-request (stateless, thread-safe).
+    """
+    repository = HDF5DocumentRepository()
+    return DocumentService(repository=repository)
 
 
 # ============================================================================

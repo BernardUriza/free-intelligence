@@ -19,7 +19,6 @@ import uuid
 from datetime import datetime
 from typing import BinaryIO
 
-from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
 from backend.repositories.interfaces.idocument_repository import IDocumentRepository
 from backend.services.document.domain.models import (
     Document,
@@ -61,9 +60,14 @@ class DocumentService:
 
     def __init__(
         self,
-        repository: IDocumentRepository | None = None
+        repository: IDocumentRepository,
     ):
-        self.repository = repository or HDF5DocumentRepository()
+        """Initialize document service with dependencies.
+
+        Args:
+            repository: Document repository implementation (required)
+        """
+        self.repository = repository
 
     # =============================================================================
     # DOCUMENT UPLOAD & PROCESSING
