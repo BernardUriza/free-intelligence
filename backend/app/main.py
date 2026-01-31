@@ -49,15 +49,14 @@ async def lifespan(app: FastAPI):
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
 
-    # TODO(event-bus): Event bus refactored, needs update
-    # Configure Event Bus with in-memory store
-    # try:
-    #     from utils.common.event_bus import InMemoryEventBus
-    #     event_bus = InMemoryEventBus()
-    #     logger.info("EVENT_BUS_INITIALIZED", store="InMemoryEventBus")
-    # except Exception as e:
-    #     logger.warning("EVENT_BUS_INIT_FAILED", error=str(e))
-    #     # Don't fail startup - events will be fire-and-forget without persistence
+    # Verify Event Bus is accessible via Container (lazy init)
+    try:
+        from backend.container import get_container
+        _ = get_container().get_event_bus()  # Trigger lazy initialization
+        logger.info("EVENT_BUS_READY", implementation="InMemoryEventBus", status="available")
+    except Exception as e:
+        logger.warning("EVENT_BUS_VERIFICATION_FAILED", error=str(e))
+        # Don't fail startup - services will handle missing event bus gracefully
 
     yield
 
