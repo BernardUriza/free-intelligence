@@ -1,192 +1,198 @@
-"""Longitudinal memory repository interface.
+"""IMemoryStore - Interface for longitudinal memory storage (audio transcriptions).
 
-Stores patient history, session context, and learned preferences.
-Decouples memory service from HDF5/PostgreSQL implementation.
+Abstracts audio transcription storage (HDF5, PostgreSQL, etc.) from business logic.
+Chat messages are handled separately via ConversationMemory (already abstracted).
 
-Author: Claude Code
-Created: 2026-01-28
-Card: Backend Refactor Phase 2 - True Dependency Injection
+Clean Architecture:
+- DIMemoryService (business logic) → IMemoryStore (interface) → HDF5MemoryStore (implementation)
+
+Benefits:
+- Tests can use in-memory mock store
+- Easy to swap HDF5 → PostgreSQL
+- Separation of concerns (service logic vs storage)
+
+Author: Claude Sonnet 4.5
+Created: 2026-01-31 (Replaced patient memory interface with audio-focused one)
+Card: DI Refactor Phase 2.4 - Memory Service DI
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import TypedDict
+
+
+# ============================================================================
+# Data Transfer Objects
+# ============================================================================
+
+
+class AudioEventDict(TypedDict, total=False):
+    """Audio transcription event data (from HDF5 chunk).
+
+    Fields:
+    - session_id: Session identifier
+    - chunk_number: Chunk index within session
+    - transcript: Transcribed text
+    - duration: Audio duration in seconds (optional)
+    - confidence: Transcription confidence score 0-1 (optional)
+    - language: Detected language code (optional)
+    - stt_provider: Speech-to-text provider name (optional)
+    - timestamp: Unix timestamp in seconds
+    - created_at: ISO 8601 timestamp string (optional)
+    """
+
+    session_id: str
+    chunk_number: int
+    transcript: str
+    duration: float | None
+    confidence: float | None
+    language: str | None
+    stt_provider: str | None
+    timestamp: int  # Unix timestamp (seconds)
+    created_at: str  # ISO string
+
+
+class AudioStatsDict(TypedDict):
+    """Audio transcription statistics.
+
+    Fields:
+    - count: Total number of audio chunks
+    - oldest_timestamp: Unix timestamp of oldest chunk (None if no chunks)
+    - newest_timestamp: Unix timestamp of newest chunk (None if no chunks)
+    - unique_sessions: Number of unique sessions with audio
+    """
+
+    count: int
+    oldest_timestamp: int | None
+    newest_timestamp: int | None
+    unique_sessions: int
+
+
+# ============================================================================
+# IMemoryStore Interface
+# ============================================================================
 
 
 class IMemoryStore(ABC):
-    """Longitudinal patient memory storage.
+    """Interface for longitudinal memory storage (audio transcriptions).
 
     Responsibilities:
-    - Store patient memories (clinical, contextual, preferences)
-    - Retrieve memories by patient, type, and recency
-    - Update memory importance/relevance scores
-    - Delete expired or irrelevant memories
+    - Store and retrieve audio transcription chunks
+    - Filter by doctor_id (multi-tenancy security)
+    - Search transcriptions by text query
+    - Provide statistics
 
-    Memory Types:
-    - clinical: Diagnoses, medications, allergies
-    - contextual: Session summaries, conversation patterns
-    - preference: Communication style, language preferences
-    - temporal: Time-series events (vitals, symptoms)
+    Security:
+    - ALL methods MUST filter by doctor_id (prevent cross-doctor access)
+    - Sessions without owner metadata MUST be excluded (legacy data protection)
+
+    Note:
+    - Chat messages are handled separately (via ConversationMemory)
+    - This interface focuses on audio transcriptions only
 
     Clean Architecture Benefits:
-    - Memory service doesn't know about storage backend
+    - DIMemoryService doesn't know about HDF5/PostgreSQL
     - Easy to test with in-memory mock
-    - Can migrate from HDF5 to PostgreSQL/Redis without changing services
+    - Can swap storage backend without changing service
     """
 
     @abstractmethod
-    def store_memory(
+    def get_audio_events(
         self,
-        patient_id: str,
-        memory_type: str,
-        content: Dict[str, Any],
-        importance: float = 0.5,
-        tags: List[str] | None = None,
-    ) -> str:
-        """Store memory entry.
+        doctor_id: str,
+        start_ts: int | None = None,
+        end_ts: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[AudioEventDict], int]:
+        """Fetch audio transcription events for a doctor.
 
         Args:
-            patient_id: Patient UUID
-            memory_type: Memory category (clinical, contextual, preference, temporal)
-            content: Memory payload (flexible schema)
-            importance: Relevance score 0.0-1.0 (used for retrieval ranking)
-            tags: Optional tags for filtering (e.g., ["allergy", "medication"])
+            doctor_id: Doctor identifier (Auth0 user.sub)
+            start_ts: Optional start of time range (Unix seconds)
+            end_ts: Optional end of time range (Unix seconds)
+            limit: Maximum events to return
+            offset: Number of events to skip (pagination)
 
         Returns:
-            Memory ID (UUID)
+            Tuple of (events, total_count):
+            - events: List of audio event dicts (sorted newest first)
+            - total_count: Total matching events (for pagination)
 
-        Raises:
-            ValueError: If patient_id is empty or memory_type is invalid
-            IOError: If storage operation fails
+        Security:
+            MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
+
+        Example:
+            events, total = store.get_audio_events(
+                doctor_id="auth0|123",
+                start_ts=1640000000,
+                end_ts=1650000000,
+                limit=10,
+                offset=0,
+            )
         """
         pass
 
     @abstractmethod
-    def retrieve_memories(
+    def search_audio_events(
         self,
-        patient_id: str,
-        memory_type: str | None = None,
-        tags: List[str] | None = None,
-        limit: int = 10,
-        min_importance: float = 0.0,
-    ) -> List[Dict[str, Any]]:
-        """Retrieve recent memories for patient.
-
-        Args:
-            patient_id: Patient UUID
-            memory_type: Optional filter by type (None = all types)
-            tags: Optional filter by tags (AND logic - must have all tags)
-            limit: Maximum memories to return
-            min_importance: Minimum importance score threshold
-
-        Returns:
-            List of memory dicts with keys:
-                - memory_id: str
-                - patient_id: str
-                - memory_type: str
-                - content: Dict[str, Any]
-                - importance: float
-                - tags: List[str]
-                - created_at: str (ISO 8601)
-                - updated_at: str (ISO 8601)
-            Sorted by importance DESC, then created_at DESC
-
-        Raises:
-            IOError: If read operation fails
-        """
-        pass
-
-    @abstractmethod
-    def get_memory(self, memory_id: str) -> Dict[str, Any] | None:
-        """Retrieve specific memory by ID.
-
-        Args:
-            memory_id: Memory UUID
-
-        Returns:
-            Memory dict (see retrieve_memories for structure)
-            None if memory doesn't exist
-
-        Raises:
-            IOError: If read operation fails
-        """
-        pass
-
-    @abstractmethod
-    def update_memory(
-        self,
-        memory_id: str,
-        updates: Dict[str, Any],
-    ) -> bool:
-        """Update memory metadata (importance, tags, content).
-
-        Args:
-            memory_id: Memory UUID
-            updates: Dict of fields to update (importance, tags, content, etc.)
-
-        Returns:
-            True if update successful, False if memory not found
-
-        Raises:
-            IOError: If update operation fails
-        """
-        pass
-
-    @abstractmethod
-    def delete_memory(self, memory_id: str) -> bool:
-        """Delete memory entry.
-
-        Args:
-            memory_id: Memory UUID
-
-        Returns:
-            True if deletion successful, False if memory not found
-
-        Raises:
-            IOError: If delete operation fails
-        """
-        pass
-
-    @abstractmethod
-    def get_memory_count(
-        self,
-        patient_id: str,
-        memory_type: str | None = None,
-    ) -> int:
-        """Get total memory count for patient.
-
-        Args:
-            patient_id: Patient UUID
-            memory_type: Optional filter by type
-
-        Returns:
-            Number of memories (0 if patient doesn't exist)
-
-        Raises:
-            IOError: If read operation fails
-        """
-        pass
-
-    @abstractmethod
-    def search_memories(
-        self,
-        patient_id: str,
+        doctor_id: str,
         query: str,
-        memory_type: str | None = None,
-        limit: int = 5,
-    ) -> List[Dict[str, Any]]:
-        """Search memories by content (semantic or keyword search).
+        limit: int = 1000,
+    ) -> list[AudioEventDict]:
+        """Search audio transcriptions by text query.
 
         Args:
-            patient_id: Patient UUID
-            query: Search query string
-            memory_type: Optional filter by type
-            limit: Maximum results to return
+            doctor_id: Doctor identifier
+            query: Search query (case-insensitive substring match)
+            limit: Maximum results to return (default: 1000 for broad search)
 
         Returns:
-            List of memory dicts (see retrieve_memories for structure)
-            Sorted by relevance score
+            List of matching audio events (unsorted, unpaginated)
+            Caller is responsible for sorting and pagination.
 
-        Raises:
-            IOError: If search operation fails
+        Security:
+            MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
+
+        Note:
+            Uses case-insensitive substring matching (not full-text search).
+            For production, consider using vector search or Elasticsearch.
+
+        Example:
+            events = store.search_audio_events(
+                doctor_id="auth0|123",
+                query="diabetes",
+                limit=100,
+            )
         """
         pass
+
+    @abstractmethod
+    def get_audio_stats(
+        self,
+        doctor_id: str,
+    ) -> AudioStatsDict:
+        """Get statistics for audio transcriptions.
+
+        Args:
+            doctor_id: Doctor identifier
+
+        Returns:
+            Dict with keys:
+            - count: Total audio chunks
+            - oldest_timestamp: Unix seconds of oldest chunk (or None)
+            - newest_timestamp: Unix seconds of newest chunk (or None)
+            - unique_sessions: Number of unique sessions
+
+        Security:
+            MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
+
+        Example:
+            stats = store.get_audio_stats("auth0|123")
+            # {"count": 150, "oldest_timestamp": 1640000000, ...}
+        """
+        pass
+
+
+__all__ = ["IMemoryStore", "AudioEventDict", "AudioStatsDict"]

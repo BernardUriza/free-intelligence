@@ -1,14 +1,12 @@
 """Memory Service - Dependency Injection version.
 
-REFACTORED: Extracts business logic from inline router.
+REFACTORED: Uses IMemoryStore interface for HDF5 access (Phase 2.4 - Memory DI).
 Handles longitudinal memory (chat + audio transcriptions).
-
-Note: HDF5 access is still direct (not via repositories).
-Future Phase: Abstract HDF5 behind IMemoryStore interface.
 
 Author: Claude Code (extracted from longitudinal_memory.py)
 Created: 2026-01-28
-Card: Backend Refactor Phase 2.3 - Service Refactoring
+Updated: 2026-01-31 (Phase 2.4 - IMemoryStore interface injection)
+Card: Backend Refactor Phase 2.4 - Memory Service DI
 """
 
 from __future__ import annotations
@@ -16,11 +14,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-import h5py
+from backend.repositories.interfaces.imemory_store import IMemoryStore, AudioEventDict
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.validation import validate_dependency
 
 
 # ============================================================================
@@ -103,22 +100,25 @@ class DIMemoryService:
     Philosophy: "No existen sesiones. Solo una conversación infinita."
 
     Dependencies:
+    - IMemoryStore (required) - Abstracts audio transcription storage
     - ILogger (optional)
-    - HDF5 corpus path (TODO: abstract via IMemoryStore interface)
+
+    Clean Architecture:
+    - DIMemoryService (business logic) → IMemoryStore (interface) → HDF5MemoryStore (implementation)
     """
 
     def __init__(
         self,
-        corpus_path: str,
+        memory_store: IMemoryStore,
         logger: ILogger | None = None,
     ):
         """Initialize memory service with dependencies.
 
         Args:
-            corpus_path: Path to HDF5 corpus file
+            memory_store: Memory store implementation (e.g., HDF5MemoryStore)
             logger: Logger instance (defaults to module logger)
         """
-        self.corpus_path = corpus_path
+        self.memory_store = memory_store
         self.logger = logger or get_logger(__name__)
 
     def _parse_timestamp(self, ts: str | int | float) -> int:
@@ -196,163 +196,38 @@ class DIMemoryService:
         limit: int,
         offset: int,
     ) -> tuple[list[MemoryEvent], int]:
-        """Fetch audio transcription events from HDF5.
+        """Fetch audio transcription events via IMemoryStore.
 
-        Security: Filters events by doctor_id to ensure data isolation.
-        Sessions without owner metadata are excluded (legacy data).
+        Security: Filters events by doctor_id (delegated to memory_store).
         """
-        events: list[MemoryEvent] = []
-        total_count = 0
-
         try:
-            with h5py.File(self.corpus_path, "r") as f:
-                if "sessions" not in f:
-                    return [], 0
+            # Delegate to memory_store
+            audio_event_dicts, total_count = self.memory_store.get_audio_events(
+                doctor_id=doctor_id,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                limit=limit,
+                offset=offset,
+            )
 
-                sessions_group = f["sessions"]
-
-                # Collect all chunks with timestamps
-                all_chunks: list[tuple[int, str, dict]] = []  # (timestamp, session_id, chunk_data)
-
-                for session_id in sessions_group:
-                    try:
-                        session = sessions_group[session_id]
-
-                        # SECURITY: Check session ownership
-                        session_owner = None
-                        if "doctor_id" in session.attrs:
-                            session_owner = session.attrs["doctor_id"]
-                        elif "owner_id" in session.attrs:
-                            session_owner = session.attrs["owner_id"]
-                        elif "user_id" in session.attrs:
-                            session_owner = session.attrs["user_id"]
-
-                        # If session has owner, verify it matches
-                        if session_owner is not None:
-                            if isinstance(session_owner, bytes):
-                                session_owner = session_owner.decode("utf-8")
-                            if session_owner != doctor_id:
-                                continue  # Skip - not owned by this doctor
-                        else:
-                            # Legacy session without owner - log and skip for security
-                            self.logger.debug(
-                                "AUDIO_SESSION_NO_OWNER",
-                                session_id=session_id,
-                                action="skipped",
-                                reason="No owner metadata - security isolation",
-                            )
-                            continue
-
-                        if "tasks" not in session:  # type: ignore[operator]
-                            continue
-
-                        tasks = session["tasks"]
-                        if "TRANSCRIPTION" not in tasks:  # type: ignore[operator]
-                            continue
-
-                        trans_task = tasks["TRANSCRIPTION"]
-                        if "chunks" not in trans_task:  # type: ignore[operator]
-                            continue
-
-                        chunks_group = trans_task["chunks"]
-
-                        for chunk_name in chunks_group:
-                            chunk = chunks_group[chunk_name]
-
-                            # Get timestamp
-                            created_at = None
-                            if "created_at" in chunk:  # type: ignore[operator]
-                                created_at_ds = chunk["created_at"]
-                                if isinstance(created_at_ds, h5py.Dataset):
-                                    created_at = created_at_ds[()].decode("utf-8")
-
-                            if not created_at:
-                                continue
-
-                            ts = self._parse_timestamp(created_at)
-
-                            # Apply time range filter early
-                            if start_ts and ts < start_ts:
-                                continue
-                            if end_ts and ts > end_ts:
-                                continue
-
-                            # Read chunk data
-                            chunk_data = {
-                                "session_id": session_id,
-                                "chunk_name": chunk_name,
-                            }
-
-                            # Transcript
-                            if "transcript" in chunk:  # type: ignore[operator]
-                                ds = chunk["transcript"]
-                                if isinstance(ds, h5py.Dataset):
-                                    chunk_data["transcript"] = ds[()].decode("utf-8")
-
-                            # Duration
-                            if "duration" in chunk:  # type: ignore[operator]
-                                ds = chunk["duration"]
-                                if isinstance(ds, h5py.Dataset):
-                                    chunk_data["duration"] = float(ds[()])
-
-                            # Confidence
-                            if "confidence_score" in chunk:  # type: ignore[operator]
-                                ds = chunk["confidence_score"]
-                                if isinstance(ds, h5py.Dataset):
-                                    chunk_data["confidence"] = float(ds[()])
-
-                            # Language
-                            if "language" in chunk:  # type: ignore[operator]
-                                ds = chunk["language"]
-                                if isinstance(ds, h5py.Dataset):
-                                    chunk_data["language"] = ds[()].decode("utf-8")
-
-                            # STT Provider
-                            if "stt_provider" in chunk:  # type: ignore[operator]
-                                ds = chunk["stt_provider"]
-                                if isinstance(ds, h5py.Dataset):
-                                    chunk_data["stt_provider"] = ds[()].decode("utf-8")
-
-                            # Chunk number (extract from name like "chunk_0")
-                            try:
-                                chunk_data["chunk_number"] = int(chunk_name.split("_")[1])
-                            except (IndexError, ValueError):
-                                chunk_data["chunk_number"] = 0
-
-                            all_chunks.append((ts, session_id, chunk_data))
-
-                    except Exception as e:
-                        self.logger.warning(
-                            "AUDIO_SESSION_READ_ERROR",
-                            session_id=session_id,
-                            error=str(e),
-                        )
-                        continue
-
-                # Sort by timestamp (newest first)
-                all_chunks.sort(key=lambda x: x[0], reverse=True)
-                total_count = len(all_chunks)
-
-                # Apply pagination
-                paginated = all_chunks[offset : offset + limit]
-
-                # Convert to MemoryEvent
-                for ts, session_id, chunk_data in paginated:
-                    events.append(
-                        MemoryEvent(
-                            id=f"audio-{session_id}-{chunk_data.get('chunk_number', 0)}",
-                            timestamp=ts,
-                            event_type="transcription",
-                            content=chunk_data.get("transcript", ""),
-                            source="audio",
-                            session_id=session_id,
-                            chunk_number=chunk_data.get("chunk_number"),
-                            duration=chunk_data.get("duration"),
-                            confidence=chunk_data.get("confidence"),
-                            language=chunk_data.get("language"),
-                            stt_provider=chunk_data.get("stt_provider"),
-                        )
+            # Convert AudioEventDict → MemoryEvent
+            events: list[MemoryEvent] = []
+            for event_dict in audio_event_dicts:
+                events.append(
+                    MemoryEvent(
+                        id=f"audio-{event_dict['session_id']}-{event_dict['chunk_number']}",
+                        timestamp=event_dict["timestamp"],
+                        event_type="transcription",
+                        content=event_dict["transcript"],
+                        source="audio",
+                        session_id=event_dict["session_id"],
+                        chunk_number=event_dict.get("chunk_number"),
+                        duration=event_dict.get("duration"),
+                        confidence=event_dict.get("confidence"),
+                        language=event_dict.get("language"),
+                        stt_provider=event_dict.get("stt_provider"),
                     )
+                )
 
             return events, total_count
 
@@ -544,64 +419,30 @@ class DIMemoryService:
 
         # Search audio transcriptions
         try:
-            with h5py.File(self.corpus_path, "r") as f:
-                if "sessions" in f:
-                    for session_key in f["sessions"]:
-                        session_grp = f["sessions"][session_key]
+            # Delegate to memory_store (returns unsorted list, no pagination)
+            audio_event_dicts = self.memory_store.search_audio_events(
+                doctor_id=doctor_id,
+                query=query,
+                limit=1000,  # Search larger window
+            )
 
-                        # SECURITY: Check session ownership
-                        session_owner = None
-                        if "doctor_id" in session_grp.attrs:
-                            session_owner = session_grp.attrs["doctor_id"]
-                        elif "owner_id" in session_grp.attrs:
-                            session_owner = session_grp.attrs["owner_id"]
-                        elif "user_id" in session_grp.attrs:
-                            session_owner = session_grp.attrs["user_id"]
-
-                        if session_owner is not None:
-                            if isinstance(session_owner, bytes):
-                                session_owner = session_owner.decode("utf-8")
-                            if session_owner != doctor_id:
-                                continue  # Skip - not owned by this doctor
-                        else:
-                            continue  # Skip legacy sessions without owner
-
-                        if "tasks" not in session_grp:
-                            continue
-
-                        tasks_grp = session_grp["tasks"]
-                        if "TRANSCRIPTION" not in tasks_grp:
-                            continue
-
-                        trans_grp = tasks_grp["TRANSCRIPTION"]
-
-                        for chunk_key in trans_grp:
-                            chunk_ds = trans_grp[chunk_key]
-
-                            if "transcript" not in chunk_ds.attrs:
-                                continue
-
-                            transcript = chunk_ds.attrs["transcript"]
-
-                            # Check if query matches
-                            if query_lower in transcript.lower():
-                                ts = chunk_ds.attrs.get("timestamp", 0)
-
-                                matching_events.append(
-                                    MemoryEvent(
-                                        id=f"audio_{session_key}_{chunk_key}",
-                                        timestamp=self._parse_timestamp(ts),
-                                        event_type="transcription",
-                                        content=transcript,
-                                        source="audio",
-                                        session_id=session_key,
-                                        chunk_number=int(chunk_key.split("_")[-1]) if "_" in chunk_key else None,
-                                        duration=chunk_ds.attrs.get("duration"),
-                                        confidence=chunk_ds.attrs.get("confidence"),
-                                        language=chunk_ds.attrs.get("language"),
-                                        stt_provider=chunk_ds.attrs.get("stt_provider"),
-                                    )
-                                )
+            # Convert AudioEventDict → MemoryEvent
+            for event_dict in audio_event_dicts:
+                matching_events.append(
+                    MemoryEvent(
+                        id=f"audio_{event_dict['session_id']}_chunk_{event_dict['chunk_number']}",
+                        timestamp=event_dict["timestamp"],
+                        event_type="transcription",
+                        content=event_dict["transcript"],
+                        source="audio",
+                        session_id=event_dict["session_id"],
+                        chunk_number=event_dict.get("chunk_number"),
+                        duration=event_dict.get("duration"),
+                        confidence=event_dict.get("confidence"),
+                        language=event_dict.get("language"),
+                        stt_provider=event_dict.get("stt_provider"),
+                    )
+                )
         except Exception as e:
             self.logger.warning("AUDIO_SEARCH_ERROR", error=str(e))
 
@@ -647,7 +488,7 @@ class DIMemoryService:
         audio_count = 0
         oldest_ts: int | None = None
         newest_ts: int | None = None
-        unique_sessions: set[str] = set()
+        unique_audio_sessions = 0
 
         # Chat stats
         try:
@@ -657,60 +498,15 @@ class DIMemoryService:
         except Exception:
             pass
 
-        # Audio stats (quick scan) - SECURITY: filter by doctor_id
-        all_timestamps: list[int] = []
+        # Audio stats - SECURITY: filter by doctor_id (delegated to memory_store)
         try:
-            with h5py.File(self.corpus_path, "r") as f:
-                if "sessions" in f:
-                    sessions_group = f["sessions"]
-                    for session_id in sessions_group:
-                        try:
-                            session = sessions_group[session_id]
-
-                            # SECURITY: Check session ownership
-                            session_owner = None
-                            if "doctor_id" in session.attrs:
-                                session_owner = session.attrs["doctor_id"]
-                            elif "owner_id" in session.attrs:
-                                session_owner = session.attrs["owner_id"]
-                            elif "user_id" in session.attrs:
-                                session_owner = session.attrs["user_id"]
-
-                            if session_owner is not None:
-                                if isinstance(session_owner, bytes):
-                                    session_owner = session_owner.decode("utf-8")
-                                if session_owner != doctor_id:
-                                    continue  # Skip - not owned by this doctor
-                            else:
-                                continue  # Skip legacy sessions without owner
-
-                            unique_sessions.add(session_id)
-                            if "tasks" in session:  # type: ignore[operator]
-                                tasks = session["tasks"]
-                                if "TRANSCRIPTION" in tasks:  # type: ignore[operator]
-                                    trans = tasks["TRANSCRIPTION"]
-                                    if "chunks" in trans:  # type: ignore[operator]
-                                        chunks_grp = trans["chunks"]
-                                        audio_count += len(chunks_grp.keys())
-
-                                        # Collect timestamps for oldest/newest
-                                        for chunk_name in chunks_grp:
-                                            chunk = chunks_grp[chunk_name]
-                                            if "created_at" in chunk:  # type: ignore[operator]
-                                                created_at_ds = chunk["created_at"]
-                                                if isinstance(created_at_ds, h5py.Dataset):
-                                                    created_at = created_at_ds[()].decode("utf-8")
-                                                    ts = self._parse_timestamp(created_at)
-                                                    all_timestamps.append(ts)
-                        except Exception:
-                            continue
+            audio_stats_dict = self.memory_store.get_audio_stats(doctor_id=doctor_id)
+            audio_count = audio_stats_dict["count"]
+            oldest_ts = audio_stats_dict["oldest_timestamp"]
+            newest_ts = audio_stats_dict["newest_timestamp"]
+            unique_audio_sessions = audio_stats_dict["unique_sessions"]
         except Exception:
-            pass
-
-        # Calculate oldest/newest from collected timestamps
-        if all_timestamps:
-            oldest_ts = min(all_timestamps)
-            newest_ts = max(all_timestamps)
+            pass  # Keep defaults (audio_count=0, oldest_ts=None, newest_ts=None)
 
         return {
             "total_events": chat_count + audio_count,
@@ -718,5 +514,5 @@ class DIMemoryService:
             "audio_transcriptions": audio_count,
             "oldest_timestamp": oldest_ts,
             "newest_timestamp": newest_ts,
-            "unique_sessions": len(unique_sessions),
+            "unique_sessions": unique_audio_sessions,  # Audio sessions (chat tracked separately)
         }
