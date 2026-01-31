@@ -17,21 +17,11 @@ from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
-# FIXME: infrastructure.events doesn't exist - stubbed
-# from infrastructure.events.application.event_bus import get_event_bus
-# from infrastructure.events.domain.events import (
-#     TranscriptionChunkEvent,
-#     TranscriptionEndedEvent,
-#     TranscriptionStartedEvent,
-# )
-
-# Stubs for events
+# Event bus via dependency injection Container
 def get_event_bus():
-    """Stub event bus."""
-    class StubEventBus:
-        def publish(self, *args, **kwargs):
-            pass
-    return StubEventBus()
+    """Get event bus from Container (lazy initialization)."""
+    from backend.container import get_container
+    return get_container().get_event_bus()
 
 class TranscriptionChunkEvent:
     """Stub event."""

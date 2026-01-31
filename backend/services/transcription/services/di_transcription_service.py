@@ -24,13 +24,11 @@ from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.validation import validate_dependency
 
-# Event bus stub (Phase 3 will implement real event bus)
+# Event bus via dependency injection Container
 def get_event_bus():
-    """Stub event bus - to be replaced in Phase 3."""
-    class StubEventBus:
-        async def publish(self, *args, **kwargs):
-            pass
-    return StubEventBus()
+    """Get event bus from Container (lazy initialization)."""
+    from backend.container import get_container
+    return get_container().get_event_bus()
 
 
 class TranscriptionChunkEvent:
