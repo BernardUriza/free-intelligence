@@ -55,13 +55,17 @@ def get_triage_service_dep() -> TriageService:
     """Get triage service - direct instantiation (Phase 4A).
 
     Returns:
-        TriageService instance with default data directory
+        TriageService instance with explicit configuration from environment
 
     Note:
         No longer uses service locator (get_container).
-        Uses default data_dir from env or ./data/triage_buffers.
+        Explicit data_dir from TRIAGE_DATA_DIR env var (fallback: ./data/triage_buffers).
     """
-    return TriageService(data_dir=None)
+    from pathlib import Path
+    import os
+
+    data_dir = Path(os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"))
+    return TriageService(data_dir=data_dir)
 
 
 def get_audit_service_dep() -> AuditService:

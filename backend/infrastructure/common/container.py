@@ -391,8 +391,12 @@ class DIContainer:
         """
         if self._triage_service is None:
             try:
-                # TriageService takes optional data_dir parameter, using default from env or ./data/triage_buffers
-                self._triage_service = TriageService(data_dir=None)
+                # TriageService takes required data_dir parameter from env or default
+                import os
+                from pathlib import Path
+
+                data_dir = Path(os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"))
+                self._triage_service = TriageService(data_dir=data_dir)
                 _get_logger().info("TriageService initialized")
             except OSError as e:
                 _get_logger().error(f"TRIAGE_SERVICE_INIT_FAILED: {e!s}")

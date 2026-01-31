@@ -32,13 +32,13 @@ class TriageService:
     - Buffer retrieval and metadata management
     """
 
-    def __init__(self, data_dir: Path | None = None) -> None:
+    def __init__(self, data_dir: Path) -> None:
         """Initialize service with triage data directory.
 
         Args:
-            data_dir: Directory for triage buffers (default: ./data/triage_buffers)
+            data_dir: Directory for triage buffers (required, caller must provide)
         """
-        self.data_dir = data_dir or Path(os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"))
+        self.data_dir = data_dir
         self.data_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"TriageService initialized with data_dir={self.data_dir}")
 
