@@ -195,6 +195,110 @@ class TestProcessChunk:
         mock_logger.error.assert_called()
 
 
+class TestEventPublishing:
+    """Tests for event bus integration - prevents stub regressions."""
+
+    @pytest.mark.asyncio
+    @patch("backend.services.transcription.services.di_transcription_service.get_event_bus")
+    @patch("backend.infrastructure.workers.executor_pool.spawn_worker")
+    async def test_publishes_transcription_started_event_on_first_chunk(
+        self, mock_spawn_worker, mock_get_event_bus, service
+    ):
+        """Test that TranscriptionStartedEvent is published for chunk 0.
+
+        This test prevents regression to stub event bus that silently dropped events.
+        """
+        # Arrange
+        mock_event_bus = AsyncMock()
+        mock_get_event_bus.return_value = mock_event_bus
+
+        session_id = "test-session-123"
+        chunk_number = 0  # First chunk triggers TranscriptionStartedEvent
+        audio_bytes = b"fake-audio-data"
+
+        # Act
+        await service.process_chunk(
+            session_id=session_id,
+            chunk_number=chunk_number,
+            audio_bytes=audio_bytes,
+        )
+
+        # Assert
+        assert mock_event_bus.publish.call_count == 2  # StartedEvent + ChunkEvent
+
+        # Verify TranscriptionStartedEvent was published
+        first_call = mock_event_bus.publish.call_args_list[0]
+        event = first_call[0][0]
+        assert event.__class__.__name__ == "TranscriptionStartedEvent"
+
+    @pytest.mark.asyncio
+    @patch("backend.services.transcription.services.di_transcription_service.get_event_bus")
+    @patch("backend.infrastructure.workers.executor_pool.spawn_worker")
+    async def test_publishes_transcription_chunk_event(
+        self, mock_spawn_worker, mock_get_event_bus, service
+    ):
+        """Test that TranscriptionChunkEvent is published for every chunk.
+
+        This test prevents regression to stub event bus that silently dropped events.
+        """
+        # Arrange
+        mock_event_bus = AsyncMock()
+        mock_get_event_bus.return_value = mock_event_bus
+
+        session_id = "test-session-123"
+        chunk_number = 5  # Non-zero chunk (only ChunkEvent, no StartedEvent)
+        audio_bytes = b"fake-audio-data"
+
+        # Act
+        await service.process_chunk(
+            session_id=session_id,
+            chunk_number=chunk_number,
+            audio_bytes=audio_bytes,
+        )
+
+        # Assert
+        assert mock_event_bus.publish.call_count == 1  # Only ChunkEvent
+
+        # Verify TranscriptionChunkEvent was published
+        event = mock_event_bus.publish.call_args[0][0]
+        assert event.__class__.__name__ == "TranscriptionChunkEvent"
+
+    @pytest.mark.asyncio
+    @patch("backend.services.transcription.services.di_transcription_service.get_event_bus")
+    @patch("backend.infrastructure.workers.executor_pool.spawn_worker")
+    async def test_continues_processing_if_event_publish_fails(
+        self, mock_spawn_worker, mock_get_event_bus, service, mock_logger
+    ):
+        """Test that process_chunk continues even if event publishing fails.
+
+        Event bus failures should not break core transcription functionality.
+        """
+        # Arrange
+        mock_event_bus = AsyncMock()
+        mock_event_bus.publish.side_effect = Exception("Event bus connection failed")
+        mock_get_event_bus.return_value = mock_event_bus
+
+        session_id = "test-session-123"
+        chunk_number = 0
+        audio_bytes = b"fake-audio-data"
+
+        # Act - should NOT raise exception
+        result = await service.process_chunk(
+            session_id=session_id,
+            chunk_number=chunk_number,
+            audio_bytes=audio_bytes,
+        )
+
+        # Assert
+        assert isinstance(result, ChunkProcessingResult)
+        assert result.status == "pending"  # Status after chunk processing
+
+        # Warning should be logged
+        mock_logger.warning.assert_called()
+        warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+        assert any("EVENT_PUBLISH_FAILED" in str(call) for call in warning_calls)
+
+
 class TestGetTranscription:
     """Tests for get_transcription() method."""
 
