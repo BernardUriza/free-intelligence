@@ -222,9 +222,14 @@ class HDF5MemoryStore(IMemoryStore):
         Security:
             MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
 
+        Performance Warning:
+            - O(N) scan of ALL chunks (no indexing) - SLOW with large datasets
+            - Early exit when limit reached (mitigation)
+            - TODO: MUST implement Elasticsearch/Vector Search for production
+
         Note:
             Uses case-insensitive substring matching (not full-text search).
-            For production, consider using vector search or Elasticsearch.
+            For production, MUST use indexed search (current implementation unusable at scale).
         """
         query_lower = query.lower()
         matching_events: list[AudioEventDict] = []
@@ -335,8 +340,17 @@ class HDF5MemoryStore(IMemoryStore):
             - newest_timestamp: Unix seconds of newest chunk (or None)
             - unique_sessions: Number of unique sessions
 
+        Raises:
+            IOError: HDF5 file not accessible (file missing, permission denied, etc.)
+            ValueError: Corrupted HDF5 data (invalid structure, type errors, etc.)
+
         Security:
             MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
+
+        Error Handling:
+            - File not accessible → IOError (caller can retry or return partial stats)
+            - Corrupted data → ValueError (caller should return HTTP 500)
+            - Per-session errors → Logged and skipped (collect what we can)
         """
         audio_count = 0
         all_timestamps: list[int] = []
@@ -345,6 +359,7 @@ class HDF5MemoryStore(IMemoryStore):
         try:
             with h5py.File(self.corpus_path, "r") as f:
                 if "sessions" not in f:
+                    # Empty corpus is valid (new doctor with no data)
                     return {
                         "count": 0,
                         "oldest_timestamp": None,
@@ -389,11 +404,33 @@ class HDF5MemoryStore(IMemoryStore):
                                 ts = self._parse_timestamp(created_at)
                                 all_timestamps.append(ts)
 
-                    except Exception:
-                        continue  # Skip broken session
+                    except Exception as e:
+                        # Per-session errors are logged but don't fail entire operation
+                        self.logger.warning(
+                            "AUDIO_STATS_SESSION_ERROR",
+                            session_id=session_id,
+                            error=str(e),
+                        )
+                        continue  # Skip broken session, continue with others
 
-        except Exception:
-            pass  # Fail silently, return what we have
+        except (IOError, OSError) as e:
+            # File access errors - caller should know file is unavailable
+            self.logger.error(
+                "HDF5_FILE_ACCESS_ERROR",
+                corpus_path=self.corpus_path,
+                error=str(e),
+                exc_info=True,
+            )
+            raise IOError(f"Cannot access HDF5 corpus at {self.corpus_path}: {e}") from e
+
+        except Exception as e:
+            # Structural errors (corrupted data) - critical failure
+            self.logger.error(
+                "AUDIO_STATS_ERROR",
+                error=str(e),
+                exc_info=True,
+            )
+            raise ValueError(f"Corrupted HDF5 data in corpus: {e}") from e
 
         # Calculate oldest/newest from collected timestamps
         oldest_ts = min(all_timestamps) if all_timestamps else None
@@ -411,72 +448,219 @@ class HDF5MemoryStore(IMemoryStore):
     # ============================================================================
 
     def _get_session_owner(self, session: h5py.Group) -> str | None:
-        """Extract session owner from HDF5 attrs (doctor_id/owner_id/user_id).
+        """Extract session owner from HDF5 attrs with type validation.
 
         Args:
             session: HDF5 session group
 
         Returns:
             Owner ID string, or None if no owner metadata found
+
+        Security:
+            - Validates owner is str or bytes (not int, array, etc.)
+            - Logs and skips invalid types (prevents type confusion attacks)
+            - Decodes bytes with errors="replace" (prevents UnicodeDecodeError)
+
+        Note:
+            Checks attrs in order: doctor_id → owner_id → user_id
+            Returns first valid owner found.
         """
-        session_owner = None
+        for attr_key in ["doctor_id", "owner_id", "user_id"]:
+            if attr_key not in session.attrs:
+                continue
 
-        if "doctor_id" in session.attrs:
-            session_owner = session.attrs["doctor_id"]
-        elif "owner_id" in session.attrs:
-            session_owner = session.attrs["owner_id"]
-        elif "user_id" in session.attrs:
-            session_owner = session.attrs["user_id"]
+            raw_value = session.attrs[attr_key]
 
-        # Decode bytes to string if needed
-        if session_owner is not None and isinstance(session_owner, bytes):
-            session_owner = session_owner.decode("utf-8")
+            # Validate type: MUST be str or bytes (security requirement)
+            if isinstance(raw_value, bytes):
+                try:
+                    return raw_value.decode("utf-8", errors="replace")
+                except Exception as e:
+                    self.logger.warning(
+                        "SESSION_OWNER_DECODE_ERROR",
+                        attr_key=attr_key,
+                        error=str(e),
+                    )
+                    continue
 
-        return session_owner
+            if isinstance(raw_value, str):
+                return raw_value
 
-    def _read_dataset_str(self, group: h5py.Group, key: str) -> str | None:
-        """Read string dataset from HDF5 group.
+            # Invalid type (int, array, etc.) - SECURITY ISSUE
+            self.logger.warning(
+                "SESSION_OWNER_INVALID_TYPE",
+                attr_key=attr_key,
+                actual_type=type(raw_value).__name__,
+                value_preview=str(raw_value)[:100],
+                reason="Owner must be str or bytes, rejecting for security",
+            )
+            continue
+
+        return None  # No valid owner found
+
+    def _read_dataset_str(
+        self,
+        group: h5py.Group,
+        key: str,
+        max_length: int = 100_000,
+    ) -> str | None:
+        """Read string dataset from HDF5 group with robust error handling.
 
         Args:
             group: HDF5 group
             key: Dataset key
+            max_length: Maximum string length (prevent memory issues)
 
         Returns:
-            String value, or None if dataset doesn't exist or isn't a Dataset
+            String value, or None if dataset doesn't exist, isn't a Dataset, or errors occur
+
+        Error Handling:
+            - Missing key → None
+            - Non-dataset object → None (logged)
+            - h5py.Empty (HDF5 null) → None
+            - Numpy array (non-scalar) → None (logged as error)
+            - Decode errors → None (logged, uses errors="replace")
+            - Oversized strings → Truncated + logged
         """
-        if key not in group:  # type: ignore[operator]
+        try:
+            if key not in group:  # type: ignore[operator]
+                return None
+
+            ds = group[key]
+            if not isinstance(ds, h5py.Dataset):
+                self.logger.warning(
+                    "HDF5_DATASET_NOT_DATASET",
+                    key=key,
+                    actual_type=type(ds).__name__,
+                )
+                return None
+
+            value = ds[()]
+
+            # Handle h5py.Empty (HDF5 special null type)
+            if hasattr(h5py, "Empty") and isinstance(value, h5py.Empty):
+                return None
+
+            # Handle numpy arrays (should be scalar for string fields)
+            if hasattr(value, "shape") and value.shape != ():
+                self.logger.error(
+                    "HDF5_UNEXPECTED_ARRAY",
+                    key=key,
+                    shape=value.shape,
+                    reason="Expected scalar string, got array",
+                )
+                return None
+
+            # Convert bytes → str
+            if isinstance(value, bytes):
+                try:
+                    decoded = value.decode("utf-8", errors="replace")
+                    if len(decoded) > max_length:
+                        self.logger.warning(
+                            "HDF5_STRING_TRUNCATED",
+                            key=key,
+                            original_length=len(decoded),
+                            truncated_to=max_length,
+                        )
+                        return decoded[:max_length]
+                    return decoded
+                except Exception as e:
+                    self.logger.error(
+                        "HDF5_DECODE_ERROR",
+                        key=key,
+                        error=str(e),
+                    )
+                    return None
+
+            # Convert to string (with length limit)
+            if value is not None:
+                str_value = str(value)
+                if len(str_value) > max_length:
+                    self.logger.warning(
+                        "HDF5_STRING_TRUNCATED",
+                        key=key,
+                        original_length=len(str_value),
+                        truncated_to=max_length,
+                    )
+                    return str_value[:max_length]
+                return str_value
+
             return None
 
-        ds = group[key]
-        if not isinstance(ds, h5py.Dataset):
+        except Exception as e:
+            self.logger.error(
+                "HDF5_READ_DATASET_ERROR",
+                key=key,
+                error=str(e),
+                exc_info=True,
+            )
             return None
-
-        value = ds[()]
-        if isinstance(value, bytes):
-            return value.decode("utf-8")
-
-        return str(value) if value is not None else None
 
     def _read_dataset_float(self, group: h5py.Group, key: str) -> float | None:
-        """Read float dataset from HDF5 group.
+        """Read float dataset from HDF5 group with validation.
 
         Args:
             group: HDF5 group
             key: Dataset key
 
         Returns:
-            Float value, or None if dataset doesn't exist or isn't a Dataset
+            Float value, or None if dataset doesn't exist, isn't a Dataset, or errors occur
+
+        Error Handling:
+            - Missing key → None
+            - Non-dataset object → None (logged)
+            - h5py.Empty → None
+            - Arrays (non-scalar) → None (logged as error)
+            - Non-numeric values → None (logged)
         """
-        if key not in group:  # type: ignore[operator]
-            return None
-
-        ds = group[key]
-        if not isinstance(ds, h5py.Dataset):
-            return None
-
         try:
-            return float(ds[()])
-        except (ValueError, TypeError):
+            if key not in group:  # type: ignore[operator]
+                return None
+
+            ds = group[key]
+            if not isinstance(ds, h5py.Dataset):
+                self.logger.warning(
+                    "HDF5_DATASET_NOT_DATASET",
+                    key=key,
+                    actual_type=type(ds).__name__,
+                )
+                return None
+
+            value = ds[()]
+
+            # Handle h5py.Empty
+            if hasattr(h5py, "Empty") and isinstance(value, h5py.Empty):
+                return None
+
+            # Handle arrays (should be scalar for numeric fields)
+            if hasattr(value, "shape") and value.shape != ():
+                self.logger.error(
+                    "HDF5_UNEXPECTED_ARRAY",
+                    key=key,
+                    shape=value.shape,
+                    reason="Expected scalar float, got array",
+                )
+                return None
+
+            # Convert to float
+            try:
+                return float(value)
+            except (ValueError, TypeError) as e:
+                self.logger.warning(
+                    "HDF5_FLOAT_CONVERSION_ERROR",
+                    key=key,
+                    value=str(value)[:100],
+                    error=str(e),
+                )
+                return None
+
+        except Exception as e:
+            self.logger.error(
+                "HDF5_READ_DATASET_ERROR",
+                key=key,
+                error=str(e),
+                exc_info=True,
+            )
             return None
 
     def _extract_chunk_number(self, chunk_name: str) -> int:

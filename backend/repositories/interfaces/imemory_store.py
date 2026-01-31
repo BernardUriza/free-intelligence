@@ -19,7 +19,7 @@ Card: DI Refactor Phase 2.4 - Memory Service DI
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TypedDict
+from typing import TypedDict, NotRequired
 
 
 # ============================================================================
@@ -27,30 +27,39 @@ from typing import TypedDict
 # ============================================================================
 
 
-class AudioEventDict(TypedDict, total=False):
+class AudioEventDict(TypedDict):
     """Audio transcription event data (from HDF5 chunk).
 
-    Fields:
+    REQUIRED fields (total=True by default):
     - session_id: Session identifier
     - chunk_number: Chunk index within session
     - transcript: Transcribed text
-    - duration: Audio duration in seconds (optional)
-    - confidence: Transcription confidence score 0-1 (optional)
-    - language: Detected language code (optional)
-    - stt_provider: Speech-to-text provider name (optional)
     - timestamp: Unix timestamp in seconds
-    - created_at: ISO 8601 timestamp string (optional)
+    - created_at: ISO 8601 timestamp string
+
+    OPTIONAL fields (NotRequired):
+    - duration: Audio duration in seconds
+    - confidence: Transcription confidence score 0-1
+    - language: Detected language code
+    - stt_provider: Speech-to-text provider name
+
+    Type Safety:
+    - Accessing required fields: event['session_id'] ✅ (no KeyError possible)
+    - Accessing optional fields: event.get('duration') ✅ (returns None if missing)
     """
 
+    # REQUIRED fields (type checker enforces these MUST exist)
     session_id: str
     chunk_number: int
     transcript: str
-    duration: float | None
-    confidence: float | None
-    language: str | None
-    stt_provider: str | None
     timestamp: int  # Unix timestamp (seconds)
     created_at: str  # ISO string
+
+    # OPTIONAL fields (explicitly marked, can be missing)
+    duration: NotRequired[float]
+    confidence: NotRequired[float]
+    language: NotRequired[str]
+    stt_provider: NotRequired[str]
 
 
 class AudioStatsDict(TypedDict):

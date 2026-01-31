@@ -495,8 +495,13 @@ class DIMemoryService:
             memory = get_memory_manager(doctor_id)
             stats = memory.get_stats()
             chat_count = stats.get("total_interactions", 0)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(
+                "CHAT_STATS_ERROR",
+                doctor_id=doctor_id,
+                error=str(e),
+            )
+            # Continue with audio stats even if chat fails
 
         # Audio stats - SECURITY: filter by doctor_id (delegated to memory_store)
         try:
@@ -505,8 +510,26 @@ class DIMemoryService:
             oldest_ts = audio_stats_dict["oldest_timestamp"]
             newest_ts = audio_stats_dict["newest_timestamp"]
             unique_audio_sessions = audio_stats_dict["unique_sessions"]
-        except Exception:
-            pass  # Keep defaults (audio_count=0, oldest_ts=None, newest_ts=None)
+
+        except IOError as e:
+            # File not accessible (temporary) - return partial stats (chat only)
+            self.logger.warning(
+                "AUDIO_STATS_UNAVAILABLE",
+                doctor_id=doctor_id,
+                error=str(e),
+                reason="HDF5 file not accessible (temporary)",
+            )
+            # audio_count remains 0, oldest_ts/newest_ts remain None
+
+        except ValueError as e:
+            # Corrupted data (critical) - propagate to caller (HTTP 500)
+            self.logger.error(
+                "AUDIO_STATS_CORRUPTED",
+                doctor_id=doctor_id,
+                error=str(e),
+            )
+            # Re-raise as RuntimeError for FastAPI to handle
+            raise RuntimeError(f"Audio transcription data is corrupted: {e}") from e
 
         return {
             "total_events": chat_count + audio_count,
