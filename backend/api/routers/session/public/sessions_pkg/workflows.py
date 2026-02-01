@@ -1,13 +1,31 @@
+"""Session workflow endpoints (thin controllers with dependency injection).
+
+Business logic extracted to IntelligentOrchestrationService (PR #1).
+Endpoints use FastAPI Depends() for service injection (PR #2).
+
+Architecture:
+- Controllers: Thin (10-20 lines), no business logic
+- Services: Business logic (orchestration, routing, state tracking)
+- Dependencies: FastAPI Depends() resolves services
+
+Benefits:
+- Type-safe dependency injection
+- Testable via app.dependency_overrides
+- Clear dependency graph
+- SOLID compliance (Single Responsibility, Dependency Inversion)
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from backend.core.domain.session.dependencies import get_corpus_repository, get_task_repository
-from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
-from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.services.workflow.dependencies import (
+    IntelligentOrchestrationDep,
+    WorkflowOrchestratorDep,
+)
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 if TYPE_CHECKING:
     from backend.infrastructure.common.api.public.models import (
@@ -21,19 +39,61 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SIMPLE WORKFLOW ENDPOINTS (delegate to orchestrator)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 @router.post("/sessions/{session_id}/diarization", status_code=status.HTTP_202_ACCEPTED)
-async def diarize_session_workflow(session_id: str) -> dict:
+async def diarize_session_workflow(
+    session_id: str,
+    orchestrator: WorkflowOrchestratorDep,
+) -> dict:
+    """
+    Dispatch speaker diarization workflow.
+
+    Uses WorkflowOrchestrator (injected via Depends).
+    Business logic in WorkflowOrchestrator.dispatch_diarization().
+
+    Args:
+        session_id: Session identifier
+        orchestrator: Injected WorkflowOrchestrator instance
+
+    Returns:
+        dict with task_id, status, estimated_duration_seconds
+
+    Raises:
+        HTTPException(404): Audio file not found
+        HTTPException(500): Dispatch failed
+    """
     validate_session_id(session_id)
-    from backend.services.workflow.api.public.services import get_workflow_orchestrator
 
     try:
-        orchestrator = get_workflow_orchestrator()
-        return orchestrator.dispatch_diarization(session_id)
+        result = await orchestrator.dispatch_diarization(
+            session_id=session_id,
+            audio_file_path=f"storage/{session_id}/audio.webm",
+            language="es",
+        )
+        return result
+    except FileNotFoundError as e:
+        logger.error(
+            "DIARIZATION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error="Audio file not found",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audio file not found for session {session_id}",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            "DIARIZATION_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True
+            "DIARIZATION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -42,17 +102,55 @@ async def diarize_session_workflow(session_id: str) -> dict:
 
 
 @router.post("/sessions/{session_id}/soap", status_code=status.HTTP_202_ACCEPTED)
-async def generate_soap_workflow(session_id: str) -> dict:
+async def generate_soap_workflow(
+    session_id: str,
+    orchestrator: WorkflowOrchestratorDep,
+) -> dict:
+    """
+    Dispatch SOAP note generation workflow.
+
+    Uses WorkflowOrchestrator (injected via Depends).
+    Business logic in WorkflowOrchestrator.dispatch_soap_generation().
+
+    Args:
+        session_id: Session identifier
+        orchestrator: Injected WorkflowOrchestrator instance
+
+    Returns:
+        dict with task_id, status, estimated_duration_seconds
+
+    Raises:
+        HTTPException(400): Transcription not completed yet
+        HTTPException(500): Dispatch failed
+    """
     validate_session_id(session_id)
-    from backend.services.workflow.api.public.services import get_workflow_orchestrator
 
     try:
-        orchestrator = get_workflow_orchestrator()
-        return orchestrator.dispatch_soap_generation(session_id)
+        result = await orchestrator.dispatch_soap_generation(
+            session_id=session_id,
+            language="es",
+        )
+        return result
+    except ValueError as e:
+        logger.error(
+            "SOAP_WORKFLOW_FAILED",
+            session_id=session_id,
+            error="Transcription not completed",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot generate SOAP note: {e!s}",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("SOAP_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True)
+        logger.error(
+            "SOAP_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to dispatch SOAP generation: {e!s}",
@@ -60,151 +158,154 @@ async def generate_soap_workflow(session_id: str) -> dict:
 
 
 @router.post("/sessions/{session_id}/emotion", status_code=status.HTTP_202_ACCEPTED)
-async def analyze_emotion_workflow(session_id: str) -> dict:
-    from backend.services.workflow.api.public.services import get_workflow_orchestrator
+async def analyze_emotion_workflow(
+    session_id: str,
+    orchestrator: WorkflowOrchestratorDep,
+) -> dict:
+    """
+    Dispatch emotional analysis workflow.
+
+    Uses WorkflowOrchestrator (injected via Depends).
+    Business logic in WorkflowOrchestrator.dispatch_emotion_analysis().
+
+    Args:
+        session_id: Session identifier
+        orchestrator: Injected WorkflowOrchestrator instance
+
+    Returns:
+        dict with task_id, status, model_used, estimated_duration_seconds
+
+    Raises:
+        HTTPException(400): Transcription not completed yet
+        HTTPException(500): Dispatch failed
+    """
+    validate_session_id(session_id)
 
     try:
-        orchestrator = get_workflow_orchestrator()
-        return orchestrator.dispatch_emotion_analysis(session_id)
+        result = await orchestrator.dispatch_emotion_analysis(
+            session_id=session_id,
+            language="es",
+        )
+        return result
+    except ValueError as e:
+        logger.error(
+            "EMOTION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error="Transcription not completed",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot analyze emotion: {e!s}",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("EMOTION_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True)
+        logger.error(
+            "EMOTION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to dispatch emotion analysis: {e!s}",
         ) from e
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# INTELLIGENT WORKFLOW ENDPOINT (main orchestration)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 @router.post("/sessions/{session_id}/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_session_intelligent_workflow(
     session_id: str,
-    audio_duration_seconds: float | None = None,
-    language: str | None = None,
-    task_repo: ITaskRepository = Depends(get_task_repository),
-    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+    orchestration_service: IntelligentOrchestrationDep,
+    language: str = "es",
+    user_intent: str | None = None,
 ) -> dict:
-    from backend.models.task_type import TaskStatus, TaskType
-    from backend.infrastructure.workers.executor_pool import spawn_worker
-    from backend.services.workflow.services.workflow_router import get_workflow_router
+    """
+    Intelligently orchestrate workflow execution for a session.
+
+    Uses IntelligentOrchestrationService (injected via Depends).
+    Business logic in IntelligentOrchestrationService.orchestrate_intelligent_workflow().
+
+    Algorithm (in service layer):
+    1. Detect audio duration from file metadata
+    2. Query existing tasks to avoid duplicates
+    3. Route workflows using intelligent router
+    4. Dispatch workflows in optimal order
+    5. Return unified response
+
+    Args:
+        session_id: Session identifier
+        orchestration_service: Injected IntelligentOrchestrationService instance
+        language: Session language code (default: "es")
+        user_intent: Optional user-provided intent (e.g., "quick consult")
+
+    Returns:
+        dict with:
+        - session_id: Session identifier
+        - workflows_dispatched: List of dispatched workflow types
+        - task_ids: Dict mapping workflow_type → task_id
+        - routing_decision: Router's decision metadata
+        - audio_duration_seconds: Detected audio duration
+        - existing_tasks_skipped: List of skipped workflows
+        - status: "dispatched"
+        - cost: Cost metrics (routing, savings)
+        - message: Human-readable summary
+
+    Raises:
+        HTTPException(404): Audio file not found
+        HTTPException(500): Orchestration failed
+    """
+    validate_session_id(session_id)
 
     try:
         logger.info(
             "INTELLIGENT_WORKFLOW_STARTED",
             session_id=session_id,
-            audio_duration=audio_duration_seconds,
             language=language,
+            user_intent=user_intent,
         )
 
-        if audio_duration_seconds is None:
-            try:
-                audio_bytes_data = corpus_repo.get_session_audio(session_id, "tasks/TRANSCRIPTION/full_audio.webm")
-                if audio_bytes_data:
-                    audio_duration_seconds = len(audio_bytes_data) / (12 * 1024)
-                    logger.info(
-                        "AUDIO_DURATION_DETECTED",
-                        session_id=session_id,
-                        duration_seconds=audio_duration_seconds,
-                    )
-                else:
-                    audio_duration_seconds = 60.0
-            except Exception as e:
-                logger.warning(
-                    "AUDIO_DURATION_DETECTION_FAILED",
-                    session_id=session_id,
-                    error=str(e),
-                    hint="Using default duration of 60s",
-                )
-                audio_duration_seconds = 60.0
-
-        existing_tasks: list[str] = []
-        try:
-            task_types = corpus_repo.list_session_tasks(session_id)
-            for task_type in task_types:
-                constructed_task = TaskType(task_type)
-                metadata = task_repo.get_task_metadata(session_id, constructed_task)
-                status_val = metadata.get("status") if metadata else None
-                is_completed = (
-                    status_val == "completed"
-                    or status_val == TaskStatus.COMPLETED.name.lower()
-                    or status_val == TaskStatus.COMPLETED
-                )
-                if metadata and is_completed:
-                    existing_tasks.append(task_type)
-        except Exception as e:
-            logger.warning("EXISTING_TASKS_DETECTION_FAILED", session_id=session_id, error=str(e))
-
-        router_svc = get_workflow_router()
-        decision = router_svc.route_workflows(
+        # Delegate ALL business logic to IntelligentOrchestrationService
+        result = await orchestration_service.orchestrate_intelligent_workflow(
             session_id=session_id,
-            audio_duration_seconds=audio_duration_seconds,
+            audio_file_path=f"storage/{session_id}/audio.webm",
             language=language,
-            existing_tasks=existing_tasks,
+            user_intent=user_intent,
         )
 
         logger.info(
-            "WORKFLOW_ROUTING_DECISION",
+            "INTELLIGENT_WORKFLOW_SUCCESS",
             session_id=session_id,
-            workflows=decision["workflows"],
-            reasoning=decision["reasoning"],
-            cost_usd=decision["cost"].routing_cost_usd,
-            savings_usd=decision["cost"].execution_cost_saved_usd,
+            workflows_dispatched=result["workflows_dispatched"],
+            cost_usd=result["cost"]["routing_usd"],
         )
 
-        job_ids: dict[str, str] = {}
-        for workflow in decision["workflows"]:
-            task_type = TaskType(workflow)
+        return result
 
-            task_repo.ensure_task_exists(session_id=session_id, task_type=task_type.value, allow_existing=True)
-
-            if task_type == TaskType.TRANSCRIPTION:
-                logger.info(
-                    "TRANSCRIPTION_SKIPPED",
-                    session_id=session_id,
-                    hint="Transcription handled during upload",
-                )
-                continue
-            elif task_type == TaskType.DIARIZATION:
-                from backend.infrastructure.workers.tasks.diarization_worker import diarize_session_worker
-
-                spawn_worker(diarize_session_worker, session_id=session_id, task_repo=task_repo)
-                job_ids["DIARIZATION"] = session_id
-            elif task_type == TaskType.SOAP_GENERATION:
-                from backend.infrastructure.workers.tasks.soap_worker import generate_soap_worker
-
-                spawn_worker(generate_soap_worker, session_id=session_id, task_repo=task_repo)
-                job_ids["SOAP_GENERATION"] = session_id
-            elif task_type == TaskType.EMOTION_ANALYSIS:
-                from backend.infrastructure.workers.tasks.emotion_worker import analyze_emotion_worker
-
-                spawn_worker(analyze_emotion_worker, session_id=session_id, task_repo=task_repo)
-                job_ids["EMOTION_ANALYSIS"] = session_id
-
-            logger.info("WORKFLOW_DISPATCHED", session_id=session_id, task_type=workflow)
-
-        return {
-            "session_id": session_id,
-            "status": "dispatched",
-            "workflows": decision["workflows"],
-            "reasoning": decision["reasoning"],
-            "parallel": decision["parallel"],
-            "job_ids": job_ids,
-            "cost": {
-                "routing_usd": decision["cost"].routing_cost_usd,
-                "tokens_saved": decision["cost"].execution_tokens_saved,
-                "savings_usd": decision["cost"].execution_cost_saved_usd,
-                "net_savings_usd": (
-                    decision["cost"].execution_cost_saved_usd - decision["cost"].routing_cost_usd
-                ),
-            },
-            "message": f"Intelligent orchestration complete: {len(decision['workflows'])} workflows dispatched. Poll /sessions/{session_id}/monitor for progress.",
-        }
-
+    except FileNotFoundError as e:
+        logger.error(
+            "INTELLIGENT_WORKFLOW_FAILED",
+            session_id=session_id,
+            error="Audio file not found",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audio file not found for session {session_id}",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            "INTELLIGENT_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True
+            "INTELLIGENT_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -212,10 +313,32 @@ async def analyze_session_intelligent_workflow(
         ) from e
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SESSION LIFECYCLE ENDPOINTS (delegate to internal functions)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 @router.post("/sessions/{session_id}/finalize", status_code=status.HTTP_202_ACCEPTED)
 async def finalize_session_workflow(
-    session_id: str, request: FinalizeSessionRequest
+    session_id: str,
+    request: FinalizeSessionRequest,
 ) -> FinalizeSessionResponse:
+    """
+    Finalize session workflow (merge transcription sources).
+
+    Delegates to internal finalize_session function.
+    No DI refactor needed (already uses internal function).
+
+    Args:
+        session_id: Session identifier
+        request: Finalize request with transcription sources
+
+    Returns:
+        FinalizeSessionResponse with merge results
+
+    Raises:
+        HTTPException(500): Finalization failed
+    """
     from backend.api.routers.session.internal.sessions.finalize import (
         finalize_session as internal_finalize,
     )
@@ -226,20 +349,29 @@ async def finalize_session_workflow(
             session_id=session_id,
             sources_count=len(request.transcription_sources.webspeech_final),
         )
+
         result = await internal_finalize(session_id, request)
+
         logger.info("FINALIZE_SESSION_WORKFLOW_SUCCESS", session_id=session_id)
+
+        # Convert result to dict if needed
         if isinstance(result, dict):
-            result_dict: dict[str, Any] = result  # type: ignore[name-defined]
+            result_dict: dict[str, Any] = result
         else:
             result_dict = result.model_dump()
+
         from backend.infrastructure.common.api.public.models import FinalizeSessionResponse
 
         return FinalizeSessionResponse(**result_dict)
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            "FINALIZE_SESSION_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True
+            "FINALIZE_SESSION_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -249,8 +381,25 @@ async def finalize_session_workflow(
 
 @router.post("/sessions/{session_id}/checkpoint", status_code=status.HTTP_200_OK)
 async def checkpoint_session_workflow(
-    session_id: str, request: CheckpointRequest
+    session_id: str,
+    request: CheckpointRequest,
 ) -> CheckpointResponse:
+    """
+    Checkpoint session workflow (save partial progress).
+
+    Delegates to internal checkpoint_session function.
+    No DI refactor needed (already uses internal function).
+
+    Args:
+        session_id: Session identifier
+        request: Checkpoint request with last chunk index
+
+    Returns:
+        CheckpointResponse with concatenation results
+
+    Raises:
+        HTTPException(500): Checkpoint failed
+    """
     from backend.api.routers.session.internal.sessions.checkpoint import (
         checkpoint_session as internal_checkpoint,
     )
@@ -261,7 +410,9 @@ async def checkpoint_session_workflow(
             session_id=session_id,
             last_chunk_idx=request.last_chunk_idx,
         )
+
         result = await internal_checkpoint(session_id, request)
+
         logger.info(
             "CHECKPOINT_WORKFLOW_SUCCESS",
             session_id=session_id,
@@ -271,18 +422,25 @@ async def checkpoint_session_workflow(
                 else result.get("chunks_concatenated")
             ),
         )
+
+        # Convert result to dict if needed
         if isinstance(result, dict):
-            result_dict: dict[str, Any] = result  # type: ignore[name-defined]
+            result_dict: dict[str, Any] = result
         else:
             result_dict = result.model_dump()
+
         from backend.infrastructure.common.api.public.models import CheckpointResponse
 
         return CheckpointResponse(**result_dict)
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            "CHECKPOINT_WORKFLOW_FAILED", session_id=session_id, error=str(e), exc_info=True
+            "CHECKPOINT_WORKFLOW_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

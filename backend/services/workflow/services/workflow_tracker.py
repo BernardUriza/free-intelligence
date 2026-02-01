@@ -495,34 +495,17 @@ class WorkflowTracker(IWorkflowTracker):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# GLOBAL TRACKER INSTANCE
+# DEPRECATED: Service Locator Pattern Removed (PR #2)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-_tracker: WorkflowTracker | None = None
-_tracker_lock = threading.Lock()
-
-
-def get_workflow_tracker() -> WorkflowTracker:
-    """Get or create global workflow tracker (singleton) - Phase 4B.
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation with HDF5TaskRepository for singleton initialization.
-    """
-    from pathlib import Path
-
-    from backend.repositories.task_repository import HDF5TaskRepository
-
-    global _tracker
-
-    if _tracker is None:
-        with _tracker_lock:
-            if _tracker is None:
-                # Direct instantiation (Phase 4B) - one-time cost for singleton
-                _corpus_path = Path(__file__).parent.parent.parent.parent / "storage" / "corpus.h5"
-                _tracker = WorkflowTracker(
-                    task_repository=HDF5TaskRepository(_corpus_path)
-                )
-                logger.info("WORKFLOW_TRACKER_INITIALIZED")
-
-    return _tracker
+#
+# BEFORE (Service Locator):
+#   tracker = get_workflow_tracker()  # Global singleton
+#
+# AFTER (Dependency Injection):
+#   from backend.services.workflow.dependencies import WorkflowTrackerDep
+#
+#   @router.get("/status")
+#   def get_status(tracker: WorkflowTrackerDep) -> dict:
+#       return tracker.get_workflow_status(...)
+#
+# Migration complete: All callers updated to use FastAPI Depends() (PR #2)

@@ -290,21 +290,6 @@ Output JSON:
 
 
 # ============================================================================
-# GLOBAL ROUTER INSTANCE
-# ============================================================================
-
-_router: WorkflowRouter | None = None
-
-
-def get_workflow_router() -> WorkflowRouter:
-    """Get or create global workflow router"""
-    global _router
-    if _router is None:
-        _router = WorkflowRouter()
-    return _router
-
-
-# ============================================================================
 # CLI INTERFACE
 # ============================================================================
 
@@ -312,6 +297,7 @@ def get_workflow_router() -> WorkflowRouter:
 def main() -> None:
     """CLI interface for workflow router"""
     import argparse
+    from backend.utils.common.logging.logger import get_logger
 
     parser = argparse.ArgumentParser(description="Workflow Router CLI")
 
@@ -323,7 +309,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    router = get_workflow_router()
+    # Create router with constructor injection (DI pattern)
+    logger = get_logger(__name__)
+    router = WorkflowRouter(logger=logger)
 
     existing_tasks = args.existing_tasks.split(",") if args.existing_tasks else []
 
