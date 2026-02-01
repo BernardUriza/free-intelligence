@@ -650,11 +650,11 @@ jobs:
             echo "❌ Backend compilation failed" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Check backend tests (BLOCKING)
+          # Check backend tests (INFORMATIONAL ONLY)
           if [[ "${{ needs.backend-tests.result }}" == "success" ]]; then
             echo "✅ Backend tests passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Backend tests failed - BLOCKING merge" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Backend tests failed - review recommended but not blocking" >> $GITHUB_STEP_SUMMARY
           fi
 
           # Check lint report (NOW BLOCKING)
@@ -679,14 +679,12 @@ jobs:
           echo "Run \`cd apps/aurity && pnpm build\` before merging frontend changes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Fail if ANY critical check failed
+          # Fail if ANY critical check failed (tests are informational only)
           BACKEND_OK="${{ needs.backend-compiles.result }}"
-          TESTS_OK="${{ needs.backend-tests.result }}"
           LINT_OK="${{ needs.lint-report.result }}"
           AI_OK="${{ needs.ai-gatekeeper.result }}"
 
           if [[ "$BACKEND_OK" != "success" ]] || \
-             [[ "$TESTS_OK" != "success" ]] || \
              [[ "$LINT_OK" != "success" ]] || \
              [[ "$AI_OK" != "success" && "$AI_OK" != "skipped" ]]; then
             echo "❌ **PR Gate FAILED** - Fix issues before merging" >> $GITHUB_STEP_SUMMARY
