@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.domain.session.dependencies import get_task_repository
+from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.auth import User, get_current_user
 from backend.infrastructure.common.api.public.models import (
@@ -21,6 +22,7 @@ logger = get_logger(__name__)
 async def get_session_audit(
     session_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> dict[str, Any]:
     """Get complete audit data for doctor review."""
     validate_session_id(session_id)
@@ -30,7 +32,7 @@ async def get_session_audit(
     try:
         logger.info("SESSION_AUDIT_GET_START", session_id=session_id)
 
-        session_meta = get_session_metadata(session_id)
+        session_meta = corpus_repo.get_session_metadata(session_id)
         if not session_meta:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
@@ -168,6 +170,7 @@ async def submit_doctor_feedback(
     feedback: DoctorFeedbackRequest,
     current_user: User | None = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
+    corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
     from backend.models.task_type import TaskType
@@ -210,7 +213,7 @@ async def submit_doctor_feedback(
             "submitted_by_display": user_display_name,
         }
 
-        update_session_metadata(
+        corpus_repo.update_session_metadata(
             session_id,
             {
                 "doctor_feedback": feedback_data,

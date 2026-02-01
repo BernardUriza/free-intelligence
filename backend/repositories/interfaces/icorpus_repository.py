@@ -154,6 +154,19 @@ class ICorpusRepository(ABC):
         pass
 
     @abstractmethod
+    def update_session_metadata(self, session_id: str, updates: dict[str, Any]) -> bool:
+        """Update session metadata in corpus (merge with existing).
+
+        Args:
+            session_id: Session identifier
+            updates: Dictionary of metadata fields to update/add
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
     def get_session_audio(
         self, session_id: str, audio_type: str = "full_audio.webm"
     ) -> bytes | None:

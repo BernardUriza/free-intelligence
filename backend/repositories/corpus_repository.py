@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import Any, Union, cast
 
 import h5py
+import numpy as np
 from backend.utils.common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 from pathlib import Path
@@ -339,6 +340,56 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
         except Exception as e:
             logger.error("GET_SESSION_METADATA_FAILED", session_id=session_id, error=str(e))
             return None
+
+    def update_session_metadata(self, session_id: str, updates: dict[str, Any]) -> bool:
+        """Update session metadata in corpus (merge with existing).
+
+        Args:
+            session_id: Session identifier
+            updates: Dictionary of metadata fields to update/add
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        try:
+            with self._open_file("a") as f:
+                session_path = f"{self.SESSIONS_GROUP}/{session_id}"
+                if session_path not in f:
+                    logger.warning("SESSION_NOT_FOUND_FOR_UPDATE", session_id=session_id)
+                    return False
+
+                session_group = f[session_path]
+
+                # Get existing metadata from meta dataset or create new
+                existing_meta: dict[str, Any] = {}
+                if "meta" in session_group:
+                    meta_ds = session_group["meta"]
+                    if isinstance(meta_ds, h5py.Dataset):
+                        meta_bytes = bytes(meta_ds[()])
+                        existing_meta = json.loads(meta_bytes.decode("utf-8"))
+                    del session_group["meta"]
+
+                # Merge updates into existing metadata
+                existing_meta.update(updates)
+
+                # Write updated metadata
+                meta_bytes = json.dumps(existing_meta).encode("utf-8")
+                session_group.create_dataset(
+                    "meta",
+                    data=np.frombuffer(meta_bytes, dtype=np.uint8),
+                    compression="gzip",
+                )
+
+                logger.info(
+                    "SESSION_METADATA_UPDATED",
+                    session_id=session_id,
+                    updated_keys=list(updates.keys()),
+                )
+                return True
+
+        except Exception as e:
+            logger.error("UPDATE_SESSION_METADATA_FAILED", session_id=session_id, error=str(e))
+            return False
 
     def get_session_audio(self, session_id: str, audio_type: str = "full_audio.webm") -> bytes | None:
         """Get audio bytes from session.
