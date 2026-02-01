@@ -16,6 +16,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from backend.domain.prescription.interfaces.icatalog_repository import ICatalogRepository
+    from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
     from backend.infrastructure.cache.interfaces.icache import ICache
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
@@ -379,6 +381,38 @@ def get_llm_model_service_dep() -> ILLMModelService:
     from backend.services.llm.services.llm_model_service import LLMModelService
 
     return LLMModelService()
+
+
+def get_catalog_service_dep() -> ICatalogService:
+    """Get medication catalog service - SOLID DI factory.
+
+    Phase 2.3 Marte: Replaces deprecated catalog_service singleton.
+
+    Returns:
+        ICatalogService instance with InMemoryCatalogRepository
+
+    Note:
+        Uses Repository pattern for data access (DIP).
+        The CatalogService uses internal singleton pattern (__new__).
+    """
+    from backend.domain.prescription.repositories import InMemoryCatalogRepository
+    from backend.domain.prescription.services.catalog_service import CatalogService
+
+    repository = InMemoryCatalogRepository()
+    return CatalogService(repository=repository)
+
+
+def get_catalog_repository_dep() -> ICatalogRepository:
+    """Get medication catalog repository - SOLID DI factory.
+
+    Phase 2.3 Marte: Provides raw data access for advanced use cases.
+
+    Returns:
+        ICatalogRepository instance (InMemoryCatalogRepository)
+    """
+    from backend.domain.prescription.repositories import InMemoryCatalogRepository
+
+    return InMemoryCatalogRepository()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

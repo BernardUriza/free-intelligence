@@ -5,14 +5,18 @@ for the medication database.
 
 Author: Bernard Uriza Orozco
 Created: 2025-12-28
+Updated: 2026-02-01 (Phase 2.3 Marte - SOLID refactor with DI)
 Card: FI-RX-004
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from backend.domain.prescription.data.mexico_catalog import MEXICO_MEDICATION_CATALOG
+if TYPE_CHECKING:
+    from backend.domain.prescription.interfaces.icatalog_repository import ICatalogRepository
+
+from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
 from backend.domain.prescription.models.catalog import (
     ControlledSubstanceLevel,
     DrugCategory,
@@ -52,31 +56,43 @@ class CatalogSearchResponse(BaseModel):
     query: str
 
 
-class CatalogService:
+class CatalogService(ICatalogService):
     """Service for medication catalog operations.
 
-    Provides efficient search and autocomplete functionality
-    using the pre-loaded medication database.
+    Implements ICatalogService interface for dependency injection.
+    Uses ICatalogRepository for data access (SOLID DIP).
+
+    Phase 2.3 Marte: Refactored to receive repository via constructor.
     """
 
-    _instance: "CatalogService" | None = None
-    _catalog: list[MedicationCatalogEntry] = []
+    _instance: "CatalogService | None" = None
+    _repository: "ICatalogRepository | None" = None
 
-    def __new__(cls) -> "CatalogService":
-        """Singleton pattern for catalog service."""
+    def __new__(cls, repository: "ICatalogRepository | None" = None) -> "CatalogService":
+        """Singleton pattern for catalog service.
+
+        Args:
+            repository: Optional repository for DI. If None on first call,
+                       uses InMemoryCatalogRepository (backwards compatible).
+        """
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load_catalog()
+            instance = super().__new__(cls)
+            # Initialize repository on first instantiation
+            if repository is not None:
+                instance._repository = repository
+            else:
+                # Backwards compatibility: use default repository
+                from backend.domain.prescription.repositories import InMemoryCatalogRepository
+                instance._repository = InMemoryCatalogRepository()
+            cls._instance = instance
         return cls._instance
-
-    def _load_catalog(self) -> None:
-        """Load the medication catalog into memory."""
-        self._catalog = MEXICO_MEDICATION_CATALOG
 
     @property
     def catalog(self) -> list[MedicationCatalogEntry]:
-        """Get the full catalog."""
-        return self._catalog
+        """Get the full catalog (via repository)."""
+        if self._repository is None:
+            return []
+        return self._repository.get_all()
 
     def search(self, request: CatalogSearchRequest) -> CatalogSearchResponse:
         """Search the catalog with scoring and filtering.
@@ -90,7 +106,7 @@ class CatalogService:
         query = request.query.lower().strip()
         results: list[CatalogSearchResult] = []
 
-        for med in self._catalog:
+        for med in self.catalog:
             # Skip inactive medications
             if not med.is_active:
                 continue
@@ -184,7 +200,7 @@ class CatalogService:
         prefix_lower = prefix.lower()
         suggestions: list[tuple[str, int]] = []  # (name, priority)
 
-        for med in self._catalog:
+        for med in self.catalog:
             if not med.is_active:
                 continue
 
@@ -227,7 +243,7 @@ class CatalogService:
         Returns:
             Medication entry or None if not found
         """
-        for med in self._catalog:
+        for med in self.catalog:
             if med.id == medication_id:
                 return med
         return None
@@ -244,7 +260,7 @@ class CatalogService:
         Returns:
             List of medications in the category
         """
-        results = [med for med in self._catalog if med.is_active and med.category == category]
+        results = [med for med in self.catalog if med.is_active and med.category == category]
         return results[:limit]
 
     def get_essential_medications(self, limit: int = 100) -> list[MedicationCatalogEntry]:
@@ -256,7 +272,7 @@ class CatalogService:
         Returns:
             List of essential medications
         """
-        results = [med for med in self._catalog if med.is_active and med.is_essential]
+        results = [med for med in self.catalog if med.is_active and med.is_essential]
         return results[:limit]
 
     def get_otc_medications(self, limit: int = 50) -> list[MedicationCatalogEntry]:
@@ -268,7 +284,7 @@ class CatalogService:
         Returns:
             List of OTC medications
         """
-        results = [med for med in self._catalog if med.is_active and not med.requires_prescription]
+        results = [med for med in self.catalog if med.is_active and not med.requires_prescription]
         return results[:limit]
 
     def get_controlled_medications(self, limit: int = 50) -> list[MedicationCatalogEntry]:
@@ -282,7 +298,7 @@ class CatalogService:
         """
         results = [
             med
-            for med in self._catalog
+            for med in self.catalog
             if med.is_active and med.controlled_level != ControlledSubstanceLevel.NONE
         ]
         return results[:limit]
@@ -304,9 +320,9 @@ class CatalogService:
         Returns:
             Dict with catalog statistics
         """
-        active = [m for m in self._catalog if m.is_active]
+        active = [m for m in self.catalog if m.is_active]
         return {
-            "total_medications": len(self._catalog),
+            "total_medications": len(self.catalog),
             "active_medications": len(active),
             "essential_medications": sum(1 for m in active if m.is_essential),
             "otc_medications": sum(1 for m in active if not m.requires_prescription),
@@ -317,5 +333,6 @@ class CatalogService:
         }
 
 
-# Singleton instance
+# Singleton instance (DEPRECATED - Phase 2.3 Marte)
+# For new code, use DI via get_catalog_service_dep() from dependencies.py
 catalog_service = CatalogService()
