@@ -17,11 +17,13 @@ Ventajas:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import httpx
-import os
 from backend.utils.common.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from backend.clients.dependencies import LLMClientConfig
 
 logger = get_logger(__name__)
 
@@ -29,21 +31,31 @@ logger = get_logger(__name__)
 class InternalLLMClient:
     """Cliente para llamar endpoints internos de LLM via HTTP."""
 
-    def __init__(self, base_url: str = "http://localhost:7001"):
+    def __init__(self, config: "LLMClientConfig | None" = None):
         """Inicializa cliente HTTP interno.
 
         Args:
-            base_url: Base URL del backend (default: localhost:7001)
+            config: LLMClientConfig instance (if None, uses get_llm_client_config())
         """
-        self.base_url = base_url
+        # Import here to avoid circular dependency
+        if config is None:
+            from backend.clients.dependencies import get_llm_client_config
+            config = get_llm_client_config()
+
+        self.config = config
+        self.base_url = str(config.base_url)
+
         # Timeout config: must be longer than LLM inference time
         # Local models like Qwen3 can take 60-120 seconds on CPU
         # Frontend timeout is 120s, so backend must match or exceed it
         self.client = httpx.AsyncClient(
-            base_url=base_url,
+            base_url=self.base_url,
             timeout=httpx.Timeout(
-                connect=10.0, read=180.0, write=10.0, pool=10.0
-            ),  # 3 min read timeout
+                connect=config.timeout_connect,
+                read=config.timeout_read,
+                write=config.timeout_write,
+                pool=config.timeout_pool,
+            ),
         )
 
     async def chat(
@@ -105,7 +117,7 @@ class InternalLLMClient:
                     reason="non_internal_caller",
                     caller=caller,
                 )
-                if os.getenv("FI_ENFORCE_GUARD", "0") == "1":
+                if self.config.enforce_security_guard:
                     logger.error("SECURITY_GUARD_HIT", caller=caller)
                     raise AssertionError("Public layer must not call internal endpoints directly")
 
@@ -209,7 +221,7 @@ class InternalLLMClient:
                     reason="non_internal_caller",
                     caller=caller,
                 )
-                if os.getenv("FI_ENFORCE_GUARD", "0") == "1":
+                if self.config.enforce_security_guard:
                     logger.error("SECURITY_GUARD_HIT_STREAM", caller=caller)
                     raise AssertionError("Public layer must not call internal endpoints directly")
 

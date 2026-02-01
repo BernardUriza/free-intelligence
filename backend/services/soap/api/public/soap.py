@@ -14,9 +14,9 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from backend.clients import get_llm_client
+from backend.clients.dependencies import get_llm_client_dep
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.soap.dependencies import get_task_repository
 from backend.services.soap.services.soap_models import SOAPNote
@@ -24,6 +24,9 @@ from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from backend.clients.internal_llm_client import InternalLLMClient
 
 logger = get_logger(__name__)
 
@@ -318,6 +321,7 @@ async def update_soap_workflow(
 async def soap_assistant_workflow(
     session_id: str,
     request: AssistantRequest,
+    llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
 ) -> AssistantResponse:
     """Process natural language command to modify SOAP data (PUBLIC orchestrator).
 
@@ -417,7 +421,7 @@ async def soap_assistant_workflow(
         }
 
         # Call internal LLM endpoint via HTTP client (ultra observable)
-        llm_client = get_llm_client()
+        # INJECTED: llm_client comes from Depends(get_llm_client_dep)
 
         result = await llm_client.structured_extract(
             persona="soap_editor",

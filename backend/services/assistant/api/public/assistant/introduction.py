@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from backend.clients import get_llm_client
+from typing import TYPE_CHECKING
+
+from backend.clients.dependencies import get_llm_client_dep
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..assistant_schemas import IntroductionRequest, IntroductionResponse
+
+if TYPE_CHECKING:
+    from backend.clients.internal_llm_client import InternalLLMClient
 
 logger = get_logger(__name__)
 
@@ -12,7 +17,10 @@ router = APIRouter()
 
 
 @router.post("/assistant/introduction", response_model=IntroductionResponse)
-async def get_introduction(request: IntroductionRequest) -> IntroductionResponse:
+async def get_introduction(
+    request: IntroductionRequest,
+    llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
+) -> IntroductionResponse:
     """Get Free-Intelligence's introduction for onboarding.
 
     Presents the assistant with clinical-grade tone and data sovereignty focus.
@@ -34,7 +42,7 @@ async def get_introduction(request: IntroductionRequest) -> IntroductionResponse
 
         doctor_id = context.get("doctor_id") if context else None
 
-        llm_client = get_llm_client()
+        # INJECTED: llm_client comes from Depends(get_llm_client_dep)
 
         result = await llm_client.chat(
             persona="onboarding_guide",

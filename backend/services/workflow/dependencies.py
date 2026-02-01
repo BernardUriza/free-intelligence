@@ -6,10 +6,13 @@ Direct service/repository instantiation - no service locator (Phase 4A).
 Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
+Updated: 2026-01-31 (Type-safe config validation with Pydantic)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
+import os
 from pathlib import Path
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
@@ -23,6 +26,98 @@ from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.config import CORPUS_PATH
 
+
+class WorkflowConfig(BaseModel):
+    """Type-safe workflow configuration with validation.
+
+    Validation Rules:
+        - max_retries: Must be between 1 and 10
+        - timeout_seconds: Must be > 0
+        - triage_data_dir: Must be non-empty string (path validation)
+        - enable_monitoring: Boolean flag
+
+    Immutability:
+        - frozen=True prevents accidental modification after initialization
+    """
+
+    max_retries: int = Field(
+        ge=1,
+        le=10,
+        default=3,
+        description="Maximum retries for failed workflow steps",
+    )
+    timeout_seconds: int = Field(
+        gt=0,
+        default=300,  # 5 minutes
+        description="Workflow step timeout in seconds",
+    )
+    triage_data_dir: str = Field(
+        min_length=1,
+        default="./data/triage_buffers",
+        description="Directory for triage buffer storage",
+    )
+    enable_monitoring: bool = Field(
+        default=True,
+        description="Enable workflow monitoring and metrics",
+    )
+    enable_audit_trail: bool = Field(
+        default=True,
+        description="Enable audit trail logging for workflow steps",
+    )
+    max_concurrent_workflows: int = Field(
+        ge=1,
+        le=100,
+        default=10,
+        description="Maximum concurrent workflow executions",
+    )
+
+    @field_validator("triage_data_dir")
+    @classmethod
+    def validate_triage_data_dir(cls, v: str) -> str:
+        """Ensure triage_data_dir is a valid path format.
+
+        Args:
+            v: triage_data_dir value
+
+        Returns:
+            Validated triage_data_dir
+
+        Raises:
+            ValueError: If path contains invalid characters
+        """
+        # Basic path validation (not checking if exists - may be created later)
+        if ".." in v or v.startswith("/etc") or v.startswith("/sys"):
+            raise ValueError("triage_data_dir contains suspicious path")
+        return v
+
+    model_config = ConfigDict(frozen=True)
+
+
+def get_workflow_config() -> WorkflowConfig:
+    """Get workflow configuration from environment variables.
+
+    Environment Variables:
+        MAX_RETRIES=3 → Maximum retries for workflow steps
+        WORKFLOW_TIMEOUT=300 → Timeout in seconds
+        TRIAGE_DATA_DIR=./data/triage_buffers → Triage buffer directory
+        ENABLE_MONITORING=true → Enable monitoring
+        ENABLE_AUDIT_TRAIL=true → Enable audit trail
+        MAX_CONCURRENT_WORKFLOWS=10 → Max concurrent executions
+
+    Returns:
+        WorkflowConfig instance (immutable, validated)
+
+    Raises:
+        ValidationError: If configuration is invalid (e.g., max_retries > 10)
+    """
+    return WorkflowConfig(
+        max_retries=int(os.getenv("MAX_RETRIES", "3")),
+        timeout_seconds=int(os.getenv("WORKFLOW_TIMEOUT", "300")),
+        triage_data_dir=os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"),
+        enable_monitoring=os.getenv("ENABLE_MONITORING", "true").lower() == "true",
+        enable_audit_trail=os.getenv("ENABLE_AUDIT_TRAIL", "true").lower() == "true",
+        max_concurrent_workflows=int(os.getenv("MAX_CONCURRENT_WORKFLOWS", "10")),
+    )
 
 
 def get_task_repository() -> ITaskRepository:
@@ -55,16 +150,14 @@ def get_triage_service_dep() -> TriageService:
     """Get triage service - direct instantiation (Phase 4A).
 
     Returns:
-        TriageService instance with explicit configuration from environment
+        TriageService instance with type-safe configuration
 
     Note:
         No longer uses service locator (get_container).
-        Explicit data_dir from TRIAGE_DATA_DIR env var (fallback: ./data/triage_buffers).
+        Config validated via Pydantic (fail-fast on invalid triage_data_dir).
     """
-    from pathlib import Path
-    import os
-
-    data_dir = Path(os.getenv("TRIAGE_DATA_DIR", "./data/triage_buffers"))
+    config = get_workflow_config()
+    data_dir = Path(config.triage_data_dir)
     return TriageService(data_dir=data_dir)
 
 

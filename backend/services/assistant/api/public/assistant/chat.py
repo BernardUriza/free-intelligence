@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import time
 import uuid as _uuid
+from typing import TYPE_CHECKING
 
-from backend.clients import get_llm_client
+from backend.clients.dependencies import get_llm_client_dep
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
@@ -21,6 +22,9 @@ from ..assistant_schemas import (
 from ..emotional_analysis import analyze_emotional_state
 from .rag import _get_rag_context
 
+if TYPE_CHECKING:
+    from backend.clients.internal_llm_client import InternalLLMClient
+
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -33,6 +37,7 @@ _persona_manager = PersonaManager()
 async def chat_with_assistant(
     request: ChatCompletionRequest,
     current_user: User = Depends(get_current_user),
+    llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
 ) -> ChatCompletionResponse:
     """OpenAI-style chat completion endpoint for Free-Intelligence conversations.
 
@@ -113,7 +118,7 @@ async def chat_with_assistant(
             memory_enabled=True,
         )
 
-        llm_client = get_llm_client()
+        # INJECTED: llm_client comes from Depends(get_llm_client_dep)
 
         chat_ctx = {
             "request_id": request_id,

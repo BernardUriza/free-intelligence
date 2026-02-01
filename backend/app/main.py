@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC
+import sys
 
 import os
 from backend.app.version import __version__
@@ -24,6 +25,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from pydantic import ValidationError
 
 
 @asynccontextmanager
@@ -32,6 +34,9 @@ async def lifespan(app: FastAPI):
     # Startup
     # from backend.utils.coder.storage.database import init_db  # Removed: storage simplified
     from backend.utils.coder.observability.logger import get_logger
+
+    # P1: Validate all Pydantic configs FIRST (fail-fast on invalid config)
+    validate_all_configs()
 
     # Configure structured JSON logging for chat observability
     try:
@@ -62,6 +67,66 @@ async def lifespan(app: FastAPI):
 
     # Shutdown (if needed in the future)
     # Add cleanup code here
+
+
+def validate_all_configs() -> None:
+    """Validate all Pydantic configs at startup (fail-fast).
+
+    Validates type-safe configurations created in P0:
+    - MemoryStoreConfig
+    - TranscriptionConfig
+    - WorkflowConfig
+    - SOAPConfig
+    - LLMClientConfig
+
+    Raises:
+        ValidationError: If any config is invalid (e.g., timeout_read <= 0)
+        RuntimeError: If config validation fails
+    """
+    from backend.utils.common.logging.logger import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        # Import and validate all configs (triggers Pydantic validation)
+        from backend.services.memory.dependencies import get_memory_config
+        from backend.services.transcription.dependencies import get_transcription_config
+        from backend.services.workflow.dependencies import get_workflow_config
+        from backend.services.soap.dependencies import get_soap_config
+        from backend.clients.dependencies import get_llm_client_config
+
+        configs = {
+            "MemoryStoreConfig": get_memory_config(),
+            "TranscriptionConfig": get_transcription_config(),
+            "WorkflowConfig": get_workflow_config(),
+            "SOAPConfig": get_soap_config(),
+            "LLMClientConfig": get_llm_client_config(),
+        }
+
+        logger.info(
+            "CONFIG_VALIDATION_SUCCESS",
+            config_count=len(configs),
+            configs=list(configs.keys()),
+        )
+
+    except ValidationError as e:
+        error_details = "\n".join([
+            f"  - {err['loc'][0] if err['loc'] else 'unknown'}: {err['msg']}"
+            for err in e.errors()
+        ])
+        error_msg = (
+            "❌ STARTUP FAILED - Invalid configuration detected:\n"
+            f"{error_details}\n\n"
+            "Fix the configuration errors in environment variables and restart."
+        )
+        logger.error("CONFIG_VALIDATION_FAILED", error=str(e), exc_info=True)
+        print(error_msg, file=sys.stderr)
+        sys.exit(1)  # Fail fast
+
+    except Exception as e:
+        logger.error("CONFIG_VALIDATION_UNEXPECTED_ERROR", error=str(e), exc_info=True)
+        print(f"❌ UNEXPECTED ERROR during config validation: {e}", file=sys.stderr)
+        sys.exit(1)  # Fail fast
 
 
 def validate_critical_env_vars() -> None:
