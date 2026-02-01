@@ -329,8 +329,10 @@ def get_preset_loader_dep() -> IPresetLoader:
 def get_decisional_middleware_dep() -> IDecisionalMiddleware:
     """Get decisional middleware for SOAP worker - direct instantiation.
 
+    Phase 2.3 Venus: Now injects IPresetLoader dependency.
+
     Returns:
-        IDecisionalMiddleware instance
+        IDecisionalMiddleware instance with preset_loader injected
 
     Note:
         Replaces deprecated get_decisional_middleware() service locator.
@@ -338,7 +340,7 @@ def get_decisional_middleware_dep() -> IDecisionalMiddleware:
     """
     from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
 
-    return DecisionalMiddleware()
+    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
 
 
 def get_cache_dep(ttl: int = 3600) -> ICache:

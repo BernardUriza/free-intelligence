@@ -2,11 +2,16 @@
 
 Handles loading and managing system prompts for medical SOAP extraction.
 Supports loading from external files for better testability and maintainability.
+
+Updated: 2026-02-01 (Phase 2.3 Venus - DI migration for IPresetLoader)
 """
 
 from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
 from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
@@ -23,7 +28,12 @@ class OllamaPromptBuilder:
     Supports preset-based configuration for better prompt engineering.
     """
 
-    def __init__(self, prompt_dir: Union[Path, str] | None = None, use_preset: bool = True):
+    def __init__(
+        self,
+        prompt_dir: Union[Path, str] | None = None,
+        use_preset: bool = True,
+        preset_loader: IPresetLoader | None = None,
+    ):
         """Initialize prompt builder.
 
         Args:
@@ -31,6 +41,9 @@ class OllamaPromptBuilder:
                        Defaults to prompts/ subdirectory in current module.
             use_preset: If True, try to load from soap_generator preset first.
                        Falls back to file-based prompts if preset unavailable.
+            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
+                          If None and use_preset=True, falls back to deprecated
+                          get_preset_loader() for backwards compatibility.
         """
         self.prompt_dir = (
             Path(__file__).parent / "prompts" if prompt_dir is None else Path(prompt_dir)
@@ -42,9 +55,17 @@ class OllamaPromptBuilder:
         # Try to load SOAP generator preset
         if self.use_preset:
             try:
-                from backend.schemas.llm.preset_loader import get_preset_loader
+                # Phase 2.3: Prefer injected preset_loader
+                if preset_loader is None:
+                    # Backwards compatibility - use deprecated service locator
+                    from backend.schemas.llm.preset_loader import get_preset_loader
 
-                preset_loader = get_preset_loader()
+                    logger.debug(
+                        "PROMPT_BUILDER_USING_DEPRECATED_LOCATOR",
+                        hint="Pass preset_loader for Phase 2.3 compliance",
+                    )
+                    preset_loader = get_preset_loader()
+
                 self.preset = preset_loader.load_preset("soap_generator")
                 logger.info(
                     "SOAP_PRESET_LOADED",

@@ -10,13 +10,18 @@ Philosophy: Provider-agnostic design matching LLM/STT patterns.
 
 For medical consultations (doctor + patient), diarization separates voices
 to enable speaker-specific SOAP note generation and quality metrics.
+
+Updated: 2026-02-01 (Phase 2.3 Venus - DI migration for IPresetLoader)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
 from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
@@ -580,12 +585,25 @@ def get_diarization_provider(
 
 
 class AzureGPT4Provider(DiarizationProvider):
-    """Azure GPT-4 - Text-based diarization using LLM with preset support"""
+    """Azure GPT-4 - Text-based diarization using LLM with preset support.
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    Phase 2.3 Venus: Supports IPresetLoader injection for DI compliance.
+    """
+
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        preset_loader: IPresetLoader | None = None,
+    ) -> None:
+        """Initialize Azure GPT-4 diarization provider.
+
+        Args:
+            config: Provider configuration dict
+            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
+                          If None, falls back to deprecated get_preset_loader().
+        """
         super().__init__(config)
         import os
-        from backend.schemas.llm.preset_loader import get_preset_loader
 
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")
@@ -601,7 +619,16 @@ class AzureGPT4Provider(DiarizationProvider):
 
         # Load diarization preset (prompt engineering config)
         try:
-            preset_loader = get_preset_loader()
+            # Phase 2.3: Prefer injected preset_loader
+            if preset_loader is None:
+                from backend.schemas.llm.preset_loader import get_preset_loader
+
+                self.logger.debug(
+                    "AZURE_GPT4_USING_DEPRECATED_LOCATOR",
+                    hint="Pass preset_loader for Phase 2.3 compliance",
+                )
+                preset_loader = get_preset_loader()
+
             self.preset = preset_loader.load_preset("diarization_analyst")
             self.logger.info(
                 "DIARIZATION_PRESET_LOADED",

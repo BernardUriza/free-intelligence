@@ -22,7 +22,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.preset_loader import get_preset_loader
@@ -72,6 +75,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
     Intelligent SOAP generation orchestrator.
 
     Implements IDecisionalMiddleware interface for dependency injection.
+    Phase 2.3 Venus: Supports IPresetLoader injection.
 
     Redux Middleware Pattern:
     1. Intercept SOAP generation request
@@ -86,11 +90,26 @@ class DecisionalMiddleware(IDecisionalMiddleware):
     - Make clinical decisions (only orchestration)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, preset_loader: IPresetLoader | None = None) -> None:
+        """Initialize decisional middleware.
+
+        Args:
+            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
+                          If None, falls back to deprecated get_preset_loader().
+        """
         self.logger = get_logger(__name__)
         self.complexity_analyzer = get_complexity_analyzer()
         self.persona_manager = PersonaManager()
-        self.preset_loader = get_preset_loader()
+
+        # Phase 2.3: Prefer injected preset_loader
+        if preset_loader is None:
+            self.logger.debug(
+                "DECISIONAL_MIDDLEWARE_USING_DEPRECATED_LOCATOR",
+                hint="Pass preset_loader for Phase 2.3 compliance",
+            )
+            self.preset_loader: IPresetLoader = get_preset_loader()
+        else:
+            self.preset_loader = preset_loader
 
     def process(
         self,
