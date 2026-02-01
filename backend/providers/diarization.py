@@ -593,14 +593,18 @@ class AzureGPT4Provider(DiarizationProvider):
     def __init__(
         self,
         config: dict[str, Any] | None = None,
-        preset_loader: IPresetLoader | None = None,
+        preset_loader: "IPresetLoader | None" = None,
     ) -> None:
         """Initialize Azure GPT-4 diarization provider.
 
         Args:
             config: Provider configuration dict
-            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
-                          If None, falls back to deprecated get_preset_loader().
+            preset_loader: IPresetLoader instance (REQUIRED for preset-based prompts).
+                          If None, uses legacy hardcoded prompt.
+
+        Note:
+            Phase 2.3 Critical Fix: No more fallbacks to service locator.
+            Pass preset_loader for DI compliance, or None for legacy mode.
         """
         super().__init__(config)
         import os
@@ -618,31 +622,27 @@ class AzureGPT4Provider(DiarizationProvider):
             raise ValueError(error_msg2)
 
         # Load diarization preset (prompt engineering config)
-        try:
-            # Phase 2.3: Prefer injected preset_loader
-            if preset_loader is None:
-                from backend.schemas.llm.preset_loader import get_preset_loader
-
-                self.logger.debug(
-                    "AZURE_GPT4_USING_DEPRECATED_LOCATOR",
-                    hint="Pass preset_loader for Phase 2.3 compliance",
+        self.preset = None
+        if preset_loader is not None:
+            try:
+                self.preset = preset_loader.load_preset("diarization_analyst")
+                self.logger.info(
+                    "DIARIZATION_PRESET_LOADED",
+                    preset_id=self.preset.preset_id,
+                    version=self.preset.version,
+                    temperature=self.preset.temperature,
                 )
-                preset_loader = get_preset_loader()
-
-            self.preset = preset_loader.load_preset("diarization_analyst")
-            self.logger.info(
-                "DIARIZATION_PRESET_LOADED",
-                preset_id=self.preset.preset_id,
-                version=self.preset.version,
-                temperature=self.preset.temperature,
+            except (ImportError, FileNotFoundError, KeyError, ValueError) as e:
+                self.logger.warning(
+                    "DIARIZATION_PRESET_LOAD_FAILED",
+                    error=str(e),
+                    hint="Using legacy hardcoded prompt",
+                )
+        else:
+            self.logger.debug(
+                "AZURE_GPT4_NO_PRESET_LOADER",
+                hint="Using legacy hardcoded prompt (pass preset_loader for DI)",
             )
-        except (ImportError, FileNotFoundError, KeyError, ValueError) as e:
-            self.logger.warning(
-                "DIARIZATION_PRESET_LOAD_FAILED",
-                error=str(e),
-                hint="Falling back to legacy hardcoded prompt",
-            )
-            self.preset = None
 
         self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
 

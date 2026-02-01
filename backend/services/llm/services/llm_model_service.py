@@ -9,7 +9,6 @@ Updated: 2026-02-01 (Phase 2.3 Tierra - Implements ILLMModelService interface)
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar
 
 import os
 import yaml
@@ -32,17 +31,21 @@ class LLMModelService(ILLMModelService):
     """Service for managing LLM model configurations.
 
     Implements ILLMModelService interface for dependency injection.
+
+    Phase 2.3 Critical Fix: NO singleton pattern.
+    Each instance manages its own cache state.
+    Use get_llm_model_service_dep() from dependencies.py for DI.
     """
 
-    _instance: ClassVar[LLMModelService | None] = None
-    _models_cache: ClassVar[dict[str, LLMModel]] = {}
-    _cache_timestamp: ClassVar[float | None] = None
+    def __init__(self) -> None:
+        """Initialize LLM model service with fresh cache state.
 
-    def __new__(cls) -> LLMModelService:
-        """Singleton pattern for service."""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        Note:
+            Phase 2.3 Critical Fix: Removed singleton pattern.
+            Cache is now per-instance for better testability.
+        """
+        self._models_cache: dict[str, LLMModel] = {}
+        self._cache_timestamp: float | None = None
 
     def _parse_datetime(self, value: str | datetime | None) -> datetime:
         """Parse datetime from various formats (robust to YAML serialization quirks)."""
@@ -291,6 +294,6 @@ class LLMModelService(ILLMModelService):
         return [m for m in models.values() if m.provider == provider_value and m.is_active]
 
 
-# Global service instance (DEPRECATED - Phase 2.3 Tierra)
-# For new code, use DI via get_llm_model_service_dep() from dependencies.py
+# DEPRECATED: Use get_llm_model_service_dep() from dependencies.py
+# This exists only for backwards compatibility with legacy code.
 llm_model_service = LLMModelService()

@@ -32,18 +32,23 @@ class OllamaPromptBuilder:
         self,
         prompt_dir: Union[Path, str] | None = None,
         use_preset: bool = True,
-        preset_loader: IPresetLoader | None = None,
+        preset_loader: "IPresetLoader | None" = None,
     ):
         """Initialize prompt builder.
 
         Args:
             prompt_dir: Directory containing prompt template files.
                        Defaults to prompts/ subdirectory in current module.
-            use_preset: If True, try to load from soap_generator preset first.
-                       Falls back to file-based prompts if preset unavailable.
-            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
-                          If None and use_preset=True, falls back to deprecated
-                          get_preset_loader() for backwards compatibility.
+            use_preset: If True, load from soap_generator preset (REQUIRES preset_loader).
+                       If False, use file-based prompts only.
+            preset_loader: IPresetLoader instance (REQUIRED if use_preset=True).
+
+        Raises:
+            ValueError: If use_preset=True but preset_loader is None.
+
+        Note:
+            Phase 2.3 Critical Fix: No more fallbacks to service locator.
+            For DI compliance, pass preset_loader from dependencies.py.
         """
         self.prompt_dir = (
             Path(__file__).parent / "prompts" if prompt_dir is None else Path(prompt_dir)
@@ -52,20 +57,15 @@ class OllamaPromptBuilder:
         self.use_preset = use_preset
         self.preset = None
 
-        # Try to load SOAP generator preset
+        # Load SOAP generator preset if enabled
         if self.use_preset:
+            if preset_loader is None:
+                raise ValueError(
+                    "OllamaPromptBuilder with use_preset=True requires preset_loader. "
+                    "Use get_preset_loader_dep() from backend.services.workflow.dependencies, "
+                    "or set use_preset=False for file-based prompts only."
+                )
             try:
-                # Phase 2.3: Prefer injected preset_loader
-                if preset_loader is None:
-                    # Backwards compatibility - use deprecated service locator
-                    from backend.schemas.llm.preset_loader import get_preset_loader
-
-                    logger.debug(
-                        "PROMPT_BUILDER_USING_DEPRECATED_LOCATOR",
-                        hint="Pass preset_loader for Phase 2.3 compliance",
-                    )
-                    preset_loader = get_preset_loader()
-
                 self.preset = preset_loader.load_preset("soap_generator")
                 logger.info(
                     "SOAP_PRESET_LOADED",

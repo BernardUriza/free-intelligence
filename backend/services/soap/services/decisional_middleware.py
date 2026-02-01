@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
 from backend.providers.llm import llm_generate
-from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.services.soap.services.complexity_analyzer import (
@@ -90,26 +89,28 @@ class DecisionalMiddleware(IDecisionalMiddleware):
     - Make clinical decisions (only orchestration)
     """
 
-    def __init__(self, preset_loader: IPresetLoader | None = None) -> None:
+    def __init__(self, preset_loader: "IPresetLoader") -> None:
         """Initialize decisional middleware.
 
         Args:
-            preset_loader: Optional IPresetLoader instance (Phase 2.3 DI).
-                          If None, falls back to deprecated get_preset_loader().
+            preset_loader: IPresetLoader instance (REQUIRED)
+
+        Raises:
+            ValueError: If preset_loader is None (DI misconfiguration)
+
+        Note:
+            Phase 2.3 Critical Fix: preset_loader is REQUIRED.
+            Use get_decisional_middleware_dep() from dependencies.py.
         """
+        if preset_loader is None:
+            raise ValueError(
+                "DecisionalMiddleware requires an IPresetLoader. "
+                "Use get_decisional_middleware_dep() from backend.services.workflow.dependencies"
+            )
         self.logger = get_logger(__name__)
         self.complexity_analyzer = get_complexity_analyzer()
         self.persona_manager = PersonaManager()
-
-        # Phase 2.3: Prefer injected preset_loader
-        if preset_loader is None:
-            self.logger.debug(
-                "DECISIONAL_MIDDLEWARE_USING_DEPRECATED_LOCATOR",
-                hint="Pass preset_loader for Phase 2.3 compliance",
-            )
-            self.preset_loader: IPresetLoader = get_preset_loader()
-        else:
-            self.preset_loader = preset_loader
+        self.preset_loader = preset_loader
 
     def process(
         self,
@@ -482,21 +483,23 @@ Return JSON with feedback."""
 
 
 # ============================================================================
-# GLOBAL MIDDLEWARE INSTANCE (Singleton)
+# DEPRECATED FACTORY (Phase 2.3 - Use DI instead)
 # ============================================================================
-
-_middleware: DecisionalMiddleware | None = None
 
 
 def get_decisional_middleware() -> DecisionalMiddleware:
-    """Get or create global decisional middleware instance.
+    """Get decisional middleware instance.
 
-    ⚠️  NOTE: For workers, prefer DI via get_decisional_middleware_dep() from
-    backend.services.workflow.dependencies instead (Phase 2.3 migration).
+    DEPRECATED: Use get_decisional_middleware_dep() from
+    backend.services.workflow.dependencies instead.
+
+    Returns:
+        DecisionalMiddleware instance with default PresetLoader
+
+    Note:
+        This function creates a new instance each call (no singleton).
+        For proper DI, use the factory from dependencies.py.
     """
-    global _middleware
+    from backend.schemas.llm.preset_loader import PresetLoader
 
-    if _middleware is None:
-        _middleware = DecisionalMiddleware()
-
-    return _middleware
+    return DecisionalMiddleware(preset_loader=PresetLoader())

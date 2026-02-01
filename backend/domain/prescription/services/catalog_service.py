@@ -62,36 +62,33 @@ class CatalogService(ICatalogService):
     Implements ICatalogService interface for dependency injection.
     Uses ICatalogRepository for data access (SOLID DIP).
 
-    Phase 2.3 Marte: Refactored to receive repository via constructor.
+    Phase 2.3 Marte Critical Fix: NO singleton, NO fallbacks.
+    Repository injection is REQUIRED - fail fast if not provided.
     """
 
-    _instance: "CatalogService | None" = None
-    _repository: "ICatalogRepository | None" = None
-
-    def __new__(cls, repository: "ICatalogRepository | None" = None) -> "CatalogService":
-        """Singleton pattern for catalog service.
+    def __init__(self, repository: "ICatalogRepository") -> None:
+        """Initialize catalog service with REQUIRED repository.
 
         Args:
-            repository: Optional repository for DI. If None on first call,
-                       uses InMemoryCatalogRepository (backwards compatible).
+            repository: ICatalogRepository implementation (REQUIRED)
+
+        Raises:
+            ValueError: If repository is None (DI misconfiguration)
+
+        Note:
+            Phase 2.3 Critical Fix: Removed singleton pattern and fallbacks.
+            Use get_catalog_service_dep() from dependencies.py for DI.
         """
-        if cls._instance is None:
-            instance = super().__new__(cls)
-            # Initialize repository on first instantiation
-            if repository is not None:
-                instance._repository = repository
-            else:
-                # Backwards compatibility: use default repository
-                from backend.domain.prescription.repositories import InMemoryCatalogRepository
-                instance._repository = InMemoryCatalogRepository()
-            cls._instance = instance
-        return cls._instance
+        if repository is None:
+            raise ValueError(
+                "CatalogService requires an ICatalogRepository. "
+                "Use get_catalog_service_dep() from backend.services.workflow.dependencies"
+            )
+        self._repository = repository
 
     @property
     def catalog(self) -> list[MedicationCatalogEntry]:
         """Get the full catalog (via repository)."""
-        if self._repository is None:
-            return []
         return self._repository.get_all()
 
     def search(self, request: CatalogSearchRequest) -> CatalogSearchResponse:
@@ -333,6 +330,18 @@ class CatalogService(ICatalogService):
         }
 
 
-# Singleton instance (DEPRECATED - Phase 2.3 Marte)
+# Factory function for backwards compatibility (DEPRECATED)
 # For new code, use DI via get_catalog_service_dep() from dependencies.py
-catalog_service = CatalogService()
+def _get_default_catalog_service() -> CatalogService:
+    """Create default CatalogService for backwards compatibility.
+
+    DEPRECATED: Use get_catalog_service_dep() from dependencies.py instead.
+    This exists only for legacy code that imports catalog_service directly.
+    """
+    from backend.domain.prescription.repositories import InMemoryCatalogRepository
+
+    return CatalogService(repository=InMemoryCatalogRepository())
+
+
+# DEPRECATED: Use get_catalog_service_dep() from dependencies.py
+catalog_service = _get_default_catalog_service()

@@ -33,37 +33,6 @@ from backend.utils.prompts.yaml_provider import YAMLPromptProvider
 
 logger = get_logger(__name__)
 
-# Module-level catalog service (lazy loaded for DI support)
-_catalog_service: "ICatalogService | None" = None
-
-
-def _get_catalog_service() -> "ICatalogService":
-    """Get catalog service instance (lazy-loaded singleton).
-
-    Phase 2.3 Marte: Supports DI via set_catalog_service().
-    Falls back to deprecated global if not set.
-    """
-    global _catalog_service
-    if _catalog_service is None:
-        # Backwards compatibility: use deprecated singleton
-        from backend.domain.prescription.services.catalog_service import catalog_service
-        _catalog_service = catalog_service
-    return _catalog_service
-
-
-def set_catalog_service(service: "ICatalogService") -> None:
-    """Set catalog service instance for DI.
-
-    Args:
-        service: ICatalogService implementation to use
-
-    Usage:
-        from backend.services.workflow.dependencies import get_catalog_service_dep
-        set_catalog_service(get_catalog_service_dep())
-    """
-    global _catalog_service
-    _catalog_service = service
-
 
 @lru_cache(maxsize=1)
 def _load_medication_prompt() -> str:
@@ -131,14 +100,34 @@ class MedicationExtractor:
 
     Uses LLM to parse free-text treatment plans and extract
     structured medication data, then enriches with catalog info.
+
+    Phase 2.3 Critical Fix: Uses constructor injection for ICatalogService.
     """
 
-    def __init__(self, provider: str = "ollama"):
-        """Initialize extractor.
+    def __init__(
+        self,
+        catalog_service: "ICatalogService",
+        provider: str = "ollama",
+    ):
+        """Initialize extractor with REQUIRED catalog service.
 
         Args:
+            catalog_service: ICatalogService instance (REQUIRED)
             provider: LLM provider ("ollama", "claude", "openai")
+
+        Raises:
+            ValueError: If catalog_service is None (DI misconfiguration)
+
+        Note:
+            Phase 2.3 Critical Fix: catalog_service is REQUIRED.
+            Use get_medication_extractor() factory for proper DI.
         """
+        if catalog_service is None:
+            raise ValueError(
+                "MedicationExtractor requires an ICatalogService. "
+                "Use get_medication_extractor() with get_catalog_service_dep()"
+            )
+        self._catalog_service = catalog_service
         self.provider = provider
         logger.info("MedicationExtractor initialized", provider=provider)
 
@@ -376,9 +365,8 @@ class MedicationExtractor:
         Returns:
             Enriched Medication (or original if not found)
         """
-        # Search catalog for this medication (using DI-compatible getter)
-        svc = _get_catalog_service()
-        search_results = svc.autocomplete(
+        # Search catalog for this medication (using injected service)
+        search_results = self._catalog_service.autocomplete(
             prefix=medication.name[:3].lower()
             if len(medication.name) >= 3
             else medication.name.lower(),
@@ -390,7 +378,7 @@ class MedicationExtractor:
         med_name_lower = medication.name.lower()
 
         for suggestion in search_results:
-            entry = svc.get_by_id(
+            entry = self._catalog_service.get_by_id(
                 suggestion.lower().replace(" ", "_").replace("/", "_")
             )
             if entry:
@@ -405,7 +393,7 @@ class MedicationExtractor:
             from backend.domain.prescription.services.catalog_service import CatalogSearchRequest
 
             search_req = CatalogSearchRequest(query=medication.name, limit=1)
-            search_resp = svc.search(search_req)
+            search_resp = self._catalog_service.search(search_req)
             if search_resp.results and search_resp.results[0].score >= 50:
                 catalog_entry = search_resp.results[0].medication
 
@@ -512,20 +500,31 @@ class MedicationExtractor:
         return medications
 
 
-# Singleton instance
-_extractor: MedicationExtractor | None = None
-
-
-def get_medication_extractor(provider: str = "ollama") -> MedicationExtractor:
-    """Get singleton MedicationExtractor instance.
+def get_medication_extractor(
+    catalog_service: "ICatalogService | None" = None,
+    provider: str = "ollama",
+) -> MedicationExtractor:
+    """Create MedicationExtractor instance with proper DI.
 
     Args:
+        catalog_service: ICatalogService instance. If None, creates default.
         provider: LLM provider to use
 
     Returns:
         MedicationExtractor instance
+
+    Note:
+        Phase 2.3 Critical Fix: No more module-level singleton.
+        Each call creates a new instance for proper DI compliance.
+        For best practice, pass catalog_service from get_catalog_service_dep().
     """
-    global _extractor
-    if _extractor is None or _extractor.provider != provider:
-        _extractor = MedicationExtractor(provider=provider)
-    return _extractor
+    if catalog_service is None:
+        # Backwards compatibility: create default catalog service
+        from backend.services.workflow.dependencies import get_catalog_service_dep
+
+        catalog_service = get_catalog_service_dep()
+
+    return MedicationExtractor(
+        catalog_service=catalog_service,
+        provider=provider,
+    )
