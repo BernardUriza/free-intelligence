@@ -13,7 +13,8 @@ from __future__ import annotations
 from typing import List
 
 from backend.domain.patient import Gender, IPatientRepository, Patient
-from backend.domain.patient.mapper import PatientMapper
+# TODO: PatientMapper doesn't exist yet - create it when needed
+# from backend.domain.patient.mapper import PatientMapper
 from backend.models.db_models import Patient as DBPatient
 from sqlalchemy.orm import Session
 

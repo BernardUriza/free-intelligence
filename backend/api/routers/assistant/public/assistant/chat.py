@@ -149,7 +149,7 @@ async def chat_with_assistant(
         rag_context = await _get_rag_context(
             query=last_message.content,
             persona=request.persona,
-            user_id=current_user.user_id,  # SECURITY: Pass user_id for HIPAA isolation
+            clinic_id=current_user.clinic_id,  # SECURITY: Pass clinic_id for HIPAA isolation
         )
         if rag_context:
             context["rag_context"] = rag_context

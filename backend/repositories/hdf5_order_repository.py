@@ -12,7 +12,19 @@ from pathlib import Path
 
 import h5py
 
-from backend.domain.order import Order, IOrderRepository, OrderMapper, OrderHDF5Metadata
+from backend.domain.order import Order
+from backend.domain.interfaces.iorder_repository import IOrderRepository
+
+
+# TODO: Implement proper mapper and metadata classes
+class OrderMapper:
+    """Stub mapper - implement proper domain <-> HDF5 mapping"""
+    pass
+
+
+class OrderHDF5Metadata:
+    """Stub metadata - implement proper HDF5 metadata structure"""
+    pass
 
 
 class HDF5OrderRepository(IOrderRepository):
