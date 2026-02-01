@@ -30,11 +30,11 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.models.task_type import TaskStatus, TaskType
-from backend.utils.common.logging.logger import get_logger
+from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.services.workflow.interfaces import IWorkflowTracker
 from backend.utils.common.validation import validate_dependency
-
-logger = get_logger(__name__)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -87,7 +87,7 @@ class WorkflowStatus:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class WorkflowTracker:
+class WorkflowTracker(IWorkflowTracker):
     """
     Tracks workflow execution state across multiple tasks.
 
@@ -110,13 +110,14 @@ class WorkflowTracker:
             trigger_consolidation("session-123")
     """
 
-    def __init__(self, task_repository):
-        """Initialize workflow tracker with dependencies.
+    def __init__(self, task_repository: ITaskRepository, logger: ILogger):
+        """Initialize workflow tracker with dependencies (constructor injection).
 
         Args:
-            task_repository: Task repository for session validation (required for DI)
+            task_repository: Task repository for session validation
+            logger: Logger instance for structured logging
         """
-        self.logger = get_logger(__name__)
+        self.logger = logger
         self.task_repo = task_repository
         # session_id → {task_type → TaskExecution}
         self._workflows: dict[str, dict[str, TaskExecution]] = defaultdict(dict)

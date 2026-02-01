@@ -18,10 +18,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.models.task_type import TaskType
-from backend.utils.common.logging.logger import get_logger
-
-logger = get_logger(__name__)
+from backend.services.workflow.interfaces import IWorkflowRouter
 
 
 # ============================================================================
@@ -68,7 +67,7 @@ def calculate_savings(tasks_skipped: int, avg_tokens_per_task: int = 1500) -> fl
 # ============================================================================
 
 
-class WorkflowRouter:
+class WorkflowRouter(IWorkflowRouter):
     """
     Intelligent workflow orchestration using Two-Model Strategy.
 
@@ -88,8 +87,9 @@ class WorkflowRouter:
     - Savings: ~16% by skipping unnecessary tasks
     """
 
-    def __init__(self) -> None:
-        self.logger = get_logger(__name__)
+    def __init__(self, logger: ILogger) -> None:
+        """Initialize router with dependencies (constructor injection)."""
+        self.logger = logger
 
     def route_workflows(
         self,
