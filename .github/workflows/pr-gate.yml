@@ -155,7 +155,7 @@ jobs:
           RAW_DIFF=$(gh pr diff $PR_NUMBER 2>&1)
           echo "::debug::Raw diff size: ${#RAW_DIFF} chars"
 
-          if [ -z "$RAW_DIFF" ] || echo "$RAW_DIFF" | grep -q "Error"; then
+          if [ -z "$RAW_DIFF" ] || echo "$RAW_DIFF" | grep -qiE "(Error|HTTP 4|could not find)"; then
             echo "::warning::gh pr diff failed, using git diff fallback"
             # Fallback: use git diff between base and head
             BASE_SHA=$(gh pr view $PR_NUMBER --json baseRefOid -q '.baseRefOid')
