@@ -137,10 +137,10 @@ jobs:
 
           # NO sleep - backend-compiles already finished via needs: dependency
 
-          # Debug: verify gh CLI and PR context
+          # Debug: verify gh CLI and environment
           echo "::debug::PR_NUMBER=$PR_NUMBER"
-          gh --version || echo "::error::gh CLI not found"
-          gh auth status || echo "::error::gh auth failed"
+          echo "::debug::GH_TOKEN length: ${#GH_TOKEN}"
+          gh --version || { echo "::error::gh CLI not found"; exit 1; }
 
           # Get PR info (sanitize body to prevent prompt injection)
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
