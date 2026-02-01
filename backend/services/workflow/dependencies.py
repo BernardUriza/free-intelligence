@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from backend.config.interfaces.isecrets_manager import ISecretsManager
     from backend.domain.prescription.interfaces.icatalog_repository import ICatalogRepository
     from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
     from backend.infrastructure.cache.interfaces.icache import ICache
@@ -413,6 +414,32 @@ def get_catalog_repository_dep() -> ICatalogRepository:
     from backend.domain.prescription.repositories import InMemoryCatalogRepository
 
     return InMemoryCatalogRepository()
+
+
+def get_secrets_manager_dep(use_keyvault: bool = True) -> "ISecretsManager":
+    """Get secrets manager for services - DI factory.
+
+    Phase 2.3 Jupiter: Centralized secrets management.
+
+    Args:
+        use_keyvault: If True, use Azure KeyVault with env fallback.
+                     If False, use environment variables only.
+
+    Returns:
+        ISecretsManager instance
+
+    Note:
+        Replaces deprecated get_secret() module-level function.
+        Services receive this as a constructor parameter.
+    """
+    from backend.config.secrets import (
+        AzureKeyVaultSecretsManager,
+        EnvSecretsManager,
+    )
+
+    if use_keyvault:
+        return AzureKeyVaultSecretsManager()
+    return EnvSecretsManager()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
