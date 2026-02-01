@@ -133,8 +133,14 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -e
+          set -x  # Enable trace mode for debugging
 
           # NO sleep - backend-compiles already finished via needs: dependency
+
+          # Debug: verify gh CLI and PR context
+          echo "::debug::PR_NUMBER=$PR_NUMBER"
+          gh --version || echo "::error::gh CLI not found"
+          gh auth status || echo "::error::gh auth failed"
 
           # Get PR info (sanitize body to prevent prompt injection)
           PR_TITLE=$(gh pr view $PR_NUMBER --json title -q '.title')
