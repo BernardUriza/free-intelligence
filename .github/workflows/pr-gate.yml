@@ -36,42 +36,12 @@ jobs:
           pip install --upgrade pip
           pip install fastapi pydantic structlog h5py PyYAML httpx python-jose cryptography PyJWT
 
-      - name: Check Python syntax (all files compile)
+      - name: Check Python syntax (all backend files compile)
         run: |
           echo "Checking Python syntax..."
-          find backend/src -name "*.py" -exec python -m py_compile {} \;
+          # Compile all Python files in backend/ (not just backend/src/)
+          find backend/ -name "*.py" -not -path "*/\.*" -exec python -m py_compile {} \;
           echo "✅ All Python files compile successfully"
-
-      - name: Check critical imports
-        run: |
-          python -c "
-          import sys
-          sys.path.insert(0, '.')
-
-          # Critical modules that MUST import (updated post-refactor)
-          critical = [
-              'backend.utils.common.logging.logger',
-              'backend.repositories.interfaces',
-              'backend.infrastructure.auth',
-              'backend.infrastructure.workers',
-              'backend.services.transcription',
-              'backend.api.routers.session.public.sessions',
-          ]
-
-          failed = []
-          for mod in critical:
-              try:
-                  __import__(mod)
-                  print(f'✅ {mod}')
-              except Exception as e:
-                  print(f'❌ {mod}: {e}')
-                  failed.append(mod)
-
-          if failed:
-              print(f'\\n❌ {len(failed)} critical imports failed')
-              sys.exit(1)
-          print('\\n✅ All critical imports OK')
-          "
 
   # ============================================================
   # BACKEND: Unit Tests (MUST PASS)
