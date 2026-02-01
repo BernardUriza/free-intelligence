@@ -337,24 +337,6 @@ class CatalogService(ICatalogService):
 import warnings as _warnings
 
 
-def _get_default_catalog_service() -> CatalogService:
-    """Create default CatalogService for backwards compatibility.
-
-    DEPRECATED: Use get_catalog_service_dep() from dependencies.py instead.
-
-    Emits DeprecationWarning on every call to encourage migration.
-    """
-    _warnings.warn(
-        "Module-level catalog_service is deprecated. "
-        "Use get_catalog_service_dep() from backend.services.workflow.dependencies",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-    from backend.domain.prescription.repositories import InMemoryCatalogRepository
-
-    return CatalogService(repository=InMemoryCatalogRepository())
-
-
 class _DeprecatedCatalogServiceProxy:
     """Proxy that emits warning on first attribute access."""
 
