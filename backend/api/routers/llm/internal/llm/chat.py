@@ -29,8 +29,6 @@ from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
-# FIXME: infrastructure.storage doesn't exist - stubbed
-# from backend.infrastructure.storage.services.trace_store import get_trace_store
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse
@@ -38,8 +36,8 @@ from .schemas import ChatRequest, ChatResponse
 router = APIRouter()
 logger = get_logger(__name__)
 persona_mgr = PersonaManager()
-# FIXME: trace_store stubbed - get_trace_store not implemented
-trace_store = None  # get_trace_store()
+# NOTE: trace_store not implemented yet - TraceStore is planned for Phase 3
+trace_store = None
 
 
 def _get_policy_loader():

@@ -6,16 +6,14 @@ import uuid as _uuid
 
 import ulid
 from backend.utils.common.logging.logger import get_logger
-# FIXME: infrastructure.storage doesn't exist - stubbed
-# from backend.infrastructure.storage.services.trace_store import get_trace_store
 from backend.utils.redactor import redact_and_hash_once
 from fastapi import APIRouter, HTTPException
 
 from ..assistant_schemas import ChatCompletionRequest
 
 logger = get_logger(__name__)
-# FIXME: trace_store stubbed - get_trace_store not implemented
-trace_store = None  # get_trace_store()
+# NOTE: trace_store not implemented yet - TraceStore is planned for Phase 3
+trace_store = None
 
 router = APIRouter()
 
