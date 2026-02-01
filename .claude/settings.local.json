@@ -205,7 +205,11 @@
       "Bash(PYTHONPATH=src python3.14:*)",
       "Bash(while read dir)",
       "mcp__chrome-devtools__get_console_message",
-      "Bash(PYTHONPATH=/Users/bernardurizaorozco/Documents/free-intelligence/backend python3.14:*)"
+      "Bash(PYTHONPATH=/Users/bernardurizaorozco/Documents/free-intelligence/backend python3.14:*)",
+      "Bash(PYTHONPATH=. pytest:*)",
+      "Bash(PYTHONPATH=backend pytest:*)",
+      "Bash(PYTHONPATH=backend python3:*)",
+      "Bash(PYTHONPATH=. python3.14:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -215,5 +219,6 @@
     "cloudflare-docs",
     "cloudflare-observability",
     "cloudflare-bindings"
-  ]
+  ],
+  "outputStyle": "Explanatory"
 }
