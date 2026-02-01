@@ -440,13 +440,17 @@ class MedicationExtractor:
 
         Uses basic text patterns to extract medications.
 
+        NOTE (Phase 2.3 Critical Fix): Does NOT enrich from catalog.
+        Fallback path must be fail-safe - no external dependencies.
+        Catalog enrichment is optional and done only in happy path.
+
         Args:
             text: Treatment text
 
         Returns:
-            List of Medications (may be incomplete)
+            List of basic Medications (no catalog enrichment)
         """
-        logger.info("FALLBACK_PARSE_ACTIVATED")
+        logger.info("FALLBACK_PARSE_ACTIVATED", hint="No catalog enrichment in fallback")
 
         medications: list[Medication] = []
         lines = text.strip().split("\n")
@@ -493,8 +497,7 @@ class MedicationExtractor:
                 instructions=line,
             )
 
-            # Try to enrich from catalog
-            medication = self._enrich_from_catalog(medication)
+            # NOTE: NO catalog enrichment in fallback path (fail-safe)
             medications.append(medication)
 
         return medications

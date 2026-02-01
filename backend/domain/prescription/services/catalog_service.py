@@ -330,18 +330,57 @@ class CatalogService(ICatalogService):
         }
 
 
-# Factory function for backwards compatibility (DEPRECATED)
-# For new code, use DI via get_catalog_service_dep() from dependencies.py
+# ============================================================================
+# DEPRECATED: Module-level singleton (Phase 2.3 Critical Fix)
+# ============================================================================
+
+import warnings as _warnings
+
+
 def _get_default_catalog_service() -> CatalogService:
     """Create default CatalogService for backwards compatibility.
 
     DEPRECATED: Use get_catalog_service_dep() from dependencies.py instead.
-    This exists only for legacy code that imports catalog_service directly.
+
+    Emits DeprecationWarning on every call to encourage migration.
     """
+    _warnings.warn(
+        "Module-level catalog_service is deprecated. "
+        "Use get_catalog_service_dep() from backend.services.workflow.dependencies",
+        DeprecationWarning,
+        stacklevel=3,
+    )
     from backend.domain.prescription.repositories import InMemoryCatalogRepository
 
     return CatalogService(repository=InMemoryCatalogRepository())
 
 
+class _DeprecatedCatalogServiceProxy:
+    """Proxy that emits warning on first attribute access."""
+
+    def __init__(self) -> None:
+        self._instance: CatalogService | None = None
+        self._warned: bool = False
+
+    def _get_instance(self) -> CatalogService:
+        if self._instance is None:
+            from backend.domain.prescription.repositories import InMemoryCatalogRepository
+
+            self._instance = CatalogService(repository=InMemoryCatalogRepository())
+        return self._instance
+
+    def __getattr__(self, name: str):
+        if not self._warned:
+            _warnings.warn(
+                "Accessing catalog_service module-level singleton is deprecated. "
+                "Use get_catalog_service_dep() from backend.services.workflow.dependencies",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._warned = True
+        return getattr(self._get_instance(), name)
+
+
 # DEPRECATED: Use get_catalog_service_dep() from dependencies.py
-catalog_service = _get_default_catalog_service()
+# This proxy emits DeprecationWarning on first attribute access
+catalog_service = _DeprecatedCatalogServiceProxy()

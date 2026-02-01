@@ -622,6 +622,7 @@ class AzureGPT4Provider(DiarizationProvider):
             raise ValueError(error_msg2)
 
         # Load diarization preset (prompt engineering config)
+        # Phase 2.3 Critical Fix: Fail-fast if preset_loader provided but fails
         self.preset = None
         if preset_loader is not None:
             try:
@@ -632,16 +633,23 @@ class AzureGPT4Provider(DiarizationProvider):
                     version=self.preset.version,
                     temperature=self.preset.temperature,
                 )
-            except (ImportError, FileNotFoundError, KeyError, ValueError) as e:
-                self.logger.warning(
-                    "DIARIZATION_PRESET_LOAD_FAILED",
+            except Exception as e:
+                # FAIL-FAST: If preset_loader was provided, preset MUST load
+                # Silent fallback hides configuration errors in production
+                self.logger.critical(
+                    "DIARIZATION_PRESET_LOAD_FAILED_FATAL",
                     error=str(e),
-                    hint="Using legacy hardcoded prompt",
+                    message="Cannot initialize AzureGPT4Provider - preset loading failed",
                 )
+                raise ValueError(
+                    f"AzureGPT4Provider preset loading failed: {e}. "
+                    "Fix diarization_analyst preset or pass preset_loader=None for legacy mode."
+                ) from e
         else:
+            # Explicit legacy mode - no preset_loader provided
             self.logger.debug(
-                "AZURE_GPT4_NO_PRESET_LOADER",
-                hint="Using legacy hardcoded prompt (pass preset_loader for DI)",
+                "AZURE_GPT4_LEGACY_MODE",
+                hint="No preset_loader - using hardcoded prompt (DEPRECATED)",
             )
 
         self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
