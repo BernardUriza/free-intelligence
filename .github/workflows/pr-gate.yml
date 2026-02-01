@@ -47,14 +47,16 @@ jobs:
           cd backend
           python -c "
           import sys
-          sys.path.insert(0, 'src')
+          sys.path.insert(0, '.')
 
-          # Critical modules that MUST import
+          # Critical modules that MUST import (updated post-refactor)
           critical = [
-              'fi_common.logging.logger',
-              'fi_storage',
-              'fi_auth',
-              'fi_workflow',
+              'utils.common.logging.logger',
+              'repositories.interfaces',
+              'infrastructure.auth',
+              'infrastructure.workers',
+              'services.transcription',
+              'api.routers.session.public.sessions',
           ]
 
           failed = []
