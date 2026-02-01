@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from backend.infrastructure.cache.interfaces.icache import ICache
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
     from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
@@ -338,6 +339,26 @@ def get_decisional_middleware_dep() -> IDecisionalMiddleware:
     from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
 
     return DecisionalMiddleware()
+
+
+def get_cache_dep(ttl: int = 3600) -> ICache:
+    """Get LLM cache for services - direct instantiation.
+
+    Phase 2.3 Mercurio: Cache consolidation.
+
+    Args:
+        ttl: Default TTL in seconds (1 hour default)
+
+    Returns:
+        ICache instance (LLMCache)
+
+    Note:
+        Replaces deprecated get_cache() service locator.
+        In-memory cache with TTL and Prometheus export.
+    """
+    from backend.infrastructure.cache.cache import LLMCache
+
+    return LLMCache(default_ttl=ttl)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

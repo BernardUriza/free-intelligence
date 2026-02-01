@@ -13,6 +13,7 @@ Philosophy:
 
 File: backend/cache.py
 Created: 2025-10-28
+Updated: 2026-02-01 (Phase 2.3 Mercurio - Implements ICache interface)
 """
 
 import hashlib
@@ -21,6 +22,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.utils.coder.observability.logger import get_logger
+from backend.infrastructure.cache.interfaces.icache import ICache
 
 logger = get_logger(__name__)
 
@@ -45,9 +47,11 @@ class CacheEntry:
         return time.time() - self.created_at
 
 
-class LLMCache:
+class LLMCache(ICache):
     """
     In-memory cache for LLM responses with hash-based keys.
+
+    Implements ICache interface for dependency injection.
 
     Features:
     - Hash(prompt + schema + temperature + model) → cache key
@@ -279,6 +283,9 @@ _cache_instance: LLMCache | None = None
 def get_cache(ttl: int | None = None) -> LLMCache:
     """
     Get global cache instance (singleton).
+
+    NOTE: For new code, prefer DI via get_cache_dep() from
+    backend.services.workflow.dependencies instead (Phase 2.3 Mercurio).
 
     Args:
         ttl: Default TTL (only used on first call)
