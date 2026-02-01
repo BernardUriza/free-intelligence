@@ -44,19 +44,18 @@ jobs:
 
       - name: Check critical imports
         run: |
-          cd backend
           python -c "
           import sys
           sys.path.insert(0, '.')
 
           # Critical modules that MUST import (updated post-refactor)
           critical = [
-              'utils.common.logging.logger',
-              'repositories.interfaces',
-              'infrastructure.auth',
-              'infrastructure.workers',
-              'services.transcription',
-              'api.routers.session.public.sessions',
+              'backend.utils.common.logging.logger',
+              'backend.repositories.interfaces',
+              'backend.infrastructure.auth',
+              'backend.infrastructure.workers',
+              'backend.services.transcription',
+              'backend.api.routers.session.public.sessions',
           ]
 
           failed = []
