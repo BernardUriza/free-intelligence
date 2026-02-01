@@ -1,0 +1,32 @@
+NOTA MÉDICA - CONSULTA GENERAL
+
+Paciente: Juan Pérez García
+Edad: 45 años
+Fecha: 2026-01-20
+
+MOTIVO DE CONSULTA:
+Dolor de cabeza intenso de 2 días de evolución.
+
+HISTORIA:
+El paciente refiere cefalea frontal bilateral, pulsátil, intensidad 8/10.
+Asociada a náusea y fotofobia. Sin fiebre ni rigidez de nuca.
+
+EXPLORACIÓN FÍSICA:
+TA: 130/85 mmHg
+FC: 78 lpm
+Temp: 36.8°C
+Neurológico: sin datos focales, Glasgow 15/15
+
+DIAGNÓSTICO:
+Migraña sin aura
+
+TRATAMIENTO:
+- Ibuprofeno 400mg cada 8 horas por 3 días
+- Reposo en habitación oscura
+- Evitar pantallas por 24 horas
+
+PRONÓSTICO:
+Favorable. Control en 7 días si persisten síntomas.
+
+Dr. María González Rodríguez
+Cédula: 1234567

@@ -1,7 +1,6 @@
 // React hook for setup wizard state management (Ollama + Python 3.14)
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { invoke, listen } from './lib/tauri-adapter';
 
 export type SetupScreen =
   | 'CHECKING'
@@ -214,8 +213,9 @@ export function useSetup() {
   }
 
   function proceedToApp() {
-    // Screen will be hidden by parent component checking setupState.completed
-    console.log('[Setup] Proceeding to app');
+    // Reload to pick up updated setup state from backend
+    console.log('[Setup] Proceeding to app - reloading window');
+    window.location.reload();
   }
 
   return {

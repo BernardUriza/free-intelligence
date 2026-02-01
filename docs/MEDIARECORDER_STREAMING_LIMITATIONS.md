@@ -203,4 +203,4 @@ npm test -- ConversationCapture.test.tsx -t "EBML header"
 ---
 
 **Status**: Issue documented, mitigation deployed
-**Next Steps**: Evaluate RecordRTC for Phase 2 (FI-STRIDE Sprint 2)
+**Next Steps**: Evaluate RecordRTC for Phase 2

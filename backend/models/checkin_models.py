@@ -166,15 +166,16 @@ class Clinic(Base):
     subscription_plan = Column(String(50), default="starter")  # Legacy: will be replaced by plan_id
     subscription_valid_until = Column(DateTime(timezone=True), nullable=True)
 
-    # Plan-based limits (new)
-    plan_id = Column(
-        UUID(as_uuid=False),
-        ForeignKey("subscription_plans.plan_id"),
-        nullable=True,  # Nullable during migration
-    )
-    max_doctors_override = Column(
-        Integer, nullable=True
-    )  # Superadmin override, NULL = use plan limit
+    # Plan-based limits (new) - COMMENTED OUT: columns don't exist in DB yet
+    # TODO: Run migration to add these columns
+    # plan_id = Column(
+    #     UUID(as_uuid=False),
+    #     ForeignKey("subscription_plans.plan_id"),
+    #     nullable=True,  # Nullable during migration
+    # )
+    # max_doctors_override = Column(
+    #     Integer, nullable=True
+    # )  # Superadmin override, NULL = use plan limit
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -184,7 +185,7 @@ class Clinic(Base):
     # Relationships (no type hints for SQLAlchemy 2.0 compatibility)
     doctors = relationship("Doctor", back_populates="clinic")
     appointments = relationship("Appointment", back_populates="clinic")
-    subscription = relationship("SubscriptionPlan", back_populates="clinics")
+    # subscription = relationship("SubscriptionPlan", back_populates="clinics")  # COMMENTED: plan_id doesn't exist yet
 
     def __repr__(self) -> str:
         """Return string representation of Clinic."""

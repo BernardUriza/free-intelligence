@@ -7,16 +7,15 @@ simultaneously, verifying zero concurrency conflicts.
 Expected result: All 4 workers complete successfully without corruption.
 """
 
+from backend.container import get_container
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend.models.task_type import TaskType
-from backend.src.fi_common.logging.logger import get_logger
-from backend.src.fi_storage.infrastructure.hdf5.session_h5_manager import (
+from backend.utils.common.logging.logger import get_logger
     get_session_h5_path,
     get_storage_stats,
 )
-from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     add_full_audio,
     add_full_transcription,
     add_webspeech_transcripts,
@@ -46,20 +45,20 @@ def worker_task(worker_id: int, session_id: str) -> dict:
 
     try:
         # 1. Create task structures
-        ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
-        ensure_task_exists(session_id, TaskType.DIARIZATION)
+        ensure_get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION)
+        ensure_get_container().get_task_repository().task_exists(session_id, TaskType.DIARIZATION)
 
         # 2. Add webspeech transcripts (simulates frontend upload)
         transcripts = [f"Worker {worker_id} transcript line {i}" for i in range(5)]
-        add_webspeech_transcripts(session_id, transcripts)
+        get_container().get_task_repository().add_webspeech_transcripts(session_id, transcripts)
 
         # 3. Add full transcription (simulates STT result)
         full_text = f"Worker {worker_id} full transcription: Lorem ipsum dolor sit amet"
-        add_full_transcription(session_id, full_text)
+        get_container().get_task_repository().add_full_transcription(session_id, full_text)
 
         # 4. Add audio file (simulates audio upload)
         audio_bytes = b"FAKE_AUDIO_DATA_" + str(worker_id).encode() * 1000
-        add_full_audio(session_id, audio_bytes)
+        get_container().get_task_repository().add_full_audio(session_id, audio_bytes)
 
         # 5. Save diarization segments (simulates diarization worker)
         from backend.providers.diarization import DiarizationSegment, Speaker
@@ -74,7 +73,7 @@ def worker_task(worker_id: int, session_id: str) -> dict:
             )
             for i in range(3)
         ]
-        save_diarization_segments(session_id, segments)
+        get_container().get_task_repository().save_diarization_segments(session_id, segments)
 
         elapsed = time.time() - start_time
         logger.info(

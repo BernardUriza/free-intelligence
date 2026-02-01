@@ -106,7 +106,7 @@ class TestContainerErrorHandling:
 
     def test_container_with_invalid_h5_path(self, temp_h5_file):
         """Test container initialization with invalid HDF5 path."""
-        from backend.src.fi_common.infrastructure.container import DIContainer
+        from backend.infrastructure.common.container import DIContainer
 
         # Use non-existent path
         invalid_path = temp_h5_file.parent / "nonexistent_dir" / "test.h5"

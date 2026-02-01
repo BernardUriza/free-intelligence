@@ -13,6 +13,8 @@ Card: FI-API-FEAT-020 - Knowledge Base document upload with RAG
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 import pytest
 
@@ -26,7 +28,6 @@ import tempfile
 import h5py
 import numpy as np
 import pytest
-from backend.src.fi_storage.infrastructure.hdf5.document_repository import (
     DocumentChunk,
     DocumentStatus,
     create_document,

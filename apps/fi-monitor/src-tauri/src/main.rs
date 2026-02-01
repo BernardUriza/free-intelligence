@@ -38,6 +38,13 @@ struct AppConfig {
     azure_sas_url: Option<String>,
     last_tunnel_url: Option<String>,
     last_upload_success: Option<String>,
+    tunnel_port: Option<u16>,
+}
+
+impl AppConfig {
+    fn get_tunnel_port(&self) -> u16 {
+        self.tunnel_port.unwrap_or(11400)  // Default Gateway
+    }
 }
 
 fn get_config_path() -> PathBuf {
@@ -70,9 +77,121 @@ fn save_config(config: &AppConfig) -> Result<(), String> {
     Ok(())
 }
 
+fn get_app_lock_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("fi-monitor")
+        .join("app.lock")
+}
+
+fn check_single_instance() {
+    let lock_path = get_app_lock_path();
+
+    if lock_path.exists() {
+        // Read existing PID
+        if let Ok(pid_str) = std::fs::read_to_string(&lock_path) {
+            if let Ok(pid) = pid_str.trim().parse::<u32>() {
+                // Check if process is still running
+                #[cfg(target_os = "windows")]
+                let running = {
+                    use std::process::Command;
+                    Command::new("tasklist")
+                        .args(["/FI", &format!("PID eq {}", pid)])
+                        .output()
+                        .map(|output| String::from_utf8_lossy(&output.stdout).contains(&pid.to_string()))
+                        .unwrap_or(false)
+                };
+
+                #[cfg(not(target_os = "windows"))]
+                let running = {
+                    use std::process::Command;
+                    Command::new("kill")
+                        .args(["-0", &pid.to_string()])
+                        .status()
+                        .map(|status| status.success())
+                        .unwrap_or(false)
+                };
+
+                if running {
+                    eprintln!("\n❌ ERROR: FI Monitor ya está corriendo (PID: {})", pid);
+                    eprintln!("   Cierra la instancia actual antes de lanzar otra.\n");
+                    eprintln!("   Comando para cerrar:");
+                    #[cfg(target_os = "windows")]
+                    eprintln!("   taskkill /F /PID {}\n", pid);
+                    #[cfg(not(target_os = "windows"))]
+                    eprintln!("   kill {}\n", pid);
+                    std::process::exit(1);
+                }
+            }
+        }
+        // Stale lockfile, remove it
+        let _ = std::fs::remove_file(&lock_path);
+    }
+
+    // Create lockfile with current PID
+    let current_pid = std::process::id();
+    if let Some(parent) = lock_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(&lock_path, current_pid.to_string())
+        .expect("Failed to create lockfile");
+
+    println!("[FI Monitor] Single instance check passed (PID: {})", current_pid);
+}
+
+fn cleanup_lock() {
+    let lock_path = get_app_lock_path();
+    if lock_path.exists() {
+        let _ = std::fs::remove_file(&lock_path);
+    }
+}
+
+fn get_benchmarks_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("fi-monitor")
+        .join("benchmarks.json")
+}
+
+fn load_benchmark_history() -> BenchmarkHistory {
+    let path = get_benchmarks_path();
+    if !path.exists() {
+        return BenchmarkHistory { results: vec![] };
+    }
+    let content = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".to_string());
+    serde_json::from_str(&content).unwrap_or(BenchmarkHistory { results: vec![] })
+}
+
+fn save_benchmark_result(result: BenchmarkSuite) -> Result<(), String> {
+    let mut history = load_benchmark_history();
+    history.results.insert(0, result); // Insert at front
+    history.results.truncate(50); // Keep last 50
+
+    let path = get_benchmarks_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&history).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    println!("[FI Monitor] Benchmark saved to {:?}", path);
+    Ok(())
+}
+
 // ============================================================================
 // App State
 // ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TunnelMode {
+    Local,       // localhost:11400 directo (0ms latency)
+    Cloudflared, // cloudflared tunnel real (acceso remoto)
+}
+
+impl Default for TunnelMode {
+    fn default() -> Self {
+        TunnelMode::Local
+    }
+}
 
 #[derive(Default)]
 struct AppState {
@@ -80,12 +199,15 @@ struct AppState {
     tunnel_running: Mutex<bool>,
     tunnel_url: Mutex<Option<String>>,
     tunnel_process: Mutex<Option<u32>>,
+    tunnel_mode: Mutex<TunnelMode>, // Track current tunnel type
     config: Mutex<AppConfig>,
     // Phase 3: GPU acceleration services
     rag_service_running: Mutex<bool>,
     rag_service_process: Mutex<Option<u32>>,
     gateway_running: Mutex<bool>,
     gateway_process: Mutex<Option<u32>>,
+    // Watchdog state (prevents duplicate watchdog threads)
+    watchdog_running: Mutex<bool>,
 }
 
 #[derive(Serialize, Clone)]
@@ -117,7 +239,6 @@ async fn check_ollama() -> bool {
         .map(|r| r.status().is_success())
         .unwrap_or(false)
 }
-
 async fn get_ollama_models() -> Vec<String> {
     #[derive(Deserialize)]
     struct ModelsResponse {
@@ -140,6 +261,281 @@ async fn get_ollama_models() -> Vec<String> {
         },
         Err(_) => vec![],
     }
+}
+
+// ============================================================================
+// Model Management (Ollama API)
+// ============================================================================
+
+#[derive(Serialize, Clone)]
+struct OllamaModelInfo {
+    name: String,
+    size: String,
+    modified: String,
+    digest: String,
+}
+
+#[derive(Serialize, Clone, Default)]
+struct RagStats {
+    gpu_memory_used_mb: u64,
+    gpu_memory_total_mb: u64,
+    gpu_device: String,
+    model_name: String,
+    embeddings_count: u64,
+    avg_query_ms: f64,
+    throughput_qps: f64,
+}
+
+fn format_size(bytes: u64) -> String {
+    const GB: u64 = 1_073_741_824;
+    const MB: u64 = 1_048_576;
+    const KB: u64 = 1_024;
+
+    if bytes >= GB {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+fn format_time_ago(modified_at: &str) -> String {
+    // Parse ISO 8601 timestamp and calculate time ago
+    match chrono::DateTime::parse_from_rfc3339(modified_at) {
+        Ok(dt) => {
+            let now = chrono::Utc::now();
+            let duration = now.signed_duration_since(dt);
+
+            let days = duration.num_days();
+            let hours = duration.num_hours();
+            let minutes = duration.num_minutes();
+
+            if days > 0 {
+                if days == 1 {
+                    "1 day ago".to_string()
+                } else {
+                    format!("{} days ago", days)
+                }
+            } else if hours > 0 {
+                if hours == 1 {
+                    "1 hour ago".to_string()
+                } else {
+                    format!("{} hours ago", hours)
+                }
+            } else if minutes > 0 {
+                if minutes == 1 {
+                    "1 minute ago".to_string()
+                } else {
+                    format!("{} minutes ago", minutes)
+                }
+            } else {
+                "Just now".to_string()
+            }
+        }
+        Err(_) => "Unknown".to_string(),
+    }
+}
+
+#[tauri::command]
+async fn list_ollama_models_detailed() -> Result<Vec<OllamaModelInfo>, String> {
+    #[derive(Deserialize)]
+    struct ModelsResponse {
+        models: Vec<ModelDetail>,
+    }
+
+    #[derive(Deserialize)]
+    struct ModelDetail {
+        name: String,
+        size: u64,
+        modified_at: String,
+        digest: String,
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client
+        .get("http://localhost:11434/api/tags")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch models: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Ollama API returned {}", response.status()));
+    }
+
+    let data: ModelsResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let models: Vec<OllamaModelInfo> = data
+        .models
+        .into_iter()
+        .map(|m| OllamaModelInfo {
+            name: m.name,
+            size: format_size(m.size),
+            modified: format_time_ago(&m.modified_at),
+            digest: m.digest[..12].to_string(), // Short digest
+        })
+        .collect();
+
+    Ok(models)
+}
+
+#[tauri::command]
+async fn pull_ollama_model(model_name: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    println!("[FI Monitor] Pulling model: {}", model_name);
+
+    app_handle
+        .emit("model-pull-started", model_name.clone())
+        .map_err(|e| e.to_string())?;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(600)) // 10 minutes
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    #[derive(Serialize)]
+    struct PullRequest {
+        name: String,
+        stream: bool,
+    }
+
+    let response = client
+        .post("http://localhost:11434/api/pull")
+        .json(&PullRequest {
+            name: model_name.clone(),
+            stream: false,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Failed to pull model: {}", e))?;
+
+    if response.status().is_success() {
+        println!("[FI Monitor] ✅ Model pulled successfully: {}", model_name);
+        app_handle
+            .emit("model-pull-completed", model_name)
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        let error_msg = format!("Pull failed with status: {}", response.status());
+        println!("[FI Monitor] ❌ {}", error_msg);
+        app_handle
+            .emit("model-pull-failed", error_msg.clone())
+            .map_err(|e| e.to_string())?;
+        Err(error_msg)
+    }
+}
+
+#[tauri::command]
+async fn delete_ollama_model(model_name: String) -> Result<(), String> {
+    println!("[FI Monitor] Deleting model: {}", model_name);
+
+    let client = reqwest::Client::new();
+
+    #[derive(Serialize)]
+    struct DeleteRequest {
+        name: String,
+    }
+
+    let response = client
+        .delete("http://localhost:11434/api/delete")
+        .json(&DeleteRequest {
+            name: model_name.clone(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Failed to delete model: {}", e))?;
+
+    if response.status().is_success() {
+        println!("[FI Monitor] ✅ Model deleted successfully: {}", model_name);
+        Ok(())
+    } else {
+        let error_msg = format!("Delete failed with status: {}", response.status());
+        println!("[FI Monitor] ❌ {}", error_msg);
+        Err(error_msg)
+    }
+}
+
+// ============================================================================
+// Environment Variables Management
+// ============================================================================
+
+#[derive(Serialize, Deserialize, Clone)]
+struct EnvVar {
+    key: String,
+    value: String,
+}
+
+fn get_env_file_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("fi-monitor")
+        .join("ollama.env")
+}
+
+#[tauri::command]
+fn get_env_vars() -> Result<Vec<EnvVar>, String> {
+    let env_path = get_env_file_path();
+
+    if !env_path.exists() {
+        // Return defaults if file doesn't exist
+        return Ok(vec![
+            EnvVar { key: "OLLAMA_NUM_PARALLEL".to_string(), value: "1".to_string() },
+            EnvVar { key: "OLLAMA_MAX_LOADED_MODELS".to_string(), value: "1".to_string() },
+            EnvVar { key: "OLLAMA_ORIGINS".to_string(), value: "*".to_string() },
+        ]);
+    }
+
+    let content = std::fs::read_to_string(&env_path)
+        .map_err(|e| format!("Failed to read env file: {}", e))?;
+
+    let vars: Vec<EnvVar> = content
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#'))
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                Some(EnvVar {
+                    key: parts[0].trim().to_string(),
+                    value: parts[1].trim().to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(vars)
+}
+
+#[tauri::command]
+fn set_env_vars(vars: Vec<EnvVar>) -> Result<(), String> {
+    let env_path = get_env_file_path();
+
+    if let Some(parent) = env_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create config dir: {}", e))?;
+    }
+
+    let mut content = String::from("# Ollama Environment Variables\n");
+    content.push_str("# Generated by FI Monitor\n\n");
+
+    for var in vars {
+        content.push_str(&format!("{}={}\n", var.key, var.value));
+    }
+
+    std::fs::write(&env_path, content)
+        .map_err(|e| format!("Failed to write env file: {}", e))?;
+
+    println!("[FI Monitor] ✅ Environment variables saved to {:?}", env_path);
+    Ok(())
 }
 
 #[tauri::command]
@@ -194,16 +590,47 @@ async fn stop_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, Str
 // ============================================================================
 
 async fn check_rag_service() -> bool {
+    #[derive(serde::Deserialize)]
+    struct HealthResponse {
+        device: String,
+        gpu_name: Option<String>,
+    }
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()
         .unwrap();
-    client
-        .get("http://localhost:11435/rag/health")
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false)
+
+    match client.get("http://localhost:11435/rag/health").send().await {
+        Ok(response) if response.status().is_success() => {
+            // Parse JSON to validate GPU presence
+            match response.json::<HealthResponse>().await {
+                Ok(health) => {
+                    // Valid only if device is cuda/mps AND gpu_name exists
+                    if (health.device == "cuda" || health.device == "mps") && health.gpu_name.is_some() {
+                        println!(
+                            "[FI Monitor] ✅ RAG Service GPU validated: {} on {}",
+                            health.gpu_name.unwrap_or_default(),
+                            health.device
+                        );
+                        true
+                    } else {
+                        println!(
+                            "[FI Monitor] ❌ RAG Service running on CPU (device: {}) - rejecting",
+                            health.device
+                        );
+                        false
+                    }
+                }
+                Err(e) => {
+                    println!("[FI Monitor] ⚠️ Failed to parse RAG health response: {}", e);
+                    false
+                }
+            }
+        }
+        Ok(_) => false,
+        Err(_) => false,
+    }
 }
 
 async fn check_gateway() -> bool {
@@ -219,8 +646,8 @@ async fn check_gateway() -> bool {
         .unwrap_or(false)
 }
 
-#[tauri::command]
-async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+// Internal function (for auto-start and command)
+async fn start_rag_service_internal(state: Arc<AppState>) -> Result<bool, String> {
     if check_rag_service().await {
         *state.rag_service_running.lock().unwrap() = true;
         return Ok(true);
@@ -235,45 +662,76 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
         "python3"
     };
 
-    // Get the app directory (where gateway/ and rag_service/ are located)
-    let app_dir =
+    // Find rag_service directory (try multiple locations)
+    let current_dir =
         std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
-    println!("[FI Monitor] App directory: {:?}", app_dir);
+    // Try multiple locations for rag_service
+    let possible_locations = vec![
+        current_dir.join("rag_service"),                    // 1. Alongside fi-monitor
+        current_dir.join("../../backend/src/rag_service"),  // 2. Root monorepo (dev mode)
+        current_dir.join("../../../backend/src/rag_service"), // 3. Alternative dev structure
+    ];
+
+    let rag_service_dir = possible_locations
+        .iter()
+        .find(|path| path.join("main.py").exists())
+        .ok_or_else(|| {
+            format!(
+                "RAG Service not found. Searched:\n{}",
+                possible_locations
+                    .iter()
+                    .map(|p| format!("  - {:?}", p))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        })?;
+
+    let app_dir = rag_service_dir
+        .parent()
+        .ok_or("Failed to get parent directory")?;
+
+    println!("[FI Monitor] RAG Service found at: {:?}", rag_service_dir);
+    println!("[FI Monitor] Working directory: {:?}", app_dir);
 
     #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    #[cfg(target_os = "windows")]
-    let mut cmd = Command::new(python);
-    cmd.args([
-        "-m",
-        "uvicorn",
-        "rag_service.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "11435",
-    ])
-    .current_dir(&app_dir)
-    .stdout(Stdio::null())
-    .stderr(Stdio::null())
-    .creation_flags(CREATE_NO_WINDOW);
+    let mut cmd = {
+        let mut command = Command::new(python);
+        command
+            .args([
+                "-m",
+                "uvicorn",
+                "rag_service.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "11435",
+            ])
+            .current_dir(&app_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x08000000); // CREATE_NO_WINDOW
+        command
+    };
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = Command::new(python);
-    cmd.args([
-        "-m",
-        "uvicorn",
-        "rag_service.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "11435",
-    ])
-    .current_dir(&app_dir)
-    .stdout(Stdio::null())
-    .stderr(Stdio::null());
+    let mut cmd = {
+        let mut command = Command::new(python);
+        command
+            .args([
+                "-m",
+                "uvicorn",
+                "rag_service.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "11435",
+            ])
+            .current_dir(&app_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        command
+    };
 
     let result = cmd.spawn();
 
@@ -298,6 +756,11 @@ async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<boo
 }
 
 #[tauri::command]
+async fn start_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
+    start_rag_service_internal(state.inner().clone()).await
+}
+
+#[tauri::command]
 async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
     println!("[FI Monitor] Stopping RAG Service...");
 
@@ -316,6 +779,37 @@ async fn stop_rag_service(state: tauri::State<'_, Arc<AppState>>) -> Result<bool
 
     *state.rag_service_running.lock().unwrap() = false;
     Ok(true)
+}
+
+#[tauri::command]
+async fn get_rag_stats() -> Result<RagStats, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:11435/rag/health")
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch RAG stats: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("RAG Service returned error: {}", response.status()));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse RAG stats: {}", e))?;
+
+    // Parse stats from health endpoint
+    Ok(RagStats {
+        gpu_memory_used_mb: json["gpu_memory_mb"].as_u64().unwrap_or(0),
+        gpu_memory_total_mb: 65536, // M1 Max default, adjust as needed
+        gpu_device: json["device"].as_str().unwrap_or("unknown").to_string(),
+        model_name: json["model"].as_str().unwrap_or("unknown").to_string(),
+        embeddings_count: json["embeddings_count"].as_u64().unwrap_or(0),
+        avg_query_ms: json["avg_query_ms"].as_f64().unwrap_or(0.0),
+        throughput_qps: json["throughput_qps"].as_f64().unwrap_or(0.0),
+    })
 }
 
 #[tauri::command]
@@ -339,38 +833,43 @@ async fn start_gateway(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, S
         std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
     #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    #[cfg(target_os = "windows")]
-    let mut cmd = Command::new(python);
-    cmd.args([
-        "-m",
-        "uvicorn",
-        "gateway.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "11400",
-    ])
-    .current_dir(&app_dir)
-    .stdout(Stdio::null())
-    .stderr(Stdio::null())
-    .creation_flags(CREATE_NO_WINDOW);
+    let mut cmd = {
+        let mut command = Command::new(python);
+        command
+            .args([
+                "-m",
+                "uvicorn",
+                "gateway.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "11400",
+            ])
+            .current_dir(&app_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x08000000); // CREATE_NO_WINDOW
+        command
+    };
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = Command::new(python);
-    cmd.args([
-        "-m",
-        "uvicorn",
-        "gateway.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "11400",
-    ])
-    .current_dir(&app_dir)
-    .stdout(Stdio::null())
-    .stderr(Stdio::null());
+    let mut cmd = {
+        let mut command = Command::new(python);
+        command
+            .args([
+                "-m",
+                "uvicorn",
+                "gateway.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "11400",
+            ])
+            .current_dir(&app_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        command
+    };
 
     let result = cmd.spawn();
 
@@ -420,32 +919,63 @@ async fn start_tunnel(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
-    start_tunnel_internal(app, Arc::clone(&*state)).await
+    // Si hay tunnel local corriendo, detenerlo primero
+    let current_mode = *state.tunnel_mode.lock().unwrap();
+    if current_mode == TunnelMode::Local && *state.tunnel_running.lock().unwrap() {
+        println!("[FI Monitor] Switching from local tunnel to cloudflared...");
+        stop_tunnel_internal(Arc::clone(&*state))?;
+    }
+
+    // Iniciar cloudflared REAL (acceso remoto)
+    start_tunnel_cloudflared_internal(app, Arc::clone(&*state)).await
+}
+
+/// Internal function to stop tunnel without restarting local mode
+fn stop_tunnel_internal(state: Arc<AppState>) -> Result<bool, String> {
+    println!("[FI Monitor] Stopping tunnel...");
+
+    let mode = *state.tunnel_mode.lock().unwrap();
+
+    // Solo matar proceso si es cloudflared
+    if mode == TunnelMode::Cloudflared {
+        if let Some(pid) = state.tunnel_process.lock().unwrap().take() {
+            #[cfg(target_os = "windows")]
+            {
+                let _ = Command::new("taskkill")
+                    .args(["/F", "/PID", &pid.to_string()])
+                    .output();
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = Command::new("kill").arg(pid.to_string()).output();
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/IM", "cloudflared.exe"])
+                .output();
+        }
+    }
+
+    *state.tunnel_running.lock().unwrap() = false;
+    *state.tunnel_url.lock().unwrap() = None;
+    Ok(true)
 }
 
 #[tauri::command]
 async fn stop_tunnel(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
-    println!("[FI Monitor] Stopping tunnel...");
-    if let Some(pid) = state.tunnel_process.lock().unwrap().take() {
-        #[cfg(target_os = "windows")]
-        {
-            let _ = Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let _ = Command::new("kill").arg(pid.to_string()).output();
-        }
+    let mode = *state.tunnel_mode.lock().unwrap();
+
+    // Detener tunnel actual
+    stop_tunnel_internal(Arc::clone(&*state))?;
+
+    // Si era cloudflared, volver a modo local automáticamente
+    if mode == TunnelMode::Cloudflared {
+        println!("[FI Monitor] Returning to local tunnel mode...");
+        start_tunnel_local(Arc::clone(&*state))?;
     }
-    #[cfg(target_os = "windows")]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/IM", "cloudflared.exe"])
-            .output();
-    }
-    *state.tunnel_running.lock().unwrap() = false;
-    *state.tunnel_url.lock().unwrap() = None;
+
     Ok(true)
 }
 
@@ -563,6 +1093,23 @@ fn save_tunnel_url_locally(url: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Read the tunnel URL file content
+#[tauri::command]
+fn read_tunnel_file() -> Result<String, String> {
+    let path = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("fi-monitor")
+        .join("tunnel-url.json");
+
+    // Verificar que el archivo existe
+    if !path.exists() {
+        return Err("Tunnel file not found. Start the tunnel to create it.".to_string());
+    }
+
+    // Leer contenido del archivo
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
 /// Periodically re-upload tunnel URL to keep timestamp fresh
 fn start_periodic_upload(url: String, config: AppConfig) {
     std::thread::spawn(move || {
@@ -604,26 +1151,43 @@ fn is_process_alive(pid: u32) -> bool {
 }
 
 /// Watchdog to monitor tunnel process and auto-restart if it dies
+/// NOTE: This watchdog NEVER exits - it runs for the lifetime of the app
 fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
     std::thread::spawn(move || {
+        let mut restart_count = 0u32;
+        let mut check_count = 0u32;
+        println!("[FI Monitor Watchdog] Started (checking every 10s)");
+
         loop {
-            // Check every 30 seconds
-            std::thread::sleep(Duration::from_secs(30));
+            // Check every 10 seconds (faster detection than 30s)
+            std::thread::sleep(Duration::from_secs(10));
+            check_count += 1;
+
+            // Heartbeat log FIRST (every 6 checks = 60s)
+            if check_count % 6 == 0 {
+                println!("[FI Monitor Watchdog] Heartbeat #{}: woke up, checking state...", check_count);
+            }
 
             let pid_opt = state.tunnel_process.lock().unwrap().clone();
             let tunnel_running = *state.tunnel_running.lock().unwrap();
 
+            // Detailed state log after reading locks
+            if check_count % 6 == 0 {
+                println!("[FI Monitor Watchdog] State: tunnel_running={}, pid={:?}", tunnel_running, pid_opt);
+            }
+
             if !tunnel_running {
-                // Tunnel was manually stopped, exit watchdog
-                println!("[FI Monitor Watchdog] Tunnel stopped, exiting watchdog");
-                break;
+                // Tunnel was manually stopped, keep watching for restart
+                // DO NOT exit - watchdog must survive for app lifetime
+                continue;
             }
 
             if let Some(pid) = pid_opt {
                 if !is_process_alive(pid) {
+                    restart_count += 1;
                     println!(
-                        "[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting...",
-                        pid
+                        "[FI Monitor Watchdog] ⚠️ Tunnel process {} died! Restarting (attempt #{})...",
+                        pid, restart_count
                     );
 
                     // Mark as not running
@@ -639,30 +1203,73 @@ fn start_tunnel_watchdog(app: tauri::AppHandle, state: Arc<AppState>) {
                     // Trigger restart via command (this is async, so spawn it)
                     let app_clone = app.clone();
                     let state_clone = state.clone();
+                    let attempt = restart_count;
                     tauri::async_runtime::spawn(async move {
                         // Re-check Ollama before restart
                         if check_ollama().await {
-                            match start_tunnel_internal(app_clone.clone(), state_clone).await {
-                                Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted"),
+                            // Watchdog ALWAYS restarts cloudflared tunnel (not local)
+                            // porque solo cloudflared tiene proceso que puede morir
+                            match start_tunnel_cloudflared_internal(app_clone.clone(), state_clone).await {
+                                Ok(_) => println!("[FI Monitor Watchdog] ✅ Tunnel restarted (attempt #{})", attempt),
                                 Err(e) => {
-                                    println!("[FI Monitor Watchdog] ❌ Failed to restart: {}", e)
+                                    println!("[FI Monitor Watchdog] ❌ Failed to restart (attempt #{}): {}", attempt, e)
                                 }
                             }
                         } else {
-                            println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel");
+                            println!("[FI Monitor Watchdog] ❌ Ollama not running, cannot restart tunnel (attempt #{})", attempt);
                         }
                     });
 
-                    // Exit this watchdog, the restart will spawn a new one
-                    break;
+                    // DO NOT exit - continue monitoring
+                    // Watchdog must survive for app lifetime to handle future crashes
+                    continue;
                 }
             }
         }
     });
 }
 
-/// Internal function to start tunnel (used by both command and watchdog)
-async fn start_tunnel_internal(
+/// Start local tunnel (localhost directo, sin cloudflared)
+/// Usado en auto-start para modo rápido/simple
+fn start_tunnel_local(state: Arc<AppState>) -> Result<String, String> {
+    println!("[FI Monitor] Starting local tunnel (no cloudflared)...");
+
+    // 1. Obtener puerto configurado (default: 11400 = Gateway)
+    let tunnel_port = {
+        let config = state.config.lock().unwrap();
+        config.get_tunnel_port()
+    };
+
+    // 2. TUNNEL FICTICIO: Usar localhost directo (NO cloudflared)
+    let tunnel_url = format!("http://localhost:{}", tunnel_port);
+    println!("[FI Monitor] 🔧 Local tunnel (ficticio): {}", tunnel_url);
+
+    // 3. Guardar al JSON local
+    save_tunnel_url_locally(&tunnel_url)?;
+    println!("[FI Monitor] 💾 Saved to: ~/.config/fi-monitor/tunnel-url.json");
+
+    // 4. Actualizar state
+    *state.tunnel_url.lock().unwrap() = Some(tunnel_url.clone());
+    *state.tunnel_running.lock().unwrap() = true;
+    *state.tunnel_mode.lock().unwrap() = TunnelMode::Local;
+
+    // 5. Actualizar config con last_tunnel_url
+    {
+        let mut cfg = state.config.lock().unwrap();
+        cfg.last_tunnel_url = Some(tunnel_url.clone());
+        let _ = save_config(&cfg);
+    }
+
+    // 6. Re-upload periódico (mantiene timestamp fresco cada 5 min)
+    let config = state.config.lock().unwrap().clone();
+    start_periodic_upload(tunnel_url.clone(), config);
+
+    println!("[FI Monitor] ✅ Local tunnel ready");
+    Ok(tunnel_url)
+}
+
+/// Internal function to start cloudflared tunnel (used by manual command and watchdog)
+async fn start_tunnel_cloudflared_internal(
     app: tauri::AppHandle,
     state: Arc<AppState>,
 ) -> Result<String, String> {
@@ -674,7 +1281,15 @@ async fn start_tunnel_internal(
             return Ok(url);
         }
     }
-    println!("[FI Monitor] Starting Cloudflare tunnel...");
+
+    // Leer puerto configurado
+    let tunnel_port = {
+        let config = state.config.lock().unwrap();
+        config.get_tunnel_port()
+    };
+
+    let tunnel_url = format!("http://localhost:{}", tunnel_port);
+    println!("[FI Monitor] Starting Cloudflare tunnel to {}", tunnel_url);
     let cloudflared = find_cloudflared()?;
 
     #[cfg(target_os = "windows")]
@@ -682,7 +1297,7 @@ async fn start_tunnel_internal(
 
     #[cfg(target_os = "windows")]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", &tunnel_url])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .creation_flags(CREATE_NO_WINDOW)
@@ -691,7 +1306,7 @@ async fn start_tunnel_internal(
 
     #[cfg(not(target_os = "windows"))]
     let mut child = Command::new(&cloudflared)
-        .args(["tunnel", "--url", "http://localhost:11400"]) // Gateway port (routes to Ollama + RAG)
+        .args(["tunnel", "--url", &tunnel_url])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -700,6 +1315,7 @@ async fn start_tunnel_internal(
     let pid = child.id();
     *state.tunnel_process.lock().unwrap() = Some(pid);
     *state.tunnel_running.lock().unwrap() = true;
+    *state.tunnel_mode.lock().unwrap() = TunnelMode::Cloudflared;
 
     // Capture stderr in separate thread to find tunnel URL
     // IMPORTANT: Must .take() to move ownership to thread, otherwise stderr closes when child drops
@@ -748,7 +1364,16 @@ async fn start_tunnel_internal(
                 start_periodic_upload(url.clone(), config.clone());
 
                 // Start tunnel watchdog (auto-restart if it dies)
-                start_tunnel_watchdog(app_clone.clone(), state_clone.clone());
+                // Only spawn watchdog ONCE (prevents duplicates on restart)
+                let mut watchdog_lock = state_clone.watchdog_running.lock().unwrap();
+                if !*watchdog_lock {
+                    *watchdog_lock = true;
+                    drop(watchdog_lock); // Release lock before spawning
+                    start_tunnel_watchdog(app_clone.clone(), state_clone.clone());
+                    println!("[FI Monitor] ✅ Tunnel watchdog spawned (will run for app lifetime)");
+                } else {
+                    println!("[FI Monitor] Watchdog already running (skipping duplicate spawn)");
+                }
 
                 break;
             }
@@ -805,11 +1430,108 @@ async fn get_status(state: tauri::State<'_, Arc<AppState>>) -> Result<ServiceSta
 }
 
 #[tauri::command]
-async fn test_ollama() -> Result<TestResult, String> {
+async fn test_ollama(mode: Option<String>, question: Option<String>) -> Result<TestResult, String> {
     use std::time::Instant;
+    let test_mode = mode.unwrap_or_else(|| "llm".to_string());
+
+    // RAG Mode: Query RAG Service
+    if test_mode == "rag" {
+        let query_text = question.ok_or_else(|| "RAG mode requires a question".to_string())?;
+
+        // Check if RAG Service is running
+        if !check_rag_service().await {
+            return Err("RAG Service not running. Start it from the UI button.".to_string());
+        }
+
+        println!("[FI Monitor] RAG Testing: {}", query_text);
+        let start = Instant::now();
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .unwrap();
+
+        #[derive(Serialize)]
+        struct RagQuery {
+            question: String,
+            top_k: usize,
+        }
+
+        #[derive(Deserialize)]
+        struct RagResponse {
+            answer: String,
+            chunks: Vec<RagChunk>,
+            metadata: RagMetadata,
+        }
+
+        #[derive(Deserialize)]
+        struct RagChunk {
+            text: String,
+            relevance: f32,
+        }
+
+        #[derive(Deserialize)]
+        struct RagMetadata {
+            total_chunks: usize,
+            embedding_latency_ms: u64,
+        }
+
+        let request = RagQuery {
+            question: query_text.clone(),
+            top_k: 3,
+        };
+
+        let response = client
+            .post("http://localhost:11435/rag/query")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| format!("RAG Service error: {}", e))?;
+
+        let rag_res: RagResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("RAG parse error: {}", e))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        println!("[FI Monitor] RAG Response in {}ms", elapsed_ms);
+
+        // Format answer with chunks info
+        let mut full_answer = rag_res.answer.clone();
+        full_answer.push_str(&format!("\n\n📚 Sources ({} chunks):", rag_res.chunks.len()));
+        for (i, chunk) in rag_res.chunks.iter().take(3).enumerate() {
+            full_answer.push_str(&format!(
+                "\n{}. {} (relevance: {:.2})",
+                i + 1,
+                chunk.text.chars().take(100).collect::<String>(),
+                chunk.relevance
+            ));
+        }
+
+        return Ok(TestResult {
+            category: "rag".to_string(),
+            question: query_text,
+            answer: full_answer,
+            elapsed_ms,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            rag_metadata: Some(serde_json::json!({
+                "total_chunks": rag_res.metadata.total_chunks,
+                "embedding_latency_ms": rag_res.metadata.embedding_latency_ms,
+                "chunks": rag_res.chunks.iter().map(|c| {
+                    serde_json::json!({
+                        "text": c.text,
+                        "relevance": c.relevance
+                    })
+                }).collect::<Vec<_>>()
+            })),
+        });
+    }
+
+    // LLM Mode: Original Ollama logic
     if !check_ollama().await {
         return Err("Ollama no está ejecutándose".to_string());
     }
+
     let questions = vec![
         (
             "math",
@@ -836,13 +1558,21 @@ async fn test_ollama() -> Result<TestResult, String> {
             "Explica brevemente qué son los pulmones y su función.",
         ),
     ];
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let idx = (now % questions.len() as u64) as usize;
-    let (category, prompt) = questions[idx];
-    println!("[FI Monitor] Testing: {}", prompt);
+
+    let prompt = if let Some(q) = question {
+        q
+    } else {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let idx = (now % questions.len() as u64) as usize;
+        questions[idx].1.to_string()
+    };
+
+    let category = if prompt.contains("raíz cuadrada") { "math" } else { "anatomy" };
+
+    println!("[FI Monitor] LLM Testing: {}", prompt);
     let start = Instant::now();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -874,13 +1604,14 @@ async fn test_ollama() -> Result<TestResult, String> {
         .await
         .map_err(|e| format!("Parse error: {}", e))?;
     let elapsed_ms = start.elapsed().as_millis() as u64;
-    println!("[FI Monitor] Response in {}ms", elapsed_ms);
+    println!("[FI Monitor] LLM Response in {}ms", elapsed_ms);
     Ok(TestResult {
         category: category.to_string(),
-        question: prompt.to_string(),
+        question: prompt,
         answer: res.response.trim().to_string(),
         elapsed_ms,
         timestamp: chrono::Utc::now().to_rfc3339(),
+        rag_metadata: None,
     })
 }
 
@@ -891,6 +1622,152 @@ struct TestResult {
     answer: String,
     elapsed_ms: u64,
     timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rag_metadata: Option<serde_json::Value>,
+}
+
+// ============================================================================
+// Benchmark Structures
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RagBenchmark {
+    single_query_ms: u64,
+    batch_10_ms: u64,
+    batch_32_ms: u64,
+    batch_100_ms: u64,
+    throughput_qps: f64,
+    gpu_memory_mb: f64,
+    device: String,
+    gpu_name: Option<String>,
+    model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OllamaBenchmark {
+    single_query_ms: u64,
+    batch_5_avg_ms: u64,
+    tokens_per_sec: f64,
+    model: String,
+    eval_duration_ms: u64,
+    eval_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GatewayBenchmark {
+    health_check_ms: u64,
+    routing_overhead_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BenchmarkSuite {
+    timestamp: String,
+    rag_service: Option<RagBenchmark>,
+    ollama: Option<OllamaBenchmark>,
+    gateway: Option<GatewayBenchmark>,
+    total_duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BenchmarkHistory {
+    results: Vec<BenchmarkSuite>,
+}
+
+// ============================================================================
+// Smoke Tests (Simple Health Checks)
+// ============================================================================
+
+/// Simple smoke test response - no complex metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SmokeTestResult {
+    success: bool,
+    latency_ms: u64,
+    response: String,
+    error: Option<String>,
+}
+
+/// Smoke test for LLM health (simple 2+2 question)
+#[tauri::command]
+async fn test_llm_health() -> Result<SmokeTestResult, String> {
+    use std::time::Instant;
+
+    // 1. Check if Ollama is running (fail fast)
+    if !check_ollama().await {
+        return Ok(SmokeTestResult {
+            success: false,
+            latency_ms: 0,
+            response: String::new(),
+            error: Some("Ollama is not running".to_string()),
+        });
+    }
+
+    // 2. Send simple test query
+    let start = Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))  // Allow Ollama cold start (model loading)
+        .build()
+        .unwrap();
+
+    #[derive(Serialize)]
+    struct OllamaRequest {
+        model: String,
+        prompt: String,
+        stream: bool,
+    }
+
+    #[derive(Deserialize)]
+    struct OllamaResponse {
+        response: String,
+    }
+
+    let request = OllamaRequest {
+        model: "qwen2.5-coder:3b".to_string(),
+        prompt: "What is 2+2? Answer with just the number, nothing else.".to_string(),
+        stream: false,
+    };
+
+    match client
+        .post("http://localhost:11434/api/generate")
+        .json(&request)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+
+            match response.json::<OllamaResponse>().await {
+                Ok(ollama_res) => {
+                    let answer = ollama_res.response.trim();
+
+                    // 3. Validate response contains "4"
+                    let success = answer.contains("4");
+
+                    Ok(SmokeTestResult {
+                        success,
+                        latency_ms,
+                        response: answer.to_string(),
+                        error: if success {
+                            None
+                        } else {
+                            Some(format!("Expected '4' in response, got: {}", answer))
+                        },
+                    })
+                }
+                Err(e) => Ok(SmokeTestResult {
+                    success: false,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    response: String::new(),
+                    error: Some(format!("Failed to parse Ollama response: {}", e)),
+                }),
+            }
+        }
+        Err(e) => Ok(SmokeTestResult {
+            success: false,
+            latency_ms: start.elapsed().as_millis() as u64,
+            response: String::new(),
+            error: Some(format!("HTTP request failed: {}", e)),
+        }),
+    }
 }
 
 #[tauri::command]
@@ -948,7 +1825,358 @@ async fn get_last_tunnel_url(
     Ok(config.last_tunnel_url.clone())
 }
 
+#[tauri::command]
+async fn set_tunnel_port(
+    state: tauri::State<'_, Arc<AppState>>,
+    port: u16,
+) -> Result<(), String> {
+    // Validación
+    if port < 1024 {
+        return Err("Port must be >= 1024 (system ports reserved)".to_string());
+    }
+
+    // Tunnel debe estar detenido
+    if *state.tunnel_running.lock().unwrap() {
+        return Err("Stop tunnel before changing port".to_string());
+    }
+
+    // Verificar puerto no en uso
+    if is_port_in_use(port).await {
+        return Err(format!("Port {} already in use", port));
+    }
+
+    // Guardar config
+    let mut config = state.config.lock().unwrap();
+    config.tunnel_port = Some(port);
+    save_config(&config)?;
+
+    println!("[FI Monitor] Tunnel port updated to {}", port);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_tunnel_port(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<u16, String> {
+    let config = state.config.lock().unwrap();
+    Ok(config.get_tunnel_port())
+}
+
+async fn is_port_in_use(port: u16) -> bool {
+    use std::net::TcpListener;
+    TcpListener::bind(("127.0.0.1", port)).is_err()
+}
+
+// ============================================================================
+// Benchmark Commands
+// ============================================================================
+
+#[tauri::command]
+async fn benchmark_rag_service() -> Result<RagBenchmark, String> {
+    use std::time::Instant;
+
+    println!("[FI Monitor] Starting RAG Service benchmark...");
+
+    let api_key = std::env::var("RAG_API_KEY").unwrap_or_else(|_| "test-key".to_string());
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap();
+
+    // 1. Health check - get GPU info
+    #[derive(Deserialize)]
+    struct HealthResponse {
+        device: String,
+        gpu_name: Option<String>,
+        gpu_memory_mb: Option<f64>,
+        model: String,
+    }
+
+    let health_resp = client
+        .get("http://localhost:11435/rag/health")
+        .send()
+        .await
+        .map_err(|e| format!("Health check failed: {}", e))?
+        .json::<HealthResponse>()
+        .await
+        .map_err(|e| format!("Failed to parse health response: {}", e))?;
+
+    #[derive(Serialize)]
+    struct EmbedRequest {
+        texts: Vec<String>,
+    }
+
+    // 2. Single query
+    let start = Instant::now();
+    let _ = client
+        .post("http://localhost:11435/rag/embed")
+        .header("X-API-Key", &api_key)
+        .json(&EmbedRequest {
+            texts: vec!["Test embedding query".to_string()],
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Single query failed: {}", e))?;
+    let single_query_ms = start.elapsed().as_millis() as u64;
+
+    // 3. Batch 10
+    let start = Instant::now();
+    let _ = client
+        .post("http://localhost:11435/rag/embed")
+        .header("X-API-Key", &api_key)
+        .json(&EmbedRequest {
+            texts: (0..10).map(|i| format!("Test query {}", i)).collect(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Batch 10 failed: {}", e))?;
+    let batch_10_ms = start.elapsed().as_millis() as u64;
+
+    // 4. Batch 32
+    let start = Instant::now();
+    let _ = client
+        .post("http://localhost:11435/rag/embed")
+        .header("X-API-Key", &api_key)
+        .json(&EmbedRequest {
+            texts: (0..32).map(|i| format!("Test query {}", i)).collect(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Batch 32 failed: {}", e))?;
+    let batch_32_ms = start.elapsed().as_millis() as u64;
+
+    // 5. Batch 100 + throughput
+    let start = Instant::now();
+    let _ = client
+        .post("http://localhost:11435/rag/embed")
+        .header("X-API-Key", &api_key)
+        .json(&EmbedRequest {
+            texts: (0..100).map(|i| format!("Test query {}", i)).collect(),
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Batch 100 failed: {}", e))?;
+    let batch_100_ms = start.elapsed().as_millis() as u64;
+    let throughput_qps = (100.0 / (batch_100_ms as f64 / 1000.0)).round();
+
+    println!("[FI Monitor] ✅ RAG Service benchmark complete");
+
+    Ok(RagBenchmark {
+        single_query_ms,
+        batch_10_ms,
+        batch_32_ms,
+        batch_100_ms,
+        throughput_qps,
+        gpu_memory_mb: health_resp.gpu_memory_mb.unwrap_or(0.0),
+        device: health_resp.device,
+        gpu_name: health_resp.gpu_name,
+        model: health_resp.model,
+    })
+}
+
+#[tauri::command]
+async fn benchmark_ollama() -> Result<OllamaBenchmark, String> {
+    use std::time::Instant;
+
+    println!("[FI Monitor] Starting Ollama benchmark...");
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap();
+
+    #[derive(Serialize)]
+    struct GenerateRequest {
+        model: String,
+        prompt: String,
+        stream: bool,
+    }
+
+    #[derive(Deserialize)]
+    struct GenerateResponse {
+        response: String,
+        #[serde(default)]
+        eval_duration: u64,
+        #[serde(default)]
+        eval_count: u64,
+    }
+
+    // 1. Single query
+    let start = Instant::now();
+    let resp = client
+        .post("http://localhost:11434/api/generate")
+        .json(&GenerateRequest {
+            model: "qwen3:1.7b".to_string(),
+            prompt: "What is 2+2? Answer only the number.".to_string(),
+            stream: false,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Single query failed: {}", e))?
+        .json::<GenerateResponse>()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    let single_query_ms = start.elapsed().as_millis() as u64;
+
+    let eval_duration_ms = resp.eval_duration / 1_000_000; // ns to ms
+    let eval_count = resp.eval_count;
+
+    // 2. Batch 5 queries (sequential)
+    let mut total_ms = 0u64;
+    for i in 0..5 {
+        let start = Instant::now();
+        let _ = client
+            .post("http://localhost:11434/api/generate")
+            .json(&GenerateRequest {
+                model: "qwen3:1.7b".to_string(),
+                prompt: format!("What is {}+{}? Answer only the number.", i, i),
+                stream: false,
+            })
+            .send()
+            .await
+            .map_err(|e| format!("Batch query {} failed: {}", i, e))?;
+        total_ms += start.elapsed().as_millis() as u64;
+    }
+    let batch_5_avg_ms = total_ms / 5;
+
+    // 3. Calculate tokens/sec
+    let tokens_per_sec = if eval_duration_ms > 0 {
+        (eval_count as f64 / (eval_duration_ms as f64 / 1000.0)).round()
+    } else {
+        0.0
+    };
+
+    println!("[FI Monitor] ✅ Ollama benchmark complete");
+
+    Ok(OllamaBenchmark {
+        single_query_ms,
+        batch_5_avg_ms,
+        tokens_per_sec,
+        model: "qwen3:1.7b".to_string(),
+        eval_duration_ms,
+        eval_count,
+    })
+}
+
+#[tauri::command]
+async fn benchmark_gateway() -> Result<GatewayBenchmark, String> {
+    use std::time::Instant;
+
+    println!("[FI Monitor] Starting Gateway benchmark...");
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap();
+
+    // 1. Health check latency
+    let start = Instant::now();
+    let _ = client
+        .get("http://localhost:11400/gateway/health")
+        .send()
+        .await
+        .map_err(|e| format!("Gateway health check failed: {}", e))?;
+    let health_check_ms = start.elapsed().as_millis() as u64;
+
+    // 2. Routing overhead (gateway proxy vs direct)
+    let start = Instant::now();
+    let _ = client
+        .get("http://localhost:11400/rag/health")
+        .send()
+        .await
+        .map_err(|e| format!("Gateway proxy failed: {}", e))?;
+    let gateway_proxy_ms = start.elapsed().as_millis() as u64;
+
+    let start = Instant::now();
+    let _ = client
+        .get("http://localhost:11435/rag/health")
+        .send()
+        .await
+        .map_err(|e| format!("Direct RAG health check failed: {}", e))?;
+    let direct_ms = start.elapsed().as_millis() as u64;
+
+    let routing_overhead_ms = gateway_proxy_ms as i64 - direct_ms as i64;
+
+    println!("[FI Monitor] ✅ Gateway benchmark complete");
+
+    Ok(GatewayBenchmark {
+        health_check_ms,
+        routing_overhead_ms,
+    })
+}
+
+#[tauri::command]
+async fn benchmark_all(app: tauri::AppHandle) -> Result<BenchmarkSuite, String> {
+    use std::time::Instant;
+
+    println!("[FI Monitor] Starting benchmark suite...");
+    let suite_start = Instant::now();
+
+    // 1. RAG Service
+    let rag_service = match benchmark_rag_service().await {
+        Ok(result) => Some(result),
+        Err(e) => {
+            println!("[FI Monitor] ⚠️ RAG Service skipped: {}", e);
+            None
+        }
+    };
+
+    // 2. Ollama
+    let ollama = match benchmark_ollama().await {
+        Ok(result) => Some(result),
+        Err(e) => {
+            println!("[FI Monitor] ⚠️ Ollama skipped: {}", e);
+            None
+        }
+    };
+
+    // 3. Gateway
+    let gateway = match benchmark_gateway().await {
+        Ok(result) => Some(result),
+        Err(e) => {
+            println!("[FI Monitor] ⚠️ Gateway skipped: {}", e);
+            None
+        }
+    };
+
+    let total_duration_ms = suite_start.elapsed().as_millis() as u64;
+
+    let timestamp = chrono::Local::now().to_rfc3339();
+
+    let suite = BenchmarkSuite {
+        timestamp,
+        rag_service,
+        ollama,
+        gateway,
+        total_duration_ms,
+    };
+
+    // Save result
+    save_benchmark_result(suite.clone())?;
+
+    // Emit event
+    let _ = app.emit("benchmark-complete", &suite);
+
+    println!("[FI Monitor] ✅ Benchmark suite complete in {}ms", total_duration_ms);
+
+    Ok(suite)
+}
+
+#[tauri::command]
+async fn get_benchmark_history() -> Result<BenchmarkHistory, String> {
+    Ok(load_benchmark_history())
+}
+
 fn main() {
+    // Check for single instance FIRST (fail hard if already running)
+    check_single_instance();
+
+    // Setup cleanup on panic
+    std::panic::set_hook(Box::new(move |panic_info| {
+        cleanup_lock();
+        eprintln!("FI Monitor panicked: {:?}", panic_info);
+    }));
+
     // Load persisted config
     let config = load_config();
     println!("[FI Monitor] Config loaded from {:?}", get_config_path());
@@ -974,6 +2202,8 @@ fn main() {
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let state_clone = state.clone();
+
+            // Setup system tray with Rust TrayIconBuilder
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
@@ -983,12 +2213,24 @@ fn main() {
                 .tooltip("FI Monitor")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "quit" => app.exit(0),
-                    "show" => { if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); } }
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-                        if let Some(w) = tray.app_handle().get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); }
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event {
+                        if let Some(w) = tray.app_handle().get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
                     }
                 })
                 .build(app)?;
@@ -1052,43 +2294,9 @@ fn main() {
 
                         // Phase 3: Auto-start RAG Service (GPU embeddings)
                         println!("[FI Monitor] Auto-starting RAG Service...");
-                        if !check_rag_service().await {
-                            let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
-                            let app_dir = std::env::current_dir().unwrap_or_default();
-
-                            #[cfg(target_os = "windows")]
-                            const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-                            #[cfg(target_os = "windows")]
-                            let result = Command::new(python)
-                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-                                .current_dir(&app_dir)
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .creation_flags(CREATE_NO_WINDOW)
-                                .spawn();
-
-                            #[cfg(not(target_os = "windows"))]
-                            let result = Command::new(python)
-                                .args(["-m", "uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "11435"])
-                                .current_dir(&app_dir)
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .spawn();
-
-                            if let Ok(child) = result {
-                                let pid = child.id();
-                                *state_clone.rag_service_process.lock().unwrap() = Some(pid);
-                                // Wait for RAG service to be ready
-                                for _ in 0..20 {
-                                    sleep(Duration::from_millis(500)).await;
-                                    if check_rag_service().await {
-                                        *state_clone.rag_service_running.lock().unwrap() = true;
-                                        println!("[FI Monitor] ✅ RAG Service auto-started (PID: {})", pid);
-                                        break;
-                                    }
-                                }
-                            }
+                        match start_rag_service_internal(state_clone.clone()).await {
+                            Ok(_) => println!("[FI Monitor] ✅ RAG Service auto-started"),
+                            Err(e) => println!("[FI Monitor] ⚠️ RAG Service failed to auto-start: {}", e),
                         }
 
                         // Phase 3: Auto-start Gateway (HTTP router)
@@ -1131,11 +2339,17 @@ fn main() {
 
                         let _ = app_handle.emit("services-checked", ());
 
-                        // Auto-start tunnel after all services are ready
-                        println!("[FI Monitor] Auto-starting tunnel...");
-                        match start_tunnel_internal(app_handle.clone(), state_clone.clone()).await {
-                            Ok(_) => println!("[FI Monitor] ✅ Tunnel auto-started"),
-                            Err(e) => println!("[FI Monitor] ⚠️ Failed to auto-start tunnel: {}", e),
+                        // Auto-start LOCAL tunnel (localhost directo, sin cloudflared)
+                        println!("[FI Monitor] Auto-starting local tunnel...");
+                        match start_tunnel_local(state_clone.clone()) {
+                            Ok(url) => {
+                                println!("[FI Monitor] ✅ Local tunnel ready: {}", url);
+                                let _ = app_handle.emit("tunnel-url-found", url.clone());
+                                let _ = app_handle.emit("tunnel-started", ());
+                            }
+                            Err(e) => {
+                                println!("[FI Monitor] ⚠️ Failed to start local tunnel: {}", e);
+                            }
                         }
                         return;
                     }
@@ -1155,18 +2369,35 @@ fn main() {
             stop_ollama,
             start_rag_service,
             stop_rag_service,
+            get_rag_stats,
             start_gateway,
             stop_gateway,
             start_tunnel,
             stop_tunnel,
             get_status,
             test_ollama,
+            test_llm_health,
             is_autostart_enabled,
             enable_autostart,
             disable_autostart,
             set_azure_sas_url,
             get_azure_sas_url,
+            benchmark_rag_service,
+            benchmark_ollama,
+            benchmark_gateway,
+            benchmark_all,
+            get_benchmark_history,
             get_last_tunnel_url,
+            set_tunnel_port,
+            get_tunnel_port,
+            read_tunnel_file,
+            // Model Management
+            list_ollama_models_detailed,
+            pull_ollama_model,
+            delete_ollama_model,
+            // Environment Variables
+            get_env_vars,
+            set_env_vars,
             ollama_installer::check_ollama_installed,
             ollama_installer::install_ollama_silent,
             ollama_installer::download_and_install_ollama,
@@ -1180,4 +2411,7 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error running FI Monitor");
+
+    // Cleanup on normal exit
+    cleanup_lock();
 }

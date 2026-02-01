@@ -22,7 +22,7 @@ export function AccessTile({ route, onClick }: AccessTileProps) {
     <Link
       href={route.href}
       onClick={onClick}
-      className="group relative flex flex-col gap-3 p-6 bg-white/[0.03] border border-white/[0.06] hover:border-blue-500/[0.15] hover:bg-white/[0.06] backdrop-blur-2xl rounded-xl transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-sm shadow-black/5 hover:shadow-md hover:shadow-blue-500/10"
+      className="group relative flex flex-col gap-3 p-6 bg-slate-800/60 border border-white/10 hover:border-emerald-500/40 hover:bg-slate-800/80 backdrop-blur-md rounded-xl transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-sm shadow-black/5 hover:shadow-md hover:shadow-emerald-500/10"
       aria-label={`${route.title}: ${route.description}. Shortcut: ${route.shortcut}`}
     >
       {/* Shortcut badge */}

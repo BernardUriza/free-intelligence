@@ -1,0 +1,310 @@
+"""SOAP generation worker - Medical notes extraction.
+
+Updated: 2026-02-01 (Phase 2.3 - DI migration, removed service locators)
+"""
+
+from __future__ import annotations
+
+import time
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
+from backend.models.task_type import TaskStatus, TaskType
+from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.utils.common.logging.logger import get_logger
+from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
+
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
+    from backend.services.workflow.interfaces import IWorkflowTracker
+
+logger = get_logger(__name__)
+
+
+@measure_time
+def generate_soap_worker(
+    session_id: str,
+    task_repo: ITaskRepository,
+    workflow_tracker: IWorkflowTracker,
+    policy_loader: IPolicyLoader,
+    decisional_middleware: IDecisionalMiddleware,
+    soap_provider: str | None = None,
+) -> dict[str, Any]:
+    """Synchronous SOAP note generation from diarization.
+
+    P1 FIX: Now integrates with WorkflowTracker for completion detection.
+
+    Args:
+        session_id: Session identifier
+        task_repo: Task repository (injected for thread-safety)
+        workflow_tracker: Workflow tracker (injected - Phase 2.3 DI migration)
+        policy_loader: Policy loader (injected - Phase 2.3 DI migration)
+        decisional_middleware: SOAP orchestrator (injected - Phase 2.3 DI migration)
+        soap_provider: LLM provider (claude, ollama, openai, etc)
+
+    Returns:
+        WorkerResult with SOAP note (subjective, objective, assessment, plan)
+    """
+    # P1: Mark task as started in workflow tracker (tracker injected via DI)
+    workflow_tracker.mark_task_started(session_id, TaskType.SOAP_GENERATION)
+
+    try:
+        start_time = time.time()
+        logger.info(
+            "SOAP_GENERATION_START",
+            session_id=session_id,
+            provider=soap_provider,
+        )
+
+        # Check DIARIZATION task exists (SOAP depends on diarization)
+        if not task_repo.task_exists(session_id, TaskType.DIARIZATION.value):
+            raise ValueError(
+                f"DIARIZATION task not found for {session_id}. Must run diarization first."
+            )
+
+        # Get provider from policy if not specified (policy_loader injected via DI)
+        if not soap_provider:
+            llm_config = policy_loader.get_llm_config()
+            soap_provider = llm_config.get("primary_provider", "claude")
+
+        # Get diarization segments
+        segments = task_repo.get_diarization_segments(session_id)
+        if not segments:
+            # Fallback: use transcription chunks if no diarization
+            logger.warning(
+                "NO_DIARIZATION_SEGMENTS_USING_TRANSCRIPTION",
+                session_id=session_id,
+            )
+            chunks_data = task_repo.get_task_chunks(session_id, TaskType.TRANSCRIPTION.value)
+            if not chunks_data:
+                raise ValueError(f"No TRANSCRIPTION or DIARIZATION data for {session_id}")
+            full_text = " ".join(chunk.get("transcript", "") for chunk in chunks_data)
+        else:
+            # Reconstruct full transcript from diarization segments
+            full_text = "\n".join(
+                f"{seg.get('speaker', 'Unknown')}: {seg.get('text', '')}" for seg in segments
+            )
+
+        # Estimate duration based on text length (empirical: ~1.5s per 100 words for LLM)
+        word_count = len(full_text.split())
+        estimated_duration = max(8, int(word_count / 100 * 1.5))  # Min 8 seconds
+
+        # Update metadata: IN_PROGRESS with progress 10% (started)
+        task_repo.save_task_metadata(
+            session_id,
+            TaskType.SOAP_GENERATION,
+            {
+                "status": TaskStatus.IN_PROGRESS,
+                "provider": soap_provider,
+                "progress_percent": 10,
+                "estimated_duration_seconds": estimated_duration,
+                "started_at": datetime.now(UTC).isoformat(),
+                "word_count": word_count,
+                "text_length": len(full_text),
+            },
+        )
+        logger.info(
+            "SOAP_PROGRESS",
+            session_id=session_id,
+            progress=10,
+            estimated_duration=estimated_duration,
+        )
+
+        # Update progress: 30% (text loaded, calling LLM)
+        task_repo.save_task_metadata(
+            session_id,
+            TaskType.SOAP_GENERATION,
+            {
+                "progress_percent": 30,
+                "status_message": f"Calling {soap_provider} for SOAP extraction...",
+            },
+        )
+
+        # Generate SOAP note using DecisionalMiddleware (injected via DI - Phase 2.3)
+
+        # Update progress: 50% (analyzing complexity & orchestrating)
+        task_repo.save_task_metadata(
+            session_id,
+            TaskType.SOAP_GENERATION,
+            {
+                "progress_percent": 50,
+                "status_message": "Analyzing case complexity and orchestrating SOAP generation...",
+            },
+        )
+
+        # Process through decisional middleware
+        # This will intelligently decide: simple vs complex generation
+        orchestration_result = decisional_middleware.process(
+            transcript=full_text,
+            segments=segments if segments else None,
+            session_metadata={"session_id": session_id, "provider": soap_provider},
+        )
+
+        # Extract SOAP data from orchestration result
+        soap_data = orchestration_result.soap_note
+
+        # Update progress: 80% (processing results)
+        task_repo.save_task_metadata(
+            session_id,
+            TaskType.SOAP_GENERATION,
+            {
+                "progress_percent": 80,
+                "status_message": "Processing SOAP note results...",
+            },
+        )
+
+        result = {
+            "soap_note": soap_data,
+            "provider": soap_provider,
+            "word_count": word_count,
+            "text_length": len(full_text),
+            # Orchestration metadata
+            "orchestration_strategy": orchestration_result.strategy_used,
+            "personas_invoked": orchestration_result.personas_invoked,
+            "confidence_score": orchestration_result.confidence_score,
+            "doctor_context_requested": orchestration_result.doctor_context_requested,
+        }
+
+        elapsed_time = time.time() - start_time
+
+        # Save SOAP note to HDF5
+        task_repo.save_soap_data(session_id, soap_data, TaskType.SOAP_GENERATION.value)
+
+        # AUTO-CREATE ORDERS from SOAP.plan (medications + studies)
+        orders_created = 0
+        plan = soap_data.get("plan", {})
+
+        # Get existing orders to avoid duplicates
+        existing_orders = task_repo.get_orders(session_id)
+        existing_descriptions = {order.get("description") for order in existing_orders}
+
+        # Create medication orders
+        medications = plan.get("medications", [])
+        if isinstance(medications, list):
+            for med in medications:
+                if isinstance(med, dict):
+                    desc = f"{med.get('name', '')} {med.get('dose', '')}".strip()
+                    if desc and desc not in existing_descriptions:
+                        task_repo.create_order(
+                            session_id,
+                            {
+                                "type": "medication",
+                                "description": desc,
+                                "details": f"{med.get('frequency', '')} - {med.get('duration', '')}",
+                                "source": "soap",
+                            },
+                        )
+                        orders_created += 1
+                        logger.info(
+                            "ORDER_CREATED_FROM_SOAP",
+                            session_id=session_id,
+                            type="medication",
+                            description=desc,
+                        )
+
+        # Create lab/imaging orders
+        studies = plan.get("studies", [])
+        if isinstance(studies, list):
+            for study in studies:
+                if isinstance(study, str) and study not in existing_descriptions:
+                    # Determine type based on keywords
+                    study_lower = study.lower()
+                    if any(
+                        kw in study_lower
+                        for kw in ["biometria", "quimica", "sangre", "laboratorio"]
+                    ):
+                        order_type = "lab"
+                    elif any(
+                        kw in study_lower
+                        for kw in ["rayos", "radiografia", "tac", "resonancia", "rx"]
+                    ):
+                        order_type = "imaging"
+                    else:
+                        order_type = "lab"
+
+                    task_repo.create_order(
+                        session_id,
+                        {
+                            "type": order_type,
+                            "description": study,
+                            "details": "",
+                            "source": "soap",
+                        },
+                    )
+                    orders_created += 1
+                    logger.info(
+                        "ORDER_CREATED_FROM_SOAP",
+                        session_id=session_id,
+                        type=order_type,
+                        description=study,
+                    )
+
+        logger.info(
+            "SOAP_ORDERS_AUTO_CREATED",
+            session_id=session_id,
+            orders_created=orders_created,
+        )
+
+        # Update metadata with completion status (including orchestration details)
+        task_repo.save_task_metadata(
+            session_id,
+            TaskType.SOAP_GENERATION,
+            {
+                "status": TaskStatus.COMPLETED,
+                "provider": soap_provider,
+                "progress_percent": 100,
+                "completed_at": datetime.now(UTC).isoformat(),
+                "duration_seconds": round(elapsed_time, 2),
+                "status_message": "SOAP note generated successfully",
+                # Decisional middleware metadata
+                "orchestration_strategy": orchestration_result.strategy_used,
+                "personas_invoked": orchestration_result.personas_invoked,
+                "confidence_score": orchestration_result.confidence_score,
+                "doctor_context_requested": orchestration_result.doctor_context_requested,
+            },
+        )
+
+        logger.info(
+            "SOAP_GENERATION_SUCCESS",
+            session_id=session_id,
+            duration_seconds=round(elapsed_time, 2),
+            provider=soap_provider,
+        )
+
+        # P1: Mark task as completed in workflow tracker
+        workflow_tracker.mark_task_completed(session_id, TaskType.SOAP_GENERATION, result=result)
+
+        return WorkerResult(session_id=session_id, result=result).to_dict()
+
+    except Exception as e:
+        logger.error(
+            "SOAP_GENERATION_FAILED",
+            session_id=session_id,
+            error=str(e),
+            exc_info=True,
+        )
+
+        # Update metadata with FAILED status
+        try:
+            task_repo.save_task_metadata(
+                session_id,
+                TaskType.SOAP_GENERATION,
+                {
+                    "status": TaskStatus.FAILED,
+                    "progress_percent": 0,
+                    "error": str(e),
+                    "failed_at": datetime.now(UTC).isoformat(),
+                },
+            )
+        except Exception as meta_error:
+            logger.error(
+                "FAILED_TO_UPDATE_ERROR_METADATA",
+                session_id=session_id,
+                error=str(meta_error),
+            )
+
+        # P1: Mark task as failed in workflow tracker
+        workflow_tracker.mark_task_failed(session_id, TaskType.SOAP_GENERATION, error=str(e))
+
+        raise

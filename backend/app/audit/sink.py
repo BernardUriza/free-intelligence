@@ -16,7 +16,7 @@ from typing import Any
 import os
 import pyarrow as pa
 import pyarrow.parquet as pq
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
 logger = get_logger(__name__)

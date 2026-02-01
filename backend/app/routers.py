@@ -29,78 +29,81 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Admin & Auth
     # System Routes
     from backend.app.system_routes import router as system_router
-    from backend.src.fi_admin.api.internal.admin.users import router as users_router
+    from backend.api.admin.api.internal.admin.users import router as users_router
 
     # Assistant & Personas
-    from backend.src.fi_assistant.api.public import aurity_personas
+    from backend.api.routers.assistant.public import aurity_personas
+    from backend.api.routers.assistant.public.assistant_history import router as assistant_history_router
 
     # Audit
-    from backend.src.fi_audit.api.internal.audit import router as internal_audit_router
-    from backend.src.fi_audit.api.public import audit
-    from backend.src.fi_auth.adapters.fastapi_adapter import auth_router
+    from backend.api.audit.api.internal.audit import router as internal_audit_router
+    from backend.api.audit.api.public import audit
+    from backend.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
     # Check-in & Payments
-    from backend.src.fi_checkin.api.public import checkin
-    from backend.src.fi_clinic.api.public import clinics
+    from backend.api.routers.checkin import checkin
+    from backend.api.routers.clinic.public import clinics
+    from backend.api.routers.clinic.public import clinic_media_stub
 
     # Coder
-    from backend.src.fi_coder.api.internal.fi_coder import router as fi_coder_router
+    from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
 
     # Common
-    from backend.src.fi_common.api.internal.exports import router as exports_router
-    from backend.src.fi_common.api.public import notifications
+    from backend.infrastructure.common.api.internal.exports import router as exports_router
+    from backend.infrastructure.common.api.public import notifications
 
     # KPIs
-    from backend.src.fi_kpi.api.internal.kpis import router as kpis_router
+    from backend.api.routers.kpi.internal.router import router as kpis_router
 
     # Licensing
-    from backend.src.fi_license.api.internal import router as licenses_admin_router
-    from backend.src.fi_license.api.public import router as licenses_router
+    from backend.api.license.api.internal import router as licenses_admin_router
+    from backend.api.license.api.public import router as licenses_router
 
     # LLM
-    from backend.src.fi_llm.api.internal.llm import router as llm_router
-    from backend.src.fi_llm.api.public import llm_models_admin
+    from backend.api.routers.llm.internal.llm import router as llm_router
+    from backend.api.routers.llm.public import llm_models_admin
 
     # Model Catalog
-    from backend.src.fi_model_catalog.api.public import catalog_admin
+    from backend.infrastructure.model_catalog.api.public import catalog_admin
 
     # Observability
-    from backend.src.fi_observability.api import router as observability_router
+    from backend.infrastructure.observability.api import router as observability_router
 
     # Patients & Providers
-    from backend.src.fi_patient.api.public import patients
-    from backend.src.fi_payment.api.public import payments
+    from backend.api.routers.patient.public import patients
+    from backend.api.payment.api.public import payments
 
     # Policy
-    from backend.src.fi_policy.api.public import policy
-    from backend.src.fi_provider.api.public import providers
+    from backend.api.policy.api.public import policy
+    from backend.api.routers.provider.public import providers
 
     # Sessions
-    from backend.src.fi_session.api.internal.sessions import router as sessions_router
-    from backend.src.fi_session.api.internal.sessions.finalize import (
+    from backend.api.routers.session.internal.sessions import router as sessions_router
+    from backend.api.routers.session.internal.sessions.finalize import (
         router as sessions_finalize_router,
     )
 
     # System Resources
-    from backend.src.fi_system.api.public import system_resources
+    from backend.infrastructure.system.api.public import system_resources
+    from backend.infrastructure.system.api.public.system import router as system_info_router
 
     # Timeline
-    from backend.src.fi_timeline.api.internal.timeline import router as timeline_internal_router
-    from backend.src.fi_timeline.api.public import timeline
+    from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
+    from backend.services.timeline.api.public import timeline
 
     # Transcription & Diarization
-    from backend.src.fi_transcription.api.internal.diarization import router as diarization_router
-    from backend.src.fi_transcription.api.internal.transcribe import router as transcribe_router
+    from backend.api.routers.transcription.internal.diarization import router as diarization_router
+    from backend.api.routers.transcription.internal.transcribe import router as transcribe_router
 
     # TTS
-    from backend.src.fi_tts.api.public import tts
-    from backend.src.fi_user.api.public import user_clinic
+    from backend.services.tts.api.public import tts
+    from backend.api.routers.user.public import user_clinic
 
     # Triage
-    from backend.src.fi_workflow.api.internal.triage import router as triage_router
+    from backend.api.routers.workflow.internal.triage import router as triage_router
 
     # Workflows
-    from backend.src.fi_workflow.api.public.workflows_router import (
+    from backend.api.routers.workflow.public.workflows_router import (
         router as public_workflows_router,
     )
 
@@ -112,6 +115,12 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(public_workflows_router)  # AURITY orchestrator
     public_app.include_router(timeline.router)  # Timeline/sessions listing
     public_app.include_router(aurity_personas.router)  # Personas list (public)
+    public_app.include_router(
+        assistant_history_router,
+        prefix="/api/workflows/aurity/assistant/history",
+        tags=["assistant-history"],
+    )  # Assistant conversation history
+    public_app.include_router(system_info_router)  # System info (LLM status, disk usage)
     public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
     public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
     public_app.include_router(
@@ -122,6 +131,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
     public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
+    public_app.include_router(clinic_media_stub.router)  # Clinic Media (STUB - Phase 3)
     public_app.include_router(user_clinic.router)  # User-Clinic membership
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
     public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
@@ -160,7 +170,7 @@ def init_observability() -> None:
     Non-critical - logs to structlog if it fails.
     """
     try:
-        from backend.src.fi_observability import init_observability_db
+        from backend.infrastructure.observability import init_observability_db
 
         init_observability_db()
     except Exception:

@@ -105,7 +105,8 @@ export const auditHeader: PageHeaderFactory = (data) => ({
  * @param data - { subtitle, patientName }
  */
 export const medicalAiHeader: PageHeaderFactory = (data) => ({
-  showBackButton: true,
+  showLogo: true,
+  showBackButton: false,
   backPath: '/',
   icon: 'stethoscope',
   iconColor: 'text-emerald-400',
@@ -185,7 +186,8 @@ export const configHeader: PageHeaderFactory = (data) => ({
  * @param data - { isAuthenticated, messageCount }
  */
 export const chatHeader: PageHeaderFactory = (data) => ({
-  showBackButton: true,
+  showLogo: true,
+  showBackButton: false,
   backPath: '/',
   icon: 'messageCircle',
   iconColor: 'text-indigo-400',

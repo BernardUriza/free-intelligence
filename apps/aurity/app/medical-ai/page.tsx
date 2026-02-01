@@ -39,6 +39,7 @@ import { ClinicSelector } from '@/components/shared/ClinicSelector';
 import { useRBAC, ROLES } from '@/hooks/useRBAC';
 import { fetchClinics, type Doctor, type Clinic } from '@/lib/api/clinics';
 import { confirmDialog } from '@/lib/swal';
+import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
 
 export default function MedicalAIWorkflow() {
   // Patient management (custom hook)
@@ -446,7 +447,7 @@ export default function MedicalAIWorkflow() {
 
           {/* Doctor Appointments Calendar */}
           {effectiveDoctor ? (
-            <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 shadow-xl h-[calc(100vh-220px)]">
+            <div className="bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl h-[calc(100vh-220px)]">
               <DoctorAppointmentsCalendar
                 appointments={appointments}
                 currentDate={currentDate}
@@ -506,8 +507,8 @@ export default function MedicalAIWorkflow() {
 
           {/* Delete Confirmation Modal */}
           {deleteConfirmSession && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-slate-800/90 backdrop-blur-lg border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Trash2 className="h-6 w-6 fi-text-error" />
@@ -638,9 +639,11 @@ export default function MedicalAIWorkflow() {
         showWatermark={true}
         showGeometricBg={true}
       >
+        {/* Neural network background animation (subtle for work page) */}
+        <NeuralNetworkCanvas opacity={0.15} />
 
         {/* Workflow Steps Bar */}
-        <div className="border-b border-slate-800/50 bg-slate-900/60 px-6 py-3">
+        <div className="border-b border-white/10 bg-slate-900/60 backdrop-blur-sm px-6 py-3">
           {/* Workflow Steps - Pills */}
           <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar max-w-7xl mx-auto">
             {MedicalWorkflowSteps.map((step, index) => {

@@ -3,3 +3,4 @@ uvicorn[standard]==0.32.0
 sentence-transformers==3.3.1
 torch==2.5.1
 pydantic==2.10.2
+psutil==5.9.8  # System RAM detection for MPS (Apple Silicon)

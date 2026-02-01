@@ -59,7 +59,7 @@ class SubscriptionPlan(Base):
     )
 
     # Relationships
-    clinics = relationship("Clinic", back_populates="subscription")
+    # clinics = relationship("Clinic", back_populates="subscription")  # COMMENTED: Clinic.plan_id FK doesn't exist yet
 
     def __repr__(self) -> str:
         limit = self.max_doctors if self.max_doctors is not None else "∞"

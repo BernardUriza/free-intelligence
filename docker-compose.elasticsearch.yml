@@ -1,0 +1,45 @@
+# Docker Compose for Elasticsearch (Memory Store Backend)
+#
+# Usage:
+#   docker-compose -f docker-compose.elasticsearch.yml up -d
+#   docker-compose -f docker-compose.elasticsearch.yml down
+#
+# Verify:
+#   curl http://localhost:9200
+#
+# Author: Claude Sonnet 4.5 (El Revisor Agresivo)
+# Created: 2026-01-31
+# Purpose: Fix O(N) search with Elasticsearch backend
+
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: aurity-elasticsearch
+    environment:
+      # Single-node mode (for development)
+      - discovery.type=single-node
+      # Disable security (for local dev)
+      - xpack.security.enabled=false
+      # Memory settings
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      # Cluster name
+      - cluster.name=aurity-cluster
+    ports:
+      - "9200:9200"  # HTTP API
+      - "9300:9300"  # Transport (node-to-node)
+    volumes:
+      # Persist data across container restarts
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+    driver: local

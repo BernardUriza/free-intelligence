@@ -22,7 +22,10 @@
     "pw:install": "npx playwright install",
     "qa:routes": "BASE_URL=http://localhost:9000 node scripts/discover_routes.mjs",
     "qa:console:fe": "BASE_URL=http://localhost:9000 node scripts/console_harvest_frontend.mjs",
-    "qa:be": "node scripts/py_compile_all.py && node scripts/console_harvest.mjs"
+    "qa:be": "node scripts/py_compile_all.py && node scripts/console_harvest.mjs",
+    "version:check": "node scripts/sync-versions.js --check",
+    "version:sync": "node scripts/sync-versions.js --fix",
+    "version:install-hook": "cp scripts/hooks/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.87.1",

@@ -21,7 +21,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any, Union
 
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
 from .base_repository import BaseRepository
@@ -341,4 +341,40 @@ class SessionRepository(BaseRepository):
 
         except Exception as e:
             logger.error("SESSION_LIST_FAILED", error=str(e))
+            return []
+
+    def list_by_user_id(self, user_id: str, limit: int | None = None) -> list[dict[str, Any]]:
+        """List sessions filtered by user_id (tenant isolation).
+
+        Args:
+            user_id: User identifier (owner of sessions)
+            limit: Maximum sessions to return (applied AFTER filtering)
+
+        Returns:
+            List of session dicts owned by user_id (excluding deleted)
+        """
+        try:
+            with self._open_file("r") as f:
+                sessions_group = f[self.SESSIONS_GROUP]
+                session_ids = list(sessions_group.keys())  # type: ignore[attr-defined]
+
+                results = []
+                for session_id in session_ids:
+                    session_group = sessions_group[session_id]  # type: ignore[index]
+                    stored_user_id = session_group.attrs.get("user_id")  # type: ignore[attr-defined]
+
+                    # Filter by user_id and exclude deleted sessions
+                    if stored_user_id == user_id:
+                        session_data = self.read(session_id)
+                        if session_data and session_data.get("status") != "deleted":
+                            results.append(session_data)
+
+                    # Apply limit after filtering
+                    if limit and len(results) >= limit:
+                        break
+
+                return results
+
+        except Exception as e:
+            logger.error("SESSION_LIST_BY_USER_FAILED", user_id=user_id, error=str(e))
             return []

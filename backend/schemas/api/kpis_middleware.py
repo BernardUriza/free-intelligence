@@ -13,8 +13,8 @@ Card: FI-API-FEAT-011
 import time
 from collections.abc import Callable
 
-from backend.src.fi_common.logging.logger import get_logger
-from backend.src.fi_kpi.services.kpis_aggregator import get_kpis_aggregator
+from backend.utils.common.logging.logger import get_logger
+from backend.services.kpi.services.kpis_aggregator import get_kpis_aggregator
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -58,13 +58,18 @@ class KPIsMiddleware(BaseHTTPMiddleware):
         # Calculate duration
         duration_ms = int((time.time() - start_time) * 1000)
 
+        # Detect cache hits from response headers
+        cache_hit = response.headers.get("X-Cache-Status") == "HIT" or \
+                    response.headers.get("X-FastAPI-Cache") == "Hit" or \
+                    response.headers.get("Cache-Control", "").startswith("max-age") and duration_ms < 10
+
         # Record metrics
         aggregator = get_kpis_aggregator()
         aggregator.record_http_event(
             route=route,
             status=response.status_code,
             duration_ms=duration_ms,
-            cache_hit=False,  # TODO: Detect cache hits from response headers
+            cache_hit=cache_hit,
         )
 
         # Log slow requests (>1s)

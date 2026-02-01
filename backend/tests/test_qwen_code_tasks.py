@@ -1,5 +1,5 @@
 import pytest
-from backend.src.fi_common.security.validator import SecurityValidator
+from backend.infrastructure.security.validator import SecurityValidator
 
 
 class TestSecurityValidator:

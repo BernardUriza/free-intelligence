@@ -16,6 +16,7 @@ import { AppTemplate } from '@/components/layout/AppTemplate';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { chatHeader } from '@/config/page-headers';
 import { defaultChatConfig, type ChatConfig } from '@/config/chat.config';
+import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
 
 /**
  * Generates the configuration for the fullscreen chat page.
@@ -62,9 +63,12 @@ export default function ChatPage() {
       padding="0"
       maxWidth="full"
       fullHeight={true}
-      showWatermark={false}
+      showWatermark={true}
       showGeometricBg={false}
     >
+      {/* Neural network background animation (subtle for chat focus) */}
+      <NeuralNetworkCanvas opacity={0.15} />
+
       <ErrorBoundary>
         <ChatWidget
           config={chatConfig}

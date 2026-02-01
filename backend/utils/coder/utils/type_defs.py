@@ -1,0 +1,16 @@
+"""Type definitions.
+
+Re-exports from backend.utils.common.types.type_defs for backward compatibility.
+"""
+
+from __future__ import annotations
+
+from backend.utils.common.types.type_defs import *
+
+__all__ = [
+    "AuditLogDict",
+    "ConsultationMetadataDict",
+    "DiarizationChunkDict",
+    "JobStatusDict",
+    "KPIsSnapshot",
+]

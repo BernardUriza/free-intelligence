@@ -1,6 +1,6 @@
 {
   "name": "@aurity/desktop",
-  "version": "1.0.2",
+  "version": "1.0.8",
   "description": "Aurity Desktop - Medical AI Assistant",
   "private": true,
   "scripts": {

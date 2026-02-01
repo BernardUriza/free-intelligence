@@ -20,7 +20,7 @@ from collections.abc import Callable
 
 import os
 from backend.security.ip_validator import IPValidator
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

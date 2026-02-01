@@ -14,9 +14,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { detectTauri, isBrowser } from '@/lib/environment';
+import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
 import {
   Download,
   Apple,
@@ -250,7 +253,7 @@ function MedicalAIDemo() {
   }, []);
 
   return (
-    <div className="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 sm:p-6 md:p-8 shadow-2xl">
+    <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8">
         <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
@@ -442,13 +445,50 @@ export default function DownloadsPage() {
 
   // Show optimized landing page for ALL users
   return (
-      <AppTemplate backgroundGradient="none" maxWidth="none" padding="0">
+      <AppTemplate
+        backgroundGradient="none"
+        maxWidth="none"
+        padding="0"
+        showWatermark={true}
+      >
+        {/* Fixed Navbar Logo */}
+        <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
+          <Link
+            href="/"
+            className="inline-block transition-opacity hover:opacity-100"
+            aria-label="Volver al hub de AURITY"
+          >
+            <Image
+              src="/logos/aurity-logo-light.png"
+              alt="AURITY"
+              width={96}
+              height={26}
+              className="opacity-90 sm:w-24 sm:h-[26px] w-20 h-[21px]"
+              priority
+            />
+          </Link>
+        </nav>
+
+        {/* Neural network background animation */}
+        <NeuralNetworkCanvas opacity={0.25} />
+
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
           {/* ============================================
               HERO SECTION (Above the Fold)
               ============================================ */}
           <section className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:py-16 md:py-20">
             <div className="text-center max-w-4xl mx-auto w-full">
+              {/* Hero Wordmark */}
+              <div className="mb-8">
+                <Image
+                  src="/logos/aurity-logo-light.png"
+                  alt="AURITY"
+                  width={140}
+                  height={37}
+                  className="mx-auto opacity-60 sm:w-[140px] sm:h-[37px] w-[110px] h-[29px]"
+                />
+              </div>
+
               {/* Headline principal - beneficio claro */}
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
                 El Copiloto Médico que Vive en Tu Computadora
@@ -494,9 +534,8 @@ export default function DownloadsPage() {
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4 px-2">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-500/30 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02]"
+                  <button
+                    className="glass-hero-cta w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3"
                     onClick={() => {
                       // Detect OS and download appropriate version
                       const ua = navigator.userAgent.toLowerCase();
@@ -513,9 +552,9 @@ export default function DownloadsPage() {
                       }
                     }}
                   >
-                    <Download className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 mr-2 sm:mr-3" />
+                    <Download className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
                     Descargar Gratis
-                  </Button>
+                  </button>
                   {latestRelease && (
                     <p className="text-slate-400 text-xs sm:text-sm">
                       Versión {latestRelease.version} · macOS, Windows y Linux
@@ -542,7 +581,7 @@ export default function DownloadsPage() {
             <div className="max-w-4xl mx-auto">
               {/* Section Header */}
               <div className="text-center mb-10 sm:mb-14">
-                <div className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+                <div className="inline-flex items-center gap-2 bg-emerald-500/10 backdrop-blur-sm text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-400/20">
                   <Heart className="w-4 h-4" />
                   Nuestra Filosofía
                 </div>
@@ -557,8 +596,8 @@ export default function DownloadsPage() {
               {/* Philosophy Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
                 {/* Soberanía de Datos */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="glass-card-feature p-6">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Lock className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -571,8 +610,8 @@ export default function DownloadsPage() {
                 </div>
 
                 {/* IA para Todos */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="glass-card-feature p-6">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Users className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -585,8 +624,8 @@ export default function DownloadsPage() {
                 </div>
 
                 {/* Sin Dependencias */}
-                <div className="bg-slate-800/60 rounded-xl p-6 border border-slate-700 hover:border-emerald-500/30 transition-colors">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="glass-card-feature p-6">
+                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
                     <Globe className="w-6 h-6 text-emerald-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">
@@ -620,10 +659,10 @@ export default function DownloadsPage() {
                 {benefits.map((benefit) => (
                   <div
                     key={benefit.title}
-                    className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-emerald-500/50 transition-colors"
+                    className="glass-card-feature p-5 sm:p-6"
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-400/10">
                         <benefit.icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                       </div>
                       <span className="text-emerald-400 text-xs sm:text-sm font-medium">
@@ -657,9 +696,9 @@ export default function DownloadsPage() {
               {!loading && !error && latestRelease && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {/* macOS */}
-                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                  <div className="glass-card-feature p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Apple className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -668,8 +707,8 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.macos ? (
-                      <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                      <button
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
                         onClick={() => {
                           if (latestRelease.platforms.macos?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.macos?.url, '_blank');
@@ -677,20 +716,20 @@ export default function DownloadsPage() {
                         }}
                         disabled={latestRelease.platforms.macos.url === '#coming-soon'}
                       >
-                        <Download className="w-4 h-4 mr-2" />
+                        <Download className="w-4 h-4" />
                         {latestRelease.platforms.macos.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar DMG`}
-                      </Button>
+                      </button>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
                   </div>
 
                   {/* Windows */}
-                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors">
+                  <div className="glass-card-feature p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Monitor className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -699,8 +738,8 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.windows ? (
-                      <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                      <button
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
                         onClick={() => {
                           if (latestRelease.platforms.windows?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.windows?.url, '_blank');
@@ -708,20 +747,20 @@ export default function DownloadsPage() {
                         }}
                         disabled={latestRelease.platforms.windows.url === '#coming-soon'}
                       >
-                        <Download className="w-4 h-4 mr-2" />
+                        <Download className="w-4 h-4" />
                         {latestRelease.platforms.windows.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar EXE`}
-                      </Button>
+                      </button>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
                   </div>
 
                   {/* Linux */}
-                  <div className="bg-slate-800 rounded-xl p-5 sm:p-6 border border-slate-700 hover:border-slate-600 transition-colors sm:col-span-2 lg:col-span-1">
+                  <div className="glass-card-feature p-5 sm:p-6 sm:col-span-2 lg:col-span-1">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
                         <Monitor className="w-7 h-7 text-slate-300" />
                       </div>
                       <div>
@@ -730,8 +769,8 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.linux ? (
-                      <Button
-                        className="w-full h-11 bg-slate-700 hover:bg-slate-600 text-white"
+                      <button
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
                         onClick={() => {
                           if (latestRelease.platforms.linux?.url !== '#coming-soon') {
                             window.open(latestRelease.platforms.linux?.url, '_blank');
@@ -739,11 +778,11 @@ export default function DownloadsPage() {
                         }}
                         disabled={latestRelease.platforms.linux.url === '#coming-soon'}
                       >
-                        <Download className="w-4 h-4 mr-2" />
+                        <Download className="w-4 h-4" />
                         {latestRelease.platforms.linux.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar AppImage`}
-                      </Button>
+                      </button>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
@@ -761,7 +800,7 @@ export default function DownloadsPage() {
               <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
                 Preguntas Frecuentes
               </h2>
-              <div className="bg-slate-800/50 rounded-xl border border-slate-700 px-4 sm:px-6">
+              <div className="glass-background px-4 sm:px-6">
                 {faqs.map((faq, index) => (
                   <FAQItem key={index} question={faq.question} answer={faq.answer} />
                 ))}
@@ -775,7 +814,7 @@ export default function DownloadsPage() {
           <section className="py-12 sm:py-16 md:py-20 px-4">
             <div className="max-w-3xl mx-auto text-center">
               {/* Badge de urgencia */}
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 backdrop-blur-sm text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-emerald-400/20">
                 <Gift className="w-4 h-4" />
                 Licencias Piloto Limitadas
               </div>
@@ -790,9 +829,8 @@ export default function DownloadsPage() {
               </p>
 
               {!loading && !error && (
-                <Button
-                  size="lg"
-                  className="h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/35"
+                <button
+                  className="glass-hero-cta h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3"
                   onClick={() => {
                     const ua = navigator.userAgent.toLowerCase();
                     let downloadUrl = '';
@@ -808,9 +846,9 @@ export default function DownloadsPage() {
                     }
                   }}
                 >
-                  <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
+                  <Download className="w-5 h-5 sm:w-6 sm:h-6" />
                   Obtener Mi Licencia Piloto
-                </Button>
+                </button>
               )}
 
               {/* Ollama requirement note */}

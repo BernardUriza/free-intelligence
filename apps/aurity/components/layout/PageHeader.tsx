@@ -13,6 +13,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { UserDisplay } from '@/components/auth/UserDisplay'
 import { SystemStatus } from '@/components/ui/SystemStatus'
@@ -132,14 +133,16 @@ export function PageHeader({
 
           {showLogo && (
             <>
-              <Image
-                src="/logos/aurity-logo-light.png"
-                alt="AURITY"
-                width={120}
-                height={32}
-                loading="eager"
-                className="h-6 sm:h-7 w-auto opacity-90 flex-shrink-0"
-              />
+              <Link href="/" className="cursor-pointer hover:opacity-100 transition-opacity">
+                <Image
+                  src="/logos/aurity-logo-light.png"
+                  alt="AURITY"
+                  width={120}
+                  height={32}
+                  loading="eager"
+                  className="h-6 sm:h-7 w-auto opacity-90 flex-shrink-0"
+                />
+              </Link>
               <div className="layout-header-divider" />
             </>
           )}

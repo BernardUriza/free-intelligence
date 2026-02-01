@@ -25,7 +25,7 @@ import time
 from collections.abc import Callable
 from typing import Any, Type
 
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

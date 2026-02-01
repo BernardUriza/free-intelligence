@@ -20,8 +20,8 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.src.fi_common.config.deployment import OllamaHost, get_ollama_host, get_ollama_hosts
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.config.deployment import OllamaHost, get_ollama_host, get_ollama_hosts
+from backend.utils.common.logging.logger import get_logger
 from dotenv import load_dotenv
 
 # Optional: sentence_transformers (requires torch, not installed in production)

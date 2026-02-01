@@ -11,7 +11,7 @@
  * - Logout dropdown
  */
 
-import { useAuth } from '@aurity-standalone/hooks/useAuth';
+import { useAuth0 } from '@auth0/auth0-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
@@ -29,7 +29,7 @@ export function UserDisplay() {
     loginWithRedirect,
     logout,
     getAccessTokenSilently,
-  } = useAuth();
+  } = useAuth0();
 
   // Debug: Verify logout is defined
   useEffect(() => {

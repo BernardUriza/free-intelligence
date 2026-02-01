@@ -3,6 +3,7 @@
 Tests cover audio blob storage for transcription chunks.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -27,7 +28,6 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk raises when chunk doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -57,7 +57,6 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk creates audio dataset."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -93,7 +92,6 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk deletes existing audio."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -131,7 +129,6 @@ class TestAddAudioToChunk:
         mock_locked: MagicMock,
     ) -> None:
         """Test add_audio_to_chunk uses custom filename."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             add_audio_to_chunk,
         )
 
@@ -176,7 +173,6 @@ class TestGetChunkAudioBytes:
     ) -> None:
         """Test get_chunk_audio_bytes returns None when file doesn't exist."""
         from backend.models.task_type import TaskType
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             get_chunk_audio_bytes,
         )
 
@@ -187,7 +183,7 @@ class TestGetChunkAudioBytes:
         mock_corpus_path.exists.return_value = False
         mock_corpus_path.parent.mkdir = MagicMock()
 
-        result = get_chunk_audio_bytes(
+        result = get_container().get_task_repository().get_chunk_audio_bytes(
             session_id="session-123",
             task_type=TaskType.TRANSCRIPTION,
             chunk_idx=0,
@@ -204,7 +200,6 @@ class TestGetChunkAudioBytes:
     ) -> None:
         """Test get_chunk_audio_bytes returns None when chunk doesn't exist."""
         from backend.models.task_type import TaskType
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.chunk_audio import (
             get_chunk_audio_bytes,
         )
 
@@ -218,7 +213,7 @@ class TestGetChunkAudioBytes:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_chunk_audio_bytes(
+        result = get_container().get_task_repository().get_chunk_audio_bytes(
             session_id="session-123",
             task_type=TaskType.TRANSCRIPTION,
             chunk_idx=0,

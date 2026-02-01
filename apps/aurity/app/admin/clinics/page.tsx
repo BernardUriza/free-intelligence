@@ -176,7 +176,7 @@ export default function ClinicsAdminPage() {
     setLoadingDetails(true);
     try {
       const [doctorsData, appointmentsData, limitsData] = await Promise.all([
-        fetchDoctors(clinic.clinic_id, false),
+        fetchDoctors(clinic.clinic_id, true), // Only show active doctors
         fetchAppointments(clinic.clinic_id),
         fetchDoctorLimits(clinic.clinic_id),
       ]);

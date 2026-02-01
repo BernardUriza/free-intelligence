@@ -3,6 +3,7 @@
 Coverage target: SOAP, transcription_sources, chunks modules.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 import json
@@ -28,7 +29,6 @@ class TestSoapStorage:
 
     def test_save_soap_data_creates_dataset(self, temp_storage):
         """Test saving SOAP data creates HDF5 dataset."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.soap import (
             save_soap_data,
         )
 
@@ -54,7 +54,7 @@ class TestSoapStorage:
             "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
-            result_path = save_soap_data(session_id, soap_data)
+            result_path = get_container().get_task_repository().save_soap_data(session_id, soap_data)
 
             assert TaskType.SOAP_GENERATION.value in result_path
             assert "soap_data" in result_path
@@ -72,7 +72,6 @@ class TestSoapStorage:
 
     def test_save_soap_data_creates_version_history(self, temp_storage):
         """Test SOAP data saves to version history."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.soap import (
             save_soap_data,
         )
 
@@ -92,7 +91,7 @@ class TestSoapStorage:
             return_value=session_file,
         ):
             # Save first version
-            save_soap_data(session_id, {"subjective": "First"})
+            get_container().get_task_repository().save_soap_data(session_id, {"subjective": "First"})
 
         # Verify version history exists
         with h5py.File(session_file, "r") as f:
@@ -106,9 +105,8 @@ class TestSoapStorage:
 class TestTranscriptionSourcesStorage:
     """Test transcription source storage operations."""
 
-    def test_add_webspeech_transcripts(self, temp_storage):
+    def test_get_container().get_task_repository().add_webspeech_transcripts(self, temp_storage):
         """Test adding WebSpeech transcripts."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_webspeech_transcripts,
         )
 
@@ -130,7 +128,7 @@ class TestTranscriptionSourcesStorage:
             return_value=session_file,
         ):
             # Add transcripts
-            result_path = add_webspeech_transcripts(session_id, transcripts)
+            result_path = get_container().get_task_repository().add_webspeech_transcripts(session_id, transcripts)
 
             assert "webspeech_final" in result_path
 
@@ -144,9 +142,8 @@ class TestTranscriptionSourcesStorage:
             assert len(stored_list) == 3
             assert stored_list[0] == "Hello doctor"
 
-    def test_add_full_transcription(self, temp_storage):
+    def test_get_container().get_task_repository().add_full_transcription(self, temp_storage):
         """Test adding full transcription text."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_full_transcription,
         )
 
@@ -164,7 +161,7 @@ class TestTranscriptionSourcesStorage:
             return_value=session_file,
         ):
             # Add full transcription
-            result_path = add_full_transcription(session_id, full_text)
+            result_path = get_container().get_task_repository().add_full_transcription(session_id, full_text)
 
             assert "full_transcription" in result_path
 
@@ -176,9 +173,8 @@ class TestTranscriptionSourcesStorage:
             stored_text = f[task_path]["full_transcription"][()].decode("utf-8")
             assert "complete transcription" in stored_text
 
-    def test_add_full_audio(self, temp_storage):
+    def test_get_container().get_task_repository().add_full_audio(self, temp_storage):
         """Test adding full audio bytes."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_full_audio,
         )
 
@@ -196,7 +192,7 @@ class TestTranscriptionSourcesStorage:
             return_value=session_file,
         ):
             # Add audio
-            result_path = add_full_audio(session_id, audio_bytes)
+            result_path = get_container().get_task_repository().add_full_audio(session_id, audio_bytes)
 
             assert "full_audio.webm" in result_path
 
@@ -210,7 +206,6 @@ class TestTranscriptionSourcesStorage:
 
     def test_add_webspeech_requires_existing_task(self, temp_storage):
         """Test that WebSpeech requires existing task."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.transcription_sources import (
             add_webspeech_transcripts,
         )
 
@@ -227,7 +222,7 @@ class TestTranscriptionSourcesStorage:
         ):
             # Should raise ValueError
             with pytest.raises(ValueError) as exc_info:
-                add_webspeech_transcripts(session_id, ["test"])
+                get_container().get_task_repository().add_webspeech_transcripts(session_id, ["test"])
 
             assert "does not exist" in str(exc_info.value)
 
@@ -235,9 +230,8 @@ class TestTranscriptionSourcesStorage:
 class TestLifecycleOperations:
     """Test task lifecycle operations."""
 
-    def test_ensure_task_exists(self, temp_storage):
+    def test_ensure_get_container().get_task_repository().task_exists(self, temp_storage):
         """Test ensuring a task exists (creates if needed)."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
             ensure_task_exists,
         )
 
@@ -255,7 +249,7 @@ class TestLifecycleOperations:
             "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
-            result = ensure_task_exists(session_id, TaskType.TRANSCRIPTION)
+            result = ensure_get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION)
 
             assert result is not None
             assert "TRANSCRIPTION" in result
@@ -267,7 +261,6 @@ class TestLifecycleOperations:
 
     def test_task_exists_returns_true_when_exists(self, temp_storage):
         """Test task_exists returns True when task exists."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
             ensure_task_exists,
             task_exists,
         )
@@ -275,15 +268,14 @@ class TestLifecycleOperations:
         session_id = "test-session-exists-nomock"
 
         # Use ensure_task_exists to create task (no mocks needed)
-        ensure_task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=True)
+        ensure_get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION, allow_existing=True)
 
         # Now check it exists
-        result = task_exists(session_id, TaskType.TRANSCRIPTION)
+        result = get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION)
         assert result is True
 
     def test_task_exists_returns_false_when_missing(self, temp_storage):
         """Test task_exists returns False when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.lifecycle import (
             task_exists,
         )
 
@@ -298,7 +290,7 @@ class TestLifecycleOperations:
             "backend.src.fi_storage.infrastructure.hdf5.session_h5_manager.get_session_h5_path",
             return_value=session_file,
         ):
-            result = task_exists(session_id, TaskType.TRANSCRIPTION)
+            result = get_container().get_task_repository().task_exists(session_id, TaskType.TRANSCRIPTION)
             assert result is False
 
 
@@ -307,7 +299,6 @@ class TestH5FileAccess:
 
     def test_open_h5_read(self, temp_storage):
         """Test opening HDF5 file for reading."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.h5_file_access import (
             open_h5_read,
         )
 
@@ -336,7 +327,6 @@ class TestChunksStorage:
 
     def test_chunks_module_imports(self):
         """Test that chunks module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import chunks
 
         # Verify key functions exist
         assert hasattr(chunks, "append_chunk_to_task")
@@ -346,14 +336,12 @@ class TestChunksStorage:
 
     def test_diarization_module_imports(self):
         """Test that diarization module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import diarization
 
         # Verify module loaded
         assert diarization is not None
 
     def test_orders_module_imports(self):
         """Test that orders module can be imported."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks import orders
 
         # Verify module loaded
         assert orders is not None

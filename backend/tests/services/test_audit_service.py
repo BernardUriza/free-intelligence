@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skip(
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.src.fi_audit.services.audit_service import AuditService
+    from backend.api.audit.services.audit_service import AuditService
 
 
 class TestAuditService:

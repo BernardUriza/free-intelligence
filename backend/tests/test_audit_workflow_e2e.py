@@ -11,6 +11,8 @@ Uses chunks 5-7 for realistic medical case testing.
 """
 
 from __future__ import annotations
+from backend.container import get_container
+
 
 import time
 
@@ -20,7 +22,6 @@ import pytest
 pytestmark = pytest.mark.skip(
     reason="E2E test requiring full infrastructure - run locally with make dev-all"
 )
-from backend.src.fi_storage.infrastructure.hdf5.task_repository import (
     get_session_metadata,
     get_soap_data,
 )
@@ -223,7 +224,7 @@ class TestAuditWorkflowE2E:
         print("  ✓ Feedback persisted correctly")
 
         # Verify SOAP was updated with correction
-        soap_data = get_soap_data(session_id)
+        soap_data = get_container().get_task_repository().get_soap_data(session_id)
         str(soap_data.get("plan", {}))
 
         # Note: Correction might be in medications list or as metadata
@@ -276,7 +277,7 @@ class TestAuditWorkflowE2E:
 
     def test_analyze_session_flags_heuristics(self):
         """Test flag detection heuristics."""
-        from backend.src.fi_session.api.public.sessions import _analyze_session_flags
+        from backend.api.routers.session.public.sessions import _analyze_session_flags
 
         # Test low confidence flag
         flags = _analyze_session_flags(

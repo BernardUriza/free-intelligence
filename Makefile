@@ -23,7 +23,6 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 # ============================================================================
 PY ?= python3.14
 BACKEND_PORT ?= 7001
-STRIDE_PORT ?= 9050
 FRONTEND_PORT ?= 9000
 CORPUS_EMAIL ?= $(USER)@example.com
 TRELLO_CLI ?= trello
@@ -61,8 +60,7 @@ OBS_ALERTS_SERVICE ?= public_api
 .PHONY: clean clean-all
 .PHONY: health-check corpus-stats audit-logs trello-status info
 .PHONY: observability-metrics observability-traces observability-health observability-alerts
-.PHONY: dev-all dev-kill dev-restart
-.PHONY: stride-dev stride-build stride-preview stride-lint stride-type-check
+.PHONY: dev-all dev-all-local dev-kill dev-restart
 .PHONY: turbo-build turbo-lint turbo-clean
 .PHONY: llm-dev llm-test llm-call
 .PHONY: policy-test policy-report policy-verify policy-all
@@ -374,53 +372,70 @@ info: ## Show project information
 	@echo "  - Backend API:     port $(BACKEND_PORT) (Python/FastAPI)"
 	@echo "  - AURITY Gateway:  port $(GATEWAY_PORT) (Python/FastAPI)"
 	@echo "  - AURITY Frontend: port $(FRONTEND_PORT) (Next.js)"
-	@echo "  - FI-Stride:       port $(STRIDE_PORT) (Vite + React)"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make setup      # Initialize monorepo"
-	@echo "  make dev-all    # Start all services (Backend + AURITY + FI-Stride)"
+	@echo "  make dev-all    # Start all services (Backend + AURITY)"
 	@echo "  make run        # Start Backend API only"
-	@echo "  make stride-dev # Start FI-Stride only"
 	@echo "  make test       # Run tests"
 
 # ============================================================================
 # Dev Commands (Active)
 # ============================================================================
 
-dev-all: ## Start all services (Python 3.14 Native + Frontend in single terminal)
-	@PYTHONPATH=backend/src $(PY) -m fi_cli dev all
+init-storage: ## Initialize HDF5 storage (corpus.h5)
+	@echo "📦 Initializing storage..."
+	@mkdir -p storage
+	@if [ ! -f storage/corpus.h5 ]; then \
+		echo "Creating corpus.h5..."; \
+		cd backend && PYTHONPATH=. $(PY) -c "import h5py; h5py.File('../storage/corpus.h5', 'w').close()"; \
+		echo "✅ corpus.h5 created"; \
+	else \
+		echo "✅ corpus.h5 already exists"; \
+	fi
 
-dev-kill: ## Nuclear cleanup - kill ALL FI processes
-	@PYTHONPATH=backend/src $(PY) -m fi_cli dev kill-all
-
-dev-restart: dev-kill dev-all ## Restart everything (kill + start)
-
-# ============================================================================
-# FI-Stride Commands
-# ============================================================================
-
-stride-dev: ## Start FI-Stride dev server (default: 9050)
-	@echo "🚀 Starting FI-Stride dev server on http://localhost:$(STRIDE_PORT)"
-	@echo "   Press Ctrl+C to stop"
+dev-all-local: ## Start backend + frontend (local-only, no tunnel)
+	@echo "🚀 Starting Aurity dev stack (local-only)..."
+	@mkdir -p logs
+	@echo "📦 [1/3] Checking storage..."
+	@test -f storage/corpus.h5 || $(MAKE) init-storage
+	@echo "🔧 [2/3] Starting backend (port $(BACKEND_PORT))..."
+	@bash -c 'cd backend && PYTHONPATH=$(PWD) $(PY) -m uvicorn app.main:app --reload --port $(BACKEND_PORT) --log-level info > $(PWD)/logs/backend-dev.log 2>&1 & echo $$! > $(PWD)/logs/backend.pid'
+	@sleep 2
+	@echo "🎨 [3/3] Starting frontend (port $(FRONTEND_PORT))..."
+	@bash -c 'cd apps/aurity && pnpm dev --port $(FRONTEND_PORT) > $(PWD)/logs/frontend-aurity-dev.log 2>&1 & echo $$! > $(PWD)/logs/frontend.pid'
+	@sleep 3
+	@if [ -f logs/backend.pid ]; then echo "✅ Backend PID: $$(cat logs/backend.pid)"; else echo "⚠️  Backend PID file not created"; fi
+	@if [ -f logs/frontend.pid ]; then echo "✅ Frontend PID: $$(cat logs/frontend.pid)"; else echo "⚠️  Frontend PID file not created"; fi
 	@echo ""
-	@cd apps/fi-stride && PORT=$(STRIDE_PORT) pnpm dev
+	@echo "  📊 Backend:  http://localhost:$(BACKEND_PORT)/api/health"
+	@echo "  🌐 Frontend: http://localhost:$(FRONTEND_PORT)"
+	@echo ""
+	@echo "  📝 Logs:"
+	@echo "     tail -f logs/backend-dev.log"
+	@echo "     tail -f logs/frontend-aurity-dev.log"
+	@echo ""
+	@echo "  🛑 Stop: make dev-kill"
 
-stride-build: ## Build FI-Stride for production
-	@echo "🏗️  Building FI-Stride..."
-	@cd apps/fi-stride && pnpm build
-	@echo "✅ Build complete: apps/fi-stride/dist/"
+dev-all: dev-all-local ## Alias for dev-all-local (cloud-dev requires fi-monitor)
 
-stride-preview: ## Preview FI-Stride production build
-	@echo "👀 Previewing FI-Stride build..."
-	@cd apps/fi-stride && pnpm preview
+dev-kill: ## Stop all dev services (backend + frontend)
+	@echo "🛑 Stopping dev services..."
+	@if [ -f logs/backend.pid ]; then \
+		kill $$(cat logs/backend.pid) 2>/dev/null || true; \
+		rm logs/backend.pid; \
+		echo "✅ Backend stopped"; \
+	fi
+	@if [ -f logs/frontend.pid ]; then \
+		kill $$(cat logs/frontend.pid) 2>/dev/null || true; \
+		rm logs/frontend.pid; \
+		echo "✅ Frontend stopped"; \
+	fi
+	@lsof -ti:$(BACKEND_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || true
+	@echo "✅ All services stopped"
 
-stride-lint: ## Lint FI-Stride code
-	@echo "🔍 Linting FI-Stride..."
-	@cd apps/fi-stride && pnpm lint
-
-stride-type-check: ## Type check FI-Stride
-	@echo "📋 Type checking FI-Stride..."
-	@cd apps/fi-stride && pnpm type-check
+dev-restart: dev-kill dev-all-local ## Restart all services
 
 # ============================================================================
 # Turborepo Commands

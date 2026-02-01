@@ -10,15 +10,20 @@ Philosophy: Provider-agnostic design matching LLM/STT patterns.
 
 For medical consultations (doctor + patient), diarization separates voices
 to enable speaker-specific SOAP note generation and quality metrics.
+
+Updated: 2026-02-01 (Phase 2.3 Venus - DI migration for IPresetLoader)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from backend.src.fi_common.logging.logger import get_logger
+if TYPE_CHECKING:
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
+
+from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
 logger = get_logger(__name__)
@@ -580,12 +585,29 @@ def get_diarization_provider(
 
 
 class AzureGPT4Provider(DiarizationProvider):
-    """Azure GPT-4 - Text-based diarization using LLM with preset support"""
+    """Azure GPT-4 - Text-based diarization using LLM with preset support.
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    Phase 2.3 Venus: Supports IPresetLoader injection for DI compliance.
+    """
+
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        preset_loader: "IPresetLoader | None" = None,
+    ) -> None:
+        """Initialize Azure GPT-4 diarization provider.
+
+        Args:
+            config: Provider configuration dict
+            preset_loader: IPresetLoader instance (REQUIRED for preset-based prompts).
+                          If None, uses legacy hardcoded prompt.
+
+        Note:
+            Phase 2.3 Critical Fix: No more fallbacks to service locator.
+            Pass preset_loader for DI compliance, or None for legacy mode.
+        """
         super().__init__(config)
         import os
-        from backend.schemas.llm.preset_loader import get_preset_loader
 
         self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_key = os.getenv("AZURE_OPENAI_KEY")
@@ -600,22 +622,35 @@ class AzureGPT4Provider(DiarizationProvider):
             raise ValueError(error_msg2)
 
         # Load diarization preset (prompt engineering config)
-        try:
-            preset_loader = get_preset_loader()
-            self.preset = preset_loader.load_preset("diarization_analyst")
-            self.logger.info(
-                "DIARIZATION_PRESET_LOADED",
-                preset_id=self.preset.preset_id,
-                version=self.preset.version,
-                temperature=self.preset.temperature,
+        # Phase 2.3 Critical Fix: Fail-fast if preset_loader provided but fails
+        self.preset = None
+        if preset_loader is not None:
+            try:
+                self.preset = preset_loader.load_preset("diarization_analyst")
+                self.logger.info(
+                    "DIARIZATION_PRESET_LOADED",
+                    preset_id=self.preset.preset_id,
+                    version=self.preset.version,
+                    temperature=self.preset.temperature,
+                )
+            except Exception as e:
+                # FAIL-FAST: If preset_loader was provided, preset MUST load
+                # Silent fallback hides configuration errors in production
+                self.logger.critical(
+                    "DIARIZATION_PRESET_LOAD_FAILED_FATAL",
+                    error=str(e),
+                    message="Cannot initialize AzureGPT4Provider - preset loading failed",
+                )
+                raise ValueError(
+                    f"AzureGPT4Provider preset loading failed: {e}. "
+                    "Fix diarization_analyst preset or pass preset_loader=None for legacy mode."
+                ) from e
+        else:
+            # Explicit legacy mode - no preset_loader provided
+            self.logger.debug(
+                "AZURE_GPT4_LEGACY_MODE",
+                hint="No preset_loader - using hardcoded prompt (DEPRECATED)",
             )
-        except (ImportError, FileNotFoundError, KeyError, ValueError) as e:
-            self.logger.warning(
-                "DIARIZATION_PRESET_LOAD_FAILED",
-                error=str(e),
-                hint="Falling back to legacy hardcoded prompt",
-            )
-            self.preset = None
 
         self.logger.info("AZURE_GPT4_DIARIZATION_PROVIDER_INITIALIZED")
 

@@ -34,21 +34,31 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
       return;
     }
 
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const data = await fetchPatients({ search, limit: 10 });
-        setResults(data);
-        setShowDropdown(true);
+        const data = await fetchPatients({ search, limit: 10 }, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setResults(data);
+          setShowDropdown(true);
+        }
       } catch (err) {
-        console.error('[usePatientSearch] Search failed:', err);
-        setResults([]);
+        if (!controller.signal.aborted) {
+          console.error('[usePatientSearch] Search failed:', err);
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [search]);
 
   // Close dropdown on click outside
@@ -124,6 +134,29 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     }
   }, [results.length]);
 
+  const handleNewPatientChange = useCallback((form: NewPatientForm) => {
+    setNewPatient(form);
+  }, []);
+
+  // Field validation
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+
+  const handleFieldBlur = useCallback((fieldName: string) => {
+    setTouchedFields(prev => new Set(prev).add(fieldName));
+  }, []);
+
+  const getFieldError = useCallback((fieldName: string): string | undefined => {
+    if (!touchedFields.has(fieldName)) return undefined;
+
+    if (fieldName === 'nombre' && !newPatient.nombre) {
+      return 'Nombre es requerido';
+    }
+    if (fieldName === 'apellido' && !newPatient.apellido) {
+      return 'Apellido es requerido';
+    }
+    return undefined;
+  }, [touchedFields, newPatient]);
+
   return {
     dropdownRef,
     search,
@@ -134,6 +167,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     showCreateForm,
     newPatient,
     setNewPatient,
+    handleNewPatientChange,
     creating,
     handleSelectPatient,
     handleCreatePatient,
@@ -141,5 +175,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
     closeCreateForm,
     clearSearch,
     handleFocus,
+    handleFieldBlur,
+    getFieldError,
   };
 }

@@ -13,11 +13,21 @@ Clean Code Principles Applied:
 from .audit_repository import AuditRepository
 from .base_repository import BaseRepository
 from .corpus_repository import CorpusRepository
+from .hdf5_order_repository import HDF5OrderRepository
+from .hdf5_session_repository import HDF5SessionRepository
+from .hdf5_soap_repository import HDF5SOAPRepository
+from .postgres_patient_repository import PostgreSQLPatientRepository
 from .session_repository import SessionRepository
+from .task_repository import HDF5TaskRepository
 
 __all__ = [
     "AuditRepository",
     "BaseRepository",
     "CorpusRepository",
+    "HDF5OrderRepository",
+    "HDF5SessionRepository",
+    "HDF5SOAPRepository",
+    "HDF5TaskRepository",
+    "PostgreSQLPatientRepository",
     "SessionRepository",
 ]

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC
+import sys
 
 import os
 from backend.app.version import __version__
@@ -24,14 +25,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from pydantic import ValidationError
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    # from backend.src.fi_coder.storage.database import init_db  # Removed: storage simplified
-    from backend.src.fi_coder.observability.logger import get_logger
+    # from backend.utils.coder.storage.database import init_db  # Removed: storage simplified
+    from backend.utils.coder.observability.logger import get_logger
+
+    # P1: Validate all Pydantic configs FIRST (fail-fast on invalid config)
+    validate_all_configs()
 
     # Configure structured JSON logging for chat observability
     try:
@@ -49,22 +54,113 @@ async def lifespan(app: FastAPI):
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
 
-    # Configure Event Bus with HDF5 store
+    # Verify Event Bus is accessible via Container (lazy init)
     try:
-        from backend.src.fi_events.application.event_bus import configure_event_bus
-        from backend.src.fi_events.infrastructure.hdf5_store import HDF5EventStore
-
-        event_store = HDF5EventStore()
-        configure_event_bus(event_store)
-        logger.info("EVENT_BUS_INITIALIZED", store="HDF5EventStore")
+        from backend.container import get_container
+        _ = get_container().get_event_bus()  # Trigger lazy initialization
+        logger.info("EVENT_BUS_READY", implementation="InMemoryEventBus", status="available")
     except Exception as e:
-        logger.warning("EVENT_BUS_INIT_FAILED", error=str(e))
-        # Don't fail startup - events will be fire-and-forget without persistence
+        logger.warning("EVENT_BUS_VERIFICATION_FAILED", error=str(e))
+        # Don't fail startup - services will handle missing event bus gracefully
 
     yield
 
     # Shutdown (if needed in the future)
     # Add cleanup code here
+
+
+def validate_all_configs() -> None:
+    """Validate all Pydantic configs at startup (fail-fast).
+
+    Validates type-safe configurations created in P0:
+    - MemoryStoreConfig
+    - TranscriptionConfig
+    - WorkflowConfig
+    - SOAPConfig
+    - LLMClientConfig
+
+    Raises:
+        ValidationError: If any config is invalid (e.g., timeout_read <= 0)
+        RuntimeError: If config validation fails
+    """
+    from backend.utils.common.logging.logger import get_logger
+
+    logger = get_logger(__name__)
+
+    try:
+        # Import and validate all configs (triggers Pydantic validation)
+        from backend.services.memory.dependencies import get_memory_config
+        from backend.services.transcription.dependencies import get_transcription_config
+        from backend.services.workflow.dependencies import get_workflow_config
+        from backend.services.soap.dependencies import get_soap_config
+        from backend.clients.dependencies import get_llm_client_config
+
+        configs = {
+            "MemoryStoreConfig": get_memory_config(),
+            "TranscriptionConfig": get_transcription_config(),
+            "WorkflowConfig": get_workflow_config(),
+            "SOAPConfig": get_soap_config(),
+            "LLMClientConfig": get_llm_client_config(),
+        }
+
+        logger.info(
+            "CONFIG_VALIDATION_SUCCESS",
+            config_count=len(configs),
+            configs=list(configs.keys()),
+        )
+
+    except ValidationError as e:
+        error_details = "\n".join([
+            f"  - {err['loc'][0] if err['loc'] else 'unknown'}: {err['msg']}"
+            for err in e.errors()
+        ])
+        error_msg = (
+            "❌ STARTUP FAILED - Invalid configuration detected:\n"
+            f"{error_details}\n\n"
+            "Fix the configuration errors in environment variables and restart."
+        )
+        logger.error("CONFIG_VALIDATION_FAILED", error=str(e), exc_info=True)
+        print(error_msg, file=sys.stderr)
+        sys.exit(1)  # Fail fast
+
+    except Exception as e:
+        logger.error("CONFIG_VALIDATION_UNEXPECTED_ERROR", error=str(e), exc_info=True)
+        print(f"❌ UNEXPECTED ERROR during config validation: {e}", file=sys.stderr)
+        sys.exit(1)  # Fail fast
+
+
+def validate_critical_env_vars() -> None:
+    """Validate that all critical environment variables are present in production.
+
+    Fails fast with clear error messages to prevent runtime failures.
+
+    Raises:
+        RuntimeError: If any critical env var is missing in production
+    """
+    env = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+    if env != "production":
+        return  # Skip validation in development
+
+    # Critical env vars that MUST be present in production
+    CRITICAL_ENV_VARS = {
+        "CLAUDE_API_KEY": "AI assistant won't work without Claude API",
+        "DEEPGRAM_API_KEY": "Audio transcription won't work without Deepgram",
+        "DATABASE_URL": "PostgreSQL connection required for patients/providers",
+        "ALLOWED_ORIGINS": "CORS will block frontend without allowed origins",
+    }
+
+    missing = []
+    for var, reason in CRITICAL_ENV_VARS.items():
+        if not os.getenv(var):
+            missing.append(f"  - {var}: {reason}")
+
+    if missing:
+        error_msg = (
+            "❌ PRODUCTION STARTUP FAILED - Missing critical environment variables:\n"
+            + "\n".join(missing)
+            + "\n\nSet these env vars before deploying to production."
+        )
+        raise RuntimeError(error_msg)
 
 
 def create_app() -> FastAPI:
@@ -73,6 +169,8 @@ def create_app() -> FastAPI:
     Returns:
         FastAPI: Configured application instance
     """
+    # Validate critical env vars FIRST (fail fast in production)
+    validate_critical_env_vars()
     # Enhanced documentation
     description = """
 ## 🏥 Free Intelligence - Medical AI Platform
@@ -212,9 +310,6 @@ Requires environment variables:
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
 
-    # P2: Distributed tracing (must be first middleware - outermost layer)
-    public_app.add_middleware(TracingMiddleware)
-
     # CORS configuration: more restrictive in production
     environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
 
@@ -250,6 +345,10 @@ Requires environment variables:
             )
         allowed_headers = ["*"]  # More permissive in development
 
+    # Middleware stack (outside-in execution order):
+    # 1. CORS - Fail fast on origin mismatch (outermost)
+    # 2. Tracing - Only trace valid origins
+    # 3. Idempotency - Only check cache for valid routes (innermost)
     public_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -257,6 +356,9 @@ Requires environment variables:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=allowed_headers,
     )
+
+    # P2: Distributed tracing (after CORS to avoid tracing preflight noise)
+    public_app.add_middleware(TracingMiddleware)
 
     # P1: Idempotency middleware for workflow orchestration (prevents duplicate POST operations)
     public_app.add_middleware(
@@ -269,11 +371,10 @@ Requires environment variables:
     # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
     internal_app = FastAPI(title="Internal API")
 
-    # P2: Distributed tracing (must be first middleware)
-    internal_app.add_middleware(TracingMiddleware)
-
-    # Add CORS for development (showcase testing)
-    # Internal API uses same CORS config as public API
+    # Middleware stack (same order as public_app):
+    # 1. CORS - Fail fast on origin mismatch
+    # 2. Tracing - Only trace valid origins
+    # 3. InternalOnly - Localhost enforcement (innermost)
     internal_app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -281,6 +382,11 @@ Requires environment variables:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=allowed_headers,
     )
+
+    # P2: Distributed tracing (after CORS)
+    internal_app.add_middleware(TracingMiddleware)
+
+    # P3: Internal-only enforcement (localhost check)
     internal_app.add_middleware(InternalOnlyMiddleware)
 
     # Register all API routers (extracted to routers.py for maintainability)
@@ -294,11 +400,11 @@ Requires environment variables:
         app.mount("/api", public_app)
         app.mount("/internal", internal_app)
     except (ImportError, AttributeError) as e:
-        # If routers fail to load, log and continue with health check only
         import sys
+        import traceback
 
         # Provide clearer guidance for missing dependencies or import errors
-        print("WARNING: Failed to load API routers during startup.", file=sys.stderr)
+        print("❌ FATAL: Failed to load API routers during startup.", file=sys.stderr)
         print(
             "This usually means a required Python package is missing or an import failed.",
             file=sys.stderr,
@@ -308,9 +414,16 @@ Requires environment variables:
             file=sys.stderr,
         )
         print(f"Error: {e}", file=sys.stderr)
-        import traceback
-
         traceback.print_exc()
+
+        # FAIL FAST in production - don't start app without routers
+        if environment == "production":
+            raise RuntimeError(
+                "Cannot start app in production without API routers. "
+                "This would result in all /api/* endpoints returning 404."
+            ) from e
+        # In development, log warning and continue (allow health check only)
+        print("⚠️  DEV MODE: Continuing without routers (health check only)", file=sys.stderr)
 
     # Development-only debug route: list all mounted routes and methods
     # This helps frontend devs discover available endpoints without opening FastAPI docs.
@@ -353,53 +466,28 @@ Requires environment variables:
 
     setup_metrics_endpoint(app)
 
-    # Startup validation: ensure critical env vars are present in production
-    env_now = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
-    if env_now == "production":
-        # Azure OpenAI TTS is the required TTS provider
-        has_azure_openai = bool(
-            os.getenv("AZURE_OPENAI_TTS_API_KEY") or os.getenv("AZURE_TTS_API_KEY")
-        )
-
-        if not has_azure_openai:
-            # Fail fast in production to avoid confusing 500 errors at runtime
-            raise ValueError(
-                "TTS provider must be configured in production. "
-                "Set AZURE_OPENAI_TTS_API_KEY and AZURE_OPENAI_TTS_ENDPOINT"
-            )
-
     # Mount static files (for demo audio, etc.)
-    # Note: StaticFiles doesn't inherit CORS from parent app, so we wrap it
+    # Note: StaticFiles mounted on main app (not sub-apps) to avoid CORS complexity
     static_dir = Path(__file__).parent.parent / "static"
     if static_dir.exists():
-        static_app = StaticFiles(directory=str(static_dir))
-
-        # Wrap with CORS for frontend access
-        class CORSStaticFiles:
-            def __init__(self, static_files):
-                self.static_files = static_files
-
-            async def __call__(self, scope, receive, send):
-                if scope["type"] == "http":
-
-                    async def send_with_cors(message):
-                        if message["type"] == "http.response.start":
-                            headers = list(message.get("headers", []))
-                            headers.append((b"access-control-allow-origin", b"*"))
-                            message["headers"] = headers
-                        await send(message)
-
-                    await self.static_files(scope, receive, send_with_cors)
-                else:
-                    await self.static_files(scope, receive, send)
-
-        app.mount("/static", CORSStaticFiles(static_app), name="static")
+        # Static files inherit CORS from main app's fallback middleware (development)
+        # In production, static files should be served by Nginx/CDN, not FastAPI
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     return app
 
 
 # Create app instance for uvicorn
 app = create_app()
+
+# Export public_app for dependency injection testing
+# This allows tests to override dependencies on the correct sub-app
+public_app = None
+for route in app.routes:
+    if hasattr(route, 'path') and route.path == '/api':
+        # Found the mounted public API sub-app
+        public_app = route.app
+        break
 
 
 if __name__ == "__main__":

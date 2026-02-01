@@ -9,6 +9,7 @@ Philosophy: Configuration as code, validation as policy.
 
 File: backend/preset_loader.py
 Created: 2025-10-28
+Updated: 2026-02-01 (Phase 2.3 - Implements IPresetLoader interface)
 """
 
 import hashlib
@@ -19,7 +20,8 @@ from typing import Any
 import jsonschema
 import yaml
 from backend.models.llm_model import LLMProvider
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
+from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 from pathlib import Path
 
 # Default model for Ollama provider
@@ -97,9 +99,11 @@ class PresetConfig:
         self.metadata = metadata
 
 
-class PresetLoader:
+class PresetLoader(IPresetLoader):
     """
     Load and validate LLM presets from YAML.
+
+    Implements IPresetLoader interface for dependency injection.
 
     Features:
     - YAML preset loading
@@ -339,7 +343,11 @@ _preset_loader: PresetLoader | None = None
 
 
 def get_preset_loader() -> PresetLoader:
-    """Get or create global preset loader"""
+    """Get or create global preset loader.
+
+    ⚠️  NOTE: For workers, prefer DI via get_preset_loader_dep() from
+    backend.services.workflow.dependencies instead (Phase 2.3 migration).
+    """
     global _preset_loader
 
     if _preset_loader is None:

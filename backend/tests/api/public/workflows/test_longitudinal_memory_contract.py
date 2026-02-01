@@ -16,7 +16,7 @@ pytestmark = pytest.mark.smoke
 
 def test_memory_route_registration_check() -> None:
     """Verify longitudinal memory routes are properly registered in router."""
-    from backend.src.fi_workflow.api.public.workflows_router import router
+    from backend.api.routers.workflow.public.workflows_router import router
 
     routes = [r.path for r in router.routes if hasattr(r, "path")]
 
@@ -32,7 +32,7 @@ def test_memory_route_registration_check() -> None:
 
 def test_memory_response_schema_structure() -> None:
     """Verify LongitudinalMemoryResponse has correct structure."""
-    from backend.src.fi_memory.api.public.longitudinal_memory import (
+    from backend.api.routers.memory.public.longitudinal_memory import (
         LongitudinalMemoryResponse,
     )
 
@@ -51,7 +51,7 @@ def test_memory_response_schema_structure() -> None:
 
 def test_memory_event_schema_structure() -> None:
     """Verify MemoryEvent has correct structure."""
-    from backend.src.fi_memory.api.public.longitudinal_memory import MemoryEvent
+    from backend.api.routers.memory.public.longitudinal_memory import MemoryEvent
 
     schema = MemoryEvent.model_json_schema()
     props = schema.get("properties", {})
@@ -77,7 +77,7 @@ def test_memory_event_schema_structure() -> None:
 
 def test_memory_stats_response_schema_structure() -> None:
     """Verify MemoryStatsResponse has correct structure."""
-    from backend.src.fi_memory.api.public.longitudinal_memory import MemoryStatsResponse
+    from backend.api.routers.memory.public.longitudinal_memory import MemoryStatsResponse
 
     schema = MemoryStatsResponse.model_json_schema()
     props = schema.get("properties", {})
@@ -92,7 +92,7 @@ def test_memory_stats_response_schema_structure() -> None:
 
 def test_stable_routes_not_deprecated() -> None:
     """Verify stable routes are NOT marked as deprecated."""
-    from backend.src.fi_workflow.api.public.workflows_router import router
+    from backend.api.routers.workflow.public.workflows_router import router
 
     routes_with_status = [
         (r.path, getattr(r, "deprecated", False)) for r in router.routes if hasattr(r, "path")
@@ -109,7 +109,7 @@ def test_stable_routes_not_deprecated() -> None:
     for path, deprecated in stable_routes:
         assert deprecated is not True, f"Stable route {path} incorrectly marked as deprecated"
     """Verify stable memory routes are NOT marked as deprecated."""
-    from backend.src.fi_workflow.api.public.workflows_router import router
+    from backend.api.routers.workflow.public.workflows_router import router
 
     routes_with_status = [
         (r.path, getattr(r, "deprecated", False)) for r in router.routes if hasattr(r, "path")

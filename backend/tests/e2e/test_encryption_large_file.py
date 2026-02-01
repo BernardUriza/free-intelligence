@@ -30,7 +30,7 @@ from pathlib import Path
 # Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from backend.src.fi_workers.tasks.encryption_worker import (
+from backend.infrastructure.workers.tasks.encryption_worker import (
     CHUNK_SIZE_BYTES,
     chunk_large_data,
     decrypt_chunked_dataset,

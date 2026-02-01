@@ -1,6 +1,6 @@
 [package]
 name = "aurity-desktop"
-version = "1.0.2"
+version = "1.0.8"
 description = "Aurity Desktop - Medical AI Assistant"
 authors = ["Bernard Uriza <bernard@aurity.io>"]
 edition = "2021"
@@ -40,6 +40,9 @@ url = "2.5"            # URL parsing for callback handling
 ed25519-dalek = { version = "2", features = ["pem"] }  # Ed25519 signature verification
 data-encoding = "2"    # Base32 decoding for license keys
 hostname = "0.4"       # Machine fingerprint for license binding
+
+# MSRV compatibility: pin time to 0.3.44 (0.3.46+ requires Rust 1.88 which isn't released yet)
+time = "=0.3.44"
 
 [features]
 default = ["custom-protocol"]

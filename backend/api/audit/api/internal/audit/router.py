@@ -1,0 +1,173 @@
+"""Audit API Router.
+
+Audit log endpoints
+
+File: backend/api/audit/router.py
+Created: 2025-11-08
+"""
+
+#!/usr/bin/env python3
+from __future__ import annotations
+
+"""
+Free Intelligence - Audit Logs API
+Card: FI-UI-FEAT-206
+
+Provides read-only access to audit logs with filtering and pagination.
+
+Updated to use clean code architecture with AuditService.
+"""
+
+from backend.api.audit.dependencies import get_audit_service
+from backend.utils.common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
+logger = get_logger(__name__)
+
+router = APIRouter()
+
+
+class AuditLogEntry(BaseModel):
+    """Audit log entry model"""
+
+    audit_id: str = Field(..., description="UUID v4 for audit entry")
+    timestamp: str = Field(..., description="ISO 8601 timestamp with timezone")
+    operation: str = Field(..., description="Operation name (e.g., INTERACTION_APPENDED)")
+    user_id: str = Field(..., description="User identifier")
+    endpoint: str = Field(..., description="API endpoint or function name")
+    payload_hash: str = Field(..., description="SHA256 hash of input payload")
+    result_hash: str = Field(..., description="SHA256 hash of operation result")
+    status: str = Field(..., description="SUCCESS, FAILED, BLOCKED")
+    metadata: str = Field(..., description="JSON metadata")
+
+
+class AuditLogsResponse(BaseModel):
+    """Response model for audit logs list"""
+
+    total: int
+    limit: int
+    logs: list[AuditLogEntry]
+    operation_filter: str | None = None
+    user_filter: str | None = None
+
+
+class AuditStatsResponse(BaseModel):
+    """Response model for audit stats"""
+
+    total_logs: int
+    exists: bool
+    status_breakdown: dict[str, int] = Field(default_factory=dict)
+    operation_breakdown: dict[str, int] = Field(default_factory=dict)
+
+
+@router.get("/logs", response_model=AuditLogsResponse)
+async def get_logs(
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to retrieve"),
+    operation: str | None = Query(None, description="Filter by operation name"),
+    user: str | None = Query(None, description="Filter by user_id"),
+    audit_service=Depends(get_audit_service),
+):
+    """
+    Get audit logs with optional filtering.
+
+    **Clean Code Architecture:**
+    - AuditService handles log retrieval with filtering
+    - Uses DI container for dependency injection
+
+    Returns logs in reverse chronological order (newest first).
+
+    **Operation Types:**
+    - LOGIN: User authenticated
+    - POLICY_CHANGE: Change in fi.policy.yaml
+    - VERIFY: Verification of session/interaction
+    - EXPORT: Export of session
+    - DELETE: Deletion of session (requires approval)
+    - INTERACTION_APPENDED: New interaction added
+    - SESSION_CREATED: New session created
+    - audio_uploaded_for_diarization: Audio file uploaded
+    - session_created: New session created
+    - session_retrieved: Session accessed
+    - session_updated: Session updated
+
+    **Example:**
+    ```
+    GET /api/audit/logs?limit=50&operation=session_created
+    ```
+    """
+    try:
+        # Delegate to service for log retrieval with filtering
+        logs_data = audit_service.list_audit_logs(  # type: ignore[attr-defined]
+            limit=limit,
+            action=operation,
+            user_id=user,
+        )
+
+        # Convert dicts to AuditLogEntry objects
+        logs: list[AuditLogEntry] = [AuditLogEntry(**log) for log in logs_data if log]
+
+        return AuditLogsResponse(
+            total=len(logs),
+            limit=limit,
+            logs=logs,
+            operation_filter=operation,
+            user_filter=user,
+        )
+
+    except Exception as e:
+        logger.error(f"GET_AUDIT_LOGS_FAILED: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {e!s}")
+
+
+@router.get("/stats", response_model=AuditStatsResponse)
+async def get_stats(
+    audit_service=Depends(get_audit_service),
+):
+    """
+    Get audit log statistics.
+
+    **Clean Code Architecture:**
+    - AuditService handles statistics aggregation
+    - Uses DI container for dependency injection
+
+    Returns total count and breakdown by status and operation type.
+
+    **Example:**
+    ```
+    GET /api/audit/stats
+    ```
+    """
+    try:
+        # Delegate to service for statistics
+        stats_data = audit_service.get_statistics()  # type: ignore[attr-defined]
+
+        return AuditStatsResponse(**stats_data)
+
+    except Exception as e:
+        logger.error(f"GET_AUDIT_STATS_FAILED: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve audit stats: {e!s}")
+
+
+@router.get("/operations")
+async def get_operations():
+    """
+    Get list of available operation types.
+
+    Returns canonical operation types for filtering.
+
+    **Example:**
+    ```
+    GET /api/audit/operations
+    ```
+    """
+    return {
+        "operations": [
+            {"value": "LOGIN", "label": "Login", "color": "green"},
+            {"value": "POLICY_CHANGE", "label": "Policy Change", "color": "yellow"},
+            {"value": "VERIFY", "label": "Verify", "color": "blue"},
+            {"value": "EXPORT", "label": "Export", "color": "purple"},
+            {"value": "DELETE", "label": "Delete", "color": "red"},
+            {"value": "INTERACTION_APPENDED", "label": "Interaction Added", "color": "gray"},
+            {"value": "SESSION_CREATED", "label": "Session Created", "color": "gray"},
+        ]
+    }

@@ -3,6 +3,7 @@
 Tests cover CRUD operations for medical orders.
 """
 
+from backend.container import get_container
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -27,7 +28,6 @@ class TestCreateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test create_order returns order ID."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import create_order
 
         # Mock CORPUS_PATH
         mock_corpus_path.parent.mkdir = MagicMock()
@@ -49,7 +49,7 @@ class TestCreateOrder:
         mock_locked.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
-        order_id = create_order(
+        order_id = get_container().get_task_repository().create_order(
             session_id="session-123",
             order={"type": "prescription", "description": "Test order"},
         )
@@ -71,12 +71,11 @@ class TestGetOrders:
         mock_corpus_path: MagicMock,
     ) -> None:
         """Test get_orders raises when corpus file doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = False
 
         with pytest.raises(ValueError, match="Corpus file not found"):
-            get_orders("session-123")
+            get_container().get_task_repository().get_orders("session-123")
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.orders.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.orders.CORPUS_PATH")
@@ -86,7 +85,6 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns empty list when no orders task."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -97,7 +95,7 @@ class TestGetOrders:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_orders("session-123")
+        result = get_container().get_task_repository().get_orders("session-123")
 
         assert result == []
 
@@ -109,7 +107,6 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns empty when no orders group."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -124,7 +121,7 @@ class TestGetOrders:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_orders("session-123")
+        result = get_container().get_task_repository().get_orders("session-123")
 
         assert result == []
 
@@ -136,7 +133,6 @@ class TestGetOrders:
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_orders returns list of orders."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import get_orders
 
         mock_corpus_path.exists.return_value = True
 
@@ -164,7 +160,7 @@ class TestGetOrders:
         mock_open_h5.return_value.__enter__ = MagicMock(return_value=mock_file)
         mock_open_h5.return_value.__exit__ = MagicMock(return_value=False)
 
-        result = get_orders("session-123")
+        result = get_container().get_task_repository().get_orders("session-123")
 
         assert isinstance(result, list)
         assert len(result) == 1
@@ -187,7 +183,6 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock HDF5 file without task
         mock_file = MagicMock()
@@ -197,7 +192,7 @@ class TestUpdateOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No orders found"):
-            update_order(
+            get_container().get_task_repository().update_order(
                 session_id="session-123",
                 order_id="order_123",
                 order={"description": "Updated"},
@@ -211,7 +206,6 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when orders group doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock task group without orders
         mock_task_group = MagicMock()
@@ -225,7 +219,7 @@ class TestUpdateOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No orders found"):
-            update_order(
+            get_container().get_task_repository().update_order(
                 session_id="session-123",
                 order_id="order_123",
                 order={"description": "Updated"},
@@ -239,7 +233,6 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order raises when order doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock orders group without the specific order
         mock_orders_group = MagicMock()
@@ -257,7 +250,7 @@ class TestUpdateOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="Order order_123 not found"):
-            update_order(
+            get_container().get_task_repository().update_order(
                 session_id="session-123",
                 order_id="order_123",
                 order={"description": "Updated"},
@@ -271,7 +264,6 @@ class TestUpdateOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test update_order successfully updates order."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import update_order
 
         # Mock orders group with existing order
         mock_orders_group = MagicMock()
@@ -291,7 +283,7 @@ class TestUpdateOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         # Should not raise
-        update_order(
+        get_container().get_task_repository().update_order(
             session_id="session-123",
             order_id="order_123",
             order={"description": "Updated"},
@@ -312,7 +304,6 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when task doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock HDF5 file without task
         mock_file = MagicMock()
@@ -322,7 +313,7 @@ class TestDeleteOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No orders found"):
-            delete_order(
+            get_container().get_task_repository().delete_order(
                 session_id="session-123",
                 order_id="order_123",
             )
@@ -333,7 +324,6 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when orders group doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock task group without orders
         mock_task_group = MagicMock()
@@ -347,7 +337,7 @@ class TestDeleteOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="No orders found"):
-            delete_order(
+            get_container().get_task_repository().delete_order(
                 session_id="session-123",
                 order_id="order_123",
             )
@@ -358,7 +348,6 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order raises when order doesn't exist."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock orders group without the specific order
         mock_orders_group = MagicMock()
@@ -376,7 +365,7 @@ class TestDeleteOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         with pytest.raises(ValueError, match="Order order_123 not found"):
-            delete_order(
+            get_container().get_task_repository().delete_order(
                 session_id="session-123",
                 order_id="order_123",
             )
@@ -387,7 +376,6 @@ class TestDeleteOrder:
         mock_locked: MagicMock,
     ) -> None:
         """Test delete_order successfully deletes order."""
-        from backend.src.fi_storage.infrastructure.hdf5.tasks.orders import delete_order
 
         # Mock orders group with existing order
         mock_orders_group = MagicMock()
@@ -406,7 +394,7 @@ class TestDeleteOrder:
         mock_locked.return_value.__exit__ = MagicMock(return_value=False)
 
         # Should not raise
-        delete_order(
+        get_container().get_task_repository().delete_order(
             session_id="session-123",
             order_id="order_123",
         )

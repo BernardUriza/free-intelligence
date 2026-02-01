@@ -6,13 +6,16 @@ Minimal implementation for development - replace with proper database setup.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 # Read database URL from environment, with fallback for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+# Use absolute path for SQLite to work from any working directory (backend/ or project root)
+PROJECT_ROOT = Path(__file__).parent.parent  # backend/database.py -> project root
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{PROJECT_ROOT}/test.db")
 
 engine = create_engine(
     DATABASE_URL,

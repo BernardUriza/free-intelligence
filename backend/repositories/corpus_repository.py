@@ -14,16 +14,17 @@ from datetime import UTC, datetime
 from typing import Any, Union, cast
 
 import h5py
-from backend.src.fi_common.logging.logger import get_logger
+from backend.utils.common.logging.logger import get_logger
 from backend.type_defs import DiarizationChunkDict
 from pathlib import Path
 
 from .base_repository import BaseRepository
+from .interfaces.icorpus_repository import ICorpusRepository
 
 logger = get_logger(__name__)
 
 
-class CorpusRepository(BaseRepository):
+class CorpusRepository(BaseRepository, ICorpusRepository):
     """Repository for corpus document management in HDF5.
 
     Responsibilities:
@@ -37,6 +38,7 @@ class CorpusRepository(BaseRepository):
     DOCUMENTS_GROUP = "documents"
     CHUNKS_GROUP = "chunks"
     METADATA_GROUP = "metadata"
+    SESSIONS_GROUP = "sessions"
 
     def __init__(self, h5_file_path: Union[str, Path]) -> None:
         """Initialize corpus repository.
@@ -300,3 +302,510 @@ class CorpusRepository(BaseRepository):
         except Exception as e:
             logger.error("CHUNKS_READ_FAILED", document_id=document_id, error=str(e))
             return []
+
+    # ========================================================================
+    # Session Operations (for API access)
+    # ========================================================================
+
+    def get_session_metadata(self, session_id: str) -> dict[str, Any] | None:
+        """Get session metadata from corpus.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            Session metadata dict or None if not found
+        """
+        try:
+            with self._open_file("r") as f:
+                session_path = f"{self.SESSIONS_GROUP}/{session_id}"
+                if session_path not in f:
+                    return None
+
+                session_group = f[session_path]
+                metadata = dict(session_group.attrs)
+
+                # Check if there's a meta dataset
+                if "meta" in session_group:
+                    meta_ds = session_group["meta"]
+                    if isinstance(meta_ds, h5py.Dataset):
+                        meta_bytes = bytes(meta_ds[()])
+                        meta_json = json.loads(meta_bytes.decode("utf-8"))
+                        metadata.update(meta_json)
+
+                logger.debug("SESSION_METADATA_READ", session_id=session_id)
+                return metadata
+
+        except Exception as e:
+            logger.error("GET_SESSION_METADATA_FAILED", session_id=session_id, error=str(e))
+            return None
+
+    def get_session_audio(self, session_id: str, audio_type: str = "full_audio.webm") -> bytes | None:
+        """Get audio bytes from session.
+
+        Args:
+            session_id: Session identifier
+            audio_type: Audio dataset name (default: full_audio.webm)
+
+        Returns:
+            Audio bytes or None if not found
+        """
+        try:
+            with self._open_file("r") as f:
+                audio_path = f"{self.SESSIONS_GROUP}/{session_id}/{audio_type}"
+                if audio_path not in f:
+                    return None
+
+                audio_dataset = f[audio_path]
+                audio_bytes = bytes(audio_dataset[()])
+
+                logger.debug(
+                    "SESSION_AUDIO_READ",
+                    session_id=session_id,
+                    audio_type=audio_type,
+                    size_bytes=len(audio_bytes)
+                )
+                return audio_bytes
+
+        except Exception as e:
+            logger.error(
+                "GET_SESSION_AUDIO_FAILED",
+                session_id=session_id,
+                audio_type=audio_type,
+                error=str(e)
+            )
+            return None
+
+    def get_session_transcription_chunks(self, session_id: str, task_type: str = "TRANSCRIPTION") -> list[dict[str, Any]]:
+        """Get transcription chunks from session.
+
+        Args:
+            session_id: Session identifier
+            task_type: Task type (default: TRANSCRIPTION)
+
+        Returns:
+            List of chunk dicts with metadata
+        """
+        try:
+            with self._open_file("r") as f:
+                chunks_path = f"{self.SESSIONS_GROUP}/{session_id}/tasks/{task_type}/chunks"
+                if chunks_path not in f:
+                    return []
+
+                chunks_group = f[chunks_path]
+                chunks = []
+
+                for chunk_name in chunks_group.keys():
+                    chunk_group = chunks_group[chunk_name]
+                    chunk_data = {"chunk_name": chunk_name}
+
+                    # Read attrs
+                    for key, value in chunk_group.attrs.items():
+                        chunk_data[key] = value
+
+                    # Read transcript if exists
+                    if "transcript" in chunk_group:
+                        transcript_ds = chunk_group["transcript"]
+                        if isinstance(transcript_ds, h5py.Dataset):
+                            transcript_bytes = bytes(transcript_ds[()])
+                            chunk_data["transcript"] = transcript_bytes.decode("utf-8")
+
+                    chunks.append(chunk_data)
+
+                logger.debug(
+                    "SESSION_CHUNKS_READ",
+                    session_id=session_id,
+                    task_type=task_type,
+                    chunk_count=len(chunks)
+                )
+                return chunks
+
+        except Exception as e:
+            logger.error(
+                "GET_SESSION_CHUNKS_FAILED",
+                session_id=session_id,
+                task_type=task_type,
+                error=str(e)
+            )
+            return []
+
+    def get_session_workflow_state(self, session_id: str) -> dict[str, Any] | None:
+        """Get workflow state from session.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            Workflow state dict or None if not found
+        """
+        try:
+            with self._open_file("r") as f:
+                workflow_path = f"{self.SESSIONS_GROUP}/{session_id}/workflow"
+                if workflow_path not in f:
+                    return None
+
+                workflow_group = f[workflow_path]
+                workflow_state = dict(workflow_group.attrs)
+
+                # Check if there's a state dataset
+                if "state" in workflow_group:
+                    state_ds = workflow_group["state"]
+                    if isinstance(state_ds, h5py.Dataset):
+                        state_bytes = bytes(state_ds[()])
+                        state_json = json.loads(state_bytes.decode("utf-8"))
+                        workflow_state.update(state_json)
+
+                logger.debug("WORKFLOW_STATE_READ", session_id=session_id)
+                return workflow_state
+
+        except Exception as e:
+            logger.error("GET_WORKFLOW_STATE_FAILED", session_id=session_id, error=str(e))
+            return None
+
+    def list_all_sessions(
+        self,
+        limit: int | None = None,
+        include_deleted: bool = False
+    ) -> list[dict[str, Any]]:
+        """List all sessions in corpus.
+
+        Args:
+            limit: Maximum sessions to return
+            include_deleted: Include deleted sessions
+
+        Returns:
+            List of sessions with metadata
+        """
+        try:
+            with self._open_file("r") as f:
+                if self.SESSIONS_GROUP not in f:
+                    return []
+
+                sessions_group = f[self.SESSIONS_GROUP]
+                session_ids = list(sessions_group.keys())
+
+                if limit:
+                    session_ids = session_ids[:limit]
+
+                results = []
+                for session_id in session_ids:
+                    session_meta = self.get_session_metadata(session_id)
+                    if session_meta:
+                        is_deleted = session_meta.get("deleted_at") is not None
+                        if include_deleted or not is_deleted:
+                            results.append({
+                                "session_id": session_id,
+                                "metadata": session_meta
+                            })
+
+                logger.debug("SESSIONS_LIST_READ", count=len(results))
+                return results
+
+        except Exception as e:
+            logger.error("LIST_SESSIONS_FAILED", error=str(e))
+            return []
+
+    def get_session_dataset(self, session_id: str, dataset_path: str) -> bytes | None:
+        """Get raw bytes from session dataset (generic accessor).
+
+        Args:
+            session_id: Session identifier
+            dataset_path: Relative path to dataset (e.g., "tasks/TRANSCRIPTION/webspeech_final")
+
+        Returns:
+            Dataset bytes or None if not found
+        """
+        try:
+            with self._open_file("r") as f:
+                full_path = f"{self.SESSIONS_GROUP}/{session_id}/{dataset_path}"
+                if full_path not in f:
+                    return None
+
+                dataset = f[full_path]
+                dataset_bytes = bytes(dataset[()])
+
+                logger.debug(
+                    "SESSION_DATASET_READ",
+                    session_id=session_id,
+                    dataset_path=dataset_path,
+                    size_bytes=len(dataset_bytes)
+                )
+                return dataset_bytes
+
+        except Exception as e:
+            logger.error(
+                "GET_SESSION_DATASET_FAILED",
+                session_id=session_id,
+                dataset_path=dataset_path,
+                error=str(e)
+            )
+            return None
+
+    def list_session_tasks(self, session_id: str) -> list[str]:
+        """List all task types in session.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of task type names (e.g., ["TRANSCRIPTION", "DIARIZATION"])
+        """
+        try:
+            with self._open_file("r") as f:
+                tasks_path = f"{self.SESSIONS_GROUP}/{session_id}/tasks"
+                if tasks_path not in f:
+                    return []
+
+                tasks_group = f[tasks_path]
+                task_types = list(tasks_group.keys())
+
+                logger.debug(
+                    "SESSION_TASKS_LISTED",
+                    session_id=session_id,
+                    task_count=len(task_types)
+                )
+                return task_types
+
+        except Exception as e:
+            logger.error(
+                "LIST_SESSION_TASKS_FAILED",
+                session_id=session_id,
+                error=str(e)
+            )
+            return []
+
+    def list_all_sessions_with_metadata(
+        self, limit: int = 20, offset: int = 0, clinic_id: str | None = None
+    ) -> tuple[list[dict[str, Any]], int]:
+        """List all sessions with detailed metadata (for sessions list endpoint).
+
+        Reads directly from HDF5 task-based schema. Optimized for fast listing
+        without Timeline API overhead.
+
+        Multi-Tenancy Support:
+        - If clinic_id provided: Returns ONLY sessions from that clinic
+        - If clinic_id is None: Returns ALL sessions (SUPERADMIN mode)
+
+        Args:
+            limit: Maximum number of sessions to return (default 20)
+            offset: Number of sessions to skip (default 0)
+            clinic_id: Filter sessions by clinic_id (None = all clinics, for SUPERADMIN)
+
+        Returns:
+            Tuple of (sessions list, total count)
+            Each session dict contains:
+                - session_id: str
+                - created_at: str (ISO timestamp)
+                - has_transcription: bool
+                - has_diarization: bool
+                - has_soap: bool
+                - chunk_count: int
+                - duration_seconds: float
+                - preview: str (first chunk transcript, max 200 chars)
+                - patient_name: str (extracted from dialogue or default)
+                - doctor_name: str (extracted from dialogue)
+        """
+        try:
+            sessions_list: list[dict[str, Any]] = []
+
+            with h5py.File(self.h5_file_path, "r") as f:
+                if self.SESSIONS_GROUP not in f:
+                    logger.warning("NO_SESSIONS_GROUP_IN_HDF5")
+                    return ([], 0)
+
+                sessions_group = f[self.SESSIONS_GROUP]
+                all_session_ids = list(sessions_group.keys())
+
+                # Sort by creation time (newest first)
+                # Read metadata quickly to get timestamps
+                session_metadata_list = []
+                for session_id in all_session_ids:
+                    try:
+                        session_group = sessions_group[session_id]
+                        if "tasks" not in session_group:  # type: ignore[operator]
+                            continue
+
+                        # Multi-tenancy: Filter by clinic_id if provided
+                        if clinic_id is not None:
+                            # Check if session has clinic_id attribute
+                            session_clinic_id = None
+                            if hasattr(session_group, "attrs") and "clinic_id" in session_group.attrs:
+                                session_clinic_id = session_group.attrs.get("clinic_id")
+
+                            # Skip if clinic_id doesn't match filter
+                            if session_clinic_id != clinic_id:
+                                continue
+
+                        # Get created_at from TRANSCRIPTION task metadata or first chunk
+                        tasks = session_group["tasks"]
+                        created_at = None
+
+                        if "TRANSCRIPTION" in tasks:  # type: ignore[operator]
+                            # Try metadata first
+                            if "metadata" in tasks["TRANSCRIPTION"]:  # type: ignore[operator]
+                                meta_ds = tasks["TRANSCRIPTION"]["metadata"]
+                                if isinstance(meta_ds, h5py.Dataset):
+                                    meta_json = meta_ds[()].decode("utf-8")
+                                    meta = json.loads(meta_json)
+                                    created_at = meta.get("created_at")
+
+                            # Fallback: get created_at from first chunk (chunk_0)
+                            if not created_at and "chunks" in tasks["TRANSCRIPTION"]:  # type: ignore[operator]
+                                chunks_group = tasks["TRANSCRIPTION"]["chunks"]
+                                if "chunk_0" in chunks_group:  # type: ignore[operator]
+                                    chunk_0 = chunks_group["chunk_0"]
+                                    if "created_at" in chunk_0:  # type: ignore[operator]
+                                        created_at_ds = chunk_0["created_at"]
+                                        if isinstance(created_at_ds, h5py.Dataset):
+                                            created_at = created_at_ds[()].decode("utf-8")
+
+                        # Last resort: use very old date
+                        if not created_at:
+                            created_at = "2000-01-01T00:00:00+00:00"
+
+                        session_metadata_list.append((session_id, created_at))
+                    except Exception as e:
+                        logger.warning("SKIP_SESSION_METADATA", session_id=session_id, error=str(e))
+                        continue
+
+                # Sort by created_at (newest first)
+                session_metadata_list.sort(key=lambda x: x[1], reverse=True)
+
+                # Apply pagination
+                paginated_sessions = session_metadata_list[offset : offset + limit]
+
+                # Read detailed data for paginated sessions
+                for session_id, created_at in paginated_sessions:
+                    try:
+                        session_group = sessions_group[session_id]
+                        if "tasks" not in session_group:  # type: ignore[operator]
+                            continue
+
+                        tasks = session_group["tasks"]
+
+                        # Check which tasks exist
+                        has_transcription = "TRANSCRIPTION" in tasks  # type: ignore[operator]
+                        has_diarization = "DIARIZATION" in tasks  # type: ignore[operator]
+                        has_soap = "SOAP_GENERATION" in tasks  # type: ignore[operator]
+
+                        chunk_count = 0
+                        duration_seconds = 0.0
+                        preview = ""
+
+                        # Get transcription details
+                        if has_transcription:
+                            trans_task = tasks["TRANSCRIPTION"]
+                            if "chunks" in trans_task:  # type: ignore[operator]
+                                chunk_count = len(trans_task["chunks"].keys())
+
+                                # Get first chunk for preview
+                                if chunk_count > 0:
+                                    try:
+                                        chunk_0 = trans_task["chunks"]["chunk_0"]
+                                        if "transcript" in chunk_0:  # type: ignore[operator]
+                                            transcript_ds = chunk_0["transcript"]
+                                            if isinstance(transcript_ds, h5py.Dataset):
+                                                transcript = transcript_ds[()].decode("utf-8")
+                                                preview = transcript[:200]  # Max 200 chars
+
+                                        if "duration" in chunk_0:  # type: ignore[operator]
+                                            # Sum all chunk durations (rough estimate)
+                                            for i in range(chunk_count):
+                                                chunk_key = f"chunk_{i}"
+                                                if chunk_key in trans_task["chunks"]:  # type: ignore[operator]
+                                                    chunk = trans_task["chunks"][chunk_key]
+                                                    if "duration" in chunk:  # type: ignore[operator]
+                                                        duration_seconds += float(chunk["duration"][()])
+                                    except Exception as e:
+                                        logger.warning(
+                                            "SKIP_CHUNK_DATA",
+                                            session_id=session_id,
+                                            error=str(e),
+                                        )
+
+                        # Extract patient and doctor names from session metadata or diarization
+                        patient_name = "Paciente"
+                        doctor_name = ""
+
+                        # First, try to get from session attributes (preferred)
+                        if hasattr(session_group, "attrs"):
+                            patient_name = session_group.attrs.get("patient_name", "Paciente")
+                            if not doctor_name and "doctor_name" in session_group.attrs:
+                                doctor_name = session_group.attrs.get("doctor_name", "")
+
+                        # Fallback: extract from diarization dialogue
+                        if has_diarization and (patient_name == "Paciente" or not doctor_name):
+                            try:
+                                import re
+
+                                diar_task = tasks["DIARIZATION"]
+                                if "segments" in diar_task:  # type: ignore[operator]
+                                    segments = diar_task["segments"]
+
+                                    # Check first few segments for doctor name
+                                    for seg_key in list(segments.keys())[:5]:  # Check first 5 segments
+                                        segment = segments[seg_key]
+                                        if "text" in segment:  # type: ignore[operator]
+                                            text_ds = segment["text"]
+                                            if isinstance(text_ds, h5py.Dataset):
+                                                text = text_ds[()].decode("utf-8").lower()
+
+                                                # Look for "doctor [name]" patterns
+                                                patterns = [
+                                                    r"(?:soy el|mi nombre es|me llamo)\s+doctor[a]?\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]+)",
+                                                    r"doctor[a]?\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,})",
+                                                ]
+
+                                                for pattern in patterns:
+                                                    doctor_match = re.search(pattern, text, re.IGNORECASE)
+                                                    if doctor_match:
+                                                        name = doctor_match.group(1).capitalize()
+                                                        # Filter out common words
+                                                        if name.lower() not in [
+                                                            "que", "como", "por", "con", "para",
+                                                            "los", "las", "del", "una", "uno",
+                                                        ]:
+                                                            doctor_name = name
+                                                            break
+
+                                                if doctor_name:
+                                                    break
+                            except Exception as e:
+                                logger.warning(
+                                    "SKIP_NAME_EXTRACTION", session_id=session_id, error=str(e)
+                                )
+
+                        sessions_list.append(
+                            {
+                                "session_id": session_id,
+                                "created_at": created_at,
+                                "has_transcription": has_transcription,
+                                "has_diarization": has_diarization,
+                                "has_soap": has_soap,
+                                "chunk_count": chunk_count,
+                                "duration_seconds": duration_seconds,
+                                "preview": preview,
+                                "patient_name": patient_name,
+                                "doctor_name": doctor_name,
+                            }
+                        )
+
+                    except Exception as e:
+                        logger.warning("SKIP_SESSION_DETAILS", session_id=session_id, error=str(e))
+                        continue
+
+            # Total count = sessions matching clinic_id filter (before pagination)
+            total_count = len(session_metadata_list)
+
+            logger.info(
+                "SESSIONS_LIST_SUCCESS",
+                total=total_count,
+                returned=len(sessions_list),
+                clinic_id_filter=clinic_id,
+            )
+
+            return (sessions_list, total_count)
+
+        except Exception as e:
+            logger.error("LIST_ALL_SESSIONS_FAILED", error=str(e), exc_info=True)
+            return ([], 0)
