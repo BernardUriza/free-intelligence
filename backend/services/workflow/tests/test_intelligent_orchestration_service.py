@@ -23,6 +23,7 @@ from backend.services.workflow.constants import (
 from backend.services.workflow.services.intelligent_orchestration_service import (
     IntelligentOrchestrationService,
 )
+from backend.services.workflow.services.workflow_router import RoutingCost
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -48,11 +49,12 @@ def mock_router():
         "workflows": [WORKFLOW_DIARIZATION, WORKFLOW_SOAP],
         "reasoning": "Audio >60s requires diarization. SOAP note generation enabled.",
         "parallel": True,
-        "cost": {
-            "routing_cost_usd": 0.00003,
-            "execution_tokens_saved": 1500,
-            "execution_cost_saved_usd": 0.0045,
-        },
+        "cost": RoutingCost(
+            routing_tokens=200,
+            routing_cost_usd=0.00003,
+            execution_tokens_saved=1500,
+            execution_cost_saved_usd=0.0045,
+        ),
         "estimated_duration_seconds": 120,
     }
     return router
@@ -84,7 +86,7 @@ def mock_corpus_repo():
     # Simulate 3-minute audio file (180 seconds * 12KB/s = 2,160,000 bytes)
     audio_data = b"x" * int(180 * AUDIO_BITRATE_BYTES_PER_SECOND)
     repo.get_session_audio.return_value = audio_data
-    repo.list_session_tasks.return_value = ["transcription"]  # Only transcription completed
+    repo.list_session_tasks.return_value = ["TRANSCRIPTION"]  # Match TaskType enum (uppercase)
     return repo
 
 
@@ -132,7 +134,7 @@ async def test_orchestrate_intelligent_workflow_success(service, mock_router, mo
     assert call_args.kwargs["session_id"] == "session-123"
     assert call_args.kwargs["audio_duration_seconds"] == pytest.approx(180.0, rel=0.1)
     assert call_args.kwargs["language"] == "es"
-    assert call_args.kwargs["existing_tasks"] == ["transcription"]
+    assert call_args.kwargs["existing_tasks"] == ["TRANSCRIPTION"]
 
     # Verify orchestrator dispatched workflows
     assert mock_orchestrator.dispatch_diarization.call_count == 1
@@ -184,7 +186,7 @@ async def test_audio_duration_detection_empty_audio(service, mock_corpus_repo):
 async def test_existing_tasks_detection(service, mock_corpus_repo, mock_task_repo):
     """Test detection of completed tasks to avoid duplicates."""
     # Simulate multiple completed tasks
-    mock_corpus_repo.list_session_tasks.return_value = ["transcription", "diarization"]
+    mock_corpus_repo.list_session_tasks.return_value = ["TRANSCRIPTION", "DIARIZATION"]
     mock_task_repo.get_task_metadata.side_effect = [
         {"status": "completed"},  # transcription completed
         {"status": "completed"},  # diarization completed
@@ -198,8 +200,8 @@ async def test_existing_tasks_detection(service, mock_corpus_repo, mock_task_rep
 
     # Verify router received existing tasks
     call_args = service.router.route_workflows.call_args
-    assert "transcription" in call_args.kwargs["existing_tasks"]
-    assert "diarization" in call_args.kwargs["existing_tasks"]
+    assert "TRANSCRIPTION" in call_args.kwargs["existing_tasks"]
+    assert "DIARIZATION" in call_args.kwargs["existing_tasks"]
 
 
 @pytest.mark.asyncio
@@ -312,7 +314,7 @@ async def test_detect_audio_duration_file_not_found(service, mock_corpus_repo):
 @pytest.mark.asyncio
 async def test_get_existing_task_types_completed_only(service, mock_corpus_repo, mock_task_repo):
     """Test that only completed tasks are returned."""
-    mock_corpus_repo.list_session_tasks.return_value = ["transcription", "diarization", "soap_generation"]
+    mock_corpus_repo.list_session_tasks.return_value = ["TRANSCRIPTION", "DIARIZATION", "SOAP_GENERATION"]
     mock_task_repo.get_task_metadata.side_effect = [
         {"status": "completed"},  # transcription
         {"status": "in_progress"},  # diarization (skip)
@@ -321,18 +323,18 @@ async def test_get_existing_task_types_completed_only(service, mock_corpus_repo,
 
     existing = await service._get_existing_task_types("session-123")
 
-    assert "transcription" in existing
-    assert "soap_generation" in existing
-    assert "diarization" not in existing  # Not completed
+    assert "TRANSCRIPTION" in existing
+    assert "SOAP_GENERATION" in existing
+    assert "DIARIZATION" not in existing  # Not completed
 
 
 @pytest.mark.asyncio
 async def test_get_existing_task_types_handles_invalid_task_type(service, mock_corpus_repo):
     """Test graceful handling of invalid task types."""
-    mock_corpus_repo.list_session_tasks.return_value = ["invalid_task_type", "transcription"]
+    mock_corpus_repo.list_session_tasks.return_value = ["invalid_task_type", "TRANSCRIPTION"]
 
     existing = await service._get_existing_task_types("session-123")
 
     # Invalid task type should be skipped (no error)
-    assert "transcription" in existing
+    assert "TRANSCRIPTION" in existing
     assert "invalid_task_type" not in existing

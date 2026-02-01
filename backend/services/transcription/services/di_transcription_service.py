@@ -81,6 +81,7 @@ class DITranscriptionService:
         task_repository: ITaskRepository,
         session_repository: SessionRepository,
         logger: ILogger | None = None,
+        config: "TranscriptionConfig | None" = None,
     ):
         """Initialize transcription service with dependencies.
 
@@ -88,10 +89,20 @@ class DITranscriptionService:
             task_repository: Task repository for chunk/metadata operations
             session_repository: Session repository for session validation (Fix #2)
             logger: Logger instance (defaults to module logger)
+            config: Type-safe configuration (defaults to get_transcription_config())
+
+        Note:
+            Config uses Pydantic validation (fail-fast on invalid values).
         """
         self.task_repo = task_repository
         self.session_repo = session_repository
         self.logger = logger or get_logger(__name__)
+
+        # Import here to avoid circular dependency
+        if config is None:
+            from backend.services.transcription.dependencies import get_transcription_config
+            config = get_transcription_config()
+        self.config = config
 
     async def process_chunk(
         self,

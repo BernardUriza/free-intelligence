@@ -10,8 +10,9 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
 from backend.repositories.audit_repository import AuditRepository
-from backend.api.audit.services.audit_service import AuditService
+from backend.api.audit.services.di_audit_service import DIAuditService
 from backend.config import CORPUS_PATH
+from backend.utils.common.logging.logger import get_logger
 
 
 def get_audit_repository() -> AuditRepository:
@@ -26,14 +27,16 @@ def get_audit_repository() -> AuditRepository:
     return AuditRepository(CORPUS_PATH)
 
 
-def get_audit_service() -> AuditService:
+def get_audit_service() -> DIAuditService:
     """Get audit service - direct instantiation (Phase 4A).
 
     Returns:
-        AuditService instance with injected AuditRepository
+        DIAuditService instance with injected AuditRepository and logger
 
     Note:
         No longer uses service locator (get_container).
-        Directly injects AuditRepository dependency.
+        Directly injects AuditRepository and logger dependencies.
+        Uses DIAuditService for multi-tenancy support (clinic_id).
     """
-    return AuditService(repository=get_audit_repository())
+    logger = get_logger(__name__)
+    return DIAuditService(logger=logger, repository=get_audit_repository())

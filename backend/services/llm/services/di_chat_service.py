@@ -30,7 +30,7 @@ from backend.api.audit.services.audit_service import AuditService
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.policy.policy_loader import PolicyLoader
 from backend.providers.llm import llm_generate, sanitize_error_message
-from backend.services.assistant.api.public.assistant_websocket import broadcast_new_message
+from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger

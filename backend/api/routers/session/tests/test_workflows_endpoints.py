@@ -17,6 +17,11 @@ from backend.app.main import app
 from backend.services.workflow.dependencies import (
     get_intelligent_orchestration_service,
     get_workflow_orchestrator,
+    get_workflow_router,
+    get_workflow_tracker,
+    get_task_repository,
+    get_corpus_repository,
+    get_workflow_logger,
 )
 from backend.services.workflow.constants import WORKFLOW_DIARIZATION, WORKFLOW_SOAP
 
@@ -78,10 +83,22 @@ def mock_workflow_orchestrator():
 
 @pytest.fixture
 def client(mock_orchestration_service, mock_workflow_orchestrator):
-    """TestClient with mocked services via dependency_overrides."""
-    # Override dependencies with mocks
-    app.dependency_overrides[get_intelligent_orchestration_service] = lambda: mock_orchestration_service
-    app.dependency_overrides[get_workflow_orchestrator] = lambda: mock_workflow_orchestrator
+    """TestClient with mocked services via dependency_overrides.
+
+    Creates simple lambda functions without nested Depends() to avoid
+    FastAPI resolving real dependencies before checking overrides.
+    """
+    # Create simple lambda functions that return mocks directly
+    # This bypasses all nested Depends() resolution
+    def get_mock_orchestration_service():
+        return mock_orchestration_service
+
+    def get_mock_workflow_orchestrator():
+        return mock_workflow_orchestrator
+
+    # Override dependencies with simple lambdas
+    app.dependency_overrides[get_intelligent_orchestration_service] = get_mock_orchestration_service
+    app.dependency_overrides[get_workflow_orchestrator] = get_mock_workflow_orchestrator
 
     client = TestClient(app)
     yield client
@@ -97,8 +114,12 @@ def client(mock_orchestration_service, mock_workflow_orchestrator):
 
 def test_analyze_session_success(client, mock_orchestration_service):
     """Test successful intelligent workflow orchestration."""
+    # DEBUG: Print overrides to verify they're registered
+    print(f"\n DEBUG: app.dependency_overrides = {app.dependency_overrides}")
+    print(f"DEBUG: get_intelligent_orchestration_service in overrides = {get_intelligent_orchestration_service in app.dependency_overrides}")
+
     response = client.post(
-        "/api/sessions/test-session-123/analyze",
+        "/api/workflows/aurity/sessions/test-session-123/analyze",
         params={"language": "es", "user_intent": "quick consult"},
     )
 
@@ -130,7 +151,7 @@ def test_analyze_session_audio_not_found(client, mock_orchestration_service):
         "Audio not found"
     )
 
-    response = client.post("/api/sessions/test-session-123/analyze")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/analyze")
 
     # Verify HTTP 404
     assert response.status_code == 404
@@ -142,7 +163,7 @@ def test_analyze_session_orchestration_failure(client, mock_orchestration_servic
     # Simulate internal error
     mock_orchestration_service.orchestrate_intelligent_workflow.side_effect = Exception("Worker pool full")
 
-    response = client.post("/api/sessions/test-session-123/analyze")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/analyze")
 
     # Verify HTTP 500
     assert response.status_code == 500
@@ -151,7 +172,7 @@ def test_analyze_session_orchestration_failure(client, mock_orchestration_servic
 
 def test_analyze_session_default_language(client, mock_orchestration_service):
     """Test default language parameter (es)."""
-    response = client.post("/api/sessions/test-session-123/analyze")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/analyze")
 
     # Verify service received default language
     call_args = mock_orchestration_service.orchestrate_intelligent_workflow.call_args
@@ -165,7 +186,7 @@ def test_analyze_session_default_language(client, mock_orchestration_service):
 
 def test_diarization_success(client, mock_workflow_orchestrator):
     """Test successful diarization dispatch."""
-    response = client.post("/api/sessions/test-session-123/diarization")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/diarization")
 
     # Verify HTTP status
     assert response.status_code == 202  # Accepted
@@ -185,7 +206,7 @@ def test_diarization_audio_not_found(client, mock_workflow_orchestrator):
     """Test 404 error when audio file not found."""
     mock_workflow_orchestrator.dispatch_diarization.side_effect = FileNotFoundError("Audio not found")
 
-    response = client.post("/api/sessions/test-session-123/diarization")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/diarization")
 
     assert response.status_code == 404
     assert "Audio file not found" in response.json()["detail"]
@@ -194,7 +215,7 @@ def test_diarization_audio_not_found(client, mock_workflow_orchestrator):
 def test_diarization_invalid_session_id(client):
     """Test 422 error when session_id is invalid."""
     # Invalid session_id (empty string)
-    response = client.post("/api/sessions//diarization")
+    response = client.post("/api/workflows/aurity/sessions//diarization")
 
     # Verify HTTP 404 (FastAPI path not found)
     assert response.status_code == 404
@@ -207,7 +228,7 @@ def test_diarization_invalid_session_id(client):
 
 def test_soap_success(client, mock_workflow_orchestrator):
     """Test successful SOAP generation dispatch."""
-    response = client.post("/api/sessions/test-session-123/soap")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/soap")
 
     # Verify HTTP status
     assert response.status_code == 202
@@ -227,7 +248,7 @@ def test_soap_transcription_not_completed(client, mock_workflow_orchestrator):
         "Transcription must be completed first"
     )
 
-    response = client.post("/api/sessions/test-session-123/soap")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/soap")
 
     assert response.status_code == 400
     assert "Cannot generate SOAP note" in response.json()["detail"]
@@ -240,7 +261,7 @@ def test_soap_transcription_not_completed(client, mock_workflow_orchestrator):
 
 def test_emotion_success(client, mock_workflow_orchestrator):
     """Test successful emotion analysis dispatch."""
-    response = client.post("/api/sessions/test-session-123/emotion")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/emotion")
 
     # Verify HTTP status
     assert response.status_code == 202
@@ -261,7 +282,7 @@ def test_emotion_transcription_not_completed(client, mock_workflow_orchestrator)
         "Transcription must be completed first"
     )
 
-    response = client.post("/api/sessions/test-session-123/emotion")
+    response = client.post("/api/workflows/aurity/sessions/test-session-123/emotion")
 
     assert response.status_code == 400
     assert "Cannot analyze emotion" in response.json()["detail"]
@@ -285,7 +306,7 @@ def test_dependency_override_works():
 
     # Make request
     client = TestClient(app)
-    response = client.post("/api/sessions/test-123/analyze")
+    response = client.post("/api/workflows/aurity/sessions/test-123/analyze")
 
     # Verify custom mock was called
     custom_service.orchestrate_intelligent_workflow.assert_called_once()

@@ -22,7 +22,7 @@ from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.services.assistant.api.public.assistant_websocket import broadcast_new_message
+from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.logging.logger import get_logger
 # FIXME: infrastructure.events doesn't exist - stubbed

@@ -947,6 +947,67 @@ class HDF5TaskRepository(ITaskRepository):
             )
             raise
 
+    def delete_task(self, session_id: str, task_type: str) -> bool:
+        """Delete task and all chunks (stub implementation).
+
+        Args:
+            session_id: Session UUID
+            task_type: Task type
+
+        Returns:
+            True if deletion successful, False if task not found
+
+        Raises:
+            IOError: If delete operation fails
+        """
+        # TODO: Implement delete logic (delete task group from HDF5)
+        logger.warning(
+            "DELETE_TASK_NOT_IMPLEMENTED",
+            session_id=session_id,
+            task_type=task_type,
+            hint="Stub implementation - no actual deletion performed",
+        )
+        return False
+
+    def get_task_progress(self, session_id: str, task_type: str) -> dict[str, Any]:
+        """Get task progress summary (stub implementation).
+
+        Args:
+            session_id: Session UUID
+            task_type: Task type
+
+        Returns:
+            Dict with keys:
+                - status: str (pending, in_progress, completed, failed)
+                - total_chunks: int
+                - processed_chunks: int
+                - progress_percent: float (0.0-100.0)
+                - estimated_completion: str | None (ISO 8601)
+
+        Raises:
+            FileNotFoundError: If task not found
+        """
+        # TODO: Implement progress calculation from HDF5 task metadata
+        try:
+            metadata = self.get_task_metadata(session_id, task_type)
+            status = metadata.get("status", "unknown") if metadata else "not_found"
+
+            return {
+                "status": status,
+                "total_chunks": 0,
+                "processed_chunks": 0,
+                "progress_percent": 0.0,
+                "estimated_completion": None,
+            }
+        except Exception as e:
+            logger.error(
+                "GET_TASK_PROGRESS_FAILED",
+                session_id=session_id,
+                task_type=task_type,
+                error=str(e),
+            )
+            raise FileNotFoundError(f"Task not found: {session_id}/{task_type}") from e
+
     @staticmethod
     def _serialize_value(value: Any) -> str | int | float | bool:
         """Serialize Python value to HDF5-compatible type."""

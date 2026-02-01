@@ -9,6 +9,7 @@
  */
 
 import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import { apiRequest } from '@/lib/api/client';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001";
 
@@ -142,26 +143,14 @@ export interface AppointmentCreate {
 // =============================================================================
 
 export async function fetchClinics(activeOnly = true): Promise<Clinic[]> {
-  const url = `${API_BASE}/api/clinics?active_only=${activeOnly}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch clinics: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  const data = await apiRequest<{ clinics: Clinic[]; total: number }>(
+    `/api/clinics?active_only=${activeOnly}`
+  );
   return data.clinics;
 }
 
 export async function fetchClinic(clinicId: string): Promise<Clinic> {
-  const url = `${API_BASE}/api/clinics/${clinicId}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiRequest<Clinic>(`/api/clinics/${clinicId}`);
 }
 
 export async function createClinic(data: ClinicCreate): Promise<Clinic> {
@@ -208,14 +197,9 @@ export async function deleteClinic(clinicId: string): Promise<void> {
 // =============================================================================
 
 export async function fetchDoctors(clinicId: string, activeOnly = true): Promise<Doctor[]> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors?active_only=${activeOnly}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch doctors: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  const data = await apiRequest<{ doctors: Doctor[]; total: number }>(
+    `/api/clinics/${clinicId}/doctors?active_only=${activeOnly}`
+  );
   return data.doctors;
 }
 
@@ -282,30 +266,20 @@ export async function fetchAppointments(
   if (options?.doctor_id) params.set('doctor_id', options.doctor_id);
   if (options?.status) params.set('status', options.status);
 
-  const url = `${API_BASE}/api/clinics/${clinicId}/appointments?${params.toString()}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch appointments: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  const data = await apiRequest<{ appointments: Appointment[] }>(
+    `/api/clinics/${clinicId}/appointments?${params.toString()}`
+  );
   return data.appointments;
 }
 
 export async function createAppointment(clinicId: string, data: AppointmentCreate): Promise<Appointment> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/appointments`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create appointment: ${response.statusText}`);
-  }
-
-  return response.json();
+  return apiRequest<Appointment>(
+    `/api/clinics/${clinicId}/appointments`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
 }
 
 // =============================================================================
@@ -350,17 +324,12 @@ export async function getClinicMembership(
   const params = new URLSearchParams({ auth0_user_id: auth0UserId });
   if (email) params.append('email', email);
 
-  const url = `${API_BASE}/api/users/me/clinic-membership?${params}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to get clinic membership: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  const data = await apiRequest<ClinicMembership | { linked: false }>(
+    `/api/users/me/clinic-membership?${params}`
+  );
 
   // If not linked, data will have { linked: false }
-  if (data.linked === false) {
+  if ('linked' in data && data.linked === false) {
     return null;
   }
 

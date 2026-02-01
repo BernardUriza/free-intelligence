@@ -67,7 +67,7 @@ class DIAuditService:
         }
 
         # Store in repository
-        audit_id = self.repository.create_audit_log(audit_record)
+        audit_id = self.repository.create(audit_record)
 
         # Log the audit action itself (include clinic_id for forensics)
         self.logger.info(

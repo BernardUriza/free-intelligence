@@ -65,7 +65,7 @@ export function PatientSearchField({
 }: PatientSearchFieldProps) {
   return (
     <div className="relative">
-      <label className="flex items-center gap-2 fi-label">
+      <label htmlFor="patient-search" className="flex items-center gap-2 fi-label">
         <User className="fi-icon-sm" />
         Paciente
       </label>
@@ -89,12 +89,15 @@ export function PatientSearchField({
           <div className="flex gap-2">
             <div className="relative flex-1">
               <input
+                id="patient-search"
+                name="patient-search"
                 type="text"
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 onFocus={onFocus}
                 placeholder="Buscar por nombre..."
                 className="fi-input-cyan pr-10 w-full"
+                aria-label="Buscar paciente"
               />
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
             </div>
@@ -159,22 +162,38 @@ export function PatientSearchField({
             />
           </div>
 
-          <input
-            type="text"
-            placeholder="Nombre *"
-            value={newPatient.nombre}
-            onChange={(e) => onNewPatientChange({ ...newPatient, nombre: e.target.value })}
-            className="fi-input-sm"
-            autoFocus
-          />
+          <div>
+            <label htmlFor="new-patient-nombre" className="sr-only">
+              Nombre
+            </label>
+            <input
+              id="new-patient-nombre"
+              name="nombre"
+              type="text"
+              placeholder="Nombre *"
+              value={newPatient.nombre}
+              onChange={(e) => onNewPatientChange({ ...newPatient, nombre: e.target.value })}
+              className="fi-input-sm"
+              autoFocus
+              aria-required="true"
+            />
+          </div>
 
-          <input
-            type="text"
-            placeholder="Apellido *"
-            value={newPatient.apellido}
-            onChange={(e) => onNewPatientChange({ ...newPatient, apellido: e.target.value })}
-            className="fi-input-sm"
-          />
+          <div>
+            <label htmlFor="new-patient-apellido" className="sr-only">
+              Apellido
+            </label>
+            <input
+              id="new-patient-apellido"
+              name="apellido"
+              type="text"
+              placeholder="Apellido *"
+              value={newPatient.apellido}
+              onChange={(e) => onNewPatientChange({ ...newPatient, apellido: e.target.value })}
+              className="fi-input-sm"
+              aria-required="true"
+            />
+          </div>
 
           <Button
             type="button"

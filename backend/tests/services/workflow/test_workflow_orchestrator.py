@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2.6 - Testing Strategy
 
 import pytest
 from unittest.mock import Mock, patch
-from backend.services.workflow.api.public.services.workflow_orchestrator import (
+from backend.api.routers.workflow.public.services.workflow_orchestrator import (
     WorkflowOrchestrator,
 )
 from backend.repositories.interfaces import ITaskRepository

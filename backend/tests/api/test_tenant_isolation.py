@@ -28,7 +28,7 @@ import importlib.util
 # Load router module without triggering full app bootstrap
 spec = importlib.util.spec_from_file_location(
     "sessions_router",
-    "backend/core/domain/session/api/internal/sessions/router.py"
+    "backend/api/routers/session/internal/sessions/router.py"
 )
 sessions_router = importlib.util.module_from_spec(spec)
 sys.modules["sessions_router"] = sessions_router

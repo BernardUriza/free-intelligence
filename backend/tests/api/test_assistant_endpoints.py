@@ -32,7 +32,7 @@ class TestAssistantSchemas:
 
     def test_message_model(self):
         """Test Message model creation and validation."""
-        from backend.services.assistant.api.public.assistant_schemas import Message
+        from backend.api.routers.assistant.public.assistant_schemas import Message
 
         # Test basic message
         msg = Message(role="user", content="Hello!")
@@ -46,7 +46,7 @@ class TestAssistantSchemas:
 
     def test_chat_completion_request(self):
         """Test ChatCompletionRequest model with OpenAI compatibility."""
-        from backend.services.assistant.api.public.assistant_schemas import (
+        from backend.api.routers.assistant.public.assistant_schemas import (
             ChatCompletionRequest,
             Message,
         )
@@ -74,7 +74,7 @@ class TestAssistantSchemas:
 
     def test_chat_completion_request_validation(self):
         """Test ChatCompletionRequest validation."""
-        from backend.services.assistant.api.public.assistant_schemas import (
+        from backend.api.routers.assistant.public.assistant_schemas import (
             ChatCompletionRequest,
             Message,
         )
@@ -95,7 +95,7 @@ class TestAssistantSchemas:
 
     def test_chat_completion_response(self):
         """Test ChatCompletionResponse model."""
-        from backend.services.assistant.api.public.assistant_schemas import (
+        from backend.api.routers.assistant.public.assistant_schemas import (
             ChatCompletionChoice,
             ChatCompletionResponse,
             ChatCompletionUsage,

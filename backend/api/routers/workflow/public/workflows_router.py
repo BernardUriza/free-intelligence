@@ -35,29 +35,29 @@ Refactored: 2025-11-15 (SOLIS modular architecture)
 
 from __future__ import annotations
 
-from backend.services.assistant.api.public import assistant, assistant_history, assistant_websocket
+from backend.api.routers.assistant.public import assistant, assistant_history, assistant_websocket
 from backend.api.routers.clinic.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
-from backend.services.content.api.public import tv_content_seeds
-from backend.services.document.api.public import documents
+from backend.api.routers.content.public import tv_content_seeds
+from backend.api.routers.document.public import documents
 # FIXME: infrastructure.events doesn't exist - stubbed for now
 # from backend.infrastructure.events.api.public import events
-from backend.services.evidence.api.public import evidence
-from backend.services.kpi.api.public import kpis
-from backend.services.memory.api.public import longitudinal_memory
+from backend.api.routers.evidence.public import evidence
+from backend.api.routers.kpi.public import kpis
+from backend.api.routers.memory.public import longitudinal_memory
 from backend.api.routers.order.public import orders
 from backend.api.routers.prescription.public import prescriptions
 from backend.api.routers.session.public import sessions_list
 from backend.api.routers.session.public import sessions_pkg as sessions
-from backend.services.soap.api.public import soap
+from backend.api.routers.soap import soap
 from backend.infrastructure.system.api.public import system
 from backend.services.timeline.api.public import timeline
 
 # Import sub-routers (modular architecture following SOLIS pattern)
 # Note: After migration, imports point to the new module locations
-from backend.services.transcription.api.public import transcription
+from backend.api.routers.transcription.public import transcription
 from backend.api.widget.api.public import widget_configs
-from backend.services.workflow.api.public import waiting_room
+from backend.api.routers.workflow.public import waiting_room
 from fastapi import APIRouter
 
 logger = get_logger(__name__)
@@ -76,7 +76,7 @@ router.include_router(transcription.router, tags=["Transcription"])
 router.include_router(sessions.router, tags=["Sessions"])
 
 # SOAP: Clinical notes CRUD + AI assistant
-router.include_router(soap.router, tags=["SOAP Notes", "AI Assistant"])
+router.include_router(soap, tags=["SOAP Notes", "AI Assistant"])
 
 # ORDERS: Medical orders CRUD
 router.include_router(orders.router, tags=["SOAP Notes"])

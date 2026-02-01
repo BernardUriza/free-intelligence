@@ -201,9 +201,9 @@ def create_patient(
         audit_service.log_action(
             action="patient_created",
             user_id="system",  # TODO: Add current_user dependency for user tracking
-            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=str(db_patient.patient_id),
-            result="success"
+            result="success",
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
         )
         return db_patient.to_dict()
 
@@ -332,10 +332,10 @@ def update_patient(
         audit_service.log_action(
             action="patient_updated",
             user_id="system",  # TODO: Add current_user dependency for user tracking
-            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=patient_id,
             result="success",
-            metadata={"fields_updated": list(update_data.keys())}
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
+            details={"fields_updated": list(update_data.keys())}
         )
         return patient.to_dict()
 
@@ -372,9 +372,9 @@ def delete_patient(
         audit_service.log_action(
             action="patient_deleted",
             user_id="system",  # TODO: Add current_user dependency for user tracking
-            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=patient_id,
-            result="success"
+            result="success",
+            clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
         )
         return None
 

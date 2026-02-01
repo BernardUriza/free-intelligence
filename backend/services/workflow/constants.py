@@ -8,12 +8,12 @@ DEFAULT_AUDIO_DURATION_SECONDS = 60.0  # Fallback if duration undetectable from 
 WORKFLOW_DISPATCH_TIMEOUT_SECONDS = 300  # 5 minutes (max time to dispatch all tasks)
 TASK_EXECUTION_TIMEOUT_SECONDS = 600  # 10 minutes (max time for single task execution)
 
-# Workflow Types (canonical names)
-WORKFLOW_DIARIZATION = "diarization"
-WORKFLOW_TRANSCRIPTION = "transcription"
-WORKFLOW_SOAP = "soap_generation"
-WORKFLOW_EMOTION = "emotion_analysis"
-WORKFLOW_ENCRYPTION = "encryption"
+# Workflow Types (canonical names - MUST match TaskType enum values)
+WORKFLOW_DIARIZATION = "DIARIZATION"
+WORKFLOW_TRANSCRIPTION = "TRANSCRIPTION"
+WORKFLOW_SOAP = "SOAP_GENERATION"
+WORKFLOW_EMOTION = "EMOTION_ANALYSIS"
+WORKFLOW_ENCRYPTION = "ENCRYPTION"
 
 # Task States (lifecycle)
 TASK_PENDING = "pending"

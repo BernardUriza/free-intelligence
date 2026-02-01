@@ -7,7 +7,7 @@
  * P1 FIX: Uses centralized API client instead of hardcoded fetch
  */
 
-import { api } from './client';
+import { api, type RequestOptions } from './client';
 
 // Gender enum matching backend
 export type Gender = 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'NO_ESPECIFICADO';
@@ -113,11 +113,14 @@ function toFrontendPatient(p: PatientResponse): Patient {
 /**
  * Fetch all patients with optional search
  */
-export async function fetchPatients(params?: {
-  search?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<Patient[]> {
+export async function fetchPatients(
+  params?: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+  },
+  options?: RequestOptions
+): Promise<Patient[]> {
   const queryParams = new URLSearchParams();
   if (params?.search) queryParams.set('search', params.search);
   if (params?.limit) queryParams.set('limit', params.limit.toString());
@@ -125,7 +128,10 @@ export async function fetchPatients(params?: {
 
   // P1 FIX: Use API client instead of hardcoded fetch
   const query = queryParams.toString();
-  const data = await api.get<PatientResponse[]>(`/api/patients/${query ? `?${query}` : ''}`);
+  const data = await api.get<PatientResponse[]>(
+    `/api/patients/${query ? `?${query}` : ''}`,
+    options
+  );
   return data.map(toFrontendPatient);
 }
 

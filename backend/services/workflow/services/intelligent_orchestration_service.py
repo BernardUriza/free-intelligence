@@ -118,13 +118,16 @@ class IntelligentOrchestrationService(IIntelligentOrchestrationService):
             user_intent=user_intent,
         )
 
+        # Extract RoutingCost object for cleaner access
+        routing_cost = decision["cost"]
+
         self.logger.info(
             "WORKFLOW_ROUTING_DECISION",
             session_id=session_id,
             workflows=decision["workflows"],
             reasoning=decision["reasoning"],
-            cost_usd=decision.get("cost", {}).get("routing_cost_usd", 0),
-            savings_usd=decision.get("cost", {}).get("execution_cost_saved_usd", 0),
+            cost_usd=routing_cost.routing_cost_usd,
+            savings_usd=routing_cost.execution_cost_saved_usd,
         )
 
         # Step 4: Dispatch workflows in optimal order
@@ -147,18 +150,17 @@ class IntelligentOrchestrationService(IIntelligentOrchestrationService):
                 "workflows": decision["workflows"],
                 "reasoning": decision["reasoning"],
                 "parallel_execution": decision.get("parallel", True),
-                "estimated_cost_usd": decision.get("cost", {}).get("routing_cost_usd", 0),
+                "estimated_cost_usd": routing_cost.routing_cost_usd,
                 "estimated_duration_seconds": decision.get("estimated_duration_seconds", 0),
             },
             "audio_duration_seconds": audio_duration_seconds,
             "existing_tasks_skipped": skipped_workflows,
             "cost": {
-                "routing_usd": decision.get("cost", {}).get("routing_cost_usd", 0),
-                "tokens_saved": decision.get("cost", {}).get("execution_tokens_saved", 0),
-                "savings_usd": decision.get("cost", {}).get("execution_cost_saved_usd", 0),
+                "routing_usd": routing_cost.routing_cost_usd,
+                "tokens_saved": routing_cost.execution_tokens_saved,
+                "savings_usd": routing_cost.execution_cost_saved_usd,
                 "net_savings_usd": (
-                    decision.get("cost", {}).get("execution_cost_saved_usd", 0)
-                    - decision.get("cost", {}).get("routing_cost_usd", 0)
+                    routing_cost.execution_cost_saved_usd - routing_cost.routing_cost_usd
                 ),
             },
             "message": (
@@ -333,27 +335,17 @@ class IntelligentOrchestrationService(IIntelligentOrchestrationService):
                     )
                     continue
 
-                # Dispatch workflow using orchestrator
+                # Dispatch workflow using orchestrator (methods only accept session_id)
                 if task_type == TaskType.DIARIZATION:
-                    result = await self.orchestrator.dispatch_diarization(
-                        session_id=session_id,
-                        audio_file_path=f"storage/{session_id}/audio.webm",
-                        language=language,
-                    )
+                    result = await self.orchestrator.dispatch_diarization(session_id=session_id)
                     task_ids[WORKFLOW_DIARIZATION] = result.get("task_id", session_id)
 
                 elif task_type == TaskType.SOAP_GENERATION:
-                    result = await self.orchestrator.dispatch_soap_generation(
-                        session_id=session_id,
-                        language=language,
-                    )
+                    result = await self.orchestrator.dispatch_soap_generation(session_id=session_id)
                     task_ids[WORKFLOW_SOAP] = result.get("task_id", session_id)
 
                 elif task_type == TaskType.EMOTION_ANALYSIS:
-                    result = await self.orchestrator.dispatch_emotion_analysis(
-                        session_id=session_id,
-                        language=language,
-                    )
+                    result = await self.orchestrator.dispatch_emotion_analysis(session_id=session_id)
                     task_ids[WORKFLOW_EMOTION] = result.get("task_id", session_id)
 
                 self.logger.info(

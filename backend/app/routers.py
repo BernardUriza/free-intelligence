@@ -32,8 +32,8 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.admin.api.internal.admin.users import router as users_router
 
     # Assistant & Personas
-    from backend.services.assistant.api.public import aurity_personas
-    from backend.services.assistant.api.public.assistant_history import router as assistant_history_router
+    from backend.api.routers.assistant.public import aurity_personas
+    from backend.api.routers.assistant.public.assistant_history import router as assistant_history_router
 
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
@@ -41,7 +41,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
     # Check-in & Payments
-    from backend.services.checkin.api.public import checkin
+    from backend.api.routers.checkin import checkin
     from backend.api.routers.clinic.public import clinics
     from backend.api.routers.clinic.public import clinic_media_stub
 
@@ -53,15 +53,15 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.infrastructure.common.api.public import notifications
 
     # KPIs
-    from backend.services.kpi.api.internal.kpis import router as kpis_router
+    from backend.api.routers.kpi.internal.router import router as kpis_router
 
     # Licensing
     from backend.api.license.api.internal import router as licenses_admin_router
     from backend.api.license.api.public import router as licenses_router
 
     # LLM
-    from backend.services.llm.api.internal.llm import router as llm_router
-    from backend.services.llm.api.public import llm_models_admin
+    from backend.api.routers.llm.internal.llm import router as llm_router
+    from backend.api.routers.llm.public import llm_models_admin
 
     # Model Catalog
     from backend.infrastructure.model_catalog.api.public import catalog_admin
@@ -92,18 +92,18 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.services.timeline.api.public import timeline
 
     # Transcription & Diarization
-    from backend.services.transcription.api.internal.diarization import router as diarization_router
-    from backend.services.transcription.api.internal.transcribe import router as transcribe_router
+    from backend.api.routers.transcription.internal.diarization import router as diarization_router
+    from backend.api.routers.transcription.internal.transcribe import router as transcribe_router
 
     # TTS
     from backend.services.tts.api.public import tts
     from backend.api.routers.user.public import user_clinic
 
     # Triage
-    from backend.services.workflow.api.internal.triage import router as triage_router
+    from backend.api.routers.workflow.internal.triage import router as triage_router
 
     # Workflows
-    from backend.services.workflow.api.public.workflows_router import (
+    from backend.api.routers.workflow.public.workflows_router import (
         router as public_workflows_router,
     )
 

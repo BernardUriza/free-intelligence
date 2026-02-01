@@ -509,3 +509,39 @@ class WorkflowTracker(IWorkflowTracker):
 #       return tracker.get_workflow_status(...)
 #
 # Migration complete: All callers updated to use FastAPI Depends() (PR #2)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TEMPORARY: Backward Compatibility Function (To Be Removed)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def get_workflow_tracker() -> WorkflowTracker:
+    """DEPRECATED: Get workflow tracker instance (service locator pattern).
+
+    This function is deprecated and will be removed in future versions.
+    Use dependency injection instead:
+
+    ```python
+    from backend.services.workflow.dependencies import WorkflowTrackerDep
+
+    @router.get("/status")
+    def get_status(tracker: WorkflowTrackerDep) -> dict:
+        return tracker.get_workflow_status(...)
+    ```
+
+    Returns:
+        WorkflowTracker instance
+
+    Note:
+        This function exists for backward compatibility with workers that
+        haven't been migrated to DI yet (diarization_worker, soap_worker).
+    """
+    from backend.repositories.interfaces.itask_repository import ITaskRepository
+    from backend.repositories.task_repository import HDF5TaskRepository
+    from backend.config import CORPUS_PATH
+    from backend.utils.common.logging.logger import get_logger
+
+    task_repo: ITaskRepository = HDF5TaskRepository(CORPUS_PATH)
+    logger: ILogger = get_logger("workflow.tracker")
+    return WorkflowTracker(task_repository=task_repo, logger=logger)

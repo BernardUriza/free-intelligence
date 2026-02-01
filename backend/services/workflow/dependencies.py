@@ -14,14 +14,30 @@ import os
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from typing import Annotated
+from fastapi import Depends
+
 from backend.repositories.audit_repository import AuditRepository
 from backend.api.audit.services.audit_service import AuditService
 from backend.repositories.interfaces.itask_repository import ITaskRepository
+from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.task_repository import HDF5TaskRepository
-from backend.services.workflow.api.public.services.workflow_orchestrator import (
+from backend.repositories.corpus_repository import CorpusRepository
+from backend.api.routers.workflow.public.services.workflow_orchestrator import (
     WorkflowOrchestrator,
 )
 from backend.services.workflow.services.triage_service import TriageService
+from backend.services.workflow.services.intelligent_orchestration_service import (
+    IntelligentOrchestrationService,
+)
+from backend.services.workflow.services.workflow_router import WorkflowRouter
+from backend.services.workflow.services.workflow_tracker import WorkflowTracker
+from backend.services.workflow.interfaces import (
+    IIntelligentOrchestrationService,
+    IWorkflowOrchestrator,
+    IWorkflowRouter,
+    IWorkflowTracker,
+)
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.config import CORPUS_PATH
@@ -183,16 +199,88 @@ def get_workflow_logger() -> ILogger:
     return get_logger("workflow")
 
 
-def get_workflow_orchestrator() -> WorkflowOrchestrator:
+def get_corpus_repository() -> ICorpusRepository:
+    """Get corpus repository for session data.
+
+    Returns:
+        ICorpusRepository instance
+    """
+    return CorpusRepository(CORPUS_PATH)
+
+
+def get_workflow_orchestrator() -> IWorkflowOrchestrator:
     """Get workflow orchestrator with injected dependencies.
 
     FastAPI provider for WorkflowOrchestrator.
 
     Returns:
-        WorkflowOrchestrator instance with task_repository and logger
+        IWorkflowOrchestrator instance with task_repository and logger
     """
     return WorkflowOrchestrator(
         task_repository=get_task_repository(),
         logger=get_workflow_logger(),
     )
+
+
+def get_workflow_router() -> IWorkflowRouter:
+    """Get workflow router with injected dependencies.
+
+    FastAPI provider for WorkflowRouter.
+
+    Returns:
+        IWorkflowRouter instance with logger
+    """
+    return WorkflowRouter(logger=get_workflow_logger())
+
+
+def get_workflow_tracker() -> IWorkflowTracker:
+    """Get workflow tracker with injected dependencies.
+
+    FastAPI provider for WorkflowTracker.
+
+    Returns:
+        IWorkflowTracker instance with task_repository and logger
+    """
+    return WorkflowTracker(
+        task_repository=get_task_repository(),
+        logger=get_workflow_logger(),
+    )
+
+
+def get_intelligent_orchestration_service(
+    orchestrator: Annotated[IWorkflowOrchestrator, Depends(get_workflow_orchestrator)],
+    router: Annotated[IWorkflowRouter, Depends(get_workflow_router)],
+    tracker: Annotated[IWorkflowTracker, Depends(get_workflow_tracker)],
+    task_repository: Annotated[ITaskRepository, Depends(get_task_repository)],
+    corpus_repository: Annotated[ICorpusRepository, Depends(get_corpus_repository)],
+    logger: Annotated[ILogger, Depends(get_workflow_logger)],
+) -> IIntelligentOrchestrationService:
+    """Provide IntelligentOrchestrationService instance.
+
+    All dependencies auto-resolved by FastAPI Depends().
+
+    Returns:
+        IIntelligentOrchestrationService instance
+    """
+    return IntelligentOrchestrationService(
+        orchestrator=orchestrator,
+        router=router,
+        tracker=tracker,
+        task_repository=task_repository,
+        corpus_repository=corpus_repository,
+        logger=logger,
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TYPE ALIASES (Clean Signatures)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WorkflowOrchestratorDep = Annotated[IWorkflowOrchestrator, Depends(get_workflow_orchestrator)]
+WorkflowRouterDep = Annotated[IWorkflowRouter, Depends(get_workflow_router)]
+WorkflowTrackerDep = Annotated[IWorkflowTracker, Depends(get_workflow_tracker)]
+IntelligentOrchestrationDep = Annotated[
+    IIntelligentOrchestrationService,
+    Depends(get_intelligent_orchestration_service),
+]
 

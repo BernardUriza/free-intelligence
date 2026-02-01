@@ -82,7 +82,6 @@ class WorkflowOrchestrator:
         self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.DIARIZATION,
-            allow_existing=True,
         )
 
         # 2. Dispatch worker
@@ -123,7 +122,6 @@ class WorkflowOrchestrator:
         self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.SOAP_GENERATION,
-            allow_existing=True,
         )
 
         # 2. Dispatch worker
@@ -164,7 +162,6 @@ class WorkflowOrchestrator:
         self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.EMOTION_ANALYSIS,
-            allow_existing=True,
         )
 
         # 2. Dispatch worker
@@ -205,7 +202,6 @@ class WorkflowOrchestrator:
         self.task_repo.task_exists(
             session_id=session_id,
             task_type=TaskType.ENCRYPTION,
-            allow_existing=True,
         )
 
         # 2. Dispatch worker
