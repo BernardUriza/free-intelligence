@@ -12,15 +12,17 @@ Philosophy (AURITY):
 
 File: backend/kpis_aggregator.py
 Created: 2025-10-30
+Updated: 2026-02-01 (Phase 2.3 Neptuno - implements IKPIsAggregator)
 Card: FI-API-FEAT-011
 """
 
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-import os
+from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -82,9 +84,11 @@ class MetricsBucket:
     provider_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 
-class KPIsAggregator:
+class KPIsAggregator(IKPIsAggregator):
     """
     In-memory KPIs aggregator with time-window bucketing.
+
+    Implements IKPIsAggregator interface for dependency injection.
 
     Collects HTTP and LLM metrics into time-based buckets for efficient querying.
     Supports sliding time windows: 1m, 5m, 15m, 1h, 24h.
@@ -546,7 +550,24 @@ _kpis_aggregator: KPIsAggregator | None = None
 
 
 def get_kpis_aggregator() -> KPIsAggregator:
-    """Get or create global KPIs aggregator instance."""
+    """DEPRECATED: Get or create global KPIs aggregator instance.
+
+    ⚠️  This function is DEPRECATED. Use one of these alternatives:
+    - For FastAPI routes: get_kpis_aggregator_dep() from backend.api.routers.kpi.dependencies
+    - For middleware: get_kpis_aggregator_dep() from backend.api.routers.kpi.dependencies
+
+    .. deprecated::
+        Phase 2.3 Neptuno - use DI factories instead of this service locator.
+    """
+    import warnings
+
+    warnings.warn(
+        "get_kpis_aggregator() is deprecated. Use get_kpis_aggregator_dep() from "
+        "backend.api.routers.kpi.dependencies",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     global _kpis_aggregator
 
     if _kpis_aggregator is None:

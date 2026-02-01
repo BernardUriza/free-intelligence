@@ -7,18 +7,33 @@ FastAPI middleware for recording HTTP and LLM metrics.
 
 File: backend/kpis_middleware.py
 Created: 2025-10-30
+Updated: 2026-02-01 (Phase 2.3 Neptuno - DI migration)
 Card: FI-API-FEAT-011
 """
 
 import time
 from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
 
 from backend.utils.common.logging.logger import get_logger
-from backend.services.kpi.services.kpis_aggregator import get_kpis_aggregator
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = get_logger(__name__)
+
+
+def _get_kpis_aggregator() -> "IKPIsAggregator":
+    """Lazy factory for KPIs aggregator (Phase 2.3 Neptuno).
+
+    Middleware cannot use FastAPI Depends(), so uses lazy import.
+    Returns singleton from dependencies module for metric continuity.
+    """
+    from backend.api.routers.kpi.dependencies import get_kpis_aggregator_dep
+
+    return get_kpis_aggregator_dep()
 
 
 class KPIsMiddleware(BaseHTTPMiddleware):
@@ -63,8 +78,8 @@ class KPIsMiddleware(BaseHTTPMiddleware):
                     response.headers.get("X-FastAPI-Cache") == "Hit" or \
                     response.headers.get("Cache-Control", "").startswith("max-age") and duration_ms < 10
 
-        # Record metrics
-        aggregator = get_kpis_aggregator()
+        # Record metrics (Phase 2.3 Neptuno - uses lazy factory)
+        aggregator = _get_kpis_aggregator()
         aggregator.record_http_event(
             route=route,
             status=response.status_code,

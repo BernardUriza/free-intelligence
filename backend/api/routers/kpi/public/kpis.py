@@ -4,13 +4,19 @@ Provides system metrics and performance KPIs for AURITY dashboard.
 
 Architecture: PUBLIC → KPIsAggregator service (internal)
 Created: 2025-11-17
+Updated: 2026-02-01 (Phase 2.3 Neptuno - DI migration)
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
+
+from backend.api.routers.kpi.dependencies import get_kpis_aggregator_dep
 from backend.utils.common.logging.logger import get_logger
-from backend.services.kpi.services.kpis_aggregator import get_kpis_aggregator
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 logger = get_logger(__name__)
 
@@ -19,6 +25,7 @@ router = APIRouter(prefix="/kpis", tags=["kpis"])
 
 @router.get("")
 async def get_kpis(
+    aggregator: Annotated["IKPIsAggregator", Depends(get_kpis_aggregator_dep)],
     window: str = Query("5m", description="Time window: Union[1m, 5m, 15m]|Union[1h, 24h]"),
     view: str = Query("summary", description="View: Union[summary, chips, timeseries]"),
     route: str | None = Query(None, description="Filter by route (e.g., /api/sessions)"),
@@ -51,8 +58,6 @@ async def get_kpis(
         )
 
     try:
-        aggregator = get_kpis_aggregator()
-
         logger.info(
             "KPIS_API_REQUEST",
             window=window,
