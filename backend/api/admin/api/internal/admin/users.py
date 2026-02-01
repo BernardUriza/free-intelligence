@@ -15,17 +15,22 @@ Endpoints:
 
 Author: Bernard Uriza
 Created: 2025-11-20
+Updated: 2026-02-01 (Phase 2.3 K-Potasio - DI migration)
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
+from backend.api.admin.dependencies import get_auth0_service_dep
 from backend.infrastructure.auth import User, UserRole, require_roles
-from backend.infrastructure.auth.services.auth0_management import get_auth0_service
+from backend.infrastructure.auth.interfaces import IAuth0ManagementService
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+
+# Type alias for DI - FastAPI injects IAuth0ManagementService via get_auth0_service_dep
+Auth0ServiceDep = Annotated[IAuth0ManagementService, Depends(get_auth0_service_dep)]
 
 logger = structlog.get_logger(__name__)
 
@@ -103,6 +108,7 @@ require_superadmin_dependency = Depends(require_superadmin)
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
+    service: Auth0ServiceDep,
     page: int = 0,
     per_page: int = 50,
     search: str | None = None,
@@ -123,7 +129,6 @@ async def list_users(
     - per_page: Results per page
     """
     try:
-        service = get_auth0_service()
         response = service.list_users(
             page=page,
             per_page=per_page,
@@ -164,6 +169,7 @@ async def list_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: str,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -176,7 +182,6 @@ async def get_user(
     - User object with roles
     """
     try:
-        service = get_auth0_service()
         user = service.get_user(user_id)
 
         # Add roles
@@ -199,6 +204,7 @@ async def get_user(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_user(
     request: CreateUserRequest,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -215,7 +221,6 @@ async def create_user(
     - Created user object
     """
     try:
-        service = get_auth0_service()
 
         # Create user
         user = service.create_user(
@@ -282,6 +287,7 @@ async def create_user(
 async def update_user(
     user_id: str,
     request: UpdateUserRequest,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -300,7 +306,6 @@ async def update_user(
     - Updated user object
     """
     try:
-        service = get_auth0_service()
 
         # Build updates dict (only include provided fields)
         updates: dict[str, Any] = {}
@@ -343,6 +348,7 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -355,7 +361,6 @@ async def delete_user(
     - 204 No Content on success
     """
     try:
-        service = get_auth0_service()
         service.delete_user(user_id)
 
         logger.warning(
@@ -383,6 +388,7 @@ async def delete_user(
 async def block_user(
     user_id: str,
     request: BlockUserRequest,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -398,7 +404,6 @@ async def block_user(
     - Updated user object
     """
     try:
-        service = get_auth0_service()
         user = service.block_user(user_id, request.blocked)
 
         logger.warning(
@@ -427,6 +432,7 @@ async def block_user(
 async def update_user_roles(
     user_id: str,
     request: UpdateRolesRequest,
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -442,7 +448,6 @@ async def update_user_roles(
     - Updated user object with roles
     """
     try:
-        service = get_auth0_service()
 
         # Get all available roles
         all_roles = service.list_roles()
@@ -495,6 +500,7 @@ async def update_user_roles(
 
 @router.get("/roles")
 async def list_available_roles(
+    service: Auth0ServiceDep,
     admin: dict = require_superadmin_dependency,
 ):
     """
@@ -504,7 +510,6 @@ async def list_available_roles(
     - List of role objects
     """
     try:
-        service = get_auth0_service()
         roles = service.list_roles()
 
         return {"roles": roles}

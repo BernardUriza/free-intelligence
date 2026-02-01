@@ -22,18 +22,23 @@ Setup Instructions:
 
 Author: Bernard Uriza
 Created: 2025-11-20
+Updated: 2026-02-01 (Phase 2.3 K-Potasio - implements IAuth0ManagementService)
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 from typing import Any
 
-import os
 import structlog
 from auth0.authentication import GetToken
 from auth0.management import Auth0
 from dotenv import load_dotenv
+
+from backend.infrastructure.auth.interfaces.iauth0_management import (
+    IAuth0ManagementService,
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -41,10 +46,11 @@ load_dotenv()
 logger = structlog.get_logger(__name__)
 
 
-class Auth0ManagementService:
+class Auth0ManagementService(IAuth0ManagementService):
     """
     Service for Auth0 Management API operations.
 
+    Implements IAuth0ManagementService interface for dependency injection.
     Handles user CRUD, role assignment, and invitations.
     Implements token caching to avoid rate limits.
     """
@@ -493,7 +499,23 @@ _auth0_service: Auth0ManagementService | None = None
 
 
 def get_auth0_service() -> Auth0ManagementService:
-    """Get singleton Auth0 Management Service instance."""
+    """DEPRECATED: Get singleton Auth0 Management Service instance.
+
+    ⚠️  This function is DEPRECATED. Use FastAPI Depends() with:
+    - get_auth0_service_dep() from backend.api.admin.dependencies
+
+    .. deprecated::
+        Phase 2.3 K-Potasio - use DI factories instead of this service locator.
+    """
+    import warnings
+
+    warnings.warn(
+        "get_auth0_service() is deprecated. Use get_auth0_service_dep() from "
+        "backend.api.admin.dependencies",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     global _auth0_service
     if _auth0_service is None:
         _auth0_service = Auth0ManagementService()  # type: ignore[no-untyped-call]
