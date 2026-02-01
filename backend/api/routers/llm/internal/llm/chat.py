@@ -18,7 +18,6 @@ import uuid as _uuid
 from datetime import UTC, datetime
 
 import ulid
-from backend.policy.policy_loader import get_policy_loader
 from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
@@ -39,9 +38,17 @@ from .schemas import ChatRequest, ChatResponse
 router = APIRouter()
 logger = get_logger(__name__)
 persona_mgr = PersonaManager()
-policy_loader = get_policy_loader()
 # FIXME: trace_store stubbed - get_trace_store not implemented
 trace_store = None  # get_trace_store()
+
+
+def _get_policy_loader():
+    """Lazy policy loader factory (Phase 2.3 Urano - DI migration)."""
+    from backend.policy.policy_loader import PolicyLoader
+
+    loader = PolicyLoader()
+    loader.load()
+    return loader
 
 # Initialize audit service for persona metrics tracking
 import contextlib
@@ -95,7 +102,8 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         "ts": int(time.time()),
         "events": [],
     }
-    trace_store.put(incoming_request_id, trace_entry)
+    if trace_store is not None:
+        trace_store.put(incoming_request_id, trace_entry)
 
     logger.info(
         "CHAT_REQUEST",
@@ -107,7 +115,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
 
     try:
         # Auto-enable memory for Azure GPT-4 (infinite conversation policy)
-        primary_provider = policy_loader.get_primary_provider()
+        primary_provider = _get_policy_loader().get_primary_provider()
         auto_memory_enabled = False
         effective_doctor_id = request.doctor_id
 
@@ -254,7 +262,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         logger.info(
             "INTERNAL_LLM_MODEL_SELECTION",
             requested_model=model_override,
-            provider=request.provider or policy_loader.get_primary_provider(),
+            provider=request.provider or _get_policy_loader().get_primary_provider(),
             enable_thinking=enable_thinking,
         )
 
@@ -271,7 +279,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             logger.info(
                 "INTERNAL_LLM_MODEL_EFFECTIVE",
                 effective_model=getattr(llm_response, "model", "unknown"),
-                provider=request.provider or policy_loader.get_primary_provider(),
+                provider=request.provider or _get_policy_loader().get_primary_provider(),
             )
 
         # Record LLM_CALL in trace timeline
@@ -279,7 +287,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
             llm_event = {
                 "event": "LLM_CALL",
                 "ts": int(time.time()),
-                "provider": policy_loader.get_primary_provider(),
+                "provider": _get_policy_loader().get_primary_provider(),
                 "model": getattr(llm_response, "model", "unknown"),
                 "tokens_used": getattr(llm_response, "usage", {}).total_tokens
                 if hasattr(getattr(llm_response, "usage", None), "total_tokens")
@@ -457,7 +465,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         # Log error to SQLite observability database
         log_llm_error(
             model="unknown",
-            provider=policy_loader.get_primary_provider(),
+            provider=_get_policy_loader().get_primary_provider(),
             latency_ms=latency_ms,
             error_message=str(e),
             error_type=type(e).__name__,
@@ -612,11 +620,8 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     prompt_length=len(prompt),
                 )
 
-            # Get provider
-            from backend.policy.policy_loader import get_policy_loader
-
-            policy_loader = get_policy_loader()
-            provider_name = request.provider or policy_loader.get_primary_provider()
+            # Get provider (Phase 2.3 Urano - uses lazy loader)
+            provider_name = request.provider or _get_policy_loader().get_primary_provider()
 
             logger.info(
                 "🔌 [STREAM] PROVIDER_SELECTED",
@@ -626,7 +631,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             )
 
             # Get provider config
-            provider_config = policy_loader.get_provider_config(provider_name)
+            provider_config = _get_policy_loader().get_provider_config(provider_name)
             if provider_config is None:
                 provider_config = {}
 
@@ -922,7 +927,7 @@ async def internal_llm_chat_debug(request: ChatRequest) -> dict:
 
         return {
             "model": getattr(llm_response, "model", "unknown"),
-            "provider": request.provider or policy_loader.get_primary_provider(),
+            "provider": request.provider or _get_policy_loader().get_primary_provider(),
             "latency_ms": latency_ms,
             "response": llm_response.content.strip(),
             "thinking": thinking,

@@ -16,7 +16,6 @@ import anthropic
 import numpy as np
 import ollama
 import os
-from backend.policy.policy_loader import get_policy_loader
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
@@ -492,6 +491,14 @@ class OllamaProvider(LLMProvider):
         enable_thinking = kwargs.get("enable_thinking", True)
         is_qwen3 = str(model).lower().startswith("qwen3")
         use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
+
+        self.logger.info(
+            "OLLAMA_THINKING_MODE_DEBUG",
+            enable_thinking=enable_thinking,
+            is_qwen3=is_qwen3,
+            force_thinking=force_thinking,
+            use_generate_with_think=use_generate_with_think,
+        )
 
         # Multi-host fallback loop (FI-BACKEND-FALLBACK-001)
         for host in self.hosts:
@@ -1245,8 +1252,11 @@ def llm_generate(
         ...     max_tokens=1024
         ... )
     """
-    # Load policy
-    policy_loader = get_policy_loader()
+    # Load policy (lazy import to avoid circular deps - Phase 2.3 Urano)
+    from backend.policy.policy_loader import PolicyLoader
+
+    policy_loader = PolicyLoader()
+    policy_loader.load()
 
     # Use primary provider from policy if not specified
     if provider is None:

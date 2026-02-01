@@ -3,13 +3,18 @@ Policy API Endpoints
 Card: FI-UI-FEAT-204
 
 Provides read-only access to effective policy configuration from fi.policy.yaml
+
+Updated: 2026-02-01 (Phase 2.3 Urano - DI migration for IPolicyLoader)
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Annotated, Any
 
-from backend.policy.policy_loader import get_policy_loader
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+
+from backend.api.policy.dependencies import get_policy_loader_dep
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 logger = get_logger(__name__)
 
@@ -17,14 +22,16 @@ router = APIRouter(tags=["policy"])
 
 
 @router.get("/policy")
-async def get_policy() -> dict[str, Any]:
+async def get_policy(
+    policy_loader: Annotated["IPolicyLoader", Depends(get_policy_loader_dep)],
+) -> dict[str, Any]:
     """
     Get effective policy configuration from fi.policy.yaml
 
     Returns policy with metadata for UI display.
     """
     try:
-        loader = get_policy_loader()
+        loader = policy_loader
 
         if loader.policy is None:
             logger.error("POLICY_NOT_LOADED")

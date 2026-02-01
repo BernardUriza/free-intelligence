@@ -407,10 +407,12 @@ _policy_loader_lock = threading.Lock()
 
 def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
     """
-    Get singleton PolicyLoader instance (thread-safe).
+    DEPRECATED: Get singleton PolicyLoader instance (thread-safe).
 
-    ⚠️  NOTE: For workers, prefer DI via get_policy_loader_dep() from
-    backend.services.workflow.dependencies instead.
+    ⚠️  This function is DEPRECATED. Use one of these alternatives:
+    - For FastAPI routes: get_policy_loader_dep() from backend.api.policy.dependencies
+    - For workers: get_policy_loader_dep() from backend.services.workflow.dependencies
+    - For scripts: PolicyLoader() directly with loader.load()
 
     Uses double-checked locking pattern to ensure thread safety
     without performance penalty after initialization.
@@ -425,7 +427,19 @@ def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
         - Multiple threads can safely call this function concurrently
         - Only one instance will be created even under high concurrency
         - Lock is only acquired on first call (fast path for subsequent calls)
+
+    .. deprecated::
+        Phase 2.3 Urano - use DI factories instead of this service locator.
     """
+    import warnings
+
+    warnings.warn(
+        "get_policy_loader() is deprecated. Use get_policy_loader_dep() from "
+        "backend.services.workflow.dependencies or backend.api.policy.dependencies",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     global _policy_loader
 
     # Fast path: check without lock (99.9% of calls)

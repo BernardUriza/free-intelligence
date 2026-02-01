@@ -9,15 +9,16 @@ from pathlib import Path
 # Añadir el directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from backend.policy.policy_loader import get_policy_loader
+from backend.policy.policy_loader import PolicyLoader
 
 
 def main():
     print("🔍 Verificando el flujo de configuración a OllamaProvider")
     print("=" * 60)
 
-    # Cargar la política
-    policy_loader = get_policy_loader()
+    # Cargar la política (DI pattern - Phase 2.3 Urano)
+    policy_loader = PolicyLoader()
+    policy_loader.load()
     print(f"Proveedor primario de política: {policy_loader.get_primary_provider()}")
 
     # Obtener la configuración específica para Ollama
