@@ -7,8 +7,18 @@ Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
 Updated: 2026-01-31 (Type-safe config validation with Pydantic)
+Updated: 2026-02-01 (Phase 2.3 - Worker dependency factories)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
+    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
 
 import os
 from pathlib import Path
@@ -213,11 +223,17 @@ def get_workflow_orchestrator() -> IWorkflowOrchestrator:
 
     FastAPI provider for WorkflowOrchestrator.
 
+    Phase 2.3 migration: Now injects all worker dependencies.
+
     Returns:
-        IWorkflowOrchestrator instance with task_repository and logger
+        IWorkflowOrchestrator instance with all dependencies
     """
     return WorkflowOrchestrator(
         task_repository=get_task_repository(),
+        workflow_tracker=get_workflow_tracker(),
+        policy_loader=get_policy_loader_dep(),
+        preset_loader=get_preset_loader_dep(),
+        decisional_middleware=get_decisional_middleware_dep(),
         logger=get_workflow_logger(),
     )
 
@@ -270,6 +286,58 @@ def get_intelligent_orchestration_service(
         corpus_repository=corpus_repository,
         logger=logger,
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WORKER DEPENDENCY FACTORIES (Phase 2.3 - Service Locator Migration)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def get_policy_loader_dep() -> IPolicyLoader:
+    """Get policy loader for workers - direct instantiation.
+
+    Returns:
+        IPolicyLoader instance with policy already loaded
+
+    Note:
+        Replaces deprecated get_policy_loader() service locator.
+        Workers receive this as a constructor parameter.
+    """
+    from backend.policy.policy_loader import PolicyLoader
+
+    loader = PolicyLoader()
+    loader.load()
+    return loader
+
+
+def get_preset_loader_dep() -> IPresetLoader:
+    """Get preset loader for workers - direct instantiation.
+
+    Returns:
+        IPresetLoader instance
+
+    Note:
+        Replaces deprecated get_preset_loader() service locator.
+        Workers receive this as a constructor parameter.
+    """
+    from backend.schemas.llm.preset_loader import PresetLoader
+
+    return PresetLoader()
+
+
+def get_decisional_middleware_dep() -> IDecisionalMiddleware:
+    """Get decisional middleware for SOAP worker - direct instantiation.
+
+    Returns:
+        IDecisionalMiddleware instance
+
+    Note:
+        Replaces deprecated get_decisional_middleware() service locator.
+        Handles intelligent SOAP generation orchestration.
+    """
+    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
+
+    return DecisionalMiddleware()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

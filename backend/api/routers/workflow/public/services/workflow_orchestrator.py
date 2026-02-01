@@ -10,6 +10,7 @@ SOLID Principles Applied:
 File: backend/api/public/workflows/services/workflow_orchestrator.py
 Created: 2025-11-20
 Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
+Updated: 2026-02-01 (Phase 2.3 - Worker DI migration)
 Pattern: Service Layer + Command Pattern
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
@@ -17,13 +18,19 @@ Card: Backend Refactor Phase 2.3 - Service Refactoring
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
+    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
+    from backend.services.workflow.interfaces import IWorkflowTracker
 
 logger = get_logger(__name__)
 
@@ -43,22 +50,38 @@ class WorkflowOrchestrator:
     - Contain business logic (just orchestration)
     - Handle HTTP concerns (that's the router's job)
 
-    Dependencies eliminated from get_container():
-    - ITaskRepository (4 calls) → Constructor injected
+    Dependencies (Phase 2.3 migration):
+    - ITaskRepository: For task creation/checking
+    - IWorkflowTracker: For workflow state tracking
+    - IPolicyLoader: For diarization/SOAP provider selection
+    - IPresetLoader: For emotion analysis presets
+    - IDecisionalMiddleware: For SOAP orchestration
     """
 
     def __init__(
         self,
         task_repository: ITaskRepository,
+        workflow_tracker: IWorkflowTracker,
+        policy_loader: IPolicyLoader,
+        preset_loader: IPresetLoader,
+        decisional_middleware: IDecisionalMiddleware,
         logger: ILogger | None = None,
     ) -> None:
         """Initialize workflow orchestrator with dependencies.
 
         Args:
             task_repository: Task repository for task creation/checking
+            workflow_tracker: Workflow tracker for state management
+            policy_loader: Policy loader for provider configuration
+            preset_loader: Preset loader for LLM presets
+            decisional_middleware: SOAP generation orchestrator
             logger: Logger instance (defaults to module logger)
         """
         self.task_repo = task_repository
+        self.workflow_tracker = workflow_tracker
+        self.policy_loader = policy_loader
+        self.preset_loader = preset_loader
+        self.decisional_middleware = decisional_middleware
         self.logger = logger or get_logger(__name__)
 
     def dispatch_diarization(self, session_id: str) -> dict[str, Any]:
@@ -84,8 +107,14 @@ class WorkflowOrchestrator:
             task_type=TaskType.DIARIZATION,
         )
 
-        # 2. Dispatch worker
-        spawn_worker(diarize_session_worker, session_id=session_id, task_repo=self.task_repo)
+        # 2. Dispatch worker (dependencies injected via DI - Phase 2.3)
+        spawn_worker(
+            diarize_session_worker,
+            session_id=session_id,
+            task_repo=self.task_repo,
+            workflow_tracker=self.workflow_tracker,
+            policy_loader=self.policy_loader,
+        )
         job_id = session_id
 
         self.logger.info(
@@ -124,8 +153,15 @@ class WorkflowOrchestrator:
             task_type=TaskType.SOAP_GENERATION,
         )
 
-        # 2. Dispatch worker
-        spawn_worker(generate_soap_worker, session_id=session_id, task_repo=self.task_repo)
+        # 2. Dispatch worker (dependencies injected via DI - Phase 2.3)
+        spawn_worker(
+            generate_soap_worker,
+            session_id=session_id,
+            task_repo=self.task_repo,
+            workflow_tracker=self.workflow_tracker,
+            policy_loader=self.policy_loader,
+            decisional_middleware=self.decisional_middleware,
+        )
         job_id = session_id
 
         self.logger.info(
@@ -164,8 +200,13 @@ class WorkflowOrchestrator:
             task_type=TaskType.EMOTION_ANALYSIS,
         )
 
-        # 2. Dispatch worker
-        spawn_worker(analyze_emotion_worker, session_id=session_id, task_repo=self.task_repo)
+        # 2. Dispatch worker (preset_loader injected via DI - Phase 2.3)
+        spawn_worker(
+            analyze_emotion_worker,
+            session_id=session_id,
+            task_repo=self.task_repo,
+            preset_loader=self.preset_loader,
+        )
         job_id = session_id
 
         self.logger.info(

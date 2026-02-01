@@ -14,6 +14,7 @@ Strategies:
 
 File: backend/services/soap_generation/decisional_middleware.py
 Created: 2025-11-20
+Updated: 2026-02-01 (Phase 2.3 - Implements IDecisionalMiddleware interface)
 Pattern: Redux Middleware + Chain of Responsibility
 """
 
@@ -31,6 +32,7 @@ from backend.services.soap.services.complexity_analyzer import (
     ComplexityMetrics,
     get_complexity_analyzer,
 )
+from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
 
 logger = get_logger(__name__)
 
@@ -65,9 +67,11 @@ class OrchestrationResult:
     confidence_score: float  # 0-1, how confident the model is
 
 
-class DecisionalMiddleware:
+class DecisionalMiddleware(IDecisionalMiddleware):
     """
     Intelligent SOAP generation orchestrator.
+
+    Implements IDecisionalMiddleware interface for dependency injection.
 
     Redux Middleware Pattern:
     1. Intercept SOAP generation request
@@ -466,7 +470,11 @@ _middleware: DecisionalMiddleware | None = None
 
 
 def get_decisional_middleware() -> DecisionalMiddleware:
-    """Get or create global decisional middleware instance."""
+    """Get or create global decisional middleware instance.
+
+    ⚠️  NOTE: For workers, prefer DI via get_decisional_middleware_dep() from
+    backend.services.workflow.dependencies instead (Phase 2.3 migration).
+    """
     global _middleware
 
     if _middleware is None:

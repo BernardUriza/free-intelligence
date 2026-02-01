@@ -1,17 +1,23 @@
-"""SOAP generation worker - Medical notes extraction."""
+"""SOAP generation worker - Medical notes extraction.
+
+Updated: 2026-02-01 (Phase 2.3 - DI migration, removed service locators)
+"""
 
 from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.models.task_type import TaskStatus, TaskType
-from backend.policy.policy_loader import get_policy_loader
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
-from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
+
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
+    from backend.services.workflow.interfaces import IWorkflowTracker
 
 logger = get_logger(__name__)
 
@@ -20,6 +26,9 @@ logger = get_logger(__name__)
 def generate_soap_worker(
     session_id: str,
     task_repo: ITaskRepository,
+    workflow_tracker: IWorkflowTracker,
+    policy_loader: IPolicyLoader,
+    decisional_middleware: IDecisionalMiddleware,
     soap_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous SOAP note generation from diarization.
@@ -29,14 +38,16 @@ def generate_soap_worker(
     Args:
         session_id: Session identifier
         task_repo: Task repository (injected for thread-safety)
+        workflow_tracker: Workflow tracker (injected - Phase 2.3 DI migration)
+        policy_loader: Policy loader (injected - Phase 2.3 DI migration)
+        decisional_middleware: SOAP orchestrator (injected - Phase 2.3 DI migration)
         soap_provider: LLM provider (claude, ollama, openai, etc)
 
     Returns:
         WorkerResult with SOAP note (subjective, objective, assessment, plan)
     """
-    # P1: Mark task as started in workflow tracker
-    tracker = get_workflow_tracker()
-    tracker.mark_task_started(session_id, TaskType.SOAP_GENERATION)
+    # P1: Mark task as started in workflow tracker (tracker injected via DI)
+    workflow_tracker.mark_task_started(session_id, TaskType.SOAP_GENERATION)
 
     try:
         start_time = time.time()
@@ -52,9 +63,8 @@ def generate_soap_worker(
                 f"DIARIZATION task not found for {session_id}. Must run diarization first."
             )
 
-        # Get provider from policy if not specified
+        # Get provider from policy if not specified (policy_loader injected via DI)
         if not soap_provider:
-            policy_loader = get_policy_loader()
             llm_config = policy_loader.get_llm_config()
             soap_provider = llm_config.get("primary_provider", "claude")
 
@@ -111,12 +121,7 @@ def generate_soap_worker(
             },
         )
 
-        # Generate SOAP note using DecisionalMiddleware (intelligent orchestration)
-        from backend.services.soap.services.decisional_middleware import (
-            get_decisional_middleware,
-        )
-
-        middleware = get_decisional_middleware()
+        # Generate SOAP note using DecisionalMiddleware (injected via DI - Phase 2.3)
 
         # Update progress: 50% (analyzing complexity & orchestrating)
         task_repo.save_task_metadata(
@@ -130,7 +135,7 @@ def generate_soap_worker(
 
         # Process through decisional middleware
         # This will intelligently decide: simple vs complex generation
-        orchestration_result = middleware.process(
+        orchestration_result = decisional_middleware.process(
             transcript=full_text,
             segments=segments if segments else None,
             session_metadata={"session_id": session_id, "provider": soap_provider},
@@ -268,7 +273,7 @@ def generate_soap_worker(
         )
 
         # P1: Mark task as completed in workflow tracker
-        tracker.mark_task_completed(session_id, TaskType.SOAP_GENERATION, result=result)
+        workflow_tracker.mark_task_completed(session_id, TaskType.SOAP_GENERATION, result=result)
 
         return WorkerResult(session_id=session_id, result=result).to_dict()
 
@@ -300,6 +305,6 @@ def generate_soap_worker(
             )
 
         # P1: Mark task as failed in workflow tracker
-        tracker.mark_task_failed(session_id, TaskType.SOAP_GENERATION, error=str(e))
+        workflow_tracker.mark_task_failed(session_id, TaskType.SOAP_GENERATION, error=str(e))
 
         raise

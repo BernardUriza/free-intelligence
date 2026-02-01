@@ -519,7 +519,10 @@ class WorkflowTracker(IWorkflowTracker):
 def get_workflow_tracker() -> WorkflowTracker:
     """DEPRECATED: Get workflow tracker instance (service locator pattern).
 
-    This function is deprecated and will be removed in future versions.
+    ⚠️  WARNING: This function is deprecated as of 2026-02-01 (Phase 2.3).
+    All workers have been migrated to DI. This function should be removed
+    once all remaining callers are migrated.
+
     Use dependency injection instead:
 
     ```python
@@ -532,11 +535,14 @@ def get_workflow_tracker() -> WorkflowTracker:
 
     Returns:
         WorkflowTracker instance
-
-    Note:
-        This function exists for backward compatibility with workers that
-        haven't been migrated to DI yet (diarization_worker, soap_worker).
     """
+    import warnings
+    warnings.warn(
+        "get_workflow_tracker() is deprecated. Use DI via WorkflowTrackerDep instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     from backend.repositories.interfaces.itask_repository import ITaskRepository
     from backend.repositories.task_repository import HDF5TaskRepository
     from backend.config import CORPUS_PATH

@@ -5,6 +5,8 @@ Loads and validates fi.policy.yaml configuration file.
 Provides unified interface for accessing LLM policies, export policies, audit policies, etc.
 
 Philosophy: Policy-driven configuration for provider-agnostic LLM routing.
+
+Updated: 2026-02-01 (Phase 2.3 - Implements IPolicyLoader interface)
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from typing import Any
 
 import yaml
 from backend.utils.common.logging.logger import get_logger
+from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
 from pathlib import Path
 
 logger = get_logger(__name__)
@@ -25,7 +28,7 @@ class PolicyValidationError(Exception):
     pass
 
 
-class PolicyLoader:
+class PolicyLoader(IPolicyLoader):
     """Loads and validates fi.policy.yaml"""
 
     def __init__(self, policy_path: str | None = None):
@@ -405,6 +408,9 @@ _policy_loader_lock = threading.Lock()
 def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
     """
     Get singleton PolicyLoader instance (thread-safe).
+
+    ⚠️  NOTE: For workers, prefer DI via get_policy_loader_dep() from
+    backend.services.workflow.dependencies instead.
 
     Uses double-checked locking pattern to ensure thread safety
     without performance penalty after initialization.

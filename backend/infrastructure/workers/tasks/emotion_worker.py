@@ -1,19 +1,24 @@
-"""Emotion Analysis worker - Patient emotional state detection."""
+"""Emotion Analysis worker - Patient emotional state detection.
+
+Updated: 2026-02-01 (Phase 2.3 - DI migration, removed get_preset_loader service locator)
+"""
 
 from __future__ import annotations
 
 import json
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import h5py
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.schemas.llm.preset_loader import get_preset_loader
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.tasks.base_worker import measure_time
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
 
 # Default corpus path
@@ -26,12 +31,14 @@ logger = get_logger(__name__)
 def analyze_emotion_worker(
     session_id: str,
     task_repo: ITaskRepository,
+    preset_loader: IPresetLoader,
 ) -> dict[str, Any]:
     """Analyze patient emotional state from diarization segments.
 
     Args:
         session_id: Session identifier
         task_repo: Task repository (injected for thread-safety)
+        preset_loader: Preset loader (injected - Phase 2.3 DI migration)
 
     Returns:
         WorkerResult with emotion analysis
@@ -49,9 +56,8 @@ def analyze_emotion_worker(
                 f"EMOTION_ANALYSIS task not found for {session_id}. Must create first."
             )
 
-        # Load emotion_analyzer preset
+        # Load emotion_analyzer preset (preset_loader injected via DI)
         try:
-            preset_loader = get_preset_loader()
             preset = preset_loader.load_preset("emotion_analyzer")
             logger.info(
                 "EMOTION_PRESET_LOADED",

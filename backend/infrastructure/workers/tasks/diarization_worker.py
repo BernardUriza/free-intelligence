@@ -1,21 +1,26 @@
-"""Diarization worker - Speaker separation."""
+"""Diarization worker - Speaker separation.
+
+Updated: 2026-02-01 (Phase 2.3 - DI migration, removed service locators)
+"""
 
 from __future__ import annotations
 
 import json
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import h5py
 from backend.models.task_type import TaskStatus, TaskType
-from backend.policy.policy_loader import get_policy_loader
 from backend.providers.diarization import get_diarization_provider
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
-from backend.services.workflow.services.workflow_tracker import get_workflow_tracker
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.services.workflow.interfaces import IWorkflowTracker
 
 # Default corpus path
 CORPUS_PATH = Path("storage/corpus.h5")
@@ -27,6 +32,8 @@ logger = get_logger(__name__)
 def diarize_session_worker(
     session_id: str,
     task_repo: ITaskRepository,
+    workflow_workflow_tracker: IWorkflowTracker,
+    policy_loader: IPolicyLoader,
     diarization_provider: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous diarization (speaker separation).
@@ -36,14 +43,15 @@ def diarize_session_worker(
     Args:
         session_id: Session identifier
         task_repo: Task repository (injected for thread-safety)
+        workflow_workflow_tracker: Workflow workflow_tracker (injected - Phase 2.3 DI migration)
+        policy_loader: Policy loader (injected - Phase 2.3 DI migration)
         diarization_provider: Provider (azure_gpt4, ollama, etc)
 
     Returns:
         WorkerResult with segments, speakers, confidence
     """
-    # P1: Mark task as started in workflow tracker
-    tracker = get_workflow_tracker()
-    tracker.mark_task_started(session_id, TaskType.DIARIZATION)
+    # P1: Mark task as started in workflow workflow_tracker (workflow_tracker injected via DI)
+    workflow_tracker.mark_task_started(session_id, TaskType.DIARIZATION)
 
     try:
         start_time = time.time()
@@ -57,9 +65,8 @@ def diarize_session_worker(
         if not task_repo.task_exists(session_id, TaskType.DIARIZATION.value):
             raise ValueError(f"DIARIZATION task not found for {session_id}. Must finalize first.")
 
-        # Get provider
+        # Get provider (policy_loader injected via DI)
         if not diarization_provider:
-            policy_loader = get_policy_loader()
             diarization_config = policy_loader.get_diarization_config()
             diarization_provider = diarization_config.get("primary_provider", "azure_gpt4")
 
@@ -225,8 +232,8 @@ def diarize_session_worker(
             duration_seconds=round(elapsed_time, 2),
         )
 
-        # P1: Mark task as completed in workflow tracker
-        tracker.mark_task_completed(session_id, TaskType.DIARIZATION, result=result)
+        # P1: Mark task as completed in workflow workflow_tracker
+        workflow_tracker.mark_task_completed(session_id, TaskType.DIARIZATION, result=result)
 
         return WorkerResult(session_id=session_id, result=result).to_dict()
 
@@ -257,7 +264,7 @@ def diarize_session_worker(
                 error=str(meta_error),
             )
 
-        # P1: Mark task as failed in workflow tracker
-        tracker.mark_task_failed(session_id, TaskType.DIARIZATION, error=str(e))
+        # P1: Mark task as failed in workflow workflow_tracker
+        workflow_tracker.mark_task_failed(session_id, TaskType.DIARIZATION, error=str(e))
 
         raise
