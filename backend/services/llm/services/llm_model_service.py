@@ -2,6 +2,8 @@
 
 Handles CRUD operations for LLM models stored in YAML config.
 Provides caching and validation for model management.
+
+Updated: 2026-02-01 (Phase 2.3 Tierra - Implements ILLMModelService interface)
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from backend.models.llm_model import (
     LLMModelUpdate,
     LLMProvider,
 )
+from backend.services.llm.interfaces.illm_model_service import ILLMModelService
 from pathlib import Path
 
 # Config file path
@@ -25,8 +28,11 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 LLM_MODELS_FILE = CONFIG_DIR / "llm_models.yaml"
 
 
-class LLMModelService:
-    """Service for managing LLM model configurations."""
+class LLMModelService(ILLMModelService):
+    """Service for managing LLM model configurations.
+
+    Implements ILLMModelService interface for dependency injection.
+    """
 
     _instance: ClassVar[LLMModelService | None] = None
     _models_cache: ClassVar[dict[str, LLMModel]] = {}
@@ -285,5 +291,6 @@ class LLMModelService:
         return [m for m in models.values() if m.provider == provider_value and m.is_active]
 
 
-# Global service instance
+# Global service instance (DEPRECATED - Phase 2.3 Tierra)
+# For new code, use DI via get_llm_model_service_dep() from dependencies.py
 llm_model_service = LLMModelService()

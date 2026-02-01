@@ -8,11 +8,19 @@ Este servicio es el punto de entrada único para:
 4. Registrar modelos instalados en el CRUD de LLM
 
 Como el Palantír: una sola piedra que ve todos los reinos.
+
+Updated: 2026-02-01 (Phase 2.3 Tierra - DI migration for ILLMModelService)
 """
+
+from __future__ import annotations
 
 import subprocess
 import tempfile
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
 
 from backend.models.catalog_model import (
     CatalogModel,
@@ -344,17 +352,29 @@ class CatalogService:
             # Limpiar Modelfile temporal
             Path(modelfile_path).unlink(missing_ok=True)
 
-    async def _register_in_llm_crud(self, model: CatalogModel) -> dict | None:
+    async def _register_in_llm_crud(
+        self,
+        model: CatalogModel,
+        llm_service: ILLMModelService | None = None,
+    ) -> dict | None:
         """
         Registra el modelo instalado en el CRUD de LLM Models.
 
         Esto permite que el modelo aparezca en /admin/models
         y pueda ser usado por las Personas.
+
+        Args:
+            model: Modelo a registrar
+            llm_service: Servicio LLM inyectado (Phase 2.3 Tierra DI).
+                        Si None, usa deprecated factory.
         """
         try:
-            from backend.services.llm.services.llm_model_service import LLMModelService
+            # Phase 2.3: Prefer injected service
+            if llm_service is None:
+                from backend.services.workflow.dependencies import get_llm_model_service_dep
+                llm_service = get_llm_model_service_dep()
 
-            service = LLMModelService()
+            service = llm_service
 
             # Generar datos para el CRUD
             ollama_name = self._generate_ollama_name(model)

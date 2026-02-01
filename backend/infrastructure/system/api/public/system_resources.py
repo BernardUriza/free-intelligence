@@ -5,6 +5,7 @@ and hardware compatibility with AI models.
 
 Author: Bernard Uriza Orozco
 Created: 2025-12-12
+Updated: 2026-02-01 (Phase 2.3 Tierra - DI migration for ILLMModelService)
 """
 
 from __future__ import annotations
@@ -12,13 +13,19 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime
+from typing import Annotated
 
 import httpx
 import os
 import psutil
-from fastapi import APIRouter, HTTPException, Query, status
+from backend.services.llm.interfaces.illm_model_service import ILLMModelService
+from backend.services.workflow.dependencies import get_llm_model_service_dep
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pathlib import Path
 from pydantic import BaseModel
+
+# Type alias for DI (Phase 2.3 Tierra)
+LLMModelServiceDep = Annotated[ILLMModelService, Depends(get_llm_model_service_dep)]
 
 router = APIRouter(prefix="/admin/system", tags=["System Resources"])
 
@@ -172,7 +179,10 @@ async def get_running_models() -> RunningModelsResponse:
 
 
 @router.get("/compatibility/{model_id}", response_model=ModelCompatibility)
-async def check_model_compatibility(model_id: str) -> ModelCompatibility:
+async def check_model_compatibility(
+    model_id: str,
+    llm_service: LLMModelServiceDep,
+) -> ModelCompatibility:
     """Check if system can run a specific model.
 
     Args:
@@ -181,9 +191,7 @@ async def check_model_compatibility(model_id: str) -> ModelCompatibility:
     Returns:
         Compatibility assessment with warnings
     """
-    from backend.services.llm.services.llm_model_service import llm_model_service
-
-    model = llm_model_service.get_model(model_id)
+    model = llm_service.get_model(model_id)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

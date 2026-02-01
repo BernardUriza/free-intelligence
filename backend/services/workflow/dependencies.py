@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from backend.infrastructure.cache.interfaces.icache import ICache
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
+    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
     from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
 
 import os
@@ -361,6 +362,23 @@ def get_cache_dep(ttl: int = 3600) -> ICache:
     from backend.infrastructure.cache.cache import LLMCache
 
     return LLMCache(default_ttl=ttl)
+
+
+def get_llm_model_service_dep() -> ILLMModelService:
+    """Get LLM model service for model catalog management.
+
+    Phase 2.3 Tierra: Replaces deprecated llm_model_service singleton.
+
+    Returns:
+        ILLMModelService instance
+
+    Note:
+        The LLMModelService uses internal singleton pattern (__new__),
+        but this factory provides the DI-compliant entry point.
+    """
+    from backend.services.llm.services.llm_model_service import LLMModelService
+
+    return LLMModelService()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

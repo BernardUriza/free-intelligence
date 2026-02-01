@@ -5,11 +5,13 @@ Superadmin only - CRUD operations on model configurations.
 
 Author: Bernard Uriza Orozco
 Created: 2025-12-11
+Updated: 2026-02-01 (Phase 2.3 Tierra - DI migration for ILLMModelService)
 """
 
 from __future__ import annotations
 
 import random
+from typing import Annotated
 
 import httpx
 from backend.models.llm_model import (
@@ -19,9 +21,13 @@ from backend.models.llm_model import (
     LLMModelUpdate,
     LLMProvider,
 )
-from backend.services.llm.services.llm_model_service import llm_model_service
-from fastapi import APIRouter, HTTPException, Query, status
+from backend.services.llm.interfaces.illm_model_service import ILLMModelService
+from backend.services.workflow.dependencies import get_llm_model_service_dep
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+
+# Type alias for DI (Phase 2.3 Tierra)
+LLMModelServiceDep = Annotated[ILLMModelService, Depends(get_llm_model_service_dep)]
 
 # Medical test prompts for model validation
 MEDICAL_TEST_PROMPTS = [
@@ -51,6 +57,7 @@ router = APIRouter(prefix="/admin/llm-models", tags=["LLM Models Admin"])
 
 @router.get("", response_model=list[LLMModelResponse])
 async def list_llm_models(
+    llm_service: LLMModelServiceDep,
     include_inactive: bool = Query(False, description="Include inactive models"),
     provider: str | None = Query(None, description="Filter by provider"),
 ) -> list[LLMModelResponse]:
@@ -62,20 +69,23 @@ async def list_llm_models(
     if provider:
         try:
             provider_enum = LLMProvider(provider)
-            models = llm_model_service.get_models_by_provider(provider_enum)
+            models = llm_service.get_models_by_provider(provider_enum)
         except ValueError as err:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid provider: {provider}. Valid: openai, anthropic, azure",
             ) from err
     else:
-        models = llm_model_service.list_models(include_inactive=include_inactive)
+        models = llm_service.list_models(include_inactive=include_inactive)
 
     return [LLMModelResponse.from_model(m) for m in models]
 
 
 @router.get("/{model_id}", response_model=LLMModelResponse)
-async def get_llm_model(model_id: str) -> LLMModelResponse:
+async def get_llm_model(
+    model_id: str,
+    llm_service: LLMModelServiceDep,
+) -> LLMModelResponse:
     """Get a specific LLM model by ID.
 
     Args:
@@ -84,7 +94,7 @@ async def get_llm_model(model_id: str) -> LLMModelResponse:
     Returns:
         LLM model configuration
     """
-    model = llm_model_service.get_model(model_id)
+    model = llm_service.get_model(model_id)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -94,7 +104,10 @@ async def get_llm_model(model_id: str) -> LLMModelResponse:
 
 
 @router.post("", response_model=LLMModelResponse, status_code=status.HTTP_201_CREATED)
-async def create_llm_model(data: LLMModelCreate) -> LLMModelResponse:
+async def create_llm_model(
+    data: LLMModelCreate,
+    llm_service: LLMModelServiceDep,
+) -> LLMModelResponse:
     """Create a new LLM model configuration.
 
     Args:
@@ -104,7 +117,7 @@ async def create_llm_model(data: LLMModelCreate) -> LLMModelResponse:
         Created LLM model
     """
     try:
-        model = llm_model_service.create_model(data)
+        model = llm_service.create_model(data)
         return LLMModelResponse.from_model(model)
     except ValueError as e:
         raise HTTPException(
@@ -114,7 +127,11 @@ async def create_llm_model(data: LLMModelCreate) -> LLMModelResponse:
 
 
 @router.put("/{model_id}", response_model=LLMModelResponse)
-async def update_llm_model(model_id: str, data: LLMModelUpdate) -> LLMModelResponse:
+async def update_llm_model(
+    model_id: str,
+    data: LLMModelUpdate,
+    llm_service: LLMModelServiceDep,
+) -> LLMModelResponse:
     """Update an existing LLM model configuration.
 
     Args:
@@ -124,7 +141,7 @@ async def update_llm_model(model_id: str, data: LLMModelUpdate) -> LLMModelRespo
     Returns:
         Updated LLM model
     """
-    model = llm_model_service.update_model(model_id, data)
+    model = llm_service.update_model(model_id, data)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -136,6 +153,7 @@ async def update_llm_model(model_id: str, data: LLMModelUpdate) -> LLMModelRespo
 @router.delete("/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_llm_model(
     model_id: str,
+    llm_service: LLMModelServiceDep,
     hard_delete: bool = Query(False, description="Permanently delete instead of deactivating"),
 ) -> None:
     """Delete or deactivate an LLM model.
@@ -147,7 +165,7 @@ async def delete_llm_model(
         model_id: Model identifier
         hard_delete: If true, permanently delete
     """
-    success = llm_model_service.delete_model(model_id, hard_delete=hard_delete)
+    success = llm_service.delete_model(model_id, hard_delete=hard_delete)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -176,7 +194,10 @@ async def list_cost_tiers() -> list[str]:
 
 
 @router.post("/{model_id}/test", response_model=ModelTestResponse)
-async def test_llm_model(model_id: str) -> ModelTestResponse:
+async def test_llm_model(
+    model_id: str,
+    llm_service: LLMModelServiceDep,
+) -> ModelTestResponse:
     """Test an LLM model with a random medical prompt.
 
     Sends a simple medical question to the model and returns the response.
@@ -188,7 +209,7 @@ async def test_llm_model(model_id: str) -> ModelTestResponse:
     Returns:
         Test result with prompt and model response
     """
-    model = llm_model_service.get_model(model_id)
+    model = llm_service.get_model(model_id)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
