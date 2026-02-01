@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import BinaryIO
 
 from backend.repositories.interfaces.idocument_repository import IDocumentRepository
-from backend.services.document.domain.models import (
+from backend.domain.document.models import (
     Document,
     DocumentChunk,
     DocumentMetadata,

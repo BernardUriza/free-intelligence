@@ -49,7 +49,7 @@ from backend.api.routers.order.public import orders
 from backend.api.routers.prescription.public import prescriptions
 from backend.api.routers.session.public import sessions_list
 from backend.api.routers.session.public import sessions_pkg as sessions
-from backend.api.routers.soap import soap
+from backend.api.routers.soap import router as soap
 from backend.infrastructure.system.api.public import system
 from backend.services.timeline.api.public import timeline
 

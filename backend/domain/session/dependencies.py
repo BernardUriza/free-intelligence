@@ -80,6 +80,6 @@ def get_session_service() -> "SessionService":
         SessionService was NEVER removed, just the dependency function was deleted.
         This function restores FastAPI Depends() compatibility for routers.
     """
-    from backend.core.domain.session.services.session_service import SessionService
+    from backend.domain.session.services.session_service import SessionService
     # SessionService accepts optional repository but can work without it (legacy compat)
     return SessionService(repository=None)

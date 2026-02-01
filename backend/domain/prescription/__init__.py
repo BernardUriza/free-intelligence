@@ -13,13 +13,13 @@ Created: 2025-12-28
 Card: FI-RX-002
 """
 
-from backend.core.domain.prescription.models.medication import (
+from backend.domain.prescription.models.medication import (
     Medication,
     MedicationFrequency,
     MedicationRoute,
 )
-from backend.core.domain.prescription.models.prescription import Prescription, PrescriptionStatus
-from backend.core.domain.prescription.models.template import PrescriptionTemplate, TemplateField
+from backend.domain.prescription.models.prescription import Prescription, PrescriptionStatus
+from backend.domain.prescription.models.template import PrescriptionTemplate, TemplateField
 
 __all__ = [
     "Medication",

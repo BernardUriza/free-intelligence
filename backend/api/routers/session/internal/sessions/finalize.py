@@ -51,7 +51,7 @@ from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.executor_pool import spawn_worker
 from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
 
-from backend.core.domain.session.dependencies import get_task_repository
+from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from fastapi import Depends
 

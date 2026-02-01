@@ -42,7 +42,7 @@ def example_basic_usage() -> None:
 def example_type_safe_usage() -> None:
     """Extract with full type safety using Pydantic models."""
     from backend.services.soap.services.llm_client import OllamaClient
-    from backend.services.soap.services.soap_models import SOAPNote
+    from backend.domain.soap.models import SOAPNote
 
     client = OllamaClient()
 

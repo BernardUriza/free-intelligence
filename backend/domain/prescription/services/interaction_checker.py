@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.domain.prescription.data.interactions_catalog import DRUG_INTERACTIONS_CATALOG
-from backend.core.domain.prescription.models.interaction import (
+from backend.domain.prescription.data.interactions_catalog import DRUG_INTERACTIONS_CATALOG
+from backend.domain.prescription.models.interaction import (
     DrugInteraction,
     InteractionAlert,
     InteractionCheckResult,
@@ -22,7 +22,7 @@ from backend.core.domain.prescription.models.interaction import (
 )
 
 if TYPE_CHECKING:
-    from backend.core.domain.prescription.models.medication import Medication
+    from backend.domain.prescription.models.medication import Medication
 
 logger = get_logger(__name__)
 

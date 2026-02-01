@@ -1,5 +1,5 @@
 """SOAP Notes API router."""
 
-from backend.api.routers.soap.soap import router as soap
+from backend.api.routers.soap.soap import router
 
-__all__ = ["soap"]
+__all__ = ["router"]

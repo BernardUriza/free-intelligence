@@ -3,7 +3,7 @@
 Business logic for clinic management.
 """
 
-from backend.core.domain.clinic.services.doctor_limits import (
+from backend.domain.clinic.services.doctor_limits import (
     get_current_doctor_count,
     get_doctor_limit,
     validate_can_add_doctor,

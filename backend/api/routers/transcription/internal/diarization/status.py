@@ -197,7 +197,7 @@ async def get_diarization_status(
 
             # Try to get transcription sources (triple vision)
             import h5py
-            from backend.core.domain.storage.corpus_manager import CORPUS_PATH
+            from backend.domain.storage.corpus_manager import CORPUS_PATH
 
             with h5py.File(CORPUS_PATH, "r") as f:
                 trans_path = f"/sessions/{session_id}/tasks/TRANSCRIPTION"

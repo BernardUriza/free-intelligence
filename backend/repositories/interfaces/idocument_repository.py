@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
-from backend.services.document.domain.models import (
+from backend.domain.document.models import (
     Document,
     DocumentChunk,
     DocumentStatus,

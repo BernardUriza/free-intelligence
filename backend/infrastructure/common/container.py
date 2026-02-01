@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from backend.infrastructure.common.services.evidence_service import EvidenceService
     from backend.infrastructure.common.services.export_service import ExportService
     from backend.infrastructure.common.services.triage_service import TriageService
-    # from backend.core.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
+    # from backend.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.storage.services.corpus_service import CorpusService
     from backend.infrastructure.system.services.system_health_service import SystemHealthService
     from backend.services.transcription.services.diarization_service import (
@@ -73,7 +73,7 @@ else:
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
     # Use direct imports for services that accept repositories (not from services module)
-    # from backend.core.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
+    # from backend.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.api.audit.services.audit_service import AuditService
 
     # Import DI services
@@ -82,7 +82,7 @@ else:
     from backend.api.audit.services.di_audit_service import DIAuditService
     from backend.services.evidence.services.evidence_service import DIEvidenceService
     from backend.services.export.services.export_service import DIExportService
-    # from backend.core.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup
+    # from backend.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup
     #     SessionService as DISessionService,
     # )
     from backend.infrastructure.system.services.di_system_health_service import DISystemHealthService

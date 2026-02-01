@@ -19,7 +19,7 @@ from typing import Any, TYPE_CHECKING
 from backend.clients.dependencies import get_llm_client_dep
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.soap.dependencies import get_task_repository
-from backend.services.soap.services.soap_models import SOAPNote
+from backend.domain.soap.models import SOAPNote
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status

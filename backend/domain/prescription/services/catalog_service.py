@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from backend.core.domain.prescription.data.mexico_catalog import MEXICO_MEDICATION_CATALOG
-from backend.core.domain.prescription.models.catalog import (
+from backend.domain.prescription.data.mexico_catalog import MEXICO_MEDICATION_CATALOG
+from backend.domain.prescription.models.catalog import (
     ControlledSubstanceLevel,
     DrugCategory,
     MedicationCatalogEntry,

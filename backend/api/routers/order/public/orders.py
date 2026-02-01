@@ -15,7 +15,7 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-from backend.core.domain.order.dependencies import get_task_repository
+from backend.domain.order.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status

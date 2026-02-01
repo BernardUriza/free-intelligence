@@ -128,7 +128,7 @@ async def test_list_sessions_only_returns_own_sessions(doctor_a, mock_container)
 async def test_list_sessions_without_user_id_raises_error(mock_container):
     """Calling list_sessions() without user_id should raise ValueError"""
 
-    from backend.core.domain.session.services.session_service import SessionService
+    from backend.domain.session.services.session_service import SessionService
 
     service = SessionService()
 

@@ -22,18 +22,18 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from backend.core.domain.session.dependencies import get_task_repository
+from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.core.domain.prescription.models.medication import Medication
-from backend.core.domain.prescription.models.prescription import (
+from backend.domain.prescription.models.medication import Medication
+from backend.domain.prescription.models.prescription import (
     PatientInfo,
     PhysicianInfo,
     Prescription,
     PrescriptionStatus,
 )
-from backend.core.domain.prescription.models.template import PrescriptionTemplate
-from backend.core.domain.prescription.services.template_engine import get_template_engine
+from backend.domain.prescription.models.template import PrescriptionTemplate
+from backend.domain.prescription.services.template_engine import get_template_engine
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -659,8 +659,8 @@ async def search_catalog(
     Returns:
         Search results with relevance scores
     """
-    from backend.core.domain.prescription.models.catalog import DrugCategory
-    from backend.core.domain.prescription.services.catalog_service import (
+    from backend.domain.prescription.models.catalog import DrugCategory
+    from backend.domain.prescription.services.catalog_service import (
         CatalogSearchRequest,
         catalog_service,
     )
@@ -725,8 +725,8 @@ async def autocomplete_medication(
     Returns:
         List of medication name suggestions
     """
-    from backend.core.domain.prescription.models.catalog import DrugCategory
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.models.catalog import DrugCategory
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     # Parse category if provided
     category_enum = None
@@ -767,7 +767,7 @@ async def get_catalog_medication(medication_id: str) -> dict[str, Any]:
     Raises:
         404: Medication not found
     """
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     medication = catalog_service.get_by_id(medication_id)
 
@@ -790,7 +790,7 @@ async def list_categories() -> dict[str, Any]:
     Returns:
         List of categories with value and label
     """
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     categories = catalog_service.get_categories()
     return {"categories": categories}
@@ -806,7 +806,7 @@ async def get_catalog_stats() -> dict[str, Any]:
     Returns:
         Catalog statistics
     """
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     stats = catalog_service.get_catalog_stats()
     return {"stats": stats}
@@ -827,7 +827,7 @@ async def list_essential_medications(
     Returns:
         List of essential medications
     """
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     medications = catalog_service.get_essential_medications(limit=limit)
     return {
@@ -851,7 +851,7 @@ async def list_otc_medications(
     Returns:
         List of OTC medications
     """
-    from backend.core.domain.prescription.services.catalog_service import catalog_service
+    from backend.domain.prescription.services.catalog_service import catalog_service
 
     medications = catalog_service.get_otc_medications(limit=limit)
     return {
@@ -907,7 +907,7 @@ async def check_interactions(
         POST /prescriptions/interactions/check
         {"medications": ["Warfarina", "Ketorolaco", "Metformina"]}
     """
-    from backend.core.domain.prescription.services.interaction_checker import get_interaction_checker
+    from backend.domain.prescription.services.interaction_checker import get_interaction_checker
 
     checker = get_interaction_checker()
     result = checker.check_medications(request.medications)
@@ -958,7 +958,7 @@ async def check_prescription_interactions(
     Returns:
         Interaction check result with alerts and summary
     """
-    from backend.core.domain.prescription.services.interaction_checker import get_interaction_checker
+    from backend.domain.prescription.services.interaction_checker import get_interaction_checker
 
     checker = get_interaction_checker()
     result = checker.check_medication_objects(request.medications)
@@ -1000,7 +1000,7 @@ async def get_drug_interactions(drug_name: str) -> dict[str, Any]:
     Returns:
         List of interactions involving this drug, sorted by severity
     """
-    from backend.core.domain.prescription.services.interaction_checker import get_interaction_checker
+    from backend.domain.prescription.services.interaction_checker import get_interaction_checker
 
     checker = get_interaction_checker()
     interactions = checker.get_interactions_for_drug(drug_name)
@@ -1032,7 +1032,7 @@ async def get_interaction_stats() -> dict[str, Any]:
     Returns:
         Interaction database statistics
     """
-    from backend.core.domain.prescription.services.interaction_checker import get_interaction_checker
+    from backend.domain.prescription.services.interaction_checker import get_interaction_checker
 
     checker = get_interaction_checker()
     stats = checker.get_stats()
@@ -1097,7 +1097,7 @@ async def check_allergies(
         POST /prescriptions/allergies/check
         {"medications": ["Amoxicilina"], "patient_allergies": ["Penicilina"]}
     """
-    from backend.core.domain.prescription.services.allergy_checker import get_allergy_checker
+    from backend.domain.prescription.services.allergy_checker import get_allergy_checker
 
     checker = get_allergy_checker()
     result = checker.check_medications(
@@ -1151,7 +1151,7 @@ async def get_medication_allergens(medication_name: str) -> dict[str, Any]:
     Returns:
         List of allergen entries this medication is related to
     """
-    from backend.core.domain.prescription.services.allergy_checker import get_allergy_checker
+    from backend.domain.prescription.services.allergy_checker import get_allergy_checker
 
     checker = get_allergy_checker()
     allergens = checker.get_allergens_for_medication(medication_name)
@@ -1182,7 +1182,7 @@ async def get_allergy_stats() -> dict[str, Any]:
     Returns:
         Allergen database statistics
     """
-    from backend.core.domain.prescription.services.allergy_checker import get_allergy_checker
+    from backend.domain.prescription.services.allergy_checker import get_allergy_checker
 
     checker = get_allergy_checker()
     stats = checker.get_stats()

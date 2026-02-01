@@ -10,7 +10,7 @@ Context: Security hardening before pilot launch
 """
 
 import pytest
-from backend.core.domain.session.services.session_service import SessionService
+from backend.domain.session.services.session_service import SessionService
 
 
 # ============================================================================

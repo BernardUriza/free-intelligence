@@ -22,7 +22,7 @@ import h5py
 import numpy as np
 
 from backend.repositories.interfaces.idocument_repository import IDocumentRepository
-from backend.services.document.domain.models import (
+from backend.domain.document.models import (
     Document,
     DocumentChunk,
     DocumentMetadata,

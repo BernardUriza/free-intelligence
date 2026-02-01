@@ -17,16 +17,18 @@ Card: Backend Refactor Phase 3B Part 2 - Pure Domain Entities
 """
 
 # Patient domain
-from backend.domain.patient import Gender, IPatientRepository, Patient
+# from backend.domain.patient import Gender, IPatientRepository, Patient
 
 # Session domain
-from backend.domain.session import ISessionRepository, Session, SessionStatus
+# from backend.domain.session import ISessionRepository, Session, SessionStatus
 
 # Order domain
-from backend.domain.order import IOrderRepository, Order, OrderStatus, OrderType
+# from backend.domain.order import IOrderRepository, Order, OrderStatus, OrderType
 
 # SOAP domain
-from backend.domain.soap import ISOAPRepository, SOAPNote, SOAPStatus
+# from backend.domain.soap import ISOAPRepository, SOAPNote, SOAPStatus
+
+# TODO: Re-enable these imports after defining the entities properly
 
 __all__ = [
     # Patient

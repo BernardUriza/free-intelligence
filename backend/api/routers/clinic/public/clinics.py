@@ -21,7 +21,7 @@ from backend.models.checkin_models import (
     Clinic,
     Doctor,
 )
-from backend.core.domain.clinic.services.doctor_limits import (
+from backend.domain.clinic.services.doctor_limits import (
     get_doctor_limit_info,
     validate_can_add_doctor,
 )

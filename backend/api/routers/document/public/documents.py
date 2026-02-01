@@ -26,7 +26,7 @@ from typing import Any
 
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
-from backend.services.document.domain.models import (
+from backend.domain.document.models import (
     DocumentMetadata,
     DocumentOrigin,
     DocumentStatus,

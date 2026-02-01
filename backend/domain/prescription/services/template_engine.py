@@ -14,16 +14,16 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from backend.utils.common.logging.logger import get_logger
-from backend.core.domain.prescription.models.allergy import AllergyCheckResult
-from backend.core.domain.prescription.models.interaction import InteractionCheckResult
-from backend.core.domain.prescription.models.medication import Medication
-from backend.core.domain.prescription.models.prescription import (
+from backend.domain.prescription.models.allergy import AllergyCheckResult
+from backend.domain.prescription.models.interaction import InteractionCheckResult
+from backend.domain.prescription.models.medication import Medication
+from backend.domain.prescription.models.prescription import (
     PatientInfo,
     PhysicianInfo,
     Prescription,
     PrescriptionStatus,
 )
-from backend.core.domain.prescription.models.template import (
+from backend.domain.prescription.models.template import (
     PrescriptionTemplate,
     get_default_template,
 )
@@ -286,7 +286,7 @@ class TemplateEngine:
         Returns:
             InteractionCheckResult with alerts and recommendations
         """
-        from backend.core.domain.prescription.services.interaction_checker import get_interaction_checker
+        from backend.domain.prescription.services.interaction_checker import get_interaction_checker
 
         checker = get_interaction_checker()
         result = checker.check_medication_objects(medications)
@@ -363,7 +363,7 @@ class TemplateEngine:
         Returns:
             AllergyCheckResult with alerts and recommendations
         """
-        from backend.core.domain.prescription.services.allergy_checker import get_allergy_checker
+        from backend.domain.prescription.services.allergy_checker import get_allergy_checker
 
         checker = get_allergy_checker()
         result = checker.check_medication_objects(medications, patient_allergies)
@@ -521,7 +521,7 @@ class TemplateEngine:
         # Try AI extraction first (FI-RX-003)
         if use_ai:
             try:
-                from backend.core.domain.prescription.services.medication_extractor import (
+                from backend.domain.prescription.services.medication_extractor import (
                     get_medication_extractor,
                 )
 

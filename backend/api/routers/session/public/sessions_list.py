@@ -9,7 +9,7 @@ Created: 2025-11-16
 
 from __future__ import annotations
 
-from backend.core.domain.session.dependencies import get_corpus_repository
+from backend.domain.session.dependencies import get_corpus_repository
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository

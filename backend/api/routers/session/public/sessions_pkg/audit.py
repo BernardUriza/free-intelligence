@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.container import get_container
-from backend.core.domain.session.dependencies import get_task_repository
+from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.auth import User, get_current_user
 from backend.infrastructure.common.api.public.models import (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from backend.core.domain.session.dependencies import get_corpus_repository, get_task_repository
+from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository

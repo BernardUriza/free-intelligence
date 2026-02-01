@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 
-from backend.core.domain.session.dependencies import get_corpus_repository
+from backend.domain.session.dependencies import get_corpus_repository
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
