@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 def diarize_session_worker(
     session_id: str,
     task_repo: ITaskRepository,
-    workflow_workflow_tracker: IWorkflowTracker,
+    workflow_tracker: IWorkflowTracker,
     policy_loader: IPolicyLoader,
     diarization_provider: str | None = None,
 ) -> dict[str, Any]:
@@ -43,14 +43,14 @@ def diarize_session_worker(
     Args:
         session_id: Session identifier
         task_repo: Task repository (injected for thread-safety)
-        workflow_workflow_tracker: Workflow workflow_tracker (injected - Phase 2.3 DI migration)
+        workflow_tracker: Workflow tracker (injected - Phase 2.3 DI migration)
         policy_loader: Policy loader (injected - Phase 2.3 DI migration)
         diarization_provider: Provider (azure_gpt4, ollama, etc)
 
     Returns:
         WorkerResult with segments, speakers, confidence
     """
-    # P1: Mark task as started in workflow workflow_tracker (workflow_tracker injected via DI)
+    # P1: Mark task as started in workflow tracker (injected via DI)
     workflow_tracker.mark_task_started(session_id, TaskType.DIARIZATION)
 
     try:
