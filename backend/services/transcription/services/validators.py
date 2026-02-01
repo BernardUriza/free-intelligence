@@ -6,7 +6,6 @@ Validation logic for:
 """
 
 from __future__ import annotations
-from backend.container import get_container
 
 # FIXME: Broken import - validate_session_id (storage_validate_session_id)
 # Use validator from backend.validators

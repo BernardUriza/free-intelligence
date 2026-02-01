@@ -24,14 +24,14 @@ Card: Voice chat integration (chat handler)
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 from typing import Any
 
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.services.chunk_handler import ChunkHandler
+from backend.utils.common.services.chunk_handler import (
+    ChunkHandler,
     mark_chat_session_completed,
+)
 
 logger = get_logger(__name__)
 

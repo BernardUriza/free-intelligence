@@ -21,7 +21,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from backend.container import get_container
 from backend.services.transcription.services.whisper import (
     CPU_THREADS,
     NUM_WORKERS,

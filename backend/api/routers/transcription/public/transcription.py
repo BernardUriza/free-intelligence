@@ -14,8 +14,6 @@ Created: 2025-11-15 (Refactored from monolithic router)
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 import json
 

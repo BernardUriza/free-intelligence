@@ -54,10 +54,10 @@ async def lifespan(app: FastAPI):
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
 
-    # Verify Event Bus is accessible via Container (lazy init)
+    # Verify Event Bus is accessible (Phase 2.3 Plutón - direct instantiation)
     try:
-        from backend.container import get_container
-        _ = get_container().get_event_bus()  # Trigger lazy initialization
+        from backend.infrastructure.events.event_bus import InMemoryEventBus
+        _ = InMemoryEventBus()  # Verify EventBus can be instantiated
         logger.info("EVENT_BUS_READY", implementation="InMemoryEventBus", status="available")
     except Exception as e:
         logger.warning("EVENT_BUS_VERIFICATION_FAILED", error=str(e))
