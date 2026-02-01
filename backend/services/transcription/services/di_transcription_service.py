@@ -1,10 +1,18 @@
 """Transcription Service - Dependency Injection version.
 
 REFACTORED: Uses constructor injection instead of Service Locator.
-All 6 get_container() calls replaced with injected dependencies.
+All get_container() calls replaced with injected dependencies (Phase 2.3 complete).
+
+Dependencies injected via constructor:
+- ITaskRepository (was 6 get_container() calls)
+- SessionRepository
+- EventBus (was 2 get_container() calls)
+- ILogger (optional)
+- TranscriptionConfig (optional)
 
 Author: Claude Code (refactored from transcription_service.py)
 Created: 2026-01-28
+Updated: 2026-02-01 (Phase 2.3 - eliminated last get_container() uses)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
@@ -24,11 +32,12 @@ from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 from backend.utils.common.validation import validate_dependency
 
-# Event bus via dependency injection Container
-def get_event_bus():
-    """Get event bus from Container (lazy initialization)."""
-    from backend.container import get_container
-    return get_container().get_event_bus()
+# REMOVED: get_event_bus() helper (Phase 2.3)
+# Event bus is now injected via constructor instead of using get_container()
+# Old pattern (removed):
+#   def get_event_bus():
+#       from backend.container import get_container
+#       return get_container().get_event_bus()
 
 
 class TranscriptionChunkEvent:
@@ -71,8 +80,9 @@ class DITranscriptionService:
     Replaces Service Locator pattern with constructor injection.
     All dependencies are explicit and testable.
 
-    Dependencies eliminated from get_container():
+    Dependencies eliminated from get_container() (Phase 2.3 complete):
     - ITaskRepository (6 calls) → Constructor injected
+    - EventBus (2 calls) → Constructor injected (optional)
     - ILogger (module-level) → Constructor injected (optional)
     """
 
@@ -80,6 +90,7 @@ class DITranscriptionService:
         self,
         task_repository: ITaskRepository,
         session_repository: SessionRepository,
+        event_bus: Any | None = None,
         logger: ILogger | None = None,
         config: "TranscriptionConfig | None" = None,
     ):
@@ -88,6 +99,7 @@ class DITranscriptionService:
         Args:
             task_repository: Task repository for chunk/metadata operations
             session_repository: Session repository for session validation (Fix #2)
+            event_bus: Event bus for publishing transcription events (optional)
             logger: Logger instance (defaults to module logger)
             config: Type-safe configuration (defaults to get_transcription_config())
 
@@ -96,6 +108,7 @@ class DITranscriptionService:
         """
         self.task_repo = task_repository
         self.session_repo = session_repository
+        self.event_bus = event_bus  # Injected dependency (was get_container().get_event_bus())
         self.logger = logger or get_logger(__name__)
 
         # Import here to avoid circular dependency
@@ -199,10 +212,9 @@ class DITranscriptionService:
         )
 
         # 2b. Emit TRANSCRIPTION_STARTED event (first chunk only)
-        if chunk_number == 0:
+        if chunk_number == 0 and self.event_bus:
             try:
-                event_bus = get_event_bus()
-                await event_bus.publish(
+                await self.event_bus.publish(
                     TranscriptionStartedEvent.create(
                         session_id=session_id,
                         mode="medical",
@@ -251,17 +263,17 @@ class DITranscriptionService:
         )
 
         # 3b. Emit TRANSCRIPTION_CHUNK event
-        try:
-            event_bus = get_event_bus()
-            await event_bus.publish(
-                TranscriptionChunkEvent.create(
-                    session_id=session_id,
-                    chunk_number=chunk_number,
-                    audio_size_bytes=audio_size,
+        if self.event_bus:
+            try:
+                await self.event_bus.publish(
+                    TranscriptionChunkEvent.create(
+                        session_id=session_id,
+                        chunk_number=chunk_number,
+                        audio_size_bytes=audio_size,
+                    )
                 )
-            )
-        except Exception as e:
-            self.logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
+            except Exception as e:
+                self.logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks) (INJECTED - was get_container())
         metadata = self.task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.name) or {}

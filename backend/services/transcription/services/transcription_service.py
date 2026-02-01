@@ -17,11 +17,12 @@ from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
-# Event bus via dependency injection Container
-def get_event_bus():
-    """Get event bus from Container (lazy initialization)."""
-    from backend.container import get_container
-    return get_container().get_event_bus()
+# REMOVED: get_event_bus() helper (Phase 2.3)
+# Event bus is now injected via constructor instead of using get_container()
+# Old pattern (removed):
+#   def get_event_bus():
+#       from backend.container import get_container
+#       return get_container().get_event_bus()
 
 class TranscriptionChunkEvent:
     """Stub event."""
@@ -62,13 +63,15 @@ class ChunkProcessingResult:
 class TranscriptionService:
     """Service for audio transcription business logic."""
 
-    def __init__(self, task_repository: ITaskRepository):
+    def __init__(self, task_repository: ITaskRepository, event_bus=None):
         """Initialize transcription service with dependencies.
 
         Args:
             task_repository: Task repository for session/task management
+            event_bus: Event bus for publishing transcription events (optional, injected)
         """
         self.task_repo = task_repository
+        self.event_bus = event_bus  # Injected dependency (was get_container().get_event_bus())
 
     async def process_chunk(
         self,
@@ -146,10 +149,9 @@ class TranscriptionService:
         )
 
         # 2b. Emit TRANSCRIPTION_STARTED event (first chunk only)
-        if chunk_number == 0:
+        if chunk_number == 0 and self.event_bus:
             try:
-                event_bus = get_event_bus()
-                await event_bus.publish(
+                await self.event_bus.publish(
                     TranscriptionStartedEvent.create(
                         session_id=session_id,
                         mode="medical",
@@ -203,17 +205,17 @@ class TranscriptionService:
         )
 
         # 3b. Emit TRANSCRIPTION_CHUNK event
-        try:
-            event_bus = get_event_bus()
-            await event_bus.publish(
-                TranscriptionChunkEvent.create(
-                    session_id=session_id,
-                    chunk_number=chunk_number,
-                    audio_size_bytes=audio_size,
+        if self.event_bus:
+            try:
+                await self.event_bus.publish(
+                    TranscriptionChunkEvent.create(
+                        session_id=session_id,
+                        chunk_number=chunk_number,
+                        audio_size_bytes=audio_size,
+                    )
                 )
-            )
-        except Exception as e:
-            logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
+            except Exception as e:
+                logger.warning("EVENT_PUBLISH_FAILED", event="TRANSCRIPTION_CHUNK", error=str(e))
 
         # 4. Update task metadata (track total chunks)
         metadata = self.task_repo.get_task_metadata(session_id, TaskType.TRANSCRIPTION.name) or {}
