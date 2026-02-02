@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 
 import h5py
+from backend.api.audit.dependencies import get_audit_service
 from backend.config import CORPUS_PATH
 from backend.infrastructure.common.dependencies import get_transcription_service
 from backend.utils.common.logging.logger import get_logger
@@ -100,6 +101,7 @@ async def stream_chunk(
     patient_id: str | None = Form(None),
     chief_complaint: str | None = Form(None),
     service: TranscriptionService = Depends(get_transcription_service),
+    audit_service=Depends(get_audit_service),
 ) -> StreamChunkResponse:
     """Upload audio chunk for transcription (mode-agnostic with Strategy Pattern).
 
@@ -283,10 +285,24 @@ async def stream_chunk(
         # Re-raise HTTP exceptions as-is
         raise
     except ValueError as e:
-        logger.error("VALIDATION_ERROR", session_id=session_id, mode=mode, error=str(e))
+        # Audit validation failure for compliance tracking
+        audit_service.log_action(
+            action="chunk_uploaded",
+            user_id=doctor_id,  # Using doctor_id from form data
+            resource=f"{session_id}/chunk_{chunk_number}",
+            result="failure",
+            details={"error": str(e), "error_type": "validation_error", "mode": mode},
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
-        logger.error("CHUNK_UPLOAD_FAILED", session_id=session_id, mode=mode, error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="chunk_uploaded",
+            user_id=doctor_id,  # Using doctor_id from form data
+            resource=f"{session_id}/chunk_{chunk_number}",
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__, "mode": mode},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process chunk: {e!s}",
@@ -297,6 +313,7 @@ async def stream_chunk(
 async def get_job_status(
     session_id: str,
     service: TranscriptionService = Depends(get_transcription_service),
+    audit_service=Depends(get_audit_service),
 ) -> JobStatusResponse:
     """Poll transcription job status (mode-agnostic with Strategy Pattern).
 
@@ -346,10 +363,24 @@ async def get_job_status(
         return JobStatusResponse(**status_dict)
 
     except ValueError as e:
-        logger.error("SESSION_NOT_FOUND", session_id=session_id, error=str(e))
+        # Audit not found failure for compliance tracking
+        audit_service.log_action(
+            action="job_status_retrieved",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": "session_not_found"},
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
-        logger.error("GET_JOB_FAILED", session_id=session_id, error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="job_status_retrieved",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get job: {e!s}",

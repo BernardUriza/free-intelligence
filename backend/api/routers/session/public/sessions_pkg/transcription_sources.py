@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
@@ -23,6 +24,7 @@ async def get_transcription_sources_workflow(
     session_id: str,
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
 
@@ -103,11 +105,13 @@ async def get_transcription_sources_workflow(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "TRANSCRIPTION_SOURCES_GET_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="transcription_sources_retrieved",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

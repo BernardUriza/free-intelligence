@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
@@ -22,6 +23,7 @@ logger = get_logger(__name__)
 async def get_session_audio_workflow(
     session_id: str,
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+    audit_service=Depends(get_audit_service),
 ) -> FileResponse:
     """Serve full audio file from completed session (PUBLIC endpoint)."""
     validate_session_id(session_id)
@@ -121,7 +123,14 @@ async def get_session_audio_workflow(
                     temp_file=temp_file_path,
                     error=str(cleanup_error),
                 )
-        logger.error("SESSION_AUDIO_GET_FAILED", session_id=session_id, error=str(e), exc_info=True)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="session_audio_retrieved",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get session audio: {e!s}",
