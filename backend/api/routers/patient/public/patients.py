@@ -105,7 +105,11 @@ class CurpValidationResponse(BaseModel):
 
 
 @router.post("/validate-curp", response_model=CurpValidationResponse)
-def validate_curp(request: CurpValidationRequest, db: Session = Depends(get_db_dependency)):
+def validate_curp(
+    request: CurpValidationRequest,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Validate CURP format and availability.
 
     Checks:
@@ -150,7 +154,14 @@ def validate_curp(request: CurpValidationRequest, db: Session = Depends(get_db_d
         return CurpValidationResponse(valid=True, available=True, message=None)
 
     except Exception as e:
-        logger.error("CURP_VALIDATION_FAILED", error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="curp_validated",
+            user_id="system",  # TODO: Add current_user dependency
+            resource=request.curp[:4] + "****",  # Partial CURP for privacy
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         # On error, return valid=True but available=True to not block form
         # The final create/update will catch duplicates
         return CurpValidationResponse(
@@ -210,7 +221,14 @@ def create_patient(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PATIENT_CREATE_FAILED", error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="patient_created",
+            user_id="system",  # TODO: Add current_user dependency
+            resource="unknown",  # Patient ID not available on failure
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(status_code=500, detail="Failed to create patient")
 
 
@@ -220,6 +238,7 @@ def list_patients(
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Skip N results"),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ):
     """List patients with optional search and pagination.
 
@@ -251,14 +270,25 @@ def list_patients(
         return [p.to_dict() for p in patients]
 
     except Exception as e:
-        logger.error("PATIENTS_LIST_FAILED", error=str(e), error_type=type(e).__name__)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="patients_listed",
+            user_id="system",  # TODO: Add current_user dependency
+            resource="list",
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__, "search": search},
+        )
         raise HTTPException(
             status_code=500, detail=f"Failed to list patients: {type(e).__name__}: {e!s}"
         )
 
 
 @router.get("/{patient_id}", response_model=PatientResponse)
-def get_patient(patient_id: str, db: Session = Depends(get_db_dependency)):
+def get_patient(
+    patient_id: str,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Get patient by ID.
 
     Args:
@@ -282,7 +312,14 @@ def get_patient(patient_id: str, db: Session = Depends(get_db_dependency)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PATIENT_GET_FAILED", error=str(e), patient_id=patient_id)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="patient_retrieved",
+            user_id="system",  # TODO: Add current_user dependency
+            resource=patient_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve patient")
 
 
@@ -342,7 +379,14 @@ def update_patient(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PATIENT_UPDATE_FAILED", error=str(e), patient_id=patient_id)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="patient_updated",
+            user_id="system",  # TODO: Add current_user dependency
+            resource=patient_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(status_code=500, detail="Failed to update patient")
 
 
@@ -381,5 +425,12 @@ def delete_patient(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PATIENT_DELETE_FAILED", error=str(e), patient_id=patient_id)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="patient_deleted",
+            user_id="system",  # TODO: Add current_user dependency
+            resource=patient_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
+        )
         raise HTTPException(status_code=500, detail="Failed to delete patient")
