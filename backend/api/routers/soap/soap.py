@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.clients.dependencies import get_llm_client_dep
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.soap.dependencies import get_task_repository
@@ -106,6 +107,7 @@ class AssistantResponse(BaseModel):
 async def get_soap_workflow(
     session_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> dict:
     """Get SOAP note data - generates if not exists (PUBLIC endpoint).
 
@@ -162,11 +164,13 @@ async def get_soap_workflow(
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.error(
-            "SOAP_GET_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="soap_retrieved",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -182,6 +186,7 @@ async def update_soap_workflow(
     session_id: str,
     request: SOAPUpdateRequest,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> dict:
     """Update SOAP note data (PUBLIC endpoint).
 
@@ -296,11 +301,13 @@ async def update_soap_workflow(
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.error(
-            "SOAP_UPDATE_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="soap_updated",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -322,6 +329,7 @@ async def soap_assistant_workflow(
     session_id: str,
     request: AssistantRequest,
     llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
+    audit_service=Depends(get_audit_service),
 ) -> AssistantResponse:
     """Process natural language command to modify SOAP data (PUBLIC orchestrator).
 
@@ -452,12 +460,17 @@ async def soap_assistant_workflow(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "ASSISTANT_COMMAND_FAILED",
-            session_id=session_id,
-            command=request.command,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="soap_assistant_command",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=session_id,
+            result="failure",
+            details={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "command": request.command[:100],  # Truncate command for privacy
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

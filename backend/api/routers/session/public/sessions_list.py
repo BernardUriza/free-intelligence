@@ -9,6 +9,7 @@ Created: 2025-11-16
 
 from __future__ import annotations
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User, UserRole
@@ -66,6 +67,7 @@ async def list_sessions(
     offset: int = 0,
     current_user: User = Depends(get_current_user),
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+    audit_service=Depends(get_audit_service),
 ) -> SessionsListResponse:
     """List sessions from HDF5 (lightweight, fast) - FILTERED BY CLINIC_ID.
 
@@ -119,7 +121,15 @@ async def list_sessions(
         return SessionsListResponse(sessions=sessions_list, total=total)
 
     except Exception as e:
-        logger.error("SESSIONS_LIST_FAILED", error=str(e), exc_info=True)
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="sessions_listed",
+            user_id=current_user.id,
+            resource="list",
+            result="failure",
+            clinic_id=current_user.clinic_id,
+            details={"error": str(e), "error_type": type(e).__name__, "limit": limit, "offset": offset},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list sessions: {e!s}",

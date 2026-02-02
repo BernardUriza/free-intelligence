@@ -15,6 +15,7 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.domain.order.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
@@ -180,6 +181,7 @@ async def update_order_workflow(
     order_id: str,
     request: OrderUpdateRequest,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> dict:
     """Update an existing order (PUBLIC endpoint).
 
@@ -226,18 +228,26 @@ async def update_order_workflow(
         }
 
     except ValueError as e:
-        logger.error("ORDER_NOT_FOUND", session_id=session_id, error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="order_updated",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=f"{session_id}/{order_id}",
+            result="failure",
+            details={"error": str(e), "error_type": "not_found"},
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
     except Exception as e:
-        logger.error(
-            "ORDER_UPDATE_FAILED",
-            session_id=session_id,
-            order_id=order_id,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="order_updated",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=f"{session_id}/{order_id}",
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -253,6 +263,7 @@ async def delete_order_workflow(
     session_id: str,
     order_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    audit_service=Depends(get_audit_service),
 ) -> dict:
     """Delete an order (PUBLIC endpoint).
 
@@ -290,18 +301,26 @@ async def delete_order_workflow(
         }
 
     except ValueError as e:
-        logger.error("ORDER_NOT_FOUND", session_id=session_id, error=str(e))
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="order_deleted",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=f"{session_id}/{order_id}",
+            result="failure",
+            details={"error": str(e), "error_type": "not_found"},
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
     except Exception as e:
-        logger.error(
-            "ORDER_DELETE_FAILED",
-            session_id=session_id,
-            order_id=order_id,
-            error=str(e),
-            exc_info=True,
+        # Audit failure for compliance tracking
+        audit_service.log_action(
+            action="order_deleted",
+            user_id="system",  # TODO: Add current_user dependency for user tracking
+            resource=f"{session_id}/{order_id}",
+            result="failure",
+            details={"error": str(e), "error_type": type(e).__name__},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
