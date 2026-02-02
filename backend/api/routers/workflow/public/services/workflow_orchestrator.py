@@ -232,7 +232,7 @@ class WorkflowOrchestrator:
         Returns:
             Encryption dispatch response
         """
-        from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
+        from backend.infrastructure.workers.tasks.encryption.worker import encrypt_session_worker
 
         self.logger.info(
             "ORCHESTRATOR_DISPATCH_ENCRYPTION",

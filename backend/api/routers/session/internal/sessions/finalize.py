@@ -49,7 +49,7 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.executor_pool import spawn_worker
-from backend.infrastructure.workers.tasks.encryption_worker import encrypt_session_worker
+from backend.infrastructure.workers.tasks.encryption.worker import encrypt_session_worker
 
 from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository

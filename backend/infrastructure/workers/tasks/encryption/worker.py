@@ -55,6 +55,19 @@ import sys
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pathlib import Path
 
+# Import constants from dedicated module
+from backend.infrastructure.workers.tasks.encryption.constants import (
+    CHUNK_DURATION_SECONDS,
+    CHUNK_SIZE_BYTES,
+    CHUNK_SIZE_THRESHOLD_MB,
+    CRYPTO_BASE_PATH,
+    CRYPTO_SCHEMA_VERSION,
+    DEFAULT_TARGET_PATTERNS,
+    DEK_SIZE_BYTES,
+    GCM_TAG_SIZE_BYTES,
+    IV_SIZE_BYTES,
+)
+
 # Import structlog logger for consistent logging
 try:
     from backend.models.task_type import (
@@ -89,42 +102,6 @@ except ImportError:
         pass
 
     HAS_BACKEND_IMPORTS = False  # type: ignore[assignment]
-
-# ═══════════════════════════════════════════════════════════════════
-# Configuration & Constants
-# ═══════════════════════════════════════════════════════════════════
-
-# AES-GCM-256 parameters (NIST SP 800-38D)
-DEK_SIZE_BYTES: Final[int] = 32  # 256 bits
-IV_SIZE_BYTES: Final[int] = 12  # 96 bits (recommended for GCM)
-GCM_TAG_SIZE_BYTES: Final[int] = 16  # 128 bits authentication tag
-
-# HDF5 schema version
-CRYPTO_SCHEMA_VERSION: Final[str] = "v1"
-CRYPTO_BASE_PATH: Final[str] = f"/crypto/{CRYPTO_SCHEMA_VERSION}"
-
-# Large file chunking configuration (FI-CORE-CRYPTO-15)
-CHUNK_SIZE_THRESHOLD_MB: Final[int] = 500  # Files > 500MB get chunked
-CHUNK_DURATION_SECONDS: Final[int] = 60  # 60 second audio chunks
-CHUNK_SIZE_BYTES: Final[int] = 50 * 1024 * 1024  # 50MB per chunk fallback
-
-# Default encryption targets (template patterns for task-based schema)
-# These will be formatted with session_id at runtime
-DEFAULT_TARGET_PATTERNS: Final[list[str]] = [
-    # Task-based schema (NEW - since 2025-11-14)
-    "/sessions/{session_id}/tasks/TRANSCRIPTION/full_audio.webm",
-    "/sessions/{session_id}/tasks/TRANSCRIPTION/webspeech_final",
-    "/sessions/{session_id}/tasks/TRANSCRIPTION/full_transcription",
-    "/sessions/{session_id}/tasks/DIARIZATION/segments",
-    "/sessions/{session_id}/tasks/SOAP_GENERATION/soap_note",
-    # Legacy schema (OLD - kept for backward compatibility)
-    "/audio/full_audio",
-    "/audio/raw",
-    "/transcriptions",
-    "/transcript",
-    "/soap/note",
-    "/soap",
-]
 
 # Logger instance (structlog for consistency with backend)
 logger = get_logger("encryption_worker")
