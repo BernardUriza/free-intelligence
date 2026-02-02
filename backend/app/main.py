@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
 
     # Verify Event Bus is accessible (Phase 2.3 Plutón - direct instantiation)
     try:
-        from backend.infrastructure.events.event_bus import InMemoryEventBus
+        from backend.utils.common.event_bus import InMemoryEventBus
         _ = InMemoryEventBus()  # Verify EventBus can be instantiated
         logger.info("EVENT_BUS_READY", implementation="InMemoryEventBus", status="available")
     except Exception as e:
