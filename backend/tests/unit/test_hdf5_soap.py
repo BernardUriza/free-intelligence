@@ -3,8 +3,8 @@
 Tests cover SOAP note generation data storage.
 """
 
-from backend.container import get_container
 from __future__ import annotations
+from backend.container import get_container
 
 from unittest.mock import MagicMock, patch
 
@@ -20,12 +20,9 @@ class TestGetSoapData:
 
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
     def test_raises_when_no_corpus(
-        self,
         mock_corpus_path: MagicMock,
     ) -> None:
         """Test get_soap_data raises when corpus doesn't exist."""
-            get_soap_data,
-        )
 
         mock_corpus_path.exists.return_value = False
 
@@ -35,13 +32,10 @@ class TestGetSoapData:
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
     def test_raises_when_no_task(
-        self,
         mock_corpus_path: MagicMock,
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data raises when task doesn't exist."""
-            get_soap_data,
-        )
 
         mock_corpus_path.exists.return_value = True
 
@@ -58,13 +52,10 @@ class TestGetSoapData:
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
     def test_raises_when_no_soap_data(
-        self,
         mock_corpus_path: MagicMock,
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data raises when no SOAP data."""
-            get_soap_data,
-        )
 
         mock_corpus_path.exists.return_value = True
 
@@ -85,13 +76,10 @@ class TestGetSoapData:
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
     def test_returns_soap_data_from_new_format(
-        self,
         mock_corpus_path: MagicMock,
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data returns SOAP data from new format."""
-            get_soap_data,
-        )
 
         mock_corpus_path.exists.return_value = True
 
@@ -121,13 +109,10 @@ class TestGetSoapData:
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.open_h5_read")
     @patch("backend.src.fi_storage.infrastructure.hdf5.tasks.soap.CORPUS_PATH")
     def test_returns_soap_data_from_legacy_format(
-        self,
         mock_corpus_path: MagicMock,
         mock_open_h5: MagicMock,
     ) -> None:
         """Test get_soap_data returns SOAP data from legacy format."""
-            get_soap_data,
-        )
 
         mock_corpus_path.exists.return_value = True
 
