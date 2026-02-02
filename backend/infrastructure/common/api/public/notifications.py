@@ -13,6 +13,8 @@ from datetime import datetime
 from typing import Annotated
 
 from backend.database import get_db
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.common.services.notifications import (
     NotificationContext,
@@ -187,6 +189,7 @@ async def send_notification(
 async def send_appointment_reminder(
     appointment_id: str,
     reminder_type: str = "24h",
+    current_user: User = Depends(get_current_user),
     db=Depends(get_db),
     service: NotificationService = Depends(get_notification_service),
 ) -> dict:
@@ -198,15 +201,25 @@ async def send_appointment_reminder(
     Args:
         appointment_id: UUID of the appointment
         reminder_type: "24h" or "1h"
+        current_user: Authenticated user (with clinic_id for multi-tenancy)
     """
+    # Multi-tenancy: Validate user has clinic assigned
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no clinic assigned. Cannot send reminders.",
+        )
+
     from sqlalchemy import text
 
     # Fetch appointment with patient and clinic info
+    # Multi-tenancy: Filter by clinic_id to prevent cross-clinic access
     query = text("""
         SELECT
             a.appointment_id,
             a.scheduled_at,
             a.checkin_code,
+            a.clinic_id,
             c.name as clinic_name,
             p.patient_id,
             p.nombre as patient_nombre,
@@ -217,14 +230,25 @@ async def send_appointment_reminder(
         JOIN clinics c ON a.clinic_id = c.clinic_id
         JOIN patients p ON a.patient_id = p.patient_id
         WHERE a.appointment_id = :appointment_id
+          AND a.clinic_id = :clinic_id
     """)
 
-    result = db.execute(query, {"appointment_id": appointment_id}).fetchone()
+    result = db.execute(
+        query,
+        {"appointment_id": appointment_id, "clinic_id": current_user.clinic_id},
+    ).fetchone()
 
     if not result:
+        # Log potential impersonation attempt
+        logger.error(
+            "NOTIFICATION_REMINDER_CLINIC_IMPERSONATION_BLOCKED",
+            user_clinic_id=current_user.clinic_id,
+            appointment_id=appointment_id,
+            user_id=current_user.id,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Appointment {appointment_id} not found",
+            detail="Appointment not found or access denied.",
         )
 
     # Determine notification type
