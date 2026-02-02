@@ -121,7 +121,13 @@ def create_provider(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PROVIDER_CREATE_FAILED", error=str(e))
+        audit_service.log_action(
+            action="provider_create_failed",
+            user_id="system",
+            resource="provider",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to create provider")
 
 
@@ -131,6 +137,7 @@ def list_providers(
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Skip N results"),
     db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
 ):
     """List providers with optional search and pagination.
 
@@ -161,12 +168,22 @@ def list_providers(
         return [p.to_dict() for p in providers]
 
     except Exception as e:
-        logger.error("PROVIDERS_LIST_FAILED", error=str(e))
+        audit_service.log_action(
+            action="providers_list_failed",
+            user_id="system",
+            resource="providers",
+            result="failure",
+            details={"error": str(e), "search": search},
+        )
         raise HTTPException(status_code=500, detail="Failed to list providers")
 
 
 @router.get("/{provider_id}", response_model=ProviderResponse)
-def get_provider(provider_id: str, db: Session = Depends(get_db_dependency)):
+def get_provider(
+    provider_id: str,
+    db: Session = Depends(get_db_dependency),
+    audit_service=Depends(get_audit_service),
+):
     """Get provider by ID.
 
     Args:
@@ -190,7 +207,13 @@ def get_provider(provider_id: str, db: Session = Depends(get_db_dependency)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PROVIDER_GET_FAILED", error=str(e), provider_id=provider_id)
+        audit_service.log_action(
+            action="provider_get_failed",
+            user_id="system",
+            resource=provider_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve provider")
 
 
@@ -254,7 +277,13 @@ def update_provider(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PROVIDER_UPDATE_FAILED", error=str(e), provider_id=provider_id)
+        audit_service.log_action(
+            action="provider_update_failed",
+            user_id="system",
+            resource=provider_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to update provider")
 
 
@@ -293,5 +322,11 @@ def delete_provider(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("PROVIDER_DELETE_FAILED", error=str(e), provider_id=provider_id)
+        audit_service.log_action(
+            action="provider_delete_failed",
+            user_id="system",
+            resource=provider_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to delete provider")
