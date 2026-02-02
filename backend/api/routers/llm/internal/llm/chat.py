@@ -165,17 +165,14 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         # Build prompt with conversation memory if enabled (explicit or auto)
         memory_enabled = request.use_memory or auto_memory_enabled
 
+        # Get memory manager if enabled (None if embeddings unavailable)
+        memory = None
         if memory_enabled and effective_doctor_id:
-            # Get memory manager (None if embeddings unavailable in production)
             memory = get_memory_manager(effective_doctor_id)
-
-            # Skip memory features if embeddings unavailable
             if memory is None:
                 memory_enabled = False
 
-        if memory_enabled and effective_doctor_id:
-            memory = get_memory_manager(effective_doctor_id)  # Re-get (already cached)
-
+        if memory_enabled and memory is not None:
             # Store user message
             user_timestamp = datetime.now(UTC).isoformat()
             memory.store_interaction(
@@ -525,7 +522,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 return
 
             logger.info(
-                "🌊 [STREAM] REQUEST_RECEIVED",
+                "STREAM_REQUEST_RECEIVED",
                 request_id=stream_request_id,
                 persona=request.persona,
                 message_length=len(request.message),
@@ -537,26 +534,25 @@ async def internal_llm_chat_stream(request: ChatRequest):
             # Get memory context if enabled
             memory_enabled = request.use_memory and request.doctor_id
 
+            # Get memory manager if enabled (single call, not duplicated)
+            memory = None
             if memory_enabled:
-                # Check if embeddings available
                 memory = get_memory_manager(request.doctor_id)
                 if memory is None:
                     memory_enabled = False
                     logger.info(
-                        "[STREAM] MEMORY_DISABLED_NO_EMBEDDINGS",
+                        "STREAM_MEMORY_DISABLED_NO_EMBEDDINGS",
                         request_id=stream_request_id,
                         doctor_id=request.doctor_id,
                     )
 
-            if memory_enabled:
+            if memory_enabled and memory is not None:
                 logger.info(
-                    "[STREAM] MEMORY_ENABLED",
+                    "STREAM_MEMORY_ENABLED",
                     request_id=stream_request_id,
                     doctor_id=request.doctor_id,
                     session_id=request.session_id,
                 )
-                # Build prompt with memory
-                memory = get_memory_manager(request.doctor_id)
 
                 # Store user message BEFORE streaming (same as non-streaming endpoint)
                 memory.store_interaction(
@@ -796,7 +792,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                         model=model_name,
                     )
                     logger.info(
-                        "💾 [STREAM] ASSISTANT_MESSAGE_STORED",
+                        "STREAM_ASSISTANT_MESSAGE_STORED",
                         request_id=stream_request_id,
                         doctor_id=request.doctor_id,
                         content_length=len(content_buffer),
@@ -804,7 +800,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     )
                 except Exception as store_err:
                     logger.error(
-                        "❌ [STREAM] ASSISTANT_STORE_FAILED",
+                        "STREAM_ASSISTANT_STORE_FAILED",
                         request_id=stream_request_id,
                         error=str(store_err),
                     )
@@ -817,7 +813,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             sanitized_error = sanitize_error_message(str(e))
 
             logger.error(
-                "❌ [STREAM] STREAM_FAILED",
+                "STREAM_FAILED",
                 request_id=stream_request_id,
                 error=sanitized_error,
                 error_type=type(e).__name__,
