@@ -199,3 +199,51 @@ class ITaskRepository(ABC):
             IOError: If read operation fails
         """
         pass
+
+    @abstractmethod
+    def get_soap_data(self, session_id: str) -> Dict[str, Any] | None:
+        """Get SOAP note data for session.
+
+        Args:
+            session_id: Session UUID
+
+        Returns:
+            SOAP note dict with keys (subjective, objective, assessment, plan)
+            or None if SOAP doesn't exist
+
+        Raises:
+            IOError: If read operation fails
+        """
+        pass
+
+    @abstractmethod
+    def get_diarization_segments(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get diarization segments for session.
+
+        Args:
+            session_id: Session UUID
+
+        Returns:
+            List of segment dicts with keys (speaker, text, start, end)
+            Empty list if no diarization exists
+
+        Raises:
+            IOError: If read operation fails
+        """
+        pass
+
+    @abstractmethod
+    def save_soap_data(
+        self, session_id: str, soap_data: Dict[str, Any], task_type: str = "SOAP_GENERATION"
+    ) -> None:
+        """Save SOAP note data for session.
+
+        Args:
+            session_id: Session UUID
+            soap_data: SOAP note dict
+            task_type: Task type (default: SOAP_GENERATION)
+
+        Raises:
+            IOError: If write operation fails
+        """
+        pass

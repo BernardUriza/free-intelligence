@@ -486,6 +486,36 @@ class HDF5TaskRepository(ITaskRepository):
             )
             return []
 
+    def get_soap_data(self, session_id: str) -> dict[str, Any] | None:
+        """Get SOAP note from HDF5.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            SOAP note dict or None if not found
+        """
+        try:
+            task_path = f"{self.TASKS_GROUP}/{session_id}/SOAP_GENERATION"
+            soap_dataset_path = f"{task_path}/soap_note"
+
+            with h5py.File(self.h5_file_path, "r") as f:
+                if soap_dataset_path not in f:
+                    return None
+
+                soap_data = f[soap_dataset_path][()]
+                soap_json = bytes(soap_data).decode("utf-8")
+                return json.loads(soap_json)
+
+        except Exception as e:
+            logger.error(
+                "GET_SOAP_DATA_FAILED",
+                session_id=session_id,
+                error=str(e),
+                exc_info=True,
+            )
+            return None
+
     def save_soap_data(
         self, session_id: str, soap_data: dict[str, Any], task_type: str = "SOAP_GENERATION"
     ) -> None:

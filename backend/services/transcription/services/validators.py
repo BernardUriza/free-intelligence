@@ -1,14 +1,13 @@
 """Audio file and session validators.
 
 Validation logic for:
-  - Session ID format (UUID4)
+  - Session ID format (alphanumeric with hyphens/underscores, 10-128 chars)
   - Audio file properties (MIME type, extension, size)
 """
 
 from __future__ import annotations
 
-# FIXME: Broken import - validate_session_id (storage_validate_session_id)
-# Use validator from backend.validators
+import re
 from pathlib import Path
 
 
@@ -23,15 +22,21 @@ class SessionValidator:
 
     @staticmethod
     def validate(session_id: str) -> bool:
-        """Validate session ID format (UUID4).
+        """Validate session ID format.
+
+        Rules:
+        - Length: 10-128 characters
+        - Allowed characters: alphanumeric, hyphens, underscores
 
         Args:
             session_id: Session identifier.
 
         Returns:
-            True if valid UUID4 format, False otherwise.
+            True if valid format, False otherwise.
         """
-        return storage_validate_session_id(session_id)
+        if not session_id or len(session_id) < 10 or len(session_id) > 128:
+            return False
+        return bool(re.match(r"^[a-zA-Z0-9_-]+$", session_id))
 
 
 class AudioFileValidator:

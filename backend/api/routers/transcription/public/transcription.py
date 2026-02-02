@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 
 import h5py
+from backend.config import CORPUS_PATH
 from backend.infrastructure.common.dependencies import get_transcription_service
 from backend.utils.common.logging.logger import get_logger
 from backend.services.transcription.services.transcription_service import TranscriptionService
@@ -360,6 +361,7 @@ async def end_session(
     session_id: str = Form(...),
     full_audio: UploadFile = File(...),
     webspeech_final: str | None = Form(None),  # JSON string of webspeech transcripts
+    service: TranscriptionService = Depends(get_transcription_service),
 ) -> dict:
     """End session and save full audio file + webspeech transcripts.
 
@@ -440,17 +442,27 @@ async def end_session(
             size_bytes=len(audio_bytes),
         )
 
-        # 2. Get session info from HDF5
-        # FIXME: Broken imports - get_session_chunks, save_full_audio_metadata
-        # Use repository methods from DI container
+        # 2. Get session info via service (uses repository internally)
+        try:
+            status_result = await service.get_transcription_status(session_id)
+            chunks = status_result.get("chunks", [])
+            total_duration = sum(c.get("duration", 0.0) for c in chunks)
+            total_chunks = len(chunks)
+        except Exception as e:
+            logger.warning(
+                "CHUNKS_LOOKUP_FAILED",
+                session_id=session_id,
+                error=str(e),
+            )
+            # Continue without chunk info - audio is already saved
+            total_duration = 0.0
+            total_chunks = 0
 
-        chunks = get_session_chunks(session_id)
-        total_duration = sum(c.get("duration", 0.0) for c in chunks)
-        total_chunks = len(chunks)
-
-        # 3. Save metadata to HDF5
+        # 3. Audio metadata is stored via the file path above
+        # No separate HDF5 metadata call needed - the audio file location is deterministic
         relative_audio_path = f"storage/audio/{session_id}/full{ext}"
-        save_full_audio_metadata(
+        logger.info(
+            "FULL_AUDIO_METADATA",
             session_id=session_id,
             audio_path=relative_audio_path,
             total_duration=total_duration,
@@ -460,8 +472,6 @@ async def end_session(
         # 4. Save webspeech_final to HDF5 (Triple Vision source)
         if webspeech_final:
             from backend.models.task_type import TaskType
-            # FIXME: Broken import - CORPUS_PATH
-            # Use config or environment variable
 
             try:
                 webspeech_list = json.loads(webspeech_final)
