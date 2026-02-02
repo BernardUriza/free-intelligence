@@ -25,8 +25,9 @@ import json
 import time
 from typing import Any, List, Literal
 
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pathlib import Path
 from pydantic import BaseModel, Field
 
@@ -207,6 +208,7 @@ async def list_tv_content(
     clinic_id: str | None = None,
     active_only: bool = True,
     include_doctor_media: bool = True,
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> TVContentListResponse:
     """
     List all TV content for carousel display.
@@ -245,7 +247,14 @@ async def list_tv_content(
         return TVContentListResponse(total=len(content_list), content=content_list)
 
     except Exception as e:
-        logger.error("Failed to list TV content", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="tv_content_list_failed",
+            user_id="system",
+            clinic_id=clinic_id,
+            resource="tv_content",
+            result="failure",
+            details={"error": str(e), "active_only": active_only},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list TV content: {e!s}",
@@ -261,6 +270,7 @@ async def list_tv_content(
 async def update_tv_content(
     content_id: str,
     updates: dict[str, Any],
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> TVContentSeed:
     """
     Update TV content metadata.
@@ -292,7 +302,13 @@ async def update_tv_content(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to update TV content", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="tv_content_update_failed",
+            user_id="system",
+            resource=f"tv_content:{content_id}",
+            result="failure",
+            details={"error": str(e), "updates": updates},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update content: {e!s}",
@@ -307,6 +323,7 @@ async def update_tv_content(
 async def disable_seed_for_clinic(
     clinic_id: str,
     content_id: str,
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """
     Disable a FI default seed for a specific clinic.
@@ -340,7 +357,14 @@ async def disable_seed_for_clinic(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to disable seed", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="tv_seed_disable_failed",
+            user_id="system",
+            clinic_id=clinic_id,
+            resource=f"seed:{content_id}",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disable seed: {e!s}",
@@ -355,6 +379,7 @@ async def disable_seed_for_clinic(
 async def enable_seed_for_clinic(
     clinic_id: str,
     content_id: str,
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """
     Re-enable a previously disabled FI seed for a clinic.
@@ -378,7 +403,14 @@ async def enable_seed_for_clinic(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to enable seed", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="tv_seed_enable_failed",
+            user_id="system",
+            clinic_id=clinic_id,
+            resource=f"seed:{content_id}",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enable seed: {e!s}",
