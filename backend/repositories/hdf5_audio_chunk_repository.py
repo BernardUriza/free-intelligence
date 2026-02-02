@@ -251,3 +251,71 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
     def list_all(self, limit: int | None = None) -> list[Dict]:
         """Not used - use list_chunks instead."""
         raise NotImplementedError("Use list_chunks() instead")
+
+    def get_audio_data(self, session_id: str, chunk_number: int) -> bytes | None:
+        """Retrieve raw audio bytes for a specific chunk.
+
+        Args:
+            session_id: Session UUID
+            chunk_number: Chunk index
+
+        Returns:
+            Raw audio bytes if chunk exists, None otherwise
+        """
+        chunk_path = f"sessions/{session_id}/transcription/chunks/{chunk_number}"
+
+        with self._open_file("r") as f:
+            if chunk_path not in f:
+                return None
+
+            chunk_group = f[chunk_path]
+            if "audio" not in chunk_group:
+                return None
+
+            return bytes(chunk_group["audio"][:])
+
+    def get_audio_data_range(
+        self,
+        session_id: str,
+        start_chunk: int,
+        end_chunk: int,
+    ) -> list[bytes]:
+        """Retrieve audio bytes for a range of chunks.
+
+        Optimized batch retrieval - single file open for all chunks.
+
+        Args:
+            session_id: Session UUID
+            start_chunk: First chunk index (inclusive)
+            end_chunk: Last chunk index (inclusive)
+
+        Returns:
+            List of audio bytes in chunk order (skips missing chunks)
+
+        Raises:
+            ValueError: If start_chunk > end_chunk
+        """
+        if start_chunk > end_chunk:
+            raise ValueError(f"start_chunk ({start_chunk}) > end_chunk ({end_chunk})")
+
+        chunks_path = f"sessions/{session_id}/transcription/chunks"
+        audio_list: list[bytes] = []
+
+        with self._open_file("r") as f:
+            if chunks_path not in f:
+                return audio_list
+
+            for chunk_num in range(start_chunk, end_chunk + 1):
+                chunk_path = f"{chunks_path}/{chunk_num}"
+                if chunk_path in f and "audio" in f[chunk_path]:
+                    audio_list.append(bytes(f[chunk_path]["audio"][:]))
+
+        logger.debug(
+            "AUDIO_RANGE_RETRIEVED",
+            session_id=session_id,
+            start_chunk=start_chunk,
+            end_chunk=end_chunk,
+            chunks_found=len(audio_list),
+        )
+
+        return audio_list

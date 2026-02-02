@@ -1,7 +1,9 @@
 """SOAP Note repository interface."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.domain.soap import SOAPNote
@@ -11,21 +13,21 @@ class ISOAPRepository(ABC):
     """SOAP Note repository interface."""
 
     @abstractmethod
-    def create(self, soap_note: "SOAPNote") -> str:
+    def create(self, soap_note: SOAPNote) -> str:
         """Create a new SOAP note."""
         ...
 
     @abstractmethod
-    def get(self, note_id: str) -> Optional["SOAPNote"]:
+    def get(self, note_id: str) -> SOAPNote | None:
         """Get SOAP note by ID."""
         ...
 
     @abstractmethod
-    def list_by_session(self, session_id: str) -> list["SOAPNote"]:
+    def list_by_session(self, session_id: str) -> list[SOAPNote]:
         """List SOAP notes for a session."""
         ...
 
     @abstractmethod
-    def update(self, soap_note: "SOAPNote") -> None:
+    def update(self, soap_note: SOAPNote) -> None:
         """Update existing SOAP note."""
         ...

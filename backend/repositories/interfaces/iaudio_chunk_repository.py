@@ -145,3 +145,46 @@ class IAudioChunkRepository(ABC):
             IOError: If read operation fails
         """
         pass
+
+    @abstractmethod
+    def get_audio_data(self, session_id: str, chunk_number: int) -> bytes | None:
+        """Retrieve raw audio bytes for a specific chunk.
+
+        Separate from get_chunk() for performance - audio can be very large.
+
+        Args:
+            session_id: Session UUID
+            chunk_number: Chunk index
+
+        Returns:
+            Raw audio bytes if chunk exists, None otherwise
+
+        Raises:
+            IOError: If read operation fails
+        """
+        pass
+
+    @abstractmethod
+    def get_audio_data_range(
+        self,
+        session_id: str,
+        start_chunk: int,
+        end_chunk: int,
+    ) -> list[bytes]:
+        """Retrieve audio bytes for a range of chunks.
+
+        Optimized batch retrieval for checkpoint concatenation.
+
+        Args:
+            session_id: Session UUID
+            start_chunk: First chunk index (inclusive)
+            end_chunk: Last chunk index (inclusive)
+
+        Returns:
+            List of audio bytes in chunk order
+
+        Raises:
+            ValueError: If start_chunk > end_chunk
+            IOError: If read operation fails
+        """
+        pass

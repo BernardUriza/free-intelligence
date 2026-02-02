@@ -15,9 +15,14 @@ They may be unfinished features from previous sprints.
 | `schemas/domain/backup.py` | 614 | FI-SEC-FEAT-001 | Integrate/Archive? |
 | `schemas/llm/decision_mw.py` | 407 | Unknown | Integrate/Delete? |
 | `security/lan_guard.py` | 149 | FI-SEC-FEAT-002 | Integrate/Delete? |
-| `repositories/hdf5_audio_chunk_repository.py` | 253 | Unknown | Integrate/Delete? |
 
-**Total:** ~2,562 lines of potentially dead code
+**Total:** ~2,309 lines of potentially dead code
+
+## Recently Integrated (2026-02-02)
+
+| File | Integrated Into | Notes |
+|------|-----------------|-------|
+| `repositories/hdf5_audio_chunk_repository.py` | `checkpoint.py` | Now used by CheckpointService for audio concatenation |
 
 ## Action Items
 
@@ -27,4 +32,4 @@ They may be unfinished features from previous sprints.
 4. Update this file when decisions are made
 
 ---
-Generated: 2026-02-02
+Updated: 2026-02-02

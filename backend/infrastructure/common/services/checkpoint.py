@@ -1,26 +1,41 @@
-"""Checkpoint service - Stub for incomplete Clean Architecture refactor.
+"""Checkpoint service - Audio concatenation for incremental session saves.
 
-STATUS: NOT IMPLEMENTED
-The Clean Architecture refactor was started but never completed.
-- checkpoint_use_case.py exists but imports non-existent modules (domain, ports)
-- The endpoint at /sessions/{session_id}/checkpoint is registered but broken
+This service concatenates audio chunks at checkpoint boundaries (pause events).
+It uses the IAudioChunkRepository to retrieve raw audio bytes and concatenates
+them into a single audio file.
 
-This file provides stub classes so imports don't fail at startup.
-The endpoint will raise NotImplementedError if called.
+Flow:
+1. Frontend pauses recording
+2. POST /sessions/{session_id}/checkpoint { last_chunk_idx: N }
+3. This service concatenates chunks [last_checkpoint+1, N]
+4. Returns concatenated bytes to endpoint for storage
 
-TODO(Phase 5): Complete Clean Architecture refactor or revert to simple implementation:
-1. Create domain entities (AudioChunk, AudioFormat, CheckpointRange, CheckpointResult, SessionId)
-2. Create ports (AudioRepositoryPort, AudioConcatenatorPort)
-3. Implement adapters for HDF5 repository
-4. Create factory function with proper DI
+Clean Architecture:
+- Uses IAudioChunkRepository (not HDF5 directly)
+- Pure business logic, no framework dependencies
+- Easy to test with mock repositories
 
 Author: Bernard Uriza Orozco
-Updated: 2026-02-02 (Stub for broken imports)
+Created: 2025-11-14
+Updated: 2026-02-02 (Implemented from stub)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from backend.utils.common.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from backend.repositories.interfaces.iaudio_chunk_repository import (
+        IAudioChunkRepository,
+    )
+
+logger = get_logger(__name__)
+
+# Safety limit to prevent memory issues
+MAX_CHUNKS_PER_CHECKPOINT = 100
 
 
 class CheckpointError(Exception):
@@ -41,11 +56,17 @@ class TooManyChunksError(CheckpointError):
     pass
 
 
+class AudioConcatenationError(CheckpointError):
+    """Raised when audio concatenation fails."""
+
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class CheckpointRequest:
     """Input DTO for checkpoint creation.
 
-    Stub implementation - real validation in checkpoint_use_case.py
+    Validates that the checkpoint range is valid.
     """
 
     session_id: str
@@ -63,31 +84,141 @@ class CheckpointRequest:
         if self.new_checkpoint_idx <= self.last_checkpoint_idx:
             raise ValueError("new_checkpoint_idx must be > last_checkpoint_idx")
 
+    @property
+    def chunk_range(self) -> tuple[int, int]:
+        """Return (start_chunk, end_chunk) inclusive range."""
+        return (self.last_checkpoint_idx + 1, self.new_checkpoint_idx)
+
+    @property
+    def expected_chunk_count(self) -> int:
+        """Expected number of chunks in range."""
+        return self.new_checkpoint_idx - self.last_checkpoint_idx
+
 
 @dataclass
 class CheckpointResult:
-    """Result of checkpoint creation - stub."""
+    """Result of checkpoint creation."""
 
     chunks_concatenated: int
     audio_bytes: bytes
+    start_chunk: int
+    end_chunk: int
 
 
 class CheckpointService:
-    """Stub checkpoint service that raises NotImplementedError."""
+    """Service for creating audio checkpoints.
 
-    def execute(self, request: CheckpointRequest) -> CheckpointResult:  # noqa: ARG002
-        """Execute checkpoint - NOT IMPLEMENTED."""
-        raise NotImplementedError(
-            "Checkpoint service not implemented. "
-            "Clean Architecture refactor incomplete. "
-            "See TODO in backend/infrastructure/common/services/checkpoint.py"
+    Concatenates audio chunks in a range into a single byte stream.
+    Uses IAudioChunkRepository for storage abstraction.
+    """
+
+    def __init__(self, audio_repository: IAudioChunkRepository) -> None:
+        """Initialize with injected audio repository.
+
+        Args:
+            audio_repository: Repository for audio chunk access
+        """
+        self._audio_repo = audio_repository
+
+    def execute(self, request: CheckpointRequest) -> CheckpointResult:
+        """Execute checkpoint - concatenate audio chunks.
+
+        Args:
+            request: CheckpointRequest with session_id and chunk range
+
+        Returns:
+            CheckpointResult with concatenated audio bytes
+
+        Raises:
+            NoChunksToProcessError: If no chunks found in range
+            TooManyChunksError: If chunk count exceeds safety limit
+            AudioConcatenationError: If concatenation fails
+        """
+        start_chunk, end_chunk = request.chunk_range
+        expected_count = request.expected_chunk_count
+
+        logger.info(
+            "CHECKPOINT_EXECUTE_START",
+            session_id=request.session_id,
+            start_chunk=start_chunk,
+            end_chunk=end_chunk,
+            expected_count=expected_count,
+        )
+
+        # Safety check
+        if expected_count > MAX_CHUNKS_PER_CHECKPOINT:
+            raise TooManyChunksError(
+                f"Chunk count {expected_count} exceeds limit {MAX_CHUNKS_PER_CHECKPOINT}. "
+                f"Process in smaller batches."
+            )
+
+        # Retrieve audio bytes in batch
+        try:
+            audio_chunks = self._audio_repo.get_audio_data_range(
+                session_id=request.session_id,
+                start_chunk=start_chunk,
+                end_chunk=end_chunk,
+            )
+        except Exception as e:
+            logger.error(
+                "CHECKPOINT_RETRIEVE_FAILED",
+                session_id=request.session_id,
+                error=str(e),
+            )
+            raise AudioConcatenationError(f"Failed to retrieve chunks: {e}") from e
+
+        if not audio_chunks:
+            raise NoChunksToProcessError(
+                f"No chunks found in range [{start_chunk}, {end_chunk}]"
+            )
+
+        # Concatenate audio bytes
+        try:
+            concatenated = b"".join(audio_chunks)
+        except Exception as e:
+            logger.error(
+                "CHECKPOINT_CONCATENATE_FAILED",
+                session_id=request.session_id,
+                chunk_count=len(audio_chunks),
+                error=str(e),
+            )
+            raise AudioConcatenationError(f"Concatenation failed: {e}") from e
+
+        logger.info(
+            "CHECKPOINT_EXECUTE_COMPLETE",
+            session_id=request.session_id,
+            chunks_concatenated=len(audio_chunks),
+            total_bytes=len(concatenated),
+        )
+
+        return CheckpointResult(
+            chunks_concatenated=len(audio_chunks),
+            audio_bytes=concatenated,
+            start_chunk=start_chunk,
+            end_chunk=end_chunk,
         )
 
 
-def create_checkpoint_service() -> CheckpointService:
+def create_checkpoint_service(
+    audio_repository: IAudioChunkRepository | None = None,
+) -> CheckpointService:
     """Factory function for checkpoint service.
 
-    Returns a stub service that raises NotImplementedError.
-    This allows the endpoint to compile but fail gracefully at runtime.
+    Args:
+        audio_repository: Optional pre-configured repository.
+            If None, creates default HDF5AudioChunkRepository.
+
+    Returns:
+        Configured CheckpointService instance
     """
-    return CheckpointService()
+    if audio_repository is None:
+        # Lazy import to avoid circular dependencies
+        from backend.repositories.hdf5_audio_chunk_repository import (
+            HDF5AudioChunkRepository,
+        )
+        from backend.config import get_settings
+
+        settings = get_settings()
+        audio_repository = HDF5AudioChunkRepository(settings.hdf5_corpus_path)
+
+    return CheckpointService(audio_repository)
