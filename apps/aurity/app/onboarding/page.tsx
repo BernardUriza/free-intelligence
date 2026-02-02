@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useOnboardingChat, type OnboardingUserData } from "@/hooks/useOnboardingChat";
 import { CompletionCelebration } from "@/components/onboarding/CompletionCelebration";
+import { SystemStatus } from "@/components/ui/SystemStatus";
 import type { ChatConfig } from "@/config/chat.config";
 
 // Onboarding-specific chat configuration
@@ -102,6 +103,11 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative h-screen bg-slate-950">
+      {/* LLM Status Indicator - Brain icon in top left corner */}
+      <div className="absolute top-4 left-4 z-50">
+        <SystemStatus />
+      </div>
+
       {/* Skip Button */}
       <button
         type="button"
