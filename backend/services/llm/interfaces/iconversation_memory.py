@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class IConversationMemory(ABC):
@@ -33,7 +33,7 @@ class IConversationMemory(ABC):
         conversation_id: str,
         role: str,
         content: str,
-        metadata: Dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Add message to conversation.
 
@@ -58,7 +58,7 @@ class IConversationMemory(ABC):
         conversation_id: str,
         limit: int | None = None,
         before_message_id: str | None = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve conversation messages.
 
         Args:
@@ -71,7 +71,7 @@ class IConversationMemory(ABC):
                 - message_id: str
                 - role: str (user, assistant, system)
                 - content: str
-                - metadata: Dict[str, Any]
+                - metadata: dict[str, Any]
                 - created_at: str (ISO 8601)
             Sorted by created_at DESC (most recent first)
 
@@ -86,7 +86,7 @@ class IConversationMemory(ABC):
         conversation_id: str,
         max_tokens: int,
         model: str,
-    ) -> List[Dict[str, str]]:
+    ) -> list[Dict[str, str]]:
         """Get conversation window fitting within token budget.
 
         Args:
@@ -119,7 +119,7 @@ class IConversationMemory(ABC):
         pass
 
     @abstractmethod
-    def get_conversation_summary(self, conversation_id: str) -> Dict[str, Any]:
+    def get_conversation_summary(self, conversation_id: str) -> dict[str, Any]:
         """Get conversation metadata summary.
 
         Args:
@@ -132,7 +132,7 @@ class IConversationMemory(ABC):
                 - total_tokens: int (estimated)
                 - created_at: str (ISO 8601)
                 - updated_at: str (ISO 8601)
-                - participants: List[str] (user IDs)
+                - participants: list[str] (user IDs)
 
         Raises:
             ValueError: If conversation doesn't exist

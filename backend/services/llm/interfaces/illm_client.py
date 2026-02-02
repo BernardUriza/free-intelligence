@@ -9,7 +9,8 @@ Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncGenerator, Dict, List
+from collections.abc import AsyncGenerator
+from typing import Any
 
 
 class ILLMClient(ABC):
@@ -36,11 +37,11 @@ class ILLMClient(ABC):
     @abstractmethod
     async def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[Dict[str, str]],
         model: str,
         temperature: float = 0.7,
         max_tokens: int | None = None,
-        stop: List[str] | None = None,
+        stop: list[str] | None = None,
         **kwargs: Any,
     ) -> str:
         """Generate text completion.
@@ -65,12 +66,12 @@ class ILLMClient(ABC):
     @abstractmethod
     async def generate_structured(
         self,
-        messages: List[Dict[str, str]],
-        schema: Dict[str, Any],
+        messages: list[Dict[str, str]],
+        schema: dict[str, Any],
         model: str,
         temperature: float = 0.7,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate structured output matching JSON schema.
 
         Args:
@@ -92,7 +93,7 @@ class ILLMClient(ABC):
     @abstractmethod
     async def stream(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[Dict[str, str]],
         model: str,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -126,7 +127,7 @@ class ILLMClient(ABC):
         pass
 
     @abstractmethod
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported models for this provider.
 
         Returns:

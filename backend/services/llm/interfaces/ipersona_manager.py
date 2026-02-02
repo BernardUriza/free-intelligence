@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class IPersonaManager(ABC):
@@ -34,7 +34,7 @@ class IPersonaManager(ABC):
     """
 
     @abstractmethod
-    def get_persona(self, persona_id: str) -> Dict[str, Any]:
+    def get_persona(self, persona_id: str) -> dict[str, Any]:
         """Retrieve persona configuration.
 
         Args:
@@ -47,9 +47,9 @@ class IPersonaManager(ABC):
                 - system_prompt: str (LLM system message)
                 - temperature: float (default temperature)
                 - max_tokens: int (default max tokens)
-                - traits: Dict[str, Any] (personality traits)
-                - supported_models: List[str] (compatible models)
-                - metadata: Dict[str, Any] (custom fields)
+                - traits: dict[str, Any] (personality traits)
+                - supported_models: list[str] (compatible models)
+                - metadata: dict[str, Any] (custom fields)
 
         Raises:
             ValueError: If persona_id doesn't exist
@@ -57,7 +57,7 @@ class IPersonaManager(ABC):
         pass
 
     @abstractmethod
-    def list_personas(self) -> List[Dict[str, Any]]:
+    def list_personas(self) -> list[dict[str, Any]]:
         """List all available personas.
 
         Returns:
@@ -83,7 +83,7 @@ class IPersonaManager(ABC):
         pass
 
     @abstractmethod
-    def get_system_prompt(self, persona_id: str, context: Dict[str, Any] | None = None) -> str:
+    def get_system_prompt(self, persona_id: str, context: dict[str, Any] | None = None) -> str:
         """Get system prompt for persona with optional context interpolation.
 
         Args:
@@ -100,7 +100,7 @@ class IPersonaManager(ABC):
         pass
 
     @abstractmethod
-    def create_persona(self, persona_config: Dict[str, Any]) -> str:
+    def create_persona(self, persona_config: dict[str, Any]) -> str:
         """Create new persona.
 
         Args:
@@ -116,7 +116,7 @@ class IPersonaManager(ABC):
         pass
 
     @abstractmethod
-    def update_persona(self, persona_id: str, updates: Dict[str, Any]) -> bool:
+    def update_persona(self, persona_id: str, updates: dict[str, Any]) -> bool:
         """Update persona configuration.
 
         Args:

@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class ITaskRepository(ABC):
@@ -55,7 +55,7 @@ class ITaskRepository(ABC):
         self,
         session_id: str,
         task_type: str,
-        metadata: Dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Ensure task exists, create if not.
 
@@ -75,7 +75,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_task_metadata(self, session_id: str, task_type: str) -> Dict[str, Any] | None:
+    def get_task_metadata(self, session_id: str, task_type: str) -> dict[str, Any] | None:
         """Get task metadata.
 
         Args:
@@ -102,7 +102,7 @@ class ITaskRepository(ABC):
         self,
         session_id: str,
         task_type: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """Save task metadata.
 
@@ -118,7 +118,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_task_chunks(self, session_id: str, task_type: str) -> List[Dict[str, Any]]:
+    def get_task_chunks(self, session_id: str, task_type: str) -> list[dict[str, Any]]:
         """Get all task chunks.
 
         Args:
@@ -143,7 +143,7 @@ class ITaskRepository(ABC):
         session_id: str,
         task_type: str,
         chunk_idx: int,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
     ) -> None:
         """Batch update chunk datasets.
 
@@ -179,7 +179,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_task_progress(self, session_id: str, task_type: str) -> Dict[str, Any]:
+    def get_task_progress(self, session_id: str, task_type: str) -> dict[str, Any]:
         """Get task progress summary.
 
         Args:
@@ -201,7 +201,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_soap_data(self, session_id: str) -> Dict[str, Any] | None:
+    def get_soap_data(self, session_id: str) -> dict[str, Any] | None:
         """Get SOAP note data for session.
 
         Args:
@@ -217,7 +217,7 @@ class ITaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_diarization_segments(self, session_id: str) -> List[Dict[str, Any]]:
+    def get_diarization_segments(self, session_id: str) -> list[dict[str, Any]]:
         """Get diarization segments for session.
 
         Args:
@@ -234,7 +234,7 @@ class ITaskRepository(ABC):
 
     @abstractmethod
     def save_soap_data(
-        self, session_id: str, soap_data: Dict[str, Any], task_type: str = "SOAP_GENERATION"
+        self, session_id: str, soap_data: dict[str, Any], task_type: str = "SOAP_GENERATION"
     ) -> None:
         """Save SOAP note data for session.
 
