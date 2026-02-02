@@ -207,9 +207,6 @@ async def update_soap_workflow(
     # Validate session ID first
     validate_session_id(session_id)
 
-    # FIXME: Broken imports - create_order, get_orders, save_soap_data
-    # Use repository methods instead
-
     try:
         logger.info("SOAP_UPDATE_STARTED", session_id=session_id)
 
