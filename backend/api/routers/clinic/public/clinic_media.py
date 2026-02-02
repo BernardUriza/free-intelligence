@@ -27,6 +27,7 @@ from typing import Literal
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.infrastructure.auth.utils import validate_clinic_access
+from backend.services.audit.dependencies import DIAuditService
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -185,6 +186,7 @@ async def upload_clinic_media(
     message_content: str | None = Form(None),
     clinic_id_form: str | None = Form(None, alias="clinic_id"),
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(),
 ) -> UploadMediaResponse:
     """
     Upload clinic media for TV display.
@@ -315,7 +317,14 @@ async def upload_clinic_media(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to upload clinic media", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="clinic_media_upload_failed",
+            user_id=current_user.id,
+            clinic_id=clinic_id if 'clinic_id' in locals() else None,
+            resource="clinic_media",
+            result="failure",
+            details={"error": str(e), "media_type": media_type},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload media: {e!s}",
@@ -332,6 +341,7 @@ async def list_clinic_media(
     clinic_id: str | None = None,
     active_only: bool = True,
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(),
 ) -> MediaListResponse:
     """
     List all clinic media content.
@@ -364,7 +374,14 @@ async def list_clinic_media(
         return MediaListResponse(total=len(media_list), media=media_list)
 
     except Exception as e:
-        logger.error("Failed to list clinic media", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="clinic_media_list_failed",
+            user_id=current_user.id,
+            clinic_id=clinic_id,
+            resource="clinic_media",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list media: {e!s}",
@@ -381,6 +398,7 @@ async def update_clinic_media(
     media_id: str,
     request: UpdateMediaRequest,
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(),
 ) -> ClinicMediaMetadata:
     """
     Update media metadata (title, description, duration, active status).
@@ -422,7 +440,14 @@ async def update_clinic_media(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to update clinic media", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="clinic_media_update_failed",
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id if 'metadata' in locals() and metadata else None,
+            resource=media_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update media: {e!s}",
@@ -437,6 +462,7 @@ async def update_clinic_media(
 async def delete_clinic_media(
     media_id: str,
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(),
 ) -> dict:
     """
     Delete clinic media and associated files.
@@ -467,7 +493,14 @@ async def delete_clinic_media(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to delete clinic media", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="clinic_media_delete_failed",
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id if 'metadata' in locals() and metadata else None,
+            resource=media_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete media: {e!s}",
@@ -487,6 +520,7 @@ async def delete_clinic_media(
 async def serve_clinic_media_file(
     filename: str,
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(),
 ) -> FileResponse:
     """
     Serve media file by filename.
@@ -537,7 +571,14 @@ async def serve_clinic_media_file(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to serve media file", filename=filename, error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="clinic_media_serve_failed",
+            user_id=current_user.id,
+            clinic_id=metadata.clinic_id if 'metadata' in locals() and metadata else None,
+            resource=filename,
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to serve file: {e!s}",
