@@ -490,7 +490,6 @@ async def internal_llm_chat_stream(request: ChatRequest):
     Returns Server-Sent Events (SSE) with streaming chunks from LLM.
     """
     import json
-    from datetime import UTC, datetime
 
     from fastapi.responses import StreamingResponse
 
@@ -521,25 +520,6 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 use_memory=request.use_memory,
             )
 
-            # Emit event: user message received
-            # FIXME: events stubbed - commented out
-            # try:
-            #     event_bus = get_event_bus()
-            #     aggregate_id = request.session_id or stream_request_id
-            #     await event_bus.publish(
-            #         DomainEvent(
-            #             event_type=EventType.ASSISTANT_MESSAGE_RECEIVED,
-            #             aggregate_id=aggregate_id,
-            #             payload={
-            #                 "message_type": "user",
-            #                 "token_count": len(request.message.split()),
-            #                 "persona": request.persona,
-            #             },
-            #         )
-            #     )
-            # except Exception as evt_err:
-            #     logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
-
             # Get memory context if enabled
             memory_enabled = request.use_memory and request.doctor_id
 
@@ -549,14 +529,14 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 if memory is None:
                     memory_enabled = False
                     logger.info(
-                        "📚 [STREAM] MEMORY_DISABLED_NO_EMBEDDINGS",
+                        "[STREAM] MEMORY_DISABLED_NO_EMBEDDINGS",
                         request_id=stream_request_id,
                         doctor_id=request.doctor_id,
                     )
 
             if memory_enabled:
                 logger.info(
-                    "📚 [STREAM] MEMORY_ENABLED",
+                    "[STREAM] MEMORY_ENABLED",
                     request_id=stream_request_id,
                     doctor_id=request.doctor_id,
                     session_id=request.session_id,
@@ -565,7 +545,6 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 memory = get_memory_manager(request.doctor_id)
 
                 # Store user message BEFORE streaming (same as non-streaming endpoint)
-                user_timestamp = datetime.now(UTC).isoformat()
                 memory.store_interaction(
                     session_id=request.session_id or "unknown",
                     role="user",
@@ -573,7 +552,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     persona=request.persona,
                 )
                 logger.info(
-                    "📝 [STREAM] USER_MESSAGE_STORED",
+                    "[STREAM] USER_MESSAGE_STORED",
                     request_id=stream_request_id,
                     doctor_id=request.doctor_id,
                 )
@@ -581,7 +560,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 memory_context = memory.get_context(request.message, request.session_id)
 
                 logger.info(
-                    "📚 [STREAM] MEMORY_CONTEXT_LOADED",
+                    "[STREAM] MEMORY_CONTEXT_LOADED",
                     request_id=stream_request_id,
                     recent_interactions=len(memory_context.recent) if memory_context else 0,
                     relevant_interactions=len(memory_context.relevant) if memory_context else 0,
@@ -594,14 +573,14 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 )
 
                 logger.debug(
-                    "📚 [STREAM] PROMPT_BUILT_WITH_MEMORY",
+                    "[STREAM] PROMPT_BUILT_WITH_MEMORY",
                     request_id=stream_request_id,
                     prompt_length=len(prompt),
                 )
             else:
                 # Build prompt without memory
                 logger.debug(
-                    "📄 [STREAM] BUILDING_PROMPT_WITHOUT_MEMORY",
+                    "[STREAM] BUILDING_PROMPT_WITHOUT_MEMORY",
                     request_id=stream_request_id,
                 )
                 prompt = persona_mgr.build_system_prompt(request.persona, request.context)
@@ -610,7 +589,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 prompt += f"\n\nUser: {request.message}\n\nAssistant:"
 
                 logger.debug(
-                    "📄 [STREAM] PROMPT_BUILT",
+                    "[STREAM] PROMPT_BUILT",
                     request_id=stream_request_id,
                     prompt_length=len(prompt),
                 )
@@ -619,7 +598,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             provider_name = request.provider or _get_policy_loader().get_primary_provider()
 
             logger.info(
-                "🔌 [STREAM] PROVIDER_SELECTED",
+                "[STREAM] PROVIDER_SELECTED",
                 request_id=stream_request_id,
                 provider=provider_name,
                 is_override=bool(request.provider),
@@ -631,7 +610,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 provider_config = {}
 
             logger.debug(
-                "⚙️ [STREAM] PROVIDER_CONFIG_LOADED",
+                "[STREAM] PROVIDER_CONFIG_LOADED",
                 request_id=stream_request_id,
                 provider=provider_name,
                 config_keys=list(provider_config.keys()),
@@ -643,7 +622,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             llm_provider = get_provider(provider_name, provider_config)
 
             logger.info(
-                "✅ [STREAM] PROVIDER_INSTANCE_CREATED",
+                "[STREAM] PROVIDER_INSTANCE_CREATED",
                 request_id=stream_request_id,
                 provider=provider_name,
                 provider_type=type(llm_provider).__name__,
@@ -653,7 +632,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             if not hasattr(llm_provider, "generate_stream"):
                 # Fallback to non-streaming (will wait for full response)
                 logger.warning(
-                    "⚠️ [STREAM] FALLBACK_NO_STREAM_METHOD",
+                    "[STREAM] FALLBACK_NO_STREAM_METHOD",
                     request_id=stream_request_id,
                     provider=provider_name,
                     message="Provider doesn't support streaming, falling back to buffered response",
@@ -665,7 +644,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
                 )
                 logger.info(
-                    "📦 [STREAM] FALLBACK_RESPONSE_BUFFERED",
+                    "[STREAM] FALLBACK_RESPONSE_BUFFERED",
                     request_id=stream_request_id,
                     response_length=len(response.content),
                     model=response.model,
@@ -685,7 +664,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             ) or provider_name
 
             logger.info(
-                "🚀 [STREAM] STREAMING_START",
+                "[STREAM] STREAMING_START",
                 request_id=stream_request_id,
                 provider=provider_name,
                 persona=request.persona,
@@ -740,7 +719,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     # Log every 5th chunk to avoid spam, or first/last chunk
                     if chunk_count % 5 == 1 or chunk_count <= 3:
                         logger.debug(
-                            "📨 [STREAM] CHUNK_YIELDED",
+                            "[STREAM] CHUNK_YIELDED",
                             request_id=stream_request_id,
                             chunk_num=chunk_count,
                             chunk_type=chunk_type,
@@ -758,7 +737,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
                         if not thinking_emitted:
                             thinking_emitted = True
                             logger.info(
-                                "💭 [STREAM] THINKING_STARTED",
+                                "[STREAM] THINKING_STARTED",
                                 request_id=stream_request_id,
                                 model=model_name,
                             )
@@ -772,7 +751,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             # Log final thinking stats (thinking was already streamed in real-time)
             if thinking_buffer:
                 logger.info(
-                    "💭 [STREAM] THINKING_COMPLETE",
+                    "[STREAM] THINKING_COMPLETE",
                     request_id=stream_request_id,
                     total_thinking_length=len(thinking_buffer),
                     model=model_name,
@@ -781,7 +760,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             total_latency_ms = int((time.time() - start_time) * 1000)
 
             logger.info(
-                "✨ [STREAM] STREAMING_COMPLETE",
+                "[STREAM] STREAMING_COMPLETE",
                 request_id=stream_request_id,
                 provider=provider_name,
                 persona=request.persona,
@@ -790,27 +769,6 @@ async def internal_llm_chat_stream(request: ChatRequest):
                 total_latency_ms=total_latency_ms,
                 avg_chunk_size=round(total_bytes / chunk_count, 1) if chunk_count > 0 else 0,
             )
-
-            # Emit event: assistant response generated
-            # FIXME: events stubbed - commented out
-            # try:
-            #     event_bus = get_event_bus()
-            #     aggregate_id = request.session_id or stream_request_id
-            #     await event_bus.publish(
-            #         DomainEvent(
-            #             event_type=EventType.ASSISTANT_RESPONSE_GENERATED,
-            #             aggregate_id=aggregate_id,
-            #             payload={
-            #                 "message_type": "assistant",
-            #                 "token_count": total_bytes // 4,  # Approximate tokens
-            #                 "total_chunks": chunk_count,
-            #                 "latency_ms": total_latency_ms,
-            #                 "provider": provider_name,
-            #             },
-            #         )
-            #     )
-            # except Exception as evt_err:
-            #     logger.warning("EVENT_EMIT_FAILED", error=str(evt_err))
 
             # Store assistant response in memory AFTER streaming completes
             if memory_enabled and content_buffer:
