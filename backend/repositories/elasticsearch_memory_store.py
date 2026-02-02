@@ -111,7 +111,9 @@ class ElasticsearchMemoryStore(IMemoryStore):
         # Verify Elasticsearch connection
         try:
             self.es.ping()
-            self.logger.info("ELASTICSEARCH_CONNECTED", hosts=es_client.transport.hosts)
+            # elasticsearch 8.x: transport.hosts → transport.node_pool.all()
+            hosts = [str(node) for node in es_client.transport.node_pool.all()]
+            self.logger.info("ELASTICSEARCH_CONNECTED", hosts=hosts)
         except ESConnectionError as e:
             self.logger.error("ELASTICSEARCH_CONNECTION_ERROR", error=str(e))
             raise
