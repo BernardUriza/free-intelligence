@@ -245,7 +245,7 @@ class CheckinConversationService:
         self._contexts: dict[str, ConversationContext] = {}
         self._claude_client = None
 
-    def _get_claude_client(self):
+    def _get_claude_client(self) -> Any | None:
         """Lazy-load Claude client."""
         if self._claude_client is None and CLAUDE_API_KEY:
             try:

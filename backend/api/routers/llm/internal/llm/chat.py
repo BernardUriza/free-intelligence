@@ -11,11 +11,17 @@ Propósito:
 - Audit trail completo con hashes
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import time
 import uuid as _uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from backend.policy.policy_loader import PolicyLoader
 
 import ulid
 from backend.api.audit.services.audit_service import AuditService
@@ -38,8 +44,12 @@ persona_mgr = PersonaManager()
 trace_store = None
 
 
-def _get_policy_loader():
-    """Lazy policy loader factory (Phase 2.3 Urano - DI migration)."""
+def _get_policy_loader() -> PolicyLoader:
+    """Lazy policy loader factory (Phase 2.3 Urano - DI migration).
+
+    Returns:
+        PolicyLoader instance with loaded policies.
+    """
     from backend.policy.policy_loader import PolicyLoader
 
     loader = PolicyLoader()

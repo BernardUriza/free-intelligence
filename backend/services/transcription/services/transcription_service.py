@@ -13,9 +13,14 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from backend.infrastructure.interfaces.ievent_bus import IEventBus
 
 
 class TranscriptionChunkEvent:
@@ -57,7 +62,11 @@ class ChunkProcessingResult:
 class TranscriptionService:
     """Service for audio transcription business logic."""
 
-    def __init__(self, task_repository: ITaskRepository, event_bus=None):
+    def __init__(
+        self,
+        task_repository: ITaskRepository,
+        event_bus: IEventBus | None = None,
+    ) -> None:
         """Initialize transcription service with dependencies.
 
         Args:

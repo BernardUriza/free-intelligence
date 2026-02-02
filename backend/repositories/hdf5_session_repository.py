@@ -23,19 +23,19 @@ from backend.repositories.interfaces.itask_repository import ITaskRepository
 class SessionMapper:
     """Stub mapper - implement proper domain <-> HDF5 mapping"""
     @staticmethod
-    def to_hdf5_metadata(session):
+    def to_hdf5_metadata(session: Session) -> dict[str, str]:
         """Stub - implement proper conversion"""
         return {}
 
     @staticmethod
-    def from_hdf5(session_id, metadata):
+    def from_hdf5(session_id: str, metadata: dict[str, str]) -> Session:
         """Stub - implement proper conversion"""
         return Session(id=session_id, status="active")
 
 
 class SessionHDF5Metadata:
     """Stub metadata - implement proper HDF5 metadata structure"""
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: str) -> None:
         pass
 
 

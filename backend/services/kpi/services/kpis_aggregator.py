@@ -480,7 +480,7 @@ class KPIsAggregator(IKPIsAggregator):
             logger.warning("INVALID_WINDOW", window=window, fallback="5m")
             return 300  # Default to 5m
 
-    def _cleanup_if_needed(self):
+    def _cleanup_if_needed(self) -> None:
         """Cleanup old buckets if retention window expired."""
         now = time.time()
 

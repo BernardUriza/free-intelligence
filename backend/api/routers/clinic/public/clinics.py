@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import TypeVar
 
 from backend.database import get_db_dependency
 from backend.models.checkin_models import (
@@ -212,15 +213,18 @@ def generate_checkin_code() -> str:
     return "".join([str(secrets.randbelow(10)) for _ in range(6)])
 
 
-def model_to_response(model, response_class):
+T = TypeVar("T")
+
+
+def model_to_response(model: object, response_class: type[T]) -> T:
     """Convert SQLAlchemy model to Pydantic response."""
     data = {}
-    for field in response_class.model_fields:
+    for field in response_class.model_fields:  # type: ignore[attr-defined]
         value = getattr(model, field, None)
         if isinstance(value, datetime):
             value = value.isoformat()
         data[field] = value
-    return response_class(**data)
+    return response_class(**data)  # type: ignore[return-value]
 
 
 # =============================================================================
