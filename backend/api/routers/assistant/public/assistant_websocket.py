@@ -18,8 +18,9 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 logger = get_logger(__name__)
@@ -136,6 +137,7 @@ class NewMessageEvent(BaseModel):
 async def websocket_endpoint(
     websocket: WebSocket,
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> None:
     """WebSocket endpoint for real-time chat sync.
 
@@ -185,11 +187,12 @@ async def websocket_endpoint(
         manager.disconnect(websocket, doctor_id)
         logger.info("WEBSOCKET_CLIENT_DISCONNECTED", doctor_id=doctor_id)
     except Exception as e:
-        logger.error(
-            "WEBSOCKET_ERROR",
-            doctor_id=doctor_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="websocket_error",
+            user_id=doctor_id,
+            resource="websocket_connection",
+            result="failure",
+            details={"error": str(e)},
         )
         manager.disconnect(websocket, doctor_id)
 
