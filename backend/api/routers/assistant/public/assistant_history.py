@@ -11,9 +11,10 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.services.conversation_memory import get_memory_manager
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -78,7 +79,10 @@ class TimelineResponse(BaseModel):
 
 
 @router.post("/assistant/history/search", response_model=HistorySearchResponse)
-async def search_history(request: HistorySearchRequest) -> HistorySearchResponse:
+async def search_history(
+    request: HistorySearchRequest,
+    audit_service: DIAuditService = Depends(get_audit_service),
+) -> HistorySearchResponse:
     """Search conversation history using semantic search.
 
     Leverages existing embedding infrastructure to find relevant
@@ -156,11 +160,12 @@ async def search_history(request: HistorySearchRequest) -> HistorySearchResponse
             detail=f"No conversation history found for doctor {request.doctor_id}",
         ) from None
     except Exception as e:
-        logger.error(
-            "HISTORY_SEARCH_FAILED",
-            doctor_id=request.doctor_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="history_search_failed",
+            user_id=request.doctor_id,
+            resource="conversation_history",
+            result="failure",
+            details={"error": str(e), "query": request.query, "session_id": request.session_id},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -171,6 +176,7 @@ async def search_history(request: HistorySearchRequest) -> HistorySearchResponse
 @router.get("/assistant/history/timeline", response_model=TimelineResponse)
 async def get_timeline(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> TimelineResponse:
     """Get timeline of all conversation sessions.
 
@@ -225,11 +231,12 @@ async def get_timeline(
             detail=f"No conversation history found for doctor {doctor_id}",
         ) from None
     except Exception as e:
-        logger.error(
-            "HISTORY_TIMELINE_FAILED",
-            doctor_id=doctor_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="history_timeline_failed",
+            user_id=doctor_id,
+            resource="conversation_timeline",
+            result="failure",
+            details={"error": str(e)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -240,6 +247,7 @@ async def get_timeline(
 @router.get("/assistant/history/stats")
 async def get_history_stats(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """Get conversation history statistics.
 
@@ -272,11 +280,12 @@ async def get_history_stats(
             "doctor_id": doctor_id,
         }
     except Exception as e:
-        logger.error(
-            "HISTORY_STATS_FAILED",
-            doctor_id=doctor_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="history_stats_failed",
+            user_id=doctor_id,
+            resource="conversation_stats",
+            result="failure",
+            details={"error": str(e)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -290,6 +299,7 @@ async def get_paginated_history(
     offset: int = Query(0, ge=0, description="Number of messages to skip"),
     limit: int = Query(50, ge=1, le=100, description="Messages per page"),
     session_id: str | None = Query(None, description="Filter by session"),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """Get paginated conversation history (for infinite scroll).
 
@@ -366,11 +376,12 @@ async def get_paginated_history(
             "limit": limit,
         }
     except Exception as e:
-        logger.error(
-            "HISTORY_PAGINATED_FAILED",
-            doctor_id=doctor_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="history_paginated_failed",
+            user_id=doctor_id,
+            resource="conversation_history",
+            result="failure",
+            details={"error": str(e), "offset": offset, "limit": limit, "session_id": session_id},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
