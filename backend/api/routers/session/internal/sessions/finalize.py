@@ -468,11 +468,12 @@ async def finalize_session(
                     )
 
             except Exception as concat_err:
-                logger.error(
-                    "AUDIO_CONCATENATION_FAILED",
-                    session_id=session_id,
-                    error=str(concat_err),
-                    exc_info=True,
+                audit_service.log_action(
+                    action="audio_concatenation_failed",
+                    user_id="system",
+                    resource=session_id,
+                    result="failure",
+                    details={"error": str(concat_err)},
                 )
                 # Don't fail finalization if concatenation fails
 
@@ -485,10 +486,12 @@ async def finalize_session(
             )
 
         except ValueError as e:
-            logger.error(
-                "TRANSCRIPTION_SOURCES_SAVE_FAILED",
-                session_id=session_id,
-                error=str(e),
+            audit_service.log_action(
+                action="transcription_sources_save_failed",
+                user_id="system",
+                resource=session_id,
+                result="failure",
+                details={"error": str(e)},
             )
             # Don't fail the entire finalization if sources save fails
             # The session is still finalized, just missing the 3 sources
@@ -535,12 +538,12 @@ async def finalize_session(
             # Worker will retry via outbox pattern (future)
             encryption_status = "ENQUEUE_FAILED"
 
-            logger.error(
-                "ENCRYPTION_ENQUEUE_FAILED",
-                session_id=session_id,
-                encryption_task_id=encryption_task_id,
-                error=str(enqueue_err),
-                exc_info=True,
+            audit_service.log_action(
+                action="encryption_enqueue_failed",
+                user_id="system",
+                resource=session_id,
+                result="failure",
+                details={"error": str(enqueue_err), "encryption_task_id": encryption_task_id},
             )
             # Don't fail finalization - encryption will retry via outbox
 
@@ -559,11 +562,12 @@ async def finalize_session(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "FINALIZE_SESSION_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
+        audit_service.log_action(
+            action="session_finalization_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"error": str(e)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

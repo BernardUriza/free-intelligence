@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from backend.services.audit.dependencies import DIAuditService
+from backend.api.audit.dependencies import DIAuditService
 from backend.services.workflow.dependencies import (
     IntelligentOrchestrationDep,
     WorkflowOrchestratorDep,

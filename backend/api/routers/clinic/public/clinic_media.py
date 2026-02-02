@@ -27,7 +27,7 @@ from typing import Literal
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.infrastructure.auth.utils import validate_clinic_access
-from backend.services.audit.dependencies import DIAuditService
+from backend.api.audit.dependencies import DIAuditService
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse

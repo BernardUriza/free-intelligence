@@ -6,7 +6,7 @@ from typing import Any
 from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
-from backend.services.audit.dependencies import DIAuditService
+from backend.api.audit.dependencies import DIAuditService
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
