@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Annotated
 if TYPE_CHECKING:
     from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
 
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.api.routers.kpi.dependencies import get_kpis_aggregator_dep
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -31,6 +32,7 @@ async def get_kpis(
     view: str = Query("summary", description="View: Union[summary, chips, timeseries]"),
     route: str | None = Query(None, description="Filter by route (e.g., /api/sessions)"),
     provider: str | None = Query(None, description="Filter by provider (e.g., anthropic)"),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ):
     """
     Get KPIs metrics.
@@ -85,5 +87,11 @@ async def get_kpis(
         logger.warning("KPIS_VALIDATION_FAILED", error=str(e), window=window, view=view)
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error("KPIS_AGGREGATION_FAILED", error=str(e), window=window, view=view)
+        audit_service.log_action(
+            action="kpis_aggregation_failed",
+            user_id="system",
+            resource="kpis_metrics",
+            result="failure",
+            details={"error": str(e), "window": window, "view": view, "route": route, "provider": provider},
+        )
         raise HTTPException(status_code=500, detail="Failed to aggregate metrics") from e
