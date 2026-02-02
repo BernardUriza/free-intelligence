@@ -67,11 +67,16 @@ from backend.src.fi_storage.infrastructure.hdf5.tasks.chunks import append_chunk
 
 # NEW (working):
 from backend.repositories.interfaces import ITaskRepository
-from backend.infrastructure.common.container import get_container
+from backend.repositories.task_repository import HDF5TaskRepository
+
+# In test fixture:
+@pytest.fixture
+def task_repo(tmp_path):
+    return HDF5TaskRepository(tmp_path / "test.h5")
 
 # In test:
-task_repo = get_container().get_task_repository()
-task_repo.batch_update_chunk_datasets(...)
+def test_something(task_repo):
+    task_repo.batch_update_chunk_datasets(...)
 ```
 
 **Step 4: Update mocks**
