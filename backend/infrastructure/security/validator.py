@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from ..config.policies import SECURITY_POLICY, TASK_CATALOG
 
@@ -18,7 +18,7 @@ class SecurityValidator:
         """Check if working directory is allowed."""
         return any(cwd.startswith(allowed) for allowed in self.working_directory_whitelist)
 
-    def sanitize_environment(self, env: Dict[str, str]) -> Dict[str, str]:
+    def sanitize_environment(self, env: dict[str, str]) -> dict[str, str]:
         """Remove potentially dangerous environment variables."""
         sanitized = env.copy()
         dangerous_vars = ["LD_LIBRARY_PATH", "PYTHONPATH"]  # Keep PATH for commands
@@ -27,7 +27,7 @@ class SecurityValidator:
                 del sanitized[var]
         return sanitized
 
-    def validate_parameters(self, task_name: str, parameters: Dict[str, Any]) -> None:
+    def validate_parameters(self, task_name: str, parameters: dict[str, Any]) -> None:
         """Validate task parameters against schema and security. Raises ValueError on failure."""
         # Schema validation
         schema = TASK_CATALOG[task_name]
@@ -45,7 +45,7 @@ class SecurityValidator:
         # Scope validation
         self.validate_scope(parameters)
 
-    def validate_scope(self, parameters: Dict[str, Any]) -> None:
+    def validate_scope(self, parameters: dict[str, Any]) -> None:
         """Validate scope restrictions. Raises ValueError on failure."""
         from ..config.policies import REPO_ROOT_PATH, SCOPE_POLICY
 

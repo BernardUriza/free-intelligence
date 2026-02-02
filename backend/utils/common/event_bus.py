@@ -1,7 +1,7 @@
 """In-memory event bus implementation."""
 
 from collections.abc import Callable
-from typing import Any, Dict, List
+from typing import Any
 
 from backend.infrastructure.interfaces.ievent_bus import IEventBus
 
@@ -14,9 +14,9 @@ class InMemoryEventBus(IEventBus):
 
     def __init__(self) -> None:
         """Initialize event bus with empty subscriptions."""
-        self._subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = {}
+        self._subscribers: dict[str, list[Callable[[dict[str, Any]], None]]] = {}
 
-    def publish(self, event_type: str, data: Dict[str, Any]) -> None:
+    def publish(self, event_type: str, data: dict[str, Any]) -> None:
         """Publish an event to all subscribers.
 
         Args:
@@ -32,7 +32,7 @@ class InMemoryEventBus(IEventBus):
                     # For now, we'll just continue to other handlers
                     pass
 
-    def subscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[dict[str, Any]], None]) -> None:
         """Subscribe to an event type.
 
         Args:
@@ -43,7 +43,7 @@ class InMemoryEventBus(IEventBus):
             self._subscribers[event_type] = []
         self._subscribers[event_type].append(handler)
 
-    def unsubscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def unsubscribe(self, event_type: str, handler: Callable[[dict[str, Any]], None]) -> None:
         """Unsubscribe from an event type.
 
         Args:

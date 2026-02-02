@@ -6,7 +6,7 @@ All fields support multilingual content with English field names (medical standa
 
 from __future__ import annotations
 
-from typing import List
+from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -65,7 +65,7 @@ class AssessmentData(BaseModel):
     Contains differential diagnoses and primary diagnosis determination.
     """
 
-    differential_diagnoses: List[str] = Field(
+    differential_diagnoses: list[str] = Field(
         default_factory=list,
         description="Differential diagnoses list",
     )
@@ -77,7 +77,7 @@ class AssessmentData(BaseModel):
 
     @field_validator("differential_diagnoses", mode="before")
     @classmethod
-    def ensure_list(cls, v: List[str] | str) -> list[str]:
+    def ensure_list(cls, v: list[str] | str) -> list[str]:
         """Ensure differential_diagnoses is always a list."""
         if isinstance(v, str):
             return [v]
@@ -102,14 +102,14 @@ class PlanData(BaseModel):
         description="Follow-up instructions",
         min_length=1,
     )
-    studies: List[str] = Field(
+    studies: list[str] = Field(
         default_factory=list,
         description="Recommended studies or diagnostic tests",
     )
 
     @field_validator("studies", mode="before")
     @classmethod
-    def ensure_list(cls, v: List[str] | str) -> list[str]:
+    def ensure_list(cls, v: list[str] | str) -> list[str]:
         """Ensure studies is always a list."""
         if isinstance(v, str):
             return [v]
@@ -158,7 +158,7 @@ class SOAPNote(BaseModel):
         Returns:
             List of validation errors (empty if valid).
         """
-        errors: List[str] = []
+        errors: list[str] = []
 
         # Check subjective
         if not self.subjective.chief_complaint.strip():

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class TaskSchema(BaseModel):
     """Schema for task configuration."""
 
-    parameters_schema: Dict[str, Any]
+    parameters_schema: dict[str, Any]
 
 
 # Repository root path

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -19,13 +19,13 @@ class TaskStatus(str, Enum):
 
 class ExecutionFingerprint(BaseModel):
     qwen_code_version: str | None = None
-    model_parameters: Dict[str, Any] = Field(default_factory=dict)
+    model_parameters: dict[str, Any] = Field(default_factory=dict)
     workspace_commit: str | None = None
     workspace_dirty: bool = False
-    touched_files: List[str] = Field(default_factory=list)
-    operated_paths: List[str] = Field(default_factory=list)
+    touched_files: list[str] = Field(default_factory=list)
+    operated_paths: list[str] = Field(default_factory=list)
     working_directory: str | None = None
-    scope_restrictions: Dict[str, Any] = Field(default_factory=dict)
+    scope_restrictions: dict[str, Any] = Field(default_factory=dict)
     python_version: str | None = None
     dependencies_fingerprint: str | None = None
     created_at: datetime = Field(default_factory=datetime.now)
@@ -34,7 +34,7 @@ class ExecutionFingerprint(BaseModel):
 class Task(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
     command: str | None = None
     status: TaskStatus = TaskStatus.QUEUED
     created_at: datetime = Field(default_factory=datetime.now)

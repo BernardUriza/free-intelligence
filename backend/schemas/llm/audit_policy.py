@@ -327,7 +327,7 @@ def scan_directory(directory: Path) -> dict[str, list[LLMFunctionInfo]]:
     Escanea un directorio recursivamente en busca de LLM functions.
 
     Returns:
-        Dict[filepath: str, violations: List[LLMFunctionInfo]]
+        dict[filepath: str, violations: list[LLMFunctionInfo]]
     """
     results = {}
 

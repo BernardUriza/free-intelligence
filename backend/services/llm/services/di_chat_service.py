@@ -23,7 +23,7 @@ import json
 import time
 import uuid as _uuid
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 import ulid
 from backend.api.audit.services.audit_service import AuditService
@@ -130,7 +130,7 @@ class DIChatService:
         persona: str,
         doctor_id: str | None = None,
         session_id: str | None = None,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
         provider: str | None = None,
         use_memory: bool = False,
         request_id: str | None = None,
@@ -490,7 +490,7 @@ class DIChatService:
         persona: str,
         doctor_id: str,
         session_id: str | None,
-        context: Dict[str, Any] | None,
+        context: dict[str, Any] | None,
     ) -> tuple[str, dict]:
         """Build prompt with conversation memory.
 
@@ -550,7 +550,7 @@ class DIChatService:
         self,
         message: str,
         persona: str,
-        context: Dict[str, Any] | None,
+        context: dict[str, Any] | None,
     ) -> str:
         """Build prompt without memory (original behavior).
 

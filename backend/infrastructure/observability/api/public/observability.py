@@ -9,7 +9,7 @@ Endpoints:
 Module: fi_observability.api.public.observability
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
@@ -59,7 +59,7 @@ async def receive_audio_metrics(metrics: FrontendAudioMetrics):
 
 
 @router.get("/audio/metrics")
-async def get_audio_metrics() -> Dict[str, Any]:
+async def get_audio_metrics() -> dict[str, Any]:
     """
     Get current audio metrics in JSON format
 
@@ -81,7 +81,7 @@ async def get_audio_metrics_prometheus():
 
 
 @router.post("/audio/events")
-async def log_audio_event(event: Dict[str, Any]):
+async def log_audio_event(event: dict[str, Any]):
     """
     Log audio event (errors, state transitions, etc.)
 

@@ -294,7 +294,7 @@ def scan_directory(directory: Path) -> dict[str, list[RouterViolation]]:
     """Escanea un directorio recursivamente en busca de violaciones.
 
     Returns:
-        Dict[filepath: str, violations: List[RouterViolation]]
+        dict[filepath: str, violations: list[RouterViolation]]
 
     """
     results = {}

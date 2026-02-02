@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from backend.services.transcription.services.whisper import (
     CPU_THREADS,
@@ -310,10 +310,10 @@ class TranscriptionService:
 
             # Collect segments
             segments_list: list[dict[str, Any]] = []
-            full_text_parts: List[str] = []
+            full_text_parts: list[str] = []
 
             for segment in segments_iter:
-                segment_dict: Dict[str, Any] = {
+                segment_dict: dict[str, Any] = {
                     "start": segment.start,
                     "end": segment.end,
                     "text": segment.text.strip(),
@@ -417,7 +417,7 @@ class TranscriptionService:
         session_id: str,
         audio_content: bytes,
         file_extension: str,
-        metadata: Dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Save audio file to storage.
 
@@ -490,7 +490,7 @@ class TranscriptionService:
         audio_content: bytes,
         filename: str,
         content_type: str,
-        metadata: Dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Process audio file and generate transcription (main orchestration).
 

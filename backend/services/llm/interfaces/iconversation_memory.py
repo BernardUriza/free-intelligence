@@ -86,7 +86,7 @@ class IConversationMemory(ABC):
         conversation_id: str,
         max_tokens: int,
         model: str,
-    ) -> list[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Get conversation window fitting within token budget.
 
         Args:

@@ -10,7 +10,7 @@ Card: Backend Refactor Phase 3B Part 3 - Repository Implementation
 
 from __future__ import annotations
 
-from typing import List
+# PEP 585: use built-in list instead of typing.List
 
 from backend.domain.patient import Gender, IPatientRepository, Patient
 # TODO: PatientMapper doesn't exist yet - create it when needed
@@ -93,7 +93,7 @@ class PostgreSQLPatientRepository(IPatientRepository):
 
         return PatientMapper.from_db(db_patient)
 
-    def find_all(self, limit: int = 100, offset: int = 0) -> List[Patient]:
+    def find_all(self, limit: int = 100, offset: int = 0) -> list[Patient]:
         """List all patients with pagination.
 
         Args:

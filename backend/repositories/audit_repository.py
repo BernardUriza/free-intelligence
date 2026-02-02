@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any, Dict, Union
+from typing import Any, Union
 from uuid import uuid4
 
 from backend.utils.common.logging.logger import get_logger
@@ -115,7 +115,7 @@ class AuditRepository(BaseRepository):
                     return None
 
                 log_group = f[self.AUDIT_LOGS_GROUP][entity_id]  # type: ignore[index]
-                log_data: Dict[str, Any] = {
+                log_data: dict[str, Any] = {
                     "log_id": entity_id,
                     "timestamp": log_group.attrs.get("timestamp", ""),  # type: ignore[attr-defined]
                     "action": log_group.attrs.get("action", ""),  # type: ignore[attr-defined]

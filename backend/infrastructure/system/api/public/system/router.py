@@ -9,7 +9,7 @@ Reorganized: 2025-11-08 (moved from backend/api/system.py)
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 from backend.services.system.system_health_service import DISystemHealthService
 from backend.utils.common.logging.logger import get_logger
@@ -26,7 +26,7 @@ class SystemHealthResponse(BaseModel):
     """Unified system health response"""
 
     ok: bool
-    services: Dict[str, Any]
+    services: dict[str, Any]
     version: str
     time: str
 

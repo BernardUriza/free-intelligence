@@ -9,7 +9,7 @@ import hashlib
 import json
 import time
 from datetime import UTC, datetime
-from typing import Any, List
+from typing import Any
 
 import os
 from backend.infrastructure.interfaces.ilogger import ILogger
@@ -170,7 +170,7 @@ class DIExportService:
 
         return content
 
-    def _create_manifest(self, export_id: str, session_id: str, files: List[str]) -> dict[str, Any]:
+    def _create_manifest(self, export_id: str, session_id: str, files: list[str]) -> dict[str, Any]:
         """Create export manifest."""
         file_hashes = {}
         for file_path in files:

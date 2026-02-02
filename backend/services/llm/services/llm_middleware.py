@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 import os
 import sys
@@ -160,7 +160,7 @@ class StructuredExtractRequest(BaseModel):
     """Request model for structured data extraction"""
 
     text: str
-    schema_definition: Dict[str, Any]
+    schema_definition: dict[str, Any]
     provider: str = "claude"
     temperature: float = 0.3  # Lower temperature for more consistent structured output
 
@@ -168,7 +168,7 @@ class StructuredExtractRequest(BaseModel):
 class StructuredResponse(BaseModel):
     """Response model for structured data extraction"""
 
-    extracted_data: Dict[str, Any]
+    extracted_data: dict[str, Any]
     provider: str
     success: bool
     message: str | None = None

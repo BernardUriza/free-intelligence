@@ -37,7 +37,7 @@ class ILLMClient(ABC):
     @abstractmethod
     async def generate(
         self,
-        messages: list[Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -66,7 +66,7 @@ class ILLMClient(ABC):
     @abstractmethod
     async def generate_structured(
         self,
-        messages: list[Dict[str, str]],
+        messages: list[dict[str, str]],
         schema: dict[str, Any],
         model: str,
         temperature: float = 0.7,
@@ -93,7 +93,7 @@ class ILLMClient(ABC):
     @abstractmethod
     async def stream(
         self,
-        messages: list[Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float = 0.7,
         max_tokens: int | None = None,

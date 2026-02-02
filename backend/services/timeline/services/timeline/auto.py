@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 from backend.providers.llm import llm_generate
@@ -101,7 +101,7 @@ class EventCandidate:
     manifest_ref: str | None = None
     artifact_id: str | None = None  # For causality (same artifact)
     sensitive: bool = False  # If true, no content preview
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -141,8 +141,8 @@ class AutoTimelineGenerator:
 
         Note: Uses llm_router.llm_generate() for LLM calls (no adapter injection needed)
         """
-        self.config: Dict[str, Any] = config or load_timeline_config()
-        self.auto_config: Dict[str, Any] = self.config.get("auto", {})
+        self.config: dict[str, Any] = config or load_timeline_config()
+        self.auto_config: dict[str, Any] = self.config.get("auto", {})
 
         # Feature flag check
         self.enabled = self.auto_config.get("enabled", False)

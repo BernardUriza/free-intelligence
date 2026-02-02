@@ -26,7 +26,7 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Any, List
+from typing import Any
 
 from backend.schemas.domain.timeline import (
     RedactionPolicy,
@@ -111,7 +111,7 @@ class EventResponse(BaseModel):
     content_hash: str
     redaction_policy: str
     causality: list[dict[str, Any]]
-    tags: List[str]
+    tags: list[str]
     auto_generated: bool
     generation_mode: str
     confidence_score: float

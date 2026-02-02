@@ -16,7 +16,7 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
-from typing import Dict, Set
+# PEP 585: use built-in dict, set instead of typing.Dict, Set
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
@@ -44,7 +44,7 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         # Map: doctor_id -> Set of WebSocket connections
-        self.connections: Dict[str, Set[WebSocket]] = {}
+        self.connections: dict[str, set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, doctor_id: str) -> None:
         """Accept WebSocket connection and register it."""

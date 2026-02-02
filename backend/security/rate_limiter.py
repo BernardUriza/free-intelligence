@@ -21,7 +21,7 @@ Philosophy (Axiom 1 - Materia = Glitch):
 
 from collections import defaultdict
 from time import time
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -56,7 +56,7 @@ class TokenBucketRateLimiter:
         """
         self.rpm = requests_per_min
         self.burst = burst
-        self.buckets: Dict[str, Dict[str, Any]] = defaultdict(
+        self.buckets: dict[str, dict[str, Any]] = defaultdict(
             lambda: {"tokens": burst, "last_refill": time()}
         )
 
@@ -193,7 +193,7 @@ class TokenBucketRateLimiter:
 
         return len(stale_keys)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get rate limiter statistics.
 

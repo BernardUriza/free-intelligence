@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import Enum
-from typing import List
+# PEP 585: use built-in list
 
 from backend.api.audit.dependencies import get_audit_service
 from backend.database import get_db_dependency
@@ -232,7 +232,7 @@ def create_patient(
         raise HTTPException(status_code=500, detail="Failed to create patient")
 
 
-@router.get("/", response_model=List[PatientResponse])
+@router.get("/", response_model=list[PatientResponse])
 def list_patients(
     search: str | None = Query(None, description="Search by nombre or apellido"),
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),

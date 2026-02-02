@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import Enum
-from typing import List
+# PEP 585: use built-in list
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -161,7 +161,7 @@ class AppointmentResponse(BaseModel):
     reason: str | None = None
     notes: str | None = None
 
-    pending_actions: List[PendingActionResponse] = []
+    pending_actions: list[PendingActionResponse] = []
 
     created_at: str
     updated_at: str | None = None
@@ -289,7 +289,7 @@ class IdentifyPatientResponse(BaseModel):
     success: bool
     patient: PatientBrief | None = None
     appointment: AppointmentBrief | None = None
-    pending_actions: List[PendingActionResponse] | None = None
+    pending_actions: list[PendingActionResponse] | None = None
     error: str | None = None
 
 
@@ -303,8 +303,8 @@ class CompleteCheckinRequest(BaseModel):
 
     session_id: str
     appointment_id: str
-    completed_actions: List[str] = []  # action_ids
-    skipped_actions: List[str] = []  # action_ids (non-required only)
+    completed_actions: list[str] = []  # action_ids
+    skipped_actions: list[str] = []  # action_ids (non-required only)
 
 
 class CompleteCheckinResponse(BaseModel):
@@ -346,7 +346,7 @@ class WaitingRoomState(BaseModel):
 
     clinic_id: str
 
-    patients_waiting: List[WaitingRoomPatient]
+    patients_waiting: list[WaitingRoomPatient]
     total_waiting: int
 
     avg_wait_time_minutes: int
@@ -371,4 +371,4 @@ class GetWaitingRoomResponse(BaseModel):
 class GetActionsResponse(BaseModel):
     """Response for pending actions list."""
 
-    actions: List[PendingActionResponse]
+    actions: list[PendingActionResponse]

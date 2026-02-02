@@ -6,7 +6,7 @@ into your medical consultation processing pipeline.
 
 from __future__ import annotations
 
-from typing import List
+# PEP 585: use built-in list
 
 # ============================================================================
 # Example 1: Basic Usage (Backward Compatible)
@@ -223,7 +223,7 @@ def example_pipeline_integration(
 # ============================================================================
 
 
-def example_batch_processing(transcriptions: List[str]) -> list[dict]:
+def example_batch_processing(transcriptions: list[str]) -> list[dict]:
     """Process multiple transcriptions efficiently."""
     from backend.services.soap.services.llm_client import OllamaClient
     from backend.services.soap.services.response_parser import OllamaExtractionError

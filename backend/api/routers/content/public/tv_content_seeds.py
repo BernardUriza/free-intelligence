@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, List, Literal
+from typing import Any, Literal
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
@@ -100,15 +100,15 @@ class TVContentListResponse(BaseModel):
     """Response for unified content list (seeds + doctor content)."""
 
     total: int
-    content: List[TVContentSeed]
+    content: list[TVContentSeed]
 
 
 class SeedMetadata(BaseModel):
     """Per-clinic metadata for seed activation status."""
 
     clinic_id: str
-    disabled_seeds: List[str] = Field(default_factory=list, description="List of disabled seed IDs")
-    custom_order: List[str] | None = Field(
+    disabled_seeds: list[str] = Field(default_factory=list, description="List of disabled seed IDs")
+    custom_order: list[str] | None = Field(
         default=None, description="Custom display order (content_ids)"
     )
 
@@ -136,7 +136,7 @@ def load_seed(content_id: str) -> TVContentSeed | None:
         return TVContentSeed(**data)
 
 
-def load_all_seeds() -> List[TVContentSeed]:
+def load_all_seeds() -> list[TVContentSeed]:
     """Load all TV content seeds."""
     seeds = []
     for seed_file in SEEDS_STORAGE_PATH.glob("*.json"):
@@ -217,7 +217,7 @@ async def list_tv_content(
     No more hardcoded DEFAULT_CONTENT!
     """
     try:
-        content_list: List[TVContentSeed] = []
+        content_list: list[TVContentSeed] = []
 
         # 1. Load FI seeds
         seeds = load_all_seeds()

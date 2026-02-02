@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, List, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -103,7 +103,7 @@ class DocumentMetadata(BaseModel):
     """Document metadata."""
 
     source: str | None = Field(default=None)
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     content_length: int = Field(description="Content size in bytes")
     created_at: str | None = Field(default=None)
     updated_at: str | None = Field(default=None)

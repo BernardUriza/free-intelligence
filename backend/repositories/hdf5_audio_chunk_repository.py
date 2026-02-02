@@ -7,8 +7,10 @@ Created: 2026-01-28
 Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import h5py
 from backend.repositories.base_repository import BaseRepository
@@ -18,7 +20,7 @@ from backend.utils.common.logging.logger import get_logger
 logger = get_logger(__name__)
 
 
-class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
+class HDF5AudioChunkRepository(BaseRepository[dict], IAudioChunkRepository):
     """HDF5 implementation of audio chunk storage.
 
     Storage Structure:
@@ -44,7 +46,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         session_id: str,
         chunk_number: int,
         audio_data: bytes,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> str:
         """Save audio chunk with metadata.
 
@@ -97,7 +99,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
 
         return chunk_id
 
-    def get_chunk(self, session_id: str, chunk_number: int) -> Dict[str, Any] | None:
+    def get_chunk(self, session_id: str, chunk_number: int) -> dict[str, Any] | None:
         """Retrieve chunk with metadata (excludes audio data for performance).
 
         Args:
@@ -126,7 +128,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
 
         return metadata
 
-    def list_chunks(self, session_id: str) -> List[Dict[str, Any]]:
+    def list_chunks(self, session_id: str) -> list[dict[str, Any]]:
         """List all chunks for session.
 
         Args:
@@ -156,7 +158,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         self,
         session_id: str,
         chunk_number: int,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
     ) -> bool:
         """Update chunk metadata.
 
@@ -232,15 +234,15 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
             return len(f[chunks_path].keys())
 
     # BaseRepository abstract methods (not used for audio chunks)
-    def create(self, entity: Dict, **kwargs: Any) -> str:
+    def create(self, entity: dict, **kwargs: Any) -> str:
         """Not used - use save_chunk instead."""
         raise NotImplementedError("Use save_chunk() instead")
 
-    def read(self, entity_id: str) -> Dict | None:
+    def read(self, entity_id: str) -> dict | None:
         """Not used - use get_chunk instead."""
         raise NotImplementedError("Use get_chunk() instead")
 
-    def update(self, entity_id: str, entity: Dict) -> bool:
+    def update(self, entity_id: str, entity: dict) -> bool:
         """Not used - use update_chunk_metadata instead."""
         raise NotImplementedError("Use update_chunk_metadata() instead")
 
@@ -248,7 +250,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         """Not used - use delete_chunk instead."""
         raise NotImplementedError("Use delete_chunk() instead")
 
-    def list_all(self, limit: int | None = None) -> list[Dict]:
+    def list_all(self, limit: int | None = None) -> list[dict]:
         """Not used - use list_chunks instead."""
         raise NotImplementedError("Use list_chunks() instead")
 

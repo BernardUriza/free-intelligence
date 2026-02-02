@@ -5,7 +5,7 @@ instead of the broken infrastructure.storage.infrastructure.hdf5.task_repository
 """
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from backend.repositories.task_repository import HDF5TaskRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
@@ -28,7 +28,7 @@ class TaskRepositoryAdapter(ITaskRepository):
 
         self._repository = HDF5TaskRepository(h5_file_path)
 
-    def get_task_metadata(self, session_id: str, task_type: str) -> Dict[str, Any] | None:
+    def get_task_metadata(self, session_id: str, task_type: str) -> dict[str, Any] | None:
         """Get task metadata."""
         return self._repository.get_task_metadata(session_id, task_type)
 
@@ -37,15 +37,15 @@ class TaskRepositoryAdapter(ITaskRepository):
         return self._repository.task_exists(session_id, task_type)
 
     def ensure_task_exists(
-        self, session_id: str, task_type: str, metadata: Dict[str, Any] | None = None
+        self, session_id: str, task_type: str, metadata: dict[str, Any] | None = None
     ) -> str:
         """Ensure task exists, create if not."""
         return self._repository.ensure_task_exists(session_id, task_type, metadata)
 
-    def get_task_chunks(self, session_id: str, task_type: str) -> List[Dict[str, Any]]:
+    def get_task_chunks(self, session_id: str, task_type: str) -> list[dict[str, Any]]:
         """Get task chunks."""
         return self._repository.get_task_chunks(session_id, task_type)
 
-    def save_task_metadata(self, session_id: str, task_type: str, metadata: Dict[str, Any]) -> None:
+    def save_task_metadata(self, session_id: str, task_type: str, metadata: dict[str, Any]) -> None:
         """Save task metadata."""
         self._repository.save_task_metadata(session_id, task_type, metadata)

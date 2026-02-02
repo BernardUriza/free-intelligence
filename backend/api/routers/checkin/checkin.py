@@ -17,7 +17,7 @@ import io
 import json
 import secrets
 from datetime import UTC, datetime
-from typing import List
+# PEP 585: use built-in list
 
 import qrcode
 from backend.database import get_db_dependency
@@ -74,7 +74,7 @@ QR_EXPIRY_MINUTES = 5
 SESSION_EXPIRY_MINUTES = 15
 
 # WebSocket connections for waiting room updates
-waiting_room_connections: dict[str, List[WebSocket]] = {}
+waiting_room_connections: dict[str, list[WebSocket]] = {}
 
 
 # =============================================================================

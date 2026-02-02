@@ -6,7 +6,7 @@ Removed 38 unused task schemas and unnecessary policy definitions.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -22,15 +22,15 @@ class TaskSchema(BaseModel):
     name: str
     description: str
     purpose: str
-    parameters_schema: Dict[str, Any]
-    scope_rules: Dict[str, Any] | None = None
+    parameters_schema: dict[str, Any]
+    scope_rules: dict[str, Any] | None = None
 
 
 # Rebuild for forward references
 TaskSchema.model_rebuild()
 
 # Simplified task catalog - only qwen-code
-TASK_CATALOG: Dict[str, TaskSchema] = {
+TASK_CATALOG: dict[str, TaskSchema] = {
     "qwen-code": TaskSchema(
         name="qwen-code",
         description="Run qwen-code with custom args",

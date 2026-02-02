@@ -34,7 +34,7 @@ Usage:
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 import h5py
 from backend.providers.models import ConsultationEvent
@@ -49,7 +49,7 @@ logger = get_logger(__name__)
 # ============================================================================
 
 
-def calculate_sha256(data: Dict[str, Any]) -> str:
+def calculate_sha256(data: dict[str, Any]) -> str:
     """
     Calculate SHA256 hash of data for audit trail.
 
@@ -340,7 +340,7 @@ class EventStore:
 
         return consultations
 
-    def create_snapshot(self, consultation_id: str, state: Dict[str, Any]) -> None:
+    def create_snapshot(self, consultation_id: str, state: dict[str, Any]) -> None:
         """
         Create state snapshot for performance optimization.
 
