@@ -158,7 +158,13 @@ async def list_sessions(
         )
 
     except Exception as e:
-        logger.error("LIST_SESSIONS_FAILED", error=str(e))
+        audit_service.log_action(
+            action="sessions_list_failed",
+            user_id=current_user.id,
+            resource="sessions",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to list sessions")
 
 
@@ -239,7 +245,13 @@ async def get_session(
         logger.warning("GET_SESSION_NOT_FOUND", session_id=session_id, error=str(e))
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error("GET_SESSION_FAILED", session_id=session_id, error=str(e))
+        audit_service.log_action(
+            action="session_retrieve_failed",
+            user_id=current_user.id,
+            resource=f"session:{session_id}",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve session")
 
 
@@ -319,7 +331,13 @@ async def create_session(
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_CREATION_FAILED", error=str(e))
+        audit_service.log_action(
+            action="session_creation_failed",
+            user_id=current_user.id,
+            resource="session",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to create session")
 
 
@@ -429,7 +447,13 @@ async def update_session(
         logger.warning("SESSION_UPDATE_VALIDATION_FAILED", session_id=session_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("SESSION_UPDATE_FAILED", session_id=session_id, error=str(e))
+        audit_service.log_action(
+            action="session_update_failed",
+            user_id=current_user.id,
+            resource=f"session:{session_id}",
+            result="failure",
+            details={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail="Failed to update session")
 
 
