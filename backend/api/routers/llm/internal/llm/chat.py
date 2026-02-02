@@ -24,8 +24,6 @@ from backend.schemas.llm.audit_policy import require_audit_log
 from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
 from backend.api.audit.services.audit_service import AuditService
 from backend.utils.common.logging.logger import get_logger
-# FIXME: infrastructure.events doesn't exist - stubbed
-# from backend.infrastructure.events import DomainEvent, EventType, get_event_bus
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
@@ -51,9 +49,8 @@ def _get_policy_loader():
 # Initialize audit service for persona metrics tracking
 import contextlib
 
-from pathlib import Path
+from backend.config import CORPUS_PATH
 
-CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 audit_repo = AuditRepository(CORPUS_PATH)
 audit_service = AuditService(audit_repo)
 
@@ -245,7 +242,7 @@ async def internal_llm_chat(request: ChatRequest, http_request: Request) -> Chat
         # Call LLM via router - use request provider or default from policy
         # Honrar override de modelo si viene en el contexto
         model_override = None
-        enable_thinking = True  # Default: enable thinking for Qwen3 models
+        enable_thinking = False  # Default: disable thinking (7x faster)
         try:
             if isinstance(request.context, dict):
                 m = request.context.get("model")
@@ -706,9 +703,9 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     model=request.context.get("model") if request.context else None,
                     temperature=request.context.get("temperature", 0.7) if request.context else 0.7,
                     max_tokens=request.context.get("max_tokens", 512) if request.context else 512,
-                    enable_thinking=request.context.get("enable_thinking", True)
+                    enable_thinking=request.context.get("enable_thinking", False)
                     if request.context
-                    else True,
+                    else False,
                 )
             )
 

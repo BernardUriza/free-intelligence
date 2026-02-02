@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import uuid as _uuid
 from collections.abc import AsyncGenerator
 
 import httpx

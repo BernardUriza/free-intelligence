@@ -20,7 +20,7 @@ Card: FI-RX-002
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository

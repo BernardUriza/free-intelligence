@@ -40,8 +40,6 @@ from backend.api.routers.clinic.public import clinic_media
 from backend.utils.common.logging.logger import get_logger
 from backend.api.routers.content.public import tv_content_seeds
 from backend.api.routers.document.public import documents
-# FIXME: infrastructure.events doesn't exist - stubbed for now
-# from backend.infrastructure.events.api.public import events
 from backend.api.routers.evidence.public import evidence
 from backend.api.routers.kpi.public import kpis
 from backend.api.routers.memory.public import longitudinal_memory

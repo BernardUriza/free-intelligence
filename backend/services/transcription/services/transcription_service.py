@@ -17,12 +17,6 @@ from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
-# REMOVED: get_event_bus() helper (Phase 2.3)
-# Event bus is now injected via constructor instead of using get_container()
-# Old pattern (removed):
-#   def get_event_bus():
-#       from backend.container import get_container
-#       return get_container().get_event_bus()
 
 class TranscriptionChunkEvent:
     """Stub event."""

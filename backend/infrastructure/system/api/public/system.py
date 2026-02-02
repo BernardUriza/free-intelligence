@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import shutil
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -19,14 +20,16 @@ from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.model_catalog.services.tunnel_url_provider import (
     get_tunnel_url_provider,
 )
+from backend.services.assistant.services.monitor_client import discover_monitor_url
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pathlib import Path
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/system", tags=["System"])
+
+# Default gateway URL when fi-monitor config not found
+FI_MONITOR_GATEWAY_FALLBACK = "http://localhost:11400"
 
 
 # ============================================================================
@@ -198,7 +201,11 @@ async def get_llm_status() -> LLMStatusResponse:
     is_tunnel = tunnel_info is not None and "tunnel_url" in (tunnel_info or {})
     fallback_url = "http://localhost:11434"
 
-    # Check if Ollama is actually reachable and get models
+    # fi-monitor gateway URL (single entry point for all LLM services)
+    # Read from config file using existing discovery function
+    fi_monitor_gateway = await discover_monitor_url() or FI_MONITOR_GATEWAY_FALLBACK
+
+    # Check if fi-monitor gateway is reachable first, then Ollama via gateway
     status = "offline"
     models: list[str] = []
     latency_ms: int | None = None
@@ -206,13 +213,46 @@ async def get_llm_status() -> LLMStatusResponse:
     try:
         async with httpx.AsyncClient() as client:
             check_start = time.time()
-            response = await client.get(f"{current_url}/api/tags", timeout=2.0)
-            latency_ms = int((time.time() - check_start) * 1000)
 
-            if response.status_code == 200:
-                status = "online"
-                data = response.json()
-                models = [m.get("name", "") for m in data.get("models", [])]
+            # First: Check fi-monitor gateway health
+            try:
+                gateway_response = await client.get(
+                    f"{fi_monitor_gateway}/gateway/health", timeout=2.0
+                )
+                if gateway_response.status_code == 200:
+                    # Gateway is up, now check Ollama through gateway
+                    response = await client.get(
+                        f"{fi_monitor_gateway}/api/tags", timeout=2.0
+                    )
+                    latency_ms = int((time.time() - check_start) * 1000)
+
+                    if response.status_code == 200:
+                        status = "online"
+                        data = response.json()
+                        models = [m.get("name", "") for m in data.get("models", [])]
+                        # Update current_url to reflect we're using gateway
+                        current_url = fi_monitor_gateway
+                else:
+                    logger.debug(
+                        "FI_MONITOR_GATEWAY_NOT_OK",
+                        status_code=gateway_response.status_code,
+                    )
+            except Exception as gateway_err:
+                # Gateway not available, fall back to direct Ollama check
+                logger.debug(
+                    "FI_MONITOR_GATEWAY_UNREACHABLE",
+                    error=str(gateway_err),
+                    fallback_to="direct_ollama",
+                )
+                # Fallback: check Ollama directly
+                response = await client.get(f"{current_url}/api/tags", timeout=2.0)
+                latency_ms = int((time.time() - check_start) * 1000)
+
+                if response.status_code == 200:
+                    status = "online"
+                    data = response.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+
     except Exception as e:
         logger.debug("LLM_STATUS_CHECK_FAILED", error=str(e), url=current_url)
         status = "offline"

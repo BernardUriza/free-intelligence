@@ -9,8 +9,6 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from pathlib import Path
-
 from backend.repositories.interfaces import ITaskRepository
 from backend.repositories.task_repository import HDF5TaskRepository
 from backend.config import CORPUS_PATH

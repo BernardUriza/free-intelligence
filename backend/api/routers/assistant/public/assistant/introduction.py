@@ -32,7 +32,9 @@ async def get_introduction(
             has_clinic_name=request.clinic_name is not None,
         )
 
-        context: dict[str, str] = {}
+        context: dict[str, str | bool] = {
+            "enable_thinking": False,  # Disable thinking for faster response (~7x speedup)
+        }
         if request.physician_name:
             context["physician_name"] = request.physician_name
         if request.clinic_name:
@@ -81,24 +83,13 @@ async def get_introduction(
 
 
 def _build_introduction_message(request: IntroductionRequest) -> str:
-    """Build the introduction prompt based on available context."""
+    """Build the introduction prompt based on available context.
+
+    OPTIMIZED: Short prompts for faster inference (~3-5s vs 20s+).
+    """
     if request.physician_name and request.clinic_name:
-        return (
-            f"Present yourself to Dr. {request.physician_name} "
-            f"from {request.clinic_name}. "
-            "Explain who you are, where you reside (locally in their NAS), "
-            "and how you'll help them with clinical documentation while "
-            "ensuring their data sovereignty."
-        )
+        return f"Preséntate brevemente a Dr. {request.physician_name} de {request.clinic_name}."
     elif request.physician_name:
-        return (
-            f"Present yourself to Dr. {request.physician_name}. "
-            "Explain who you are, where you reside (locally in their infrastructure), "
-            "and how you'll help them with clinical workflows."
-        )
+        return f"Preséntate brevemente a Dr. {request.physician_name}."
     else:
-        return (
-            "Present yourself to a new physician who is onboarding. "
-            "Explain who you are, where you reside (locally, not in the cloud), "
-            "and how you help with clinical documentation while respecting data sovereignty."
-        )
+        return "Preséntate brevemente a un médico nuevo."

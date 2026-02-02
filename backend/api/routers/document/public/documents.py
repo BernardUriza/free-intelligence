@@ -24,6 +24,7 @@ from __future__ import annotations
 import io
 from typing import Any
 
+from backend.api.audit.dependencies import get_audit_service
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
 from backend.domain.document.models import (

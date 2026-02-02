@@ -22,16 +22,14 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import h5py
 from backend.utils.common.logging.logger import get_logger
-from pathlib import Path
+from backend.config import CORPUS_PATH
 
 logger = get_logger(__name__)
-
-# HDF5 corpus path
-CORPUS_PATH = Path(__file__).parent.parent.parent / "storage" / "corpus.h5"
 
 
 class PersonaMetricsService:

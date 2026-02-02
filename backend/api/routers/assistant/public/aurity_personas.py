@@ -11,7 +11,10 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/workflows/aurity", tags=["personas"])
 
-PERSONAS_DIR = Path("config/personas")
+# Desktop mode: check ~/.aurity/config/personas first (same logic as PersonaManager)
+_desktop_personas_dir = Path.home() / ".aurity" / "config" / "personas"
+_default_personas_dir = Path(__file__).parent.parent.parent.parent.parent / "config" / "personas"
+PERSONAS_DIR = _desktop_personas_dir if _desktop_personas_dir.exists() else _default_personas_dir
 
 
 def _load_persona_file(path: Path) -> dict[str, Any]:

@@ -174,6 +174,7 @@ class PersonaManager:
             loaded=loaded,
             failed=failed,
             cache_ttl_s=self._cache_ttl_s,
+            config_dir=str(self._config_dir),
         )
 
     def _check_and_reload_if_stale(self, persona: str) -> None:

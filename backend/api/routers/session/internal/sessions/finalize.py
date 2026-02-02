@@ -81,9 +81,8 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["internal-sessions"])
 
 # Initialize session repository
-# Use relative path from this file: backend/api/internal/sessions/finalize.py
-# Go up 5 levels to reach project root, then down to storage/corpus.h5
-CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
+from backend.config import CORPUS_PATH
+
 session_repo = SessionRepository(str(CORPUS_PATH))
 
 

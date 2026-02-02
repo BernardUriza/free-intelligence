@@ -17,15 +17,13 @@ from backend.repositories.interfaces import ITaskRepository
 from backend.services.timeline.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pathlib import Path
 from pydantic import BaseModel, Field
+
+from backend.config import CORPUS_PATH
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/timeline", tags=["timeline"])
-
-# HDF5 corpus path
-CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 # ============================================================================
 # RESPONSE MODELS
