@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import yaml
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.database import get_db_dependency
 from backend.infrastructure.auth import User, UserRole, get_current_user
 from backend.services.kpi.services.persona_metrics_service import get_persona_metrics_service
@@ -274,6 +275,7 @@ async def update_persona(
     user_id: str | None = Query(None, description="User ID for personalized update"),
     db: Session = Depends(get_db_dependency),
     current_user: User = Depends(get_current_user),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> PersonaResponse:
     """Update persona configuration.
 
@@ -403,6 +405,7 @@ async def test_persona(
     test_request: PersonaTestRequest,
     user_id: str | None = Query(None, description="User ID for personalized config"),
     db: Session = Depends(get_db_dependency),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> PersonaTestResponse:
     """Test a persona with sample input using actual LLM.
 
@@ -467,17 +470,17 @@ async def test_persona(
         )
 
     except Exception as e:
-        # Log error and return helpful message
-        import structlog
-
-        logger = structlog.get_logger(__name__)
-        logger.error(
-            "PERSONA_TEST_FAILED",
-            persona_id=persona_id,
-            model=config.model,
-            provider=provider,
-            error=str(e)[:200],
-            error_type=type(e).__name__,
+        audit_service.log_action(
+            action="personas_update_failed",
+            user_id="system",
+            resource=f"persona:{persona_id}",
+            result="failure",
+            details={
+                "error": str(e)[:200],
+                "model": config.model,
+                "provider": provider,
+                "error_type": type(e).__name__,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
