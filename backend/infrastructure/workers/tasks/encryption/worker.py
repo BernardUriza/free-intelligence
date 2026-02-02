@@ -44,9 +44,9 @@ import contextlib
 import hashlib
 import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import UTC, datetime
-from typing import Any, Final
+from typing import Any
 
 import h5py
 import numpy as np
@@ -55,7 +55,7 @@ import sys
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pathlib import Path
 
-# Import constants from dedicated module
+# Import constants and models from dedicated modules
 from backend.infrastructure.workers.tasks.encryption.constants import (
     CHUNK_DURATION_SECONDS,
     CHUNK_SIZE_BYTES,
@@ -66,6 +66,11 @@ from backend.infrastructure.workers.tasks.encryption.constants import (
     DEK_SIZE_BYTES,
     GCM_TAG_SIZE_BYTES,
     IV_SIZE_BYTES,
+)
+from backend.infrastructure.workers.tasks.encryption.models import (
+    EncryptionManifestEntry,
+    SessionMetadata,
+    WorkerResult,
 )
 
 # Import structlog logger for consistent logging
@@ -105,76 +110,6 @@ except ImportError:
 
 # Logger instance (structlog for consistency with backend)
 logger = get_logger("encryption_worker")
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Data Classes
-# ═══════════════════════════════════════════════════════════════════
-
-
-@dataclass
-class EncryptionManifestEntry:
-    """Manifest entry for a single encrypted dataset.
-
-    Attributes:
-        path: HDF5 dataset path (e.g., "/audio/full_audio")
-        iv_b64: Base64-encoded IV (12 bytes)
-        aad: Additional Authenticated Data used for GCM
-        plaintext_sha256: SHA-256 checksum of plaintext (integrity verification)
-        ciphertext_bytes: Size of ciphertext including GCM tag
-        encrypted_at: ISO 8601 timestamp of encryption
-    """
-
-    path: str
-    iv_b64: str
-    aad: str
-    plaintext_sha256: str
-    ciphertext_bytes: int
-    encrypted_at: str
-
-
-@dataclass
-class SessionMetadata:
-    """Session-level encryption metadata.
-
-    Attributes:
-        session_id: Unique session identifier
-        algorithm: Encryption algorithm (AES-GCM-256)
-        dek_id: DEK identifier (for key rotation)
-        idempotency_key: Unique key for idempotent operations
-        encrypted_at: ISO 8601 timestamp
-        encrypted_count: Number of datasets encrypted
-        total_bytes: Total bytes encrypted (including GCM tags)
-        schema_version: Crypto schema version
-    """
-
-    session_id: str
-    algorithm: str
-    dek_id: str
-    idempotency_key: str
-    encrypted_at: str
-    encrypted_count: int
-    total_bytes: int
-    schema_version: str
-
-
-@dataclass
-class WorkerResult:
-    """Worker execution result.
-
-    Attributes:
-        session_id: Session identifier
-        status: SUCCESS | FAILED
-        result: Result data (encrypted paths, bytes, etc.)
-        duration_seconds: Execution time
-        error: Error message (if failed)
-    """
-
-    session_id: str
-    status: str
-    result: dict[str, Any]
-    duration_seconds: float
-    error: str | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════
