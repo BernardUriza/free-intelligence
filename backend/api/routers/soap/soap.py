@@ -16,8 +16,10 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.clients.dependencies import get_llm_client_dep
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.soap.dependencies import get_task_repository
 from backend.domain.soap.models import SOAPNote
@@ -107,7 +109,8 @@ class AssistantResponse(BaseModel):
 async def get_soap_workflow(
     session_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get SOAP note data - generates if not exists (PUBLIC endpoint).
 
@@ -167,7 +170,7 @@ async def get_soap_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="soap_retrieved",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -186,7 +189,8 @@ async def update_soap_workflow(
     session_id: str,
     request: SOAPUpdateRequest,
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Update SOAP note data (PUBLIC endpoint).
 
@@ -301,7 +305,7 @@ async def update_soap_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="soap_updated",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -326,7 +330,8 @@ async def soap_assistant_workflow(
     session_id: str,
     request: AssistantRequest,
     llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> AssistantResponse:
     """Process natural language command to modify SOAP data (PUBLIC orchestrator).
 
@@ -460,7 +465,7 @@ async def soap_assistant_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="soap_assistant_command",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={

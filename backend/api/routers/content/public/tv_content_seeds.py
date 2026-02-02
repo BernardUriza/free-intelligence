@@ -26,6 +26,8 @@ import time
 from typing import Any, Literal
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
 from pathlib import Path
@@ -209,6 +211,7 @@ async def list_tv_content(
     active_only: bool = True,
     include_doctor_media: bool = True,
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> TVContentListResponse:
     """
     List all TV content for carousel display.
@@ -249,7 +252,7 @@ async def list_tv_content(
     except Exception as e:
         audit_service.log_action(
             action="tv_content_list_failed",
-            user_id="system",
+            user_id=current_user.id,
             clinic_id=clinic_id,
             resource="tv_content",
             result="failure",
@@ -271,6 +274,7 @@ async def update_tv_content(
     content_id: str,
     updates: dict[str, Any],
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> TVContentSeed:
     """
     Update TV content metadata.
@@ -304,7 +308,7 @@ async def update_tv_content(
     except Exception as e:
         audit_service.log_action(
             action="tv_content_update_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"tv_content:{content_id}",
             result="failure",
             details={"error": str(e), "updates": updates},
@@ -324,6 +328,7 @@ async def disable_seed_for_clinic(
     clinic_id: str,
     content_id: str,
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """
     Disable a FI default seed for a specific clinic.
@@ -359,7 +364,7 @@ async def disable_seed_for_clinic(
     except Exception as e:
         audit_service.log_action(
             action="tv_seed_disable_failed",
-            user_id="system",
+            user_id=current_user.id,
             clinic_id=clinic_id,
             resource=f"seed:{content_id}",
             result="failure",
@@ -380,6 +385,7 @@ async def enable_seed_for_clinic(
     clinic_id: str,
     content_id: str,
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """
     Re-enable a previously disabled FI seed for a clinic.
@@ -405,7 +411,7 @@ async def enable_seed_for_clinic(
     except Exception as e:
         audit_service.log_action(
             action="tv_seed_enable_failed",
-            user_id="system",
+            user_id=current_user.id,
             clinic_id=clinic_id,
             resource=f"seed:{content_id}",
             result="failure",

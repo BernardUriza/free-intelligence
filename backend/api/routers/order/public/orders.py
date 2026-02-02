@@ -15,8 +15,10 @@ Created: 2025-11-15 (Refactored from monolithic router)
 
 from __future__ import annotations
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.domain.order.dependencies import get_task_repository
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -181,7 +183,8 @@ async def update_order_workflow(
     order_id: str,
     request: OrderUpdateRequest,
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Update an existing order (PUBLIC endpoint).
 
@@ -231,7 +234,7 @@ async def update_order_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="order_updated",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=f"{session_id}/{order_id}",
             result="failure",
             details={"error": str(e), "error_type": "not_found"},
@@ -244,7 +247,7 @@ async def update_order_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="order_updated",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=f"{session_id}/{order_id}",
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -263,7 +266,8 @@ async def delete_order_workflow(
     session_id: str,
     order_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Delete an order (PUBLIC endpoint).
 
@@ -304,7 +308,7 @@ async def delete_order_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="order_deleted",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=f"{session_id}/{order_id}",
             result="failure",
             details={"error": str(e), "error_type": "not_found"},
@@ -317,7 +321,7 @@ async def delete_order_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="order_deleted",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=f"{session_id}/{order_id}",
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},

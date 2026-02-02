@@ -43,7 +43,9 @@ import tempfile
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.models import EncryptionMetadata, Session
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.session_repository import SessionRepository
@@ -145,7 +147,8 @@ async def finalize_session(
     session_id: str,
     request: FinalizeSessionRequest | None = None,
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> FinalizeSessionResponse:
     """Finalize session with async encryption queueing (202 Accepted).
 
@@ -330,7 +333,7 @@ async def finalize_session(
             )
             audit_service.log_action(
                 action="session_updated",
-                user_id="system",  # TODO: Add current_user dependency for user tracking
+                user_id=current_user.id,
                 clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
                 resource=session_id,
                 result="success"
@@ -345,7 +348,7 @@ async def finalize_session(
             )
             audit_service.log_action(
                 action="session_created",
-                user_id="system",  # TODO: Add current_user dependency for user tracking
+                user_id=current_user.id,
                 clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
                 resource=session_id,
                 result="success"
@@ -470,7 +473,7 @@ async def finalize_session(
             except Exception as concat_err:
                 audit_service.log_action(
                     action="audio_concatenation_failed",
-                    user_id="system",
+                    user_id=current_user.id,
                     resource=session_id,
                     result="failure",
                     details={"error": str(concat_err)},
@@ -488,7 +491,7 @@ async def finalize_session(
         except ValueError as e:
             audit_service.log_action(
                 action="transcription_sources_save_failed",
-                user_id="system",
+                user_id=current_user.id,
                 resource=session_id,
                 result="failure",
                 details={"error": str(e)},
@@ -540,7 +543,7 @@ async def finalize_session(
 
             audit_service.log_action(
                 action="encryption_enqueue_failed",
-                user_id="system",
+                user_id=current_user.id,
                 resource=session_id,
                 result="failure",
                 details={"error": str(enqueue_err), "encryption_task_id": encryption_task_id},
@@ -564,7 +567,7 @@ async def finalize_session(
     except Exception as e:
         audit_service.log_action(
             action="session_finalization_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e)},
