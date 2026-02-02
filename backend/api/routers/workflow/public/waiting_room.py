@@ -19,10 +19,11 @@ from __future__ import annotations
 import time
 from typing import Literal
 
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.clients import get_llm_client
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -101,7 +102,10 @@ class GenerateTriviaResponse(BaseModel):
     **Rate limit**: Consider caching on frontend (tips don't need to be real-time).
     """,
 )
-async def generate_health_tip(request: GenerateTipRequest) -> GenerateTipResponse:
+async def generate_health_tip(
+    request: GenerateTipRequest,
+    audit_service: DIAuditService = Depends(get_audit_service),
+) -> GenerateTipResponse:
     """
     Generate a health tip for waiting room display.
 
@@ -167,7 +171,13 @@ async def generate_health_tip(request: GenerateTipRequest) -> GenerateTipRespons
         )
 
     except Exception as e:
-        logger.error("Failed to generate health tip", error=str(e), exc_info=True)
+        audit_service.log_action(
+            action="health_tip_generation_failed",
+            user_id="system",
+            resource="waiting_room_content",
+            result="failure",
+            details={"error": str(e), "category": request.category, "context": request.context},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate health tip: {e!s}",
