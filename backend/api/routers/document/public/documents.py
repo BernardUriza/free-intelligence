@@ -25,6 +25,7 @@ import io
 from typing import Any
 
 from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.services.di_audit_service import DIAuditService
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
 from backend.domain.document.models import (
@@ -147,12 +148,21 @@ def get_document_service() -> DocumentService:
 # ============================================================================
 
 
-def validate_file_upload(file: UploadFile, content: bytes) -> None:
+def validate_file_upload(
+    file: UploadFile,
+    content: bytes,
+    audit_service: DIAuditService | None = None,
+    user_id: str | None = None,
+    clinic_id: str | None = None,
+) -> None:
     """Validate uploaded file (size, format, magic bytes).
 
     Args:
         file: Uploaded file metadata
         content: File binary content
+        audit_service: Optional audit service for logging validation failures
+        user_id: Optional user ID for audit logging
+        clinic_id: Optional clinic ID for audit logging
 
     Raises:
         HTTPException: If validation fails
@@ -166,6 +176,18 @@ def validate_file_upload(file: UploadFile, content: bytes) -> None:
             filename=filename,
             content_type=file.content_type,
         )
+        if audit_service and user_id:
+            audit_service.log_action(
+                action="document_upload_rejected",
+                user_id=user_id,
+                clinic_id=clinic_id,
+                resource=filename,
+                result="failure",
+                details={
+                    "reason": "empty_file",
+                    "content_type": file.content_type,
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El archivo está vacío. Por favor selecciona un archivo válido.",
@@ -179,6 +201,19 @@ def validate_file_upload(file: UploadFile, content: bytes) -> None:
             filename=filename,
             size_bytes=len(content),
         )
+        if audit_service and user_id:
+            audit_service.log_action(
+                action="document_upload_rejected",
+                user_id=user_id,
+                clinic_id=clinic_id,
+                resource=filename,
+                result="failure",
+                details={
+                    "reason": "file_too_small",
+                    "size_bytes": len(content),
+                    "min_size_bytes": MIN_SIZE,
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"El archivo es demasiado pequeño ({len(content)} bytes). Mínimo {MIN_SIZE} bytes.",
@@ -192,6 +227,19 @@ def validate_file_upload(file: UploadFile, content: bytes) -> None:
             filename=filename,
             size_bytes=len(content),
         )
+        if audit_service and user_id:
+            audit_service.log_action(
+                action="document_upload_rejected",
+                user_id=user_id,
+                clinic_id=clinic_id,
+                resource=filename,
+                result="failure",
+                details={
+                    "reason": "file_too_large",
+                    "size_bytes": len(content),
+                    "max_size_bytes": MAX_SIZE,
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Archivo demasiado grande. Máximo 10 MB, recibido {len(content) / 1024 / 1024:.1f} MB",
@@ -210,6 +258,18 @@ def validate_file_upload(file: UploadFile, content: bytes) -> None:
             filename=filename,
             actual_content_start=content[:50].decode("utf-8", errors="replace"),
         )
+        if audit_service and user_id:
+            audit_service.log_action(
+                action="document_upload_rejected",
+                user_id=user_id,
+                clinic_id=clinic_id,
+                resource=filename,
+                result="failure",
+                details={
+                    "reason": "html_masquerade",
+                    "content_start": content[:50].decode("utf-8", errors="replace"),
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error de navegador: Se recibió HTML en lugar del archivo. "
@@ -236,13 +296,33 @@ def validate_file_upload(file: UploadFile, content: bytes) -> None:
                 expected=expected_magic.hex(),
                 actual=content[:10].hex(),
             )
+            if audit_service and user_id:
+                audit_service.log_action(
+                    action="document_upload_rejected",
+                    user_id=user_id,
+                    clinic_id=clinic_id,
+                    resource=filename,
+                    result="failure",
+                    details={
+                        "reason": "invalid_magic_bytes",
+                        "extension": ext,
+                        "expected_magic": expected_magic.hex(),
+                        "actual_magic": content[:10].hex(),
+                    },
+                )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Archivo corrupto: {error_msg}",
             )
 
 
-def extract_text_from_file(file: UploadFile, content: bytes) -> str:
+def extract_text_from_file(
+    file: UploadFile,
+    content: bytes,
+    audit_service: DIAuditService | None = None,
+    user_id: str | None = None,
+    clinic_id: str | None = None,
+) -> str:
     """Extract text content from uploaded file.
 
     Supports: TXT, PDF, DOCX, MD
@@ -250,6 +330,9 @@ def extract_text_from_file(file: UploadFile, content: bytes) -> str:
     Args:
         file: Uploaded file metadata
         content: File binary content
+        audit_service: Optional audit service for logging extraction failures
+        user_id: Optional user ID for audit logging
+        clinic_id: Optional clinic ID for audit logging
 
     Returns:
         Extracted text content
@@ -284,6 +367,18 @@ def extract_text_from_file(file: UploadFile, content: bytes) -> str:
                 return text.strip()
             except Exception as e:
                 logger.error("PDF_EXTRACTION_ERROR", filename=filename, error=str(e))
+                if audit_service and user_id:
+                    audit_service.log_action(
+                        action="document_extraction_failed",
+                        user_id=user_id,
+                        clinic_id=clinic_id,
+                        resource=filename,
+                        result="failure",
+                        details={
+                            "file_type": "pdf",
+                            "error": str(e),
+                        },
+                    )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"No se pudo extraer texto del PDF: {str(e)}",
@@ -306,6 +401,18 @@ def extract_text_from_file(file: UploadFile, content: bytes) -> str:
                 return text.strip()
             except Exception as e:
                 logger.error("DOCX_EXTRACTION_ERROR", filename=filename, error=str(e))
+                if audit_service and user_id:
+                    audit_service.log_action(
+                        action="document_extraction_failed",
+                        user_id=user_id,
+                        clinic_id=clinic_id,
+                        resource=filename,
+                        result="failure",
+                        details={
+                            "file_type": "docx",
+                            "error": str(e),
+                        },
+                    )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"No se pudo extraer texto del DOCX: {str(e)}",
@@ -321,6 +428,18 @@ def extract_text_from_file(file: UploadFile, content: bytes) -> str:
         raise
     except Exception as e:
         logger.error("TEXT_EXTRACTION_ERROR", filename=filename, error=str(e))
+        if audit_service and user_id:
+            audit_service.log_action(
+                action="document_extraction_failed",
+                user_id=user_id,
+                clinic_id=clinic_id,
+                resource=filename,
+                result="failure",
+                details={
+                    "file_type": ext or "unknown",
+                    "error": str(e),
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al procesar archivo: {str(e)}",
@@ -340,6 +459,7 @@ async def upload_document(
     document_type: str = Form("other"),
     current_user: User = Depends(get_current_user),
     doc_service: DocumentService = Depends(get_document_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> DocumentUploadResponse:
     """Upload a new document to the knowledge base.
 
@@ -366,10 +486,22 @@ async def upload_document(
     filename = file.filename or "unknown"
 
     # Validate file
-    validate_file_upload(file, content)
+    validate_file_upload(
+        file,
+        content,
+        audit_service=audit_service,
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id,
+    )
 
     # Extract text
-    text_content = extract_text_from_file(file, content)
+    text_content = extract_text_from_file(
+        file,
+        content,
+        audit_service=audit_service,
+        user_id=current_user.id,
+        clinic_id=current_user.clinic_id,
+    )
 
     if not text_content or not text_content.strip():
         raise HTTPException(
@@ -425,6 +557,17 @@ async def upload_document(
             filename=filename,
             clinic_id=current_user.clinic_id,
             error=str(e),
+        )
+        audit_service.log_action(
+            action="document_upload_failed",
+            user_id=current_user.id,
+            clinic_id=current_user.clinic_id,
+            resource=filename,
+            result="failure",
+            details={
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
