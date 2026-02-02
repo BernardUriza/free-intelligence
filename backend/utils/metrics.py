@@ -27,11 +27,6 @@ Pattern: Prometheus Metrics + Structured Observability
 
 from __future__ import annotations
 
-import functools
-import time
-from collections.abc import Callable
-from typing import Any
-
 from backend.utils.common.logging.logger import get_logger
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -240,105 +235,6 @@ retry_exhausted_total = Counter(
     "Exhausted retries (all attempts failed)",
     ["function"],
 )
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DECORATOR FOR AUTOMATIC METRICS
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-def track_workflow_task(task_type: str) -> Callable:
-    """
-    Decorator to automatically track workflow task metrics.
-
-    Usage:
-        @track_workflow_task("TRANSCRIPTION")
-        def transcribe_worker(session_id: str):
-            # ... transcription logic ...
-            return result
-
-    Metrics tracked:
-        - workflow_tasks_total{task_type, status}
-        - workflow_task_duration_seconds{task_type}
-        - workflow_tasks_in_progress{task_type}
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Mark as in-progress
-            workflow_tasks_in_progress.labels(task_type=task_type).inc()
-
-            start_time = time.time()
-            status = "failed"
-
-            try:
-                result = func(*args, **kwargs)
-                status = "completed"
-                return result
-
-            except Exception:
-                status = "failed"
-                raise
-
-            finally:
-                # Record completion
-                duration = time.time() - start_time
-                workflow_tasks_total.labels(task_type=task_type, status=status).inc()
-                workflow_task_duration_seconds.labels(task_type=task_type).observe(duration)
-                workflow_tasks_in_progress.labels(task_type=task_type).dec()
-
-        return wrapper
-
-    return decorator
-
-
-def track_llm_request(provider: str, model: str) -> Callable:
-    """
-    Decorator to automatically track LLM request metrics.
-
-    Usage:
-        @track_llm_request("claude", "sonnet-4")
-        def call_claude_api(prompt: str):
-            # ... API call ...
-            return response
-
-    Metrics tracked:
-        - llm_requests_total{provider, model, status}
-        - llm_request_duration_seconds{provider, model}
-        - llm_requests_in_progress{provider, model}
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Mark as in-progress
-            llm_requests_in_progress.labels(provider=provider, model=model).inc()
-
-            start_time = time.time()
-            status = "failed"
-
-            try:
-                result = func(*args, **kwargs)
-                status = "success"
-                return result
-
-            except Exception:
-                status = "failed"
-                raise
-
-            finally:
-                # Record completion
-                duration = time.time() - start_time
-                llm_requests_total.labels(provider=provider, model=model, status=status).inc()
-                llm_request_duration_seconds.labels(provider=provider, model=model).observe(
-                    duration
-                )
-                llm_requests_in_progress.labels(provider=provider, model=model).dec()
-
-        return wrapper
-
-    return decorator
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

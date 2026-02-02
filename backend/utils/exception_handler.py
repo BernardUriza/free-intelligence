@@ -18,7 +18,6 @@ Author: Claude Code (P1 Architectural Fix)
 from __future__ import annotations
 
 from backend.exceptions import FIException
-from backend.schemas import StatusCode, error_response
 from backend.utils.common.logging.logger import get_logger
 from fastapi import HTTPException, status
 
@@ -107,63 +106,3 @@ def handle_exception(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail={"error": "InternalError", "message": default_message},
     )
-
-
-def exception_to_response(exc: Exception) -> dict:
-    """Convert exception to standardized API response dict.
-
-    Use this when you want to return a response dict instead of raising HTTPException.
-
-    Args:
-        exc: Exception to convert
-
-    Returns:
-        Dict with error_response format
-
-    Example:
-        try:
-            result = operation()
-        except SessionNotFoundError as e:
-            return exception_to_response(e)  # Returns dict, not HTTPException
-    """
-    if isinstance(exc, FIException):
-        status_code_map = {
-            400: StatusCode.VALIDATION_ERROR,
-            403: StatusCode.FORBIDDEN,
-            404: StatusCode.NOT_FOUND,
-            422: StatusCode.ERROR,
-            500: StatusCode.INTERNAL_ERROR,
-            502: StatusCode.INTERNAL_ERROR,
-            504: StatusCode.INTERNAL_ERROR,
-        }
-        status_code_enum = status_code_map.get(exc.status_code, StatusCode.ERROR)
-
-        return error_response(
-            message=exc.message,
-            code=exc.status_code,
-            status=status_code_enum,
-        ).dict()
-
-    # Fallback for non-FIException
-    http_exc = handle_exception(exc, log_error=False)
-    if isinstance(http_exc, HTTPException):
-        status_code_enum = StatusCode.ERROR
-        if http_exc.status_code == 400:
-            status_code_enum = StatusCode.VALIDATION_ERROR
-        elif http_exc.status_code == 403:
-            status_code_enum = StatusCode.FORBIDDEN
-        elif http_exc.status_code == 404:
-            status_code_enum = StatusCode.NOT_FOUND
-
-        return error_response(
-            message=str(exc),
-            code=http_exc.status_code,
-            status=status_code_enum,
-        ).dict()
-
-    # Should never reach here, but just in case
-    return error_response(
-        message="An unexpected error occurred",
-        code=500,
-        status=StatusCode.INTERNAL_ERROR,
-    ).dict()
