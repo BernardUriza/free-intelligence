@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from backend.api.audit.dependencies import DIAuditService
+from typing import Annotated
+from fastapi import Depends
+from backend.api.audit.dependencies import get_audit_service, DIAuditService
+
+# Type alias for dependency injection
+AuditServiceDep = Annotated[DIAuditService, Depends(get_audit_service)]
 from backend.services.workflow.dependencies import (
     IntelligentOrchestrationDep,
     WorkflowOrchestratorDep,
@@ -49,7 +54,7 @@ router = APIRouter()
 async def diarize_session_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
 ) -> dict:
     """
     Dispatch speaker diarization workflow.
@@ -110,7 +115,7 @@ async def diarize_session_workflow(
 async def generate_soap_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
 ) -> dict:
     """
     Dispatch SOAP note generation workflow.
@@ -170,7 +175,7 @@ async def generate_soap_workflow(
 async def analyze_emotion_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
 ) -> dict:
     """
     Dispatch emotional analysis workflow.
@@ -235,7 +240,7 @@ async def analyze_emotion_workflow(
 async def analyze_session_intelligent_workflow(
     session_id: str,
     orchestration_service: IntelligentOrchestrationDep,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
     language: str = "es",
     user_intent: str | None = None,
 ) -> dict:
@@ -339,7 +344,7 @@ async def analyze_session_intelligent_workflow(
 async def finalize_session_workflow(
     session_id: str,
     request: FinalizeSessionRequest,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
 ) -> FinalizeSessionResponse:
     """
     Finalize session workflow (merge transcription sources).
@@ -403,7 +408,7 @@ async def finalize_session_workflow(
 async def checkpoint_session_workflow(
     session_id: str,
     request: CheckpointRequest,
-    audit_service: DIAuditService,
+    audit_service: AuditServiceDep,
 ) -> CheckpointResponse:
     """
     Checkpoint session workflow (save partial progress).
