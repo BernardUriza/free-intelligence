@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.api.routers.kpi.dependencies import get_kpis_aggregator_dep
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -28,6 +30,7 @@ router = APIRouter(prefix="/kpis", tags=["kpis"])
 async def get_kpis(
     aggregator: Annotated["IKPIsAggregator", Depends(get_kpis_aggregator_dep)],
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
     window: str = Query("5m", description="Time window: Union[1m, 5m, 15m]|Union[1h, 24h]"),
     view: str = Query("summary", description="View: Union[summary, chips, timeseries]"),
     route: str | None = Query(None, description="Filter by route (e.g., /api/sessions)"),
@@ -88,7 +91,7 @@ async def get_kpis(
     except Exception as e:
         audit_service.log_action(
             action="kpis_export_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="kpis",
             result="failure",
             details={"error": str(e), "window": window, "view": view},

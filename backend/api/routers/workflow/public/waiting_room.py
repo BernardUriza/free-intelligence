@@ -21,6 +21,8 @@ from typing import Literal
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.clients import get_llm_client
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -105,6 +107,7 @@ class GenerateTriviaResponse(BaseModel):
 async def generate_health_tip(
     request: GenerateTipRequest,
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> GenerateTipResponse:
     """
     Generate a health tip for waiting room display.
@@ -173,7 +176,7 @@ async def generate_health_tip(
     except Exception as e:
         audit_service.log_action(
             action="health_tip_generation_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="waiting_room_content",
             result="failure",
             details={"error": str(e), "category": request.category, "context": request.context},

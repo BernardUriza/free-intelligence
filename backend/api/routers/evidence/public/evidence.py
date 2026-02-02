@@ -13,6 +13,8 @@ Created: 2025-11-17 (Evidence Pack Auto-Generation)
 from __future__ import annotations
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.evidence.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
@@ -31,6 +33,7 @@ async def get_evidence_pack_workflow(
     session_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get evidence pack for session - generates if not exists (PUBLIC endpoint).
 
@@ -88,7 +91,7 @@ async def get_evidence_pack_workflow(
     except Exception as e:
         audit_service.log_action(
             action="evidence_pack_get_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"session:{session_id}",
             result="failure",
             details={"error": str(e)},
