@@ -15,8 +15,10 @@ from datetime import datetime
 from enum import Enum
 # PEP 585: use built-in list
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.database import get_db_dependency
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.models.db_models import Patient
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -108,7 +110,8 @@ class CurpValidationResponse(BaseModel):
 def validate_curp(
     request: CurpValidationRequest,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Validate CURP format and availability.
 
@@ -157,7 +160,7 @@ def validate_curp(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="curp_validated",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource=request.curp[:4] + "****",  # Partial CURP for privacy
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -175,7 +178,8 @@ def validate_curp(
 def create_patient(
     patient: PatientCreate,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new patient record.
 
@@ -211,7 +215,7 @@ def create_patient(
 
         audit_service.log_action(
             action="patient_created",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=str(db_patient.patient_id),
             result="success",
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
@@ -224,7 +228,7 @@ def create_patient(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="patient_created",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource="unknown",  # Patient ID not available on failure
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -238,7 +242,8 @@ def list_patients(
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Skip N results"),
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """List patients with optional search and pagination.
 
@@ -273,7 +278,7 @@ def list_patients(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="patients_listed",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource="list",
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__, "search": search},
@@ -287,7 +292,8 @@ def list_patients(
 def get_patient(
     patient_id: str,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Get patient by ID.
 
@@ -315,7 +321,7 @@ def get_patient(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="patient_retrieved",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource=patient_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -328,7 +334,8 @@ def update_patient(
     patient_id: str,
     updates: PatientUpdate,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Update patient record.
 
@@ -368,7 +375,7 @@ def update_patient(
 
         audit_service.log_action(
             action="patient_updated",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=patient_id,
             result="success",
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
@@ -382,7 +389,7 @@ def update_patient(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="patient_updated",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource=patient_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
@@ -394,7 +401,8 @@ def update_patient(
 def delete_patient(
     patient_id: str,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete patient record.
 
@@ -415,7 +423,7 @@ def delete_patient(
 
         audit_service.log_action(
             action="patient_deleted",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=patient_id,
             result="success",
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
@@ -428,7 +436,7 @@ def delete_patient(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="patient_deleted",
-            user_id="system",  # TODO: Add current_user dependency
+            user_id=current_user.id,
             resource=patient_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},

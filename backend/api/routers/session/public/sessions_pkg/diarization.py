@@ -7,6 +7,8 @@ from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -22,6 +24,7 @@ logger = get_logger(__name__)
 async def get_diarization_status_workflow(
     job_id: str,
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Poll diarization job status (PUBLIC orchestrator).
 
@@ -47,7 +50,7 @@ async def get_diarization_status_workflow(
     except Exception as e:
         audit_service.log_action(
             action="diarization_status_query_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=job_id,
             result="failure",
             details={"error": str(e)},
@@ -66,6 +69,7 @@ async def get_diarization_segments_workflow(
     session_id: str,
     audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get diarization segments (PUBLIC orchestrator)."""
     validate_session_id(session_id)
@@ -113,7 +117,7 @@ async def get_diarization_segments_workflow(
     except ValueError as e:
         audit_service.log_action(
             action="diarization_segments_query_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": "segments_not_found"},
@@ -122,7 +126,7 @@ async def get_diarization_segments_workflow(
     except Exception as e:
         audit_service.log_action(
             action="diarization_segments_query_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e)},
@@ -143,6 +147,7 @@ async def update_diarization_segment_workflow(
     request: UpdateSegmentRequest,
     audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
 
@@ -197,7 +202,7 @@ async def update_diarization_segment_workflow(
     except ValueError as e:
         audit_service.log_action(
             action="diarization_segment_update_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"segment_index": segment_index, "error": "segment_not_found"},
@@ -206,7 +211,7 @@ async def update_diarization_segment_workflow(
     except Exception as e:
         audit_service.log_action(
             action="diarization_segment_update_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"segment_index": segment_index, "error": str(e)},
@@ -226,6 +231,7 @@ async def import_external_diarization(
     request: ImportDiarizationRequest,
     audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Import pre-diarized transcript from external service (e.g., Cue, AssemblyAI).
 
@@ -331,7 +337,7 @@ async def import_external_diarization(
     except Exception as e:
         audit_service.log_action(
             action="external_diarization_import_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"provider": request.provider, "error": str(e)},

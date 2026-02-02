@@ -12,8 +12,10 @@ from __future__ import annotations
 
 # PEP 585: use built-in list
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.database import get_db_dependency
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.models.db_models import Provider
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -70,7 +72,8 @@ class ProviderResponse(BaseModel):
 def create_provider(
     provider: ProviderCreate,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new provider record.
 
@@ -111,7 +114,7 @@ def create_provider(
 
         audit_service.log_action(
             action="provider_created",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=str(db_provider.provider_id),
             result="success"
@@ -123,7 +126,7 @@ def create_provider(
     except Exception as e:
         audit_service.log_action(
             action="provider_create_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="provider",
             result="failure",
             details={"error": str(e)},
@@ -137,7 +140,8 @@ def list_providers(
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Skip N results"),
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """List providers with optional search and pagination.
 
@@ -170,7 +174,7 @@ def list_providers(
     except Exception as e:
         audit_service.log_action(
             action="providers_list_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="providers",
             result="failure",
             details={"error": str(e), "search": search},
@@ -182,7 +186,8 @@ def list_providers(
 def get_provider(
     provider_id: str,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Get provider by ID.
 
@@ -209,7 +214,7 @@ def get_provider(
     except Exception as e:
         audit_service.log_action(
             action="provider_get_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=provider_id,
             result="failure",
             details={"error": str(e)},
@@ -222,7 +227,8 @@ def update_provider(
     provider_id: str,
     updates: ProviderUpdate,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Update provider record.
 
@@ -266,7 +272,7 @@ def update_provider(
 
         audit_service.log_action(
             action="provider_updated",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=provider_id,
             result="success",
@@ -279,7 +285,7 @@ def update_provider(
     except Exception as e:
         audit_service.log_action(
             action="provider_update_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=provider_id,
             result="failure",
             details={"error": str(e)},
@@ -291,7 +297,8 @@ def update_provider(
 def delete_provider(
     provider_id: str,
     db: Session = Depends(get_db_dependency),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete provider record.
 
@@ -312,7 +319,7 @@ def delete_provider(
 
         audit_service.log_action(
             action="provider_deleted",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             clinic_id=None,  # TODO: Add clinic_id filtering (Phase 2)
             resource=provider_id,
             result="success"
@@ -324,7 +331,7 @@ def delete_provider(
     except Exception as e:
         audit_service.log_action(
             action="provider_delete_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=provider_id,
             result="failure",
             details={"error": str(e)},

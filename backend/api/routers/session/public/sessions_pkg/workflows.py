@@ -22,9 +22,12 @@ from typing import TYPE_CHECKING, Any
 from typing import Annotated
 from fastapi import Depends
 from backend.api.audit.dependencies import get_audit_service, DIAuditService
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 
-# Type alias for dependency injection
+# Type aliases for dependency injection
 AuditServiceDep = Annotated[DIAuditService, Depends(get_audit_service)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 from backend.services.workflow.dependencies import (
     IntelligentOrchestrationDep,
     WorkflowOrchestratorDep,
@@ -55,6 +58,7 @@ async def diarize_session_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
 ) -> dict:
     """
     Dispatch speaker diarization workflow.
@@ -86,7 +90,7 @@ async def diarize_session_workflow(
     except FileNotFoundError as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "diarization", "error": "audio_file_not_found"},
@@ -100,7 +104,7 @@ async def diarize_session_workflow(
     except Exception as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "diarization", "error": str(e)},
@@ -116,6 +120,7 @@ async def generate_soap_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
 ) -> dict:
     """
     Dispatch SOAP note generation workflow.
@@ -146,7 +151,7 @@ async def generate_soap_workflow(
     except ValueError as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "soap", "error": "transcription_not_completed"},
@@ -160,7 +165,7 @@ async def generate_soap_workflow(
     except Exception as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "soap", "error": str(e)},
@@ -176,6 +181,7 @@ async def analyze_emotion_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
 ) -> dict:
     """
     Dispatch emotional analysis workflow.
@@ -206,7 +212,7 @@ async def analyze_emotion_workflow(
     except ValueError as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "emotion", "error": "transcription_not_completed"},
@@ -220,7 +226,7 @@ async def analyze_emotion_workflow(
     except Exception as e:
         audit_service.log_action(
             action="workflow_dispatch_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "emotion", "error": str(e)},
@@ -241,6 +247,7 @@ async def analyze_session_intelligent_workflow(
     session_id: str,
     orchestration_service: IntelligentOrchestrationDep,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
     language: str = "es",
     user_intent: str | None = None,
 ) -> dict:
@@ -310,7 +317,7 @@ async def analyze_session_intelligent_workflow(
     except FileNotFoundError as e:
         audit_service.log_action(
             action="workflow_orchestration_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "intelligent", "error": "audio_file_not_found"},
@@ -324,7 +331,7 @@ async def analyze_session_intelligent_workflow(
     except Exception as e:
         audit_service.log_action(
             action="workflow_orchestration_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"workflow": "intelligent", "error": str(e)},
@@ -345,6 +352,7 @@ async def finalize_session_workflow(
     session_id: str,
     request: FinalizeSessionRequest,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
 ) -> FinalizeSessionResponse:
     """
     Finalize session workflow (merge transcription sources).
@@ -393,7 +401,7 @@ async def finalize_session_workflow(
     except Exception as e:
         audit_service.log_action(
             action="session_finalization_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e)},
@@ -409,6 +417,7 @@ async def checkpoint_session_workflow(
     session_id: str,
     request: CheckpointRequest,
     audit_service: AuditServiceDep,
+    current_user: CurrentUserDep,
 ) -> CheckpointResponse:
     """
     Checkpoint session workflow (save partial progress).
@@ -465,7 +474,7 @@ async def checkpoint_session_workflow(
     except Exception as e:
         audit_service.log_action(
             action="session_checkpoint_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "last_chunk_idx": request.last_chunk_idx},
