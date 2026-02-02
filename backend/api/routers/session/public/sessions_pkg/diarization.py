@@ -6,6 +6,7 @@ from typing import Any
 from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
+from backend.services.audit.dependencies import DIAuditService
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,7 +19,10 @@ logger = get_logger(__name__)
     "/diarization/jobs/{job_id}",
     status_code=status.HTTP_200_OK,
 )
-async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
+async def get_diarization_status_workflow(
+    job_id: str,
+    audit_service: DIAuditService,
+) -> dict[str, Any]:
     """Poll diarization job status (PUBLIC orchestrator).
 
     Calls INTERNAL diarization status function directly and returns combined status.
@@ -41,6 +45,13 @@ async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="diarization_status_query_failed",
+            user_id="system",
+            resource=job_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         logger.error(
             "DIARIZATION_STATUS_WORKFLOW_FAILED",
             job_id=job_id,
@@ -59,6 +70,7 @@ async def get_diarization_status_workflow(job_id: str) -> dict[str, Any]:
 )
 async def get_diarization_segments_workflow(
     session_id: str,
+    audit_service: DIAuditService,
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Get diarization segments (PUBLIC orchestrator)."""
@@ -105,9 +117,23 @@ async def get_diarization_segments_workflow(
     except HTTPException:
         raise
     except ValueError as e:
+        audit_service.log_action(
+            action="diarization_segments_query_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"error": "segments_not_found"},
+        )
         logger.error("DIARIZATION_SEGMENTS_NOT_FOUND", session_id=session_id, error=str(e))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
+        audit_service.log_action(
+            action="diarization_segments_query_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         logger.error(
             "DIARIZATION_SEGMENTS_GET_FAILED",
             session_id=session_id,
@@ -128,6 +154,7 @@ async def update_diarization_segment_workflow(
     session_id: str,
     segment_index: int,
     request: UpdateSegmentRequest,
+    audit_service: DIAuditService,
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
@@ -181,6 +208,13 @@ async def update_diarization_segment_workflow(
     except HTTPException:
         raise
     except ValueError as e:
+        audit_service.log_action(
+            action="diarization_segment_update_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"segment_index": segment_index, "error": "segment_not_found"},
+        )
         logger.error(
             "DIARIZATION_SEGMENT_UPDATE_NOT_FOUND",
             session_id=session_id,
@@ -189,6 +223,13 @@ async def update_diarization_segment_workflow(
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
+        audit_service.log_action(
+            action="diarization_segment_update_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"segment_index": segment_index, "error": str(e)},
+        )
         logger.error(
             "DIARIZATION_SEGMENT_UPDATE_FAILED",
             session_id=session_id,
@@ -209,6 +250,7 @@ async def update_diarization_segment_workflow(
 async def import_external_diarization(
     session_id: str,
     request: ImportDiarizationRequest,
+    audit_service: DIAuditService,
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Import pre-diarized transcript from external service (e.g., Cue, AssemblyAI).
@@ -313,6 +355,13 @@ async def import_external_diarization(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="external_diarization_import_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"provider": request.provider, "error": str(e)},
+        )
         logger.error(
             "EXTERNAL_DIARIZATION_IMPORT_FAILED",
             session_id=session_id,
