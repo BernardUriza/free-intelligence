@@ -43,26 +43,39 @@ interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number; // Number of retry attempts (default: 0 for regular requests, 3 for uploads)
   retryDelay?: number; // Initial retry delay in ms (default: 1000)
+  // External abort signal for controlled cancellation (e.g., React useEffect cleanup)
+  signal?: AbortSignal;
 }
 
 async function fetchWithTimeout(
   url: string,
   options: RequestOptions = {}
 ): Promise<Response> {
-  const { timeout = 30000, ...fetchOptions } = options;
+  const { timeout = 30000, signal: externalSignal, ...fetchOptions } = options;
 
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  // Link external signal to internal controller for controlled cancellation
+  // This allows React useEffect cleanup to abort in-flight requests
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timeoutId);
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
 
   try {
     const response = await fetch(url, {
       ...fetchOptions,
       signal: controller.signal,
     });
-    clearTimeout(id);
+    clearTimeout(timeoutId);
     return response;
   } catch (error) {
-    clearTimeout(id);
+    clearTimeout(timeoutId);
     throw error;
   }
 }
@@ -122,6 +135,13 @@ export async function apiRequest<T>(
     if (error instanceof APIError) {
       throw error;
     }
+
+    // Don't log intentional abort errors (React cleanup, user cancellation)
+    // These are expected behavior, not actual errors
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error; // Re-throw for caller to handle, but don't pollute console
+    }
+
     // Include the attempted URL in the error to aid debugging (CORS / mixed-content / network)
     const errMsg = error instanceof Error ? error.message : 'Unknown';
     console.error(`[apiRequest] Network error fetching ${url}: ${errMsg}`);

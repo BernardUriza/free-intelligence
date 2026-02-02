@@ -67,6 +67,8 @@ export interface ChatRequest {
   enable_thinking?: boolean;
   /** Response style: 'concise' for brief answers, 'explanatory' for detailed responses */
   response_mode?: string;
+  /** AbortSignal for controlled cancellation (e.g., React useEffect cleanup) */
+  signal?: AbortSignal;
 }
 
 export interface ChatResponse {
@@ -175,6 +177,8 @@ export const assistantApi = {
       enable_thinking: request.enable_thinking ?? true, // Default true
       persona: (request.context?.persona as string) || 'general_assistant',
       response_mode: request.response_mode || (request.context?.response_mode as string) || 'explanatory',
+    }, {
+      signal: request.signal, // Pass through for controlled cancellation
     });
 
     // Extract the assistant's response
@@ -203,8 +207,10 @@ export const assistantApi = {
   /**
    * Get AI introduction message
    * Used for greeting users when starting a new conversation
+   * @param context - Context including doctor_id and persona
+   * @param signal - Optional AbortSignal for controlled cancellation
    */
-  introduction: async (context: Record<string, unknown>): Promise<ChatResponse> => {
+  introduction: async (context: Record<string, unknown>, signal?: AbortSignal): Promise<ChatResponse> => {
     // Use the chat endpoint with a special introduction request
     const response = await api.post<{
       id: string;
@@ -226,6 +232,8 @@ export const assistantApi = {
       ],
       user: context.doctor_id as string,
       persona: (context.persona as string) || 'general_assistant',
+    }, {
+      signal, // Pass through for controlled cancellation
     });
 
     const assistantMessage = response.choices?.[0]?.message?.content || '¡Hola! ¿En qué puedo ayudarte hoy?';
