@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
@@ -24,7 +26,8 @@ async def get_transcription_sources_workflow(
     session_id: str,
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
     task_repo: ITaskRepository = Depends(get_task_repository),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
 
@@ -108,7 +111,7 @@ async def get_transcription_sources_workflow(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="transcription_sources_retrieved",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},

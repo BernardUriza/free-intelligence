@@ -18,8 +18,10 @@ from __future__ import annotations
 import json
 
 import h5py
-from backend.api.audit.dependencies import get_audit_service
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.config import CORPUS_PATH
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.infrastructure.common.dependencies import get_transcription_service
 from backend.utils.common.logging.logger import get_logger
 from backend.services.transcription.services.transcription_service import TranscriptionService
@@ -313,7 +315,8 @@ async def stream_chunk(
 async def get_job_status(
     session_id: str,
     service: TranscriptionService = Depends(get_transcription_service),
-    audit_service=Depends(get_audit_service),
+    audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> JobStatusResponse:
     """Poll transcription job status (mode-agnostic with Strategy Pattern).
 
@@ -366,7 +369,7 @@ async def get_job_status(
         # Audit not found failure for compliance tracking
         audit_service.log_action(
             action="job_status_retrieved",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "error_type": "session_not_found"},
@@ -376,7 +379,7 @@ async def get_job_status(
         # Audit failure for compliance tracking
         audit_service.log_action(
             action="job_status_retrieved",
-            user_id="system",  # TODO: Add current_user dependency for user tracking
+            user_id=current_user.id,
             resource=session_id,
             result="failure",
             details={"error": str(e), "error_type": type(e).__name__},
