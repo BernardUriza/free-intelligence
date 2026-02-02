@@ -19,6 +19,26 @@ async def monitor_session_progress(
     request: Request,
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
+    """Monitor real-time progress of all session tasks.
+
+    Returns aggregated status for transcription, diarization, SOAP generation,
+    and encryption tasks. Used by frontend to display progress indicators
+    during and after medical consultations.
+
+    Args:
+        session_id: UUID of the session to monitor
+        request: FastAPI request (for Accept header inspection)
+        task_repo: Task repository for HDF5 access (injected)
+
+    Returns:
+        Dictionary with task statuses, progress percentages, and metadata.
+        Supports both JSON and SSE response formats based on Accept header.
+
+    Raises:
+        400: Invalid session_id format
+        404: Session not found
+        500: Internal error reading task data
+    """
     validate_session_id(session_id)
     from backend.models.task_type import TaskType
 

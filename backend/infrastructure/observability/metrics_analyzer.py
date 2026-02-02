@@ -75,6 +75,18 @@ def _parse_optional_time(value: str | None) -> datetime | None:
 
 
 def run(args: argparse.Namespace) -> int:
+    """Analyze API metrics and compute SLO compliance statistics.
+
+    Processes structured logs to extract latency metrics per endpoint,
+    computes percentiles (p50, p95, p99), and checks compliance against
+    defined SLO thresholds. Generates reports for capacity planning.
+
+    Args:
+        args: CLI arguments including log source, time range, and endpoint filters
+
+    Returns:
+        Exit code (0 for success, non-zero for SLO violations or errors)
+    """
     try:
         ensure_read_only_mode(True)
         common = coerce_common_args(args)

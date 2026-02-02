@@ -87,6 +87,18 @@ def _correlation_id(event: dict[str, Any]) -> str | None:
 
 
 def run(args: argparse.Namespace) -> int:
+    """Execute trace inspection analysis on observability logs.
+
+    Analyzes distributed traces from log files, computing latency percentiles,
+    identifying slow endpoints, and detecting anomalies. Output is formatted
+    as a structured report suitable for SRE review.
+
+    Args:
+        args: CLI arguments including log source, time filters, and output options
+
+    Returns:
+        Exit code (0 for success, 1 for errors)
+    """
     try:
         ensure_read_only_mode(True)
         common = coerce_common_args(args)

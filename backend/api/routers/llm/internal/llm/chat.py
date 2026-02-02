@@ -18,15 +18,15 @@ import uuid as _uuid
 from datetime import UTC, datetime
 
 import ulid
+from backend.api.audit.services.audit_service import AuditService
+from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
+from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
-from backend.api.audit.services.audit_service import AuditService
-from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
-from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
+from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse
@@ -497,6 +497,20 @@ async def internal_llm_chat_stream(request: ChatRequest):
     stream_request_id = str(_uuid.uuid4())
 
     async def stream_generator():
+        """Generate SSE stream of LLM responses with real-time token delivery.
+
+        Yields Server-Sent Events (SSE) with the following event types:
+        - status: Connection status updates (started, complete)
+        - content: Incremental text chunks from the LLM
+        - error: Error messages if something fails
+        - metadata: Final response metadata (tokens, latency, cost)
+
+        The generator handles:
+        - Memory context injection (if use_memory=True and doctor_id provided)
+        - Persona-based system prompts
+        - Provider selection via policy
+        - Graceful error handling with informative messages
+        """
         try:
             # Yield immediately so FastAPI sends headers before blocking
             yield f"data: {json.dumps({'status': 'started'})}\n\n"
