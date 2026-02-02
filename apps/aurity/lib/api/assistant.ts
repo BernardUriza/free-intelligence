@@ -163,7 +163,7 @@ const CHAT_TIMEOUT_MS = 120000; // 2 minutes
 /**
  * Timeout for introduction requests (shorter since it's a simple greeting)
  */
-const INTRO_TIMEOUT_MS = 30000; // 30 seconds
+const INTRO_TIMEOUT_MS = 60000; // 60 seconds (local Ollama can take 30-50s)
 
 // ============================================================================
 // Helper Functions
@@ -376,45 +376,26 @@ export const assistantApi = {
    * Used for greeting users when starting a new conversation
    */
   introduction: async (context: Record<string, unknown>): Promise<ChatResponse> => {
-    // Use the chat endpoint with a special introduction request
+    // Use dedicated introduction endpoint
     const response = await api.post<{
-      id: string;
-      model: string;  // LLM model identifier
-      choices: Array<{
-        message: { role: string; content: string };
-        finish_reason: string;
-      }>;
+      message: string;
       persona: string;
+      tokens_used: number;
+      latency_ms: number;
     }>(
-      '/api/workflows/aurity/assistant/chat',
+      '/api/workflows/aurity/assistant/introduction',
       {
-        messages: [
-          {
-            role: 'system',
-            content: 'Generate a brief, friendly greeting for a medical professional. Be concise and professional.',
-          },
-          {
-            role: 'user',
-            content: 'Hola',
-          },
-        ],
-        user: context.doctor_id as string,
-        persona: 'onboarding_guide',
+        physician_name: context.physician_name as string | undefined,
+        clinic_name: context.clinic_name as string | undefined,
       },
-      { timeout: INTRO_TIMEOUT_MS } // 30 seconds for simple greeting
+      { timeout: INTRO_TIMEOUT_MS } // 60 seconds (local Ollama can take 30-50s)
     );
 
-    // Validate response structure
-    validateChatResponse(response);
-
-    // Extract message with fallback
-    const assistantMessage = extractAssistantMessage(response) || '¡Hola! ¿En qué puedo ayudarte hoy?';
-
     return {
-      message: assistantMessage,
-      persona: response.persona || 'general_assistant',
+      message: response.message,
+      persona: response.persona,
       voice: 'nova',
-      model: response.model || 'unknown',  // LLM model that generated this response
+      model: 'qwen3:1.7b',  // Introduction uses default model
     };
   },
 
