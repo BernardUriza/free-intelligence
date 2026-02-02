@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from backend.services.audit.dependencies import DIAuditService
 from backend.services.workflow.dependencies import (
     IntelligentOrchestrationDep,
     WorkflowOrchestratorDep,
@@ -48,6 +49,7 @@ router = APIRouter()
 async def diarize_session_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
+    audit_service: DIAuditService,
 ) -> dict:
     """
     Dispatch speaker diarization workflow.
@@ -58,6 +60,7 @@ async def diarize_session_workflow(
     Args:
         session_id: Session identifier
         orchestrator: Injected WorkflowOrchestrator instance
+        audit_service: Injected audit service
 
     Returns:
         dict with task_id, status, estimated_duration_seconds
@@ -76,6 +79,13 @@ async def diarize_session_workflow(
         )
         return result
     except FileNotFoundError as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "diarization", "error": "audio_file_not_found"},
+        )
         logger.error(
             "DIARIZATION_WORKFLOW_FAILED",
             session_id=session_id,
@@ -89,6 +99,13 @@ async def diarize_session_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "diarization", "error": str(e)},
+        )
         logger.error(
             "DIARIZATION_WORKFLOW_FAILED",
             session_id=session_id,
@@ -105,6 +122,7 @@ async def diarize_session_workflow(
 async def generate_soap_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
+    audit_service: DIAuditService,
 ) -> dict:
     """
     Dispatch SOAP note generation workflow.
@@ -115,6 +133,7 @@ async def generate_soap_workflow(
     Args:
         session_id: Session identifier
         orchestrator: Injected WorkflowOrchestrator instance
+        audit_service: Injected audit service
 
     Returns:
         dict with task_id, status, estimated_duration_seconds
@@ -132,6 +151,13 @@ async def generate_soap_workflow(
         )
         return result
     except ValueError as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "soap", "error": "transcription_not_completed"},
+        )
         logger.error(
             "SOAP_WORKFLOW_FAILED",
             session_id=session_id,
@@ -145,6 +171,13 @@ async def generate_soap_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "soap", "error": str(e)},
+        )
         logger.error(
             "SOAP_WORKFLOW_FAILED",
             session_id=session_id,
@@ -161,6 +194,7 @@ async def generate_soap_workflow(
 async def analyze_emotion_workflow(
     session_id: str,
     orchestrator: WorkflowOrchestratorDep,
+    audit_service: DIAuditService,
 ) -> dict:
     """
     Dispatch emotional analysis workflow.
@@ -171,6 +205,7 @@ async def analyze_emotion_workflow(
     Args:
         session_id: Session identifier
         orchestrator: Injected WorkflowOrchestrator instance
+        audit_service: Injected audit service
 
     Returns:
         dict with task_id, status, model_used, estimated_duration_seconds
@@ -188,6 +223,13 @@ async def analyze_emotion_workflow(
         )
         return result
     except ValueError as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "emotion", "error": "transcription_not_completed"},
+        )
         logger.error(
             "EMOTION_WORKFLOW_FAILED",
             session_id=session_id,
@@ -201,6 +243,13 @@ async def analyze_emotion_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="workflow_dispatch_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "emotion", "error": str(e)},
+        )
         logger.error(
             "EMOTION_WORKFLOW_FAILED",
             session_id=session_id,
@@ -222,6 +271,7 @@ async def analyze_emotion_workflow(
 async def analyze_session_intelligent_workflow(
     session_id: str,
     orchestration_service: IntelligentOrchestrationDep,
+    audit_service: DIAuditService,
     language: str = "es",
     user_intent: str | None = None,
 ) -> dict:
@@ -241,6 +291,7 @@ async def analyze_session_intelligent_workflow(
     Args:
         session_id: Session identifier
         orchestration_service: Injected IntelligentOrchestrationService instance
+        audit_service: Injected audit service
         language: Session language code (default: "es")
         user_intent: Optional user-provided intent (e.g., "quick consult")
 
@@ -288,6 +339,13 @@ async def analyze_session_intelligent_workflow(
         return result
 
     except FileNotFoundError as e:
+        audit_service.log_action(
+            action="workflow_orchestration_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "intelligent", "error": "audio_file_not_found"},
+        )
         logger.error(
             "INTELLIGENT_WORKFLOW_FAILED",
             session_id=session_id,
@@ -301,6 +359,13 @@ async def analyze_session_intelligent_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="workflow_orchestration_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"workflow": "intelligent", "error": str(e)},
+        )
         logger.error(
             "INTELLIGENT_WORKFLOW_FAILED",
             session_id=session_id,
@@ -322,6 +387,7 @@ async def analyze_session_intelligent_workflow(
 async def finalize_session_workflow(
     session_id: str,
     request: FinalizeSessionRequest,
+    audit_service: DIAuditService,
 ) -> FinalizeSessionResponse:
     """
     Finalize session workflow (merge transcription sources).
@@ -332,6 +398,7 @@ async def finalize_session_workflow(
     Args:
         session_id: Session identifier
         request: Finalize request with transcription sources
+        audit_service: Injected audit service
 
     Returns:
         FinalizeSessionResponse with merge results
@@ -367,6 +434,13 @@ async def finalize_session_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="session_finalization_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"error": str(e)},
+        )
         logger.error(
             "FINALIZE_SESSION_WORKFLOW_FAILED",
             session_id=session_id,
@@ -383,6 +457,7 @@ async def finalize_session_workflow(
 async def checkpoint_session_workflow(
     session_id: str,
     request: CheckpointRequest,
+    audit_service: DIAuditService,
 ) -> CheckpointResponse:
     """
     Checkpoint session workflow (save partial progress).
@@ -393,6 +468,7 @@ async def checkpoint_session_workflow(
     Args:
         session_id: Session identifier
         request: Checkpoint request with last chunk index
+        audit_service: Injected audit service
 
     Returns:
         CheckpointResponse with concatenation results
@@ -436,6 +512,13 @@ async def checkpoint_session_workflow(
     except HTTPException:
         raise
     except Exception as e:
+        audit_service.log_action(
+            action="session_checkpoint_failed",
+            user_id="system",
+            resource=session_id,
+            result="failure",
+            details={"error": str(e), "last_chunk_idx": request.last_chunk_idx},
+        )
         logger.error(
             "CHECKPOINT_WORKFLOW_FAILED",
             session_id=session_id,
