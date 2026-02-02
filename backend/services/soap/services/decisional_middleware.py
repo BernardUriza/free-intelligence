@@ -490,8 +490,10 @@ Return JSON with feedback."""
 def get_decisional_middleware() -> DecisionalMiddleware:
     """Get decisional middleware instance.
 
-    DEPRECATED: Use get_decisional_middleware_dep() from
-    backend.services.workflow.dependencies instead.
+    .. deprecated:: 2026-02-02
+        Use ``get_decisional_middleware_dep()`` from
+        ``backend.services.workflow.dependencies`` instead.
+        This service locator will be removed in a future release.
 
     Returns:
         DecisionalMiddleware instance with default PresetLoader
@@ -500,6 +502,15 @@ def get_decisional_middleware() -> DecisionalMiddleware:
         This function creates a new instance each call (no singleton).
         For proper DI, use the factory from dependencies.py.
     """
+    import warnings
+
+    warnings.warn(
+        "get_decisional_middleware() is deprecated. "
+        "Use get_decisional_middleware_dep() from backend.services.workflow.dependencies instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     from backend.schemas.llm.preset_loader import PresetLoader
 
     return DecisionalMiddleware(preset_loader=PresetLoader())

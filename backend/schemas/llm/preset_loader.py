@@ -345,9 +345,23 @@ _preset_loader: PresetLoader | None = None
 def get_preset_loader() -> PresetLoader:
     """Get or create global preset loader.
 
-    ⚠️  NOTE: For workers, prefer DI via get_preset_loader_dep() from
-    backend.services.workflow.dependencies instead (Phase 2.3 migration).
+    .. deprecated:: 2026-02-02
+        Use ``get_preset_loader_dep()`` from
+        ``backend.services.workflow.dependencies`` instead.
+        This service locator will be removed in a future release.
+
+    Returns:
+        PresetLoader singleton instance
     """
+    import warnings
+
+    warnings.warn(
+        "get_preset_loader() is deprecated. "
+        "Use get_preset_loader_dep() from backend.services.workflow.dependencies instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     global _preset_loader
 
     if _preset_loader is None:
