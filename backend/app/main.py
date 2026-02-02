@@ -13,7 +13,6 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import UTC
 import sys
 
 import os

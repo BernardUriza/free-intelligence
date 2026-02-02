@@ -19,7 +19,7 @@ import os
 from backend.providers.response_parsers import GenericParser, QwenThinkingParser
 from backend.providers.retry import CircuitBreakerConfig, RetryConfig, get_circuit_breaker
 from backend.schemas.llm.audit_policy import require_audit_log
-from backend.utils.common.config.deployment import OllamaHost, get_ollama_host, get_ollama_hosts
+from backend.utils.common.config.deployment import OllamaHost, get_ollama_hosts
 from backend.utils.common.logging.logger import get_logger
 from dotenv import load_dotenv
 
@@ -492,13 +492,6 @@ class OllamaProvider(LLMProvider):
         is_qwen3 = str(model).lower().startswith("qwen3")
         use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
 
-        self.logger.info(
-            "OLLAMA_THINKING_MODE_DEBUG",
-            enable_thinking=enable_thinking,
-            is_qwen3=is_qwen3,
-            force_thinking=force_thinking,
-            use_generate_with_think=use_generate_with_think,
-        )
 
         # Multi-host fallback loop (FI-BACKEND-FALLBACK-001)
         for host in self.hosts:
@@ -543,10 +536,10 @@ class OllamaProvider(LLMProvider):
                         response = client.chat(
                             model=model,
                             messages=[{"role": "user", "content": prompt}],
+                            think=enable_thinking,  # Configurable via kwargs
                             options={
                                 "temperature": temperature,
                                 "num_predict": max_tokens,
-                                "think": False,
                             },
                         )
 
@@ -566,9 +559,20 @@ class OllamaProvider(LLMProvider):
                                 thinking_text = t.strip()
                     else:
                         try:
-                            thinking_text, content = self.generic_parser.parse(response)
+                            # Convert ChatResponse object to dict if needed
+                            if hasattr(response, "model_dump"):
+                                response_dict = response.model_dump()
+                            elif hasattr(response, "__dict__"):
+                                response_dict = dict(response)
+                            else:
+                                response_dict = response
+                            thinking_text, content = self.generic_parser.parse(response_dict)
                         except Exception:
-                            content = response.get("message", {}).get("content", "").strip()
+                            # Fallback: try object attribute access for ollama ChatResponse
+                            if hasattr(response, "message") and hasattr(response.message, "content"):
+                                content = str(response.message.content).strip()
+                            else:
+                                content = response.get("message", {}).get("content", "").strip() if isinstance(response, dict) else ""
                             thinking_text = None
 
                     # Token estimation

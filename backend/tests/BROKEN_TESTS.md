@@ -1,7 +1,7 @@
 # Broken Tests (Require Refactor)
 
-**Last Updated:** 2026-02-01
-**Status:** 20 tests disabled temporarily
+**Last Updated:** 2026-02-02
+**Status:** 21 tests disabled temporarily
 **Reason:** Reference modules eliminated during Hong Kong Transformation (Phases 1-3)
 
 ---
@@ -30,6 +30,9 @@ These 20 test files reference the old modules and cannot run until refactored to
 - `test_hdf5_orders.py.broken` - Medical orders tests
 - `test_hdf5_tasks.py.broken` - Task storage tests
 - `test_hdf5_tasks_extended.py.broken` - Extended task tests
+
+### Storage Tests - 1 file
+- `test_atomic_write.py.broken` - Atomic file write tests (uses old container import)
 
 ### Integration Tests - 5 files
 - `test_concurrent_h5_writes.py.broken` - Concurrency tests
