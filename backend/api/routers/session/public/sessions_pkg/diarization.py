@@ -6,7 +6,7 @@ from typing import Any
 from backend.domain.session.dependencies import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
-from backend.api.audit.dependencies import DIAuditService
+from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 )
 async def get_diarization_status_workflow(
     job_id: str,
-    audit_service: DIAuditService,
+    audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict[str, Any]:
     """Poll diarization job status (PUBLIC orchestrator).
 
@@ -64,7 +64,7 @@ async def get_diarization_status_workflow(
 )
 async def get_diarization_segments_workflow(
     session_id: str,
-    audit_service: DIAuditService,
+    audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Get diarization segments (PUBLIC orchestrator)."""
@@ -141,7 +141,7 @@ async def update_diarization_segment_workflow(
     session_id: str,
     segment_index: int,
     request: UpdateSegmentRequest,
-    audit_service: DIAuditService,
+    audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
@@ -224,7 +224,7 @@ async def update_diarization_segment_workflow(
 async def import_external_diarization(
     session_id: str,
     request: ImportDiarizationRequest,
-    audit_service: DIAuditService,
+    audit_service: DIAuditService = Depends(get_audit_service),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict[str, Any]:
     """Import pre-diarized transcript from external service (e.g., Cue, AssemblyAI).
