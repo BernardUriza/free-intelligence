@@ -1,10 +1,9 @@
 """Patient repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-# Forward reference to avoid circular imports
-if False:
+if TYPE_CHECKING:
     from backend.domain.patient import Patient
 
 

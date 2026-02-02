@@ -52,12 +52,6 @@ async def get_diarization_status_workflow(
             result="failure",
             details={"error": str(e)},
         )
-        logger.error(
-            "DIARIZATION_STATUS_WORKFLOW_FAILED",
-            job_id=job_id,
-            error=str(e),
-            exc_info=True,
-        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get diarization status: {e!s}",
@@ -124,7 +118,6 @@ async def get_diarization_segments_workflow(
             result="failure",
             details={"error": "segments_not_found"},
         )
-        logger.error("DIARIZATION_SEGMENTS_NOT_FOUND", session_id=session_id, error=str(e))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         audit_service.log_action(
@@ -133,12 +126,6 @@ async def get_diarization_segments_workflow(
             resource=session_id,
             result="failure",
             details={"error": str(e)},
-        )
-        logger.error(
-            "DIARIZATION_SEGMENTS_GET_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -215,12 +202,6 @@ async def update_diarization_segment_workflow(
             result="failure",
             details={"segment_index": segment_index, "error": "segment_not_found"},
         )
-        logger.error(
-            "DIARIZATION_SEGMENT_UPDATE_NOT_FOUND",
-            session_id=session_id,
-            segment_index=segment_index,
-            error=str(e),
-        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         audit_service.log_action(
@@ -229,13 +210,6 @@ async def update_diarization_segment_workflow(
             resource=session_id,
             result="failure",
             details={"segment_index": segment_index, "error": str(e)},
-        )
-        logger.error(
-            "DIARIZATION_SEGMENT_UPDATE_FAILED",
-            session_id=session_id,
-            segment_index=segment_index,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -361,13 +335,6 @@ async def import_external_diarization(
             resource=session_id,
             result="failure",
             details={"provider": request.provider, "error": str(e)},
-        )
-        logger.error(
-            "EXTERNAL_DIARIZATION_IMPORT_FAILED",
-            session_id=session_id,
-            provider=request.provider,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

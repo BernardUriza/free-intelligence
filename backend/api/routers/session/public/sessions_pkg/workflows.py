@@ -86,12 +86,6 @@ async def diarize_session_workflow(
             result="failure",
             details={"workflow": "diarization", "error": "audio_file_not_found"},
         )
-        logger.error(
-            "DIARIZATION_WORKFLOW_FAILED",
-            session_id=session_id,
-            error="Audio file not found",
-            exc_info=True,
-        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Audio file not found for session {session_id}",
@@ -105,12 +99,6 @@ async def diarize_session_workflow(
             resource=session_id,
             result="failure",
             details={"workflow": "diarization", "error": str(e)},
-        )
-        logger.error(
-            "DIARIZATION_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -158,12 +146,6 @@ async def generate_soap_workflow(
             result="failure",
             details={"workflow": "soap", "error": "transcription_not_completed"},
         )
-        logger.error(
-            "SOAP_WORKFLOW_FAILED",
-            session_id=session_id,
-            error="Transcription not completed",
-            exc_info=True,
-        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot generate SOAP note: {e!s}",
@@ -177,12 +159,6 @@ async def generate_soap_workflow(
             resource=session_id,
             result="failure",
             details={"workflow": "soap", "error": str(e)},
-        )
-        logger.error(
-            "SOAP_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -230,12 +206,6 @@ async def analyze_emotion_workflow(
             result="failure",
             details={"workflow": "emotion", "error": "transcription_not_completed"},
         )
-        logger.error(
-            "EMOTION_WORKFLOW_FAILED",
-            session_id=session_id,
-            error="Transcription not completed",
-            exc_info=True,
-        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot analyze emotion: {e!s}",
@@ -249,12 +219,6 @@ async def analyze_emotion_workflow(
             resource=session_id,
             result="failure",
             details={"workflow": "emotion", "error": str(e)},
-        )
-        logger.error(
-            "EMOTION_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -346,12 +310,6 @@ async def analyze_session_intelligent_workflow(
             result="failure",
             details={"workflow": "intelligent", "error": "audio_file_not_found"},
         )
-        logger.error(
-            "INTELLIGENT_WORKFLOW_FAILED",
-            session_id=session_id,
-            error="Audio file not found",
-            exc_info=True,
-        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Audio file not found for session {session_id}",
@@ -365,12 +323,6 @@ async def analyze_session_intelligent_workflow(
             resource=session_id,
             result="failure",
             details={"workflow": "intelligent", "error": str(e)},
-        )
-        logger.error(
-            "INTELLIGENT_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -440,12 +392,6 @@ async def finalize_session_workflow(
             resource=session_id,
             result="failure",
             details={"error": str(e)},
-        )
-        logger.error(
-            "FINALIZE_SESSION_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -518,12 +464,6 @@ async def checkpoint_session_workflow(
             resource=session_id,
             result="failure",
             details={"error": str(e), "last_chunk_idx": request.last_chunk_idx},
-        )
-        logger.error(
-            "CHECKPOINT_WORKFLOW_FAILED",
-            session_id=session_id,
-            error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
