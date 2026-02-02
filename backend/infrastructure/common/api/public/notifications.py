@@ -16,7 +16,7 @@ from backend.database import get_db
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
-from backend.infrastructure.common.services.notifications import (
+from backend.infrastructure.common.services.notification import (
     NotificationContext,
     NotificationService,
     NotificationType,
@@ -308,7 +308,7 @@ async def schedule_reminders(
     Note: This is a placeholder endpoint. In production, integrate with
     a job scheduler (APScheduler, Celery Beat, AWS EventBridge).
     """
-    from backend.infrastructure.common.services.notifications import schedule_appointment_reminders
+    from backend.infrastructure.common.services.notification import schedule_appointment_reminders
 
     context = NotificationContext(
         patient_name=request.patient_name,
