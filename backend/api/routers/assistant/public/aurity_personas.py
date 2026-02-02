@@ -4,6 +4,8 @@ from typing import Any
 
 import yaml
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
 from pathlib import Path
@@ -18,7 +20,7 @@ _default_personas_dir = Path(__file__).parent.parent.parent.parent.parent / "con
 PERSONAS_DIR = _desktop_personas_dir if _desktop_personas_dir.exists() else _default_personas_dir
 
 
-def _load_persona_file(path: Path, audit_service: DIAuditService) -> dict[str, Any]:
+def _load_persona_file(path: Path, audit_service: DIAuditService, user_id: str) -> dict[str, Any]:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         return {
@@ -35,7 +37,7 @@ def _load_persona_file(path: Path, audit_service: DIAuditService) -> dict[str, A
     except Exception as err:
         audit_service.log_action(
             action="persona_save_failed",
-            user_id="system",
+            user_id=user_id,
             resource=f"persona_file:{path.name}",
             result="failure",
             details={"error": str(err), "file": str(path)},
@@ -46,11 +48,12 @@ def _load_persona_file(path: Path, audit_service: DIAuditService) -> dict[str, A
 @router.get("/personas")
 async def list_personas(
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     if not PERSONAS_DIR.exists():
         audit_service.log_action(
             action="persona_delete_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource="personas_directory",
             result="failure",
             details={"error": "Personas directory missing", "dir": str(PERSONAS_DIR)},
@@ -61,7 +64,7 @@ async def list_personas(
 
     personas: list[dict[str, Any]] = []
     for p in PERSONAS_DIR.glob("*.yaml"):
-        personas.append(_load_persona_file(p, audit_service))
+        personas.append(_load_persona_file(p, audit_service, current_user.id))
 
     logger.info("personas_listed", count=len(personas))
     return {"personas": personas}

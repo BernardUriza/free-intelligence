@@ -406,6 +406,7 @@ async def test_persona(
     user_id: str | None = Query(None, description="User ID for personalized config"),
     db: Session = Depends(get_db_dependency),
     audit_service: DIAuditService = Depends(get_audit_service),
+    current_user: User = Depends(get_current_user),
 ) -> PersonaTestResponse:
     """Test a persona with sample input using actual LLM.
 
@@ -472,7 +473,7 @@ async def test_persona(
     except Exception as e:
         audit_service.log_action(
             action="personas_update_failed",
-            user_id="system",
+            user_id=current_user.id,
             resource=f"persona:{persona_id}",
             result="failure",
             details={
