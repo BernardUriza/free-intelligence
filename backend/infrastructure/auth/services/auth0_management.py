@@ -492,31 +492,3 @@ class Auth0ManagementService(IAuth0ManagementService):
         except Exception as e:
             logger.error("FAILED_TO_SEND_VERIFICATION", user_id=user_id, error=str(e))
             raise
-
-
-# Singleton instance
-_auth0_service: Auth0ManagementService | None = None
-
-
-def get_auth0_service() -> Auth0ManagementService:
-    """DEPRECATED: Get singleton Auth0 Management Service instance.
-
-    ⚠️  This function is DEPRECATED. Use FastAPI Depends() with:
-    - get_auth0_service_dep() from backend.api.admin.dependencies
-
-    .. deprecated::
-        Phase 2.3 K-Potasio - use DI factories instead of this service locator.
-    """
-    import warnings
-
-    warnings.warn(
-        "get_auth0_service() is deprecated. Use get_auth0_service_dep() from "
-        "backend.api.admin.dependencies",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    global _auth0_service
-    if _auth0_service is None:
-        _auth0_service = Auth0ManagementService()  # type: ignore[no-untyped-call]
-    return _auth0_service

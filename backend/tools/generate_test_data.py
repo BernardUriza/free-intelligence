@@ -9,7 +9,6 @@ Usage:
     python3 scripts/generate_test_data.py
 """
 
-from backend.container import get_container
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 

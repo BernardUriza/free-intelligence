@@ -21,8 +21,6 @@ Features:
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 import argparse
 import json
