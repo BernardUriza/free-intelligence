@@ -150,17 +150,17 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   },
 
   // ============================================================================
-  // ONBOARDING - Special case (authenticated but guided)
+  // ONBOARDING - Public (no auth required for first-time users)
   // ============================================================================
   {
     path: '/onboarding',
-    access: 'authenticated',
-    description: 'Onboarding flow',
+    access: 'public',
+    description: 'Conversational onboarding flow',
   },
   {
     path: '/onboarding/*',
-    access: 'authenticated',
-    description: 'Onboarding flow',
+    access: 'public',
+    description: 'Onboarding sub-routes (reset, etc.)',
   },
 ];
 
