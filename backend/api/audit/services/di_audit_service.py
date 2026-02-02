@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from backend.repositories import AuditRepository
+from backend.repositories.audit_repository import AuditRepository
 from backend.utils.coder.utils.type_defs import AuditLogDict
 from backend.infrastructure.interfaces.ilogger import ILogger
 
