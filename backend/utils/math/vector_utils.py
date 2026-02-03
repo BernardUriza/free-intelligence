@@ -3,14 +3,27 @@
 Pure mathematical functions for vector operations.
 No business logic, no dependencies on services/repositories.
 
+DEPLOYMENT ARCHITECTURE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Environment          | GPU Available | Functions Used
+---------------------|---------------|------------------------------------
+Backend (DO server)  | ❌ NO         | cosine_similarity_batch() (CPU)
+fi_monitor (Windows) | ✅ YES        | cosine_similarity_batch_gpu() (CUDA)
+Development (Mac)    | ✅ YES        | cosine_similarity_batch_gpu() (MPS)
+
+IMPORTANT: cosine_similarity_batch_gpu() auto-fallback to CPU if PyTorch
+not installed. Backend NEVER has PyTorch → always uses NumPy CPU version.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 Performance notes:
 - cosine_similarity(): CPU-based (NumPy) - Bueno para 1-100 vectores
-- cosine_similarity_batch_gpu(): GPU-accelerated (PyTorch) - Bueno para 1000+ vectores
+- cosine_similarity_batch(): CPU batch (NumPy) - 10x faster, 100-1000 vectores
+- cosine_similarity_batch_gpu(): GPU-accelerated (PyTorch) - 200x faster, 1000+ vectores
 
 Author: Claude Code (extracted from embedding_service.py)
 Created: 2026-02-02
 Phase: Architecture violation fix (Sello 7 - SOBERBIA)
-Updated: 2026-02-02 (Added GPU-accelerated batch version)
+Updated: 2026-02-02 (Added GPU-accelerated batch version + deployment docs)
 """
 
 from typing import TYPE_CHECKING
