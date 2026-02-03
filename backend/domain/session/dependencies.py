@@ -9,52 +9,58 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.repositories.audit_repository import AuditRepository
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.repositories.audit_repository import AuditRepository
+    from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
+    from backend.repositories.interfaces.itask_repository import ITaskRepository
+
 from backend.api.audit.services.audit_service import AuditService
-from backend.config import CORPUS_PATH
-from backend.repositories.corpus_repository import CorpusRepository
-from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
-from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.repositories.task_repository import HDF5TaskRepository
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository_singleton,
+    get_corpus_repository_singleton,
+    get_task_repository_singleton,
+)
 
 
-def get_task_repository() -> ITaskRepository:
-    """Get task repository - direct instantiation (Phase 4A).
-
-    Returns:
-        ITaskRepository instance (HDF5TaskRepository)
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation enables better testability and explicit dependencies.
-    """
-    return HDF5TaskRepository(CORPUS_PATH)
-
-
-def get_corpus_repository() -> ICorpusRepository:
-    """Get corpus repository - direct instantiation (Phase 4A).
+def get_task_repository() -> "ITaskRepository":
+    """Get task repository - singleton instance (Phase 4A + P4-3).
 
     Returns:
-        ICorpusRepository instance (CorpusRepository)
+        ITaskRepository singleton (HDF5TaskRepository shared across endpoints)
 
     Note:
-        No longer uses service locator (get_container).
-        Direct instantiation with same corpus.h5 path.
+        Performance optimization: Uses @lru_cache singleton.
+        Thread-safe via h5py file locking.
     """
-    return CorpusRepository(CORPUS_PATH)
+    return get_task_repository_singleton()
 
 
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4A).
+def get_corpus_repository() -> "ICorpusRepository":
+    """Get corpus repository - singleton instance (Phase 4A + P4-3).
 
     Returns:
-        AuditRepository instance
+        ICorpusRepository singleton (CorpusRepository shared across endpoints)
 
     Note:
-        Created as a dependency for AuditService.
-        Uses same corpus.h5 path for consistency.
+        Performance optimization: Uses @lru_cache singleton.
+        Thread-safe via h5py file locking.
     """
-    return AuditRepository(CORPUS_PATH)
+    return get_corpus_repository_singleton()
+
+
+def get_audit_repository() -> "AuditRepository":
+    """Get audit repository - singleton instance (Phase 4A + P4-3).
+
+    Returns:
+        AuditRepository singleton (shared across all endpoints)
+
+    Note:
+        Performance optimization: Uses @lru_cache singleton.
+        Thread-safe via h5py file locking.
+    """
+    return get_audit_repository_singleton()
 
 
 def get_audit_service() -> AuditService:

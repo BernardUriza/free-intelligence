@@ -133,6 +133,69 @@ class SoapRepository:
                 f"Failed to fetch chunks for job {job_id}: {e!s}"
             ) from e
 
+    def get_transcriptions_batch(
+        self, job_ids: list[str]
+    ) -> dict[str, str | None]:
+        """Get transcriptions for multiple jobs in a single HDF5 operation.
+
+        Performance optimization: Single file open for N job_ids vs N file opens.
+        Eliminates N+1 query pattern when fetching transcriptions for multiple sessions.
+
+        Args:
+            job_ids: List of diarization job identifiers
+
+        Returns:
+            Dict mapping job_id → transcription text (None if job not found)
+
+        Example:
+            # BEFORE (N+1 queries):
+            for job_id in job_ids:
+                text = repo.get_transcription_text(job_id)  # Opens file N times
+
+            # AFTER (Batch loading):
+            results = repo.get_transcriptions_batch(job_ids)  # Opens file 1 time
+            for job_id, text in results.items():
+                if text is not None:
+                    process(text)
+
+        Note:
+            Phase P4-3 Performance Optimization (Holoceno Tardío)
+            Batch loading pattern to avoid N+1 queries.
+        """
+        results: dict[str, str | None] = {}
+
+        try:
+            with h5py.File(self.h5_path, "r") as f:
+                for job_id in job_ids:
+                    chunks_path = f"diarization/{job_id}/chunks"
+
+                    if chunks_path not in f:
+                        logger.warning(
+                            "TRANSCRIPTION_NOT_FOUND_BATCH",
+                            job_id=job_id,
+                        )
+                        results[job_id] = None
+                        continue
+
+                    chunks_dataset = f[chunks_path]
+                    texts = self._extract_texts_from_dataset(chunks_dataset)
+                    results[job_id] = " ".join(texts)
+
+            found_count = sum(1 for v in results.values() if v is not None)
+            logger.info(
+                "TRANSCRIPTIONS_BATCH_FETCHED",
+                total_requested=len(job_ids),
+                found=found_count,
+                not_found=len(job_ids) - found_count,
+            )
+
+            return results
+
+        except Exception as e:
+            logger.error("TRANSCRIPTIONS_BATCH_FAILED", error=str(e))
+            # Return partial results on error
+            return {job_id: None for job_id in job_ids}
+
     def _extract_texts_from_dataset(self, chunks_dataset: h5py.Dataset) -> list[str]:
         """Extract text strings from HDF5 chunks dataset.
 

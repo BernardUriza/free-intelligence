@@ -9,22 +9,29 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.repositories.audit_repository import AuditRepository
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.repositories.audit_repository import AuditRepository
+
 from backend.api.audit.services.di_audit_service import DIAuditService
-from backend.config import CORPUS_PATH
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository_singleton,
+)
 from backend.utils.common.logging.logger import get_logger
 
 
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4A).
+def get_audit_repository() -> "AuditRepository":
+    """Get audit repository - singleton instance (Phase 4A + P4-3).
 
     Returns:
-        AuditRepository instance
+        AuditRepository singleton (shared across all endpoints)
 
     Note:
-        Uses centralized corpus.h5 path from backend.config.
+        Performance optimization: Uses @lru_cache singleton instead of
+        creating new instance per request. Thread-safe via h5py locks.
     """
-    return AuditRepository(CORPUS_PATH)
+    return get_audit_repository_singleton()
 
 
 def get_audit_service() -> DIAuditService:

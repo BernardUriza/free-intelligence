@@ -8,38 +8,33 @@ Updated: 2026-01-29 (TODO cleanup - use centralized config)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.repositories.audit_repository import AuditRepository
 
 from backend.api.audit.services.audit_service import AuditService
-from backend.config import CORPUS_PATH
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository_singleton,
+)
 from backend.policy.policy_loader import PolicyLoader, get_policy_loader
-from backend.repositories.audit_repository import AuditRepository
 from backend.services.llm.services.di_chat_service import DIChatService
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
 
-def get_corpus_path() -> str:
-    """Get HDF5 corpus path from centralized config.
+def get_audit_repository() -> "AuditRepository":
+    """Get audit repository - singleton instance (P4-3).
 
     Returns:
-        Path to corpus.h5 file as string
+        AuditRepository singleton (shared across all endpoints)
+
+    Note:
+        Performance optimization: Uses @lru_cache singleton.
+        Thread-safe via h5py file locking.
     """
-    return str(CORPUS_PATH)
-
-
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository from corpus path.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, this will be replaced with direct repository instantiation.
-
-    Returns:
-        AuditRepository instance
-    """
-    corpus_path = Path(get_corpus_path())
-    return AuditRepository(corpus_path)
+    return get_audit_repository_singleton()
 
 
 def get_audit_service(
