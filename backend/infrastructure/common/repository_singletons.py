@@ -192,3 +192,32 @@ When NOT to use Singleton:
 - Repositories requiring different config per endpoint
 - Test fixtures (override with app.dependency_overrides)
 """
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CONVENIENCE ALIASES FOR FastAPI Depends()
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# These are re-exports with shorter names for use in:
+#   Depends(get_audit_repository)
+#
+# IMPORTANT: Import from HERE, not from individual dependencies.py files.
+# This eliminates the duplicate factory definitions across 10+ modules.
+
+# Aliases (same functions, different names for compatibility)
+get_audit_repository = get_audit_repository_singleton
+get_task_repository = get_task_repository_singleton
+get_corpus_repository = get_corpus_repository_singleton
+get_document_repository = get_document_repository_singleton
+
+__all__ = [
+    # Explicit singleton names (recommended)
+    "get_audit_repository_singleton",
+    "get_task_repository_singleton",
+    "get_corpus_repository_singleton",
+    "get_document_repository_singleton",
+    # Short aliases for FastAPI Depends()
+    "get_audit_repository",
+    "get_task_repository",
+    "get_corpus_repository",
+    "get_document_repository",
+]

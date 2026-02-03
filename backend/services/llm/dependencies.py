@@ -19,26 +19,13 @@ if TYPE_CHECKING:
 
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
-    get_audit_repository_singleton,
+    get_audit_repository,
 )
 from backend.services.workflow.dependencies import get_policy_loader_dep
 from backend.services.llm.services.di_chat_service import DIChatService
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-
-
-def get_audit_repository() -> "AuditRepository":
-    """Get audit repository - singleton instance (P4-3).
-
-    Returns:
-        AuditRepository singleton (shared across all endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_audit_repository_singleton()
 
 
 def get_audit_service(

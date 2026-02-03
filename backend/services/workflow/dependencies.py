@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
     from backend.infrastructure.cache.interfaces.icache import ICache
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
-    from backend.repositories.audit_repository import AuditRepository
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
@@ -39,9 +38,9 @@ from fastapi import Depends
 
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
-    get_audit_repository_singleton,
-    get_corpus_repository_singleton,
-    get_task_repository_singleton,
+    get_audit_repository,
+    get_corpus_repository,
+    get_task_repository,
 )
 from backend.services.workflow.services.workflow_orchestrator import (
     WorkflowOrchestrator,
@@ -155,32 +154,7 @@ def get_workflow_config() -> WorkflowConfig:
     )
 
 
-def get_task_repository() -> "ITaskRepository":
-    """Get task repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        ITaskRepository singleton (shared across endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_task_repository_singleton()
-
-
-def get_audit_repository() -> "AuditRepository":
-    """Get audit repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        AuditRepository singleton (shared across endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    from backend.repositories.audit_repository import AuditRepository
-
-    return get_audit_repository_singleton()
+# get_task_repository and get_audit_repository imported from repository_singletons
 
 
 @lru_cache(maxsize=1)
@@ -255,17 +229,7 @@ def get_workflow_logger() -> ILogger:
     return _get_workflow_logger_singleton()
 
 
-def get_corpus_repository() -> "ICorpusRepository":
-    """Get corpus repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        ICorpusRepository singleton (shared across endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_corpus_repository_singleton()
+# get_corpus_repository imported from repository_singletons
 
 
 @lru_cache(maxsize=1)

@@ -9,58 +9,15 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.repositories.audit_repository import AuditRepository
-    from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
-    from backend.repositories.interfaces.itask_repository import ITaskRepository
-
 from backend.services.audit.services.audit_service import AuditService
+
+# Re-export centralized singletons for backward compatibility
+# Other modules import from here - DO NOT REMOVE
 from backend.infrastructure.common.repository_singletons import (
-    get_audit_repository_singleton,
-    get_corpus_repository_singleton,
-    get_task_repository_singleton,
+    get_audit_repository,
+    get_corpus_repository,
+    get_task_repository,
 )
-
-
-def get_task_repository() -> "ITaskRepository":
-    """Get task repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        ITaskRepository singleton (HDF5TaskRepository shared across endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_task_repository_singleton()
-
-
-def get_corpus_repository() -> "ICorpusRepository":
-    """Get corpus repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        ICorpusRepository singleton (CorpusRepository shared across endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_corpus_repository_singleton()
-
-
-def get_audit_repository() -> "AuditRepository":
-    """Get audit repository - singleton instance (Phase 4A + P4-3).
-
-    Returns:
-        AuditRepository singleton (shared across all endpoints)
-
-    Note:
-        Performance optimization: Uses @lru_cache singleton.
-        Thread-safe via h5py file locking.
-    """
-    return get_audit_repository_singleton()
 
 
 def get_audit_service() -> AuditService:
