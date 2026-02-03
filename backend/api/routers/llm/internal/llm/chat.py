@@ -9,16 +9,17 @@ Propósito:
 - Logging ultra detallado (prompt completo, response completo, tokens, timing)
 - Observabilidad minuciosa de cada llamada
 - Audit trail completo con hashes
-"""
 
-from __future__ import annotations
+Note: Do NOT use `from __future__ import annotations` here.
+FastAPI needs runtime access to type annotations for Request and Pydantic models.
+"""
 
 import hashlib
 import json
 import time
 import uuid as _uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.policy.policy_loader import PolicyLoader
@@ -67,7 +68,7 @@ audit_service = AuditService(audit_repo)
 
 @router.post("/chat", response_model=ChatResponse)
 @require_audit_log
-async def internal_llm_chat(request: ChatRequest, http_request: Request) -> ChatResponse:
+async def internal_llm_chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     """INTERNAL: Conversación con Free-Intelligence (ultra observable).
 
     Este endpoint provee logging ultra detallado de TODA interacción:
