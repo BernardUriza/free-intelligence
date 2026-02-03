@@ -420,10 +420,10 @@ export function useOnboardingChat(
 
     // ChatHook interface (optional)
     loadingInitial: chatHook.loadingInitial,
-    hasMoreMessages: chatHook.hasMoreMessages,
-    loadingOlder: chatHook.loadingOlder,
+    hasMoreMessages: false, // Onboarding is always a fresh conversation, no history to load
+    loadingOlder: false,
     streamingMessage: chatHook.streaming?.content,
-    loadOlderMessages: chatHook.loadOlderMessages,
+    loadOlderMessages: undefined, // Disable pagination in onboarding
     clearConversation: chatHook.clearConversation,
     getIntroduction: async () => { await chatHook.getIntroduction(); },
     customEmptyState,
