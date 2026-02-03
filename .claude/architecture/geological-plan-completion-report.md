@@ -284,15 +284,21 @@ results = repo.read_batch(ids)  # Opens file 1 time
 ## 📈 Performance Impact Summary
 
 ### Memory Optimization
-- **Repository instances:** 9 → 3 (-67%)
-- **AuditRepository instances:** 5 → 1 (-80%)
-- **TaskRepository instances:** 2 → 1 (-50%)
-- **CorpusRepository instances:** 2 → 1 (-50%)
+
+| Métrica | Antes | Después | Mejora |
+|---------|-------|---------|--------|
+| Repository instances | 9 | 3 | -67% |
+| AuditRepository instances | 5 | 1 | -80% |
+| TaskRepository instances | 2 | 1 | -50% |
+| CorpusRepository instances | 2 | 1 | -50% |
 
 ### Latency Optimization
-- **File opens (100 items):** 100 → 1 (-99%)
-- **Latency (100 sessions):** 1000ms → 100ms (-90%)
-- **Latency (100 transcriptions):** 1000ms → 100ms (-90%)
+
+| Métrica | Antes | Después | Mejora |
+|---------|-------|---------|--------|
+| File opens (100 items) | 100 | 1 | -99% |
+| Latency (100 sessions) | 1000ms | 100ms | -90% |
+| Latency (100 transcriptions) | 1000ms | 100ms | -90% |
 
 ### Code Quality
 - **Circular imports:** Several → 0 ✅
