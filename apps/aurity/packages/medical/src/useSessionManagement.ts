@@ -52,7 +52,7 @@ export function useSessionManagement() {
           const timeoutId = setTimeout(() => controller.abort(), 5000);
 
           const response = await fetch(
-            `${backendUrl}/api/workflows/aurity/sessions/${sessionId}/monitor`,
+            `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
             {
               method: 'GET',
               headers: { Accept: 'application/json' },

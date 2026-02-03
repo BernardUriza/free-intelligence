@@ -15,6 +15,7 @@
 
 import { useCallback } from 'react';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+import { getBackendUrl } from '@/lib/config/deployment';
 import type { WorkflowSessionState } from './useWorkflowSession';
 import type { AudioUploadState } from './useAudioUpload';
 import type { WorkflowMetricsState } from './useWorkflowMetrics';
@@ -170,7 +171,7 @@ export function useWorkflowOrchestrator(
       );
 
       // Generate preview URL
-      const audioUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/sessions/${session.sessionId}/audio`;
+      const audioUrl = `${getBackendUrl()}/api/aurity/medical-ai/sessions/${session.sessionId}/audio`;
       session.setPausedAudioUrl(audioUrl);
     } catch (error) {
       console.error('Checkpoint creation failed:', error);

@@ -82,7 +82,7 @@ export async function getTriviaQuestions(params?: {
   if (params?.difficulty) queryParams.append('difficulty', params.difficulty);
   if (params?.limit) queryParams.append('limit', params.limit.toString());
 
-  const url = `${BACKEND_URL}/api/workflows/aurity/widget-config/trivia${
+  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/trivia${
     queryParams.toString() ? `?${queryParams}` : ''
   }`;
 
@@ -100,9 +100,9 @@ export async function getTriviaQuestions(params?: {
  */
 export async function saveTriviaQuestion(question: TriviaQuestion): Promise<{ success: boolean }> {
   // For now, this would need to update the JSON file via backend
-  // Backend endpoint: POST /api/workflows/aurity/widget-config/trivia
+  // Backend endpoint: POST /api/aurity/clinic/widget-config/trivia
 
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/widget-config/trivia`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/clinic/widget-config/trivia`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(question),
@@ -120,7 +120,7 @@ export async function saveTriviaQuestion(question: TriviaQuestion): Promise<{ su
  */
 export async function deleteTriviaQuestion(questionId: string): Promise<{ success: boolean }> {
   const response = await fetch(
-    `${BACKEND_URL}/api/workflows/aurity/widget-config/trivia/${questionId}`,
+    `${BACKEND_URL}/api/aurity/clinic/widget-config/trivia/${questionId}`,
     { method: 'DELETE' }
   );
 
@@ -140,7 +140,7 @@ export async function getBreathingExercises(params?: {
   const queryParams = new URLSearchParams();
   if (params?.exercise_id) queryParams.append('exercise_id', params.exercise_id);
 
-  const url = `${BACKEND_URL}/api/workflows/aurity/widget-config/breathing${
+  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/breathing${
     queryParams.toString() ? `?${queryParams}` : ''
   }`;
 
@@ -161,7 +161,7 @@ export async function getDailyTips(params?: {
   const queryParams = new URLSearchParams();
   if (params?.category) queryParams.append('category', params.category);
 
-  const url = `${BACKEND_URL}/api/workflows/aurity/widget-config/daily-tips${
+  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/daily-tips${
     queryParams.toString() ? `?${queryParams}` : ''
   }`;
 
@@ -182,7 +182,7 @@ export async function getRandomTip(params?: {
   const queryParams = new URLSearchParams();
   if (params?.category) queryParams.append('category', params.category);
 
-  const url = `${BACKEND_URL}/api/workflows/aurity/widget-config/random-tip${
+  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/random-tip${
     queryParams.toString() ? `?${queryParams}` : ''
   }`;
 

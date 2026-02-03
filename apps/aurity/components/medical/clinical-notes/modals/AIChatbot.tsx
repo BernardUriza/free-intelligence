@@ -35,7 +35,7 @@ export function AIChatbot({
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE}/api/workflows/aurity/sessions/${sessionId}/assistant`,
+        `${process.env.NEXT_PUBLIC_API_BASE}/api/aurity/medical-ai/sessions/${sessionId}/assistant`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

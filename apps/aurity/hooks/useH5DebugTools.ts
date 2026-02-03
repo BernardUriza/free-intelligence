@@ -13,8 +13,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { getBackendUrl } from '@/lib/config/deployment';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const BACKEND_URL = getBackendUrl();
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 interface H5Data {
@@ -48,7 +49,7 @@ export function useH5DebugTools(sessionId: string | null) {
     try {
       console.log(`[H5Debug] Fetching HDF5 data for session: ${sessionId}`);
       const response = await fetch(
-        `${BACKEND_URL}/api/workflows/aurity/sessions/${sessionId}/h5-data`,
+        `${BACKEND_URL}/api/aurity/medical-ai/sessions/${sessionId}/h5-data`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },

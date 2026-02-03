@@ -134,7 +134,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
     async function fetchSlides() {
       try {
         const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001"
-        const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/list?active_only=true`)
+        const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/list?active_only=true`)
         if (response.ok) {
           const data = await response.json()
           setSlides(data.media || [])

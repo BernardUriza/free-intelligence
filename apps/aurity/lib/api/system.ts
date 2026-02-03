@@ -4,7 +4,9 @@
  * Cliente para monitorear recursos del sistema y modelos Ollama en ejecución.
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+import { getBackendUrl } from '@/lib/config/deployment';
+
+const BACKEND_URL = getBackendUrl();
 
 // =============================================================================
 // Types

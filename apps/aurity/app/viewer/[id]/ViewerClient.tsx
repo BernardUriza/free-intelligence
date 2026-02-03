@@ -42,7 +42,7 @@ export default function ViewerClient() {
       try {
         // Try to fetch from sessions API
         const response = await fetch(
-          `${API_BASE}/api/workflows/aurity/sessions/${id}`,
+          `${API_BASE}/api/aurity/medical-ai/sessions/${id}`,
           { headers: { Accept: 'application/json' } }
         );
 
@@ -81,7 +81,7 @@ export default function ViewerClient() {
         // Fallback: try to load from timeline/memory endpoint
         try {
           const memResponse = await fetch(
-            `${API_BASE}/api/workflows/aurity/timeline/memory?session_id=${id}&limit=100`
+            `${API_BASE}/api/aurity/timeline/memory?session_id=${id}&limit=100`
           );
 
           if (memResponse.ok) {

@@ -3,7 +3,7 @@
  *
  * Card: FI-CHECKIN-005
  * Connects to the OpenAI-compatible assistant chat endpoint:
- * - POST /api/workflows/aurity/assistant/chat
+ * - POST /api/aurity/assistant/chat
  *
  * Uses OpenAI Chat Completions format with AURITY extensions:
  * - messages: Array of {role, content}
@@ -144,7 +144,7 @@ interface ChatCompletionStreamResponse {
 async function apiChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  const response = await fetch(`${API_BASE}/api/workflows/aurity/assistant/chat`, {
+  const response = await fetch(`${API_BASE}/api/aurity/assistant/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -164,7 +164,7 @@ async function* apiChatCompletionStreaming(
   // Add stream: true to request
   const streamRequest = { ...request, stream: true };
 
-  const response = await fetch(`${API_BASE}/api/workflows/aurity/assistant/chat/stream`, {
+  const response = await fetch(`${API_BASE}/api/aurity/assistant/chat/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(streamRequest),

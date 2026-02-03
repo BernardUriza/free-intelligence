@@ -8,11 +8,25 @@ Usage:
 
     app.include_router(aurity_router, prefix="/api")
     app.openapi_tags = tags_metadata
+
+Oceanic API Restructure - Phase 5 (Hadopelágica) Complete.
+Legacy /api/workflows/aurity/* routes removed. 94 endpoints total.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
+
+from backend.api.domains.aurity import (
+    assistant,
+    clinic,
+    knowledge_base,
+    medical_ai,
+    prescriptions,
+    system,
+    timeline,
+    transcription,
+)
 
 # Router with app namespace
 aurity_router = APIRouter(prefix="/aurity")
@@ -54,57 +68,67 @@ tags_metadata = [
 ]
 
 # =============================================================================
-# Domain routers will be included here in Phase 2 (Mesopelágica)
+# Domain Routers - Phase 2 (Mesopelágica) Complete
 # =============================================================================
-#
-# from backend.api.domains.aurity import (
-#     medical_ai,
-#     clinic,
-#     transcription,
-#     assistant,
-#     prescriptions,
-#     timeline,
-#     knowledge_base,
-#     system,
-# )
-#
-# aurity_router.include_router(
-#     medical_ai.router,
-#     prefix="/medical-ai",
-#     tags=["Medical AI"]
-# )
-# aurity_router.include_router(
-#     clinic.router,
-#     prefix="/clinic",
-#     tags=["Clinic"]
-# )
-# aurity_router.include_router(
-#     transcription.router,
-#     prefix="/transcription",
-#     tags=["Transcription"]
-# )
-# aurity_router.include_router(
-#     assistant.router,
-#     prefix="/assistant",
-#     tags=["Assistant"]
-# )
-# aurity_router.include_router(
-#     prescriptions.router,
-#     prefix="/prescriptions",
-#     tags=["Prescriptions"]
-# )
-# aurity_router.include_router(
-#     timeline.router,
-#     prefix="/timeline",
-#     tags=["Timeline"]
-# )
-# aurity_router.include_router(
-#     knowledge_base.router,
-#     prefix="/knowledge-base",
-#     tags=["Knowledge Base"]
-# )
-# aurity_router.include_router(
-#     system.router,
-#     prefix="/system",
-#     tags=["System"]
-# )
+
+# Medical AI - Core workflow endpoints
+# Includes: workflows, monitor, diarization, audio, transcription_sources, audit
+aurity_router.include_router(
+    medical_ai.router,
+    prefix="/medical-ai",
+    tags=["Medical AI"],
+)
+
+# Transcription - Audio streaming and job management
+# Includes: stream, jobs, end-session, chunks
+aurity_router.include_router(
+    transcription.router,
+    prefix="/transcription",
+    tags=["Transcription"],
+)
+
+# Prescriptions - Medication catalog and safety checks
+# Includes: templates, prescriptions, catalog, interactions, allergies, safety
+# Note: Router already has /prescriptions prefix
+aurity_router.include_router(
+    prescriptions.router,
+    tags=["Prescriptions"],
+)
+
+# Clinic - Clinic management and waiting room
+# Includes: waiting_room, widgets (partial - management, media, tv_content pending)
+aurity_router.include_router(
+    clinic.router,
+    prefix="/clinic",
+    tags=["Clinic"],
+)
+
+# Assistant - AI chat with personas
+# Includes: chat, stream, introduction, history
+aurity_router.include_router(
+    assistant.router,
+    prefix="/assistant",
+    tags=["Assistant"],
+)
+
+# Timeline - Session history (re-exported from legacy)
+# Includes: sessions list, session detail
+aurity_router.include_router(
+    timeline.router,
+    tags=["Timeline"],  # Router already has /timeline prefix
+)
+
+# Knowledge Base - Document management (placeholder)
+# Note: Legacy has import issues - routes will be added in Phase 3
+aurity_router.include_router(
+    knowledge_base.router,
+    prefix="/knowledge-base",
+    tags=["Knowledge Base"],
+)
+
+# System - Infrastructure endpoints (re-exported from legacy)
+# Includes: disk-usage, llm-status, clear-memory
+aurity_router.include_router(
+    system.router,
+    tags=["System"],  # Router already has /system prefix
+)

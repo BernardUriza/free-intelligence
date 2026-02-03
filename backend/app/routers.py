@@ -31,10 +31,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.app.system_routes import router as system_router
     from backend.api.admin.api.internal.admin.users import router as users_router
 
-    # Assistant & Personas
-    from backend.api.routers.assistant.public import aurity_personas
-    from backend.api.routers.assistant.public.assistant_history import router as assistant_history_router
-    from backend.api.routers.assistant.public.assistant.introduction import router as introduction_router
+    # NOTE: Assistant routers moved to aurity_router (backend.api.domains.aurity.assistant)
 
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
@@ -43,8 +40,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # Check-in & Payments
     from backend.api.routers.checkin import checkin
-    from backend.api.routers.clinic.public import clinics
-    from backend.api.routers.clinic.public import clinic_media_stub
+    # NOTE: clinics router moved to aurity_router (backend.api.domains.aurity.clinic)
 
     # Coder
     from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
@@ -86,11 +82,11 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # System Resources
     from backend.infrastructure.system.api.public import system_resources
-    from backend.infrastructure.system.api.public.system import router as system_info_router
+    # NOTE: system_info_router moved to aurity_router (backend.api.domains.aurity.system)
 
     # Timeline
     from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
-    from backend.services.timeline.api.public import timeline
+    # NOTE: timeline public router moved to aurity_router (backend.api.domains.aurity.timeline)
 
     # Transcription & Diarization
     from backend.api.routers.transcription.internal.diarization import router as diarization_router
@@ -103,30 +99,22 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Triage
     from backend.api.routers.workflow.internal.triage import router as triage_router
 
-    # Workflows
-    from backend.api.routers.workflow.public.workflows_router import (
-        router as public_workflows_router,
-    )
+    # NOTE: public_workflows_router removed - replaced by aurity_router
 
     # =========================================================================
-    # PUBLIC API Registration (CORS enabled, orchestrators)
+    # AURITY Domain API (Phase 3 - Batipelágica)
+    # All AURITY-specific routes consolidated under /api/aurity/*
+    # =========================================================================
+    from backend.api.domains.aurity.router import aurity_router, tags_metadata
+
+    public_app.include_router(aurity_router, prefix="/api")
+    public_app.openapi_tags = tags_metadata
+
+    # =========================================================================
+    # PUBLIC API Registration (CORS enabled, non-AURITY routes)
     # =========================================================================
 
     public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
-    public_app.include_router(public_workflows_router)  # AURITY orchestrator
-    public_app.include_router(timeline.router)  # Timeline/sessions listing
-    public_app.include_router(aurity_personas.router)  # Personas list (public)
-    public_app.include_router(
-        assistant_history_router,
-        prefix="/api/workflows/aurity/assistant/history",
-        tags=["assistant-history"],
-    )  # Assistant conversation history
-    public_app.include_router(
-        introduction_router,
-        prefix="/api/workflows/aurity",
-        tags=["assistant-introduction"],
-    )  # Assistant introduction for onboarding (FI-ONBOARD-REDESIGN-001)
-    public_app.include_router(system_info_router)  # System info (LLM status, disk usage)
     public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
     public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
     public_app.include_router(
@@ -136,8 +124,6 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
     public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
-    public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
-    public_app.include_router(clinic_media_stub.router)  # Clinic Media (STUB - Phase 3)
     public_app.include_router(user_clinic.router)  # User-Clinic membership
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
     public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)

@@ -14,8 +14,9 @@ import type {
   PersonaUpdateRequest,
   PersonaTestResponse,
 } from '@/components/admin/persona/types';
+import { getBackendUrl } from '@/lib/config/deployment';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const BACKEND_URL = getBackendUrl();
 const BASE_PATH = '/api/admin/personas';
 
 /**

@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
+import { getBackendUrl } from '@/lib/config/deployment';
 
 export interface PersonaOption {
   id: string;
@@ -35,7 +36,7 @@ interface UsePersonasReturn {
   refetch: () => void;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const BACKEND_URL = getBackendUrl();
 const AUTH0_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io';
 const AUTH0_SCOPE = process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile email offline_access';
 
@@ -161,7 +162,7 @@ export function usePersonas(): UsePersonasReturn {
         }
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/personas`, {
+      const response = await fetch(`${BACKEND_URL}/api/aurity/personas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -1,15 +1,21 @@
 """Timeline Domain - Session history and longitudinal memory.
 
 Endpoints:
-- GET  /sessions - List all sessions
-- GET  /sessions/{id} - Get session details
-- GET  /memory - Get longitudinal memory
-- GET  /memory/search - Search memory
-- GET  /memory/stats - Get memory statistics
+- GET  /timeline/sessions - List all sessions (paginated)
+- GET  /timeline/sessions/{id} - Get session details
 
-Migrated from:
-- backend/services/timeline/api/public/timeline.py
-- backend/api/routers/memory/public/longitudinal_memory.py
+Features:
+- Multi-tenancy: Sessions filtered by clinic_id
+- SUPERADMIN bypass for all-clinic access
+- HDF5-based session storage
+
+Migrated from: backend/services/timeline/api/public/timeline.py
 """
 
 from __future__ import annotations
+
+# Re-export router from legacy location
+# TODO: Full migration in Phase 3 when HTTP routes change
+from backend.services.timeline.api.public.timeline import router
+
+__all__ = ["router"]

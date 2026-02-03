@@ -8,9 +8,9 @@
  * Updated: 2025-10-30 - Added timeout, retry, cache
  */
 
-// Timeline router mounted at /api/workflows/aurity/timeline (updated 2025-11-15)
+// Timeline router mounted at /api/aurity/timeline (updated 2025-11-15)
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_TIMELINE_API_URL || 'http://localhost:7001/api/workflows/aurity';
+  process.env.NEXT_PUBLIC_TIMELINE_API_URL || 'http://localhost:7001/api/aurity';
 
 const TIMEOUT_MS = 1000; // 1 second timeout
 const CACHE_KEY_SUMMARIES = 'fi_timeline_summaries';

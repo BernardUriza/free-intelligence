@@ -48,3 +48,7 @@ def get_audit_service() -> DIAuditService:
     """
     logger = get_logger(__name__)
     return DIAuditService(logger=logger, repository=get_audit_repository())
+
+
+# Re-export for convenience
+__all__ = ["DIAuditService", "get_audit_service", "get_audit_repository"]

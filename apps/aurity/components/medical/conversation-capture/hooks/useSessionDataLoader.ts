@@ -113,7 +113,7 @@ export function useSessionDataLoader({
         }
 
         // Load audio file
-        const audioUrl = `${BACKEND_URL}/api/workflows/aurity/sessions/${externalSessionId}/audio`;
+        const audioUrl = `${BACKEND_URL}/api/aurity/medical-ai/sessions/${externalSessionId}/audio`;
         setPausedAudioUrl(audioUrl);
         setIsPaused(true);
 

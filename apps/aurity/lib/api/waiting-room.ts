@@ -126,7 +126,7 @@ export class WaitingRoomAPI {
   /**
    * Generate a health tip using Free Intelligence
    *
-   * Endpoint: POST /api/workflows/aurity/waiting-room/generate-tip
+   * Endpoint: POST /api/aurity/clinic/waiting-room/generate-tip
    *
    * @param request Tip generation request (category + optional context)
    * @returns Generated tip with metadata
@@ -144,7 +144,7 @@ export class WaitingRoomAPI {
    * ```
    */
   async generateTip(request: GenerateTipRequest): Promise<GenerateTipResponse> {
-    const url = `${this.config.baseURL}/api/workflows/aurity/waiting-room/generate-tip`;
+    const url = `${this.config.baseURL}/api/aurity/clinic/waiting-room/generate-tip`;
 
     const response = await fetchWithRetry(
       url,
@@ -165,7 +165,7 @@ export class WaitingRoomAPI {
   /**
    * Generate a health trivia question using Free Intelligence
    *
-   * Endpoint: POST /api/workflows/aurity/waiting-room/generate-trivia
+   * Endpoint: POST /api/aurity/clinic/waiting-room/generate-trivia
    *
    * @param request Trivia generation request (difficulty level)
    * @returns Generated trivia question with options and explanation
@@ -182,7 +182,7 @@ export class WaitingRoomAPI {
    * ```
    */
   async generateTrivia(request: GenerateTriviaRequest = {}): Promise<GenerateTriviaResponse> {
-    const url = `${this.config.baseURL}/api/workflows/aurity/waiting-room/generate-trivia`;
+    const url = `${this.config.baseURL}/api/aurity/clinic/waiting-room/generate-trivia`;
 
     const response = await fetchWithRetry(
       url,

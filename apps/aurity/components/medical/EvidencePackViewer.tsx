@@ -105,7 +105,7 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
         // Fetch evidence pack from workflow API (auto-generates if not exists)
         const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
         const response = await fetch(
-          `${apiBase}/api/workflows/aurity/sessions/${sessionId}/evidence`
+          `${apiBase}/api/aurity/medical-ai/sessions/${sessionId}/evidence`
         );
 
         if (!response.ok) {

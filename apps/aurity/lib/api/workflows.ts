@@ -1,7 +1,7 @@
 /**
  * Workflows API Client
  *
- * Client for backend orchestrator endpoints (/api/workflows/aurity/*).
+ * Client for backend orchestrator endpoints (/api/aurity/*).
  * Provides end-to-end consultation workflows.
  *
  * File: apps/aurity/lib/api/workflows.ts
@@ -45,7 +45,7 @@ export interface ConsultStatusResponse {
 
 /**
  * Start end-to-end consultation workflow
- * POST /api/workflows/aurity/consult
+ * POST /api/aurity/consult
  */
 export async function startConsultWorkflow(
   audio: File,
@@ -55,7 +55,7 @@ export async function startConsultWorkflow(
   formData.append('audio', audio);
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/consult`,
+    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/consult`,
     {
       method: 'POST',
       headers: {
@@ -75,10 +75,10 @@ export async function startConsultWorkflow(
 
 /**
  * Get consultation workflow status
- * GET /api/workflows/aurity/consult/{jobId}
+ * GET /api/aurity/consult/{jobId}
  */
 export async function getConsultStatus(jobId: string): Promise<ConsultStatusResponse> {
-  return api.get<ConsultStatusResponse>(`/api/workflows/aurity/consult/${jobId}`);
+  return api.get<ConsultStatusResponse>(`/api/aurity/consult/${jobId}`);
 }
 
 /**

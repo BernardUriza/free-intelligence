@@ -29,7 +29,7 @@ export async function fetchDocuments(params?: {
   if (params?.persona) query.set('persona', params.persona);
 
   const queryString = query.toString();
-  const url = `${BACKEND_URL}/api/workflows/aurity/documents${queryString ? `?${queryString}` : ''}`;
+  const url = `${BACKEND_URL}/api/aurity/knowledge-base/documents${queryString ? `?${queryString}` : ''}`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -52,7 +52,7 @@ export async function fetchDocuments(params?: {
  * @param includeText - Whether to include extracted text content
  */
 export async function fetchDocument(docId: string, includeText = false): Promise<Document> {
-  const url = `${BACKEND_URL}/api/workflows/aurity/documents/${docId}${includeText ? '?include_text=true' : ''}`;
+  const url = `${BACKEND_URL}/api/aurity/knowledge-base/documents/${docId}${includeText ? '?include_text=true' : ''}`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -87,7 +87,7 @@ export async function uploadDocument(
     formData.append('assigned_personas', JSON.stringify(metadata.assigned_personas));
   }
 
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/upload`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/knowledge-base/documents/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -107,7 +107,7 @@ export async function updateDocument(
   docId: string,
   updates: DocumentUpdateRequest
 ): Promise<DocumentMetadata> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/knowledge-base/documents/${docId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ export async function updateDocument(
  * Delete a document
  */
 export async function deleteDocument(docId: string): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/knowledge-base/documents/${docId}`, {
     method: 'DELETE',
   });
 
@@ -139,7 +139,7 @@ export async function deleteDocument(docId: string): Promise<void> {
  * Reindex a document (regenerate embeddings)
  */
 export async function reindexDocument(docId: string): Promise<DocumentMetadata> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}/reindex`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/knowledge-base/documents/${docId}/reindex`, {
     method: 'POST',
   });
 
@@ -160,7 +160,7 @@ export async function searchDocuments(
     persona_filter?: string;
   }
 ): Promise<SearchResponse> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/search`, {
+  const response = await fetch(`${BACKEND_URL}/api/aurity/knowledge-base/documents/search`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -188,7 +188,7 @@ export async function searchDocuments(
  */
 export async function getDocumentQuestions(docId: string): Promise<DocumentQuestion[]> {
   const response = await fetch(
-    `${BACKEND_URL}/api/workflows/aurity/documents/${docId}/questions`,
+    `${BACKEND_URL}/api/aurity/knowledge-base/documents/${docId}/questions`,
     {
       method: 'GET',
       headers: {

@@ -240,7 +240,7 @@ export function useChatUpload(options: UseChatUploadOptions) {
     const poll = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/documents/${docId}`
+          `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/knowledge-base/documents/${docId}`
         );
         const doc = await response.json();
 

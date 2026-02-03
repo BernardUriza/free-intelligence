@@ -34,7 +34,7 @@ export default function ProfilePage() {
   const fetchDiskUsage = useCallback(async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendUrl}/api/workflows/aurity/system/disk-usage`);
+      const response = await fetch(`${backendUrl}/api/aurity/system/disk-usage`);
       if (response.ok) {
         const data = await response.json();
         setDiskUsage(data);
@@ -65,7 +65,7 @@ export default function ProfilePage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
       const userId = encodeURIComponent(user?.sub || 'unknown');
-      const response = await fetch(`${backendUrl}/api/workflows/aurity/system/clear-memory?user_id=${userId}`, {
+      const response = await fetch(`${backendUrl}/api/aurity/system/clear-memory?user_id=${userId}`, {
         method: 'POST',
       });
 

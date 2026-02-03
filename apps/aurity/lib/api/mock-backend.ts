@@ -199,7 +199,7 @@ function sleep(ms: number): Promise<void> {
  *   }
  *   
  *   // Real API call
- *   return api.get('/api/workflows/aurity/sessions');
+ *   return api.get('/api/aurity/medical-ai/sessions');
  * }
  * ```
  */

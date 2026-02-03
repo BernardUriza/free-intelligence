@@ -8,8 +8,9 @@
  * Created: 2025-11-22
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+import { getBackendUrl } from '@/lib/config/deployment';
+
+const API_BASE_URL = getBackendUrl();
 
 const TIMEOUT_MS = 5000; // 5 second timeout (chat history can be large)
 
@@ -87,7 +88,7 @@ export async function getChatHistory(params: {
 }): Promise<PaginatedHistoryResponse> {
   const { doctorId, offset = 0, limit = 50, sessionId } = params;
 
-  const url = new URL(`${API_BASE_URL}/api/workflows/aurity/assistant/history/paginated`);
+  const url = new URL(`${API_BASE_URL}/api/aurity/assistant/history/paginated`);
   url.searchParams.set('doctor_id', doctorId);
   url.searchParams.set('offset', offset.toString());
   url.searchParams.set('limit', limit.toString());
@@ -137,7 +138,7 @@ export async function searchChatHistory(params: {
 }): Promise<HistorySearchResponse> {
   const { doctorId, query, limit = 10, sessionId } = params;
 
-  const url = `${API_BASE_URL}/api/workflows/aurity/assistant/history/search`;
+  const url = `${API_BASE_URL}/api/aurity/assistant/history/search`;
 
   try {
     const response = await fetchWithTimeout(url, {
@@ -169,7 +170,7 @@ export async function searchChatHistory(params: {
  * Get chat history statistics
  */
 export async function getChatHistoryStats(doctorId: string): Promise<HistoryStatsResponse> {
-  const url = new URL(`${API_BASE_URL}/api/workflows/aurity/assistant/history/stats`);
+  const url = new URL(`${API_BASE_URL}/api/aurity/assistant/history/stats`);
   url.searchParams.set('doctor_id', doctorId);
 
   try {

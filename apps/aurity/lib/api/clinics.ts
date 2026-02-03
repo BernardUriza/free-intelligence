@@ -9,9 +9,9 @@
  */
 
 import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
-import { apiRequest } from '@/lib/api/client';
+import { apiRequest, getBackendUrl } from '@/lib/api/client';
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001";
+const API_BASE = getBackendUrl();
 
 // =============================================================================
 // TYPES

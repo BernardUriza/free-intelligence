@@ -51,7 +51,7 @@ export function TranscriptionSources({
 
   // Build audio URL if session is finalized
   const audioUrl = sessionId && isFinalized
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/sessions/${sessionId}/audio`
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/medical-ai/sessions/${sessionId}/audio`
     : null;
 
   // Debug: Log audio URL only when it changes

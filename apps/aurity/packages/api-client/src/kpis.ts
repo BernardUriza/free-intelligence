@@ -56,7 +56,7 @@ export interface KPIChipsResponse {
  * Fetch KPI metrics (summary view)
  */
 export async function getKPIMetrics(window: string = "5m"): Promise<KPIMetrics> {
-  const response = await fetch(`${API_BASE}/api/workflows/aurity/kpis?window=${window}&view=summary`, {
+  const response = await fetch(`${API_BASE}/api/aurity/kpis?window=${window}&view=summary`, {
     cache: "no-store", // Always fetch fresh data for dashboard
   })
 
@@ -71,7 +71,7 @@ export async function getKPIMetrics(window: string = "5m"): Promise<KPIMetrics> 
  * Fetch KPI chips (UI-ready format)
  */
 export async function getKPIChips(window: string = "5m"): Promise<KPIChipsResponse> {
-  const response = await fetch(`${API_BASE}/api/workflows/aurity/kpis?window=${window}&view=chips`, {
+  const response = await fetch(`${API_BASE}/api/aurity/kpis?window=${window}&view=chips`, {
     cache: "no-store",
   })
 

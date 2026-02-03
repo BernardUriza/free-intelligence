@@ -29,7 +29,7 @@ export function SystemStatus() {
     const fetchStatus = async () => {
       try {
         const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/api/workflows/aurity/system/llm-status`);
+        const res = await fetch(`${backendUrl}/api/aurity/system/llm-status`);
         if (res.ok) {
           const data = await res.json();
           setStatus(data);

@@ -64,14 +64,30 @@ Status: Structure ready, waiting for file migration
 
 from __future__ import annotations
 
-# Note: Sub-modules will be imported here once migrated
-# from . import management, media, waiting_room, tv_content, widgets
-#
-# from fastapi import APIRouter
-#
-# router = APIRouter()
-# router.include_router(management.router)
-# router.include_router(media.router)
-# router.include_router(waiting_room.router)
-# router.include_router(tv_content.router)
-# router.include_router(widgets.router)
+from fastapi import APIRouter
+
+from . import management, media, tv_content, waiting_room, widgets
+
+# Aggregated router for clinic domain
+router = APIRouter()
+
+# Management: clinics, doctors, appointments, limits (18 endpoints)
+# Router already has prefix="/clinics" from legacy
+router.include_router(management.router)
+
+# Media: clinic media upload/management (4 endpoints - STUB)
+# Router already has prefix="/clinic-media" from legacy
+router.include_router(media.router)
+
+# TV Content: seeds management (4 endpoints)
+# Router has no prefix, paths include /tv-content/
+router.include_router(tv_content.router)
+
+# Waiting room: AI-generated health tips (2 endpoints)
+router.include_router(waiting_room.router, prefix="/waiting-room")
+
+# Widgets: trivia, breathing, tips config (4 endpoints)
+# widgets.py already has /widget-config prefix in paths
+router.include_router(widgets.router)
+
+__all__ = ["router"]

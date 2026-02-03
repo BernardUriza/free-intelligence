@@ -2,7 +2,7 @@
  * Prescriptions API Client
  *
  * Types and API functions for the prescription template engine.
- * Connects to: /api/workflows/aurity/prescriptions/*
+ * Connects to: /api/aurity/prescriptions/*
  *
  * @author Bernard Uriza Orozco
  * @created 2025-12-28
@@ -348,7 +348,7 @@ export interface ExportResponse {
 // API Client Functions
 // ============================================================================
 
-const API_BASE = () => `${getBackendUrl()}/api/workflows/aurity/prescriptions`;
+const API_BASE = () => `${getBackendUrl()}/api/aurity/prescriptions`;
 
 /**
  * List available prescription templates

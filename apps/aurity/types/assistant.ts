@@ -173,7 +173,7 @@ export interface FIChatRequest {
 }
 
 /**
- * Response from /api/workflows/aurity/assistant/chat or /introduction
+ * Response from /api/aurity/assistant/chat or /introduction
  * (Backend schema - adapted to match existing implementation)
  */
 export interface FIChatResponse {

@@ -16,7 +16,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app.aurity.i
 export async function fetchContentSeeds(): Promise<ContentItem[]> {
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/workflows/aurity/tv-content/list?active_only=true`
+      `${BACKEND_URL}/api/aurity/clinic/tv-content/list?active_only=true`
     );
 
     if (!response.ok) {
@@ -143,5 +143,5 @@ export async function fetchDynamicTrivia(): Promise<TriviaData> {
  * Build media URL from file path
  */
 export function buildMediaUrl(filePath: string): string {
-  return `${BACKEND_URL}/api/workflows/aurity/clinic-media/file/${filePath}`;
+  return `${BACKEND_URL}/api/aurity/clinic/clinic-media/file/${filePath}`;
 }

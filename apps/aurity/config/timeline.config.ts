@@ -17,10 +17,10 @@ export const MEMORY_API = {
   BASE_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001',
 
   /** Longitudinal memory endpoint */
-  ENDPOINT: '/api/workflows/aurity/timeline/memory',
+  ENDPOINT: '/api/aurity/timeline/memory',
 
   /** Stats endpoint */
-  STATS_ENDPOINT: '/api/workflows/aurity/timeline/memory/stats',
+  STATS_ENDPOINT: '/api/aurity/timeline/memory/stats',
 
   /** Request timeout in milliseconds */
   TIMEOUT_MS: 10000,

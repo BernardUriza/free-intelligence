@@ -169,7 +169,7 @@ export const assistantApi = {
       persona: string;
       emotional_analysis?: ChatResponse['emotional_analysis'];
       thinking?: string | null;  // Qwen3 thinking mode
-    }>('/api/workflows/aurity/assistant/chat', {
+    }>('/api/aurity/assistant/chat', {
       messages,
       user: request.doctor_id, // OpenAI 'user' field = our doctor_id
       session_id: request.session_id,
@@ -199,7 +199,7 @@ export const assistantApi = {
    */
   searchHistory: async (request: HistorySearchRequest): Promise<HistorySearchResponse> => {
     return api.post<HistorySearchResponse>(
-      '/api/workflows/aurity/assistant/history/search',
+      '/api/aurity/assistant/history/search',
       request
     );
   },
@@ -218,7 +218,7 @@ export const assistantApi = {
       persona: string;
       tokens_used?: number;
       latency_ms?: number;
-    }>('/api/workflows/aurity/assistant/introduction', {
+    }>('/api/aurity/assistant/introduction', {
       physician_name: context.doctor_name as string | undefined,
       clinic_name: context.clinic_name as string | undefined,
     }, {
@@ -285,7 +285,7 @@ export const assistantApi = {
       try {
         const backendUrl = getBackendUrl();
         const response = await fetch(
-          `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
+          `${backendUrl}/api/aurity/assistant/chat/stream`,
           {
             method: 'POST',
             headers: {

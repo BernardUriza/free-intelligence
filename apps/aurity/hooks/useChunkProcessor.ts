@@ -116,7 +116,7 @@ export function useChunkProcessor(
             transcript?: string;
             error?: string;
             chunks?: BackendChunk[];
-          }>(`/api/workflows/aurity/jobs/${jobId}`);
+          }>(`/api/aurity/jobs/${jobId}`);
 
           if (jobStatus.error) {
             console.error(`[CHUNK ${chunkNumber}] Poll failed: ${jobStatus.error}`);

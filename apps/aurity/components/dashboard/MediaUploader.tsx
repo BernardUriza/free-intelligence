@@ -12,6 +12,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Trash2, Eye, EyeOff, CloudUpload, Send, Layers, Loader2, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { confirmDelete, toastError, toastSuccess, showWarning } from '@/lib/swal';
+import { getBackendUrl } from '@/lib/config/deployment';
 
 interface MediaUploaderProps {
   /** Callback when media is uploaded */
@@ -99,8 +100,8 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       if (clinicId) formData.append('clinic_id', clinicId);
       if (doctorId) formData.append('doctor_id', doctorId);
 
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/upload`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -117,7 +118,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
         mediaType: activeTab,
         title: title || file.name,
         description,
-        url: `/api/workflows/aurity/clinic-media/${data.media_id}/file`,
+        url: `/api/aurity/clinic/clinic-media/${data.media_id}/file`,
         duration: duration * 1000,
       });
 
@@ -158,8 +159,8 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       if (clinicId) formData.append('clinic_id', clinicId);
       if (doctorId) formData.append('doctor_id', doctorId);
 
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/upload`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -198,12 +199,12 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
   const fetchMediaList = async () => {
     setIsLoadingList(true);
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+      const backendURL = getBackendUrl();
       const params = new URLSearchParams();
       if (clinicId) params.append('clinic_id', clinicId);
       params.append('active_only', 'false');
 
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/list?${params}`);
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/list?${params}`);
       if (!response.ok) throw new Error('Failed to fetch media list');
 
       const data = await response.json();
@@ -220,8 +221,8 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
     if (!confirmed) return;
 
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/${mediaId}`, {
         method: 'DELETE',
       });
 
@@ -238,8 +239,8 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
 
   const handleToggleActive = async (mediaId: string, currentState: boolean) => {
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/${mediaId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !currentState }),

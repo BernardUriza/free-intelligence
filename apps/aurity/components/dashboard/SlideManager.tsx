@@ -12,6 +12,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getBackendUrl } from '@/lib/config/deployment';
 import {
   Trash2,
   Lock,
@@ -64,12 +65,12 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
   const fetchSlides = async () => {
     setIsLoading(true);
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+      const backendURL = getBackendUrl();
       const params = new URLSearchParams();
       // Don't filter by clinic_id - show all slides
       params.append('active_only', 'false');
 
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/list?${params}`);
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/list?${params}`);
       if (!response.ok) throw new Error('Failed to fetch slides');
 
       const data = await response.json();
@@ -93,8 +94,8 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
     if (!confirmed) return;
 
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/${mediaId}`, {
         method: 'DELETE',
       });
 
@@ -111,8 +112,8 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
 
   const _handleToggleActive = async (mediaId: string, currentState: boolean) => {
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
+      const backendURL = getBackendUrl();
+      const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/${mediaId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !currentState }),

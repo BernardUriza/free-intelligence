@@ -67,7 +67,7 @@ export interface UseChatStreamReturn {
 // Constants
 // ============================================================================
 
-const STREAM_ENDPOINT = '/api/workflows/aurity/assistant/chat/stream';
+const STREAM_ENDPOINT = '/api/aurity/assistant/chat/stream';
 const DEFAULT_THROTTLE_MS = 50;
 
 // ============================================================================

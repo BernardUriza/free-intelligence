@@ -4,7 +4,7 @@ import { assistantChat, assistantGreeting, historySearchResponse } from '@/mocks
 import { sse } from '@/mocks/utils/sse';
 
 export const assistantHandlers = [
-  http.post('/api/workflows/aurity/assistant/chat', async ({ request }) => {
+  http.post('/api/aurity/assistant/chat', async ({ request }) => {
     const body = await request.json();
     const isIntro = Array.isArray(body?.messages) && body.messages.some((m: any) => m.role === 'system');
     if (isIntro) {
@@ -29,7 +29,7 @@ export const assistantHandlers = [
     });
   }),
 
-  http.post('/api/workflows/aurity/assistant/chat/stream', async ({ request }) => {
+  http.post('/api/aurity/assistant/chat/stream', async ({ request }) => {
     await request.json();
     return sse([
       { event: 'meta', data: { thinking: assistantChat.thinking } },
@@ -52,12 +52,12 @@ export const assistantHandlers = [
     ]);
   }),
 
-  http.post('/api/workflows/aurity/assistant/history/search', () => {
+  http.post('/api/aurity/assistant/history/search', () => {
     return HttpResponse.json(historySearchResponse);
   }),
 
   // WebSocket handlers for both ws:// (dev) and wss:// (prod)
-  ws.link('ws://*/api/workflows/aurity/assistant/ws', {
+  ws.link('ws://*/api/aurity/assistant/ws', {
     onConnect(_, client) {
       client.send({ type: 'connected', timestamp: Date.now() });
       client.send({
@@ -73,7 +73,7 @@ export const assistantHandlers = [
       }
     },
   }),
-  ws.link('wss://*/api/workflows/aurity/assistant/ws', {
+  ws.link('wss://*/api/aurity/assistant/ws', {
     onConnect(_, client) {
       client.send({ type: 'connected', timestamp: Date.now() });
       client.send({

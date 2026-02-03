@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { POLLING_CONFIG, BACKOFF_MULTIPLIER } from '@/lib/constants/polling';
+import { getBackendUrl } from '@/lib/config/deployment';
 
 interface DiarizationStatus {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
@@ -43,7 +44,7 @@ interface UseDiarizationPollingReturn {
   totalPolls: number; // Total polls attempted
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const BACKEND_URL = getBackendUrl();
 
 export function useDiarizationPolling(
   options: UseDiarizationPollingOptions
@@ -78,7 +79,7 @@ export function useDiarizationPolling(
     }
 
     try {
-      const monitorUrl = `${BACKEND_URL}/api/workflows/aurity/sessions/${sessionId}/monitor`;
+      const monitorUrl = `${BACKEND_URL}/api/aurity/medical-ai/sessions/${sessionId}/monitor`;
 
       // AbortController with timeout to prevent hanging requests
       const controller = new AbortController();

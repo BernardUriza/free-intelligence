@@ -331,7 +331,7 @@ export const assistantApi = {
       emotional_analysis?: ChatResponse['emotional_analysis'];
       thinking?: string | null;  // Qwen3 thinking mode
     }>(
-      '/api/workflows/aurity/assistant/chat',
+      '/api/aurity/assistant/chat',
       payload,
       { timeout: CHAT_TIMEOUT_MS } // 2 minutes for LLM inference
     );
@@ -366,7 +366,7 @@ export const assistantApi = {
    */
   searchHistory: async (request: HistorySearchRequest): Promise<HistorySearchResponse> => {
     return api.post<HistorySearchResponse>(
-      '/api/workflows/aurity/assistant/history/search',
+      '/api/aurity/assistant/history/search',
       request
     );
   },
@@ -383,7 +383,7 @@ export const assistantApi = {
       tokens_used: number;
       latency_ms: number;
     }>(
-      '/api/workflows/aurity/assistant/introduction',
+      '/api/aurity/assistant/introduction',
       {
         physician_name: context.physician_name as string | undefined,
         clinic_name: context.clinic_name as string | undefined,
@@ -468,14 +468,14 @@ export const assistantApi = {
         }
 
         console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
-          url: `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
+          url: `${backendUrl}/api/aurity/assistant/chat/stream`,
           persona: requestBody.persona,
           messages: messages.length,
           lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
         });
 
         const response = await fetch(
-          `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
+          `${backendUrl}/api/aurity/assistant/chat/stream`,
           {
             method: 'POST',
             headers: {

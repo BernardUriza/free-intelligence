@@ -13,7 +13,7 @@
  * Created: 2025-11-15
  */
 
-import { api } from './client';
+import { api, getBackendUrl } from './client';
 
 // ============================================================================
 // Types
@@ -225,7 +225,7 @@ export const medicalWorkflowApi = {
     }
 
     return api.upload<StreamChunkResponse>(
-      '/api/workflows/aurity/stream',
+      '/api/aurity/stream',
       formData
     );
   },
@@ -238,7 +238,7 @@ export const medicalWorkflowApi = {
     lastChunkIdx?: number
   ): Promise<CheckpointResponse> => {
     return api.post<CheckpointResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/checkpoint`,
+      `/api/aurity/medical-ai/sessions/${sessionId}/checkpoint`,
       lastChunkIdx !== undefined ? { last_chunk_idx: lastChunkIdx } : undefined
     );
   },
@@ -261,7 +261,7 @@ export const medicalWorkflowApi = {
     }
 
     return api.upload<EndSessionResponse>(
-      '/api/workflows/aurity/end-session',
+      '/api/aurity/end-session',
       formData
     );
   },
@@ -271,7 +271,7 @@ export const medicalWorkflowApi = {
    */
   startDiarization: async (sessionId: string): Promise<DiarizationJobResponse> => {
     return api.post<DiarizationJobResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/diarization`
+      `/api/aurity/medical-ai/sessions/${sessionId}/diarization`
     );
   },
 
@@ -280,7 +280,7 @@ export const medicalWorkflowApi = {
    */
   getDiarizationStatus: async (jobId: string): Promise<DiarizationStatusResponse> => {
     return api.get<DiarizationStatusResponse>(
-      `/api/workflows/aurity/diarization/jobs/${jobId}`
+      `/api/aurity/medical-ai/diarization/jobs/${jobId}`
     );
   },
 
@@ -289,7 +289,7 @@ export const medicalWorkflowApi = {
    */
   startSOAPGeneration: async (sessionId: string): Promise<SOAPGenerationResponse> => {
     return api.post<SOAPGenerationResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/soap`
+      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
     );
   },
 
@@ -299,7 +299,7 @@ export const medicalWorkflowApi = {
    */
   getSOAPNote: async (sessionId: string): Promise<SOAPNoteResponse> => {
     return api.get<SOAPNoteResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/soap`
+      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
     );
   },
 
@@ -308,7 +308,7 @@ export const medicalWorkflowApi = {
    */
   getDiarizationSegments: async (sessionId: string): Promise<DiarizationSegmentsResponse> => {
     return api.get<DiarizationSegmentsResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/diarization/segments`
+      `/api/aurity/medical-ai/sessions/${sessionId}/diarization/segments`
     );
   },
 
@@ -318,7 +318,7 @@ export const medicalWorkflowApi = {
   getSessionMonitor: async (sessionId: string): Promise<string> => {
     // Use api client instead of hardcoded fetch
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/sessions/${sessionId}/monitor`,
+      `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
       {
         method: 'GET',
         headers: { 'Accept': 'text/plain' },
@@ -341,7 +341,7 @@ export const medicalWorkflowApi = {
     newText: string
   ): Promise<DiarizationSegment> => {
     const response = await api.patch<{ segment: DiarizationSegment }>(
-      `/api/workflows/aurity/sessions/${sessionId}/diarization/segments/${segmentIndex}`,
+      `/api/aurity/medical-ai/sessions/${sessionId}/diarization/segments/${segmentIndex}`,
       { text: newText }
     );
     return response.segment;
@@ -356,7 +356,7 @@ export const medicalWorkflowApi = {
    */
   getSOAP: async (sessionId: string): Promise<SOAPNote> => {
     const response = await api.get<SOAPResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/soap`
+      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
     );
     return response.soap;
   },
@@ -366,7 +366,7 @@ export const medicalWorkflowApi = {
    */
   updateSOAP: async (sessionId: string, soap: SOAPNote): Promise<{ orders_created: number }> => {
     return api.put<{ success: boolean; orders_created: number }>(
-      `/api/workflows/aurity/sessions/${sessionId}/soap`,
+      `/api/aurity/medical-ai/sessions/${sessionId}/soap`,
       { soap }
     );
   },
@@ -380,7 +380,7 @@ export const medicalWorkflowApi = {
    */
   getOrders: async (sessionId: string): Promise<MedicalOrder[]> => {
     const response = await api.get<OrdersResponse>(
-      `/api/workflows/aurity/sessions/${sessionId}/orders`
+      `/api/aurity/medical-ai/sessions/${sessionId}/orders`
     );
     return response.orders;
   },
@@ -397,7 +397,7 @@ export const medicalWorkflowApi = {
     }
   ): Promise<string> => {
     const response = await api.post<{ success: boolean; order_id: string }>(
-      `/api/workflows/aurity/sessions/${sessionId}/orders`,
+      `/api/aurity/medical-ai/sessions/${sessionId}/orders`,
       order
     );
     return response.order_id;
@@ -416,7 +416,7 @@ export const medicalWorkflowApi = {
     }
   ): Promise<void> => {
     await api.put(
-      `/api/workflows/aurity/sessions/${sessionId}/orders/${orderId}`,
+      `/api/aurity/medical-ai/sessions/${sessionId}/orders/${orderId}`,
       order
     );
   },
@@ -426,7 +426,7 @@ export const medicalWorkflowApi = {
    */
   deleteOrder: async (sessionId: string, orderId: string): Promise<void> => {
     await api.delete(
-      `/api/workflows/aurity/sessions/${sessionId}/orders/${orderId}`
+      `/api/aurity/medical-ai/sessions/${sessionId}/orders/${orderId}`
     );
   },
 
@@ -446,7 +446,7 @@ export const medicalWorkflowApi = {
     total_chunks: number;
   }> => {
     return api.get(
-      `/api/workflows/aurity/sessions/${sessionId}/chunks`
+      `/api/aurity/medical-ai/sessions/${sessionId}/chunks`
     );
   },
 
@@ -470,7 +470,7 @@ export const medicalWorkflowApi = {
     full_transcription: string;
   }> => {
     return api.get(
-      `/api/workflows/aurity/sessions/${sessionId}/transcription-sources`
+      `/api/aurity/medical-ai/sessions/${sessionId}/transcription-sources`
     );
   },
 };
