@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository_singleton,
 )

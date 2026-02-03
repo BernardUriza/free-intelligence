@@ -14,11 +14,7 @@ Philosophy:
 - Reusable: Parsers can be shared across provider instances
 """
 
-import re
 from abc import ABC, abstractmethod
-
-# Regex to strip leaked <think>...</think> tags (defensive sanitization)
-_THINKING_TAG_PATTERN = re.compile(r"<think>.*?</think>|<think>", re.DOTALL | re.IGNORECASE)
 
 
 class LLMResponseParser(ABC):
@@ -73,19 +69,21 @@ class QwenThinkingParser(LLMResponseParser):
         return thinking_text, content
 
     @staticmethod
-    def _parse_thinking_blocks(text: str) -> tuple[str | None, str]:
+    def _parse_thinking_blocks(text: str, strict: bool = True) -> tuple[str | None, str]:
         """Parse <think>...</think> blocks using state machine.
 
         Handles nested tags safely without regex limitations.
 
         Args:
             text: Full response text (may include thinking blocks)
+            strict: If True, raises ValueError on malformed tags.
+                    If False, silently discards malformed content (for sanitization).
 
         Returns:
             (thinking, content) tuple
 
         Raises:
-            ValueError: If tags are malformed (unclosed/mismatched)
+            ValueError: If strict=True and tags are malformed (unclosed/mismatched)
         """
         if not text:
             return None, ""
@@ -95,26 +93,54 @@ class QwenThinkingParser(LLMResponseParser):
         depth = 0
         current_think: list[str] = []
         i = 0
+        text_lower = text.lower()
 
         while i < len(text):
-            # Check for opening tag
-            if text[i : i + 7] == "<think>":
+            # Check for opening tag (case-insensitive, with optional spaces)
+            if text_lower[i : i + 7] == "<think>" or (
+                text_lower[i : i + 6] == "<think" and i + 6 < len(text) and text[i + 6] in " >"
+            ):
+                # Find the end of the opening tag
+                end = text.find(">", i)
+                if end == -1:
+                    if strict:
+                        raise ValueError("Malformed Qwen response: unclosed opening tag")
+                    # Non-strict: skip the malformed tag start
+                    content_parts.append(text[i])
+                    i += 1
+                    continue
                 depth += 1
-                i += 7
+                i = end + 1
                 continue
 
-            # Check for closing tag
-            elif text[i : i + 8] == "</think>":
+            # Check for closing tag (case-insensitive, with optional spaces)
+            if text_lower[i : i + 8] == "</think>" or (
+                text_lower[i : i + 7] == "</think" and i + 7 < len(text) and text[i + 7] in " >"
+            ):
+                # Find the end of the closing tag
+                end = text.find(">", i)
+                if end == -1:
+                    if strict:
+                        raise ValueError("Malformed Qwen response: unclosed closing tag")
+                    content_parts.append(text[i])
+                    i += 1
+                    continue
+
                 if depth == 0:
-                    raise ValueError(
-                        "Malformed Qwen response: closing </think> without opening <think>"
-                    )
+                    if strict:
+                        raise ValueError(
+                            "Malformed Qwen response: closing </think> without opening <think>"
+                        )
+                    # Non-strict: skip the orphan closing tag
+                    i = end + 1
+                    continue
+
                 depth -= 1
                 if depth == 0:
                     # End of this thinking block
                     thinking_parts.append("".join(current_think).strip())
                     current_think = []
-                i += 8
+                i = end + 1
                 continue
 
             # Accumulate character
@@ -125,9 +151,11 @@ class QwenThinkingParser(LLMResponseParser):
 
             i += 1
 
-        # Check for unclosed thinking block
+        # Handle unclosed thinking block
         if depth > 0:
-            raise ValueError(f"Malformed Qwen response: unclosed <think> tag (depth={depth})")
+            if strict:
+                raise ValueError(f"Malformed Qwen response: unclosed <think> tag (depth={depth})")
+            # Non-strict: discard unclosed thinking content (don't leak it)
 
         # Combine thinking parts and filter empty ones
         thinking_text = None

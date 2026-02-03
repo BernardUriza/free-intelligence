@@ -31,7 +31,7 @@ from backend.domain.document.models import (
     DocumentType,
     SearchResult,
 )
-from backend.services.document.services.embedding_service import cosine_similarity
+from backend.utils.math.vector_utils import cosine_similarity
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

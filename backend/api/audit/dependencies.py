@@ -6,6 +6,7 @@ Direct service instantiation - no service locator (Phase 4A).
 Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
+Updated: 2026-02-02 (Architecture fix: Moved audit services to services/)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
@@ -14,7 +15,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
 
-from backend.api.audit.services.di_audit_service import DIAuditService
+from backend.services.audit.services.di_audit_service import DIAuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository_singleton,
 )

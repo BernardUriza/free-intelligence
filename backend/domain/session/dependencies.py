@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository_singleton,
     get_corpus_repository_singleton,

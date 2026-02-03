@@ -21,6 +21,12 @@ EXPORT_PATH = PROJECT_ROOT / "exports"
 DEPLOYMENT_TARGET = os.getenv("DEPLOYMENT_TARGET", "dev")
 GIT_COMMIT = os.getenv("GIT_COMMIT", "dev")
 
+# Feature flags
+# NEW_API_STRUCTURE_ENABLED: Enable new domain-based API routes (/api/aurity/...)
+# When True, both legacy (/api/workflows/aurity/...) and new routes are available
+# Phase 5 (Hadopelágica) will remove legacy routes and set this to True by default
+NEW_API_STRUCTURE_ENABLED = os.getenv("NEW_API_STRUCTURE_ENABLED", "false").lower() == "true"
+
 
 def get_corpus_path() -> Path:
     """Get corpus.h5 path (allows testing override).

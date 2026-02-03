@@ -35,13 +35,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Annotated
 from fastapi import Depends
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository_singleton,
     get_corpus_repository_singleton,
     get_task_repository_singleton,
 )
-from backend.api.routers.workflow.public.services.workflow_orchestrator import (
+from backend.services.workflow.services.workflow_orchestrator import (
     WorkflowOrchestrator,
 )
 from backend.services.workflow.services.triage_service import TriageService
