@@ -27,6 +27,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { showWarning, toastError } from '@/lib/swal';
+import { api } from '@/lib/api/client';
 
 // Types
 interface AuditData {
@@ -126,14 +127,7 @@ export function SessionAuditPanel({
         setLoading(true);
         setError(null);
 
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-        const response = await fetch(`${backendUrl}/api/sessions/${sessionId}/audit`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch audit data: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = await api.get<AuditData>(`/api/sessions/${sessionId}/audit`);
         setAuditData(data);
       } catch (err) {
         console.error('Failed to load audit data:', err);
@@ -156,21 +150,12 @@ export function SessionAuditPanel({
     try {
       setSubmitting(true);
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendUrl}/api/sessions/${sessionId}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rating: feedback.rating,
-          comments: feedback.comments,
-          corrections: feedback.corrections,
-          decision,
-        }),
+      await api.post(`/api/sessions/${sessionId}/feedback`, {
+        rating: feedback.rating,
+        comments: feedback.comments,
+        corrections: feedback.corrections,
+        decision,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to submit feedback: ${response.statusText}`);
-      }
 
       // Success!
       if (decision === 'approved' && onApprove) onApprove();

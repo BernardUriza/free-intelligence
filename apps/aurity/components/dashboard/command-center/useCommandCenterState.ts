@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useToast } from "@/hooks/useToast"
 import { useDashboardShortcuts } from "@/hooks/useDashboardShortcuts"
+import { api } from "@/lib/api/client"
 import {
   MOCK_QUEUE_PATIENTS,
   ESTIMATED_MINUTES_PER_PATIENT,
@@ -79,12 +80,8 @@ export const useCommandCenterState = () => {
     async function fetchSlides() {
       setIsLoadingSlides(true)
       try {
-        const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001"
-        const response = await fetch(`${backendURL}/api/aurity/clinic/clinic-media/list?active_only=true`)
-        if (response.ok) {
-          const data = await response.json()
-          setSlides(data.media || [])
-        }
+        const data = await api.get<{ media: any[] }>('/api/aurity/clinic/clinic-media/list?active_only=true')
+        setSlides(data.media || [])
       } catch (error) {
         console.error("Failed to fetch slides:", error)
       } finally {

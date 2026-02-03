@@ -13,9 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getBackendUrl } from '@/lib/config/deployment';
-
-const BACKEND_URL = getBackendUrl();
+import { api } from '@/lib/api/client';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 interface H5Data {
@@ -48,19 +46,9 @@ export function useH5DebugTools(sessionId: string | null) {
     setIsLoading(true);
     try {
       console.log(`[H5Debug] Fetching HDF5 data for session: ${sessionId}`);
-      const response = await fetch(
-        `${BACKEND_URL}/api/aurity/medical-ai/sessions/${sessionId}/h5-data`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        }
+      const data = await api.get<H5Data>(
+        `/api/aurity/medical-ai/sessions/${sessionId}/h5-data`
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
       setH5Data(data);
       setIsOpen(true);
       console.log('[H5Debug] [OK] H5 data loaded successfully');

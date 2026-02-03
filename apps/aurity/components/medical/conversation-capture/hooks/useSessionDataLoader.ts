@@ -7,9 +7,8 @@
 
 import { useEffect, useState } from 'react';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+import { getBackendUrl } from '@/lib/api/client';
 import type { ChunkMetric } from '../types';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
 // Generic chunk status for compatibility with useChunkProcessor
 interface LoadedChunkStatus {
@@ -113,7 +112,7 @@ export function useSessionDataLoader({
         }
 
         // Load audio file
-        const audioUrl = `${BACKEND_URL}/api/aurity/medical-ai/sessions/${externalSessionId}/audio`;
+        const audioUrl = `${getBackendUrl()}/api/aurity/medical-ai/sessions/${externalSessionId}/audio`;
         setPausedAudioUrl(audioUrl);
         setIsPaused(true);
 

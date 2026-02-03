@@ -14,6 +14,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
+import { api, getBackendUrl } from '@/lib/api/client';
 
 // =============================================================================
 // TYPES
@@ -79,7 +80,7 @@ export interface UseCheckinConversationReturn {
 // API CLIENT - OpenAI Compatible
 // =============================================================================
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const API_BASE = getBackendUrl();
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -144,17 +145,7 @@ interface ChatCompletionStreamResponse {
 async function apiChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  const response = await fetch(`${API_BASE}/api/aurity/assistant/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Assistant chat failed: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<ChatCompletionResponse>('/api/aurity/assistant/chat', request);
 }
 
 async function* apiChatCompletionStreaming(

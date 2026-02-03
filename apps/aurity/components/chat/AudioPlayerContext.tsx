@@ -32,6 +32,7 @@ import { probeCapabilities } from '@/lib/audio/CapabilityProbe';
 import { getProviderByVoice } from '@/lib/audio/ProviderRegistry';
 import { initErrorReporter, reportAudioError } from '@/lib/audio/ErrorPolicy';
 import { getVoiceDisplayName } from '@/lib/voiceAliases';
+import { api, getBackendUrl } from '@/lib/api/client';
 
 // Small helper to escape HTML for safe inline rendering in modals
 function escapeHtml(input: string): string {
@@ -74,7 +75,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [availableProviders, setAvailableProviders] = useState<Record<string, boolean> | null>(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+  const BACKEND_URL = getBackendUrl();
 
   // Probe capabilities on mount
   useEffect(() => {
@@ -98,13 +99,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // Fetch configured providers so frontend can avoid calling unavailable ones
     (async () => {
       try {
-        const resp = await fetch(`${BACKEND_URL}/api/tts/providers`);
-        if (resp.ok) {
-          const body = await resp.json();
-          setAvailableProviders(body.providers || null);
-        } else {
-          setAvailableProviders(null);
-        }
+        const body = await api.get<{ providers: Record<string, boolean> }>('/api/tts/providers');
+        setAvailableProviders(body.providers || null);
       } catch {
         setAvailableProviders(null);
       }

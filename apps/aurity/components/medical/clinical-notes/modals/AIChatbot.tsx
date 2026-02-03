@@ -5,6 +5,7 @@ import { X, Zap, Brain, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SOAPData, ChatMessage } from '../types';
+import { api } from '@/lib/api/client';
 
 interface AIChatbotProps {
   isOpen: boolean;
@@ -34,23 +35,13 @@ export function AIChatbot({
     setChatMessages((prev) => [...prev, { role: 'user', content: message }]);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE}/api/aurity/medical-ai/sessions/${sessionId}/assistant`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: message, current_soap: soapData }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(errorData.detail || `HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await api.post<{
+        updates: Record<string, string>;
+        explanation: string;
+      }>(`/api/aurity/medical-ai/sessions/${sessionId}/assistant`, {
+        command: message,
+        current_soap: soapData,
+      });
 
       // Apply updates to SOAP data
       const updatedSOAP = { ...soapData };

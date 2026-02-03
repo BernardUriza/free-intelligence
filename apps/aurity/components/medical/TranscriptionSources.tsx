@@ -14,6 +14,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, RefreshCw, AlertTriangle, Music, Volume2, Check, Zap, Square, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getBackendUrl } from '@/lib/api/client';
 
 interface ChunkMetrics {
   chunk_number: number;
@@ -51,7 +52,7 @@ export function TranscriptionSources({
 
   // Build audio URL if session is finalized
   const audioUrl = sessionId && isFinalized
-    ? `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/medical-ai/sessions/${sessionId}/audio`
+    ? `${getBackendUrl()}/api/aurity/medical-ai/sessions/${sessionId}/audio`
     : null;
 
   // Debug: Log audio URL only when it changes

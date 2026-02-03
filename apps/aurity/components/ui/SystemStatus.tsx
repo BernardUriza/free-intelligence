@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Brain, Monitor, Cloud } from 'lucide-react';
-import { getBackendUrl } from '@/lib/config/deployment';
+import { api } from '@/lib/api/client';
 
 interface LLMStatusResponse {
   status: 'online' | 'offline' | 'checking';
@@ -28,23 +28,8 @@ export function SystemStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/api/aurity/system/llm-status`);
-        if (res.ok) {
-          const data = await res.json();
-          setStatus(data);
-        } else {
-          setStatus({
-            status: 'offline',
-            url: 'unknown',
-            is_tunnel: false,
-            tunnel_info: null,
-            models: [],
-            latency_ms: null,
-            last_check: new Date().toISOString(),
-            priority: 'local_fallback',
-          });
-        }
+        const data = await api.get<LLMStatusResponse>('/api/aurity/system/llm-status');
+        setStatus(data);
       } catch {
         setStatus({
           status: 'offline',

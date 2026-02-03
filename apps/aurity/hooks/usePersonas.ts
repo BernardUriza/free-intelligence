@@ -14,9 +14,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
-import { getBackendUrl } from '@/lib/config/deployment';
+import { api } from '@/lib/api/client';
 
 export interface PersonaOption {
   id: string;
@@ -35,10 +34,6 @@ interface UsePersonasReturn {
   error: string | null;
   refetch: () => void;
 }
-
-const BACKEND_URL = getBackendUrl();
-const AUTH0_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io';
-const AUTH0_SCOPE = process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile email offline_access';
 
 // Icon mapping for personas (frontend only)
 const PERSONA_ICON_MAP: Record<string, string> = {
@@ -133,7 +128,6 @@ export function usePersonas(): UsePersonasReturn {
   const [personas, setPersonas] = useState<PersonaOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getAccessTokenSilently, isAuthenticated } = useAuth();
 
   const fetchPersonas = async () => {
     // Use fallback personas if backend is known to be unavailable
@@ -146,35 +140,17 @@ export function usePersonas(): UsePersonasReturn {
     try {
       setLoading(true);
       setError(null);
-      // Obtain bearer token for public workflow route
-      let token: string | undefined;
-      if (isAuthenticated) {
-        try {
-          token = await getAccessTokenSilently({
-            authorizationParams: {
-              audience: AUTH0_AUDIENCE,
-              scope: AUTH0_SCOPE,
-            },
-          });
-        } catch (tokenErr) {
-          // Do not fail personas fetch solely due to token issues; fallback below
-          console.warn('[usePersonas] getAccessTokenSilently failed:', tokenErr);
-        }
-      }
 
-      const response = await fetch(`${BACKEND_URL}/api/aurity/personas`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch personas: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // api.get handles auth token automatically via getAuthToken() in @/lib/api/client
+      const data = await api.get<{ personas: Array<{
+        id: string;
+        name: string;
+        description: string;
+        voice?: string;
+        model?: string;
+        temperature?: number;
+        max_tokens?: number;
+      }> }>('/api/aurity/personas');
 
       // Transform backend response to frontend format
       const transformedPersonas: PersonaOption[] = data.personas.map((p: any) => ({

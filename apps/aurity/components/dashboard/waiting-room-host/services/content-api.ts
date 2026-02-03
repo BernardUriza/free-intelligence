@@ -6,8 +6,7 @@
 import { contentCache } from './content-cache';
 import type { ContentItem } from '../types';
 import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app.aurity.io';
+import { api, getBackendUrl } from '@/lib/api/client';
 
 /**
  * Fetch FI content seeds from backend API
@@ -15,15 +14,9 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app.aurity.i
  */
 export async function fetchContentSeeds(): Promise<ContentItem[]> {
   try {
-    const response = await fetch(
-      `${BACKEND_URL}/api/aurity/clinic/tv-content/list?active_only=true`
+    const data = await api.get<{ content: Record<string, unknown>[] }>(
+      '/api/aurity/clinic/tv-content/list?active_only=true'
     );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch seeds: ${response.status}`);
-    }
-
-    const data = await response.json();
 
     // Convert TVContentSeed[] to ContentItem[]
     const seeds: ContentItem[] = data.content.map((seed: Record<string, unknown>) => ({
@@ -143,5 +136,5 @@ export async function fetchDynamicTrivia(): Promise<TriviaData> {
  * Build media URL from file path
  */
 export function buildMediaUrl(filePath: string): string {
-  return `${BACKEND_URL}/api/aurity/clinic/clinic-media/file/${filePath}`;
+  return `${getBackendUrl()}/api/aurity/clinic/clinic-media/file/${filePath}`;
 }

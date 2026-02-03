@@ -15,6 +15,7 @@ import { profileHeader } from '@/config/page-headers';
 import { gradients } from '@/lib/styles/gradients';
 import { showSuccess, showError } from '@/lib/swal';
 import { CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
+import { api } from '@/lib/api/client';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -33,12 +34,10 @@ export default function ProfilePage() {
   // Callback declared before useEffect that uses it
   const fetchDiskUsage = useCallback(async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendUrl}/api/aurity/system/disk-usage`);
-      if (response.ok) {
-        const data = await response.json();
-        setDiskUsage(data);
-      }
+      const data = await api.get<{ used: string; total: string; percent: number }>(
+        '/api/aurity/system/disk-usage'
+      );
+      setDiskUsage(data);
     } catch (error) {
       console.error('Error fetching disk usage:', error);
     }
@@ -63,42 +62,34 @@ export default function ProfilePage() {
   const handleDeleteLongitudinalMemory = async () => {
     setIsDeleting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
       const userId = encodeURIComponent(user?.sub || 'unknown');
-      const response = await fetch(`${backendUrl}/api/aurity/system/clear-memory?user_id=${userId}`, {
-        method: 'POST',
-      });
+      const result = await api.post<{ message: string }>(
+        `/api/aurity/system/clear-memory?user_id=${userId}`
+      );
 
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Clear ChatWidget localStorage
-        // The ChatWidget stores messages with keys like 'chat_messages', 'chat_history', etc.
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.startsWith('chat_') || key.startsWith('aurity_chat_'))) {
-            keysToRemove.push(key);
-          }
+      // Clear ChatWidget localStorage
+      // The ChatWidget stores messages with keys like 'chat_messages', 'chat_history', etc.
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('chat_') || key.startsWith('aurity_chat_'))) {
+          keysToRemove.push(key);
         }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-        
-        await showSuccess('Memoria eliminada', `${result.message}\n\nTambién se limpió el caché local del chat.`);
-        setShowDeleteModal(false);
-        // Refresh disk usage
-        await fetchDiskUsage();
-        
-        // Force refresh chat widget if it's open (trigger storage event)
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'chat_messages',
-          oldValue: 'cleared',
-          newValue: null,
-          url: window.location.href
-        }));
-      } else {
-        const error = await response.json();
-        await showError('Error', error.detail || 'No se pudo eliminar la memoria');
       }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      await showSuccess('Memoria eliminada', `${result.message}\n\nTambién se limpió el caché local del chat.`);
+      setShowDeleteModal(false);
+      // Refresh disk usage
+      await fetchDiskUsage();
+
+      // Force refresh chat widget if it's open (trigger storage event)
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'chat_messages',
+        oldValue: 'cleared',
+        newValue: null,
+        url: window.location.href
+      }));
     } catch (error) {
       console.error('Error deleting memory:', error);
       await showError('Error de red', error instanceof Error ? error.message : 'No se pudo conectar al servidor');

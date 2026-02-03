@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { medicalWorkflowApi, type MedicalOrder } from '@aurity-standalone/api-client/medical-workflow';
+import { api } from '@/lib/api/client';
 import type { ChatMessage, OrderType } from '../types';
 
 interface UseOrderChatbotProps {
@@ -37,33 +38,23 @@ export function useOrderChatbot({ sessionId, onOrderCreated }: UseOrderChatbotPr
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE}/api/aurity/medical-ai/sessions/${sessionId}/assistant`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            command: userMessage,
-            current_soap: {
-              diagnosticTests: [],
-              medications: [],
-              pastMedicalHistory: [],
-              allergies: [],
-              hpi: '',
-              physicalExam: '',
-              primaryDiagnosis: null,
-              differentialDiagnoses: [],
-              followUp: ''
-            }
-          }),
+      const result = await api.post<{
+        updates: Record<string, string>;
+        explanation: string;
+      }>(`/api/aurity/medical-ai/sessions/${sessionId}/assistant`, {
+        command: userMessage,
+        current_soap: {
+          diagnosticTests: [],
+          medications: [],
+          pastMedicalHistory: [],
+          allergies: [],
+          hpi: '',
+          physicalExam: '',
+          primaryDiagnosis: null,
+          differentialDiagnoses: [],
+          followUp: ''
         }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      });
 
       // Process diagnostic tests
       if (result.updates.diagnosticTests) {
