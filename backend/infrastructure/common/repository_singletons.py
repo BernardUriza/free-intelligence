@@ -21,8 +21,10 @@ if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
     from backend.repositories.corpus_repository import CorpusRepository
     from backend.repositories.task_repository import HDF5TaskRepository
+    from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
+    from backend.repositories.interfaces.idocument_repository import IDocumentRepository
 
 from backend.config import CORPUS_PATH
 
@@ -121,6 +123,32 @@ def get_corpus_repository_singleton() -> "ICorpusRepository":
     from backend.repositories.corpus_repository import CorpusRepository
 
     return CorpusRepository(CORPUS_PATH)
+
+
+@lru_cache(maxsize=1)
+def get_document_repository_singleton() -> "IDocumentRepository":
+    """Get singleton HDF5 document repository instance.
+
+    Thread-safe: h5py handles file locking
+    Performance: Loads vector index once, reuses across all requests
+    Benefit: Single HDF5DocumentRepository instance with shared vector index
+
+    Returns:
+        IDocumentRepository instance (HDF5DocumentRepository singleton)
+
+    Note:
+        CRITICAL for performance - HDF5DocumentRepository loads _vector_index
+        into memory on initialization. Multiple instances = wasted memory.
+
+        Replaces duplicate instantiations in:
+        - api/routers/assistant/public/assistant/rag.py
+        - api/routers/document/public/documents.py
+        - api/domains/aurity/knowledge_base/documents.py
+    """
+    # Lazy import to avoid circular dependency
+    from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
+
+    return HDF5DocumentRepository()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

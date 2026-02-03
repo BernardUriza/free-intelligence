@@ -13,10 +13,8 @@ Endpoints:
 
 Multi-Tenancy: ALL endpoints filter by current_user.clinic_id
 
-Card: FI-API-FEAT-020
-Author: Bernard Uriza Orozco + Claude Sonnet 4.5
-Created: 2025-12-08
-Updated: 2026-01-29 (Document Repository Implementation)
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
+Migrated from: backend/api/routers/document/public/documents.py
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/documents", tags=["Documents"])
+router = APIRouter()
 
 
 # ============================================================================
@@ -56,15 +54,6 @@ class DocumentUploadResponse(BaseModel):
     title: str = Field(..., description="Document title")
     status: str = Field(..., description="Processing status")
     message: str = Field(..., description="Human-readable message")
-
-
-class DocumentListResponse(BaseModel):
-    """Response for document list."""
-
-    documents: list[DocumentResponse]
-    total: int
-    page: int
-    limit: int
 
 
 class DocumentResponse(BaseModel):
@@ -83,6 +72,15 @@ class DocumentResponse(BaseModel):
     specialty: str | None = None
     document_type: str = "other"
     error_message: str | None = None
+
+
+class DocumentListResponse(BaseModel):
+    """Response for document list."""
+
+    documents: list[DocumentResponse]
+    total: int
+    page: int
+    limit: int
 
 
 class DocumentDetailResponse(DocumentResponse):
@@ -578,7 +576,7 @@ async def upload_document(
 
 @router.get("", response_model=DocumentListResponse)
 def list_documents(
-    status: str | None = None,
+    doc_status: str | None = None,
     skip: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),
@@ -596,13 +594,13 @@ def list_documents(
 
     # Parse status filter
     status_filter = None
-    if status:
+    if doc_status:
         try:
-            status_filter = DocumentStatus(status)
+            status_filter = DocumentStatus(doc_status)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status: {status}. Valid: pending, indexing, indexed, error, archived",
+                detail=f"Invalid status: {doc_status}. Valid: pending, indexing, indexed, error, archived",
             )
 
     # Get documents
@@ -834,7 +832,7 @@ def reindex_document(
 
 
 @router.post("/search", response_model=SearchResponse)
-def search_documents(
+async def search_documents(
     request: SearchRequest,
     current_user: User = Depends(get_current_user),
     doc_service: DocumentService = Depends(get_document_service),
@@ -857,7 +855,7 @@ def search_documents(
         )
 
     # Search
-    results = doc_service.search(
+    results = await doc_service.search(
         query=request.query,
         clinic_id=current_user.clinic_id,
         limit=request.limit,

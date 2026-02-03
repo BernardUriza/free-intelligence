@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
+from backend.infrastructure.common.repository_singletons import (
+    get_document_repository_singleton,
+)
 from backend.services.document.services.document_service import DocumentService
 from backend.utils.common.logging.logger import get_logger
 
@@ -43,8 +45,8 @@ async def _get_rag_context(
         return None
 
     try:
-        # Initialize DocumentService with HDF5 repository (DI)
-        repository = HDF5DocumentRepository()
+        # Use singleton repository (DI Refactor - shared vector index)
+        repository = get_document_repository_singleton()
         doc_service = DocumentService(repository=repository)
 
         # Search documents using FI Monitor GPU embeddings + similarity
