@@ -1,13 +1,15 @@
-"""Math utilities for vector operations and calculations."""
+"""Math utilities for vector operations.
 
-from backend.utils.math.vector_utils import (
+CPU-only implementation for production backend.
+GPU acceleration handled by Fi Monitor service independently.
+"""
+
+from backend.utils.math.cpu import (
     cosine_similarity,
     cosine_similarity_batch,
-    cosine_similarity_batch_gpu,
 )
 
 __all__ = [
     "cosine_similarity",
     "cosine_similarity_batch",
-    "cosine_similarity_batch_gpu",
 ]

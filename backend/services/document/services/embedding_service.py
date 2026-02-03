@@ -11,8 +11,6 @@ Card: Document Repository Implementation
 
 from __future__ import annotations
 
-import numpy as np
-
 from backend.services.assistant.services.monitor_client import (
     get_embedding as get_embedding_from_monitor,
 )
@@ -90,31 +88,7 @@ async def generate_embeddings_batch(
     return embeddings
 
 
-def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
-    """Compute cosine similarity between two vectors.
-
-    Args:
-        vec1: First vector
-        vec2: Second vector
-
-    Returns:
-        Cosine similarity score (0-1, higher is more similar)
-    """
-    a = np.array(vec1)
-    b = np.array(vec2)
-
-    dot_product = np.dot(a, b)
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-
-    return float(dot_product / (norm_a * norm_b))
-
-
 __all__ = [
     "generate_embedding",
     "generate_embeddings_batch",
-    "cosine_similarity",
 ]

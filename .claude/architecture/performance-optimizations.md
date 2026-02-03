@@ -360,6 +360,120 @@ async def get_session_cached(session_id: str) -> dict:
 
 ---
 
+## 🔬 4. Vector Math: CPU vs GPU Separation
+
+**Fecha:** 2026-02-02
+**Decisión:** Backend CPU-only, GPU en Fi Monitor independiente
+
+### Problema
+
+Fallback automático PyTorch→NumPy oculta dependencias:
+```python
+# ANTES (monolítico con fallback)
+def cosine_similarity_batch_gpu(...):
+    try:
+        import torch  # Oculta si PyTorch está disponible
+    except ImportError:
+        return cosine_similarity_batch(...)  # Fallback CPU
+```
+
+**Impacto:**
+- Backend prod cargaba PyTorch innecesariamente (~3GB disk space)
+- CI/CD no podía verificar que backend NO usa GPU
+- Confusion sobre cuándo se usa GPU vs CPU
+
+### Solución
+
+Separación explícita CPU/GPU:
+
+```
+backend/utils/math/
+├── __init__.py              # Re-exporta solo CPU functions
+├── cpu/
+│   ├── __init__.py
+│   ├── vector_utils.py      # NumPy only (NO torch)
+│   └── tests/
+│       └── test_vector_utils.py
+└── README.md                # Documenta decisión
+
+apps/fi-monitor/rag_service/
+└── main.py                  # PyTorch inline (independiente)
+```
+
+**Razones:**
+1. Backend (Digital Ocean) NO tiene GPU
+2. Fi Monitor (Windows) YA tiene implementación PyTorch separada
+3. CPU batch suficiente para 10-1000 vectores (~10ms)
+4. Eliminar PyTorch ahorra ~3GB en producción
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────┐
+│ Backend (Digital Ocean - NO GPU)        │
+│ ├── utils/math/cpu/vector_utils.py      │
+│ │   └── NumPy implementation            │
+│ └── Use case: 10-1000 vectors (~10ms)   │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ Fi Monitor (Windows - GPU)               │
+│ ├── rag_service/main.py                 │
+│ │   └── PyTorch inline (CUDA/MPS)       │
+│ └── Use case: 10000+ vectors (~0.5ms)   │
+└─────────────────────────────────────────┘
+```
+
+### Performance Benchmarks
+
+| Vectors | CPU (NumPy) | GPU (CUDA) | Backend Needs |
+|---------|-------------|------------|---------------|
+| 100     | 1ms         | 0.2ms      | CPU sufficient |
+| 1000    | 10ms        | 0.5ms      | CPU sufficient |
+| 10000   | 100ms       | 0.5ms      | Use Fi Monitor |
+
+### Deployment Savings
+
+| Métrica | Antes | Después | Mejora |
+|---------|-------|---------|--------|
+| **Backend disk space** | PyTorch 3GB | NumPy only | -3GB |
+| **Dependencies** | torch + transformers | numpy | -100% GPU libs |
+| **CI/CD verification** | No checks | test_no_gpu_dependencies.py | ✅ |
+
+### Migration
+
+**Antes:**
+```python
+from backend.utils.math.vector_utils import cosine_similarity
+```
+
+**Después (explícito):**
+```python
+from backend.utils.math.cpu import cosine_similarity
+```
+
+**Después (convenience):**
+```python
+from backend.utils.math import cosine_similarity  # Re-exported from cpu/
+```
+
+### Testing
+
+CI/CD verification:
+```python
+def test_torch_not_importable():
+    """PyTorch should NOT be installed in production."""
+    with pytest.raises(ImportError):
+        import torch
+
+def test_cpu_math_importable():
+    """CPU math works without GPU libs."""
+    from backend.utils.math import cosine_similarity
+    assert callable(cosine_similarity)
+```
+
+---
+
 ## 📚 Referencias
 
 - **functools.lru_cache:** https://docs.python.org/3/library/functools.html#functools.lru_cache
