@@ -14,8 +14,11 @@ Philosophy:
 - Reusable: Parsers can be shared across provider instances
 """
 
+import re
 from abc import ABC, abstractmethod
-from typing import Optional
+
+# Regex to strip leaked <think>...</think> tags (defensive sanitization)
+_THINKING_TAG_PATTERN = re.compile(r"<think>.*?</think>|<think>", re.DOTALL | re.IGNORECASE)
 
 
 class LLMResponseParser(ABC):
@@ -146,6 +149,7 @@ class GenericParser(LLMResponseParser):
     - Claude (native thinking handled separately)
     - OpenAI (no thinking output)
     - Azure (uses OpenAI format)
+    - Ollama chat with think=False (defensive sanitization)
     """
 
     def parse(self, response: dict) -> tuple[str | None, str]:
@@ -156,16 +160,22 @@ class GenericParser(LLMResponseParser):
 
         Returns:
             (None, content) - Generic parser doesn't extract thinking
+
+        Note:
+            Defensive sanitization: Qwen3 models may leak <think> tags even with
+            think=False. This parser strips them to ensure clean output.
         """
+        content = ""
+
         # For chat endpoint format
         if "message" in response and isinstance(response["message"], dict):
             content = response["message"].get("content", "").strip()
-            return None, content
-
         # For simple response format
-        if "response" in response:
+        elif "response" in response:
             content = str(response.get("response", "")).strip()
-            return None, content
 
-        # Fallback
-        return None, ""
+        # Defensive sanitization: strip any leaked <think> tags from Qwen3
+        if content and "<think>" in content.lower():
+            content = _THINKING_TAG_PATTERN.sub("", content).strip()
+
+        return None, content

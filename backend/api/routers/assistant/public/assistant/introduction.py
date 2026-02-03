@@ -66,7 +66,8 @@ async def get_introduction(
             response_length=len(result.get("response", "")),
         )
 
-        # Sanitize response: strip any leaked <think> tags from Qwen3
+        # Defense-in-depth: strip any leaked <think> tags from Qwen3
+        # Note: GenericParser already sanitizes, but this catches edge cases from cache/legacy
         response_text = result["response"]
         if "<think>" in response_text.lower():
             response_text = _THINKING_TAG_PATTERN.sub("", response_text).strip()
