@@ -47,12 +47,13 @@ async def _get_rag_context(
         repository = HDF5DocumentRepository()
         doc_service = DocumentService(repository=repository)
 
-        # Search documents using FI Monitor GPU embeddings
+        # Search documents using FI Monitor GPU embeddings + similarity
         # DocumentService.search() internally:
         # 1. Calls generate_embedding(query) → monitor_client → fi-monitor/rag/embed
         # 2. Searches in-memory vector index with clinic_id filter
-        # 3. Returns list[SearchResult] sorted by similarity (highest first)
-        results = doc_service.search(
+        # 3. GPU-accelerated similarity search for >1000 vectors (fi-monitor/rag/similarity-search)
+        # 4. Returns list[SearchResult] sorted by similarity (highest first)
+        results = await doc_service.search(
             query=query,
             clinic_id=clinic_id,
             limit=top_k,
