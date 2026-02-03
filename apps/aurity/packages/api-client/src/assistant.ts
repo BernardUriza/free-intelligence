@@ -206,41 +206,28 @@ export const assistantApi = {
 
   /**
    * Get AI introduction message
-   * Used for greeting users when starting a new conversation
-   * @param context - Context including doctor_id and persona
+   * Used for greeting users when starting a new conversation (onboarding)
+   * Uses the PUBLIC /assistant/introduction endpoint (no auth required)
+   * @param context - Context including physician_name and clinic_name
    * @param signal - Optional AbortSignal for controlled cancellation
    */
   introduction: async (context: Record<string, unknown>, signal?: AbortSignal): Promise<ChatResponse> => {
-    // Use the chat endpoint with a special introduction request
+    // Use the dedicated introduction endpoint (public, no auth required)
     const response = await api.post<{
-      id: string;
-      choices: Array<{
-        message: { role: string; content: string };
-        finish_reason: string;
-      }>;
+      message: string;
       persona: string;
-    }>('/api/workflows/aurity/assistant/chat', {
-      messages: [
-        {
-          role: 'system',
-          content: 'Generate a brief, friendly greeting for a medical professional. Be concise and professional.',
-        },
-        {
-          role: 'user',
-          content: 'Hola',
-        },
-      ],
-      user: context.doctor_id as string,
-      persona: (context.persona as string) || 'general_assistant',
+      tokens_used?: number;
+      latency_ms?: number;
+    }>('/api/workflows/aurity/assistant/introduction', {
+      physician_name: context.doctor_name as string | undefined,
+      clinic_name: context.clinic_name as string | undefined,
     }, {
       signal, // Pass through for controlled cancellation
     });
 
-    const assistantMessage = response.choices?.[0]?.message?.content || '¡Hola! ¿En qué puedo ayudarte hoy?';
-
     return {
-      message: assistantMessage,
-      persona: response.persona || 'general_assistant',
+      message: response.message || '¡Hola! Soy tu asistente de Free Intelligence. ¿En qué puedo ayudarte?',
+      persona: response.persona || 'onboarding_guide',
       voice: 'nova',
     };
   },

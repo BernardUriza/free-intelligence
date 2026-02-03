@@ -382,12 +382,14 @@ export function useOnboardingChat(
   }, []);
 
   // Custom empty state
+  // En onboarding, SIEMPRE mostrar nuestro empty state mientras no hay mensajes
+  // Esto evita que caiga a ChatStartScreen ("Hola, Bernard")
   const customEmptyState = useMemo<ReactNode>(() => {
-    if (chatHook.messages.length === 0 && (chatHook.loading || chatHook.loadingInitial)) {
+    if (chatHook.messages.length === 0) {
       return <OnboardingEmptyState />;
     }
     return undefined;
-  }, [chatHook.messages.length, chatHook.loading, chatHook.loadingInitial]);
+  }, [chatHook.messages.length]);
 
   // Custom quick replies
   const customQuickReplies = useMemo<ReactNode>(() => {
