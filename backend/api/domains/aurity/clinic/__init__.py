@@ -66,7 +66,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import management, media, tv_content, waiting_room, widgets
+from . import management, media, tv_content, user_clinic, waiting_room, widgets
 
 # Aggregated router for clinic domain
 router = APIRouter()
@@ -89,5 +89,9 @@ router.include_router(waiting_room.router, prefix="/waiting-room")
 # Widgets: trivia, breathing, tips config (4 endpoints)
 # widgets.py already has /widget-config prefix in paths
 router.include_router(widgets.router)
+
+# User-Clinic membership: link/unlink users to clinics (6 endpoints)
+# Router has prefix="/users/me"
+router.include_router(user_clinic.router)
 
 __all__ = ["router"]

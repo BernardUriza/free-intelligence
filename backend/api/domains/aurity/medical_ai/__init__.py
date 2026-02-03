@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import workflows, monitor, diarization, audio, transcription_sources, audit
+from . import workflows, monitor, diarization, audio, transcription_sources, audit, soap, orders
 
 router = APIRouter()
 router.include_router(workflows.router)
@@ -41,6 +41,8 @@ router.include_router(diarization.router)
 router.include_router(transcription_sources.router)
 router.include_router(audio.router)
 router.include_router(audit.router)
+router.include_router(soap.router)
+router.include_router(orders.router)
 
 __all__ = [
     "router",
@@ -50,4 +52,6 @@ __all__ = [
     "audio",
     "transcription_sources",
     "audit",
+    "soap",
+    "orders",
 ]

@@ -19,10 +19,13 @@ from fastapi import APIRouter
 
 from backend.api.domains.aurity import (
     assistant,
+    checkin,
     clinic,
     knowledge_base,
     medical_ai,
+    patients,
     prescriptions,
+    providers,
     system,
     timeline,
     transcription,
@@ -64,6 +67,18 @@ tags_metadata = [
     {
         "name": "System",
         "description": "Infrastructure: disk usage, memory, LLM status.",
+    },
+    {
+        "name": "Check-in",
+        "description": "Patient self-service check-in: QR codes, identification, waiting room.",
+    },
+    {
+        "name": "Patients",
+        "description": "Patient record management: CRUD operations, CURP validation.",
+    },
+    {
+        "name": "Providers",
+        "description": "Healthcare provider management: CRUD operations, license validation.",
     },
 ]
 
@@ -131,4 +146,28 @@ aurity_router.include_router(
 aurity_router.include_router(
     system.router,
     tags=["System"],  # Router already has /system prefix
+)
+
+# Check-in - Patient self-service check-in (FI Receptionist)
+# Includes: QR generation, session management, identification, actions, waiting room
+# Note: Router already has /checkin prefix
+aurity_router.include_router(
+    checkin.router,
+    tags=["Check-in"],
+)
+
+# Patients - Patient record management
+# Includes: CRUD operations, CURP validation
+# Note: Router already has /patients prefix
+aurity_router.include_router(
+    patients.router,
+    tags=["Patients"],
+)
+
+# Providers - Healthcare provider management
+# Includes: CRUD operations, license validation
+# Note: Router already has /providers prefix
+aurity_router.include_router(
+    providers.router,
+    tags=["Providers"],
 )

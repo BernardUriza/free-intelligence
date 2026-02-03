@@ -38,8 +38,8 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.audit.api.public import audit
     from backend.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
-    # Check-in & Payments
-    from backend.api.routers.checkin import checkin
+    # Payments
+    # NOTE: checkin router moved to aurity_router (backend.api.domains.aurity.checkin)
     # NOTE: clinics router moved to aurity_router (backend.api.domains.aurity.clinic)
 
     # Coder
@@ -57,7 +57,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.license.api.public import router as licenses_router
 
     # LLM
-    from backend.api.routers.llm.internal.llm import router as llm_router
+    from backend.infrastructure.llm.api.internal import router as llm_router
     from backend.api.routers.llm.public import llm_models_admin
 
     # Model Catalog
@@ -66,13 +66,13 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Observability
     from backend.infrastructure.observability.api import router as observability_router
 
-    # Patients & Providers
-    from backend.api.routers.patient.public import patients
+    # Providers & Payments
+    # NOTE: patients router moved to aurity_router (backend.api.domains.aurity.patients)
     from backend.api.payment.api.public import payments
 
     # Policy
     from backend.api.policy.api.public import policy
-    from backend.api.routers.provider.public import providers
+    # NOTE: providers router moved to aurity_router (backend.api.domains.aurity.providers)
 
     # Sessions
     from backend.api.routers.session.internal.sessions import router as sessions_router
@@ -94,7 +94,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # TTS
     from backend.services.tts.api.public import tts
-    from backend.api.routers.user.public import user_clinic
+    # NOTE: user_clinic router moved to aurity_router (backend.api.domains.aurity.clinic.user_clinic)
 
     # Triage
     from backend.api.routers.workflow.internal.triage import router as triage_router
@@ -117,16 +117,16 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # =========================================================================
 
     public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
-    public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
-    public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
+    # NOTE: patients.router removed - now in aurity_router at /api/aurity/patients/*
+    # NOTE: providers.router removed - now in aurity_router at /api/aurity/providers/*
     public_app.include_router(
         audit.router, prefix="/audit", tags=["Audit"]
     )  # Audit logs (FI-UI-FEAT-206)
     public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
     public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
-    public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
+    # NOTE: checkin.router removed - now in aurity_router at /api/aurity/checkin/*
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
-    public_app.include_router(user_clinic.router)  # User-Clinic membership
+    # NOTE: user_clinic.router removed - now in aurity_router at /api/aurity/clinic/users/me/*
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
     public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
     public_app.include_router(catalog_admin.router)  # Model Catalog
