@@ -1256,11 +1256,10 @@ def llm_generate(
         ...     max_tokens=1024
         ... )
     """
-    # Load policy (lazy import to avoid circular deps - Phase 2.3 Urano)
-    from backend.policy.policy_loader import PolicyLoader
+    # Load policy singleton (Phase 2.3 DI Refactor - uses @lru_cache singleton)
+    from backend.services.workflow.dependencies import get_policy_loader_dep
 
-    policy_loader = PolicyLoader()
-    policy_loader.load()
+    policy_loader = get_policy_loader_dep()  # Singleton - no repeated YAML parsing
 
     # Use primary provider from policy if not specified
     if provider is None:
