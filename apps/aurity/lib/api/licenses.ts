@@ -3,9 +3,11 @@
  *
  * API client for superadmin license generation endpoints.
  * Requires FI-superadmin role.
+ *
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
-import { getBackendUrl } from './client';
+import { api } from './client';
 
 // ============================================================================
 // Types
@@ -43,24 +45,6 @@ export interface FeaturesResponse {
 }
 
 // ============================================================================
-// Token Management
-// ============================================================================
-
-let _licenseToken: string | null = null;
-
-export function setLicenseToken(token: string | null): void {
-  _licenseToken = token;
-}
-
-function getAuthHeaders(): HeadersInit {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (_licenseToken) {
-    headers['Authorization'] = `Bearer ${_licenseToken}`;
-  }
-  return headers;
-}
-
-// ============================================================================
 // API Functions
 // ============================================================================
 
@@ -72,19 +56,7 @@ export const licensesApi = {
   generate: async (
     request: LicenseGenerationRequest
   ): Promise<LicenseGenerationResponse> => {
-    const baseUrl = getBackendUrl();
-    const response = await fetch(`${baseUrl}/api/admin/licenses/generate`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(error.detail || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+    return api.post<LicenseGenerationResponse>('/api/admin/licenses/generate', request);
   },
 
   /**
@@ -92,20 +64,18 @@ export const licensesApi = {
    * Requires FI-superadmin role.
    */
   getFeatures: async (): Promise<FeaturesResponse> => {
-    const baseUrl = getBackendUrl();
-    const response = await fetch(`${baseUrl}/api/admin/licenses/features`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(error.detail || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+    return api.get<FeaturesResponse>('/api/admin/licenses/features');
   },
 };
+
+// ============================================================================
+// Legacy Token Management (Deprecated)
+// ============================================================================
+
+/** @deprecated Token is now handled automatically by api client */
+export function setLicenseToken(_token: string | null): void {
+  console.warn('[licenses.ts] setLicenseToken is deprecated - token is handled automatically');
+}
 
 // ============================================================================
 // Default Features (fallback if API unavailable)

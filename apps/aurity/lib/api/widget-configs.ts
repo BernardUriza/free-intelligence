@@ -7,7 +7,9 @@
  * Card: FI-TV-REFAC-003
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app.aurity.io';
+import { api } from './client';
+
+const API_BASE = '/api/aurity/clinic/widget-config';
 
 // ============================================================================
 // Type Definitions
@@ -82,16 +84,8 @@ export async function getTriviaQuestions(params?: {
   if (params?.difficulty) queryParams.append('difficulty', params.difficulty);
   if (params?.limit) queryParams.append('limit', params.limit.toString());
 
-  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/trivia${
-    queryParams.toString() ? `?${queryParams}` : ''
-  }`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch trivia: ${response.status}`);
-  }
-
-  return response.json();
+  const query = queryParams.toString() ? `?${queryParams}` : '';
+  return api.get<TriviaConfigResponse>(`${API_BASE}/trivia${query}`);
 }
 
 /**
@@ -99,36 +93,14 @@ export async function getTriviaQuestions(params?: {
  * Note: This requires backend endpoint for saving (to be implemented)
  */
 export async function saveTriviaQuestion(question: TriviaQuestion): Promise<{ success: boolean }> {
-  // For now, this would need to update the JSON file via backend
-  // Backend endpoint: POST /api/aurity/clinic/widget-config/trivia
-
-  const response = await fetch(`${BACKEND_URL}/api/aurity/clinic/widget-config/trivia`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(question),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to save trivia: ${response.status}`);
-  }
-
-  return response.json();
+  return api.post<{ success: boolean }>(`${API_BASE}/trivia`, question);
 }
 
 /**
  * Delete trivia question from config
  */
 export async function deleteTriviaQuestion(questionId: string): Promise<{ success: boolean }> {
-  const response = await fetch(
-    `${BACKEND_URL}/api/aurity/clinic/widget-config/trivia/${questionId}`,
-    { method: 'DELETE' }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete trivia: ${response.status}`);
-  }
-
-  return response.json();
+  return api.delete<{ success: boolean }>(`${API_BASE}/trivia/${questionId}`);
 }
 
 /**
@@ -140,16 +112,8 @@ export async function getBreathingExercises(params?: {
   const queryParams = new URLSearchParams();
   if (params?.exercise_id) queryParams.append('exercise_id', params.exercise_id);
 
-  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/breathing${
-    queryParams.toString() ? `?${queryParams}` : ''
-  }`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch breathing exercises: ${response.status}`);
-  }
-
-  return response.json();
+  const query = queryParams.toString() ? `?${queryParams}` : '';
+  return api.get<BreathingConfigResponse>(`${API_BASE}/breathing${query}`);
 }
 
 /**
@@ -161,16 +125,8 @@ export async function getDailyTips(params?: {
   const queryParams = new URLSearchParams();
   if (params?.category) queryParams.append('category', params.category);
 
-  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/daily-tips${
-    queryParams.toString() ? `?${queryParams}` : ''
-  }`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch daily tips: ${response.status}`);
-  }
-
-  return response.json();
+  const query = queryParams.toString() ? `?${queryParams}` : '';
+  return api.get<TipsConfigResponse>(`${API_BASE}/daily-tips${query}`);
 }
 
 /**
@@ -182,14 +138,6 @@ export async function getRandomTip(params?: {
   const queryParams = new URLSearchParams();
   if (params?.category) queryParams.append('category', params.category);
 
-  const url = `${BACKEND_URL}/api/aurity/clinic/widget-config/random-tip${
-    queryParams.toString() ? `?${queryParams}` : ''
-  }`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch random tip: ${response.status}`);
-  }
-
-  return response.json();
+  const query = queryParams.toString() ? `?${queryParams}` : '';
+  return api.get<HealthTip>(`${API_BASE}/random-tip${query}`);
 }

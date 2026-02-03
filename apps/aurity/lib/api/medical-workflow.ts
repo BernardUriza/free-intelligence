@@ -314,11 +314,13 @@ export const medicalWorkflowApi = {
 
   /**
    * Get session monitor (real-time progress with ASCII art)
+   *
+   * Note: Uses text/plain response, so we need custom fetch with getBackendUrl()
    */
   getSessionMonitor: async (sessionId: string): Promise<string> => {
-    // Use api client instead of hardcoded fetch
+    const backendUrl = getBackendUrl();
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
+      `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
       {
         method: 'GET',
         headers: { 'Accept': 'text/plain' },

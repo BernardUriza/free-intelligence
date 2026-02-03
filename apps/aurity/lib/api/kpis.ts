@@ -5,9 +5,7 @@
  * Card: FI-UI-FEAT-200
  */
 
-import { getBackendUrl } from '@/lib/config/deployment';
-
-const API_BASE = getBackendUrl()
+import { api } from './client';
 
 export interface KPIMetrics {
   window: string
@@ -58,28 +56,12 @@ export interface KPIChipsResponse {
  * Fetch KPI metrics (summary view)
  */
 export async function getKPIMetrics(window: string = "5m"): Promise<KPIMetrics> {
-  const response = await fetch(`${API_BASE}/api/aurity/kpis?window=${window}&view=summary`, {
-    cache: "no-store", // Always fetch fresh data for dashboard
-  })
-
-  if (!response.ok) {
-    throw new Error(`KPIs API failed: ${response.status} - ${response.url}`)
-  }
-
-  return response.json()
+  return api.get<KPIMetrics>(`/api/aurity/kpis?window=${window}&view=summary`);
 }
 
 /**
  * Fetch KPI chips (UI-ready format)
  */
 export async function getKPIChips(window: string = "5m"): Promise<KPIChipsResponse> {
-  const response = await fetch(`${API_BASE}/api/aurity/kpis?window=${window}&view=chips`, {
-    cache: "no-store",
-  })
-
-  if (!response.ok) {
-    throw new Error(`KPIs API failed: ${response.status} - ${response.url}`)
-  }
-
-  return response.json()
+  return api.get<KPIChipsResponse>(`/api/aurity/kpis?window=${window}&view=chips`);
 }

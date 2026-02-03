@@ -8,8 +8,7 @@
  * Created: 2025-10-30
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+import { api } from './client';
 
 // ============================================================================
 // TYPES
@@ -66,35 +65,14 @@ export interface VerifyResponse {
 export async function createExport(
   request: ExportRequest
 ): Promise<ExportResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/exports`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create export: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<ExportResponse>('/api/exports', request);
 }
 
 /**
  * Get export status
  */
 export async function getExport(exportId: string): Promise<ExportResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/exports/${exportId}`);
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error(`Export ${exportId} not found`);
-    }
-    throw new Error(`Failed to get export: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<ExportResponse>(`/api/exports/${exportId}`);
 }
 
 /**
@@ -104,22 +82,7 @@ export async function verifyExport(
   exportId: string,
   request: VerifyRequest = { targets: ['md', 'json', 'manifest'] }
 ): Promise<VerifyResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/exports/${exportId}/verify`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to verify export: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<VerifyResponse>(`/api/exports/${exportId}/verify`, request);
 }
 
 /**

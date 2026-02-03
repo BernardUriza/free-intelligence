@@ -375,7 +375,10 @@ export const assistantApi = {
    * Get AI introduction message
    * Used for greeting users when starting a new conversation
    */
-  introduction: async (context: Record<string, unknown>): Promise<ChatResponse> => {
+  introduction: async (
+    context: Record<string, unknown>,
+    signal?: AbortSignal
+  ): Promise<ChatResponse> => {
     // Use dedicated introduction endpoint
     const response = await api.post<{
       message: string;
@@ -388,7 +391,7 @@ export const assistantApi = {
         physician_name: context.physician_name as string | undefined,
         clinic_name: context.clinic_name as string | undefined,
       },
-      { timeout: INTRO_TIMEOUT_MS } // 60 seconds (local Ollama can take 30-50s)
+      { timeout: INTRO_TIMEOUT_MS, signal } // 60 seconds (local Ollama can take 30-50s)
     );
 
     return {

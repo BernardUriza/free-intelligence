@@ -50,7 +50,7 @@ export class APIError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
+export interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number; // Number of retry attempts (default: 0 for regular requests, 3 for uploads)
   retryDelay?: number; // Initial retry delay in ms (default: 1000)
@@ -60,10 +60,20 @@ async function fetchWithTimeout(
   url: string,
   options: RequestOptions = {}
 ): Promise<Response> {
-  const { timeout = 30000, ...fetchOptions } = options;
+  const { timeout = 30000, signal: externalSignal, ...fetchOptions } = options;
 
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+
+  // If external signal is provided, link it to our controller
+  // This allows callers to abort requests externally while still having timeout protection
+  if (externalSignal) {
+    externalSignal.addEventListener('abort', () => controller.abort());
+    // If already aborted, abort immediately
+    if (externalSignal.aborted) {
+      controller.abort();
+    }
+  }
 
   try {
     const response = await fetch(url, {

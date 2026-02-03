@@ -22,7 +22,7 @@ import { AppTemplate } from '@/components/layout/AppTemplate';
 import { adminPersonasHeader } from '@/config/page-headers';
 
 export default function PersonasAdminPage() {
-  const { getAccessTokenSilently } = useAuth();
+  // Note: Auth token is now handled automatically by api client - no need for getAccessTokenSilently
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,6 @@ export default function PersonasAdminPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [_isDeleting, setIsDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [authToken, setAuthToken] = useState<string | null>(null);
 
   // Load personas on mount
   useEffect(() => {
@@ -73,19 +72,9 @@ export default function PersonasAdminPage() {
     setSelectedPersona(null);
   };
 
-  const handleOpenCreateModal = async () => {
-    try {
-      const token = await getAccessTokenSilently();
-      if (!token) {
-        setDeleteError('No se pudo obtener el token de autenticación');
-        return;
-      }
-      setAuthToken(token);
-      setIsCreateModalOpen(true);
-    } catch (err) {
-      console.error('Failed to get auth token:', err);
-      setDeleteError('Error de autenticación');
-    }
+  // Note: Auth token is now handled automatically by api client
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
   };
 
   const handleCreateSuccess = (newPersona: PersonaNew) => {
@@ -113,12 +102,8 @@ export default function PersonasAdminPage() {
       setIsDeleting(personaId);
       setDeleteError(null);
 
-      const token = await getAccessTokenSilently();
-      if (!token) {
-        throw new Error('No se pudo obtener el token de autenticación');
-      }
-
-      await personaService.delete(personaId, token);
+      // Note: Auth token is now handled automatically by api client
+      await personaService.delete(personaId);
 
       // Remove from local state
       setPersonas(prev => prev.filter(p => p.id !== personaId));
@@ -244,12 +229,11 @@ export default function PersonasAdminPage() {
         )}
 
         {/* Create Modal */}
-        {authToken && (
+        {isCreateModalOpen && (
           <PersonaCreateModal
             open={isCreateModalOpen}
             onOpenChange={setIsCreateModalOpen}
             onCreated={handleCreateSuccess}
-            authToken={authToken}
           />
         )}
     </AppTemplate>

@@ -9,9 +9,7 @@
  */
 
 import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
-import { apiRequest, getBackendUrl } from '@/lib/api/client';
-
-const API_BASE = getBackendUrl();
+import { api } from './client';
 
 // =============================================================================
 // TYPES
@@ -143,53 +141,26 @@ export interface AppointmentCreate {
 // =============================================================================
 
 export async function fetchClinics(activeOnly = true): Promise<Clinic[]> {
-  const data = await apiRequest<{ clinics: Clinic[]; total: number }>(
+  const data = await api.get<{ clinics: Clinic[]; total: number }>(
     `/api/clinics?active_only=${activeOnly}`
   );
   return data.clinics;
 }
 
 export async function fetchClinic(clinicId: string): Promise<Clinic> {
-  return apiRequest<Clinic>(`/api/clinics/${clinicId}`);
+  return api.get<Clinic>(`/api/clinics/${clinicId}`);
 }
 
 export async function createClinic(data: ClinicCreate): Promise<Clinic> {
-  const url = `${API_BASE}/api/clinics`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<Clinic>('/api/clinics', data);
 }
 
 export async function updateClinic(clinicId: string, data: ClinicUpdate): Promise<Clinic> {
-  const url = `${API_BASE}/api/clinics/${clinicId}`;
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to update clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.patch<Clinic>(`/api/clinics/${clinicId}`, data);
 }
 
 export async function deleteClinic(clinicId: string): Promise<void> {
-  const url = `${API_BASE}/api/clinics/${clinicId}`;
-  const response = await fetch(url, { method: 'DELETE' });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete clinic: ${response.statusText}`);
-  }
+  await api.delete<void>(`/api/clinics/${clinicId}`);
 }
 
 // =============================================================================
@@ -197,60 +168,26 @@ export async function deleteClinic(clinicId: string): Promise<void> {
 // =============================================================================
 
 export async function fetchDoctors(clinicId: string, activeOnly = true): Promise<Doctor[]> {
-  const data = await apiRequest<{ doctors: Doctor[]; total: number }>(
+  const data = await api.get<{ doctors: Doctor[]; total: number }>(
     `/api/clinics/${clinicId}/doctors?active_only=${activeOnly}`
   );
   return data.doctors;
 }
 
 export async function fetchDoctor(clinicId: string, doctorId: string): Promise<Doctor> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors/${doctorId}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch doctor: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<Doctor>(`/api/clinics/${clinicId}/doctors/${doctorId}`);
 }
 
 export async function createDoctor(clinicId: string, data: DoctorCreate): Promise<Doctor> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create doctor: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<Doctor>(`/api/clinics/${clinicId}/doctors`, data);
 }
 
 export async function updateDoctor(clinicId: string, doctorId: string, data: DoctorUpdate): Promise<Doctor> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors/${doctorId}`;
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to update doctor: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.patch<Doctor>(`/api/clinics/${clinicId}/doctors/${doctorId}`, data);
 }
 
 export async function deleteDoctor(clinicId: string, doctorId: string): Promise<void> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors/${doctorId}`;
-  const response = await fetch(url, { method: 'DELETE' });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete doctor: ${response.statusText}`);
-  }
+  await api.delete<void>(`/api/clinics/${clinicId}/doctors/${doctorId}`);
 }
 
 // =============================================================================
@@ -266,20 +203,14 @@ export async function fetchAppointments(
   if (options?.doctor_id) params.set('doctor_id', options.doctor_id);
   if (options?.status) params.set('status', options.status);
 
-  const data = await apiRequest<{ appointments: Appointment[] }>(
+  const data = await api.get<{ appointments: Appointment[] }>(
     `/api/clinics/${clinicId}/appointments?${params.toString()}`
   );
   return data.appointments;
 }
 
 export async function createAppointment(clinicId: string, data: AppointmentCreate): Promise<Appointment> {
-  return apiRequest<Appointment>(
-    `/api/clinics/${clinicId}/appointments`,
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
-  );
+  return api.post<Appointment>(`/api/clinics/${clinicId}/appointments`, data);
 }
 
 // =============================================================================
@@ -324,7 +255,7 @@ export async function getClinicMembership(
   const params = new URLSearchParams({ auth0_user_id: auth0UserId });
   if (email) params.append('email', email);
 
-  const data = await apiRequest<ClinicMembership | { linked: false }>(
+  const data = await api.get<ClinicMembership | { linked: false }>(
     `/api/users/me/clinic-membership?${params}`
   );
 
@@ -347,19 +278,7 @@ export async function linkToClinic(
   const params = new URLSearchParams({ auth0_user_id: auth0UserId });
   if (email) params.append('email', email);
 
-  const url = `${API_BASE}/api/users/me/link-to-clinic?${params}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to link to clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<LinkToClinicResponse>(`/api/users/me/link-to-clinic?${params}`, request);
 }
 
 /**
@@ -367,16 +286,7 @@ export async function linkToClinic(
  */
 export async function unlinkFromClinic(auth0UserId: string): Promise<{ success: boolean; message: string }> {
   const params = new URLSearchParams({ auth0_user_id: auth0UserId });
-
-  const url = `${API_BASE}/api/users/me/unlink-from-clinic?${params}`;
-  const response = await fetch(url, { method: 'DELETE' });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to unlink from clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.delete<{ success: boolean; message: string }>(`/api/users/me/unlink-from-clinic?${params}`);
 }
 
 // =============================================================================
@@ -411,19 +321,7 @@ export interface AdminUserClinicInfo {
 export async function adminAssignUserToClinic(
   request: AdminLinkUserRequest
 ): Promise<LinkToClinicResponse> {
-  const url = `${API_BASE}/api/users/me/admin/assign-to-clinic`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to assign user to clinic: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<LinkToClinicResponse>('/api/users/me/admin/assign-to-clinic', request);
 }
 
 /**
@@ -432,15 +330,9 @@ export async function adminAssignUserToClinic(
 export async function adminUnassignUserFromClinic(
   auth0UserId: string
 ): Promise<{ success: boolean; message: string; clinic_id?: string }> {
-  const url = `${API_BASE}/api/users/me/admin/unassign-user/${encodeURIComponent(auth0UserId)}`;
-  const response = await fetch(url, { method: 'DELETE' });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to unassign user: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.delete<{ success: boolean; message: string; clinic_id?: string }>(
+    `/api/users/me/admin/unassign-user/${encodeURIComponent(auth0UserId)}`
+  );
 }
 
 /**
@@ -449,14 +341,9 @@ export async function adminUnassignUserFromClinic(
 export async function adminGetUserClinicInfo(
   auth0UserId: string
 ): Promise<AdminUserClinicInfo> {
-  const url = `${API_BASE}/api/users/me/admin/user-clinic-info/${encodeURIComponent(auth0UserId)}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to get user clinic info: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<AdminUserClinicInfo>(
+    `/api/users/me/admin/user-clinic-info/${encodeURIComponent(auth0UserId)}`
+  );
 }
 
 // =============================================================================
@@ -484,14 +371,7 @@ export interface DoctorLimitError {
  * Get doctor limit information for a clinic
  */
 export async function fetchDoctorLimits(clinicId: string): Promise<DoctorLimitInfo> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctor-limits`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch doctor limits: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<DoctorLimitInfo>(`/api/clinics/${clinicId}/doctor-limits`);
 }
 
 /**
@@ -501,19 +381,9 @@ export async function updateDoctorOverride(
   clinicId: string,
   maxDoctorsOverride: number | null
 ): Promise<Clinic> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctor-override`;
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ max_doctors_override: maxDoctorsOverride }),
+  return api.patch<Clinic>(`/api/clinics/${clinicId}/doctor-override`, {
+    max_doctors_override: maxDoctorsOverride,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail?.message || `Failed to update override: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 /**
@@ -523,24 +393,28 @@ export async function createDoctorWithLimitCheck(
   clinicId: string,
   data: DoctorCreate
 ): Promise<{ success: true; doctor: Doctor } | { success: false; error: DoctorLimitError }> {
-  const url = `${API_BASE}/api/clinics/${clinicId}/doctors`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (response.ok) {
-    const doctor = await response.json();
+  try {
+    const doctor = await api.post<Doctor>(`/api/clinics/${clinicId}/doctors`, data);
     return { success: true, doctor };
-  }
+  } catch (error) {
+    // Check if this is a 403 with DOCTOR_LIMIT_EXCEEDED
+    if (error instanceof Error && error.message.includes('DOCTOR_LIMIT_EXCEEDED')) {
+      // Parse the error message to extract the limit info
+      const match = error.message.match(/current_count[:\s]+(\d+)/);
+      const maxMatch = error.message.match(/max_allowed[:\s]+(\d+)/);
+      const planMatch = error.message.match(/plan_name[:\s]+"?([^",}]+)"?/);
 
-  if (response.status === 403) {
-    const error = await response.json();
-    if (error.detail?.error === 'DOCTOR_LIMIT_EXCEEDED') {
-      return { success: false, error: error.detail as DoctorLimitError };
+      return {
+        success: false,
+        error: {
+          error: 'DOCTOR_LIMIT_EXCEEDED',
+          message: error.message,
+          current_count: match ? parseInt(match[1]) : 0,
+          max_allowed: maxMatch ? parseInt(maxMatch[1]) : 0,
+          plan_name: planMatch ? planMatch[1] : 'unknown',
+        },
+      };
     }
+    throw error;
   }
-
-  throw new Error(`Failed to create doctor: ${response.statusText}`);
 }

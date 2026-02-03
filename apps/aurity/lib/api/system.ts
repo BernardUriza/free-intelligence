@@ -4,9 +4,7 @@
  * Cliente para monitorear recursos del sistema y modelos Ollama en ejecución.
  */
 
-import { getBackendUrl } from '@/lib/config/deployment';
-
-const BACKEND_URL = getBackendUrl();
+import { api } from './client';
 
 // =============================================================================
 // Types
@@ -56,52 +54,34 @@ export interface ModelCompatibility {
 // API Functions
 // =============================================================================
 
-const SYSTEM_BASE = '/api/admin/system';
+const API_BASE = '/api/admin/system';
 
 /**
  * Obtiene recursos del sistema (RAM, CPU, plataforma).
  */
 export async function fetchSystemResources(): Promise<SystemResources> {
-  const response = await fetch(`${BACKEND_URL}${SYSTEM_BASE}/resources`);
-  if (!response.ok) {
-    throw new Error('Error al obtener recursos del sistema');
-  }
-  return response.json();
+  return api.get<SystemResources>(`${API_BASE}/resources`);
 }
 
 /**
  * Obtiene modelos Ollama actualmente cargados en memoria.
  */
 export async function fetchRunningModels(): Promise<RunningModelsResponse> {
-  const response = await fetch(`${BACKEND_URL}${SYSTEM_BASE}/ollama/running`);
-  if (!response.ok) {
-    throw new Error('Error al obtener modelos en ejecución');
-  }
-  return response.json();
+  return api.get<RunningModelsResponse>(`${API_BASE}/ollama/running`);
 }
 
 /**
  * Verifica compatibilidad de un modelo con el sistema.
  */
 export async function checkModelCompatibility(modelId: string): Promise<ModelCompatibility> {
-  const response = await fetch(`${BACKEND_URL}${SYSTEM_BASE}/compatibility/${encodeURIComponent(modelId)}`);
-  if (!response.ok) {
-    throw new Error('Error al verificar compatibilidad');
-  }
-  return response.json();
+  return api.get<ModelCompatibility>(`${API_BASE}/compatibility/${encodeURIComponent(modelId)}`);
 }
 
 /**
  * Descarga un modelo de la memoria de Ollama.
  */
 export async function unloadModel(modelName: string): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}${SYSTEM_BASE}/ollama/unload/${encodeURIComponent(modelName)}`, {
-    method: 'POST',
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || 'Error al descargar modelo');
-  }
+  await api.post<void>(`${API_BASE}/ollama/unload/${encodeURIComponent(modelName)}`);
 }
 
 // =============================================================================

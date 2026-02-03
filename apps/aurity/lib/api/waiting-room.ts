@@ -3,11 +3,16 @@
  *
  * Card: FI-UI-FEAT-TVD-001
  * HTTP client for dynamic content generation for waiting room TV displays
+ *
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
-/**
- * API Request/Response Types
- */
+import { api } from './client';
+
+// ============================================================================
+// Types
+// ============================================================================
+
 export type TipCategory = 'nutrition' | 'exercise' | 'mental_health' | 'prevention';
 export type TriviaDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -37,185 +42,75 @@ export interface GenerateTriviaResponse {
   latency_ms: number;
 }
 
+// ============================================================================
+// API Functions
+// ============================================================================
+
+const API_BASE = '/api/aurity/clinic/waiting-room';
+
 /**
- * API configuration
+ * Generate a health tip using Free Intelligence
+ *
+ * @example
+ * ```ts
+ * const tip = await generateTip({ category: 'nutrition', context: 'morning' });
+ * console.log(tip.tip); // "Incluir frutas en el desayuno..."
+ * ```
  */
-interface WaitingRoomAPIConfig {
-  baseURL: string;
-  timeout?: number;
-  maxRetries?: number;
-  retryDelay?: number;
+export async function generateTip(request: GenerateTipRequest): Promise<GenerateTipResponse> {
+  return api.post<GenerateTipResponse>(`${API_BASE}/generate-tip`, request, {
+    timeout: 10000, // 10s for LLM generation
+  });
 }
 
 /**
- * Default configuration
+ * Generate a health trivia question using Free Intelligence
+ *
+ * @example
+ * ```ts
+ * const trivia = await generateTrivia({ difficulty: 'easy' });
+ * console.log(trivia.question);
+ * console.log(trivia.options); // ["A", "B", "C", "D"]
+ * ```
  */
-const DEFAULT_CONFIG: Required<WaitingRoomAPIConfig> = {
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001',
-  timeout: 10000, // 10 seconds (content generation can take 2-5s)
-  maxRetries: 2,
-  retryDelay: 1000, // 1 second
-};
-
-/**
- * Retry-able HTTP fetch with exponential backoff
- */
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  config: Required<WaitingRoomAPIConfig>
-): Promise<Response> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < config.maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), config.timeout);
-
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      // Don't retry on 4xx client errors
-      if (!response.ok && response.status >= 400 && response.status < 500) {
-        const error = await response.json();
-        throw new Error(error.detail || `HTTP ${response.status}`);
-      }
-
-      // Retry on 5xx server errors
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      return response;
-    } catch (error) {
-      lastError = error as Error;
-
-      // Don't retry on timeout
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Request timeout after ${config.timeout}ms`);
-      }
-
-      // Don't retry on last attempt
-      if (attempt === config.maxRetries - 1) {
-        break;
-      }
-
-      // Exponential backoff
-      const delay = config.retryDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  throw lastError || new Error('Unknown error during fetch');
+export async function generateTrivia(request: GenerateTriviaRequest = {}): Promise<GenerateTriviaResponse> {
+  return api.post<GenerateTriviaResponse>(`${API_BASE}/generate-trivia`, request, {
+    timeout: 10000, // 10s for LLM generation
+  });
 }
 
+// ============================================================================
+// Legacy Class API (Deprecated - use functions directly)
+// ============================================================================
+
 /**
- * Waiting Room Content API Client
+ * @deprecated Use `generateTip()` and `generateTrivia()` functions directly.
+ * This class is kept for backwards compatibility only.
  */
 export class WaitingRoomAPI {
-  private config: Required<WaitingRoomAPIConfig>;
-
-  constructor(config?: Partial<WaitingRoomAPIConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  /**
-   * Generate a health tip using Free Intelligence
-   *
-   * Endpoint: POST /api/aurity/clinic/waiting-room/generate-tip
-   *
-   * @param request Tip generation request (category + optional context)
-   * @returns Generated tip with metadata
-   * @throws Error if request fails
-   *
-   * @example
-   * ```ts
-   * const api = new WaitingRoomAPI();
-   * const tip = await api.generateTip({
-   *   category: 'nutrition',
-   *   context: 'morning'
-   * });
-   * console.log(tip.tip); // "Incluir frutas en el desayuno..."
-   * console.log(tip.latency_ms); // 4634
-   * ```
-   */
+  /** @deprecated Use generateTip() function directly */
   async generateTip(request: GenerateTipRequest): Promise<GenerateTipResponse> {
-    const url = `${this.config.baseURL}/api/aurity/clinic/waiting-room/generate-tip`;
-
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      },
-      this.config
-    );
-
-    const data: GenerateTipResponse = await response.json();
-    return data;
+    return generateTip(request);
   }
 
-  /**
-   * Generate a health trivia question using Free Intelligence
-   *
-   * Endpoint: POST /api/aurity/clinic/waiting-room/generate-trivia
-   *
-   * @param request Trivia generation request (difficulty level)
-   * @returns Generated trivia question with options and explanation
-   * @throws Error if request fails
-   *
-   * @example
-   * ```ts
-   * const api = new WaitingRoomAPI();
-   * const trivia = await api.generateTrivia({ difficulty: 'easy' });
-   * console.log(trivia.question);
-   * console.log(trivia.options); // ["A", "B", "C", "D"]
-   * console.log(trivia.correct_answer); // 2
-   * console.log(trivia.explanation);
-   * ```
-   */
+  /** @deprecated Use generateTrivia() function directly */
   async generateTrivia(request: GenerateTriviaRequest = {}): Promise<GenerateTriviaResponse> {
-    const url = `${this.config.baseURL}/api/aurity/clinic/waiting-room/generate-trivia`;
-
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      },
-      this.config
-    );
-
-    const data: GenerateTriviaResponse = await response.json();
-    return data;
+    return generateTrivia(request);
   }
 
-  /**
-   * Update configuration
-   */
-  updateConfig(config: Partial<WaitingRoomAPIConfig>): void {
-    this.config = { ...this.config, ...config };
+  /** @deprecated No longer needed - api client handles config automatically */
+  updateConfig(): void {
+    console.warn('[WaitingRoomAPI] updateConfig() is deprecated - config is handled automatically');
   }
 
-  /**
-   * Get current configuration
-   */
-  getConfig(): Readonly<Required<WaitingRoomAPIConfig>> {
-    return { ...this.config };
+  /** @deprecated No longer needed */
+  getConfig(): Record<string, unknown> {
+    console.warn('[WaitingRoomAPI] getConfig() is deprecated');
+    return {};
   }
 }
 
 /**
- * Singleton instance for convenience
+ * @deprecated Use `generateTip()` and `generateTrivia()` functions directly
  */
 export const waitingRoomAPI = new WaitingRoomAPI();

@@ -6,6 +6,7 @@
  *
  * File: apps/aurity/lib/api/workflows.ts
  * Created: 2025-11-08
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
 import { api } from './client';
@@ -54,23 +55,11 @@ export async function startConsultWorkflow(
   const formData = new FormData();
   formData.append('audio', audio);
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/consult`,
-    {
-      method: 'POST',
-      headers: {
-        'X-Session-ID': sessionId,
-      },
-      body: formData,
-    }
-  );
+  // Use api.upload but we need custom headers, so we'll use a slightly different approach
+  // The api.upload doesn't support custom headers, so we create formData and add session ID
+  formData.append('session_id', sessionId);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to start consultation: ${error}`);
-  }
-
-  return response.json();
+  return api.upload<ConsultStartResponse>('/api/aurity/consult', formData);
 }
 
 /**

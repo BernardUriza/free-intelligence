@@ -3,7 +3,8 @@
  *
  * Centralized API layer for Persona management.
  * Single Responsibility: Only handles HTTP communication.
- * All methods include proper error handling and auth token support.
+ *
+ * Updated: 2026-02 - Migrated to centralized api client
  *
  * @module services/persona
  */
@@ -14,9 +15,8 @@ import type {
   PersonaUpdateRequest,
   PersonaTestResponse,
 } from '@/components/admin/persona/types';
-import { getBackendUrl } from '@/lib/config/deployment';
+import { api, APIError } from '@/lib/api/client';
 
-const BACKEND_URL = getBackendUrl();
 const BASE_PATH = '/api/admin/personas';
 
 /**
@@ -34,30 +34,19 @@ export class PersonaServiceError extends Error {
 }
 
 /**
- * Parse error response from API
+ * Convert APIError to PersonaServiceError with user-friendly messages
  */
-async function parseErrorResponse(response: Response): Promise<string> {
-  try {
-    const data = await response.json();
-    return data.detail || data.message || response.statusText;
-  } catch {
-    return response.statusText;
+function handleError(error: unknown, context: string): never {
+  if (error instanceof APIError) {
+    throw new PersonaServiceError(
+      `${context}: ${error.message}`,
+      error.status,
+      error.message
+    );
   }
-}
-
-/**
- * Build headers with optional auth token
- */
-function buildHeaders(authToken?: string): HeadersInit {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
-  }
-
-  return headers;
+  throw new PersonaServiceError(
+    error instanceof Error ? error.message : String(error)
+  );
 }
 
 /**
@@ -68,167 +57,113 @@ export const personaService = {
    * List all personas
    */
   async list(): Promise<Persona[]> {
-    const response = await fetch(`${BACKEND_URL}${BASE_PATH}`, {
-      method: 'GET',
-      headers: buildHeaders(),
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-      throw new PersonaServiceError(
-        `Failed to fetch personas: ${detail}`,
-        response.status,
-        detail
-      );
+    try {
+      const data = await api.get<{ personas: Persona[] }>(BASE_PATH);
+      return data.personas;
+    } catch (error) {
+      handleError(error, 'Failed to fetch personas');
     }
-
-    const data = await response.json();
-    return data.personas;
   },
 
   /**
    * Get a single persona by ID
    */
   async get(personaId: string): Promise<Persona> {
-    const response = await fetch(`${BACKEND_URL}${BASE_PATH}/${personaId}`, {
-      method: 'GET',
-      headers: buildHeaders(),
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-      throw new PersonaServiceError(
-        `Failed to fetch persona ${personaId}: ${detail}`,
-        response.status,
-        detail
-      );
+    try {
+      return await api.get<Persona>(`${BASE_PATH}/${personaId}`);
+    } catch (error) {
+      handleError(error, `Failed to fetch persona ${personaId}`);
     }
-
-    return response.json();
   },
 
   /**
    * Create a new persona (requires FI-superadmin role)
+   * Note: Auth token is now handled automatically by api client
    */
-  async create(data: PersonaCreateRequest, authToken: string): Promise<Persona> {
-    const response = await fetch(`${BACKEND_URL}${BASE_PATH}`, {
-      method: 'POST',
-      headers: buildHeaders(authToken),
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-
-      // Provide user-friendly error messages
-      if (response.status === 403) {
-        throw new PersonaServiceError(
-          'No tienes permisos para crear personas',
-          403,
-          detail
-        );
+  async create(data: PersonaCreateRequest): Promise<Persona> {
+    try {
+      return await api.post<Persona>(BASE_PATH, data);
+    } catch (error) {
+      if (error instanceof APIError) {
+        if (error.status === 403) {
+          throw new PersonaServiceError(
+            'No tienes permisos para crear personas',
+            403,
+            error.message
+          );
+        }
+        if (error.status === 409) {
+          throw new PersonaServiceError(
+            `Ya existe una persona con el ID "${data.id}"`,
+            409,
+            error.message
+          );
+        }
       }
-      if (response.status === 409) {
-        throw new PersonaServiceError(
-          `Ya existe una persona con el ID "${data.id}"`,
-          409,
-          detail
-        );
-      }
-
-      throw new PersonaServiceError(
-        `Error al crear la persona: ${detail}`,
-        response.status,
-        detail
-      );
+      handleError(error, 'Error al crear la persona');
     }
-
-    return response.json();
   },
 
   /**
    * Update an existing persona
+   * Note: Auth token is now handled automatically by api client
    */
-  async update(
-    personaId: string,
-    updates: PersonaUpdateRequest,
-    authToken?: string
-  ): Promise<Persona> {
-    const response = await fetch(`${BACKEND_URL}${BASE_PATH}/${personaId}`, {
-      method: 'PUT',
-      headers: buildHeaders(authToken),
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-
-      if (response.status === 403) {
-        throw new PersonaServiceError(
-          'No tienes permisos para modificar esta persona',
-          403,
-          detail
-        );
+  async update(personaId: string, updates: PersonaUpdateRequest): Promise<Persona> {
+    try {
+      return await api.put<Persona>(`${BASE_PATH}/${personaId}`, updates);
+    } catch (error) {
+      if (error instanceof APIError) {
+        if (error.status === 403) {
+          throw new PersonaServiceError(
+            'No tienes permisos para modificar esta persona',
+            403,
+            error.message
+          );
+        }
+        if (error.status === 404) {
+          throw new PersonaServiceError(
+            `Persona "${personaId}" no encontrada`,
+            404,
+            error.message
+          );
+        }
       }
-      if (response.status === 404) {
-        throw new PersonaServiceError(
-          `Persona "${personaId}" no encontrada`,
-          404,
-          detail
-        );
-      }
-
-      throw new PersonaServiceError(
-        `Error al actualizar la persona: ${detail}`,
-        response.status,
-        detail
-      );
+      handleError(error, 'Error al actualizar la persona');
     }
-
-    return response.json();
   },
 
   /**
    * Delete a persona (requires FI-superadmin role)
+   * Note: Auth token is now handled automatically by api client
    */
-  async delete(personaId: string, authToken: string): Promise<void> {
-    const response = await fetch(`${BACKEND_URL}${BASE_PATH}/${personaId}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-
-      if (response.status === 400) {
-        throw new PersonaServiceError(
-          `No se puede eliminar la persona "${personaId}" (protegida)`,
-          400,
-          detail
-        );
+  async delete(personaId: string): Promise<void> {
+    try {
+      await api.delete(`${BASE_PATH}/${personaId}`);
+    } catch (error) {
+      if (error instanceof APIError) {
+        if (error.status === 400) {
+          throw new PersonaServiceError(
+            `No se puede eliminar la persona "${personaId}" (protegida)`,
+            400,
+            error.message
+          );
+        }
+        if (error.status === 403) {
+          throw new PersonaServiceError(
+            'No tienes permisos para eliminar personas',
+            403,
+            error.message
+          );
+        }
+        if (error.status === 404) {
+          throw new PersonaServiceError(
+            `Persona "${personaId}" no encontrada`,
+            404,
+            error.message
+          );
+        }
       }
-      if (response.status === 403) {
-        throw new PersonaServiceError(
-          'No tienes permisos para eliminar personas',
-          403,
-          detail
-        );
-      }
-      if (response.status === 404) {
-        throw new PersonaServiceError(
-          `Persona "${personaId}" no encontrada`,
-          404,
-          detail
-        );
-      }
-
-      throw new PersonaServiceError(
-        `Error al eliminar la persona: ${detail}`,
-        response.status,
-        detail
-      );
+      handleError(error, 'Error al eliminar la persona');
     }
   },
 
@@ -240,27 +175,15 @@ export const personaService = {
     input: string,
     userId?: string
   ): Promise<PersonaTestResponse> {
-    const url = new URL(`${BACKEND_URL}${BASE_PATH}/${personaId}/test`);
-    if (userId) {
-      url.searchParams.set('user_id', userId);
-    }
-
-    const response = await fetch(url.toString(), {
-      method: 'POST',
-      headers: buildHeaders(),
-      body: JSON.stringify({ input }),
-    });
-
-    if (!response.ok) {
-      const detail = await parseErrorResponse(response);
-      throw new PersonaServiceError(
-        `Error al probar la persona: ${detail}`,
-        response.status,
-        detail
+    try {
+      const queryString = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+      return await api.post<PersonaTestResponse>(
+        `${BASE_PATH}/${personaId}/test${queryString}`,
+        { input }
       );
+    } catch (error) {
+      handleError(error, 'Error al probar la persona');
     }
-
-    return response.json();
   },
 };
 
