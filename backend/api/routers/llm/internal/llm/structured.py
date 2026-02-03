@@ -12,15 +12,15 @@ from datetime import UTC, datetime
 
 from backend.providers.llm import llm_generate
 from backend.schemas.llm.audit_policy import require_audit_log
+from backend.services.llm.dependencies import get_persona_manager
 from backend.utils.common.logging.logger import get_logger
-from backend.services.llm.services.persona_manager import PersonaManager
 from fastapi import APIRouter, HTTPException, status
 
 from .schemas import StructuredRequest, StructuredResponse
 
 router = APIRouter()
 logger = get_logger(__name__)
-persona_mgr = PersonaManager()
+persona_mgr = get_persona_manager()  # Use centralized singleton
 
 
 @router.post("/structured-extract", response_model=StructuredResponse)

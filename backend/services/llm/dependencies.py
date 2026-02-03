@@ -6,9 +6,11 @@ Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (TODO cleanup - use centralized config)
 Updated: 2026-02-02 (Phase 2.3 Fase 6 - replaced get_policy_loader service locator)
+Updated: 2026-02-02 (DI Refactor - PersonaManager singleton with @lru_cache)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -54,16 +56,33 @@ def get_audit_service(
     return AuditService(audit_repo)
 
 
+@lru_cache(maxsize=1)
+def _get_persona_manager_singleton() -> PersonaManager:
+    """Internal singleton factory for PersonaManager.
+
+    Uses @lru_cache to ensure only ONE instance is created,
+    loading YAML configuration only once per process.
+
+    Returns:
+        PersonaManager singleton instance with YAML loaded
+    """
+    return PersonaManager()
+
+
 def get_persona_manager() -> PersonaManager:
     """Get persona manager singleton.
 
-    Note: PersonaManager is already a singleton (loads YAML config once).
-    This provider just returns the instance.
-
     Returns:
-        PersonaManager instance
+        PersonaManager singleton instance (shared across all callers)
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+
+    Performance:
+        YAML parsing happens only on first call.
+        Subsequent calls return the cached singleton.
     """
-    return PersonaManager()
+    return _get_persona_manager_singleton()
 
 
 def get_llm_logger() -> ILogger:

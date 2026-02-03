@@ -32,7 +32,7 @@ from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.services.llm.services.conversation_memory import get_memory_manager
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.dependencies import get_persona_manager
 from backend.services.workflow.dependencies import get_policy_loader_dep
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -41,7 +41,7 @@ from .schemas import ChatRequest, ChatResponse
 
 router = APIRouter()
 logger = get_logger(__name__)
-persona_mgr = PersonaManager()
+persona_mgr = get_persona_manager()  # Use centralized singleton
 # NOTE: trace_store not implemented yet - TraceStore is planned for Phase 3
 trace_store = None
 

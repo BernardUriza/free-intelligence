@@ -18,7 +18,7 @@ from backend.clients.dependencies import get_llm_client_dep
 from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
-from backend.services.llm.services.persona.manager import PersonaManager
+from backend.services.llm.dependencies import get_persona_manager
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 router = APIRouter()
 
-# Initialize persona manager for validation
-_persona_manager = PersonaManager()
+# Use centralized singleton from DI provider
+_persona_manager = get_persona_manager()
 
 
 async def _analyze_emotional_state(

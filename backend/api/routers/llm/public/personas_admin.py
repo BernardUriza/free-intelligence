@@ -30,15 +30,15 @@ from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.database import get_db_dependency
 from backend.infrastructure.auth import User, UserRole, get_current_user
 from backend.services.kpi.services.persona_metrics_service import get_persona_metrics_service
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.dependencies import get_persona_manager
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/admin/personas", tags=["Personas Admin"])
 
-# Initialize PersonaManager and MetricsService
-persona_manager = PersonaManager()
+# Use centralized singletons from DI providers
+persona_manager = get_persona_manager()
 metrics_service = get_persona_metrics_service()
 
 

@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 from backend.providers.llm import llm_generate
 from backend.utils.common.logging.logger import get_logger
+from backend.services.llm.dependencies import get_persona_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.services.soap.services.complexity_analyzer import (
     ComplexityMetrics,
@@ -89,11 +90,16 @@ class DecisionalMiddleware(IDecisionalMiddleware):
     - Make clinical decisions (only orchestration)
     """
 
-    def __init__(self, preset_loader: "IPresetLoader") -> None:
+    def __init__(
+        self,
+        preset_loader: "IPresetLoader",
+        persona_manager: PersonaManager | None = None,
+    ) -> None:
         """Initialize decisional middleware.
 
         Args:
             preset_loader: IPresetLoader instance (REQUIRED)
+            persona_manager: PersonaManager instance (optional, uses singleton)
 
         Raises:
             ValueError: If preset_loader is None (DI misconfiguration)
@@ -109,7 +115,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
             )
         self.logger = get_logger(__name__)
         self.complexity_analyzer = get_complexity_analyzer()
-        self.persona_manager = PersonaManager()
+        self.persona_manager = persona_manager or get_persona_manager()
         self.preset_loader = preset_loader
 
     def process(
