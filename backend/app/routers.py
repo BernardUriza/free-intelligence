@@ -107,7 +107,9 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # =========================================================================
     from backend.api.domains.aurity.router import aurity_router, tags_metadata
 
-    public_app.include_router(aurity_router, prefix="/api")
+    # FIXED: Don't add "/api" prefix since public_app is already mounted at "/api"
+    # The aurity_router has prefix="/aurity" internally, resulting in /api/aurity/*
+    public_app.include_router(aurity_router)
     public_app.openapi_tags = tags_metadata
 
     # =========================================================================

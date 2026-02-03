@@ -9,13 +9,18 @@ Features:
 - SUPERADMIN bypass for all-clinic access
 - HDF5-based session storage
 
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
 Migrated from: backend/services/timeline/api/public/timeline.py
 """
 
 from __future__ import annotations
 
-# Re-export router from legacy location
-# TODO: Full migration in Phase 3 when HTTP routes change
-from backend.services.timeline.api.public.timeline import router
+from fastapi import APIRouter
 
-__all__ = ["router"]
+from . import sessions
+
+# Router with /timeline prefix (added here, not in sessions.py)
+router = APIRouter(prefix="/timeline", tags=["Timeline"])
+router.include_router(sessions.router)
+
+__all__ = ["router", "sessions"]

@@ -59,7 +59,7 @@ Migrated from:
 - backend/api/routers/content/public/tv_content_seeds.py
 - backend/api/widget/api/public/widget_configs.py
 
-Status: Structure ready, waiting for file migration
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
 """
 
 from __future__ import annotations
@@ -72,11 +72,11 @@ from . import management, media, tv_content, waiting_room, widgets
 router = APIRouter()
 
 # Management: clinics, doctors, appointments, limits (18 endpoints)
-# Router already has prefix="/clinics" from legacy
+# Router has prefix="/clinics"
 router.include_router(management.router)
 
 # Media: clinic media upload/management (4 endpoints - STUB)
-# Router already has prefix="/clinic-media" from legacy
+# Router has prefix="/clinic-media"
 router.include_router(media.router)
 
 # TV Content: seeds management (4 endpoints)

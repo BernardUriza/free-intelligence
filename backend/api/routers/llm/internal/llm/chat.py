@@ -28,12 +28,12 @@ from backend.api.audit.services.audit_service import AuditService
 from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
-from backend.providers.llm import llm_generate, sanitize_error_message
+from backend.providers import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.dependencies import get_persona_manager
-from backend.services.workflow.dependencies import get_policy_loader_dep
+from backend.infrastructure.common.policy_provider import get_policy_loader_dep
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -643,7 +643,7 @@ async def internal_llm_chat_stream(
             )
 
             # Get provider instance
-            from backend.providers.llm import get_provider
+            from backend.providers import get_provider
 
             llm_provider = get_provider(provider_name, provider_config)
 

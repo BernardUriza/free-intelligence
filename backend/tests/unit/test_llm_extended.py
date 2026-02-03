@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from backend.providers.llm import (
+from backend.providers import (
     LLMProviderType,
     LLMResponse,
     pad_embedding_to_768,
@@ -266,20 +266,20 @@ class TestLLMModuleExports:
 
     def test_pad_embedding_is_importable(self):
         """pad_embedding_to_768 should be importable."""
-        from backend.providers.llm import pad_embedding_to_768
+        from backend.providers import pad_embedding_to_768
         assert callable(pad_embedding_to_768)
 
     def test_sanitize_error_is_importable(self):
         """sanitize_error_message should be importable."""
-        from backend.providers.llm import sanitize_error_message
+        from backend.providers import sanitize_error_message
         assert callable(sanitize_error_message)
 
     def test_llm_provider_type_is_importable(self):
         """LLMProviderType should be importable."""
-        from backend.providers.llm import LLMProviderType
+        from backend.providers import LLMProviderType
         assert LLMProviderType.CLAUDE.value == "claude"
 
     def test_llm_response_is_importable(self):
         """LLMResponse should be importable."""
-        from backend.providers.llm import LLMResponse
+        from backend.providers import LLMResponse
         assert LLMResponse is not None

@@ -6,7 +6,7 @@ It tries Azure KeyVault first, then falls back to environment variables.
 Phase 2.3 Jupiter: Implements ISecretsManager interface for DI.
 
 Usage (DI - Recommended):
-    from backend.services.workflow.dependencies import get_secrets_manager_dep
+    from backend.infrastructure.config.dependencies import get_secrets_manager_dep
 
     secrets_manager = get_secrets_manager_dep()
     api_key = secrets_manager.get("OPENAI_API_KEY")

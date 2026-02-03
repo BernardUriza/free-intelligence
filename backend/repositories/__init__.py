@@ -18,7 +18,7 @@ from .hdf5_session_repository import HDF5SessionRepository
 from .hdf5_soap_repository import HDF5SOAPRepository
 from .postgres_patient_repository import PostgreSQLPatientRepository
 from .session_repository import SessionRepository
-from .task_repository import HDF5TaskRepository
+from .task import HDF5TaskRepository
 
 __all__ = [
     "AuditRepository",

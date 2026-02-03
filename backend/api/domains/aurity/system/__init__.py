@@ -10,13 +10,18 @@ Features:
 - LLM status checking (tunnel + local fallback)
 - fi-monitor gateway integration
 
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
 Migrated from: backend/infrastructure/system/api/public/system.py
 """
 
 from __future__ import annotations
 
-# Re-export router from legacy location
-# TODO: Full migration in Phase 3 when HTTP routes change
-from backend.infrastructure.system.api.public.system import router
+from fastapi import APIRouter
 
-__all__ = ["router"]
+from . import system
+
+# Router with /system prefix (added here, not in system.py)
+router = APIRouter(prefix="/system", tags=["System"])
+router.include_router(system.router)
+
+__all__ = ["router", "system"]

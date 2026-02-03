@@ -22,7 +22,7 @@ from backend.models.llm_model import (
     LLMProvider,
 )
 from backend.services.llm.interfaces.illm_model_service import ILLMModelService
-from backend.services.workflow.dependencies import get_llm_model_service_dep
+from backend.services.llm.dependencies import get_llm_model_service_dep
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 

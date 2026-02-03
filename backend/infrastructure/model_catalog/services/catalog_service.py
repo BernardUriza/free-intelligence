@@ -371,7 +371,7 @@ class CatalogService:
         try:
             # Phase 2.3: Prefer injected service
             if llm_service is None:
-                from backend.services.workflow.dependencies import get_llm_model_service_dep
+                from backend.services.llm.dependencies import get_llm_model_service_dep
                 llm_service = get_llm_model_service_dep()
 
             service = llm_service

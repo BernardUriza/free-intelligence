@@ -7,7 +7,7 @@ instead of the broken infrastructure.storage.infrastructure.hdf5.task_repository
 from pathlib import Path
 from typing import Any
 
-from backend.repositories.task_repository import HDF5TaskRepository
+from backend.repositories.task import HDF5TaskRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 
 

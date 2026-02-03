@@ -10,7 +10,7 @@ import json
 import time
 from datetime import UTC, datetime
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.services.llm.dependencies import get_persona_manager
 from backend.utils.common.logging.logger import get_logger

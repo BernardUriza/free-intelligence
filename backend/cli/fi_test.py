@@ -34,7 +34,7 @@ from pathlib import Path
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

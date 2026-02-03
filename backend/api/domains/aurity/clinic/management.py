@@ -1,40 +1,71 @@
-"""Clinic Management - Re-export from legacy clinics.py.
+"""Clinic Management - CRUD operations for clinics, doctors, and appointments.
 
-CRUD operations for clinics, doctors, and appointments.
+Refactored into sub-modules:
+- clinics_crud.py: Clinic CRUD (5 endpoints)
+- doctors.py: Doctor CRUD (5 endpoints)
+- appointments.py: Appointment CRUD (4 endpoints)
+- doctor_limits.py: Doctor limits (2 endpoints)
 
-Endpoints (18 total):
-## Clinics (5)
-- GET    /clinics - List clinics
-- GET    /clinics/{id} - Get clinic
-- POST   /clinics - Create clinic
-- PATCH  /clinics/{id} - Update clinic
-- DELETE /clinics/{id} - Delete clinic
+Supporting modules:
+- models.py: Pydantic request/response schemas
+- helpers.py: Utility functions
 
-## Doctors (5)
-- GET    /clinics/{id}/doctors - List doctors
-- GET    /clinics/{id}/doctors/{id} - Get doctor
-- POST   /clinics/{id}/doctors - Create doctor
-- PATCH  /clinics/{id}/doctors/{id} - Update doctor
-- DELETE /clinics/{id}/doctors/{id} - Delete doctor
+Total: 16 endpoints
 
-## Appointments (4)
-- POST   /clinics/{id}/appointments - Create appointment
-- GET    /clinics/{id}/appointments - List appointments
-- PATCH  /clinics/{id}/appointments/{id} - Update appointment
-- DELETE /clinics/{id}/appointments/{id} - Delete appointment
-
-## Doctor Limits (2)
-- GET    /clinics/{id}/doctor-limits - Get doctor limits
-- PATCH  /clinics/{id}/doctor-override - Update doctor override
-
-Re-exported from: backend/api/routers/clinic/public/clinics.py
-Note: Full migration planned for Phase 4 (Abisopelágica) when legacy routes are deprecated.
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
+Refactored: 2026-02-03
 """
 
 from __future__ import annotations
 
-# Re-export router from legacy location
-# Router already has prefix="/clinics" so no additional prefix needed
-from backend.api.routers.clinic.public.clinics import router
+from fastapi import APIRouter
 
-__all__ = ["router"]
+from . import appointments, clinics_crud, doctor_limits, doctors
+
+# Router with /clinics prefix (added here)
+router = APIRouter(prefix="/clinics", tags=["Clinics"])
+
+# Include all sub-routers
+router.include_router(clinics_crud.router)
+router.include_router(doctors.router)
+router.include_router(appointments.router)
+router.include_router(doctor_limits.router)
+
+# Re-export models for backwards compatibility
+from .models import (
+    AppointmentCreate,
+    AppointmentListResponse,
+    AppointmentResponse,
+    AppointmentUpdate,
+    ClinicCreate,
+    ClinicListResponse,
+    ClinicResponse,
+    ClinicUpdate,
+    DoctorCreate,
+    DoctorLimitInfoResponse,
+    DoctorListResponse,
+    DoctorOverrideUpdate,
+    DoctorResponse,
+    DoctorUpdate,
+)
+
+__all__ = [
+    "router",
+    # Clinic models
+    "ClinicCreate",
+    "ClinicUpdate",
+    "ClinicResponse",
+    "ClinicListResponse",
+    # Doctor models
+    "DoctorCreate",
+    "DoctorUpdate",
+    "DoctorResponse",
+    "DoctorListResponse",
+    "DoctorLimitInfoResponse",
+    "DoctorOverrideUpdate",
+    # Appointment models
+    "AppointmentCreate",
+    "AppointmentUpdate",
+    "AppointmentResponse",
+    "AppointmentListResponse",
+]

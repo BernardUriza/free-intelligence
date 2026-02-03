@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from backend.services.workflow.dependencies import get_policy_loader_dep
-from backend.providers.llm import get_provider
+from backend.providers import get_provider
 
 
 def main():

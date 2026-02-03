@@ -428,7 +428,7 @@ async def test_persona(
     """
     import time
 
-    from backend.providers.llm import llm_generate
+    from backend.providers import llm_generate
 
     # Get effective persona config (with user overrides if user_id provided)
     try:

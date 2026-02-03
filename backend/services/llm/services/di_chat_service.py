@@ -29,7 +29,7 @@ import ulid
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.policy.policy_loader import PolicyLoader
-from backend.providers.llm import llm_generate, sanitize_error_message
+from backend.providers import llm_generate, sanitize_error_message
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger

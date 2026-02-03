@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.dependencies import get_persona_manager
 from backend.services.llm.services.persona_manager import PersonaManager

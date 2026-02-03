@@ -226,7 +226,13 @@
       "Bash(__NEW_LINE_17e7a08cc2e6541c__ git status --short)",
       "Bash(launchctl stop:*)",
       "Bash(launchctl start:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(NEW_API_STRUCTURE_ENABLED=true python3:*)",
+      "Bash(/private/tmp/claude-501/-Users-bernardurizaorozco-Documents-free-intelligence/1e858b85-a159-4459-95fb-4316db534faf/scratchpad/test_gpu_similarity.sh)",
+      "WebFetch(domain:v2.tauri.app)",
+      "Bash(source:*)",
+      "Bash(pnpm --filter aurity tsc:*)",
+      "Bash(/opt/homebrew/bin/python3.14 -c:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

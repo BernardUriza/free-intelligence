@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.schemas.domain.timeline import (
     CausalityType,
     RedactionPolicy,

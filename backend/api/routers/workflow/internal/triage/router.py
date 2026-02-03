@@ -16,10 +16,8 @@ from datetime import datetime
 from typing import Any, Literal, Union
 
 from backend.api.audit.services.audit_service import AuditService
-from backend.services.workflow.dependencies import (
-    get_audit_service_dep,
-    get_triage_service_dep,
-)
+from backend.services.audit.dependencies import get_audit_service_dep
+from backend.services.workflow.dependencies import get_triage_service_dep
 from backend.services.workflow.services.triage_service import TriageService
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Request, status

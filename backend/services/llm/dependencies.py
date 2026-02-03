@@ -7,8 +7,11 @@ Created: 2026-01-28
 Updated: 2026-01-29 (TODO cleanup - use centralized config)
 Updated: 2026-02-02 (Phase 2.3 Fase 6 - replaced get_policy_loader service locator)
 Updated: 2026-02-02 (DI Refactor - PersonaManager singleton with @lru_cache)
+Updated: 2026-02-02 (DI Refactor - Added get_llm_model_service_dep factory)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
+
+from __future__ import annotations
 
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -16,12 +19,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
 
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository,
 )
-from backend.services.workflow.dependencies import get_policy_loader_dep
+# Note: get_policy_loader_dep imported lazily in get_chat_service to avoid circular import
 from backend.services.llm.services.di_chat_service import DIChatService
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
@@ -100,6 +104,8 @@ def get_chat_service(
     Returns:
         DIChatService instance
     """
+    from backend.infrastructure.common.policy_provider import get_policy_loader_dep
+
     persona_manager = persona_manager or get_persona_manager()
     audit_service = audit_service or get_audit_service()
     policy_loader = policy_loader or get_policy_loader_dep()
@@ -111,3 +117,43 @@ def get_chat_service(
         policy_loader=policy_loader,
         logger=logger,
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LLM MODEL SERVICE FACTORY (Phase 2.3 - Extracted from workflow)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@lru_cache(maxsize=1)
+def _get_llm_model_service_singleton() -> "ILLMModelService":
+    """Internal singleton factory for LLMModelService."""
+    from backend.services.llm.services.llm_model_service import LLMModelService
+
+    return LLMModelService()
+
+
+def get_llm_model_service_dep() -> "ILLMModelService":
+    """Get LLM model service singleton for model catalog management.
+
+    Phase 2.3 Tierra: Replaces deprecated llm_model_service singleton.
+
+    Returns:
+        ILLMModelService singleton instance
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+
+    Note:
+        The LLMModelService uses internal singleton pattern (__new__),
+        but this factory provides the DI-compliant entry point.
+    """
+    return _get_llm_model_service_singleton()
+
+
+__all__ = [
+    "get_audit_service",
+    "get_persona_manager",
+    "get_llm_logger",
+    "get_chat_service",
+    "get_llm_model_service_dep",
+]

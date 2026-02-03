@@ -8,9 +8,15 @@ This stub serves multiple purposes:
 3. Provides clear error messages for frontend developers
 4. Will be replaced with full implementation when storage layer ready
 
-Author: Claude Sonnet 4.5
-Created: 2026-01-29
-Status: STUB (replace with full implementation)
+Endpoints (4 total):
+- POST   /clinic-media/upload - Upload media (STUB)
+- GET    /clinic-media/list - List media (STUB)
+- PUT    /clinic-media/{id} - Update media (STUB)
+- DELETE /clinic-media/{id} - Delete media (STUB)
+
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
+Migrated from: backend/api/routers/clinic/public/clinic_media_stub.py
+Status: STUB (replace with full implementation when storage layer ready)
 """
 
 from __future__ import annotations
@@ -21,7 +27,7 @@ from fastapi.responses import JSONResponse
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 
-router = APIRouter(prefix="/clinic-media", tags=["clinic-media"])
+router = APIRouter()
 
 
 @router.post("/upload", status_code=status.HTTP_501_NOT_IMPLEMENTED)
@@ -124,3 +130,6 @@ async def delete_clinic_media_stub(
             "endpoint": f"/api/clinic-media/{media_id}",
         }
     )
+
+
+__all__ = ["router"]

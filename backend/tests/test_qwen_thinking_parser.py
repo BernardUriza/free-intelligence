@@ -6,7 +6,7 @@ to ensure proper separation of reasoning blocks from response content.
 """
 
 import pytest
-from backend.providers.llm import parse_qwen_thinking_and_response
+from backend.providers import parse_qwen_thinking_and_response
 
 
 class TestQwenThinkingParser:

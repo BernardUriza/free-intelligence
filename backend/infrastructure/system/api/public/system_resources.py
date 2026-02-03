@@ -19,7 +19,7 @@ import httpx
 import os
 import psutil
 from backend.services.llm.interfaces.illm_model_service import ILLMModelService
-from backend.services.workflow.dependencies import get_llm_model_service_dep
+from backend.services.llm.dependencies import get_llm_model_service_dep
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pathlib import Path
 from pydantic import BaseModel

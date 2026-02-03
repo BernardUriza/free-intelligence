@@ -15,13 +15,18 @@ Features:
 - Automatic chunking and embedding
 - HDF5-based storage with vector index
 
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
 Migrated from: backend/api/routers/document/public/documents.py
 """
 
 from __future__ import annotations
 
-# Re-export router from legacy location
-# Router already has prefix="/documents" so no additional prefix needed
-from backend.api.routers.document.public.documents import router
+from fastapi import APIRouter
 
-__all__ = ["router"]
+from . import documents
+
+# Router with /documents prefix (added here, not in documents.py)
+router = APIRouter(prefix="/documents", tags=["Documents"])
+router.include_router(documents.router)
+
+__all__ = ["router", "documents"]

@@ -9,6 +9,7 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Updated: 2026-01-31 (Type-safe config validation with Pydantic)
 Updated: 2026-02-01 (Phase 2.3 - Worker dependency factories)
 Updated: 2026-02-02 (DI Refactor - Singleton factories with @lru_cache)
+Updated: 2026-02-02 (DI Refactor - Extracted non-workflow factories to domain modules)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
@@ -17,16 +18,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.config.interfaces.isecrets_manager import ISecretsManager
-    from backend.domain.prescription.interfaces.icatalog_repository import ICatalogRepository
-    from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
-    from backend.infrastructure.cache.interfaces.icache import ICache
-    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
-    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
-    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
-    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
 
 import os
 from functools import lru_cache
@@ -59,6 +52,21 @@ from backend.services.workflow.interfaces import (
 )
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+
+# Re-export domain-specific factories for backward compatibility
+# These were extracted to break circular imports (Phase 2.3 DI Refactor)
+from backend.infrastructure.common.policy_provider import get_policy_loader_dep
+from backend.schemas.llm.dependencies import get_preset_loader_dep
+from backend.services.soap.dependencies import get_decisional_middleware_dep
+from backend.infrastructure.cache.dependencies import get_cache_dep
+from backend.services.llm.dependencies import get_llm_model_service_dep
+from backend.domain.prescription.dependencies import (
+    get_catalog_service_dep,
+    get_catalog_repository_dep,
+)
+from backend.infrastructure.config.dependencies import get_secrets_manager_dep
+from backend.infrastructure.auth.dependencies import get_gatekeeper_dep
+from backend.services.audit.dependencies import get_audit_service_dep
 
 
 class WorkflowConfig(BaseModel):
@@ -327,264 +335,6 @@ def get_intelligent_orchestration_service(
         corpus_repository=corpus_repository,
         logger=logger,
     )
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# WORKER DEPENDENCY FACTORIES (Phase 2.3 - Service Locator Migration)
-# Phase 2.3 Fase 6 FIX: Added @lru_cache for singleton behavior
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-@lru_cache(maxsize=1)
-def _get_policy_loader_singleton() -> IPolicyLoader:
-    """Internal singleton factory for PolicyLoader.
-
-    Uses @lru_cache to ensure only ONE instance is created,
-    matching the thread-safe singleton behavior of the deprecated
-    get_policy_loader() service locator.
-
-    Returns:
-        IPolicyLoader singleton instance with policy loaded
-    """
-    from backend.policy.policy_loader import PolicyLoader
-
-    loader = PolicyLoader()
-    loader.load()
-    return loader
-
-
-def get_policy_loader_dep() -> IPolicyLoader:
-    """Get policy loader singleton for workers and endpoints.
-
-    Returns:
-        IPolicyLoader singleton (same instance for all calls)
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-        Single instance created on first call, reused thereafter.
-
-    Note:
-        Replaces deprecated get_policy_loader() service locator.
-        Workers and endpoints receive this as a dependency.
-    """
-    return _get_policy_loader_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_preset_loader_singleton() -> IPresetLoader:
-    """Internal singleton factory for PresetLoader."""
-    from backend.schemas.llm.preset_loader import PresetLoader
-
-    return PresetLoader()
-
-
-def get_preset_loader_dep() -> IPresetLoader:
-    """Get preset loader singleton for workers.
-
-    Returns:
-        IPresetLoader singleton (same instance for all calls)
-
-    Note:
-        Replaces deprecated get_preset_loader() service locator.
-        Workers receive this as a constructor parameter.
-    """
-    return _get_preset_loader_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_decisional_middleware_singleton() -> IDecisionalMiddleware:
-    """Internal singleton factory for DecisionalMiddleware."""
-    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
-
-    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
-
-
-def get_decisional_middleware_dep() -> IDecisionalMiddleware:
-    """Get decisional middleware singleton for SOAP worker.
-
-    Returns:
-        IDecisionalMiddleware singleton with preset_loader injected
-
-    Note:
-        Replaces deprecated get_decisional_middleware() service locator.
-        Handles intelligent SOAP generation orchestration.
-    """
-    return _get_decisional_middleware_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_cache_singleton() -> "ICache":
-    """Internal singleton factory for LLMCache with default TTL."""
-    from backend.infrastructure.cache.cache import LLMCache
-
-    return LLMCache(default_ttl=3600)
-
-
-def get_cache_dep(ttl: int = 3600) -> "ICache":  # noqa: ARG001
-    """Get LLM cache singleton for services.
-
-    Phase 2.3 Mercurio: Cache consolidation.
-
-    Args:
-        ttl: DEPRECATED - Ignored. Kept for backward compatibility.
-             Singleton uses fixed TTL of 3600s (1 hour).
-
-    Returns:
-        ICache singleton instance (LLMCache)
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        Replaces deprecated get_cache() service locator.
-        In-memory cache with TTL and Prometheus export.
-    """
-    _ = ttl  # Ignored - singleton uses fixed TTL
-    return _get_cache_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_llm_model_service_singleton() -> "ILLMModelService":
-    """Internal singleton factory for LLMModelService."""
-    from backend.services.llm.services.llm_model_service import LLMModelService
-
-    return LLMModelService()
-
-
-def get_llm_model_service_dep() -> "ILLMModelService":
-    """Get LLM model service singleton for model catalog management.
-
-    Phase 2.3 Tierra: Replaces deprecated llm_model_service singleton.
-
-    Returns:
-        ILLMModelService singleton instance
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        The LLMModelService uses internal singleton pattern (__new__),
-        but this factory provides the DI-compliant entry point.
-    """
-    return _get_llm_model_service_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_catalog_service_singleton() -> "ICatalogService":
-    """Internal singleton factory for CatalogService."""
-    from backend.domain.prescription.repositories import InMemoryCatalogRepository
-    from backend.domain.prescription.services.catalog_service import CatalogService
-
-    repository = InMemoryCatalogRepository()
-    return CatalogService(repository=repository)
-
-
-def get_catalog_service_dep() -> "ICatalogService":
-    """Get medication catalog service singleton - SOLID DI factory.
-
-    Phase 2.3 Marte: Replaces deprecated catalog_service singleton.
-
-    Returns:
-        ICatalogService singleton instance with InMemoryCatalogRepository
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        Uses Repository pattern for data access (DIP).
-        The CatalogService uses internal singleton pattern (__new__).
-    """
-    return _get_catalog_service_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_catalog_repository_singleton() -> "ICatalogRepository":
-    """Internal singleton factory for InMemoryCatalogRepository."""
-    from backend.domain.prescription.repositories import InMemoryCatalogRepository
-
-    return InMemoryCatalogRepository()
-
-
-def get_catalog_repository_dep() -> "ICatalogRepository":
-    """Get medication catalog repository singleton - SOLID DI factory.
-
-    Phase 2.3 Marte: Provides raw data access for advanced use cases.
-
-    Returns:
-        ICatalogRepository singleton instance (InMemoryCatalogRepository)
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-    """
-    return _get_catalog_repository_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_keyvault_secrets_manager_singleton() -> "ISecretsManager":
-    """Internal singleton factory for Azure KeyVault SecretsManager."""
-    from backend.config.secrets import AzureKeyVaultSecretsManager
-
-    return AzureKeyVaultSecretsManager()
-
-
-@lru_cache(maxsize=1)
-def _get_env_secrets_manager_singleton() -> "ISecretsManager":
-    """Internal singleton factory for Env-only SecretsManager."""
-    from backend.config.secrets import EnvSecretsManager
-
-    return EnvSecretsManager()
-
-
-def get_secrets_manager_dep(use_keyvault: bool = True) -> "ISecretsManager":
-    """Get secrets manager singleton for services - DI factory.
-
-    Phase 2.3 Jupiter: Centralized secrets management.
-
-    Args:
-        use_keyvault: If True, use Azure KeyVault with env fallback.
-                     If False, use environment variables only.
-
-    Returns:
-        ISecretsManager singleton instance
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-        Two separate singletons for keyvault and env-only modes.
-
-    Note:
-        Replaces deprecated get_secret() module-level function.
-        Services receive this as a constructor parameter.
-    """
-    if use_keyvault:
-        return _get_keyvault_secrets_manager_singleton()
-    return _get_env_secrets_manager_singleton()
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# GATEKEEPER FACTORY (Phase 2.3 Fase 6)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-@lru_cache(maxsize=1)
-def _get_gatekeeper_singleton():
-    """Internal singleton factory for Gatekeeper."""
-    from backend.infrastructure.auth.services.gatekeeper import Gatekeeper
-
-    return Gatekeeper(policy_loader=get_policy_loader_dep())
-
-
-def get_gatekeeper_dep():
-    """Get Gatekeeper singleton with injected dependencies.
-
-    Phase 2.3 Fase 6: Replaces Gatekeeper() with no-args constructor.
-
-    Returns:
-        Gatekeeper singleton instance with policy_loader injected
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-    """
-    return _get_gatekeeper_singleton()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

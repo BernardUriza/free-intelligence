@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
     from backend.repositories.corpus_repository import CorpusRepository
-    from backend.repositories.task_repository import HDF5TaskRepository
+    from backend.repositories.task import HDF5TaskRepository
     from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
@@ -89,7 +89,7 @@ def get_task_repository_singleton() -> "ITaskRepository":
         - services/workflow/dependencies.py
     """
     # Lazy import to avoid circular dependency
-    from backend.repositories.task_repository import HDF5TaskRepository
+    from backend.repositories.task import HDF5TaskRepository
 
     return HDF5TaskRepository(CORPUS_PATH)
 

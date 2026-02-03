@@ -159,7 +159,7 @@ def analyze_emotion_worker(
 
         # Call LLM for emotion analysis using preset
         try:
-            from backend.providers.llm import llm_generate
+            from backend.providers import llm_generate
 
             # Build prompt: system prompt + patient text + few-shot examples
             prompt_parts = [preset.system_prompt]
