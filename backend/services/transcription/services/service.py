@@ -419,7 +419,18 @@ class TranscriptionService:
         file_extension: str,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Save audio file to storage.
+        """[DEPRECATED] Save audio file to storage.
+
+        DEPRECATED: This method is no longer used in production.
+        Modern audio flow uses WebSocket streaming with chunk-based storage:
+        - backend/infrastructure/common/services/medical_chunk_handler.py
+        - backend/repositories/hdf5_audio_chunk_repository.py
+
+        The new flow processes audio in real-time chunks via:
+        POST /api/aurity/transcription/stream (streaming WebSocket)
+
+        This method exists only for backward compatibility with tests.
+        DO NOT call this in production code.
 
         Args:
             session_id: Session identifier.
@@ -427,18 +438,13 @@ class TranscriptionService:
             file_extension: File extension (without dot, e.g., "webm").
             metadata: Optional additional metadata dict.
 
-        Returns:
-            Metadata dict with file paths and hashes.
-
         Raises:
-            IOError: If file storage fails.
+            NotImplementedError: Always - use WebSocket streaming instead.
         """
-        # FIXME: save_audio_file external function doesn't exist
-        # This method needs refactoring - either implement storage logic here
-        # or import from correct module (if it exists elsewhere)
         raise NotImplementedError(
-            "save_audio_file storage implementation missing - "
-            "external function not found during DI migration"
+            "DEPRECATED: save_audio_file is obsolete. "
+            "Use WebSocket streaming at /api/aurity/transcription/stream instead. "
+            "Audio is now processed in real-time chunks via medical_chunk_handler."
         )
 
     def transcribe(
@@ -492,15 +498,20 @@ class TranscriptionService:
         content_type: str,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Process audio file and generate transcription (main orchestration).
+        """[DEPRECATED] Process audio file and generate transcription.
 
-        High-level orchestration method that handles:
-            1. Session validation
-            2. File validation
-            3. File storage
-            4. Format conversion (to WAV if needed)
-            5. Transcription
-            6. Result assembly
+        DEPRECATED: This method is no longer used in production.
+        Modern transcription uses real-time WebSocket streaming:
+
+        New Architecture:
+        1. Client connects to /api/aurity/transcription/stream (WebSocket)
+        2. Audio chunks sent in real-time via medical_chunk_handler
+        3. Whisper processes chunks incrementally
+        4. Results stored in HDF5 via hdf5_audio_chunk_repository
+
+        This monolithic approach was replaced by the streaming architecture
+        for better UX (real-time feedback) and memory efficiency (no full
+        audio file in memory).
 
         Args:
             session_id: Session identifier (UUID4 format).
@@ -509,63 +520,17 @@ class TranscriptionService:
             content_type: MIME type (e.g., "audio/webm").
             metadata: Optional additional metadata dict.
 
-        Returns:
-            Result dict with transcription, segments, language, duration, audio metadata.
-
         Raises:
-            ValueError: If validation or processing fails.
-            IOError: If storage fails.
+            NotImplementedError: Always - use WebSocket streaming instead.
         """
-        # Validate session ID
-        if not self.validate_session_id(session_id):
-            raise ValueError(f"Invalid session_id format: {session_id}")
+        # Suppress unused argument warnings - method is deprecated
+        _ = (session_id, audio_content, filename, content_type, metadata)
 
-        # Validate audio file
-        self.validate_audio_file(
-            filename=filename,
-            content_type=content_type,
-            file_size=len(audio_content),
-        )
-
-        # Save audio file
-        file_extension = Path(filename or "").suffix.lower().lstrip(".")
-        audio_metadata = self.save_audio_file(
-            session_id=session_id,
-            audio_content=audio_content,
-            file_extension=file_extension,
-            metadata=metadata or {},
-        )
-
-        # FIXME: AUDIO_STORAGE_DIR not defined - broken import during DI migration
-        # This entire process_transcription method needs review
-        # audio_path = AUDIO_STORAGE_DIR.parent / audio_metadata["file_path"]
         raise NotImplementedError(
-            "AUDIO_STORAGE_DIR undefined - audio file path construction broken"
+            "DEPRECATED: process_transcription is obsolete. "
+            "Use WebSocket streaming at /api/aurity/transcription/stream instead. "
+            "See backend/api/domains/aurity/transcription/streaming.py for the modern flow."
         )
-
-        # Convert to WAV if needed (Whisper works best with WAV)
-        transcription_path = audio_path
-        if file_extension != "wav" and self._is_whisper_available():
-            wav_path = audio_path.with_suffix(".wav")
-            if self._convert_audio_to_wav(audio_path, wav_path):
-                transcription_path = wav_path
-
-        # Transcribe (auto-detect language)
-        transcription_result = self._transcribe_with_whisper(
-            audio_path=transcription_path,
-            language=None,  # Auto-detect language (no forcing)
-            vad_filter=True,
-        )
-
-        # Assemble response
-        return {
-            "text": transcription_result["text"],
-            "segments": transcription_result["segments"],
-            "language": transcription_result["language"],
-            "duration": transcription_result["duration"],
-            "available": transcription_result["available"],
-            "audio_file": audio_metadata,
-        }
 
     def health_check(self) -> dict[str, Any]:
         """Check transcription service health.
