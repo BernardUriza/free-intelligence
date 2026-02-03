@@ -13,8 +13,7 @@ from __future__ import annotations
 # PEP 585: use built-in list instead of typing.List
 
 from backend.domain.patient import Gender, IPatientRepository, Patient
-# TODO: PatientMapper doesn't exist yet - create it when needed
-# from backend.domain.patient.mapper import PatientMapper
+from backend.mappers.patient_mapper import PatientMapper
 from backend.models.db_models import Patient as DBPatient
 from sqlalchemy.orm import Session
 

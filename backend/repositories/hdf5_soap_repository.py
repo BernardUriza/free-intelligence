@@ -13,7 +13,7 @@ from pathlib import Path
 import h5py
 
 from backend.domain.soap import SOAPNote, ISOAPRepository
-# TODO: SOAPMapper, SOAPHDF5Metadata, SOAPHDF5Content don't exist yet - create them when needed
+from backend.mappers.soap_mapper import SOAPMapper, SOAPHDF5Metadata, SOAPHDF5Content
 
 
 class HDF5SOAPRepository(ISOAPRepository):
