@@ -1,31 +1,16 @@
 """Policy API Dependencies - FastAPI DI providers.
 
 Provides IPolicyLoader dependency for the policy router.
-Separated to avoid circular imports with workflow dependencies.
 
 Created: 2026-02-01 (Phase 2.3 Urano - DI migration)
+Updated: 2026-02-02 (Phase 2.3 Fase 6 - re-export canonical factory)
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+# Phase 2.3 Fase 6: Re-export canonical factory from workflow.dependencies
+# This avoids duplicate code and ensures singleton caching works globally.
+# The workflow.dependencies version uses @lru_cache for proper singleton behavior.
+from backend.services.workflow.dependencies import get_policy_loader_dep
 
-if TYPE_CHECKING:
-    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
-
-
-def get_policy_loader_dep() -> "IPolicyLoader":
-    """Get policy loader for API endpoints - direct instantiation.
-
-    Returns:
-        IPolicyLoader instance with policy already loaded
-
-    Note:
-        This is a local copy of the factory to avoid circular imports.
-        The policy router imports this directly instead of from workflow.dependencies.
-    """
-    from backend.policy.policy_loader import PolicyLoader
-
-    loader = PolicyLoader()
-    loader.load()
-    return loader
+__all__ = ["get_policy_loader_dep"]

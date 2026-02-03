@@ -5,6 +5,7 @@ Provides dependency injection for routers using FastAPI Depends().
 Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (TODO cleanup - use centralized config)
+Updated: 2026-02-02 (Phase 2.3 Fase 6 - replaced get_policy_loader service locator)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
@@ -12,12 +13,13 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
 
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository_singleton,
 )
-from backend.policy.policy_loader import PolicyLoader, get_policy_loader
+from backend.services.workflow.dependencies import get_policy_loader_dep
 from backend.services.llm.services.di_chat_service import DIChatService
 from backend.services.llm.services.persona_manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
@@ -76,7 +78,7 @@ def get_llm_logger() -> ILogger:
 def get_chat_service(
     persona_manager: PersonaManager | None = None,
     audit_service: AuditService | None = None,
-    policy_loader: PolicyLoader | None = None,
+    policy_loader: "IPolicyLoader | None" = None,
     logger: ILogger | None = None,
 ) -> DIChatService:
     """Get chat service with injected dependencies.
@@ -94,7 +96,7 @@ def get_chat_service(
     """
     persona_manager = persona_manager or get_persona_manager()
     audit_service = audit_service or get_audit_service()
-    policy_loader = policy_loader or get_policy_loader()
+    policy_loader = policy_loader or get_policy_loader_dep()
     logger = logger or get_llm_logger()
 
     return DIChatService(

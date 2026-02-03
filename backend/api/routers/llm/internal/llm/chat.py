@@ -12,6 +12,8 @@ Propósito:
 
 Note: Do NOT use `from __future__ import annotations` here.
 FastAPI needs runtime access to type annotations for Request and Pydantic models.
+
+Updated: 2026-02-02 (Phase 2.3 Fase 6 - DI migration, removed _get_policy_loader service locator)
 """
 
 import hashlib
@@ -19,22 +21,21 @@ import json
 import time
 import uuid as _uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.policy.policy_loader import PolicyLoader
+from typing import Annotated
 
 import ulid
 from backend.api.audit.services.audit_service import AuditService
 from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
+from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
 from backend.providers.llm import llm_generate, sanitize_error_message
 from backend.repositories.audit_repository import AuditRepository
 from backend.schemas.llm.audit_policy import require_audit_log
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.workflow.dependencies import get_policy_loader_dep
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from .schemas import ChatRequest, ChatResponse
 
@@ -44,18 +45,8 @@ persona_mgr = PersonaManager()
 # NOTE: trace_store not implemented yet - TraceStore is planned for Phase 3
 trace_store = None
 
-
-def _get_policy_loader() -> PolicyLoader:
-    """Lazy policy loader factory (Phase 2.3 Urano - DI migration).
-
-    Returns:
-        PolicyLoader instance with loaded policies.
-    """
-    from backend.policy.policy_loader import PolicyLoader
-
-    loader = PolicyLoader()
-    loader.load()
-    return loader
+# Phase 2.3 Fase 6: DI for PolicyLoader via FastAPI Depends
+PolicyLoaderDep = Annotated[IPolicyLoader, Depends(get_policy_loader_dep)]
 
 # Initialize audit service for persona metrics tracking
 import contextlib
@@ -68,7 +59,11 @@ audit_service = AuditService(audit_repo)
 
 @router.post("/chat", response_model=ChatResponse)
 @require_audit_log
-async def internal_llm_chat(http_request: Request, request: ChatRequest) -> ChatResponse:
+async def internal_llm_chat(
+    http_request: Request,
+    request: ChatRequest,
+    policy_loader: PolicyLoaderDep,
+) -> ChatResponse:
     """INTERNAL: Conversación con Free-Intelligence (ultra observable).
 
     Este endpoint provee logging ultra detallado de TODA interacción:
@@ -80,7 +75,9 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
     - Contexto de la llamada
 
     Args:
+        http_request: FastAPI request
         request: Mensaje + persona + contexto
+        policy_loader: PolicyLoader singleton (FastAPI Depends injection)
 
     Returns:
         Response con metadata completa de observabilidad
@@ -121,7 +118,7 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
 
     try:
         # Auto-enable memory for Azure GPT-4 (infinite conversation policy)
-        primary_provider = _get_policy_loader().get_primary_provider()
+        primary_provider = policy_loader.get_primary_provider()
         auto_memory_enabled = False
         effective_doctor_id = request.doctor_id
 
@@ -265,7 +262,7 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
         logger.info(
             "INTERNAL_LLM_MODEL_SELECTION",
             requested_model=model_override,
-            provider=request.provider or _get_policy_loader().get_primary_provider(),
+            provider=request.provider or policy_loader.get_primary_provider(),
             enable_thinking=enable_thinking,
         )
 
@@ -282,7 +279,7 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
             logger.info(
                 "INTERNAL_LLM_MODEL_EFFECTIVE",
                 effective_model=getattr(llm_response, "model", "unknown"),
-                provider=request.provider or _get_policy_loader().get_primary_provider(),
+                provider=request.provider or policy_loader.get_primary_provider(),
             )
 
         # Record LLM_CALL in trace timeline
@@ -290,7 +287,7 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
             llm_event = {
                 "event": "LLM_CALL",
                 "ts": int(time.time()),
-                "provider": _get_policy_loader().get_primary_provider(),
+                "provider": policy_loader.get_primary_provider(),
                 "model": getattr(llm_response, "model", "unknown"),
                 "tokens_used": getattr(llm_response, "usage", {}).total_tokens
                 if hasattr(getattr(llm_response, "usage", None), "total_tokens")
@@ -468,7 +465,7 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
         # Log error to SQLite observability database
         log_llm_error(
             model="unknown",
-            provider=_get_policy_loader().get_primary_provider(),
+            provider=policy_loader.get_primary_provider(),
             latency_ms=latency_ms,
             error_message=str(e),
             error_type=type(e).__name__,
@@ -485,7 +482,10 @@ async def internal_llm_chat(http_request: Request, request: ChatRequest) -> Chat
 
 
 @router.post("/chat/stream")
-async def internal_llm_chat_stream(request: ChatRequest):
+async def internal_llm_chat_stream(
+    request: ChatRequest,
+    policy_loader: PolicyLoaderDep,
+):
     """INTERNAL: Streaming chat endpoint for real-time response delivery.
 
     Ultra-observable streaming with:
@@ -494,6 +494,10 @@ async def internal_llm_chat_stream(request: ChatRequest):
     - Provider selection and config logging
     - Fallback detection and logging
     - Complete error context
+
+    Args:
+        request: Chat request with message and persona
+        policy_loader: PolicyLoader singleton (FastAPI Depends injection)
 
     Returns Server-Sent Events (SSE) with streaming chunks from LLM.
     """
@@ -615,8 +619,8 @@ async def internal_llm_chat_stream(request: ChatRequest):
                     prompt_length=len(prompt),
                 )
 
-            # Get provider (Phase 2.3 Urano - uses lazy loader)
-            provider_name = request.provider or _get_policy_loader().get_primary_provider()
+            # Get provider (Phase 2.3 Fase 6 - uses DI factory captured in closure)
+            provider_name = request.provider or policy_loader.get_primary_provider()
 
             logger.info(
                 "[STREAM] PROVIDER_SELECTED",
@@ -626,7 +630,7 @@ async def internal_llm_chat_stream(request: ChatRequest):
             )
 
             # Get provider config
-            provider_config = _get_policy_loader().get_provider_config(provider_name)
+            provider_config = policy_loader.get_provider_config(provider_name)
             if provider_config is None:
                 provider_config = {}
 
@@ -842,11 +846,18 @@ async def internal_llm_chat_stream(request: ChatRequest):
 
 
 @router.post("/chat/debug")
-async def internal_llm_chat_debug(request: ChatRequest) -> dict:
+async def internal_llm_chat_debug(
+    request: ChatRequest,
+    policy_loader: PolicyLoaderDep,
+) -> dict:
     """INTERNAL: Debug del flujo de chat. Devuelve response vs thinking.
 
     Construye el mismo prompt y llama `llm_generate` como el endpoint principal,
     pero responde con campos mínimos para inspección: `response` y `metadata.thinking`.
+
+    Args:
+        request: Chat request
+        policy_loader: PolicyLoader singleton (FastAPI Depends injection)
     """
     try:
         # Persona config
@@ -901,7 +912,7 @@ async def internal_llm_chat_debug(request: ChatRequest) -> dict:
 
         return {
             "model": getattr(llm_response, "model", "unknown"),
-            "provider": request.provider or _get_policy_loader().get_primary_provider(),
+            "provider": request.provider or policy_loader.get_primary_provider(),
             "latency_ms": latency_ms,
             "response": llm_response.content.strip(),
             "thinking": thinking,

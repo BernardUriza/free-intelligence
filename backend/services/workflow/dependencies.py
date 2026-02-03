@@ -304,18 +304,22 @@ def get_intelligent_orchestration_service(
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # WORKER DEPENDENCY FACTORIES (Phase 2.3 - Service Locator Migration)
+# Phase 2.3 Fase 6 FIX: Added @lru_cache for singleton behavior
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+from functools import lru_cache
 
-def get_policy_loader_dep() -> IPolicyLoader:
-    """Get policy loader for workers - direct instantiation.
+
+@lru_cache(maxsize=1)
+def _get_policy_loader_singleton() -> IPolicyLoader:
+    """Internal singleton factory for PolicyLoader.
+
+    Uses @lru_cache to ensure only ONE instance is created,
+    matching the thread-safe singleton behavior of the deprecated
+    get_policy_loader() service locator.
 
     Returns:
-        IPolicyLoader instance with policy already loaded
-
-    Note:
-        Replaces deprecated get_policy_loader() service locator.
-        Workers receive this as a constructor parameter.
+        IPolicyLoader singleton instance with policy loaded
     """
     from backend.policy.policy_loader import PolicyLoader
 
@@ -324,36 +328,63 @@ def get_policy_loader_dep() -> IPolicyLoader:
     return loader
 
 
-def get_preset_loader_dep() -> IPresetLoader:
-    """Get preset loader for workers - direct instantiation.
+def get_policy_loader_dep() -> IPolicyLoader:
+    """Get policy loader singleton for workers and endpoints.
 
     Returns:
-        IPresetLoader instance
+        IPolicyLoader singleton (same instance for all calls)
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+        Single instance created on first call, reused thereafter.
 
     Note:
-        Replaces deprecated get_preset_loader() service locator.
-        Workers receive this as a constructor parameter.
+        Replaces deprecated get_policy_loader() service locator.
+        Workers and endpoints receive this as a dependency.
     """
+    return _get_policy_loader_singleton()
+
+
+@lru_cache(maxsize=1)
+def _get_preset_loader_singleton() -> IPresetLoader:
+    """Internal singleton factory for PresetLoader."""
     from backend.schemas.llm.preset_loader import PresetLoader
 
     return PresetLoader()
 
 
-def get_decisional_middleware_dep() -> IDecisionalMiddleware:
-    """Get decisional middleware for SOAP worker - direct instantiation.
-
-    Phase 2.3 Venus: Now injects IPresetLoader dependency.
+def get_preset_loader_dep() -> IPresetLoader:
+    """Get preset loader singleton for workers.
 
     Returns:
-        IDecisionalMiddleware instance with preset_loader injected
+        IPresetLoader singleton (same instance for all calls)
+
+    Note:
+        Replaces deprecated get_preset_loader() service locator.
+        Workers receive this as a constructor parameter.
+    """
+    return _get_preset_loader_singleton()
+
+
+@lru_cache(maxsize=1)
+def _get_decisional_middleware_singleton() -> IDecisionalMiddleware:
+    """Internal singleton factory for DecisionalMiddleware."""
+    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
+
+    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
+
+
+def get_decisional_middleware_dep() -> IDecisionalMiddleware:
+    """Get decisional middleware singleton for SOAP worker.
+
+    Returns:
+        IDecisionalMiddleware singleton with preset_loader injected
 
     Note:
         Replaces deprecated get_decisional_middleware() service locator.
         Handles intelligent SOAP generation orchestration.
     """
-    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
-
-    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
+    return _get_decisional_middleware_singleton()
 
 
 def get_cache_dep(ttl: int = 3600) -> ICache:
@@ -449,6 +480,24 @@ def get_secrets_manager_dep(use_keyvault: bool = True) -> "ISecretsManager":
     if use_keyvault:
         return AzureKeyVaultSecretsManager()
     return EnvSecretsManager()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# GATEKEEPER FACTORY (Phase 2.3 Fase 6)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def get_gatekeeper_dep():
+    """Get Gatekeeper with injected dependencies.
+
+    Phase 2.3 Fase 6: Replaces Gatekeeper() with no-args constructor.
+
+    Returns:
+        Gatekeeper instance with policy_loader injected
+    """
+    from backend.infrastructure.auth.services.gatekeeper import Gatekeeper
+
+    return Gatekeeper(policy_loader=get_policy_loader_dep())
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
