@@ -229,7 +229,7 @@ export function useChatActions({
         session_id: storageKey || 'unknown',
         behavior_metrics: behaviorMetrics,
         enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-        response_mode: context?.response_mode as string | undefined, // concise vs explanatory
+        response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
       });
 
       if (response.emotional_analysis) {
@@ -352,7 +352,7 @@ export function useChatActions({
           session_id: storageKey || 'unknown',
           behavior_metrics: behaviorMetrics,
           enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-          response_mode: context?.response_mode as string | undefined, // concise vs explanatory
+          response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
         },
         {
           onThinking: (thinking) => {

@@ -50,3 +50,11 @@ export type {
   PatientFormErrors,
   PatientFormField,
 } from '@/components/patients/usePatientFormValidation';
+
+/** Form for creating a new patient inline */
+export interface NewPatientForm {
+  nombre: string;
+  apellido: string;
+  email: string;
+  phone: string;
+}

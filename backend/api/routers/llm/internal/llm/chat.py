@@ -256,7 +256,8 @@ async def internal_llm_chat(
                 # Respect enable_thinking toggle from context
                 if "enable_thinking" in request.context:
                     enable_thinking = bool(request.context.get("enable_thinking", True))
-        except Exception:
+        except Exception as e:
+            logger.debug("MODEL_OVERRIDE_PARSE_FAILED", error=str(e))
             model_override = None
 
         logger.info(
@@ -282,7 +283,7 @@ async def internal_llm_chat(
                 provider=request.provider or policy_loader.get_primary_provider(),
             )
 
-        # Record LLM_CALL in trace timeline
+        # Record LLM_CALL in trace timeline (non-blocking)
         try:
             llm_event = {
                 "event": "LLM_CALL",
@@ -299,8 +300,8 @@ async def internal_llm_chat(
             te_events.append(llm_event)
             te["events"] = te_events
             trace_store.put(incoming_request_id, te)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("TRACE_LLM_CALL_FAILED", error=str(e))
 
         response_text = llm_response.content.strip()
         response_hash = hashlib.sha256(response_text.encode()).hexdigest()

@@ -41,6 +41,10 @@ interface PatientSearchFieldProps {
   onCreatePatient: () => void;
   onCloseCreateForm: () => void;
   creating: boolean;
+
+  // Validation
+  getFieldError: (fieldName: string) => string | undefined;
+  onFieldBlur: (fieldName: string) => void;
 }
 
 export function PatientSearchField({
@@ -62,6 +66,8 @@ export function PatientSearchField({
   onCreatePatient,
   onCloseCreateForm,
   creating,
+  getFieldError,
+  onFieldBlur,
 }: PatientSearchFieldProps) {
   return (
     <div className="relative">

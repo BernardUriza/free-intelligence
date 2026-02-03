@@ -177,7 +177,7 @@ def get_ollama_host() -> str:
                 logger.debug("OLLAMA_HOST_FROM_CONFIG: source=local url=%s", local_url)
                 return local_url
 
-    # Desktop always uses localhost
+    # Desktop always uses localhost (dev environment)
     if is_desktop():
         return "http://localhost:11434"
 
@@ -185,12 +185,19 @@ def get_ollama_host() -> str:
     tunnel_file = Path("/tmp/ollama-tunnel-url.txt")
     if tunnel_file.exists():
         try:
-            return tunnel_file.read_text().strip()
+            url = tunnel_file.read_text().strip()
+            if url and _is_valid_ollama_url(url):
+                return url
         except OSError:
             pass
 
-    # Fallback for cloud without tunnel
-    return "http://localhost:11434"
+    # Cloud MUST have Ollama URL configured - fail fast, no silent fallback
+    # This prevents cloud deployments from accidentally hitting localhost
+    raise RuntimeError(
+        "OLLAMA_URL_NOT_CONFIGURED: Cloud deployment requires Ollama URL. "
+        "Set OLLAMA_HOST env var, create /tmp/ollama-tunnel-url.txt, "
+        "or configure via ~/.aurity/ollama-source.json"
+    )
 
 
 def get_ollama_hosts() -> list[OllamaHost]:

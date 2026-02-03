@@ -68,7 +68,10 @@ export function PendingActionsStep({
                   action.status === 'completed' ? 'fi-action-icon-box-complete' : 'fi-action-icon-box'
                 }
               >
-                <span className="text-xl">{getActionIcon(action.action_type)}</span>
+                {(() => {
+                  const Icon = getActionIcon(action.action_type);
+                  return <Icon className="w-5 h-5" />;
+                })()}
               </div>
 
               {/* Content */}

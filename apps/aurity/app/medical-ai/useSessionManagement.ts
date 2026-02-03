@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { SessionSummary, SessionTaskStatus } from '@aurity-standalone/types/patient';
+import { SessionSummary, SessionTaskStatus, TaskStatus } from '@aurity-standalone/types/patient';
 import { getSessionSummaries } from '@aurity-standalone/api-client/timeline';
 import { toastError } from '@/lib/swal';
 import { api } from '@/lib/api/client';
@@ -56,8 +56,8 @@ export function useSessionManagement() {
           });
 
           statusesMap[sessionId] = {
-            soapStatus: data.soap?.status || 'not_started',
-            diarizationStatus: data.diarization?.status || 'not_started',
+            soapStatus: (data.soap?.status as TaskStatus) || 'not_started',
+            diarizationStatus: (data.diarization?.status as TaskStatus) || 'not_started',
           };
         } catch {
           // Silently fail - status will remain not_started

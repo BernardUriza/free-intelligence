@@ -15,6 +15,7 @@ import base64
 import contextlib
 import io
 import json
+import os
 import secrets
 from datetime import UTC, datetime
 # PEP 585: use built-in list
@@ -223,8 +224,8 @@ def generate_qr(request: GenerateQRRequest, db: Session = Depends(get_db_depende
 
     nonce = secrets.token_urlsafe(8)
 
-    # URL for check-in page
-    base_url = "https://app.aurity.io"
+    # URL for check-in page (env var for dev/staging/prod flexibility)
+    base_url = os.getenv("AURITY_BASE_URL", "https://app.aurity.io")
     qr_url = (
         f"{base_url}/checkin?clinic={request.clinic_id}&t={int(expires_at.timestamp())}&n={nonce}"
     )
