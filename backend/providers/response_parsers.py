@@ -65,11 +65,11 @@ class QwenThinkingParser(LLMResponseParser):
         if not raw_text:
             return None, ""
 
-        thinking_text, content = self._parse_thinking_blocks(raw_text)
+        thinking_text, content = self.parse_thinking_blocks(raw_text)
         return thinking_text, content
 
     @staticmethod
-    def _parse_thinking_blocks(text: str, strict: bool = True) -> tuple[str | None, str]:
+    def parse_thinking_blocks(text: str, strict: bool = True) -> tuple[str | None, str]:
         """Parse <think>...</think> blocks using state machine.
 
         Handles nested tags safely without regex limitations.
@@ -191,7 +191,8 @@ class GenericParser(LLMResponseParser):
 
         Note:
             Defensive sanitization: Qwen3 models may leak <think> tags even with
-            think=False. This parser strips them to ensure clean output.
+            think=False. Uses the same state machine as QwenThinkingParser but in
+            non-strict mode to silently discard leaked tags without raising errors.
         """
         content = ""
 
@@ -202,8 +203,11 @@ class GenericParser(LLMResponseParser):
         elif "response" in response:
             content = str(response.get("response", "")).strip()
 
-        # Defensive sanitization: strip any leaked <think> tags from Qwen3
-        if content and "<think>" in content.lower():
-            content = _THINKING_TAG_PATTERN.sub("", content).strip()
+        # Defensive sanitization: use state machine (not regex) for robustness
+        # Handles: nested tags, case variations, spaces in tags, malformed tags
+        if content and ("think>" in content.lower() or "<think" in content.lower()):
+            # Use QwenThinkingParser's state machine in non-strict mode
+            # This discards thinking content without raising errors
+            _, content = QwenThinkingParser.parse_thinking_blocks(content, strict=False)
 
         return None, content

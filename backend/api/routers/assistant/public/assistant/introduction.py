@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 from backend.clients.dependencies import get_llm_client_dep
@@ -13,9 +12,6 @@ if TYPE_CHECKING:
     from backend.clients.internal_llm_client import InternalLLMClient
 
 logger = get_logger(__name__)
-
-# Regex to strip Qwen3 thinking tags that may leak into response
-_THINKING_TAG_PATTERN = re.compile(r"<think>.*?</think>|<think>", re.DOTALL | re.IGNORECASE)
 
 router = APIRouter()
 
@@ -66,15 +62,11 @@ async def get_introduction(
             response_length=len(result.get("response", "")),
         )
 
-        # Defense-in-depth: strip any leaked <think> tags from Qwen3
-        # Note: GenericParser already sanitizes, but this catches edge cases from cache/legacy
-        response_text = result["response"]
-        if "<think>" in response_text.lower():
-            response_text = _THINKING_TAG_PATTERN.sub("", response_text).strip()
-            logger.debug("INTRODUCTION_SANITIZED_THINKING_TAGS", original_len=len(result["response"]), sanitized_len=len(response_text))
+        # Note: GenericParser already sanitizes <think> tags at the provider level
+        # No need for duplicate sanitization here (DRY principle)
 
         return IntroductionResponse(
-            message=response_text,
+            message=result["response"],
             persona=result["persona"],
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
