@@ -1,19 +1,18 @@
-"""Longitudinal Memory API - Memoria Longitudinal (THIN ROUTER).
+"""Longitudinal Memory API - Unified Timeline (THIN ROUTER).
 
-REFACTORED: All business logic delegated to DIMemoryService.
-
-Single endpoint that combines:
-- Chat messages (from conversation memory)
-- Audio transcriptions (from sessions HDF5)
-
+Combines chat messages and audio transcriptions into a single timeline.
 All sorted chronologically with pagination and time range filters.
 
 Philosophy: "No existen sesiones. Solo una conversación infinita."
 
+Endpoints (3 total):
+- GET /memory - Get longitudinal memory (paginated)
+- GET /memory/search - Search memory by text query
+- GET /memory/stats - Get memory statistics
+
 Author: Claude Code
 Created: 2025-11-22
-Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
-Card: Backend Refactor Phase 2.3 - Service Refactoring
+Migrated: 2026-02-03 (Domain Migration)
 """
 
 from __future__ import annotations
@@ -21,19 +20,20 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from backend.services.memory.dependencies import get_memory_service
-from backend.services.memory.services.di_memory_service import DIMemoryService
-from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 
+from backend.services.memory.dependencies import get_memory_service
+from backend.services.memory.services.di_memory_service import DIMemoryService
+from backend.utils.common.logging.logger import get_logger
+
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/timeline/memory")
+router = APIRouter(prefix="/memory")
 
 
 # ============================================================================
-# Configuration (no hardcoding)
+# Configuration
 # ============================================================================
 
 
@@ -47,7 +47,7 @@ class TimelineConfig:
 
 
 # ============================================================================
-# Types
+# Models
 # ============================================================================
 
 
@@ -70,7 +70,7 @@ class MemoryEvent(BaseModel):
     content: str = Field(..., description="Event content/text")
     source: Literal["chat", "audio"] = Field(..., description="Data source")
 
-    # Optional metadata (all default to None)
+    # Optional metadata
     session_id: str | None = Field(default=None, description="Session ID if applicable")
     persona: str | None = Field(default=None, description="AI persona (for assistant messages)")
     chunk_number: int | None = Field(default=None, description="Audio chunk number")
@@ -107,14 +107,6 @@ class MemoryStatsResponse(BaseModel):
 
 
 # ============================================================================
-# Note: Helper functions removed - now in DIMemoryService
-# - _parse_timestamp() → service method
-# - _get_chat_events() → service method
-# - _get_audio_events() → service method
-# ============================================================================
-
-
-# ============================================================================
 # Endpoints
 # ============================================================================
 
@@ -144,10 +136,9 @@ async def get_longitudinal_memory(
     ),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
-    """Get longitudinal memory combining chat messages and audio transcriptions (THIN ROUTER).
+    """Get longitudinal memory combining chat messages and audio transcriptions.
 
-    All events are sorted chronologically (newest first) and can be filtered
-    by type and time range.
+    All events sorted chronologically (newest first) with filters.
 
     Philosophy: "No existen sesiones. Solo una conversación infinita."
 
@@ -158,12 +149,11 @@ async def get_longitudinal_memory(
         event_type: Filter by "all", "chat", or "audio"
         start_time: Optional start of time range
         end_time: Optional end of time range
-        service: Memory service (injected by FastAPI Depends)
+        service: Memory service (injected)
 
     Returns:
         LongitudinalMemoryResponse with merged, sorted events
     """
-    # Delegate to service (all business logic)
     result = await service.get_longitudinal_memory(
         doctor_id=doctor_id,
         offset=offset,
@@ -173,7 +163,6 @@ async def get_longitudinal_memory(
         end_time=end_time,
     )
 
-    # Map service result to API response
     return LongitudinalMemoryResponse(**result)
 
 
@@ -189,25 +178,21 @@ async def search_memory(
     offset: int = Query(0, ge=0),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
-    """Search longitudinal memory by text query (THIN ROUTER).
+    """Search longitudinal memory by text query.
 
     Uses case-insensitive substring matching across content.
     Searches both chat messages and audio transcriptions.
-
-    Returns results sorted by timestamp (newest first).
-    Future enhancement: Semantic search with embeddings.
 
     Args:
         doctor_id: Doctor identifier (Auth0 user.sub)
         query: Search text (1-500 characters)
         limit: Maximum events to return (max 200)
         offset: Number of events to skip for pagination
-        service: Memory service (injected by FastAPI Depends)
+        service: Memory service (injected)
 
     Returns:
         LongitudinalMemoryResponse with search results
     """
-    # Delegate to service (all business logic)
     result = await service.search_memory(
         doctor_id=doctor_id,
         query=query,
@@ -215,7 +200,6 @@ async def search_memory(
         offset=offset,
     )
 
-    # Map service result to API response
     return LongitudinalMemoryResponse(**result)
 
 
@@ -228,20 +212,18 @@ async def get_memory_stats(
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> MemoryStatsResponse:
-    """Get statistics for the longitudinal memory (THIN ROUTER).
+    """Get statistics for the longitudinal memory.
 
     Provides counts and metadata without fetching full events.
     Useful for UI indicators and pagination info.
 
     Args:
         doctor_id: Doctor identifier (Auth0 user.sub)
-        service: Memory service (injected by FastAPI Depends)
+        service: Memory service (injected)
 
     Returns:
         MemoryStatsResponse with aggregate statistics
     """
-    # Delegate to service (all business logic)
     result = await service.get_stats(doctor_id=doctor_id)
 
-    # Map service result to API response
     return MemoryStatsResponse(**result)

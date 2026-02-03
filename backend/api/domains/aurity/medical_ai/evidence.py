@@ -1,28 +1,132 @@
 """Evidence Pack Workflow Endpoints.
 
-PUBLIC layer endpoints for evidence pack management:
-- GET /sessions/{session_id}/evidence → Get evidence pack (auto-generate if not exists)
+Generates evidence packs from session data (SOAP, diarization).
+Auto-generates if not exists.
 
-Architecture:
-  PUBLIC (this file) → SERVICE → REPOSITORY → HDF5
+Endpoints (1 total):
+- GET /sessions/{session_id}/evidence - Get/generate evidence pack
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-17 (Evidence Pack Auto-Generation)
+Migrated: 2026-02-03 (Domain Migration)
 """
 
 from __future__ import annotations
 
+import hashlib
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
+from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.services.evidence.dependencies import get_task_repository
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Depends, HTTPException, status
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+
+async def _generate_evidence_pack_from_session(
+    session_id: str,
+    task_repo: ITaskRepository,
+) -> dict:
+    """Generate evidence pack from session data (SOAP, diarization).
+
+    Args:
+        session_id: Session identifier
+        task_repo: Task repository (injected)
+
+    Returns:
+        Evidence pack dictionary
+
+    Raises:
+        ValueError: If session has insufficient data for evidence pack
+    """
+    # Check if SOAP exists (required for evidence pack)
+    if not task_repo.task_exists(session_id, TaskType.SOAP_GENERATION):
+        raise ValueError(f"SOAP not found for session {session_id}. Generate SOAP first.")
+
+    # Get SOAP data
+    soap_data = task_repo.get_soap_data(session_id)
+
+    # Get diarization segments if available
+    sources = []
+    if task_repo.task_exists(session_id, TaskType.DIARIZATION):
+        segments = task_repo.get_diarization_segments(session_id)
+
+        sources.append(
+            {
+                "source_id": f"diarization_{session_id[:8]}",
+                "tipo_doc": "transcripcion_audio",
+                "fecha": datetime.now(UTC).isoformat(),
+                "paciente_id": session_id,
+                "hallazgo": f"Conversación médica con {len(segments)} segmentos",
+                "severidad": "informativo",
+                "raw_text": " ".join(seg.get("text", "") for seg in segments),
+            }
+        )
+
+    # Create source from SOAP
+    soap_text = f"""
+Chief Complaint: {soap_data.get("subjective", {}).get("chief_complaint", "N/A")}
+History: {soap_data.get("subjective", {}).get("history_present_illness", "N/A")}
+Physical Exam: {soap_data.get("objective", {}).get("physical_exam", "N/A")}
+Assessment: {soap_data.get("assessment", {}).get("primary_diagnosis", "N/A")}
+Plan: {soap_data.get("plan", {}).get("treatment", "N/A")}
+    """.strip()
+
+    sources.append(
+        {
+            "source_id": f"soap_{session_id[:8]}",
+            "tipo_doc": "clinical_note",
+            "fecha": datetime.now(UTC).isoformat(),
+            "paciente_id": session_id,
+            "hallazgo": soap_data.get("assessment", {}).get("primary_diagnosis", "N/A"),
+            "severidad": "moderada",
+            "raw_text": soap_text,
+        }
+    )
+
+    # Generate source hashes (SHA-256 of raw_text)
+    source_hashes = [
+        hashlib.sha256(src.get("raw_text", "").encode()).hexdigest() for src in sources
+    ]
+
+    pack_data = {
+        "pack_id": f"pack_{int(datetime.now(UTC).timestamp())}_{session_id[:8]}",
+        "created_at": datetime.now(UTC).isoformat(),
+        "session_id": session_id,
+        "sources": sources,
+        "source_hashes": source_hashes,
+        "policy_snapshot_id": "default_policy",
+        "citations": [],
+        "consulta": "Evidencia clínica de la sesión",
+        "response": f"Evidence pack generado con {len(sources)} fuentes clínicas.",
+    }
+
+    logger.info(
+        "EVIDENCE_PACK_GENERATED",
+        session_id=session_id,
+        source_count=len(sources),
+        pack_id=pack_data["pack_id"],
+    )
+
+    return pack_data
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
 
 
 @router.get(
@@ -35,30 +139,27 @@ async def get_evidence_pack_workflow(
     audit_service: DIAuditService = Depends(get_audit_service),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Get evidence pack for session - generates if not exists (PUBLIC endpoint).
+    """Get evidence pack for session - generates if not exists.
 
     Args:
         session_id: Session UUID
+        task_repo: Task repository (injected)
+        audit_service: Audit logging service
+        current_user: Authenticated user
 
     Returns:
         Evidence pack with sources, citations, and metadata
 
     Raises:
-        500: Failed to load or generate evidence pack
+        HTTPException: 500 if generation fails
     """
     try:
         logger.info("EVIDENCE_PACK_GET_STARTED", session_id=session_id)
 
-        # Try to find existing evidence pack for this session
-        # Pack IDs follow pattern: pack_{timestamp}_{session_id_suffix}
-        # For now, we'll generate if not found
         try:
-            # TODO: Implement session_id -> pack_id mapping in HDF5
-            # For now, generate a new pack if not found
             logger.info("EVIDENCE_PACK_NOT_FOUND_GENERATING", session_id=session_id)
 
-            # Generate evidence pack from session data
-            pack_data = await generate_evidence_pack_from_session(session_id, task_repo)
+            pack_data = await _generate_evidence_pack_from_session(session_id, task_repo)
 
             logger.info("EVIDENCE_PACK_GENERATED_SUCCESS", session_id=session_id)
 
@@ -68,7 +169,6 @@ async def get_evidence_pack_workflow(
             }
 
         except ValueError as e:
-            # Evidence pack doesn't exist and couldn't be generated
             logger.warning(
                 "EVIDENCE_PACK_GENERATION_FAILED",
                 session_id=session_id,
@@ -100,98 +200,3 @@ async def get_evidence_pack_workflow(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get evidence pack: {e!s}",
         ) from e
-
-
-async def generate_evidence_pack_from_session(
-    session_id: str,
-    task_repo: ITaskRepository,
-) -> dict:
-    """Generate evidence pack from session data (SOAP, diarization, etc).
-
-    Args:
-        session_id: Session identifier
-        task_repo: Task repository (injected)
-
-    Returns:
-        Evidence pack dictionary
-
-    Raises:
-        ValueError: If session has insufficient data for evidence pack
-    """
-    from datetime import UTC, datetime
-
-    from backend.models.task_type import TaskType
-
-    # Check if SOAP exists (required for evidence pack)
-    if not task_repo.task_exists(session_id, TaskType.SOAP_GENERATION):
-        raise ValueError(f"SOAP not found for session {session_id}. Generate SOAP first.")
-
-    # Get SOAP data
-    soap_data = task_repo.get_soap_data(session_id)
-
-    # Get diarization segments if available
-    sources = []
-    if task_repo.task_exists(session_id, TaskType.DIARIZATION):
-        segments = task_repo.get_diarization_segments(session_id)
-
-        # Create source from diarization
-        sources.append(
-            {
-                "source_id": f"diarization_{session_id[:8]}",
-                "tipo_doc": "transcripcion_audio",
-                "fecha": datetime.now(UTC).isoformat(),
-                "paciente_id": session_id,
-                "hallazgo": f"Conversación médica con {len(segments)} segmentos",
-                "severidad": "informativo",
-                "raw_text": " ".join(seg.get("text", "") for seg in segments),
-            }
-        )
-
-    # Create source from SOAP
-    soap_text = f"""
-Chief Complaint: {soap_data.get("subjective", {}).get("chief_complaint", "N/A")}
-History: {soap_data.get("subjective", {}).get("history_present_illness", "N/A")}
-Physical Exam: {soap_data.get("objective", {}).get("physical_exam", "N/A")}
-Assessment: {soap_data.get("assessment", {}).get("primary_diagnosis", "N/A")}
-Plan: {soap_data.get("plan", {}).get("treatment", "N/A")}
-    """.strip()
-
-    sources.append(
-        {
-            "source_id": f"soap_{session_id[:8]}",
-            "tipo_doc": "clinical_note",
-            "fecha": datetime.now(UTC).isoformat(),
-            "paciente_id": session_id,
-            "hallazgo": soap_data.get("assessment", {}).get("primary_diagnosis", "N/A"),
-            "severidad": "moderada",  # Default severity
-            "raw_text": soap_text,
-        }
-    )
-
-    # Generate source hashes (SHA-256 of raw_text)
-    import hashlib
-
-    source_hashes = [
-        hashlib.sha256(src.get("raw_text", "").encode()).hexdigest() for src in sources
-    ]
-
-    pack_data = {
-        "pack_id": f"pack_{int(datetime.now(UTC).timestamp())}_{session_id[:8]}",
-        "created_at": datetime.now(UTC).isoformat(),
-        "session_id": session_id,
-        "sources": sources,
-        "source_hashes": source_hashes,
-        "policy_snapshot_id": "default_policy",
-        "citations": [],
-        "consulta": "Evidencia clínica de la sesión",
-        "response": f"Evidence pack generado con {len(sources)} fuentes clínicas.",
-    }
-
-    logger.info(
-        "EVIDENCE_PACK_GENERATED",
-        session_id=session_id,
-        source_count=len(sources),
-        pack_id=pack_data["pack_id"],
-    )
-
-    return pack_data

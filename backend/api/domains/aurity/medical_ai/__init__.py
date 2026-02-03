@@ -24,15 +24,17 @@ Endpoints (when connected to router):
 - GET  /sessions/{id}/transcription-sources - Get all transcription sources
 - GET  /sessions/{id}/audit - Get session audit data
 - POST /sessions/{id}/feedback - Submit doctor feedback
+- GET  /sessions/{id}/evidence - Get/generate evidence pack
 
 Migrated from: backend/api/routers/session/public/sessions_pkg/
+             + backend/api/routers/evidence/public/evidence.py
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import workflows, monitor, diarization, audio, transcription_sources, audit, soap, orders
+from . import workflows, monitor, diarization, audio, transcription_sources, audit, soap, orders, evidence
 
 router = APIRouter()
 router.include_router(workflows.router)
@@ -43,6 +45,7 @@ router.include_router(audio.router)
 router.include_router(audit.router)
 router.include_router(soap.router)
 router.include_router(orders.router)
+router.include_router(evidence.router)
 
 __all__ = [
     "router",
@@ -54,4 +57,5 @@ __all__ = [
     "audit",
     "soap",
     "orders",
+    "evidence",
 ]
