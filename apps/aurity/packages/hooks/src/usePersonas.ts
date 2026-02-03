@@ -168,6 +168,13 @@ export function usePersonas(): UsePersonasReturn {
       });
 
       if (!response.ok) {
+        // 401/403 = not authenticated, use fallback silently (expected in onboarding)
+        if (response.status === 401 || response.status === 403) {
+          console.debug('[usePersonas] Not authenticated, using FALLBACK_PERSONAS');
+          setPersonas(FALLBACK_PERSONAS);
+          setLoading(false);
+          return;
+        }
         throw new Error(`Failed to fetch personas: ${response.status}`);
       }
 
