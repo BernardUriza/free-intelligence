@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from backend.clients.dependencies import get_llm_client_dep
@@ -12,6 +13,9 @@ if TYPE_CHECKING:
     from backend.clients.internal_llm_client import InternalLLMClient
 
 logger = get_logger(__name__)
+
+# Regex to strip Qwen3 thinking tags that may leak into response
+_THINKING_TAG_PATTERN = re.compile(r"<think>.*?</think>|<think>", re.DOTALL | re.IGNORECASE)
 
 router = APIRouter()
 
@@ -62,8 +66,14 @@ async def get_introduction(
             response_length=len(result.get("response", "")),
         )
 
+        # Sanitize response: strip any leaked <think> tags from Qwen3
+        response_text = result["response"]
+        if "<think>" in response_text.lower():
+            response_text = _THINKING_TAG_PATTERN.sub("", response_text).strip()
+            logger.debug("INTRODUCTION_SANITIZED_THINKING_TAGS", original_len=len(result["response"]), sanitized_len=len(response_text))
+
         return IntroductionResponse(
-            message=result["response"],
+            message=response_text,
             persona=result["persona"],
             tokens_used=result.get("tokens_used", 0),
             latency_ms=result.get("latency_ms", 0),
