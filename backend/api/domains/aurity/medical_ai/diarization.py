@@ -41,7 +41,7 @@ async def get_diarization_status_workflow(
 
     Calls INTERNAL diarization status function directly and returns combined status.
     """
-    from backend.api.routers.transcription.internal.diarization.status import get_diarization_status
+    from backend.infrastructure.transcription.api.internal.diarization import get_diarization_status
 
     try:
         result = await get_diarization_status(job_id)

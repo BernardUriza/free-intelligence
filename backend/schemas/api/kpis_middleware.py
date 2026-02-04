@@ -31,7 +31,7 @@ def _get_kpis_aggregator() -> "IKPIsAggregator":
     Middleware cannot use FastAPI Depends(), so uses lazy import.
     Returns singleton from dependencies module for metric continuity.
     """
-    from backend.api.routers.kpi.dependencies import get_kpis_aggregator_dep
+    from backend.infrastructure.kpi.dependencies import get_kpis_aggregator_dep
 
     return get_kpis_aggregator_dep()
 

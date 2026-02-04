@@ -373,7 +373,7 @@ async def finalize_session_workflow(
     Raises:
         HTTPException(500): Finalization failed
     """
-    from backend.api.routers.session.internal.sessions.finalize import (
+    from backend.infrastructure.session.api.internal.finalize import (
         finalize_session as internal_finalize,
     )
 
@@ -438,7 +438,7 @@ async def checkpoint_session_workflow(
     Raises:
         HTTPException(500): Checkpoint failed
     """
-    from backend.api.routers.session.internal.sessions.checkpoint import (
+    from backend.infrastructure.session.api.internal.checkpoint import (
         checkpoint_session as internal_checkpoint,
     )
 

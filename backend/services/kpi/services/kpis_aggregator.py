@@ -553,8 +553,8 @@ def get_kpis_aggregator() -> KPIsAggregator:
     """DEPRECATED: Get or create global KPIs aggregator instance.
 
     ⚠️  This function is DEPRECATED. Use one of these alternatives:
-    - For FastAPI routes: get_kpis_aggregator_dep() from backend.api.routers.kpi.dependencies
-    - For middleware: get_kpis_aggregator_dep() from backend.api.routers.kpi.dependencies
+    - For FastAPI routes: get_kpis_aggregator_dep() from backend.infrastructure.kpi.dependencies
+    - For middleware: get_kpis_aggregator_dep() from backend.infrastructure.kpi.dependencies
 
     .. deprecated::
         Phase 2.3 Neptuno - use DI factories instead of this service locator.
@@ -563,7 +563,7 @@ def get_kpis_aggregator() -> KPIsAggregator:
 
     warnings.warn(
         "get_kpis_aggregator() is deprecated. Use get_kpis_aggregator_dep() from "
-        "backend.api.routers.kpi.dependencies",
+        "backend.infrastructure.kpi.dependencies",
         DeprecationWarning,
         stacklevel=2,
     )
