@@ -6,9 +6,11 @@ Sub-modules:
 - introduction: Onboarding greeting
 - history: Conversation history search
 - personas_admin: Persona CRUD (multi-tenant)
+- websocket: Real-time chat sync
+- emotional_analysis: Emotional state detection
 - schemas: Pydantic models
 
-Endpoints (14 total):
+Endpoints (16 total):
 - POST /chat - Send message to AI assistant
 - POST /chat/stream - Stream AI response via SSE
 - POST /introduction - Get persona introduction
@@ -22,14 +24,17 @@ Endpoints (14 total):
 - POST /admin/personas/{id}/test - Test persona with LLM
 - POST /admin/personas - Create new persona (superadmin)
 - DELETE /admin/personas/{id} - Delete persona (superadmin)
+- WS   /ws - WebSocket for real-time sync
+- GET  /ws/stats - WebSocket connection stats
 
 Features:
 - OpenAI-style chat completions API
 - Multiple personas (general_assistant, onboarding_guide, etc.)
-- Emotional analysis from behavior metrics
-- RAG context injection (HIPAA-compliant)
+- Emotional analysis from behavior metrics (Ollama + heuristic fallback)
+- RAG context injection via DocumentService (HIPAA-compliant)
 - Conversation memory with semantic search
 - Multi-tenant persona configuration (YAML templates + DB overrides)
+- Real-time cross-device sync via WebSocket
 
 Migrated from: backend/api/routers/assistant/public/
              + backend/api/routers/llm/public/personas_admin.py
@@ -39,7 +44,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import chat, history, introduction, personas, personas_admin, stream
+from . import chat, history, introduction, personas, personas_admin, stream, websocket
 
 router = APIRouter()
 router.include_router(chat.router)
@@ -48,3 +53,4 @@ router.include_router(introduction.router)
 router.include_router(history.router)
 router.include_router(personas.router)  # GET /personas
 router.include_router(personas_admin.router)  # /admin/personas CRUD
+router.include_router(websocket.router)  # WebSocket real-time sync

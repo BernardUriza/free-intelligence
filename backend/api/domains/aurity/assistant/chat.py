@@ -48,9 +48,9 @@ async def _analyze_emotional_state(
     llm_client: "InternalLLMClient",
 ) -> EmotionalAnalysis | None:
     """Analyze emotional state from message and behavior metrics."""
-    from backend.api.routers.assistant.public.emotional_analysis import analyze_emotional_state
+    from .emotional_analysis import analyze_emotional_state
 
-    return await analyze_emotional_state(message, metrics, llm_client)
+    return await analyze_emotional_state(message, metrics.model_dump(), llm_client)
 
 
 async def _get_rag_context(
@@ -58,13 +58,53 @@ async def _get_rag_context(
     persona: str,
     clinic_id: str | None,
 ) -> str | None:
-    """Get RAG context for query."""
-    # Import from legacy location - will be migrated later
-    from backend.api.routers.assistant.public.assistant.rag import (
-        _get_rag_context as get_rag_context_fn,
-    )
+    """Get RAG context for query using DocumentService.
 
-    return await get_rag_context_fn(query, persona, clinic_id)
+    Searches knowledge base for relevant document chunks and formats
+    them as context for the LLM.
+
+    Args:
+        query: User's question/message
+        persona: Persona ID (not used currently, reserved for filtering)
+        clinic_id: Clinic ID for multi-tenancy filtering
+
+    Returns:
+        Formatted context string or None if no relevant docs found
+    """
+    if not clinic_id:
+        return None
+
+    try:
+        from backend.infrastructure.common.repository_singletons import (
+            get_document_repository_singleton,
+        )
+        from backend.services.document.services.document_service import DocumentService
+
+        repository = get_document_repository_singleton()
+        doc_service = DocumentService(repository=repository)
+
+        results = await doc_service.search(
+            query=query,
+            clinic_id=clinic_id,
+            limit=3,  # Top 3 most relevant chunks
+            min_score=0.5,  # Only include if relevance > 50%
+        )
+
+        if not results:
+            return None
+
+        # Format results as context
+        context_parts = []
+        for i, result in enumerate(results, 1):
+            context_parts.append(
+                f"[Fuente {i}: {result.title}]\n{result.chunk_text}"
+            )
+
+        return "\n\n---\n\n".join(context_parts)
+
+    except Exception:
+        # RAG is optional - don't fail chat if it's unavailable
+        return None
 
 
 @router.post("/chat", response_model=ChatCompletionResponse)

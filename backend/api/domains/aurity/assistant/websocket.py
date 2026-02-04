@@ -1,5 +1,4 @@
-"""
-Free-Intelligence Assistant WebSocket API
+"""Free-Intelligence Assistant WebSocket API.
 
 Real-time chat synchronization via WebSocket.
 Allows cross-device message sync without polling.
@@ -9,19 +8,23 @@ Architecture:
   - Broadcasts new messages to all connected clients of same doctor
   - Lightweight ping/pong for connection health
 
+Endpoints (2 total):
+- WS  /ws - WebSocket connection for real-time sync
+- GET /ws/stats - Connection statistics
+
 Author: Bernard Uriza Orozco
 Created: 2025-11-20
+Migrated: 2026-02-03 (Domain Migration)
 Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 """
 
 from __future__ import annotations
 
-# PEP 585: use built-in dict, set instead of typing.Dict, Set
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.utils.common.logging.logger import get_logger
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -43,7 +46,6 @@ class ConnectionManager:
     """
 
     def __init__(self) -> None:
-        # Map: doctor_id -> Set of WebSocket connections
         self.connections: dict[str, set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, doctor_id: str) -> None:
@@ -66,7 +68,6 @@ class ConnectionManager:
         if doctor_id in self.connections:
             self.connections[doctor_id].discard(websocket)
 
-            # Clean up empty sets
             if not self.connections[doctor_id]:
                 del self.connections[doctor_id]
 
@@ -77,16 +78,10 @@ class ConnectionManager:
             )
 
     async def broadcast(self, doctor_id: str, message: dict) -> None:
-        """Broadcast message to all connections of a doctor.
-
-        Args:
-            doctor_id: Doctor identifier
-            message: Message payload (will be JSON serialized)
-        """
+        """Broadcast message to all connections of a doctor."""
         if doctor_id not in self.connections:
             return
 
-        # Broadcast to all connected devices
         disconnected = set()
 
         for connection in self.connections[doctor_id]:
@@ -100,7 +95,6 @@ class ConnectionManager:
                 )
                 disconnected.add(connection)
 
-        # Clean up failed connections
         for connection in disconnected:
             self.disconnect(connection, doctor_id)
 
@@ -118,7 +112,7 @@ manager = ConnectionManager()
 
 
 # ============================================================================
-# WebSocket Endpoints
+# Models
 # ============================================================================
 
 
@@ -130,10 +124,15 @@ class NewMessageEvent(BaseModel):
     content: str
     timestamp: str
     persona: str | None = None
-    model: str | None = None  # LLM model that generated this response (e.g., "qwen3:1.7b")
+    model: str | None = None
 
 
-@router.websocket("/assistant/ws")
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+
+@router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
     doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
@@ -149,22 +148,17 @@ async def websocket_endpoint(
         Server → Client: {"type": "new_message", "role": "...", "content": "..."}
 
     Example:
-        const ws = new WebSocket("wss://backend/api/workflows/aurity/assistant/ws?doctor_id=auth0|123")
+        const ws = new WebSocket("wss://backend/api/aurity/assistant/ws?doctor_id=auth0|123")
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data)
             if (message.type === "new_message") {
                 addMessageToUI(message)
             }
         }
-
-    Args:
-        websocket: WebSocket connection
-        doctor_id: Doctor identifier (from query params)
     """
     await manager.connect(websocket, doctor_id)
 
     try:
-        # Send initial connection confirmation
         await websocket.send_json(
             {
                 "type": "connected",
@@ -173,13 +167,9 @@ async def websocket_endpoint(
             }
         )
 
-        # Keep connection alive (ping/pong)
         while True:
-            # Wait for client messages (if any)
-            # For now, this is a passive listener - server broadcasts, client receives
             data = await websocket.receive_text()
 
-            # Handle ping/pong for connection health
             if data == "ping":
                 await websocket.send_text("pong")
 
@@ -197,18 +187,14 @@ async def websocket_endpoint(
         manager.disconnect(websocket, doctor_id)
 
 
-@router.get("/assistant/ws/stats")
+@router.get("/ws/stats")
 async def get_websocket_stats() -> dict:
-    """Get WebSocket connection statistics.
-
-    Returns:
-        Dict with total doctors connected, total connections, etc.
-    """
+    """Get WebSocket connection statistics."""
     return manager.get_stats()
 
 
 # ============================================================================
-# Helper: Broadcast new message to all devices
+# Helper: Broadcast new message (used by infrastructure/llm)
 # ============================================================================
 
 
@@ -218,7 +204,7 @@ async def broadcast_new_message(
     content: str,
     timestamp: str,
     persona: str | None = None,
-    model: str | None = None,  # LLM model (e.g., "qwen3:1.7b")
+    model: str | None = None,
 ) -> None:
     """Broadcast new message to all connected devices of a doctor.
 
@@ -231,7 +217,7 @@ async def broadcast_new_message(
         content: Message content
         timestamp: ISO timestamp
         persona: Persona used (optional)
-        model: LLM model that generated the response (optional, assistant only)
+        model: LLM model that generated the response (optional)
     """
     event = NewMessageEvent(
         type="new_message",

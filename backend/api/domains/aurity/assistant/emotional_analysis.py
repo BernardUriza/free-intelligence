@@ -1,6 +1,15 @@
 """Emotional analysis for assistant conversations.
 
 Provides emotional state detection using Ollama Llama 3.1 8B with heuristic fallback.
+
+Features:
+- LLM-based nuanced analysis via fi-monitor
+- Heuristic fallback when Ollama unavailable
+- Medical context awareness
+
+Author: Bernard Uriza Orozco
+Created: 2025-11-15
+Migrated: 2026-02-03 (Domain Migration)
 """
 
 from __future__ import annotations
@@ -11,7 +20,7 @@ from typing import Any
 from backend.services.assistant.services.monitor_client import get_ollama_chat
 from backend.utils.common.logging.logger import get_logger
 
-from .assistant_schemas import EmotionalAnalysis
+from .schemas import EmotionalAnalysis
 
 logger = get_logger(__name__)
 
