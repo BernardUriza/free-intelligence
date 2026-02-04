@@ -17,11 +17,9 @@ import time
 
 import pytest
 import yaml
-from backend.services.llm.services.persona_manager import (
-    PersonaManager,
-    PersonaNotFound,
-    PersonaTemplateModel,
-)
+from backend.services.llm.services.persona.manager import PersonaManager
+from backend.services.llm.services.persona.exceptions import PersonaNotFound
+from backend.services.llm.services.persona.schemas import PersonaTemplateModel
 from pathlib import Path
 
 # ============================================================================

@@ -31,7 +31,7 @@ from backend.infrastructure.observability.hooks import log_llm_call, log_llm_err
 from backend.policy.policy_loader import PolicyLoader
 from backend.providers import llm_generate, sanitize_error_message
 from backend.services.llm.services.conversation_memory import get_memory_manager
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 

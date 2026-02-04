@@ -5,6 +5,6 @@ Main classes:
 """
 
 from backend.services.llm.services.llm_model_service import LLMModelService
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 
 __all__ = ["LLMModelService", "PersonaManager"]

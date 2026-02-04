@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
 from backend.services.llm.dependencies import get_persona_manager
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.services.soap.services.complexity_analyzer import (
     ComplexityMetrics,
     get_complexity_analyzer,

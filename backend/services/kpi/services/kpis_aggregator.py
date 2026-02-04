@@ -545,32 +545,4 @@ class KPIsAggregator(IKPIsAggregator):
         }
 
 
-# Global singleton instance
-_kpis_aggregator: KPIsAggregator | None = None
-
-
-def get_kpis_aggregator() -> KPIsAggregator:
-    """DEPRECATED: Get or create global KPIs aggregator instance.
-
-    ⚠️  This function is DEPRECATED. Use one of these alternatives:
-    - For FastAPI routes: get_kpis_aggregator_dep() from backend.infrastructure.kpi.dependencies
-    - For middleware: get_kpis_aggregator_dep() from backend.infrastructure.kpi.dependencies
-
-    .. deprecated::
-        Phase 2.3 Neptuno - use DI factories instead of this service locator.
-    """
-    import warnings
-
-    warnings.warn(
-        "get_kpis_aggregator() is deprecated. Use get_kpis_aggregator_dep() from "
-        "backend.infrastructure.kpi.dependencies",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    global _kpis_aggregator
-
-    if _kpis_aggregator is None:
-        _kpis_aggregator = KPIsAggregator()
-
-    return _kpis_aggregator
+# Singleton managed by backend.infrastructure.kpi.dependencies.get_kpis_aggregator_dep()

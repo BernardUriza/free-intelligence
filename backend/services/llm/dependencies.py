@@ -27,7 +27,7 @@ from backend.infrastructure.common.repository_singletons import (
 )
 # Note: get_policy_loader_dep imported lazily in get_chat_service to avoid circular import
 from backend.services.llm.services.di_chat_service import DIChatService
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
