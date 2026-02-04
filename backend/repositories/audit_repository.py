@@ -15,7 +15,7 @@ from typing import Any, Union
 from uuid import uuid4
 
 from backend.utils.common.logging.logger import get_logger
-from backend.type_defs import AuditLogDict
+from backend.utils.common.types.type_defs import AuditLogDict
 from pathlib import Path
 
 from .base_repository import BaseRepository

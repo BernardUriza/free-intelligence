@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from backend.database import get_db
+from backend.database import get_db_dependency
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.utils.common.logging.logger import get_logger
@@ -190,7 +190,7 @@ async def send_appointment_reminder(
     appointment_id: str,
     reminder_type: str = "24h",
     current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
+    db=Depends(get_db_dependency),
     service: NotificationService = Depends(get_notification_service),
 ) -> dict:
     """Send appointment reminder notification.

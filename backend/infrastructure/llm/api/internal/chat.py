@@ -32,7 +32,7 @@ from typing import Annotated
 import ulid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.api.domains.aurity.assistant.websocket import broadcast_new_message
 from backend.config import CORPUS_PATH
 from backend.infrastructure.common.policy_provider import get_policy_loader_dep

@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from backend.type_defs import DiarizationChunkDict
+from backend.utils.common.types.type_defs import DiarizationChunkDict
 
 
 class ICorpusRepository(ABC):

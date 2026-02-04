@@ -14,7 +14,7 @@ from typing import Any
 
 from backend.repositories import AuditRepository
 from backend.utils.common.logging.logger import get_logger
-from backend.type_defs import AuditLogDict
+from backend.utils.common.types.type_defs import AuditLogDict
 
 logger = get_logger(__name__)
 

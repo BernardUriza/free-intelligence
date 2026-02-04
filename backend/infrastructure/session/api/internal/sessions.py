@@ -31,7 +31,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.domain.session.dependencies import get_audit_service, get_session_service
 from backend.domain.session.services.session_service import SessionService
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user

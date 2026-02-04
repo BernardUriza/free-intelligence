@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ...domain import IAuthProvider, User
@@ -74,3 +74,31 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_optional_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    provider: IAuthProvider = Depends(get_auth_provider),
+) -> User | None:
+    """Return user if authenticated, None if onboarding mode or no token.
+
+    Used for endpoints that support both authenticated and anonymous access.
+    Onboarding flow uses X-Onboarding-Mode header to bypass auth.
+    """
+    # Check for onboarding bypass header
+    if request.headers.get("X-Onboarding-Mode") == "true":
+        logger.debug("Onboarding mode detected, allowing anonymous access")
+        return None
+
+    # No credentials = anonymous access
+    if not credentials or not credentials.credentials:
+        return None
+
+    # Try to validate token, return None on failure (don't raise)
+    try:
+        user = await provider.validate_token(credentials.credentials)
+        return user if user else None
+    except Exception as exc:
+        logger.debug("Token validation failed, allowing anonymous", error=str(exc))
+        return None

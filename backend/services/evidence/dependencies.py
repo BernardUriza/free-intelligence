@@ -9,7 +9,7 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-# Re-export singleton for backward compatibility
+# Import singleton factory from centralized location
 from backend.infrastructure.common.repository_singletons import (
     get_task_repository,
 )

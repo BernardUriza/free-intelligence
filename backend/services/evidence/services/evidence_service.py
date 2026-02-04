@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.evidence_pack import EvidencePackBuilder
+from backend.infrastructure.common.evidence_pack import EvidencePackBuilder
 from backend.infrastructure.interfaces.ilogger import ILogger
 
 

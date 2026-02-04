@@ -53,8 +53,8 @@ from backend.services.workflow.interfaces import (
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
-# Re-export domain-specific factories for backward compatibility
-# These were extracted to break circular imports (Phase 2.3 DI Refactor)
+# Import domain-specific factories from centralized locations
+# Extracted to break circular imports (Phase 2.3 DI Refactor)
 from backend.infrastructure.common.policy_provider import get_policy_loader_dep
 from backend.schemas.llm.dependencies import get_preset_loader_dep
 from backend.services.soap.dependencies import get_decisional_middleware_dep

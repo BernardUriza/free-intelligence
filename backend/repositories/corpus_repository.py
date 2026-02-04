@@ -16,7 +16,7 @@ from typing import Any, Union, cast
 import h5py
 import numpy as np
 from backend.utils.common.logging.logger import get_logger
-from backend.type_defs import DiarizationChunkDict
+from backend.utils.common.types.type_defs import DiarizationChunkDict
 from pathlib import Path
 
 from .base_repository import BaseRepository

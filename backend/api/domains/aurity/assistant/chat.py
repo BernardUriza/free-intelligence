@@ -15,7 +15,10 @@ import uuid as _uuid
 from typing import TYPE_CHECKING
 
 from backend.clients.dependencies import get_llm_client_dep
-from backend.infrastructure.auth.adapters.fastapi_adapter import User, get_current_user
+from backend.infrastructure.auth.adapters.fastapi_adapter import (
+    User,
+    get_optional_current_user,
+)
 from backend.observability import chat_events
 from backend.observability.logging import CTX_REQUEST_ID
 from backend.services.llm.dependencies import get_persona_manager
@@ -110,16 +113,24 @@ async def _get_rag_context(
 @router.post("/chat", response_model=ChatCompletionResponse)
 async def chat_with_assistant(
     request: ChatCompletionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     llm_client: "InternalLLMClient" = Depends(get_llm_client_dep),
 ) -> ChatCompletionResponse:
     """OpenAI-style chat completion endpoint for Free-Intelligence conversations.
 
-    SECURITY: JWT authentication required. RAG search respects user isolation (HIPAA).
+    SECURITY: Auth optional for onboarding_guide persona (via X-Onboarding-Mode header).
+    All other personas require JWT authentication. RAG search respects user isolation (HIPAA).
 
     Follows OpenAI Chat Completions API conventions with AURITY-specific extensions.
     """
     try:
+        # SECURITY: Only allow anonymous access for onboarding_guide persona
+        if current_user is None and request.persona != "onboarding_guide":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Authentication required for persona '{request.persona}'",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         request_id = str(_uuid.uuid4())
         CTX_REQUEST_ID.set(request_id)
 
@@ -214,10 +225,12 @@ async def chat_with_assistant(
                 suggested_tone=emotional_analysis.suggested_tone if emotional_analysis else "none",
             )
 
+        # RAG only available for authenticated users
+        clinic_id = current_user.clinic_id if current_user else None
         rag_context = await _get_rag_context(
             query=last_message.content,
             persona=request.persona,
-            clinic_id=current_user.clinic_id,
+            clinic_id=clinic_id,
         )
         if rag_context:
             context["rag_context"] = rag_context
@@ -269,6 +282,14 @@ async def chat_with_assistant(
 
         receptionist_state = None
         if request.receptionist_config:
+            # SECURITY: Receptionist mode requires authentication
+            if current_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required for receptionist mode",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
             # SECURITY: Validate clinic_id matches user's clinic
             requested_clinic_id = request.receptionist_config.get("clinic_id")
             if requested_clinic_id and requested_clinic_id != current_user.clinic_id:

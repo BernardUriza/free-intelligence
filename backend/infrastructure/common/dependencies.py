@@ -14,7 +14,7 @@ Purpose: Replace global singletons with DI pattern
 
 from backend.policy.policy_enforcer import PolicyEnforcer
 
-# Re-export singleton for backward compatibility
+# Import singleton factory from centralized location
 from backend.infrastructure.common.repository_singletons import (
     get_task_repository,
 )

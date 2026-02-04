@@ -11,8 +11,7 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 
 from backend.services.audit.services.audit_service import AuditService
 
-# Re-export centralized singletons for backward compatibility
-# Other modules import from here - DO NOT REMOVE
+# Import singleton factories from centralized location
 from backend.infrastructure.common.repository_singletons import (
     get_audit_repository,
     get_corpus_repository,

@@ -284,7 +284,7 @@ class DITranscriptionService:
 
         # 5. Dispatch worker to background (fire-and-forget)
         from backend.infrastructure.workers.executor_pool import spawn_worker
-        from backend.infrastructure.workers.sync_workers import transcribe_chunk_worker
+        from backend.infrastructure.workers.tasks.transcription_worker import transcribe_chunk_worker
         from backend.utils.stt_load_balancer import get_stt_load_balancer
 
         # Use load balancer to select provider intelligently (policy-driven)

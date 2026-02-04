@@ -24,7 +24,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, constr, field_validator
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.services.audit.dependencies import get_audit_service_dep
 from backend.services.workflow.dependencies import get_triage_service_dep
 from backend.services.workflow.services.triage_service import TriageService

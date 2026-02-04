@@ -32,7 +32,3 @@ def get_db_dependency() -> Iterator[Session]:
         yield db
     finally:
         db.close()
-
-
-# Alias for backward compatibility
-get_db = get_db_dependency

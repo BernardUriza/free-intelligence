@@ -32,7 +32,7 @@ from pathlib import Path
 
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
-    from backend.api.audit.services.audit_service import AuditService
+    from backend.services.audit.services.audit_service import AuditService
     # from backend.utils.coder.services.session_service import SessionService as DISessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.common.services.diagnostics_service import DiagnosticsService
     from backend.infrastructure.common.services.evidence_service import EvidenceService
@@ -74,12 +74,12 @@ else:
 
     # Use direct imports for services that accept repositories (not from services module)
     # from backend.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
-    from backend.api.audit.services.audit_service import AuditService
+    from backend.services.audit.services.audit_service import AuditService
 
     # Import DI services
     # NOTE: Some services commented out due to broken infrastructure.* imports
     # Will be re-enabled after fixing all broken imports
-    from backend.api.audit.services.di_audit_service import DIAuditService
+    from backend.services.audit.services.di_audit_service import DIAuditService
     from backend.services.evidence.services.evidence_service import DIEvidenceService
     from backend.services.export.services.export_service import DIExportService
     # from backend.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup

@@ -8,6 +8,7 @@ from ..infrastructure import load_auth0_config
 from ..infrastructure.auth0.auth0_provider import DEFAULT_ROLE_PERMISSIONS
 from ..infrastructure.middleware import (
     get_current_user,
+    get_optional_current_user,
     require_permission,
     require_roles,
 )
@@ -71,6 +72,7 @@ __all__ = [
     "UserRole",
     "auth_router",
     "get_current_user",
+    "get_optional_current_user",
     "require_permission",
     "require_roles",
 ]
