@@ -49,8 +49,8 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.infrastructure.common.api.internal.exports import router as exports_router
     from backend.infrastructure.common.api.public import notifications
 
-    # KPIs
-    from backend.api.routers.kpi.internal.router import router as kpis_router
+    # KPIs (migrated to infrastructure/)
+    from backend.infrastructure.kpi.api.internal.router import router as kpis_router
 
     # Licensing
     from backend.api.license.api.internal import router as licenses_admin_router
@@ -58,7 +58,9 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
 
     # LLM
     from backend.infrastructure.llm.api.internal import router as llm_router
-    from backend.api.routers.llm.public import llm_models_admin
+    from backend.infrastructure.model_catalog.api.public.llm_models_admin import (
+        router as llm_models_admin_router,
+    )
 
     # Model Catalog
     from backend.infrastructure.model_catalog.api.public import catalog_admin
@@ -74,10 +76,10 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.api.policy.api.public import policy
     # NOTE: providers router moved to aurity_router (backend.api.domains.aurity.providers)
 
-    # Sessions
-    from backend.api.routers.session.internal.sessions import router as sessions_router
-    from backend.api.routers.session.internal.sessions.finalize import (
-        router as sessions_finalize_router,
+    # Sessions (migrated to infrastructure/)
+    from backend.infrastructure.session.api.internal import (
+        sessions_router,
+        finalize_router as sessions_finalize_router,
     )
 
     # System Resources
@@ -88,16 +90,18 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
     # NOTE: timeline public router moved to aurity_router (backend.api.domains.aurity.timeline)
 
-    # Transcription & Diarization
-    from backend.api.routers.transcription.internal.diarization import router as diarization_router
-    from backend.api.routers.transcription.internal.transcribe import router as transcribe_router
+    # Transcription & Diarization (migrated to infrastructure/)
+    from backend.infrastructure.transcription.api.internal import (
+        diarization_router,
+        transcribe_router,
+    )
 
     # TTS
     from backend.services.tts.api.public import tts
     # NOTE: user_clinic router moved to aurity_router (backend.api.domains.aurity.clinic.user_clinic)
 
-    # Triage
-    from backend.api.routers.workflow.internal.triage import router as triage_router
+    # Triage (migrated to infrastructure/)
+    from backend.infrastructure.workflow.api.internal import triage_router
 
     # NOTE: public_workflows_router removed - replaced by aurity_router
 
@@ -128,7 +132,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
     # NOTE: user_clinic.router removed - now in aurity_router at /api/aurity/clinic/users/me/*
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
-    public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
+    public_app.include_router(llm_models_admin_router)  # LLM Models Admin (superadmin CRUD)
     public_app.include_router(catalog_admin.router)  # Model Catalog
     public_app.include_router(system_resources.router)  # System Resources Monitor
     public_app.include_router(observability_router)  # LLM Observability (FI Edge Monitor)
