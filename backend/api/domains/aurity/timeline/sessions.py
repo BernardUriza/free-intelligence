@@ -21,7 +21,7 @@ import h5py
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.repositories.interfaces import ITaskRepository
-from backend.services.timeline.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field

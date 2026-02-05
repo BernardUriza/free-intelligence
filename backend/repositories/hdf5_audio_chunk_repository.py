@@ -12,7 +12,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import h5py
 from backend.repositories.base_repository import BaseRepository
 from backend.repositories.interfaces import IAudioChunkRepository
 from backend.utils.common.logging.logger import get_logger

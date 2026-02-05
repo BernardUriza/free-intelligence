@@ -159,7 +159,7 @@ export function usePersonas(): UsePersonasReturn {
         }
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/aurity/personas`, {
+      const response = await fetch(`${BACKEND_URL}/api/aurity/assistant/personas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

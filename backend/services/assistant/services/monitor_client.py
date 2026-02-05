@@ -14,11 +14,11 @@ Card: Phase 3 - Monitor GPU Cache
 
 from __future__ import annotations
 
-import os
 import time
 
 import httpx
 import numpy as np
+from backend.config.secrets import get_secret
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,15 +30,15 @@ logger = get_logger(__name__)
 
 
 async def discover_monitor_url() -> str | None:
-    """Discover FI Monitor URL from Azure Blob Storage.
+    """Discover FI Monitor URL.
 
-    FI Monitor uploads its tunnel URL to Azure Blob on startup.
+    Checks (in order):
+    1. OLLAMA_TUNNEL_URL environment variable
+    2. Local config file (~/.config/fi-monitor/tunnel-url.json)
 
     Returns:
         Monitor tunnel URL or None if unavailable
     """
-    # TODO: Implement Azure Blob discovery
-    # For now, check environment variable
     import os
 
     tunnel_url = os.getenv("OLLAMA_TUNNEL_URL")
@@ -89,7 +89,7 @@ async def get_embedding_from_monitor(text: str, timeout: float = 5.0) -> np.ndar
 
     try:
         # Get API key from environment (default for dev)
-        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
@@ -172,7 +172,7 @@ async def similarity_search_gpu(
 
     try:
         # Get API key from environment (default for dev)
-        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
@@ -240,7 +240,7 @@ async def get_ollama_chat(
 
     try:
         # Get API key from environment (default for dev)
-        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(

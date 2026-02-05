@@ -95,15 +95,16 @@ class MedicalChunkHandler(ChunkHandler):
             - Creates /sessions/{id}/tasks/TRANSCRIPTION/ in HDF5
             - Saves patient metadata as session attributes
         """
-        # Create TRANSCRIPTION task (first time only) - INJECTED (Phase 4B)
+        # Create TRANSCRIPTION task with initial metadata
+        initial_metadata = {
+            "status": "in_progress",
+            **(metadata or {}),
+        }
         self.task_repository.ensure_task_exists(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            allow_existing=True,  # Allow resuming (pause/resume)
+            task_type=TaskType.TRANSCRIPTION.value,
+            metadata=initial_metadata,
         )
-
-        # TODO(Phase 5): Re-enable session metadata persistence
-        # Requires: locked_session_h5() context manager in backend/repositories/hdf5_utils.py
 
         logger.info(
             "MEDICAL_SESSION_INITIALIZED",
@@ -137,10 +138,21 @@ class MedicalChunkHandler(ChunkHandler):
             - Saves audio_bytes to /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_N/audio
             - Saves transcript + metadata to /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_N/metadata
         """
-        # Save audio to HDF5
-        await self._save_audio_to_hdf5(session_id, chunk_number, audio_bytes)
+        # Save audio bytes to HDF5
+        audio_saved = await self._save_audio_to_hdf5(session_id, chunk_number, audio_bytes)
 
-        # TODO(Phase 5): Re-enable chunk metadata persistence via task_repository
+        # Save transcript and metadata to chunk attributes
+        chunk_metadata = {
+            "transcript": transcript,
+            "status": "completed",
+            **metadata,
+        }
+        self.task_repository.batch_update_chunk_datasets(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION.value,
+            chunk_idx=chunk_number,
+            updates=chunk_metadata,
+        )
 
         logger.info(
             "MEDICAL_CHUNK_SAVED",
@@ -148,7 +160,7 @@ class MedicalChunkHandler(ChunkHandler):
             chunk_number=chunk_number,
             provider=metadata.get("provider"),
             audio_size_bytes=len(audio_bytes),
-            audio_persisted=True,  # Audio IS persisted (unlike chat)
+            audio_persisted=audio_saved,
         )
 
     async def get_session_status(self, session_id: str) -> dict[str, Any]:
@@ -276,30 +288,31 @@ class MedicalChunkHandler(ChunkHandler):
         session_id: str,
         chunk_number: int,
         audio_bytes: bytes,
-    ) -> None:
+    ) -> bool:
         """Save audio bytes to HDF5 chunk dataset.
-
-        Internal helper for save_chunk().
 
         Args:
             session_id: Session UUID
             chunk_number: Chunk index
             audio_bytes: Raw audio data
 
-        Behavior:
-            - Creates dataset at /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_{N}/audio
-            - Stores audio bytes as binary blob
-
-        Note:
-            TEMPORARILY DISABLED - missing locked_session_h5() implementation.
-            Audio persistence will be re-enabled in Phase 5.
+        Returns:
+            True if saved successfully, False otherwise
         """
-        # TODO(Phase 5): Re-enable audio chunk persistence (requires locked_session_h5)
+        # Use save_chunk_audio if available (HDF5TaskRepository has it)
+        if hasattr(self.task_repository, "save_chunk_audio"):
+            return self.task_repository.save_chunk_audio(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION.value,
+                chunk_idx=chunk_number,
+                audio_bytes=audio_bytes,
+            )
 
-        logger.debug(
+        logger.warning(
             "AUDIO_CHUNK_SAVE_SKIPPED",
             session_id=session_id,
             chunk_number=chunk_number,
             size_bytes=len(audio_bytes),
-            reason="locked_session_h5 not implemented",
+            reason="task_repository doesn't support save_chunk_audio",
         )
+        return False

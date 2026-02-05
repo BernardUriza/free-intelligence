@@ -62,19 +62,6 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
 
 
 @pytest.fixture
-def session_service(di_container: DIContainer):
-    """Get SessionService from DI container.
-
-    Args:
-        di_container: DI container fixture
-
-    Returns:
-        SessionService instance
-    """
-    return di_container.get_session_service()
-
-
-@pytest.fixture
 def audit_service(di_container: DIContainer):
     """Get AuditService from DI container.
 
@@ -195,9 +182,9 @@ def audit_entry_factory():
 
 # Import fixtures from fixtures/ directory
 pytest_plugins = [
-    "tests.fixtures.services",
-    "tests.fixtures.repositories",
-    "tests.fixtures.auth",
+    "backend.tests.fixtures.services",
+    "backend.tests.fixtures.repositories",
+    "backend.tests.fixtures.auth",
 ]
 
 

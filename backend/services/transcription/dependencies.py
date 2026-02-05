@@ -11,12 +11,10 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
 import os
-from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.domain.session import ISessionRepository
 from backend.repositories.hdf5_session_repository import HDF5SessionRepository
-from backend.repositories.interfaces import ITaskRepository
 from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.infrastructure.common.repository_singletons import (

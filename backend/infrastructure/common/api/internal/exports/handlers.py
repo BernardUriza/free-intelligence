@@ -56,11 +56,9 @@ async def create_export(
     """
     try:
 
-        # Generate content for each format
+        # Generate content for each format (placeholder metadata)
         content_dict = {}
         for fmt in request.formats:
-            # TODO: Implement deterministic content generation
-            # For now, use placeholder
             content_dict[fmt] = json.dumps(
                 {
                     "session_id": request.session_id,

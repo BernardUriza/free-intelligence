@@ -10,6 +10,3 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
 # Import singleton factory from centralized location
-from backend.infrastructure.common.repository_singletons import (
-    get_task_repository,
-)

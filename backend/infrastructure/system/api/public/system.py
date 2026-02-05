@@ -193,7 +193,6 @@ async def get_llm_status() -> LLMStatusResponse:
     provider = get_tunnel_url_provider()
 
     # Get current URL (triggers cache refresh if needed)
-    start_time = time.time()
     current_url = await provider.get_ollama_url()
     tunnel_info = await provider.get_tunnel_info()
 

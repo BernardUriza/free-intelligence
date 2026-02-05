@@ -26,21 +26,14 @@ def _get_cache_singleton() -> "ICache":
 def get_cache_dep(ttl: int = 3600) -> "ICache":  # noqa: ARG001
     """Get LLM cache singleton for services.
 
-    Phase 2.3 Mercurio: Cache consolidation.
-
     Args:
-        ttl: DEPRECATED - Ignored. Kept for backward compatibility.
-             Singleton uses fixed TTL of 3600s (1 hour).
+        ttl: Ignored. Singleton uses fixed TTL of 3600s (1 hour).
 
     Returns:
         ICache singleton instance (LLMCache)
 
     Thread Safety:
         @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        Replaces deprecated get_cache() service locator.
-        In-memory cache with TTL and Prometheus export.
     """
     _ = ttl  # Ignored - singleton uses fixed TTL
     return _get_cache_singleton()

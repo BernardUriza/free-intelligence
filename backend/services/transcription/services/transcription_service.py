@@ -24,16 +24,27 @@ if TYPE_CHECKING:
 
 
 class TranscriptionChunkEvent:
-    """Stub event."""
-    pass
+    """Event signaling chunk processed (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionChunkEvent()
+
 
 class TranscriptionStartedEvent:
-    """Stub event."""
-    pass
+    """Event signaling transcription session started (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionStartedEvent()
+
 
 class TranscriptionEndedEvent:
-    """Stub event."""
-    pass
+    """Event signaling transcription session ended (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionEndedEvent()
 
 
 logger = get_logger(__name__)

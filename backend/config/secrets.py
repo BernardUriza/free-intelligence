@@ -208,10 +208,6 @@ class EnvSecretsManager(ISecretsManager):
         return True
 
 
-# ============================================================================
-# DEPRECATED: Legacy module-level functions (use ISecretsManager instead)
-# ============================================================================
-
 # Default secrets manager instance (lazy loaded)
 _default_secrets_manager: AzureKeyVaultSecretsManager | None = None
 
@@ -228,8 +224,6 @@ def _get_default_secrets_manager() -> AzureKeyVaultSecretsManager:
 def get_secret(name: str, default: str | None = None) -> str | None:
     """Get a secret from KeyVault with .env fallback.
 
-    DEPRECATED: Use ISecretsManager.get() via DI instead.
-
     Args:
         name: Secret name (can use underscores or hyphens)
         default: Default value if secret not found
@@ -242,8 +236,6 @@ def get_secret(name: str, default: str | None = None) -> str | None:
 
 def get_secret_required(name: str) -> str:
     """Get a required secret (raises if not found).
-
-    DEPRECATED: Use ISecretsManager.get_required() via DI instead.
 
     Args:
         name: Secret name

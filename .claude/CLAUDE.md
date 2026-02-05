@@ -111,6 +111,20 @@ If you (Claude) ever justify keeping dead code as "intentional for compatibility
 
 ## 🚫 Critical Rules
 
+### Backend: Make Only, Never Raw Commands
+```bash
+# ❌ PROHIBITED - Never run uvicorn/python directly
+uvicorn backend.main:app --reload
+python -m backend.main
+PYTHONPATH=. uvicorn ...
+
+# ✅ CORRECT - Always use Make
+make dev-all-local        # Local development
+make dev-all              # Cloud development (with tunnel)
+make dev-kill             # Stop all services
+make test                 # Run tests
+```
+
 ### No Emojis in Code
 ```typescript
 // ❌ PROHIBITED

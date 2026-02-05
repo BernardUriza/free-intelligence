@@ -159,7 +159,7 @@ async def list_personas(
     for persona_id in persona_manager.list_personas():
         # Get config (with user overrides if user_id provided)
         if user_id:
-            config = persona_manager.get_user_persona(persona_id, user_id, db)
+            config = persona_manager.get_effective_persona(persona_id, user_id, db)
         else:
             config = persona_manager.get_persona(persona_id)
 
@@ -201,7 +201,7 @@ async def get_persona(
     """
     try:
         if user_id:
-            config = persona_manager.get_user_persona(persona_id, user_id, db)
+            config = persona_manager.get_effective_persona(persona_id, user_id, db)
         else:
             config = persona_manager.get_persona(persona_id)
     except ValueError as e:
@@ -364,7 +364,7 @@ async def test_persona(
     """
     try:
         if user_id:
-            config = persona_manager.get_user_persona(persona_id, user_id, db)
+            config = persona_manager.get_effective_persona(persona_id, user_id, db)
         else:
             config = persona_manager.get_persona(persona_id)
     except ValueError as e:

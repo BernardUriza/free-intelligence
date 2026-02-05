@@ -29,9 +29,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Annotated
 from fastapi import Depends
 
-from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.repository_singletons import (
-    get_audit_repository,
     get_corpus_repository,
     get_task_repository,
 )
@@ -58,15 +56,6 @@ from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.common.policy_provider import get_policy_loader_dep
 from backend.schemas.llm.dependencies import get_preset_loader_dep
 from backend.services.soap.dependencies import get_decisional_middleware_dep
-from backend.infrastructure.cache.dependencies import get_cache_dep
-from backend.services.llm.dependencies import get_llm_model_service_dep
-from backend.domain.prescription.dependencies import (
-    get_catalog_service_dep,
-    get_catalog_repository_dep,
-)
-from backend.infrastructure.config.dependencies import get_secrets_manager_dep
-from backend.infrastructure.auth.dependencies import get_gatekeeper_dep
-from backend.services.audit.dependencies import get_audit_service_dep
 
 
 class WorkflowConfig(BaseModel):
@@ -162,7 +151,7 @@ def get_workflow_config() -> WorkflowConfig:
     )
 
 
-# get_task_repository and get_audit_repository imported from repository_singletons
+# get_task_repository and get_corpus_repository imported from repository_singletons
 
 
 @lru_cache(maxsize=1)
@@ -195,28 +184,6 @@ def get_triage_service_dep() -> TriageService:
         Config validated via Pydantic (fail-fast on invalid triage_data_dir).
     """
     return _get_triage_service_singleton()
-
-
-@lru_cache(maxsize=1)
-def _get_audit_service_singleton() -> AuditService:
-    """Internal singleton factory for AuditService."""
-    return AuditService(repository=get_audit_repository())
-
-
-def get_audit_service_dep() -> AuditService:
-    """Get audit service singleton (Phase 4A + DI Refactor).
-
-    Returns:
-        AuditService singleton instance with injected AuditRepository
-
-    Thread Safety:
-        @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        No longer uses service locator (get_container).
-        Directly injects AuditRepository dependency.
-    """
-    return _get_audit_service_singleton()
 
 
 @lru_cache(maxsize=1)

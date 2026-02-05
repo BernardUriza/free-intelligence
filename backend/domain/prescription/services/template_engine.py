@@ -10,7 +10,7 @@ Created: 2025-12-28
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from backend.utils.common.logging.logger import get_logger

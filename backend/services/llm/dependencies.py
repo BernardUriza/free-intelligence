@@ -4,10 +4,6 @@ Provides dependency injection for routers using FastAPI Depends().
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-29 (TODO cleanup - use centralized config)
-Updated: 2026-02-02 (Phase 2.3 Fase 6 - replaced get_policy_loader service locator)
-Updated: 2026-02-02 (DI Refactor - PersonaManager singleton with @lru_cache)
-Updated: 2026-02-02 (DI Refactor - Added get_llm_model_service_dep factory)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
@@ -135,17 +131,11 @@ def _get_llm_model_service_singleton() -> "ILLMModelService":
 def get_llm_model_service_dep() -> "ILLMModelService":
     """Get LLM model service singleton for model catalog management.
 
-    Phase 2.3 Tierra: Replaces deprecated llm_model_service singleton.
-
     Returns:
         ILLMModelService singleton instance
 
     Thread Safety:
         @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        The LLMModelService uses internal singleton pattern (__new__),
-        but this factory provides the DI-compliant entry point.
     """
     return _get_llm_model_service_singleton()
 

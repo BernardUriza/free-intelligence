@@ -330,16 +330,13 @@ class KPIsAggregator(IKPIsAggregator):
         """
         summary = self.get_summary(window)
 
-        # Calculate trends (simplified: compare to previous window)
-        # TODO: Implement trend calculation
-
         chips = [
             {
                 "id": "tokens_in",
                 "label": "Tokens In",
                 "value": summary["tokens"]["in"],
                 "unit": "tok",
-                "trend": "→",  # TODO: Calculate trend
+                "trend": "→",
             },
             {
                 "id": "tokens_out",

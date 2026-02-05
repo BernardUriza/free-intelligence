@@ -58,8 +58,7 @@ async def generate_embeddings_batch(
 ) -> list[list[float]]:
     """Generate embeddings for multiple texts.
 
-    Note: Currently processes sequentially. FI Monitor doesn't support batch API yet.
-    TODO: Add batch endpoint to FI Monitor for better performance.
+    Note: Processes sequentially (FI Monitor doesn't have batch API).
 
     Args:
         texts: List of input texts

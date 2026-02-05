@@ -11,7 +11,6 @@ Card: Document Repository Implementation
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import BinaryIO
 
 from backend.domain.document.models import (
     Document,

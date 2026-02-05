@@ -18,6 +18,7 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useOnboardingChat, type OnboardingUserData } from "@/hooks/useOnboardingChat";
 import { CompletionCelebration } from "@/components/onboarding/CompletionCelebration";
 import { SystemStatus } from "@/components/ui/SystemStatus";
+import { useAuth } from "@/hooks/useAuth";
 import type { ChatConfig } from "@/config/chat.config";
 
 // Onboarding-specific chat configuration
@@ -76,6 +77,7 @@ const onboardingChatConfig: Partial<ChatConfig> = {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { loginWithRedirect, isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Callbacks for onboarding events
   const handleSkip = useCallback(() => {
@@ -95,6 +97,33 @@ export default function OnboardingPage() {
     onSkip: handleSkip,
     onComplete: handleComplete,
   });
+
+  // Handle authentication - save profile data and redirect to Auth0
+  const handleAuthenticate = useCallback(async () => {
+    // Save onboarding data before redirect
+    const profileData = {
+      userName: onboardingHook.userData.userName,
+      userRole: onboardingHook.userData.userRole,
+      clinicType: onboardingHook.userData.clinicType,
+      consultasPerDay: onboardingHook.userData.consultasPerDay,
+      completedAt: new Date().toISOString(),
+    };
+    localStorage.setItem("aurity_onboarding_profile", JSON.stringify(profileData));
+    localStorage.setItem("aurity_onboarding_completed", "true");
+
+    console.log("[Onboarding] Saved profile, redirecting to Auth0:", profileData);
+
+    // Redirect to Auth0 login
+    await loginWithRedirect({
+      appState: { returnTo: "/chat/" },
+    });
+  }, [onboardingHook.userData, loginWithRedirect]);
+
+  // If already authenticated and in demo phase, redirect to chat
+  if (isAuthenticated && onboardingHook.phase === "demo" && !authLoading) {
+    router.push("/chat/");
+    return null;
+  }
 
   // If complete, show celebration
   if (onboardingHook.phase === "complete") {
@@ -124,12 +153,13 @@ export default function OnboardingPage() {
         Omitir
       </button>
 
-      {/* Demo Complete Button (for demo phase) */}
+      {/* Demo Complete Button (for demo phase) - Triggers Auth0 */}
       {onboardingHook.phase === "demo" && !onboardingHook.isTyping && (
-        <div className="absolute bottom-24 left-0 right-0 z-50 flex justify-center">
+        <div className="absolute bottom-24 left-0 right-0 z-50 flex flex-col items-center gap-3">
           <button
             type="button"
-            onClick={onboardingHook.completeOnboarding}
+            onClick={handleAuthenticate}
+            disabled={authLoading}
             className="
               px-8 py-3 text-base font-semibold
               bg-gradient-to-r from-emerald-600 to-cyan-600
@@ -138,10 +168,14 @@ export default function OnboardingPage() {
               shadow-lg hover:shadow-emerald-500/30
               transform hover:scale-105
               transition-all duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed
             "
           >
-            Completar Onboarding
+            {authLoading ? "Cargando..." : "Crear cuenta y continuar"}
           </button>
+          <p className="text-xs text-slate-400">
+            Guarda tu perfil y accede a todas las funciones
+          </p>
         </div>
       )}
 

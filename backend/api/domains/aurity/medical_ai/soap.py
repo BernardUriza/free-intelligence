@@ -23,7 +23,7 @@ from backend.clients.dependencies import get_llm_client_dep
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.repositories.interfaces import ITaskRepository
-from backend.services.soap.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 

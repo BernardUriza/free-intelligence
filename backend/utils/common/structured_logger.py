@@ -10,11 +10,14 @@ class StructuredLogger(ILogger):
     def __init__(self, name: str = __name__):
         self._logger = get_logger(name)
 
+    def debug(self, message: str, **kwargs):
+        self._logger.debug(message, **kwargs)
+
     def info(self, message: str, **kwargs):
         self._logger.info(message, **kwargs)
 
-    def error(self, message: str, **kwargs):
-        self._logger.error(message, **kwargs)
-
     def warning(self, message: str, **kwargs):
         self._logger.warning(message, **kwargs)
+
+    def error(self, message: str, **kwargs):
+        self._logger.error(message, **kwargs)

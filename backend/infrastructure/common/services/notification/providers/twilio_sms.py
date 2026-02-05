@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 
+from backend.config.secrets import get_secret
 from backend.infrastructure.common.services.notification.models import (
     NotificationChannel,
     NotificationContext,
@@ -26,8 +27,8 @@ logger = get_logger(__name__)
 # CONFIGURATION
 # =============================================================================
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_ACCOUNT_SID = get_secret("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = get_secret("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 
 # =============================================================================

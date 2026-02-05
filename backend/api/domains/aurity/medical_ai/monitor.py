@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import cast
 
-from backend.domain.session.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id

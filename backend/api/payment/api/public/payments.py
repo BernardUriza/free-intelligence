@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import os
 import stripe
+from backend.config.secrets import get_secret
 from backend.database import get_db_dependency
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
@@ -36,10 +36,10 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 # STRIPE CONFIGURATION
 # =============================================================================
 
-# Load Stripe keys from environment
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+# Load Stripe keys from secrets manager
+STRIPE_SECRET_KEY = get_secret("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = get_secret("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PUBLISHABLE_KEY = get_secret("STRIPE_PUBLISHABLE_KEY", "")
 
 # Initialize Stripe
 if STRIPE_SECRET_KEY:

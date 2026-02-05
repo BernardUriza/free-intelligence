@@ -30,8 +30,7 @@ def get_preset_loader_dep() -> "IPresetLoader":
         IPresetLoader singleton (same instance for all calls)
 
     Note:
-        Replaces deprecated get_preset_loader() service locator.
-        Workers receive this as a constructor parameter.
+        Workers receive this as a constructor parameter via DI.
     """
     return _get_preset_loader_singleton()
 

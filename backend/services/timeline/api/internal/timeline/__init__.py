@@ -1,7 +1,6 @@
-"""Timeline verification endpoint (internal/compatibility).
+"""Timeline verification endpoint (internal).
 
-Minimal compatibility layer for legacy timeline hash verification tests.
-Validates timeline event hashes against historical corpus data.
+Validates timeline event hashes against corpus data for data integrity.
 """
 
 from __future__ import annotations

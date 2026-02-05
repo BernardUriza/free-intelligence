@@ -8,8 +8,7 @@ Dependencies eliminated from direct imports:
 - AuditService → Constructor injected
 - PolicyLoader → Constructor injected
 - ConversationMemory → Via get_memory_manager (factory)
-- EventBus → Stub (Phase 3)
-- TraceStore → Stub (Phase 3)
+- TraceStore → In-memory implementation (InMemoryTraceStore)
 
 Author: Claude Code (refactored from chat.py)
 Created: 2026-01-28
@@ -35,9 +34,9 @@ from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
-# Stub trace store (Phase 3 will implement real trace storage)
-class StubTraceStore:
-    """Stub trace store - to be replaced in Phase 3."""
+# In-memory trace store for request tracing
+class InMemoryTraceStore:
+    """Simple in-memory trace store for LLM request tracing."""
 
     def __init__(self):
         self._store: dict[str, dict] = {}
@@ -124,7 +123,7 @@ class DIChatService:
         self.policy_loader = policy_loader
         self.logger = logger or get_logger(__name__)
         self.broadcast_callback = broadcast_callback
-        self.trace_store = StubTraceStore()  # Stub for Phase 3
+        self.trace_store = InMemoryTraceStore()  # Stub for Phase 3
 
     async def process_chat(
         self,
@@ -193,6 +192,7 @@ class DIChatService:
             message_len=len(message),
         )
 
+        primary_provider = "unknown"
         try:
             # Auto-enable memory for Azure GPT-4 (infinite conversation policy)
             primary_provider = self.policy_loader.get_primary_provider()
@@ -423,11 +423,15 @@ class DIChatService:
 
             # Log to observability hooks
             log_llm_call(
-                request_id=request_id,
-                persona=effective_persona,
-                tokens=tokens_used,
-                latency_ms=latency_ms,
                 model=model_name,
+                provider=primary_provider,
+                latency_ms=latency_ms,
+                prompt_tokens=tokens_used,
+                persona=effective_persona,
+                session_id=session_id,
+                client_id=effective_doctor_id,
+                prompt_hash=prompt_hash,
+                response_hash=response_hash,
             )
 
             # Extract optional reasoning from provider metadata
@@ -478,10 +482,12 @@ class DIChatService:
 
             # Log error to observability hooks
             log_llm_error(
-                request_id=request_id,
-                persona=persona,
-                error=sanitize_error_message(str(e)),
+                model="unknown",
+                provider=primary_provider,
                 latency_ms=latency_ms,
+                error_message=sanitize_error_message(str(e)),
+                persona=persona,
+                session_id=session_id,
             )
 
             raise

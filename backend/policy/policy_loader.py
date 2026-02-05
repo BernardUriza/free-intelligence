@@ -406,49 +406,24 @@ _policy_loader_lock = threading.Lock()
 
 
 def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
-    """
-    DEPRECATED: Get singleton PolicyLoader instance (thread-safe).
+    """Get singleton PolicyLoader instance (thread-safe).
 
-    ⚠️  This function is DEPRECATED. Use one of these alternatives:
-    - For FastAPI routes: get_policy_loader_dep() from backend.api.policy.dependencies
-    - For workers: get_policy_loader_dep() from backend.services.workflow.dependencies
-    - For scripts: PolicyLoader() directly with loader.load()
-
-    Uses double-checked locking pattern to ensure thread safety
-    without performance penalty after initialization.
+    Uses double-checked locking pattern to ensure thread safety.
 
     Args:
         policy_path: Optional path to policy file (only used on first call)
 
     Returns:
         PolicyLoader instance
-
-    Thread Safety:
-        - Multiple threads can safely call this function concurrently
-        - Only one instance will be created even under high concurrency
-        - Lock is only acquired on first call (fast path for subsequent calls)
-
-    .. deprecated::
-        Phase 2.3 Urano - use DI factories instead of this service locator.
     """
-    import warnings
-
-    warnings.warn(
-        "get_policy_loader() is deprecated. Use get_policy_loader_dep() from "
-        "backend.services.workflow.dependencies or backend.api.policy.dependencies",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
     global _policy_loader
 
-    # Fast path: check without lock (99.9% of calls)
+    # Fast path: check without lock
     if _policy_loader is not None:
         return _policy_loader
 
     # Slow path: acquire lock and check again
     with _policy_loader_lock:
-        # Double-check: another thread might have initialized while we waited
         if _policy_loader is None:
             logger.info("POLICY_LOADER_INITIALIZING", thread_id=threading.current_thread().name)
             _policy_loader = PolicyLoader(policy_path)

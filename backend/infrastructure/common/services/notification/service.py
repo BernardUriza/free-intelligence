@@ -135,13 +135,11 @@ async def schedule_appointment_reminders(
     patient_email: str | None,
     context: NotificationContext,
 ) -> dict:
-    """Schedule reminders for an appointment.
+    """Log reminder schedule (NOT IMPLEMENTED - scheduler not integrated).
 
-    This is a placeholder for actual scheduler integration.
-    In production, integrate with:
-    - APScheduler for in-process scheduling
-    - Celery Beat for distributed scheduling
-    - AWS EventBridge for serverless
+    This function only logs what reminders WOULD be scheduled.
+    Actual scheduling requires integration with APScheduler, Celery Beat,
+    or AWS EventBridge.
 
     Args:
         appointment_id: Unique appointment identifier
@@ -151,17 +149,15 @@ async def schedule_appointment_reminders(
         context: Notification context
 
     Returns:
-        Dict with scheduled job IDs
+        Dict with reminder times and status "logged" (not actually scheduled)
     """
     from datetime import timedelta
 
     reminder_24h = scheduled_at - timedelta(hours=24)
     reminder_1h = scheduled_at - timedelta(hours=1)
 
-    # TODO(human): Implement actual scheduler integration
-    # For now, just log what would be scheduled
     logger.info(
-        "REMINDERS_SCHEDULED",
+        "REMINDERS_LOGGED_NOT_SCHEDULED",
         appointment_id=appointment_id,
         reminder_24h=reminder_24h.isoformat(),
         reminder_1h=reminder_1h.isoformat(),
@@ -177,5 +173,5 @@ async def schedule_appointment_reminders(
             "24h": reminder_24h.isoformat(),
             "1h": reminder_1h.isoformat(),
         },
-        "status": "scheduled",
+        "status": "logged",  # NOT "scheduled" - that was a lie
     }

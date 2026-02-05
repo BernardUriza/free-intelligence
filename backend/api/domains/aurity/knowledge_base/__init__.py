@@ -15,18 +15,22 @@ Features:
 - Automatic chunking and embedding
 - HDF5-based storage with vector index
 
-Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
-Migrated from: backend/api/routers/document/public/documents.py
+SOLID Refactor: 2026-02-03
+Structure:
+- schemas.py      - Pydantic request/response models
+- dependencies.py - FastAPI DI
+- routes.py       - API endpoints
+- services/       - FileValidator, TextExtractor
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import documents
+from backend.api.domains.aurity.knowledge_base.routes import router as routes_router
 
-# Router with /documents prefix (added here, not in documents.py)
+# Router with /documents prefix
 router = APIRouter(prefix="/documents", tags=["Documents"])
-router.include_router(documents.router)
+router.include_router(routes_router)
 
-__all__ = ["router", "documents"]
+__all__ = ["router"]

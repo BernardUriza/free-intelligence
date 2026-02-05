@@ -47,19 +47,13 @@ def _get_catalog_service_singleton() -> "ICatalogService":
 
 
 def get_catalog_service_dep() -> "ICatalogService":
-    """Get medication catalog service singleton - SOLID DI factory.
-
-    Phase 2.3 Marte: Replaces deprecated catalog_service singleton.
+    """Get medication catalog service singleton via DI.
 
     Returns:
         ICatalogService singleton instance with InMemoryCatalogRepository
 
     Thread Safety:
         @lru_cache is thread-safe in Python 3.9+.
-
-    Note:
-        Uses Repository pattern for data access (DIP).
-        The CatalogService uses internal singleton pattern (__new__).
     """
     return _get_catalog_service_singleton()
 

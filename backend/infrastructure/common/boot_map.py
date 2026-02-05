@@ -13,7 +13,7 @@ Author: Bernard Uriza Orozco
 License: MIT
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import h5py
 import numpy as np

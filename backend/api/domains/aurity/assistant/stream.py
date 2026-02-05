@@ -60,12 +60,22 @@ async def stream_chat_with_assistant(request: ChatCompletionRequest) -> Streamin
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
             try:
+                # Build messages array for stateless context (when memory disabled)
+                messages_for_context = None
+                if request.user is None:
+                    # No user = no memory, pass full messages array
+                    messages_for_context = [
+                        {"role": msg.role, "content": msg.content}
+                        for msg in request.messages
+                    ]
+
                 async with client.stream(
                     "POST",
                     "http://localhost:7001/internal/llm/chat/stream",
                     json={
                         "persona": request.persona,
                         "message": last_message.content,
+                        "messages": messages_for_context,
                         "context": {
                             "system_message": system_message,
                             "temperature": request.temperature,

@@ -142,6 +142,7 @@ export function usePersonas(): UsePersonasReturn {
       setError(null);
 
       // api.get handles auth token automatically via getAuthToken() in @/lib/api/client
+      // Include X-Onboarding-Mode header to allow unauthenticated access during onboarding
       const data = await api.get<{ personas: Array<{
         id: string;
         name: string;
@@ -150,7 +151,9 @@ export function usePersonas(): UsePersonasReturn {
         model?: string;
         temperature?: number;
         max_tokens?: number;
-      }> }>('/api/aurity/personas');
+      }> }>('/api/aurity/assistant/personas', {
+        customHeaders: { 'X-Onboarding-Mode': 'true' },
+      });
 
       // Transform backend response to frontend format
       const transformedPersonas: PersonaOption[] = data.personas.map((p: any) => ({

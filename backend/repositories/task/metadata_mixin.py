@@ -223,11 +223,11 @@ class TaskMetadataMixin:
             raise
 
     def delete_task(self, session_id: str, task_type: str) -> bool:
-        """Delete task and all chunks (stub implementation).
+        """Delete a specific task and all its chunks.
 
         Args:
             session_id: Session UUID
-            task_type: Task type
+            task_type: Task type (e.g., "transcription", "soap_generation")
 
         Returns:
             True if deletion successful, False if task not found
@@ -235,14 +235,36 @@ class TaskMetadataMixin:
         Raises:
             IOError: If delete operation fails
         """
-        # TODO: Implement delete logic (delete task group from HDF5)
-        logger.warning(
-            "DELETE_TASK_NOT_IMPLEMENTED",
-            session_id=session_id,
-            task_type=task_type,
-            hint="Stub implementation - no actual deletion performed",
-        )
-        return False
+        try:
+            with h5py.File(self.h5_file_path, "a") as f:
+                task_path = self._get_task_path(session_id, task_type)
+
+                if task_path not in f:
+                    logger.debug(
+                        "DELETE_TASK_NOT_FOUND",
+                        session_id=session_id,
+                        task_type=task_type,
+                    )
+                    return False
+
+                # Delete the task group (includes all chunks and metadata)
+                del f[task_path]
+
+                logger.info(
+                    "DELETE_TASK_SUCCESS",
+                    session_id=session_id,
+                    task_type=task_type,
+                )
+                return True
+
+        except Exception as e:
+            logger.error(
+                "DELETE_TASK_FAILED",
+                session_id=session_id,
+                task_type=task_type,
+                error=str(e),
+            )
+            raise IOError(f"Failed to delete task {task_type} for session {session_id}: {e}") from e
 
     def get_task_progress(self, session_id: str, task_type: str) -> dict[str, Any]:
         """Get task progress summary (stub implementation).

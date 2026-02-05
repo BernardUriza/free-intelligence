@@ -33,14 +33,14 @@ from backend.utils.common.logging.logger import get_logger
 
 
 class TranscriptionChunkEvent:
-    """Stub event - to be replaced in Phase 3."""
+    """Event signaling chunk processed (marker event, no payload)."""
     @staticmethod
     def create(**kwargs):
         return TranscriptionChunkEvent()
 
 
 class TranscriptionStartedEvent:
-    """Stub event - to be replaced in Phase 3."""
+    """Event signaling transcription session started (marker event, no payload)."""
     @staticmethod
     def create(**kwargs):
         return TranscriptionStartedEvent()

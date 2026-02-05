@@ -16,7 +16,6 @@ from contextlib import asynccontextmanager
 import sys
 
 import os
-from backend.app.version import __version__
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
 from backend.middleware.tracing import TracingMiddleware

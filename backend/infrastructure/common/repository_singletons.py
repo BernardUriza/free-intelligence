@@ -19,9 +19,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.repositories.audit_repository import AuditRepository
-    from backend.repositories.corpus_repository import CorpusRepository
-    from backend.repositories.task import HDF5TaskRepository
-    from backend.repositories.hdf5_document_repository import HDF5DocumentRepository
     from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
     from backend.repositories.interfaces.itask_repository import ITaskRepository
     from backend.repositories.interfaces.idocument_repository import IDocumentRepository

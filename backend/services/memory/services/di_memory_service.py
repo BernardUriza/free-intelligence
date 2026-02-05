@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from backend.repositories.interfaces.imemory_store import IMemoryStore, AudioEventDict
+from backend.repositories.interfaces.imemory_store import IMemoryStore
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger

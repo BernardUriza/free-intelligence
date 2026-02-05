@@ -113,7 +113,8 @@ class OllamaProvider(LLMProvider):
 
         Args:
             prompt: Input text prompt
-            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
+            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, format, etc.)
+                - format: Optional JSON schema dict to constrain output to valid JSON
 
         Returns:
             LLMResponse with content and metadata
@@ -124,12 +125,15 @@ class OllamaProvider(LLMProvider):
         temperature: float = float(
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
         )
+        # JSON format constraint for structured output (Ollama native feature)
+        json_format: dict | None = kwargs.get("format")
 
         self.logger.info(
             "OLLAMA_GENERATE_STARTED",
             model=model,
             prompt_length=len(prompt),
             hosts_available=len(self.hosts),
+            json_format_enabled=json_format is not None,
         )
 
         start_time = datetime.now(UTC)
@@ -142,6 +146,9 @@ class OllamaProvider(LLMProvider):
 
         def _make_request(client: Any, host_url: str) -> dict[str, Any]:
             """Execute Ollama request and parse response."""
+            # Build common kwargs - format constrains output to JSON schema
+            format_kwargs = {"format": json_format} if json_format else {}
+
             if use_generate_with_think:
                 response = client.generate(
                     model=model,
@@ -151,6 +158,7 @@ class OllamaProvider(LLMProvider):
                         "num_predict": max_tokens,
                         "think": True,
                     },
+                    **format_kwargs,
                 )
             else:
                 response = client.chat(
@@ -161,6 +169,7 @@ class OllamaProvider(LLMProvider):
                         "temperature": temperature,
                         "num_predict": max_tokens,
                     },
+                    **format_kwargs,
                 )
             return {"response": response, "host_url": host_url}
 
@@ -273,7 +282,8 @@ class OllamaProvider(LLMProvider):
 
         Args:
             prompt: Input text prompt
-            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, etc.)
+            **kwargs: Ollama-specific parameters (model, temperature, max_tokens, format, etc.)
+                - format: Optional JSON schema dict to constrain output to valid JSON
 
         Yields:
             tuple[str, str]: (chunk_type, chunk_text) where chunk_type is "thinking" or "content"
@@ -284,18 +294,24 @@ class OllamaProvider(LLMProvider):
         temperature: float = float(
             kwargs.get("temperature") or self.config.get("temperature") or 0.7
         )
+        # JSON format constraint for structured output (Ollama native feature)
+        json_format: dict | None = kwargs.get("format")
 
         self.logger.info(
             "OLLAMA_GENERATE_STREAM_STARTED",
             model=model,
             prompt_length=len(prompt),
             hosts_available=len(self.hosts),
+            json_format_enabled=json_format is not None,
         )
 
         force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
         enable_thinking = kwargs.get("enable_thinking", True)
         is_qwen3 = str(model).lower().startswith("qwen3")
         use_generate_with_think = enable_thinking and (is_qwen3 or force_thinking)
+
+        # Build format kwargs - format constrains output to JSON schema
+        format_kwargs = {"format": json_format} if json_format else {}
 
         def _make_stream_request(client: Any, _host_url: str) -> Generator[tuple[str, str], None, None]:
             """Execute streaming Ollama request."""
@@ -309,6 +325,7 @@ class OllamaProvider(LLMProvider):
                         "num_predict": max_tokens,
                         "think": True,
                     },
+                    **format_kwargs,
                 )
             else:
                 response = client.chat(
@@ -320,6 +337,7 @@ class OllamaProvider(LLMProvider):
                         "num_predict": max_tokens,
                         "think": False,
                     },
+                    **format_kwargs,
                 )
 
             for chunk in response:

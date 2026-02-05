@@ -35,10 +35,40 @@ def mock_logger():
 
 
 @pytest.fixture
-def orchestrator(mock_task_repo, mock_logger):
+def mock_workflow_tracker():
+    """Mock IWorkflowTracker."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_policy_loader():
+    """Mock IPolicyLoader."""
+    loader = Mock()
+    loader.get_primary_provider = Mock(return_value="ollama")
+    return loader
+
+
+@pytest.fixture
+def mock_preset_loader():
+    """Mock IPresetLoader."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_decisional_middleware():
+    """Mock IDecisionalMiddleware."""
+    return Mock()
+
+
+@pytest.fixture
+def orchestrator(mock_task_repo, mock_workflow_tracker, mock_policy_loader, mock_preset_loader, mock_decisional_middleware, mock_logger):
     """WorkflowOrchestrator instance with mocked dependencies."""
     return WorkflowOrchestrator(
         task_repository=mock_task_repo,
+        workflow_tracker=mock_workflow_tracker,
+        policy_loader=mock_policy_loader,
+        preset_loader=mock_preset_loader,
+        decisional_middleware=mock_decisional_middleware,
         logger=mock_logger,
     )
 

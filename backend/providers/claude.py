@@ -7,13 +7,13 @@ Primary provider for production use.
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import anthropic
 import numpy as np
 
+from backend.config.secrets import get_secret
 from backend.providers.base import LLMProvider, LLMResponse
 from backend.providers.embeddings import fallback_embed_sentence_transformer
 from backend.providers.utils import sanitize_error_message
@@ -40,7 +40,7 @@ class ClaudeProvider(LLMProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        api_key = os.getenv("CLAUDE_API_KEY")
+        api_key = get_secret("CLAUDE_API_KEY")
         if not api_key:
             raise ValueError("CLAUDE_API_KEY environment variable not set")
 

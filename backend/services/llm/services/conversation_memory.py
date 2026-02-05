@@ -326,7 +326,7 @@ class ConversationMemoryManager:
 
         # Append to H5 index
         with _memory_lock, h5py.File(self.memory_path, "a") as f:
-            # Migration: Create models dataset if it doesn't exist (backward compatibility)
+            # Create models dataset if it doesn't exist
             if "/metadata/models" not in f:
                 logger.info(
                     "MEMORY_MIGRATION_MODELS_DATASET",

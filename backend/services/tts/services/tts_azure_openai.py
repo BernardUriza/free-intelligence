@@ -28,35 +28,29 @@ from __future__ import annotations
 from typing import Literal
 
 import httpx
-import os
 import structlog
+
+from backend.config.secrets import get_secret
 
 logger = structlog.get_logger(__name__)
 
 # Azure OpenAI TTS configuration
 # Supports unified resource (AZURE_OPENAI_*) and legacy specific TTS vars
-AZURE_OPENAI_TTS_ENDPOINT = os.getenv(
-    "AZURE_OPENAI_ENDPOINT",  # Unified resource endpoint (shared with STT)
-    os.getenv(
-        "AZURE_OPENAI_TTS_ENDPOINT",
-        os.getenv("AZURE_TTS_ENDPOINT", ""),  # Legacy var names
-    ),
+AZURE_OPENAI_TTS_ENDPOINT = (
+    get_secret("AZURE_OPENAI_ENDPOINT")
+    or get_secret("AZURE_OPENAI_TTS_ENDPOINT")
+    or get_secret("AZURE_TTS_ENDPOINT", "")
 )
-AZURE_OPENAI_TTS_API_KEY = os.getenv(
-    "AZURE_OPENAI_API_KEY",  # Unified resource API key (shared with STT)
-    os.getenv(
-        "AZURE_OPENAI_TTS_API_KEY",
-        os.getenv("AZURE_TTS_API_KEY", ""),  # Legacy var names
-    ),
+AZURE_OPENAI_TTS_API_KEY = (
+    get_secret("AZURE_OPENAI_API_KEY")
+    or get_secret("AZURE_OPENAI_TTS_API_KEY")
+    or get_secret("AZURE_TTS_API_KEY", "")
 )
-AZURE_OPENAI_TTS_API_VERSION = os.getenv(
-    "AZURE_OPENAI_TTS_API_VERSION",
-    os.getenv("AZURE_TTS_API_VERSION", "2025-03-01-preview"),  # Backward compat
+AZURE_OPENAI_TTS_API_VERSION = (
+    get_secret("AZURE_OPENAI_TTS_API_VERSION")
+    or get_secret("AZURE_TTS_API_VERSION", "2025-03-01-preview")
 )
-AZURE_OPENAI_TTS_DEPLOYMENT = os.getenv(
-    "AZURE_OPENAI_TTS_DEPLOYMENT",
-    "tts-hd",  # Default deployment name in Azure
-)
+AZURE_OPENAI_TTS_DEPLOYMENT = get_secret("AZURE_OPENAI_TTS_DEPLOYMENT", "tts-hd")
 
 # OpenAI voice types (aligned with Aurity offering)
 # Only include voices that are currently offered in Aurity

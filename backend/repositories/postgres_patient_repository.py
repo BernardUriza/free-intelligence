@@ -12,7 +12,7 @@ from __future__ import annotations
 
 # PEP 585: use built-in list instead of typing.List
 
-from backend.domain.patient import Gender, IPatientRepository, Patient
+from backend.domain.patient import IPatientRepository, Patient
 from backend.mappers.patient_mapper import PatientMapper
 from backend.models.db_models import Patient as DBPatient
 from sqlalchemy.orm import Session

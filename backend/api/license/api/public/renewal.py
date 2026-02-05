@@ -20,8 +20,7 @@ Security:
 - Rate limited to prevent abuse
 """
 
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 # Import license generator (relative import within fi_license package)
 from backend.api.license import LicensePayload, decode_license_key, generate_license_key

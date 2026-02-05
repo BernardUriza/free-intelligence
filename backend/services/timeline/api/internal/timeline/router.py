@@ -44,7 +44,7 @@ def find_target_in_h5(h5: h5py.File, target_id: str) -> tuple[str | None, h5py.D
     Target ID formats supported:
     - session_<id>: Session group (computes hash of all datasets)
     - session_<id>/path/to/dataset: Specific dataset
-    - <interaction_id>: Legacy interaction format
+    - <interaction_id>: Direct interaction ID
 
     Args:
         h5: HDF5 file handle

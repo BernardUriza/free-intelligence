@@ -48,8 +48,7 @@ def get_secrets_manager_dep(use_keyvault: bool = True) -> "ISecretsManager":
         Two separate singletons for keyvault and env-only modes.
 
     Note:
-        Replaces deprecated get_secret() module-level function.
-        Services receive this as a constructor parameter.
+        Services receive this as a constructor parameter via DI.
     """
     if use_keyvault:
         return _get_keyvault_secrets_manager_singleton()

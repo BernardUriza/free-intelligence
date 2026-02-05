@@ -20,10 +20,8 @@ Security:
 
 import base64
 import json
-import re
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import os

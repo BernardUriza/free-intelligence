@@ -39,6 +39,7 @@ class PersonaTemplateModel(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     updated_by: str | None = None
+    response_format: dict | None = None  # JSON schema for structured output (Ollama format param)
 
     @field_validator("voice", mode="before")
     @classmethod

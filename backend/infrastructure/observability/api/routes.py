@@ -1,9 +1,6 @@
 # fi_observability/api/routes.py
 # API routes for LLM observability
 
-from dataclasses import asdict
-from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict

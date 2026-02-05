@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 
+from backend.config.secrets import get_secret
 from backend.infrastructure.common.services.notification.models import (
     NotificationChannel,
     NotificationContext,
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 # CONFIGURATION
 # =============================================================================
 
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+SENDGRID_API_KEY = get_secret("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@aurity.io")
 SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "AURITY Clínica")
 

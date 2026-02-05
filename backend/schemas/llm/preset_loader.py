@@ -123,15 +123,10 @@ class PresetLoader(IPresetLoader):
         # Default to backend/prompts and backend/schemas (absolute paths)
         # Check new location first, fallback to old for backward compatibility
         if presets_dir is None:
-            # Check new location first
-            new_prompts_dir = (
-                Path(__file__).parent.parent.parent / "src" / "fi_prompts" / "yaml_presets"
+            # backend/utils/prompts/yaml_presets/
+            presets_dir = str(
+                Path(__file__).parent.parent.parent / "utils" / "prompts" / "yaml_presets"
             )
-            if new_prompts_dir.exists():
-                presets_dir = str(new_prompts_dir)
-            else:
-                # Fallback to old location
-                presets_dir = str(Path(__file__).parent.parent / "prompts")
         if schemas_dir is None:
             schemas_dir = str(Path(__file__).parent)
 
@@ -338,30 +333,16 @@ class PresetLoader(IPresetLoader):
         return presets
 
 
-# Global preset loader instance
+# Global preset loader instance (singleton)
 _preset_loader: PresetLoader | None = None
 
 
 def get_preset_loader() -> PresetLoader:
-    """Get or create global preset loader.
-
-    .. deprecated:: 2026-02-02
-        Use ``get_preset_loader_dep()`` from
-        ``backend.services.workflow.dependencies`` instead.
-        This service locator will be removed in a future release.
+    """Get or create global preset loader singleton.
 
     Returns:
         PresetLoader singleton instance
     """
-    import warnings
-
-    warnings.warn(
-        "get_preset_loader() is deprecated. "
-        "Use get_preset_loader_dep() from backend.services.workflow.dependencies instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
     global _preset_loader
 
     if _preset_loader is None:

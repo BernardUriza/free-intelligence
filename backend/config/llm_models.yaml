@@ -143,15 +143,3 @@ models:
   ram_required_gb: 3.0
   created_at: 2025-12-12T20:15:54.554767+00:00Z
   updated_at: 2025-12-12T22:25:56.622619+00:00Z
-- id: qwen3:1.7b
-  label: Qwen3 1.7B (Thinking)
-  provider: ollama
-  cost_tier: low
-  max_tokens: 8192
-  context_window: 40000
-  is_active: true
-  description: Modelo compacto con thinking mode nativo
-  size_bytes: null
-  ram_required_gb: 2.5
-  created_at: '2025-12-12T22:48:03.553386Z'
-  updated_at: '2025-12-12T22:48:03.553386Z'

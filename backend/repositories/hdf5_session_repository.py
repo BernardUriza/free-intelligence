@@ -185,8 +185,7 @@ class HDF5SessionRepository(ISessionRepository):
         """
         # CASCADE DELETE: Remove all tasks for this session FIRST
         if self.task_repository is not None:
-            deleted_tasks = self.task_repository.delete_by_session(session_id)
-            # Note: delete_by_session() logs internally, no need to log here
+            self.task_repository.delete_by_session(session_id)
 
         with h5py.File(self.hdf5_path, "a") as f:
             session_group_path = f"/sessions/{session_id}"

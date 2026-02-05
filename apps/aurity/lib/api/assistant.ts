@@ -320,6 +320,12 @@ export const assistantApi = {
       messages: `[${payload.messages.length} messages]`, // Don't log full messages
     });
 
+    // Add onboarding mode header for onboarding_guide persona (bypasses auth)
+    const customHeaders: Record<string, string> = {};
+    if (personaFromContext === 'onboarding_guide') {
+      customHeaders['X-Onboarding-Mode'] = 'true';
+    }
+
     const response = await api.post<{
       id: string;
       model: string;  // LLM model identifier
@@ -333,7 +339,10 @@ export const assistantApi = {
     }>(
       '/api/aurity/assistant/chat',
       payload,
-      { timeout: CHAT_TIMEOUT_MS } // 2 minutes for LLM inference
+      {
+        timeout: CHAT_TIMEOUT_MS, // 2 minutes for LLM inference
+        customHeaders, // X-Onboarding-Mode for unauthenticated onboarding
+      }
     );
 
     // Validate response structure
@@ -380,6 +389,7 @@ export const assistantApi = {
     signal?: AbortSignal
   ): Promise<ChatResponse> => {
     // Use dedicated introduction endpoint
+    // Always include X-Onboarding-Mode for introduction (it's always during onboarding)
     const response = await api.post<{
       message: string;
       persona: string;
@@ -391,7 +401,11 @@ export const assistantApi = {
         physician_name: context.physician_name as string | undefined,
         clinic_name: context.clinic_name as string | undefined,
       },
-      { timeout: INTRO_TIMEOUT_MS, signal } // 60 seconds (local Ollama can take 30-50s)
+      {
+        timeout: INTRO_TIMEOUT_MS, // 60 seconds (local Ollama can take 30-50s)
+        signal,
+        customHeaders: { 'X-Onboarding-Mode': 'true' },
+      }
     );
 
     return {
@@ -447,6 +461,7 @@ export const assistantApi = {
       let thinking = '';
       let content = '';
       let model = '';
+      let persona = '';  // Capture persona from backend done event
       let currentEvent = 'message';
 
       try {
@@ -470,21 +485,28 @@ export const assistantApi = {
           requestBody.response_mode = request.context.response_mode;
         }
 
+        // Add onboarding mode header for onboarding_guide persona (bypasses auth)
+        const streamHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        };
+        if (requestBody.persona === 'onboarding_guide') {
+          streamHeaders['X-Onboarding-Mode'] = 'true';
+        }
+
         console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
           url: `${backendUrl}/api/aurity/assistant/chat/stream`,
           persona: requestBody.persona,
           messages: messages.length,
           lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
+          hasOnboardingHeader: requestBody.persona === 'onboarding_guide',
         });
 
         const response = await fetch(
           `${backendUrl}/api/aurity/assistant/chat/stream`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'text/event-stream',
-            },
+            headers: streamHeaders,
             body: JSON.stringify(requestBody),
             signal: abortController.signal,
           }
@@ -547,10 +569,14 @@ export const assistantApi = {
               try {
                 const jsonData = JSON.parse(data);
 
-                // Capture model if present (sent by backend in metadata)
+                // Capture model and persona if present (sent by backend in done event)
                 if (jsonData.model) {
                   model = jsonData.model;
                   console.log('[assistantApi.chatStream] [MODEL] Model:', model);
+                }
+                if (jsonData.persona) {
+                  persona = jsonData.persona;
+                  console.log('[assistantApi.chatStream] [PERSONA] Persona:', persona);
                 }
 
                 if (currentEvent === 'meta' && jsonData.thinking) {
@@ -590,10 +616,10 @@ export const assistantApi = {
           thinkingLength: thinking.length,
         });
 
-        // Stream complete
+        // Stream complete - use persona from backend or fallback to request persona
         onComplete?.({
           message: sanitizeMessagePreview(content, 10_000),
-          persona: 'general_assistant',
+          persona: persona || (request.context?.persona as string) || 'general_assistant',
           voice: 'nova',
           model: model || undefined,  // LLM model that generated this response
           thinking: sanitizeMessagePreview(thinking, 10_000) || undefined,

@@ -6,8 +6,6 @@ Tests for retry logic, circuit breaker, and exponential backoff functionality.
 from __future__ import annotations
 
 import time
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 

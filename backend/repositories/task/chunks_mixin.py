@@ -157,6 +157,68 @@ class TaskChunksMixin:
 
         return False
 
+    def save_chunk_audio(
+        self,
+        session_id: str,
+        task_type: str,
+        chunk_idx: int,
+        audio_bytes: bytes,
+        filename: str = "audio.webm",
+    ) -> bool:
+        """Save audio bytes for a specific chunk.
+
+        Args:
+            session_id: Session identifier
+            task_type: Task type
+            chunk_idx: Chunk index
+            audio_bytes: Raw audio data to save
+            filename: Audio filename (default: audio.webm)
+
+        Returns:
+            True on success, False on failure
+        """
+        chunk_path = f"{self.TASKS_GROUP}/{session_id}/{task_type}/chunks/chunk_{chunk_idx}"
+        audio_dataset_path = f"{filename}"
+
+        try:
+            with h5py.File(self.h5_file_path, "a") as f:
+                # Ensure chunk group exists
+                if chunk_path not in f:
+                    f.create_group(chunk_path)
+
+                chunk_group = f[chunk_path]
+
+                # Delete existing audio if present
+                if audio_dataset_path in chunk_group:
+                    del chunk_group[audio_dataset_path]
+
+                # Save audio bytes as dataset
+                chunk_group.create_dataset(
+                    audio_dataset_path,
+                    data=audio_bytes,
+                    dtype=h5py.special_dtype(vlen=bytes),
+                )
+
+                logger.info(
+                    "CHUNK_AUDIO_SAVED",
+                    session_id=session_id,
+                    task_type=task_type,
+                    chunk_idx=chunk_idx,
+                    audio_size_bytes=len(audio_bytes),
+                )
+                return True
+
+        except Exception as e:
+            logger.error(
+                "SAVE_CHUNK_AUDIO_FAILED",
+                session_id=session_id,
+                task_type=task_type,
+                chunk_idx=chunk_idx,
+                error=str(e),
+                exc_info=True,
+            )
+            return False
+
     def get_chunk_audio_bytes(
         self, session_id: str, task_type: str, chunk_idx: int
     ) -> bytes | None:

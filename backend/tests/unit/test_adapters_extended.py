@@ -5,7 +5,6 @@ Tests for Redux to Events translation functionality.
 
 from __future__ import annotations
 
-from typing import Any
 
 import pytest
 

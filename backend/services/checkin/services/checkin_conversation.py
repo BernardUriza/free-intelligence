@@ -27,6 +27,7 @@ from typing import Any
 
 # mypy: ignore-errors
 import os
+from backend.config.secrets import get_secret
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -36,7 +37,7 @@ logger = get_logger(__name__)
 # CONFIGURATION
 # =============================================================================
 
-CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY", "")
+CLAUDE_API_KEY = get_secret("CLAUDE_API_KEY", "")
 CLAUDE_MODEL = os.getenv("CHECKIN_CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 
@@ -620,10 +621,7 @@ class CheckinConversationService:
         clinic_id: str,
         db_session,
     ) -> dict | None:
-        """Look up appointment by check-in code.
-
-        TODO(human): Implement actual database lookup
-        """
+        """Look up appointment by check-in code."""
         from sqlalchemy import text
 
         query = text("""
@@ -666,10 +664,7 @@ class CheckinConversationService:
         clinic_id: str,
         db_session,
     ) -> dict | None:
-        """Look up appointment by patient name.
-
-        TODO(human): Implement fuzzy name matching
-        """
+        """Look up appointment by patient name (case-insensitive LIKE match)."""
         from sqlalchemy import text
 
         # Simple name match (case-insensitive)

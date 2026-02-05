@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import BinaryIO
 
 from backend.repositories.interfaces.idocument_repository import IDocumentRepository
 from backend.domain.document.models import (

@@ -20,9 +20,6 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.services.soap.services.soap_generation_service import SOAPGenerationService
-from backend.infrastructure.common.repository_singletons import (
-    get_task_repository,
-)
 from backend.config import CORPUS_PATH
 
 if TYPE_CHECKING:
@@ -135,7 +132,8 @@ def get_soap_service() -> SOAPGenerationService:
     )
 
 
-# get_task_repository imported from repository_singletons (singleton)
+# Re-export get_task_repository from repository_singletons for backward compatibility
+from backend.infrastructure.common.repository_singletons import get_task_repository
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -159,8 +157,7 @@ def get_decisional_middleware_dep() -> "IDecisionalMiddleware":
         IDecisionalMiddleware singleton with preset_loader injected
 
     Note:
-        Replaces deprecated get_decisional_middleware() service locator.
-        Handles intelligent SOAP generation orchestration.
+        Handles intelligent SOAP generation orchestration via DI.
     """
     return _get_decisional_middleware_singleton()
 
@@ -170,4 +167,5 @@ __all__ = [
     "get_soap_config",
     "get_soap_service",
     "get_decisional_middleware_dep",
+    "get_task_repository",
 ]

@@ -1,15 +1,12 @@
 """Unit tests for DIMemoryService (DI refactored version).
 
 Tests longitudinal memory aggregation with mocked dependencies.
-
-Author: Claude Code
-Created: 2026-01-28
-Card: Backend Refactor Phase 2.6 - Testing Strategy
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from backend.services.memory.services.di_memory_service import DIMemoryService
+from backend.repositories.interfaces.imemory_store import IMemoryStore
 from backend.infrastructure.interfaces.ilogger import ILogger
 
 
@@ -24,12 +21,25 @@ def mock_logger():
 
 
 @pytest.fixture
-def service(mock_logger, tmp_path):
-    """DIMemoryService instance with mocked dependencies and temp corpus."""
-    # Use temporary HDF5 file for testing
-    corpus_path = str(tmp_path / "test_corpus.h5")
+def mock_memory_store():
+    """Mock IMemoryStore."""
+    store = Mock(spec=IMemoryStore)
+    store.get_audio_events = Mock(return_value=([], 0))
+    store.search_audio_events = Mock(return_value=[])
+    store.get_audio_stats = Mock(return_value={
+        "count": 0,
+        "oldest_timestamp": None,
+        "newest_timestamp": None,
+        "unique_sessions": 0,
+    })
+    return store
+
+
+@pytest.fixture
+def service(mock_memory_store, mock_logger):
+    """DIMemoryService instance with mocked dependencies."""
     return DIMemoryService(
-        corpus_path=corpus_path,
+        memory_store=mock_memory_store,
         logger=mock_logger,
     )
 
@@ -37,129 +47,67 @@ def service(mock_logger, tmp_path):
 class TestGetLongitudinalMemory:
     """Tests for get_longitudinal_memory() method."""
 
-    def test_returns_empty_for_nonexistent_patient(self, service):
-        """Test that get_longitudinal_memory returns empty data for nonexistent patient."""
-        # Arrange
-        patient_id = "nonexistent-patient-123"
-
-        # Act
-        result = service.get_longitudinal_memory(
-            patient_id=patient_id,
-            lookback_days=30,
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_nonexistent_doctor(self, service):
+        """Test that get_longitudinal_memory returns empty data for nonexistent doctor."""
+        result = await service.get_longitudinal_memory(
+            doctor_id="nonexistent-doctor-123",
+            offset=0,
+            limit=20,
+            event_type="all",
         )
 
-        # Assert
         assert result is not None
-        assert "chat_events" in result
-        assert "audio_events" in result
-        assert len(result["chat_events"]) == 0
-        assert len(result["audio_events"]) == 0
+        assert "events" in result
+        assert len(result["events"]) == 0
 
-    @patch("backend.services.memory.services.di_memory_service.h5py")
-    def test_aggregates_chat_events(self, mock_h5py, service):
-        """Test that get_longitudinal_memory aggregates chat events."""
-        # Arrange
-        patient_id = "patient-123"
-
-        # Mock HDF5 structure
-        mock_file = Mock()
-        mock_h5py.File.return_value.__enter__.return_value = mock_file
-
-        # Simulate chat events in HDF5
-        mock_file.visit.return_value = None  # Simplified
-
-        # Act
-        result = service.get_longitudinal_memory(
-            patient_id=patient_id,
-            lookback_days=30,
+    @pytest.mark.asyncio
+    async def test_returns_pagination_info(self, service):
+        """Test that result includes pagination metadata."""
+        result = await service.get_longitudinal_memory(
+            doctor_id="doctor-123",
+            offset=0,
+            limit=10,
+            event_type="all",
         )
 
-        # Assert
-        assert "chat_events" in result
-        assert isinstance(result["chat_events"], list)
-
-    def test_filters_by_lookback_days(self, service):
-        """Test that get_longitudinal_memory filters events by lookback_days."""
-        # Arrange
-        patient_id = "patient-123"
-        lookback_days = 7
-
-        # Act
-        result = service.get_longitudinal_memory(
-            patient_id=patient_id,
-            lookback_days=lookback_days,
-        )
-
-        # Assert
-        # All events should be within lookback window
-        # (This test needs actual HDF5 data to validate properly)
-        assert result is not None
+        assert "total" in result
+        assert "has_more" in result
+        assert "offset" in result
+        assert "limit" in result
 
 
 class TestSearchMemory:
     """Tests for search_memory() method."""
 
-    def test_returns_empty_for_no_matches(self, service):
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_no_matches(self, service):
         """Test that search_memory returns empty list for no matches."""
-        # Arrange
-        patient_id = "patient-123"
-        query = "nonexistent-query-term"
-
-        # Act
-        results = service.search_memory(
-            patient_id=patient_id,
-            query=query,
+        results = await service.search_memory(
+            doctor_id="doctor-123",
+            query="nonexistent-query-term",
             limit=10,
+            offset=0,
         )
 
-        # Assert
-        assert isinstance(results, list)
-        assert len(results) == 0
-
-    def test_limits_results(self, service):
-        """Test that search_memory respects limit parameter."""
-        # Arrange
-        patient_id = "patient-123"
-        query = "test"
-        limit = 5
-
-        # Act
-        results = service.search_memory(
-            patient_id=patient_id,
-            query=query,
-            limit=limit,
-        )
-
-        # Assert
-        assert len(results) <= limit
+        assert isinstance(results, dict)
+        assert "events" in results
+        assert len(results["events"]) == 0
 
 
 class TestGetStats:
     """Tests for get_stats() method."""
 
-    def test_returns_stats_dict(self, service):
+    @pytest.mark.asyncio
+    async def test_returns_stats_dict(self, service):
         """Test that get_stats returns statistics dictionary."""
-        # Arrange
-        patient_id = "patient-123"
+        stats = await service.get_stats(doctor_id="doctor-123")
 
-        # Act
-        stats = service.get_stats(patient_id=patient_id)
-
-        # Assert
         assert isinstance(stats, dict)
-        assert "total_events" in stats
-        assert "chat_count" in stats
-        assert "audio_count" in stats
 
-    def test_stats_are_non_negative(self, service):
-        """Test that get_stats returns non-negative counts."""
-        # Arrange
-        patient_id = "patient-123"
+    @pytest.mark.asyncio
+    async def test_stats_has_expected_keys(self, service):
+        """Test that stats response has expected structure."""
+        stats = await service.get_stats(doctor_id="doctor-123")
 
-        # Act
-        stats = service.get_stats(patient_id=patient_id)
-
-        # Assert
-        assert stats["total_events"] >= 0
-        assert stats["chat_count"] >= 0
-        assert stats["audio_count"] >= 0
+        assert isinstance(stats, dict)

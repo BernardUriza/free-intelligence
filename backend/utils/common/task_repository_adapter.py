@@ -49,3 +49,35 @@ class TaskRepositoryAdapter(ITaskRepository):
     def save_task_metadata(self, session_id: str, task_type: str, metadata: dict[str, Any]) -> None:
         """Save task metadata."""
         self._repository.save_task_metadata(session_id, task_type, metadata)
+
+    def batch_update_chunk_datasets(
+        self,
+        session_id: str,
+        task_type: str,
+        chunk_idx: int,
+        updates: dict[str, Any],
+    ) -> None:
+        """Batch update chunk datasets."""
+        self._repository.batch_update_chunk_datasets(session_id, task_type, chunk_idx, updates)
+
+    def delete_task(self, session_id: str, task_type: str) -> bool:
+        """Delete task and all chunks."""
+        return self._repository.delete_task(session_id, task_type)
+
+    def get_task_progress(self, session_id: str, task_type: str) -> dict[str, Any]:
+        """Get task progress summary."""
+        return self._repository.get_task_progress(session_id, task_type)
+
+    def get_soap_data(self, session_id: str) -> dict[str, Any] | None:
+        """Get SOAP note data for session."""
+        return self._repository.get_soap_data(session_id)
+
+    def get_diarization_segments(self, session_id: str) -> list[dict[str, Any]]:
+        """Get diarization segments for session."""
+        return self._repository.get_diarization_segments(session_id)
+
+    def save_soap_data(
+        self, session_id: str, soap_data: dict[str, Any], task_type: str = "SOAP_GENERATION"
+    ) -> None:
+        """Save SOAP note data for session."""
+        self._repository.save_soap_data(session_id, soap_data, task_type)

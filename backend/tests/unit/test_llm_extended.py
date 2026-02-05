@@ -8,7 +8,6 @@ Coverage targets: pad_embedding_to_768, sanitize_error_message, LLMProviderType,
 from __future__ import annotations
 
 import numpy as np
-import pytest
 from backend.providers import (
     LLMProviderType,
     LLMResponse,

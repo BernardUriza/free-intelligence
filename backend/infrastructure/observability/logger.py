@@ -1,10 +1,8 @@
 # fi_observability/logger.py
 # LLM Logger - Logs all LLM calls to SQLite
 
-import json
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 from ulid import ULID
 

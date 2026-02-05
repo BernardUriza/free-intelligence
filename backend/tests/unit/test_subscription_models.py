@@ -7,7 +7,6 @@ Coverage targets: backend/models/subscription_models.py
 
 from __future__ import annotations
 
-import pytest
 from backend.models.subscription_models import SubscriptionPlan, generate_uuid
 
 

@@ -292,8 +292,3 @@ class LLMModelService(ILLMModelService):
         models = self._get_cache()
         provider_value = provider if isinstance(provider, str) else provider.value
         return [m for m in models.values() if m.provider == provider_value and m.is_active]
-
-
-# DEPRECATED: Use get_llm_model_service_dep() from dependencies.py
-# This exists only for backwards compatibility with legacy code.
-llm_model_service = LLMModelService()

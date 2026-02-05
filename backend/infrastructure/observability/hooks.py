@@ -2,7 +2,6 @@
 # Easy-to-use hooks for logging LLM calls from existing code
 
 import logging
-from typing import Optional
 
 from .logger import get_llm_logger
 from .models import CallStatus, LLMCallCreate

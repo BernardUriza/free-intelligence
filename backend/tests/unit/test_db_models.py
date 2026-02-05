@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
 from backend.models.db_models import Base, Patient, Provider, UserPersonaConfig, generate_uuid
 
 

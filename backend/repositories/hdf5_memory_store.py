@@ -225,7 +225,7 @@ class HDF5MemoryStore(IMemoryStore):
         Performance Warning:
             - O(N) scan of ALL chunks (no indexing) - SLOW with large datasets
             - Early exit when limit reached (mitigation)
-            - TODO: MUST implement Elasticsearch/Vector Search for production
+            - For production scale, consider Elasticsearch or Vector Search
 
         Note:
             Uses case-insensitive substring matching (not full-text search).

@@ -10,13 +10,12 @@ Pattern:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from backend.services.workflow.constants import (
     AUDIO_BITRATE_BYTES_PER_SECOND,
     DEFAULT_AUDIO_DURATION_SECONDS,
     WORKFLOW_DIARIZATION,
-    WORKFLOW_EMOTION,
     WORKFLOW_SOAP,
     WORKFLOW_TRANSCRIPTION,
 )

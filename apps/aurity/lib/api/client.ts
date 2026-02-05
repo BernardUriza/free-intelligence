@@ -54,6 +54,8 @@ export interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number; // Number of retry attempts (default: 0 for regular requests, 3 for uploads)
   retryDelay?: number; // Initial retry delay in ms (default: 1000)
+  /** Custom headers to add to the request (e.g., X-Onboarding-Mode) */
+  customHeaders?: Record<string, string>;
 }
 
 async function fetchWithTimeout(
@@ -156,6 +158,7 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
+    ...(options.customHeaders || {}), // Custom headers (e.g., X-Onboarding-Mode)
   };
 
   const authToken = getAuthToken();

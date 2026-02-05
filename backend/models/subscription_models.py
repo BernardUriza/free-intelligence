@@ -9,13 +9,11 @@ Created: 2025-12-31
 
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import uuid4
 
 from backend.models.db_models import Base
 from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
 
 
 def generate_uuid() -> str:

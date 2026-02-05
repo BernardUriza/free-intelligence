@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2.6 - Testing Strategy
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 
 @pytest.fixture

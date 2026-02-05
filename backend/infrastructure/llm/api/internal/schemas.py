@@ -18,6 +18,13 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
+class ChatMessage(BaseModel):
+    """Single message in a conversation (OpenAI-compatible format)."""
+
+    role: str = Field(..., description="Message role: system, user, assistant")
+    content: str = Field(..., description="Message content")
+
+
 class ChatRequest(BaseModel):
     """Request for conversational chat with Free-Intelligence."""
 
@@ -27,6 +34,10 @@ class ChatRequest(BaseModel):
         examples=["onboarding_guide", "clinical_advisor", "soap_editor"],
     )
     message: str = Field(..., min_length=1, max_length=5000)
+    messages: list[ChatMessage] | None = Field(
+        default=None,
+        description="Full conversation history (OpenAI format). Used when memory is disabled.",
+    )
     context: dict[str, Any] | None = Field(
         default=None,
         description="Additional context (patient_id, session_id, soap_data, etc.)",

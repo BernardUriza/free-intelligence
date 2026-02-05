@@ -41,7 +41,7 @@ from pydantic import BaseModel, Field
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.config import CORPUS_PATH
-from backend.domain.session.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.infrastructure.workers.executor_pool import spawn_worker

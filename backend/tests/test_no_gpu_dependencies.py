@@ -13,12 +13,20 @@ import sys
 import pytest
 
 
+@pytest.mark.skipif(
+    __import__("os").environ.get("CI") != "true",
+    reason="GPU dependency check only runs in CI (dev may have torch installed)",
+)
 def test_torch_not_importable():
     """PyTorch should NOT be installed in production backend."""
     with pytest.raises(ImportError):
         import torch  # noqa: F401
 
 
+@pytest.mark.skipif(
+    __import__("os").environ.get("CI") != "true",
+    reason="GPU dependency check only runs in CI (dev may have torch installed)",
+)
 def test_sentence_transformers_not_importable():
     """sentence-transformers should NOT be installed in production."""
     with pytest.raises(ImportError):

@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
-from backend.services.transcription.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

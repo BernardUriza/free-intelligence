@@ -23,7 +23,7 @@ from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_use
 from backend.infrastructure.auth.domain.entities.user import User
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
-from backend.services.evidence.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)

@@ -33,12 +33,10 @@ from pathlib import Path
 # Type checking imports - Pylance uses these for type information
 if TYPE_CHECKING:
     from backend.services.audit.services.audit_service import AuditService
-    # from backend.utils.coder.services.session_service import SessionService as DISessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.common.services.diagnostics_service import DiagnosticsService
     from backend.infrastructure.common.services.evidence_service import EvidenceService
     from backend.infrastructure.common.services.export_service import ExportService
     from backend.infrastructure.common.services.triage_service import TriageService
-    # from backend.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.infrastructure.storage.services.corpus_service import CorpusService
     from backend.infrastructure.system.services.system_health_service import SystemHealthService
     from backend.services.transcription.services.diarization_service import (
@@ -46,6 +44,7 @@ if TYPE_CHECKING:
         DiarizationService,
     )
     from backend.services.transcription.services.transcription_service import TranscriptionService
+    from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 else:
     # Runtime imports - accessed via __getattr__ on services module
     def _import_service(name: str) -> Any:
@@ -73,21 +72,14 @@ else:
     TriageService = _import_service("TriageService")  # type: ignore[assignment]
 
     # Use direct imports for services that accept repositories (not from services module)
-    # from backend.domain.session.services.session_service import SessionService  # REMOVED - Phase 1 cleanup
     from backend.services.audit.services.audit_service import AuditService
 
     # Import DI services
-    # NOTE: Some services commented out due to broken infrastructure.* imports
-    # Will be re-enabled after fixing all broken imports
     from backend.services.audit.services.di_audit_service import DIAuditService
     from backend.services.evidence.services.evidence_service import DIEvidenceService
     from backend.services.export.services.export_service import DIExportService
-    # from backend.domain.session.services.di_session_service import (  # REMOVED - Phase 1 cleanup
-    #     SessionService as DISessionService,
-    # )
     from backend.infrastructure.system.services.di_system_health_service import DISystemHealthService
-
-    DITranscriptionService = type("DITranscriptionService", (), {})  # type: ignore[assignment,misc]
+    from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 
 
 def _get_logger() -> Any:
@@ -133,8 +125,6 @@ class DIContainer:
         self._diagnostics_service: DiagnosticsService | None = None
         self._evidence_service: EvidenceService | None = None
         self._export_service: ExportService | None = None
-        # self._session_service: SessionService | None = None  # REMOVED - Phase 1 cleanup
-        # self._di_session_service: DISessionService | None = None  # REMOVED - Phase 1 cleanup
         self._di_audit_service: DIAuditService | None = None
         self._di_system_health_service: DISystemHealthService | None = None
         self._di_transcription_service: DITranscriptionService | None = None
@@ -226,17 +216,6 @@ class DIContainer:
                 raise OSError(f"Failed to initialize CorpusService: {e}") from e
 
         return self._corpus_service
-
-    def get_session_service(self):  # type: ignore
-        """DEPRECATED: SessionService removed in Phase 1 cleanup.
-
-        Raises:
-            NotImplementedError: This service is no longer available
-        """
-        raise NotImplementedError(
-            "SessionService was removed in Phase 1 cleanup. "
-            "Use DISessionService or session repository directly."
-        )
 
     def get_audit_service(self) -> AuditService:
         """Get or create AuditService singleton.
@@ -482,17 +461,6 @@ class DIContainer:
             _get_logger().info("IEventBus (InMemoryEventBus) initialized")
         return self._event_bus
 
-    def get_di_session_service(self):  # type: ignore
-        """DEPRECATED: DISessionService removed in Phase 1 cleanup.
-
-        Raises:
-            NotImplementedError: This service is no longer available
-        """
-        raise NotImplementedError(
-            "DISessionService was removed in Phase 1 cleanup. "
-            "Use session repository directly."
-        )
-
     def get_di_audit_service(self) -> DIAuditService:
         """Get or create DI AuditService singleton with injected dependencies.
 
@@ -538,7 +506,7 @@ class DIContainer:
         """Get or create DI TranscriptionService singleton with injected dependencies.
 
         Returns:
-            DITranscriptionService instance with ILogger and ITaskRepository injected
+            DITranscriptionService instance with all dependencies injected
 
         Raises:
             IOError: If service initialization fails
@@ -547,7 +515,14 @@ class DIContainer:
             try:
                 logger: ILogger = self.get_logger()
                 task_repository: ITaskRepository = self.get_task_repository()
-                self._di_transcription_service = DITranscriptionService(logger, task_repository)
+                session_repository = self.get_session_repository()
+                event_bus = self.get_event_bus()
+                self._di_transcription_service = DITranscriptionService(
+                    task_repository=task_repository,
+                    session_repository=session_repository,
+                    event_bus=event_bus,
+                    logger=logger,
+                )
                 _get_logger().info("DITranscriptionService initialized with DI")
             except OSError as e:
                 _get_logger().error(f"DI_TRANSCRIPTION_SERVICE_INIT_FAILED: {e!s}")
@@ -618,8 +593,6 @@ class DIContainer:
         self._diagnostics_service = None
         self._evidence_service = None
         self._export_service = None
-        self._session_service = None
-        self._di_session_service = None
         self._di_audit_service = None
         self._di_system_health_service = None
         self._di_transcription_service = None
@@ -683,7 +656,3 @@ def reset_container() -> None:
         _global_container.reset()
 
     _global_container = None
-
-
-# Alias for backward compatibility
-Container = DIContainer

@@ -24,9 +24,7 @@ if TYPE_CHECKING:
 def _get_policy_loader_singleton() -> "IPolicyLoader":
     """Internal singleton factory for PolicyLoader.
 
-    Uses @lru_cache to ensure only ONE instance is created,
-    matching the thread-safe singleton behavior of the deprecated
-    get_policy_loader() service locator.
+    Uses @lru_cache to ensure only ONE instance is created.
 
     Returns:
         IPolicyLoader singleton instance with policy loaded
@@ -49,7 +47,6 @@ def get_policy_loader_dep() -> "IPolicyLoader":
         Single instance created on first call, reused thereafter.
 
     Note:
-        Replaces deprecated get_policy_loader() service locator.
-        Workers and endpoints receive this as a dependency.
+        Workers and endpoints receive this as a dependency via DI.
     """
     return _get_policy_loader_singleton()
