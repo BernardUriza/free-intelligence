@@ -4,7 +4,7 @@
  * Medical AI Workflow - AURITY (REFACTORED v2)
  *
  * Production medical consultation workflow with AI-powered transcription
- * PROTECTED ROUTE: Requires Auth0 authentication + MEDICO or ADMIN role
+ * PROTECTED ROUTE: Requires authentication + MEDICO or ADMIN role
  *
  * REFACTORED v2: Calendar-first UX
  * - Doctor sees appointments calendar as main view
@@ -91,7 +91,7 @@ export default function MedicalAIWorkflow() {
 
   // RBAC for admin features
   const { isSuperAdmin, hasRole } = useRBAC();
-  const isClinicAdmin = isSuperAdmin || hasRole(ROLES.ADMIN);
+  const isClinicAdmin = isSuperAdmin;
 
   // Clinics (for superadmin clinic selector)
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -594,7 +594,7 @@ export default function MedicalAIWorkflow() {
 
   // Workflow View (Patient selected, working on consultation)
   return (
-    <ProtectedRoute requireRoles={['FI-doctor', 'FI-admin']}>
+    <ProtectedRoute requireRoles={['FI-clinician', 'FI-superadmin']}>
       <AppTemplate
         headerConfig={{
           showBackButton: false, // We use custom back button

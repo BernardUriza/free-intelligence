@@ -118,7 +118,7 @@ class IMemoryStore(ABC):
         """Fetch audio transcription events for a doctor.
 
         Args:
-            doctor_id: Doctor identifier (Auth0 user.sub)
+            doctor_id: Doctor identifier (JWT user.sub)
             start_ts: Optional start of time range (Unix seconds)
             end_ts: Optional end of time range (Unix seconds)
             limit: Maximum events to return
@@ -134,7 +134,7 @@ class IMemoryStore(ABC):
 
         Example:
             events, total = store.get_audio_events(
-                doctor_id="auth0|123",
+                doctor_id="user-123",
                 start_ts=1640000000,
                 end_ts=1650000000,
                 limit=10,
@@ -170,7 +170,7 @@ class IMemoryStore(ABC):
 
         Example:
             events = store.search_audio_events(
-                doctor_id="auth0|123",
+                doctor_id="user-123",
                 query="diabetes",
                 limit=100,
             )
@@ -198,7 +198,7 @@ class IMemoryStore(ABC):
             MUST filter by doctor_id. Sessions without owner metadata MUST be excluded.
 
         Example:
-            stats = store.get_audio_stats("auth0|123")
+            stats = store.get_audio_stats("user-123")
             # {"count": 150, "oldest_timestamp": 1640000000, ...}
         """
         pass

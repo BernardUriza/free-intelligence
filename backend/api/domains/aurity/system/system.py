@@ -23,12 +23,13 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from backend.utils.common.logging.logger import get_logger
+from backend.infrastructure.auth import User, get_current_user
 from backend.infrastructure.model_catalog.services.tunnel_url_provider import (
     get_tunnel_url_provider,
 )
 from backend.services.assistant.services.monitor_client import discover_monitor_url
-from fastapi import APIRouter, HTTPException, Query
+from backend.utils.common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
@@ -73,8 +74,10 @@ class LLMStatusResponse(BaseModel):
 
 
 @router.get("/disk-usage", response_model=DiskUsageResponse)
-async def get_disk_usage() -> DiskUsageResponse:
-    """Get disk usage for storage directory.
+async def get_disk_usage(
+    current_user: User = Depends(get_current_user),
+) -> DiskUsageResponse:
+    """Get disk usage for storage directory. Requires authentication.
 
     Returns:
         Disk usage statistics
@@ -120,7 +123,8 @@ async def get_disk_usage() -> DiskUsageResponse:
 
 @router.post("/clear-memory")
 async def clear_longitudinal_memory(
-    user_id: str = Query(..., description="User ID (Auth0 sub) for audit logging"),
+    current_user: User = Depends(get_current_user),
+    user_id: str = Query(..., description="User ID (JWT sub) for audit logging"),
 ) -> dict[str, str]:
     """Clear all longitudinal memory (HDF5 sessions and chat messages).
 
@@ -185,8 +189,10 @@ async def clear_longitudinal_memory(
 
 
 @router.get("/llm-status", response_model=LLMStatusResponse)
-async def get_llm_status() -> LLMStatusResponse:
-    """Get detailed LLM/Ollama connection status.
+async def get_llm_status(
+    current_user: User = Depends(get_current_user),
+) -> LLMStatusResponse:
+    """Get detailed LLM/Ollama connection status. Requires authentication.
 
     Returns comprehensive information about the current LLM connection:
     - Connection status (online/offline)

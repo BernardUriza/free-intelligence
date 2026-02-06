@@ -36,8 +36,6 @@ interface UsePersonasReturn {
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-const AUTH0_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io';
-const AUTH0_SCOPE = process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile email offline_access';
 
 // Icon mapping for personas (frontend only)
 const PERSONA_ICON_MAP: Record<string, string> = {
@@ -151,7 +149,6 @@ export function usePersonas(): UsePersonasReturn {
       let token: string | undefined;
       if (isAuthenticated) {
         try {
-          // audience and scope are configured in Auth0Provider
           token = await getAccessTokenSilently();
         } catch (tokenErr) {
           // Do not fail personas fetch solely due to token issues; fallback below

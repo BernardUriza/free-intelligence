@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.domain.prescription.models.prescription import PrescriptionStatus
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
@@ -87,9 +88,11 @@ async def create_prescription(
 async def create_prescription_from_soap(
     request: CreateFromSOAPRequest,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    current_user: User = Depends(get_current_user),
 ) -> PrescriptionResponse:
     """Create a prescription from SOAP note data."""
     validate_session_id(request.session_id)
+    validate_session_access(request.session_id, current_user, action="create prescription from SOAP")
 
     try:
         soap_data = task_repo.get_soap_data(request.session_id)

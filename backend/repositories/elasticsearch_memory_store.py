@@ -578,7 +578,7 @@ class ElasticsearchMemoryStore(IMemoryStore):
             doctor_id: Doctor identifier
 
         Returns:
-            Index name (e.g., "audio-transcriptions-auth0|user123")
+            Index name (e.g., "audio-transcriptions-user123")
         """
         # Sanitize doctor_id (Elasticsearch index names must be lowercase, no special chars)
         sanitized = doctor_id.replace("|", "-").replace("@", "-").lower()

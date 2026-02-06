@@ -27,12 +27,7 @@ export default function Home() {
   const isLoading = authLoading || rbacLoading;
 
   // Check if user has any staff/admin roles
-  const hasStaffAccess =
-    isSuperAdmin ||
-    roles.includes('FI-admin') ||
-    roles.includes('FI-doctor') ||
-    roles.includes('FI-nurse') ||
-    roles.includes('FI-staff');
+  const hasStaffAccess = isSuperAdmin || roles.includes('FI-clinician');
 
   useEffect(() => {
     // Wait for auth to finish loading

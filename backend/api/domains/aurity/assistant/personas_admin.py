@@ -243,7 +243,7 @@ async def update_persona(
         update: Fields to update
         user_id: Optional user UUID (updates user override, not template)
         db: Database session
-        current_user: Authenticated user from Auth0
+        current_user: Authenticated user from JWT
         audit_service: Audit logging service
 
     Returns:

@@ -13,7 +13,7 @@ export interface User {
   created_at: string;
   last_login?: string;
   logins_count?: number;
-  roles: Role[];
+  role: Role;
   blocked?: boolean;
   clinicInfo?: AdminUserClinicInfo;
 }

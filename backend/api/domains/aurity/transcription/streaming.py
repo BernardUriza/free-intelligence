@@ -16,8 +16,7 @@ import json
 import h5py
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.config import CORPUS_PATH
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.infrastructure.common.dependencies import get_transcription_service
 from backend.services.transcription.services.transcription_service import TranscriptionService
 from backend.services.transcription.services.validators import (
@@ -91,7 +90,7 @@ async def stream_chunk(
     session_id: str = Form(...),
     chunk_number: int = Form(...),
     audio: UploadFile = File(...),
-    doctor_id: str = Form(..., description="Doctor ID (Auth0 user.sub) for session ownership"),
+    doctor_id: str = Form(..., description="Doctor ID (JWT user.sub) for session ownership"),
     mode: str = Form("medical"),  # "medical" | "chat" (default: medical for backward compat)
     timestamp_start: float | None = Form(None),
     timestamp_end: float | None = Form(None),
@@ -537,6 +536,7 @@ async def end_session(
 async def get_session_chunks_api(
     session_id: str,
     service: TranscriptionService = Depends(get_transcription_service),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get all chunks for a session (orchestrator).
 
@@ -545,10 +545,13 @@ async def get_session_chunks_api(
     Args:
         session_id: Session UUID
         service: Injected TranscriptionService
+        current_user: Authenticated user (for clinic access validation)
 
     Returns:
         dict with chunks, total_duration, total_chunks
     """
+    validate_session_access(session_id, current_user, action="view transcription chunks")
+
     try:
         result = await service.get_transcription_status(session_id)
         chunks = result.get("chunks", [])

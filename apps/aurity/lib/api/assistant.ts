@@ -55,7 +55,7 @@ export class InvalidResponseError extends Error {
 export interface HistorySearchRequest {
   /** Search query text */
   query: string;
-  /** Filter by doctor ID (Auth0 user.sub) */
+  /** Filter by doctor ID (JWT user.sub) */
   doctor_id?: string;
   /** Maximum number of results to return */
   limit?: number;
@@ -95,11 +95,11 @@ export interface ChatRequest {
   context?: Record<string, unknown>;
   /** Previous conversation messages for context */
   conversationHistory?: Array<{ role: string; content: string }>;
-  /** Doctor ID for H5 storage (Auth0 user.sub) */
+  /** Doctor ID for H5 storage (JWT user.sub) */
   doctor_id?: string;
   /** Session ID for grouping messages */
   session_id?: string;
-  /** Auth0 claims for RBAC validation (roles in https://aurity.app/roles) */
+  /** JWT claims for RBAC validation */
   claims?: TokenClaims;
   /** Behavior metrics for hybrid emotional analysis */
   behavior_metrics?: {

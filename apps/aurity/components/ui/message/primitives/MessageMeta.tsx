@@ -56,7 +56,7 @@ export const MessageMeta = memo(function MessageMeta({
     minute: '2-digit',
   });
 
-  // Use persona name for assistant, Auth0 name for user
+  // Use persona name for assistant, auth name for user
   const displayName = isUser ? (name ?? 'Tú') : getPersonaDisplayName(persona);
 
   return (

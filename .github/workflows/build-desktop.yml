@@ -284,11 +284,10 @@ jobs:
         working-directory: apps/aurity
         run: |
           cat > .env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
           NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
           NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          NEXT_PUBLIC_API_URL=http://localhost:7001
           EOF
 
       - name: Build Next.js frontend
@@ -992,11 +991,11 @@ jobs:
                 "platforms": $PLATFORMS_JSON,
                 "changelog": [
                   "Aurity Desktop v$VERSION",
-                  "Auth0 OAuth 2.0 + PKCE authentication",
+                  "Self-hosted JWT authentication with refresh tokens",
                   "Offline AI medical assistant powered by Ollama",
                   "Local LLM integration (Qwen3, Llama, etc.)",
                   "Encrypted local storage in ~/.aurity",
-                  "Secure token storage in OS Keychain"
+                  "2-role RBAC (FI-superadmin, FI-clinician)"
                 ]
               }
             ],

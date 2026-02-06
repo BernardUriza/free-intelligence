@@ -141,7 +141,7 @@ class PhysicianInfo(BaseModel):
 
     physician_id: str | None = Field(
         default=None,
-        description="ID del médico en el sistema (Auth0 sub)",
+        description="ID del médico en el sistema (JWT sub)",
     )
 
     model_config = ConfigDict(extra="allow")

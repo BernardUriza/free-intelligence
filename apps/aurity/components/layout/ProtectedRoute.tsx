@@ -2,7 +2,7 @@
 
 /**
  * ProtectedRoute Component
- * HIPAA Card: G-003 - Auth0 Integration
+ * HIPAA Card: G-003 - Auth Integration
  *
  * Protects routes by requiring authentication and specific roles/permissions.
  * Uses centralized RBAC hook for role management.
@@ -25,7 +25,7 @@ export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) 
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Wait for Auth0 to finish loading
+      // Wait for auth to finish loading
       if (authLoading || rbacLoading) return;
 
       // Redirect to login if not authenticated

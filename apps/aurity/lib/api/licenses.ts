@@ -16,9 +16,6 @@ import { api } from './client';
 export interface LicenseGenerationRequest {
   max_clinics?: number;       // Default: 1
   license_holder?: string;    // Optional display name
-  auth0_domain: string;
-  auth0_client_id: string;
-  auth0_audience?: string;
   features?: string[];
   expires_days?: number;
 }
@@ -28,7 +25,6 @@ export interface LicenseGenerationResponse {
   license_key: string;
   max_clinics: number;
   license_holder: string;
-  auth0_domain: string;
   expires_at: string;
   features: string[];
   issued_at: string;

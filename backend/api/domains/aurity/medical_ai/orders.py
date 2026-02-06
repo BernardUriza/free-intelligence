@@ -18,11 +18,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.infrastructure.common.repository_singletons import get_task_repository
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
+from backend.validators import validate_session_id
 
 from .orders_models import OrderCreateRequest, OrderUpdateRequest
 
@@ -42,6 +42,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 )
 async def get_orders_workflow(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Get all medical orders for a session (PUBLIC endpoint).
@@ -56,6 +57,9 @@ async def get_orders_workflow(
     Raises:
         500: Failed to load orders
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="view orders")
+
     try:
         logger.info("ORDERS_GET_STARTED", session_id=session_id)
 
@@ -89,6 +93,7 @@ async def get_orders_workflow(
 async def create_order_workflow(
     session_id: str,
     request: OrderCreateRequest,
+    current_user: User = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
 ) -> dict:
     """Create a new medical order (PUBLIC endpoint).
@@ -105,6 +110,9 @@ async def create_order_workflow(
         400: Invalid order data
         500: Failed to create order
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="create orders")
+
     try:
         logger.info(
             "ORDER_CREATE_STARTED",
@@ -178,6 +186,9 @@ async def update_order_workflow(
         404: Order not found
         500: Failed to update order
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="update orders")
+
     try:
         logger.info(
             "ORDER_UPDATE_STARTED",
@@ -258,6 +269,9 @@ async def delete_order_workflow(
         404: Order not found
         500: Failed to delete order
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="delete orders")
+
     try:
         logger.info(
             "ORDER_DELETE_STARTED",

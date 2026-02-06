@@ -12,8 +12,7 @@ import tempfile
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
@@ -37,7 +36,7 @@ async def get_session_audio_workflow(
 ) -> FileResponse:
     """Serve full audio file from completed session (PUBLIC endpoint)."""
     validate_session_id(session_id)
-
+    validate_session_access(session_id, current_user, action="download session audio")
 
     temp_file_path = None
     try:

@@ -4,8 +4,8 @@
  * Route Types:
  * - public: No authentication required
  * - authenticated: Any logged-in user
- * - staff: Requires clinic membership (FI-staff, FI-doctor, FI-nurse, FI-admin)
- * - admin: Requires FI-admin or FI-superadmin
+ * - staff: Requires FI-clinician or FI-superadmin
+ * - admin: Requires FI-superadmin
  * - superadmin: Requires FI-superadmin only
  */
 
@@ -42,9 +42,14 @@ export const ROUTE_CONFIG: RouteConfig[] = [
     description: 'Landing/login page - accessible to all users',
   },
   {
-    path: '/callback',
+    path: '/login',
     access: 'public',
-    description: 'Auth0 callback',
+    description: 'Login page',
+  },
+  {
+    path: '/register',
+    access: 'public',
+    description: 'Registration page',
   },
   {
     path: '/unauthorized',
@@ -116,7 +121,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   },
 
   // ============================================================================
-  // ADMIN ROUTES - Requires FI-admin or FI-superadmin
+  // ADMIN ROUTES - Requires FI-superadmin
   // ============================================================================
   {
     path: '/admin/clinics',
@@ -212,9 +217,9 @@ export function getRequiredRoles(access: RouteAccess): Role[] {
     case 'authenticated':
       return [];
     case 'staff':
-      return ['FI-staff', 'FI-doctor', 'FI-nurse', 'FI-admin', 'FI-superadmin'];
+      return ['FI-clinician', 'FI-superadmin'];
     case 'admin':
-      return ['FI-admin', 'FI-superadmin'];
+      return ['FI-superadmin'];
     case 'superadmin':
       return ['FI-superadmin'];
     default:
@@ -234,18 +239,9 @@ export function isPublicRoute(path: string): boolean {
  * Get default redirect for a user based on their roles
  */
 export function getDefaultRedirect(roles: Role[], isSuperAdmin: boolean): string {
-  if (isSuperAdmin) {
+  if (isSuperAdmin || roles.includes('FI-clinician')) {
     return '/dashboard';
   }
 
-  if (roles.includes('FI-admin')) {
-    return '/dashboard';
-  }
-
-  if (roles.includes('FI-doctor') || roles.includes('FI-nurse') || roles.includes('FI-staff')) {
-    return '/dashboard';
-  }
-
-  // Random user with no special roles
   return '/chat';
 }

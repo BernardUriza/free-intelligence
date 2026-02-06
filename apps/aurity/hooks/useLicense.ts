@@ -6,7 +6,6 @@
  * Provides:
  * - License status checking
  * - License activation
- * - Auth0 config from license
  * - Feature checking
  */
 
@@ -26,22 +25,12 @@ export interface LicenseValidationResult {
 // and actual clinics are created via API after license activation.
 export interface LicensePayload {
   license_id: string;
-  auth0_domain: string;
-  auth0_client_id: string;
-  auth0_audience: string;
   max_clinics: number;
   license_holder: string;
   features: string[];
   issued_at: string;
   expires_at: string;
   version: string;
-}
-
-// Auth0 config from license
-export interface Auth0Config {
-  domain: string;
-  client_id: string;
-  audience: string;
 }
 
 // Renewal status from Rust backend
@@ -75,7 +64,6 @@ export interface UseLicenseReturn {
   checkLicense: () => Promise<LicenseValidationResult>;
   activateLicense: (key: string) => Promise<LicensePayload>;
   validateKey: (key: string) => Promise<LicenseValidationResult>;
-  getAuth0Config: () => Promise<Auth0Config>;
   hasFeature: (feature: string) => Promise<boolean>;
   clearLicense: () => Promise<void>;
 
@@ -190,12 +178,6 @@ export function useLicense(): UseLicenseReturn {
     }
   }, [getInvoke]);
 
-  // Get Auth0 config from license
-  const getAuth0Config = useCallback(async (): Promise<Auth0Config> => {
-    const invoke = await getInvoke();
-    return invoke<Auth0Config>('get_license_auth0_config');
-  }, [getInvoke]);
-
   // Check if a feature is enabled
   const hasFeature = useCallback(async (feature: string): Promise<boolean> => {
     const invoke = await getInvoke();
@@ -268,7 +250,6 @@ export function useLicense(): UseLicenseReturn {
     checkLicense,
     activateLicense,
     validateKey,
-    getAuth0Config,
     hasFeature,
     clearLicense,
     checkRenewalStatus,

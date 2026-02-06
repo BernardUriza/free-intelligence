@@ -53,9 +53,9 @@ test.describe('Full Recording Flow', () => {
     const loginButton = page.locator('button:has-text("Iniciar Sesión"), button:has-text("Login")');
 
     if (await loginButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.log('⚠️ Real Auth0 is being used. For E2E tests, set NEXT_PUBLIC_USE_MOCK_AUTH=true');
+      console.log('⚠️ User not authenticated. For E2E tests, set up test credentials');
 
-      // Since we can't easily bypass Auth0 in this test, let's just test
+      // Since we can't easily bypass login in this test, let's just test
       // the page structure and mock recording separately
       await screenshot(page, 'flow-02-needs-login');
 

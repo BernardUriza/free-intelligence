@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import cast
 
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
@@ -29,6 +30,7 @@ async def monitor_session_progress(
     session_id: str,
     request: Request,
     task_repo: ITaskRepository = Depends(get_task_repository),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Monitor real-time progress of all session tasks.
 
@@ -40,6 +42,7 @@ async def monitor_session_progress(
         session_id: UUID of the session to monitor
         request: FastAPI request (for Accept header inspection)
         task_repo: Task repository for HDF5 access (injected)
+        current_user: Authenticated user (for clinic access validation)
 
     Returns:
         Dictionary with task statuses, progress percentages, and metadata.
@@ -47,10 +50,12 @@ async def monitor_session_progress(
 
     Raises:
         400: Invalid session_id format
+        403: Access denied to session from another clinic
         404: Session not found
         500: Internal error reading task data
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="monitor session")
     from backend.models.task_type import TaskType
 
     accept_header = request.headers.get("accept", "")

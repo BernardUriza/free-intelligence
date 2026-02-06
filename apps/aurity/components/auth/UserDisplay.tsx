@@ -2,7 +2,7 @@
 
 /**
  * UserDisplay Component
- * HIPAA Card: G-003 - Auth0 Integration
+ * HIPAA Card: G-003 - Auth Integration
  *
  * Always-visible user authentication display.
  * Shows:
@@ -11,7 +11,7 @@
  * - Logout dropdown
  */
 
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
@@ -29,7 +29,7 @@ export function UserDisplay() {
     loginWithRedirect,
     logout,
     getAccessTokenSilently,
-  } = useAuth0();
+  } = useAuth();
 
   // Debug: Verify logout is defined
   useEffect(() => {
@@ -60,30 +60,12 @@ export function UserDisplay() {
     }
   }, [dropdownOpen]); // TODO: Add window dimensions tracking if needed for responsiveness
 
-  // Extract role from Auth0 token
+  // Extract role from user context
   useEffect(() => {
-    const fetchUserRole = async () => {
-      if (isAuthenticated) {
-        try {
-          const token = await getAccessTokenSilently({
-            authorizationParams: {
-              audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io',
-              scope: process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile email',
-            },
-          });
-          // Decode JWT to get roles (client-side for display only)
-          const { extractRolesFromToken } = await import('@/lib/jwt-utils');
-          const roles = extractRolesFromToken(token);
-          setUserRole(roles[0] || 'USER');
-        } catch (error) {
-          console.error('Failed to get user role:', error);
-          setUserRole('USER');
-        }
-      }
-    };
-
-    fetchUserRole();
-  }, [isAuthenticated, getAccessTokenSilently]);
+    if (isAuthenticated && user?.roles?.length) {
+      setUserRole(user.roles[0] || 'USER');
+    }
+  }, [isAuthenticated, user]);
 
   // Loading state
   if (isLoading) {

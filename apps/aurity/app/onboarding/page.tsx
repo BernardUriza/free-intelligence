@@ -98,7 +98,7 @@ export default function OnboardingPage() {
     onComplete: handleComplete,
   });
 
-  // Handle authentication - save profile data and redirect to Auth0
+  // Handle authentication - save profile data and redirect to login
   const handleAuthenticate = useCallback(async () => {
     // Save onboarding data before redirect
     const profileData = {
@@ -111,9 +111,9 @@ export default function OnboardingPage() {
     localStorage.setItem("aurity_onboarding_profile", JSON.stringify(profileData));
     localStorage.setItem("aurity_onboarding_completed", "true");
 
-    console.log("[Onboarding] Saved profile, redirecting to Auth0:", profileData);
+    console.log("[Onboarding] Saved profile, redirecting to login:", profileData);
 
-    // Redirect to Auth0 login
+    // Redirect to login
     await loginWithRedirect({
       appState: { returnTo: "/chat/" },
     });
@@ -153,7 +153,7 @@ export default function OnboardingPage() {
         Omitir
       </button>
 
-      {/* Demo Complete Button (for demo phase) - Triggers Auth0 */}
+      {/* Demo Complete Button (for demo phase) - Triggers login */}
       {onboardingHook.phase === "demo" && !onboardingHook.isTyping && (
         <div className="absolute bottom-24 left-0 right-0 z-50 flex flex-col items-center gap-3">
           <button

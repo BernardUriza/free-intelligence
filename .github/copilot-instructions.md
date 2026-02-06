@@ -9,7 +9,7 @@ Version 0.4.0 • Python 3.14 • FastAPI + Next.js
   - Internal routes: `/api/internal/*` (localhost-only in production, atomic resources)
   - Workers: ThreadPoolExecutor for CPU-intensive tasks (transcription: 4 workers, diarization: 2 workers)
 - **Event-sourced Storage**: HDF5 in `storage/sessions/{session_id}.h5` (append-only, atomic write via `.h5.part` → fsync → rename, per-session SHA256 integrity)
-- **Authentication**: Auth0 JWT with RBAC; admin ops require `FI-superadmin` role
+- **Authentication**: Self-hosted JWT with RBAC (2 roles: `FI-superadmin`, `FI-clinician`); admin ops require `FI-superadmin`
 - **Observability**: Prometheus counters/histograms; p95 targets: Public API ≤ 800ms, RealtimeTalk ≤ 5s, SOAP ≤ 1500ms
 
 ## Coding Conventions

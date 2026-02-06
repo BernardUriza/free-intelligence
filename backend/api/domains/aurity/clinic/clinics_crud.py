@@ -108,15 +108,11 @@ async def create_clinic(
     db.commit()
     db.refresh(clinic)
 
-    # Auto-update creator's Auth0 app_metadata.clinic_id
-    from backend.infrastructure.auth.infrastructure.auth0.management_api import (
-        get_auth0_management_api,
-    )
+    # Auto-assign clinic to the creating user in our local users table
+    from backend.infrastructure.auth.services.user_service import UserService
 
-    auth0_api = get_auth0_management_api()
-    await auth0_api.update_user_app_metadata(
-        user_id=current_user.id, app_metadata={"clinic_id": str(clinic.clinic_id)}
-    )
+    user_svc = UserService(db)
+    user_svc.assign_clinic(current_user.id, str(clinic.clinic_id))
 
     logger.info(
         "CLINIC_CREATED",

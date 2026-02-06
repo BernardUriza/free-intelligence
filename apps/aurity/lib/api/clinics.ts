@@ -63,7 +63,7 @@ export type ClinicRole = 'OWNER' | 'ADMIN' | 'DOCTOR' | 'STAFF';
 export interface Doctor {
   doctor_id: string;
   clinic_id: string;
-  auth0_user_id: string | null;
+  user_id: string | null;
   email: string | null;
   clinic_role: ClinicRole | null;
   nombre: string;
@@ -249,10 +249,10 @@ export interface LinkToClinicResponse {
  * Get current user's clinic membership
  */
 export async function getClinicMembership(
-  auth0UserId: string,
+  userId: string,
   email?: string
 ): Promise<ClinicMembership | null> {
-  const params = new URLSearchParams({ auth0_user_id: auth0UserId });
+  const params = new URLSearchParams({ user_id: userId });
   if (email) params.append('email', email);
 
   const data = await api.get<ClinicMembership | { linked: false }>(
@@ -271,11 +271,11 @@ export async function getClinicMembership(
  * Link current user to a clinic (creates doctor record)
  */
 export async function linkToClinic(
-  auth0UserId: string,
+  userId: string,
   request: LinkToClinicRequest,
   email?: string
 ): Promise<LinkToClinicResponse> {
-  const params = new URLSearchParams({ auth0_user_id: auth0UserId });
+  const params = new URLSearchParams({ user_id: userId });
   if (email) params.append('email', email);
 
   return api.post<LinkToClinicResponse>(`/api/users/me/link-to-clinic?${params}`, request);
@@ -284,8 +284,8 @@ export async function linkToClinic(
 /**
  * Unlink current user from their clinic
  */
-export async function unlinkFromClinic(auth0UserId: string): Promise<{ success: boolean; message: string }> {
-  const params = new URLSearchParams({ auth0_user_id: auth0UserId });
+export async function unlinkFromClinic(userId: string): Promise<{ success: boolean; message: string }> {
+  const params = new URLSearchParams({ user_id: userId });
   return api.delete<{ success: boolean; message: string }>(`/api/users/me/unlink-from-clinic?${params}`);
 }
 
@@ -294,7 +294,7 @@ export async function unlinkFromClinic(auth0UserId: string): Promise<{ success: 
 // =============================================================================
 
 export interface AdminLinkUserRequest {
-  auth0_user_id: string;
+  user_id: string;
   email: string;
   clinic_id: string;
   role?: ClinicRole;
@@ -304,7 +304,7 @@ export interface AdminLinkUserRequest {
 }
 
 export interface AdminUserClinicInfo {
-  auth0_user_id: string;
+  user_id: string;
   email: string;
   doctor_id: string | null;
   clinic_id: string | null;
@@ -328,10 +328,10 @@ export async function adminAssignUserToClinic(
  * Admin: Unassign a user from their clinic
  */
 export async function adminUnassignUserFromClinic(
-  auth0UserId: string
+  userId: string
 ): Promise<{ success: boolean; message: string; clinic_id?: string }> {
   return api.delete<{ success: boolean; message: string; clinic_id?: string }>(
-    `/api/users/me/admin/unassign-user/${encodeURIComponent(auth0UserId)}`
+    `/api/users/me/admin/unassign-user/${encodeURIComponent(userId)}`
   );
 }
 
@@ -339,10 +339,10 @@ export async function adminUnassignUserFromClinic(
  * Admin: Get user's clinic assignment info
  */
 export async function adminGetUserClinicInfo(
-  auth0UserId: string
+  userId: string
 ): Promise<AdminUserClinicInfo> {
   return api.get<AdminUserClinicInfo>(
-    `/api/users/me/admin/user-clinic-info/${encodeURIComponent(auth0UserId)}`
+    `/api/users/me/admin/user-clinic-info/${encodeURIComponent(userId)}`
   );
 }
 

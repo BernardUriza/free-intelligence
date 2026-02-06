@@ -8,7 +8,7 @@
  *   <ProtectedContent />
  * </RouteGuard>
  *
- * <RouteGuard requireRoles={['FI-admin', 'FI-superadmin']}>
+ * <RouteGuard requireRoles={['FI-superadmin']}>
  *   <AdminContent />
  * </RouteGuard>
  *
@@ -167,19 +167,19 @@ export function SuperadminGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Requires admin or superadmin role */
+/** Requires superadmin role */
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   return (
-    <RouteGuard requireAuth requireRoles={['FI-admin', 'FI-superadmin']}>
+    <RouteGuard requireAuth requireRoles={['FI-superadmin']}>
       {children}
     </RouteGuard>
   );
 }
 
-/** Requires staff, doctor, admin, or superadmin role (clinic member) */
+/** Requires clinician or superadmin role */
 export function StaffGuard({ children }: { children: React.ReactNode }) {
   return (
-    <RouteGuard requireAuth requireRoles={['FI-staff', 'FI-doctor', 'FI-nurse', 'FI-admin', 'FI-superadmin']}>
+    <RouteGuard requireAuth requireRoles={['FI-clinician', 'FI-superadmin']}>
       {children}
     </RouteGuard>
   );

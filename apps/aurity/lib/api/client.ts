@@ -91,61 +91,12 @@ async function fetchWithTimeout(
 }
 
 /**
- * Get auth token from storage (if available)
- *
- * FIXED: Now reads from Auth0's cache (@@auth0spajs@@ keys) instead of
- * non-existent legacy keys. Auth0 stores tokens in localStorage with
- * keys like: @@auth0spajs@@::<clientId>::<audience>::<scope>
+ * Get auth token from localStorage.
+ * Reads the self-hosted JWT stored by AuthProvider.
  */
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-
-  try {
-    // 1. Try legacy keys first (backward compatibility)
-    const legacyToken = sessionStorage.getItem('auth_token') ||
-      sessionStorage.getItem('access_token') ||
-      localStorage.getItem('auth_token') ||
-      localStorage.getItem('access_token');
-
-    if (legacyToken) return legacyToken;
-
-    // 2. Read from Auth0 SDK cache (@@auth0spajs@@::...)
-    // Auth0 stores cache in localStorage with format:
-    // @@auth0spajs@@::<clientId>::<audience>::<scope>
-    const auth0Keys = Object.keys(localStorage).filter(k =>
-      k.startsWith('@@auth0spajs@@') && !k.includes('@@user@@')
-    );
-
-    if (auth0Keys.length === 0) {
-      // User not authenticated or Auth0 cache cleared
-      return null;
-    }
-
-    // Parse Auth0 cache (JSON structure)
-    const cacheKey = auth0Keys[0]; // Use first match
-    const cacheData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-
-    // Extract access token from cache body
-    // Structure: { body: { access_token: "...", ... }, expiresAt: ... }
-    const accessToken = cacheData.body?.access_token;
-
-    if (!accessToken) {
-      console.warn('[getAuthToken] Auth0 cache exists but no access_token found');
-      return null;
-    }
-
-    // Optional: Check token expiration (expiresAt is Unix timestamp)
-    const expiresAt = cacheData.expiresAt;
-    if (expiresAt && Date.now() / 1000 > expiresAt) {
-      console.warn('[getAuthToken] Auth0 token expired, needs refresh');
-      // Token expired, but return it anyway - Auth0 SDK will refresh if needed
-    }
-
-    return accessToken;
-  } catch (error) {
-    console.error('[getAuthToken] Failed to read token:', error);
-    return null;
-  }
+  return localStorage.getItem('fi_access_token');
 }
 
 export async function apiRequest<T>(

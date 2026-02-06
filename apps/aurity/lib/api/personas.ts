@@ -54,7 +54,7 @@ export async function testPersona(
  * Create a new persona (FI-superadmin only)
  *
  * Note: Auth token is now handled automatically by api client
- * from Auth0 cache - no need to pass explicitly.
+ * from auth storage - no need to pass explicitly.
  *
  * @param data - New persona configuration
  * @returns Created persona
@@ -71,7 +71,7 @@ export async function createPersona(data: PersonaCreateRequest): Promise<Persona
  * Some personas (general_assistant, soap_editor) are protected and cannot be deleted.
  *
  * Note: Auth token is now handled automatically by api client
- * from Auth0 cache - no need to pass explicitly.
+ * from auth storage - no need to pass explicitly.
  *
  * @param personaId - Persona identifier to delete
  * @throws Error if deletion fails (400 if protected, 403 if not superadmin, 404 if not found)

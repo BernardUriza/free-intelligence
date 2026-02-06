@@ -7,7 +7,7 @@
  * @module lib/internal/auth
  */
 
-export type Role = 'FI-superadmin' | 'FI-clinician' | 'FI-staff' | 'FI-patient';
+export type Role = 'FI-superadmin' | 'FI-clinician';
 
 export interface TokenClaims {
   sub: string;

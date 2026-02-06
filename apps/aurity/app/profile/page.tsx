@@ -23,13 +23,8 @@ export default function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Auth0 tenant configuration
-  const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
-  const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-
-  // Detect if user logged in with social provider (Google, etc.)
-  // Auth0 includes 'sub' field like "google-oauth2|123456" or "auth0|123456"
-  const isSocialLogin = user?.sub ? !user.sub.startsWith('auth0|') : false;
+  // All users use email/password auth (no social login)
+  const isSocialLogin = false;
 
   // Callback declared before useEffect that uses it
   const fetchDiskUsage = useCallback(async () => {
@@ -52,11 +47,8 @@ export default function ProfilePage() {
 
   // Handlers for profile actions
   const handleChangePassword = () => {
-    // Redirect to Auth0 Universal Login with password reset screen
-    if (auth0Domain && clientId) {
-      const returnTo = encodeURIComponent(window.location.origin + '/profile');
-      window.location.href = `https://${auth0Domain}/authorize?client_id=${clientId}&response_type=code&redirect_uri=${returnTo}&scope=openid%20profile%20email&screen_hint=reset-password`;
-    }
+    // TODO: Implement change password endpoint (POST /auth/change-password)
+    alert('Cambio de contraseña no disponible aún. Contacta al administrador.');
   };
 
   const handleDeleteLongitudinalMemory = async () => {
@@ -123,7 +115,7 @@ export default function ProfilePage() {
   const headerConfig = profileHeader({
     email: user?.email,
     emailVerified: user?.email_verified,
-    role: user?.['https://aurity.app/roles']?.[0] || 'USER',
+    role: user?.roles?.[0] || 'USER',
   });
 
   return (
@@ -211,9 +203,7 @@ export default function ProfilePage() {
         <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-6">
           <h3 className="fi-title mb-4">Configuración</h3>
           <p className="text-slate-400 text-sm mb-4">
-            {isSocialLogin 
-              ? 'Iniciaste sesión con un proveedor social (Google, etc.). La configuración de tu cuenta se gestiona en ese proveedor.'
-              : 'La configuración de perfil se gestiona a través de Auth0. Para cambiar tu información, contacta al administrador.'}
+            Para cambiar tu información de perfil, contacta al administrador.
           </p>
           <div className="flex flex-wrap gap-3">
             {!isSocialLogin && (

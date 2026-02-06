@@ -74,7 +74,7 @@ class HDF5MemoryStore(IMemoryStore):
         Extracts from DIMemoryService._get_audio_events() (lines 191-361).
 
         Args:
-            doctor_id: Doctor identifier (Auth0 user.sub)
+            doctor_id: Doctor identifier (JWT user.sub)
             start_ts: Optional start of time range (Unix seconds)
             end_ts: Optional end of time range (Unix seconds)
             limit: Maximum events to return

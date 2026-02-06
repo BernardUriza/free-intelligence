@@ -124,9 +124,6 @@ async def renew_license(
             # Generate new license key
             payload = LicensePayload(
                 license_id=license_id,
-                auth0_domain=license_info.get("auth0_domain", ""),
-                auth0_client_id=license_info.get("auth0_client_id", ""),
-                auth0_audience=license_info.get("auth0_audience", "https://app.aurity.io"),
                 clinic_id=license_info.get("clinic_id", ""),
                 clinic_name=license_info.get("clinic_name", ""),
                 features=license_info.get("features", []),
@@ -273,9 +270,6 @@ async def register_license(
         # Store in registry
         LICENSE_REGISTRY[payload.license_id] = {
             "license_id": payload.license_id,
-            "auth0_domain": payload.auth0_domain,
-            "auth0_client_id": payload.auth0_client_id,
-            "auth0_audience": payload.auth0_audience,
             "clinic_id": payload.clinic_id,
             "clinic_name": payload.clinic_name,
             "features": payload.features,

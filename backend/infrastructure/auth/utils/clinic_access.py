@@ -29,7 +29,7 @@ def validate_clinic_access(
 
     Args:
         clinic_id: Clinic ID to validate access for
-        current_user: Authenticated user from Auth0
+        current_user: Authenticated user from JWT
         allow_superadmin: If True, SUPERADMIN can bypass (default: True)
         action: Action description for error message (e.g., "upload media")
 
@@ -70,7 +70,7 @@ def require_superadmin(current_user: User) -> None:
     Validate user has SUPERADMIN role.
 
     Args:
-        current_user: Authenticated user from Auth0
+        current_user: Authenticated user from JWT
 
     Raises:
         HTTPException: 403 if user is not SUPERADMIN
@@ -89,4 +89,122 @@ def require_superadmin(current_user: User) -> None:
         )
 
 
-__all__ = ["validate_clinic_access", "require_superadmin"]
+def validate_doctor_access(
+    doctor_id: str,
+    current_user: User,
+    *,
+    allow_superadmin: bool = True,
+    action: str = "access doctor data",
+) -> None:
+    """
+    Validate user can access doctor-scoped data.
+
+    Prevents horizontal privilege escalation (Doctor A accessing Doctor B's history).
+    Use for endpoints that accept doctor_id as parameter.
+
+    Args:
+        doctor_id: Doctor ID to validate access for
+        current_user: Authenticated user from JWT
+        allow_superadmin: If True, SUPERADMIN can access any doctor's data
+        action: Action description for error message
+
+    Raises:
+        HTTPException: 403 if user cannot access doctor's data
+
+    Examples:
+        # In endpoint with doctor_id query param
+        @router.get("/history")
+        async def get_history(
+            doctor_id: str = Query(...),
+            current_user: User = Depends(get_current_user),
+        ):
+            validate_doctor_access(doctor_id, current_user)
+            # ... fetch history
+
+        # In endpoint with doctor_id in request body
+        @router.post("/search")
+        async def search(
+            request: SearchRequest,
+            current_user: User = Depends(get_current_user),
+        ):
+            validate_doctor_access(request.doctor_id, current_user)
+            # ... do search
+    """
+    if allow_superadmin and UserRole.SUPERADMIN in current_user.roles:
+        return  # SUPERADMIN can access any doctor's data
+
+    if doctor_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cannot {action} for another doctor. You can only access your own data.",
+        )
+
+
+def validate_session_access(
+    session_id: str,
+    current_user: User,
+    *,
+    allow_superadmin: bool = True,
+    action: str = "access session",
+) -> None:
+    """
+    Validate user can access a session by checking clinic_id in HDF5.
+
+    Reads the session's clinic_id attribute from the HDF5 corpus file
+    and validates it matches the user's clinic.
+
+    Args:
+        session_id: Session ID to validate access for
+        current_user: Authenticated user from JWT
+        allow_superadmin: If True, SUPERADMIN can access any session
+        action: Action description for error message
+
+    Raises:
+        HTTPException: 403 if user cannot access session
+        HTTPException: 404 if session doesn't exist
+
+    Example:
+        @router.get("/sessions/{session_id}/data")
+        async def get_session_data(
+            session_id: str,
+            current_user: User = Depends(get_current_user),
+        ):
+            validate_session_access(session_id, current_user)
+            # ... fetch session data
+    """
+    from pathlib import Path
+
+    # SUPERADMIN bypass
+    if allow_superadmin and UserRole.SUPERADMIN in current_user.roles:
+        return
+
+    # Load session clinic_id from HDF5
+    corpus_path = Path("corpus/hdf5/conversations.h5")
+    session_clinic_id: str | None = None
+
+    if corpus_path.exists():
+        try:
+            import h5py
+
+            with h5py.File(corpus_path, "r") as f:
+                if "sessions" in f and session_id in f["sessions"]:
+                    session_group = f["sessions"][session_id]
+                    if hasattr(session_group, "attrs"):
+                        session_clinic_id = session_group.attrs.get("clinic_id")
+        except Exception:
+            pass  # If HDF5 read fails, proceed with None
+
+    if session_clinic_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session '{session_id}' not found",
+        )
+
+    if session_clinic_id != current_user.clinic_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied to session '{session_id}'. Cannot {action} for another clinic.",
+        )
+
+
+__all__ = ["validate_clinic_access", "require_superadmin", "validate_doctor_access", "validate_session_access"]

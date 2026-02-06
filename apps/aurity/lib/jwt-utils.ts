@@ -60,10 +60,10 @@ export function decodeJwtPayload<T = Record<string, any>>(token: string): T {
 }
 
 /**
- * Type-safe JWT payload with Auth0 custom claims
+ * Type-safe JWT payload for self-hosted auth
  */
-export interface Auth0JwtPayload {
-  /** Auth0 user ID */
+export interface JwtPayload {
+  /** User ID */
   sub: string;
 
   /** Issued at timestamp */
@@ -72,46 +72,36 @@ export interface Auth0JwtPayload {
   /** Expiration timestamp */
   exp: number;
 
-  /** Audience */
-  aud: string | string[];
+  /** User email */
+  email: string;
 
-  /** Issuer */
-  iss: string;
+  /** User roles */
+  roles: string[];
 
-  /** Custom: User roles (RBAC) */
-  'https://aurity.app/roles'?: string[];
+  /** Clinic ID (optional) */
+  clinic_id?: string;
 
-  /** Custom: User permissions */
-  'https://aurity.app/permissions'?: string[];
+  /** User display name */
+  name?: string;
 
-  /** Other standard JWT claims */
+  /** Other claims */
   [key: string]: any;
 }
 
 /**
- * Extract roles from Auth0 JWT token.
+ * Extract roles from JWT token.
  *
- * Handles both real JWT tokens (production) and mock tokens (development).
- *
- * @param token - JWT access token from Auth0 (or mock token in dev)
- * @returns Array of role strings (empty if no roles claim or mock token)
- *
- * @example
- * const roles = extractRolesFromToken(token);
- * if (roles.includes('FI-superadmin')) {
- *   // User is superadmin
- * }
+ * @param token - JWT access token
+ * @returns Array of role strings
  */
 export function extractRolesFromToken(token: string): string[] {
   try {
-    // Check if token looks like a JWT (has 3 parts separated by dots)
     if (!token || token.split('.').length !== 3) {
-      console.warn('[jwt-utils] Token is not a JWT format (likely MockAuth0Provider in dev mode), returning empty roles');
       return [];
     }
 
-    const payload = decodeJwtPayload<Auth0JwtPayload>(token);
-    return payload['https://aurity.app/roles'] || [];
+    const payload = decodeJwtPayload<JwtPayload>(token);
+    return payload.roles || [];
   } catch (error) {
     console.error('[jwt-utils] Failed to extract roles:', error);
     return [];
@@ -126,11 +116,10 @@ export function extractRolesFromToken(token: string): string[] {
  */
 export function isTokenExpired(token: string): boolean {
   try {
-    const payload = decodeJwtPayload<Auth0JwtPayload>(token);
+    const payload = decodeJwtPayload<JwtPayload>(token);
     const now = Math.floor(Date.now() / 1000);
     return payload.exp < now;
   } catch {
-    // If can't decode, assume expired (safe default)
     return true;
   }
 }

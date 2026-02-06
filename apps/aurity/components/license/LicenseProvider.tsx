@@ -1,16 +1,12 @@
 'use client';
 
 /**
- * LicenseProvider - Wraps Auth0 with license-based configuration
+ * LicenseProvider - Wraps auth with license-based configuration
  *
  * Flow:
  * 1. Check if license is activated
  * 2. If not activated → show LicenseActivationWizard
- * 3. If activated → load Auth0 config from license
- * 4. Configure Auth0 with license credentials
- * 5. Render children (app)
- *
- * This replaces env-based Auth0 config with license-based config.
+ * 3. If activated → render children (app)
  */
 
 import {
@@ -23,12 +19,11 @@ import {
 } from 'react';
 import { LicenseActivationWizard } from './LicenseActivationWizard';
 import { LicenseRenewalBanner } from './LicenseRenewalBanner';
-import { useLicense, LicensePayload, Auth0Config, RenewalStatus } from '@/hooks/useLicense';
+import { useLicense, LicensePayload, RenewalStatus } from '@/hooks/useLicense';
 
 interface LicenseContextType {
   isLicenseValid: boolean;
   licensePayload: LicensePayload | null;
-  auth0Config: Auth0Config | null;
   daysRemaining: number | null;
   features: string[];
   hasFeature: (feature: string) => boolean;
@@ -50,41 +45,23 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
     licenseStatus,
     renewalStatus,
     needsRenewal,
-    getAuth0Config,
     clearLicense,
     daysRemaining,
     features,
   } = useLicense();
 
-  const [auth0Config, setAuth0Config] = useState<Auth0Config | null>(null);
-  const [isConfigLoading, setIsConfigLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
 
-  // Check license and load Auth0 config on mount
+  // Check license on mount
   useEffect(() => {
-    const loadConfig = async () => {
-      if (isLoading) return;
+    if (isLoading) return;
 
-      if (!isValid) {
-        setShowWizard(true);
-        setIsConfigLoading(false);
-        return;
-      }
-
-      try {
-        const config = await getAuth0Config();
-        setAuth0Config(config);
-        setShowWizard(false);
-      } catch (err) {
-        console.error('[LicenseProvider] Failed to get Auth0 config:', err);
-        setShowWizard(true);
-      } finally {
-        setIsConfigLoading(false);
-      }
-    };
-
-    loadConfig();
-  }, [isLoading, isValid, getAuth0Config]);
+    if (!isValid) {
+      setShowWizard(true);
+    } else {
+      setShowWizard(false);
+    }
+  }, [isLoading, isValid]);
 
   // Handle license activation
   const handleActivated = useCallback(() => {
@@ -99,7 +76,7 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
   );
 
   // Show loading state
-  if (isLoading || isConfigLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="text-center">
@@ -119,7 +96,6 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
   const contextValue: LicenseContextType = {
     isLicenseValid: isValid,
     licensePayload: licenseStatus?.payload ?? null,
-    auth0Config,
     daysRemaining,
     features,
     hasFeature,

@@ -21,7 +21,7 @@ interface MediaUploaderProps {
   /** Clinic ID for categorization */
   clinicId?: string;
 
-  /** Doctor ID (Auth0 sub) */
+  /** Doctor ID (JWT sub) */
   doctorId?: string;
 }
 

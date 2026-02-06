@@ -14,7 +14,7 @@ from typing import Any
 from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.infrastructure.auth import User, get_current_user
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.infrastructure.common.api.public.models import (
     DoctorFeedbackRequest,
     DoctorFeedbackResponse,
@@ -32,9 +32,11 @@ async def get_session_audit(
     session_id: str,
     task_repo: ITaskRepository = Depends(get_task_repository),
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get complete audit data for doctor review."""
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="view session audit")
 
     from backend.models.task_type import TaskType
 
@@ -177,11 +179,14 @@ def _analyze_session_flags(
 async def submit_doctor_feedback(
     session_id: str,
     feedback: DoctorFeedbackRequest,
-    current_user: User | None = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     task_repo: ITaskRepository = Depends(get_task_repository),
     corpus_repo: ICorpusRepository = Depends(get_corpus_repository),
 ) -> DoctorFeedbackResponse:
     """Submit doctor's audit feedback for a session."""
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="submit feedback")
+
     from backend.models.task_type import TaskType
     from backend.infrastructure.common.api.public.models import DoctorFeedbackResponse
 
@@ -194,21 +199,12 @@ async def submit_doctor_feedback(
             corrections_count=len(feedback.corrections),
         )
 
-        if current_user:
-            user_identifier = current_user.user_id or current_user.email or "unknown"
-            user_display_name = (
-                current_user.name
-                or current_user.email
-                or (f"User {current_user.user_id[:8]}" if current_user.user_id else "Unknown User")
-            )
-        else:
-            logger.warning(
-                "AUTH_CONTEXT_MISSING",
-                session_id=session_id,
-                message="No authenticated user - using 'system' identifier",
-            )
-            user_identifier = "system"
-            user_display_name = "System"
+        user_identifier = current_user.id or current_user.email or "unknown"
+        user_display_name = (
+            current_user.name
+            or current_user.email
+            or (f"User {current_user.id[:8]}" if current_user.id else "Unknown User")
+        )
 
         feedback_data = {
             "rating": feedback.rating,

@@ -42,9 +42,6 @@ class LicenseGenerationRequest(BaseModel):
     license_holder: str = Field(
         default="", description="License holder name (optional, for display)"
     )
-    auth0_domain: str = Field(..., min_length=1, description="Auth0 tenant domain")
-    auth0_client_id: str = Field(..., min_length=1, description="Auth0 application client ID")
-    auth0_audience: str = Field(default="https://app.aurity.io", description="Auth0 API audience")
     features: list[str] = Field(
         default=["soap", "timeline", "prescriptions"],
         description="Enabled feature flags",
@@ -61,7 +58,6 @@ class LicenseGenerationResponse(BaseModel):
     license_key: str
     max_clinics: int
     license_holder: str
-    auth0_domain: str
     expires_at: str
     features: list[str]
     issued_at: str
@@ -97,7 +93,6 @@ async def admin_generate_license(
     Requires FI-superadmin role.
 
     The license key is cryptographically signed with Ed25519 and contains:
-    - Auth0 configuration (domain, client_id, audience)
     - Max clinics capacity (admin creates clinics after activation)
     - Feature flags
     - Expiration date
@@ -121,9 +116,6 @@ async def admin_generate_license(
 
         # Create license payload
         payload = LicensePayload(
-            auth0_domain=request.auth0_domain,
-            auth0_client_id=request.auth0_client_id,
-            auth0_audience=request.auth0_audience,
             max_clinics=request.max_clinics,
             license_holder=request.license_holder,
             features=request.features,
@@ -146,7 +138,6 @@ async def admin_generate_license(
             license_key=license_key,
             max_clinics=payload.max_clinics,
             license_holder=payload.license_holder,
-            auth0_domain=payload.auth0_domain,
             expires_at=payload.expires_at,
             features=payload.features,
             issued_at=payload.issued_at,

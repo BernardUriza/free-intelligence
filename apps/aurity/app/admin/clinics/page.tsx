@@ -500,7 +500,7 @@ export default function ClinicsAdminPage() {
 
                         {/* Other doctors */}
                         {doctors
-                          .filter((d) => d.auth0_user_id !== user?.sub)
+                          .filter((d) => d.user_id !== user?.sub)
                           .map((doctor) => (
                             <div
                               key={doctor.doctor_id}

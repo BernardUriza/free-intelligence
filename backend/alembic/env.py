@@ -19,6 +19,8 @@ sys.path.insert(0, project_root)
 
 # Import Base and all models to register them with metadata
 from backend.models.db_models import Base
+from backend.infrastructure.auth.domain.entities.db_user import DBUser  # noqa: F401
+from backend.infrastructure.auth.domain.entities.refresh_token_model import DBRefreshToken  # noqa: F401
 
 # Alembic Config object
 config = context.config

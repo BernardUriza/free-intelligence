@@ -42,7 +42,7 @@ const BACKEND_URL = getBackendUrl();
 const CHUNK_INTERVAL_MS = 30000; // 30s chunks
 
 interface UseChatVoiceRecorderConfig {
-  userId: string; // Auth0 user.sub
+  userId: string; // JWT user.sub
   onTranscriptUpdate?: (transcript: string) => void;
   onError?: (error: string) => void;
   /** Specific audio input device ID (null = use system default) */
@@ -78,7 +78,7 @@ export function useChatVoiceRecorder(
   const { userId, onTranscriptUpdate, onError, deviceId = null } = config;
 
   // Generate session ID: chat_{sanitized_user_sub}
-  // Auth0 user.sub contains pipe chars (e.g., "google-oauth2|123") which aren't allowed
+  // User ID may contain special chars that need sanitization
   // Backend validates: alphanumeric + hyphens + underscores only (10-128 chars)
   const sanitizedUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const sessionId = `chat_${sanitizedUserId}`;

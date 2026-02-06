@@ -20,8 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.clients.dependencies import get_llm_client_dep
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.repositories.interfaces import ITaskRepository
 from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
@@ -65,8 +64,9 @@ async def get_soap_workflow(
         400: Invalid session_id
         500: Failed to load or generate SOAP data
     """
-    # Validate session ID first
+    # Validate session ID format and ownership
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="view SOAP notes")
 
     try:
         logger.info("SOAP_GET_STARTED", session_id=session_id)
@@ -145,8 +145,9 @@ async def update_soap_workflow(
         400: Invalid session_id or SOAP data
         500: Failed to save SOAP data
     """
-    # Validate session ID first
+    # Validate session ID format and ownership
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="update SOAP notes")
 
     try:
         logger.info("SOAP_UPDATE_STARTED", session_id=session_id)
@@ -282,8 +283,9 @@ async def soap_assistant_workflow(
         400: Invalid command or SOAP data
         500: LLM processing failed
     """
-    # Validate session ID first
+    # Validate session ID format and ownership
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="use SOAP assistant")
 
     # Validate request command length
     if not request.command or len(request.command.strip()) == 0:

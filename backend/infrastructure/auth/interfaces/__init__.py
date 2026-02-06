@@ -1,5 +1,3 @@
-"""Auth infrastructure interfaces for dependency injection."""
+"""Auth infrastructure interfaces."""
 
-from backend.infrastructure.auth.interfaces.iauth0_management import IAuth0ManagementService
-
-__all__ = ["IAuth0ManagementService"]
+from __future__ import annotations

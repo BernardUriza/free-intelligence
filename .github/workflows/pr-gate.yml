@@ -296,7 +296,7 @@ jobs:
           KNOWN FALSE POSITIVES (ignore these patterns):
             - Pydantic validators with @field_validator decorators
             - H5py datasets with f['path/{var}'] syntax (valid HDF5 paths)
-            - Auth0 JWT claims with https://aurity.app/roles format
+            - JWT claims with roles array format (self-hosted auth)
             - Bash heredocs with <<'EOF' in shell commands
             - Rust formatting changes from \`cargo fmt\` (multiline reformatting, whitespace)
             - Cargo clippy warnings in comments (they're intentional, not bugs)

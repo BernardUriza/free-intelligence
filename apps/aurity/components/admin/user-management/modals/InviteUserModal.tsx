@@ -15,7 +15,7 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
   useAuth(); // Ensure auth context is available
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [selectedRoles, setSelectedRoles] = useState<Role[]>([ROLES.VIEWER]);
+  const [selectedRole, setSelectedRole] = useState<Role>(ROLES.CLINICIAN);
   const [sending, setSending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,21 +71,16 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
           </div>
 
           <div>
-            <label className="fi-label">Roles</label>
+            <label className="fi-label">Rol</label>
             <div className="fi-stack-sm">
               {Object.values(ROLES).filter(r => r !== ROLES.SUPERADMIN).map(role => (
                 <label key={role} className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="checkbox"
-                    checked={selectedRoles.includes(role)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedRoles([...selectedRoles, role]);
-                      } else {
-                        setSelectedRoles(selectedRoles.filter(r => r !== role));
-                      }
-                    }}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-900"
+                    type="radio"
+                    name="user-role"
+                    checked={selectedRole === role}
+                    onChange={() => setSelectedRole(role)}
+                    className="w-4 h-4 border-slate-700 bg-slate-900"
                   />
                   <span className={`px-2 py-0.5 ${getRoleBadgeColor(role)} text-white text-xs rounded`}>
                     {getRoleName(role)}
@@ -101,7 +96,7 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
             </Button>
             <Button
               type="submit"
-              disabled={sending || !email || selectedRoles.length === 0}
+              disabled={sending || !email}
               variant="primary"
               fullWidth
               loading={sending}

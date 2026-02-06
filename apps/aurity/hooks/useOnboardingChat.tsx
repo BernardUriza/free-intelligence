@@ -32,7 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useChat } from "./useChat";
-import type { FIMessage, UserRole, ClinicType } from "@aurity-standalone/types/assistant";
+import type { FIMessage, UserRole, ClinicType, BehaviorMetrics } from "@aurity-standalone/types/assistant";
 import type { ChatHook } from "@aurity-standalone/types/chat";
 
 // =============================================================================
@@ -370,8 +370,9 @@ export function useOnboardingChat(
     if (!lastMessage || lastMessage.role !== "assistant") return;
 
     // Skip if we already parsed this message
-    if (lastParsedMessageId.current === lastMessage.id) return;
-    lastParsedMessageId.current = lastMessage.id;
+    const messageId = lastMessage.id ?? null;
+    if (lastParsedMessageId.current === messageId) return;
+    lastParsedMessageId.current = messageId;
 
     // Try to parse JSON
     const parsed = tryParseJSON(lastMessage.content);
@@ -545,8 +546,8 @@ export function useOnboardingChat(
         // Clear question before sending
         setCurrentQuestion(null);
 
-        // Send via streaming
-        await chatHook.sendMessageStream(message, metadata);
+        // Send via streaming (onboarding never sends BehaviorMetrics)
+        await chatHook.sendMessageStream(message, metadata as BehaviorMetrics | undefined);
 
         // Move to personalization after sending
         setPhase("personalization");
@@ -554,7 +555,7 @@ export function useOnboardingChat(
       }
 
       // Default: just stream
-      await chatHook.sendMessageStream(message, metadata);
+      await chatHook.sendMessageStream(message, metadata as BehaviorMetrics | undefined);
     },
     [phase, currentQuestion, chatHook]
   );

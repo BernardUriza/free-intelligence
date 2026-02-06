@@ -41,7 +41,7 @@ def test_list_sessions_with_user_id_succeeds():
 
     # Should not raise ValueError (may fail later on storage, but that's OK for this test)
     try:
-        service.list_sessions(user_id="auth0|doctor_a")
+        service.list_sessions(user_id="user-doctor-a")
     except ValueError as e:
         # Should NOT be tenant isolation error
         assert "tenant isolation" not in str(e).lower()
@@ -69,8 +69,8 @@ def test_list_sessions_with_empty_string_raises_error():
 def test_ownership_validation_same_owner():
     """Ownership validation should pass when owner matches user"""
 
-    session_owner = "auth0|doctor_a"
-    current_user_id = "auth0|doctor_a"
+    session_owner = "user-doctor-a"
+    current_user_id = "user-doctor-a"
 
     # Should match
     assert session_owner == current_user_id
@@ -79,8 +79,8 @@ def test_ownership_validation_same_owner():
 def test_ownership_validation_different_owner():
     """Ownership validation should fail when owner doesn't match user"""
 
-    session_owner = "auth0|doctor_a"
-    current_user_id = "auth0|doctor_b"
+    session_owner = "user-doctor-a"
+    current_user_id = "user-doctor-b"
 
     # Should NOT match
     assert session_owner != current_user_id
@@ -90,7 +90,7 @@ def test_ownership_validation_with_none():
     """Ownership validation should fail when owner is None"""
 
     session_owner = None
-    current_user_id = "auth0|doctor_a"
+    current_user_id = "user-doctor-a"
 
     # Should NOT match
     assert session_owner != current_user_id

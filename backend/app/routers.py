@@ -120,7 +120,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # PUBLIC API Registration (CORS enabled, non-AURITY routes)
     # =========================================================================
 
-    public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
+    public_app.include_router(auth_router)  # JWT Authentication
     # NOTE: patients.router removed - now in aurity_router at /api/aurity/patients/*
     # NOTE: providers.router removed - now in aurity_router at /api/aurity/providers/*
     public_app.include_router(

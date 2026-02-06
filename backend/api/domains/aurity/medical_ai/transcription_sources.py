@@ -14,8 +14,7 @@ import json
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
 from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 from backend.repositories.interfaces.itask_repository import ITaskRepository
@@ -40,8 +39,8 @@ async def get_transcription_sources_workflow(
     current_user: User = Depends(get_current_user),
 ) -> TranscriptionSourcesModel:
     """Get all 3 transcription sources for a saved session (PUBLIC endpoint)."""
-
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="view transcription sources")
 
     try:
         logger.info("TRANSCRIPTION_SOURCES_GET_STARTED", session_id=session_id)

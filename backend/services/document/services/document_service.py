@@ -89,7 +89,7 @@ class DocumentService:
             clinic_id: Clinic ID (multi-tenancy)
             title: Document title
             content: Extracted text content
-            uploaded_by: User ID (Auth0 subject)
+            uploaded_by: User ID (JWT subject)
             file_content: Optional binary file content (PDF, DOCX)
             metadata: Optional document metadata
             origin: How document was uploaded

@@ -3,7 +3,7 @@
  *
  * Centralized API for admin operations (user management, etc.)
  *
- * NOTE: Auth token is now automatically obtained from Auth0 cache
+ * NOTE: Auth token is now automatically obtained from auth storage
  * by the api client. No need for manual token management.
  *
  * Created: 2025-01-XX
@@ -24,7 +24,7 @@ export interface User {
   created_at?: string;
   last_login?: string;
   logins_count?: number;
-  roles?: string[];
+  role?: string;
   blocked?: boolean;
 }
 
@@ -35,9 +35,9 @@ export interface UsersListResponse {
   per_page: number;
 }
 
-export interface UserRolesResponse {
+export interface UserRoleResponse {
   user_id: string;
-  roles: string[];
+  role: string;
 }
 
 // ============================================================================
@@ -58,19 +58,12 @@ export const adminApi = {
   },
 
   /**
-   * Get user roles
+   * Update user role (singular — backend expects { role: string })
    */
-  getUserRoles: async (userId: string): Promise<UserRolesResponse> => {
-    return api.get<UserRolesResponse>(`/internal/admin/users/${encodeURIComponent(userId)}/roles`);
-  },
-
-  /**
-   * Update user roles
-   */
-  updateUserRoles: async (userId: string, roles: string[]): Promise<UserRolesResponse> => {
-    return api.put<UserRolesResponse>(
+  updateUserRole: async (userId: string, role: string): Promise<UserRoleResponse> => {
+    return api.put<UserRoleResponse>(
       `/internal/admin/users/${encodeURIComponent(userId)}/roles`,
-      { roles }
+      { role }
     );
   },
 
@@ -96,10 +89,3 @@ export const adminApi = {
   },
 };
 
-// Legacy exports for backwards compatibility
-// These are deprecated - use adminApi directly
-/** @deprecated Use adminApi directly - token is now handled automatically */
-export function setAdminToken(_token: string | null): void {
-  // No-op - auth is now handled automatically by api client
-  console.warn('[admin.ts] setAdminToken is deprecated - token is handled automatically');
-}

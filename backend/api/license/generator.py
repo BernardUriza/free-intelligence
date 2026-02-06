@@ -2,7 +2,6 @@
 License Key Generator for Aurity Desktop
 
 This module generates Ed25519-signed license keys that encode:
-- Auth0 credentials (domain, client_id, audience)
 - Clinic/organization ID
 - Feature flags
 - Expiration date
@@ -56,11 +55,6 @@ class LicensePayload:
 
     # Unique license identifier
     license_id: str = field(default_factory=lambda: str(uuid4()))
-
-    # Auth0 configuration (required for desktop sidecar)
-    auth0_domain: str = ""
-    auth0_client_id: str = ""
-    auth0_audience: str = ""
 
     # License capacity (max clinics that can be created)
     max_clinics: int = 1

@@ -18,6 +18,7 @@ from typing import Annotated
 import httpx
 import os
 import psutil
+from backend.infrastructure.auth import User, get_current_user, UserRole
 from backend.services.llm.interfaces.illm_model_service import ILLMModelService
 from backend.services.llm.dependencies import get_llm_model_service_dep
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -26,6 +27,19 @@ from pydantic import BaseModel
 
 # Type alias for DI (Phase 2.3 Tierra)
 LLMModelServiceDep = Annotated[ILLMModelService, Depends(get_llm_model_service_dep)]
+
+
+def _require_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency that requires SUPERADMIN role."""
+    if UserRole.SUPERADMIN not in current_user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint requires SUPERADMIN role",
+        )
+    return current_user
+
+
+SuperAdminDep = Annotated[User, Depends(_require_superadmin)]
 
 router = APIRouter(prefix="/admin/system", tags=["System Resources"])
 
@@ -91,8 +105,10 @@ class ModelCompatibility(BaseModel):
 
 
 @router.get("/resources", response_model=SystemResources)
-async def get_system_resources() -> SystemResources:
-    """Get current system resource usage.
+async def get_system_resources(
+    current_user: SuperAdminDep,
+) -> SystemResources:
+    """Get current system resource usage. Requires SUPERADMIN.
 
     Returns:
         System memory, CPU, and platform information
@@ -114,8 +130,10 @@ async def get_system_resources() -> SystemResources:
 
 
 @router.get("/ollama/running", response_model=RunningModelsResponse)
-async def get_running_models() -> RunningModelsResponse:
-    """Get currently loaded Ollama models.
+async def get_running_models(
+    current_user: SuperAdminDep,
+) -> RunningModelsResponse:
+    """Get currently loaded Ollama models. Requires SUPERADMIN.
 
     Uses `ollama ps` to get models currently in memory.
 
@@ -182,6 +200,7 @@ async def get_running_models() -> RunningModelsResponse:
 async def check_model_compatibility(
     model_id: str,
     llm_service: LLMModelServiceDep,
+    current_user: SuperAdminDep,
 ) -> ModelCompatibility:
     """Check if system can run a specific model.
 
@@ -220,7 +239,10 @@ async def check_model_compatibility(
 
 
 @router.post("/ollama/unload/{model_name}")
-async def unload_model(model_name: str) -> dict:
+async def unload_model(
+    model_name: str,
+    current_user: SuperAdminDep,
+) -> dict:
     """Unload a model from Ollama memory.
 
     Args:
@@ -283,8 +305,10 @@ class ConnectionTestResult(BaseModel):
 
 
 @router.get("/ollama/config", response_model=OllamaSourceConfig)
-async def get_ollama_config() -> OllamaSourceConfig:
-    """Get current Ollama source configuration.
+async def get_ollama_config(
+    current_user: SuperAdminDep,
+) -> OllamaSourceConfig:
+    """Get current Ollama source configuration. Requires SUPERADMIN.
 
     Returns:
         Current configuration from ~/.aurity/ollama-source.json
@@ -300,8 +324,11 @@ async def get_ollama_config() -> OllamaSourceConfig:
 
 
 @router.post("/ollama/config", response_model=OllamaSourceConfig)
-async def save_ollama_config(config: OllamaSourceConfig) -> OllamaSourceConfig:
-    """Save Ollama source configuration.
+async def save_ollama_config(
+    config: OllamaSourceConfig,
+    current_user: SuperAdminDep,
+) -> OllamaSourceConfig:
+    """Save Ollama source configuration. Requires SUPERADMIN.
 
     Args:
         config: New configuration to save
@@ -320,6 +347,7 @@ async def save_ollama_config(config: OllamaSourceConfig) -> OllamaSourceConfig:
 
 @router.get("/ollama/test", response_model=ConnectionTestResult)
 async def test_ollama_connection(
+    current_user: SuperAdminDep,
     url: str = Query(default="http://localhost:11434", description="Ollama URL to test"),
 ) -> ConnectionTestResult:
     """Test connection to an Ollama endpoint.

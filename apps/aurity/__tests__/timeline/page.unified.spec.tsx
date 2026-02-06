@@ -19,12 +19,17 @@ const mockRefresh = vi.fn();
 const mockSetEventType = vi.fn();
 const mockSetTimeRangePreset = vi.fn();
 
-// Mock Auth0
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: vi.fn(() => ({
-    user: { sub: 'test-user-123' },
+// Mock Auth
+vi.mock('@/components/auth/AuthProvider', () => ({
+  useAuth: vi.fn(() => ({
+    user: { sub: 'test-user-123', email: 'test@test.com', roles: [] },
     isAuthenticated: true,
     isLoading: false,
+    getAccessTokenSilently: vi.fn().mockResolvedValue('mock-token'),
+    loginWithRedirect: vi.fn(),
+    logout: vi.fn(),
+    login: vi.fn(),
+    register: vi.fn(),
   })),
 }));
 

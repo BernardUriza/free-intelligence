@@ -14,6 +14,7 @@ Migrated from: backend/api/routers/assistant/public/assistant_history.py
 from __future__ import annotations
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth import User, get_current_user, validate_doctor_access
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -32,6 +33,7 @@ router = APIRouter()
 @router.post("/history/search", response_model=HistorySearchResponse)
 async def search_history(
     request: HistorySearchRequest,
+    current_user: User = Depends(get_current_user),
     audit_service: DIAuditService = Depends(get_audit_service),
 ) -> HistorySearchResponse:
     """Search conversation history using semantic search.
@@ -44,6 +46,8 @@ async def search_history(
         Returns: All past conversations about hypertension treatment,
                  ranked by semantic similarity.
     """
+    validate_doctor_access(request.doctor_id, current_user)
+
     try:
         logger.info(
             "HISTORY_SEARCH_START",
@@ -111,7 +115,8 @@ async def search_history(
 
 @router.get("/history/timeline", response_model=TimelineResponse)
 async def get_timeline(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
+    current_user: User = Depends(get_current_user),
     audit_service: DIAuditService = Depends(get_audit_service),
 ) -> TimelineResponse:
     """Get timeline of all conversation sessions.
@@ -122,6 +127,8 @@ async def get_timeline(
     Note: Session grouping feature is NOT IMPLEMENTED yet.
     Currently returns empty sessions array.
     """
+    validate_doctor_access(doctor_id, current_user)
+
     try:
         logger.info("HISTORY_TIMELINE_START", doctor_id=doctor_id)
 
@@ -169,7 +176,8 @@ async def get_timeline(
 
 @router.get("/history/stats")
 async def get_history_stats(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
+    current_user: User = Depends(get_current_user),
     audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """Get conversation history statistics.
@@ -179,6 +187,8 @@ async def get_history_stats(
     - Unique sessions
     - Date range (oldest/newest)
     """
+    validate_doctor_access(doctor_id, current_user)
+
     try:
         memory = get_memory_manager(doctor_id)
         stats = memory.get_stats()
@@ -211,10 +221,11 @@ async def get_history_stats(
 
 @router.get("/history/paginated")
 async def get_paginated_history(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
     offset: int = Query(0, ge=0, description="Number of messages to skip"),
     limit: int = Query(50, ge=1, le=100, description="Messages per page"),
     session_id: str | None = Query(None, description="Filter by session"),
+    current_user: User = Depends(get_current_user),
     audit_service: DIAuditService = Depends(get_audit_service),
 ) -> dict:
     """Get paginated conversation history (for infinite scroll).
@@ -223,12 +234,14 @@ async def get_paginated_history(
     Used for infinite scroll implementation in chat UI.
 
     Example:
-        GET /history/paginated?doctor_id=auth0|123&offset=0&limit=50
+        GET /history/paginated?doctor_id=user-123&offset=0&limit=50
         → Returns latest 50 messages
 
-        GET /history/paginated?doctor_id=auth0|123&offset=50&limit=50
+        GET /history/paginated?doctor_id=user-123&offset=50&limit=50
         → Returns next 50 (older messages)
     """
+    validate_doctor_access(doctor_id, current_user)
+
     try:
         logger.info(
             "HISTORY_PAGINATED_START",

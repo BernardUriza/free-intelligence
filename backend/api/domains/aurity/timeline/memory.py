@@ -23,6 +23,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 
+from backend.infrastructure.auth import User, get_current_user, validate_doctor_access
 from backend.services.memory.dependencies import get_memory_service
 from backend.services.memory.services.di_memory_service import DIMemoryService
 from backend.utils.common.logging.logger import get_logger
@@ -117,7 +118,7 @@ class MemoryStatsResponse(BaseModel):
     status_code=status.HTTP_200_OK,
 )
 async def get_longitudinal_memory(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
     offset: int = Query(0, ge=0, description="Number of events to skip"),
     limit: int = Query(
         TimelineConfig.DEFAULT_LIMIT,
@@ -134,6 +135,7 @@ async def get_longitudinal_memory(
         None,
         description="End time (ISO 8601 or Unix timestamp)",
     ),
+    current_user: User = Depends(get_current_user),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
     """Get longitudinal memory combining chat messages and audio transcriptions.
@@ -143,7 +145,7 @@ async def get_longitudinal_memory(
     Philosophy: "No existen sesiones. Solo una conversación infinita."
 
     Args:
-        doctor_id: Doctor identifier (Auth0 user.sub)
+        doctor_id: Doctor identifier (JWT user.sub)
         offset: Number of events to skip for pagination
         limit: Maximum events to return (max 200)
         event_type: Filter by "all", "chat", or "audio"
@@ -154,6 +156,8 @@ async def get_longitudinal_memory(
     Returns:
         LongitudinalMemoryResponse with merged, sorted events
     """
+    validate_doctor_access(doctor_id, current_user)
+
     result = await service.get_longitudinal_memory(
         doctor_id=doctor_id,
         offset=offset,
@@ -172,10 +176,11 @@ async def get_longitudinal_memory(
     status_code=status.HTTP_200_OK,
 )
 async def search_memory(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
     query: str = Query(..., min_length=1, max_length=500, description="Search query"),
     limit: int = Query(50, ge=1, le=TimelineConfig.MAX_LIMIT),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> LongitudinalMemoryResponse:
     """Search longitudinal memory by text query.
@@ -184,7 +189,7 @@ async def search_memory(
     Searches both chat messages and audio transcriptions.
 
     Args:
-        doctor_id: Doctor identifier (Auth0 user.sub)
+        doctor_id: Doctor identifier (JWT user.sub)
         query: Search text (1-500 characters)
         limit: Maximum events to return (max 200)
         offset: Number of events to skip for pagination
@@ -193,6 +198,8 @@ async def search_memory(
     Returns:
         LongitudinalMemoryResponse with search results
     """
+    validate_doctor_access(doctor_id, current_user)
+
     result = await service.search_memory(
         doctor_id=doctor_id,
         query=query,
@@ -209,7 +216,8 @@ async def search_memory(
     status_code=status.HTTP_200_OK,
 )
 async def get_memory_stats(
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
+    current_user: User = Depends(get_current_user),
     service: DIMemoryService = Depends(get_memory_service),
 ) -> MemoryStatsResponse:
     """Get statistics for the longitudinal memory.
@@ -218,12 +226,14 @@ async def get_memory_stats(
     Useful for UI indicators and pagination info.
 
     Args:
-        doctor_id: Doctor identifier (Auth0 user.sub)
+        doctor_id: Doctor identifier (JWT user.sub)
         service: Memory service (injected)
 
     Returns:
         MemoryStatsResponse with aggregate statistics
     """
+    validate_doctor_access(doctor_id, current_user)
+
     result = await service.get_stats(doctor_id=doctor_id)
 
     return MemoryStatsResponse(**result)

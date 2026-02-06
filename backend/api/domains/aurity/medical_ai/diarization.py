@@ -18,8 +18,7 @@ from backend.infrastructure.common.repository_singletons import get_task_reposit
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.infrastructure.common.api.public.models import ImportDiarizationRequest, UpdateSegmentRequest
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.utils.common.logging.logger import get_logger
 from backend.validators import validate_session_id
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -84,6 +83,7 @@ async def get_diarization_segments_workflow(
 ) -> dict[str, Any]:
     """Get diarization segments (PUBLIC orchestrator)."""
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="view diarization")
 
     from backend.models.task_type import TaskType
 
@@ -161,6 +161,8 @@ async def update_diarization_segment_workflow(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Update text of a diarization segment (PUBLIC orchestrator)."""
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="edit diarization")
 
     try:
         logger.info(
@@ -263,6 +265,7 @@ async def import_external_diarization(
         Success response with segment count and metadata
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="import diarization")
 
     from backend.models.task_type import TaskType
 

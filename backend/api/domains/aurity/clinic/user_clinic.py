@@ -59,11 +59,11 @@ async def get_clinic_membership(
     Returns:
         Clinic membership info or empty dict if not linked
     """
-    auth0_user_id = current_user.id
+    user_id = current_user.id
 
-    logger.info("GET_CLINIC_MEMBERSHIP", auth0_user_id=auth0_user_id)
+    logger.info("GET_CLINIC_MEMBERSHIP", user_id=user_id)
 
-    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
+    doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
 
     if not doctor:
         return {"linked": False, "message": "User is not linked to any clinic"}
@@ -100,7 +100,7 @@ async def link_to_clinic(
 ) -> LinkToClinicResponse:
     """Link authenticated user to a clinic.
 
-    Creates a new Doctor record linked to the user's Auth0 ID.
+    Creates a new Doctor record linked to the user's JWT ID.
     User can only be linked to one clinic at a time.
 
     Args:
@@ -111,7 +111,7 @@ async def link_to_clinic(
     Returns:
         Success status and membership info
     """
-    auth0_user_id = current_user.id
+    user_id = current_user.id
     email = current_user.email
 
     # SECURITY: Validate user can join requested clinic
@@ -119,13 +119,13 @@ async def link_to_clinic(
 
     logger.info(
         "LINK_TO_CLINIC_START",
-        auth0_user_id=auth0_user_id,
+        user_id=user_id,
         clinic_id=request.clinic_id,
         role=request.role,
     )
 
     # Check if user is already linked to a clinic
-    existing = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
+    existing = db.query(Doctor).filter(Doctor.user_id == user_id).first()
 
     if existing:
         raise HTTPException(
@@ -143,10 +143,10 @@ async def link_to_clinic(
             detail=f"Clinic {request.clinic_id} not found",
         )
 
-    # Create doctor record linked to Auth0 user
+    # Create doctor record linked to JWT user
     doctor = Doctor(
         clinic_id=request.clinic_id,
-        auth0_user_id=auth0_user_id,
+        user_id=user_id,
         email=email,
         clinic_role=ClinicRole(request.role) if isinstance(request.role, str) else request.role,
         nombre=request.nombre,
@@ -163,7 +163,7 @@ async def link_to_clinic(
 
     logger.info(
         "LINK_TO_CLINIC_SUCCESS",
-        auth0_user_id=auth0_user_id,
+        user_id=user_id,
         doctor_id=str(doctor.doctor_id),
         clinic_id=request.clinic_id,
         role=request.role,
@@ -204,11 +204,11 @@ async def unlink_from_clinic(
     Returns:
         Success message
     """
-    auth0_user_id = current_user.id
+    user_id = current_user.id
 
-    logger.info("UNLINK_FROM_CLINIC_START", auth0_user_id=auth0_user_id)
+    logger.info("UNLINK_FROM_CLINIC_START", user_id=user_id)
 
-    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
+    doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
 
     if not doctor:
         raise HTTPException(
@@ -219,13 +219,13 @@ async def unlink_from_clinic(
     clinic_id = str(doctor.clinic_id)
 
     # Soft delete: just unlink, don't remove record
-    doctor.auth0_user_id = None
+    doctor.user_id = None
     doctor.is_active = False
     db.commit()
 
     logger.info(
         "UNLINK_FROM_CLINIC_SUCCESS",
-        auth0_user_id=auth0_user_id,
+        user_id=user_id,
         clinic_id=clinic_id,
     )
 
@@ -265,7 +265,7 @@ async def admin_assign_user_to_clinic(
     logger.info(
         "ADMIN_ASSIGN_USER_START",
         admin_user_id=current_user.id,
-        target_auth0_user_id=request.auth0_user_id,
+        target_user_id=request.user_id,
         clinic_id=request.clinic_id,
         role=request.role,
     )
@@ -280,7 +280,7 @@ async def admin_assign_user_to_clinic(
         )
 
     # Check if user is already linked to a clinic
-    existing = db.query(Doctor).filter(Doctor.auth0_user_id == request.auth0_user_id).first()
+    existing = db.query(Doctor).filter(Doctor.user_id == request.user_id).first()
 
     if existing:
         # Update existing assignment
@@ -305,7 +305,7 @@ async def admin_assign_user_to_clinic(
         logger.info(
             "ADMIN_ASSIGN_USER_UPDATED",
             admin_user_id=current_user.id,
-            target_auth0_user_id=request.auth0_user_id,
+            target_user_id=request.user_id,
             doctor_id=str(doctor.doctor_id),
             clinic_id=request.clinic_id,
             role=request.role,
@@ -314,7 +314,7 @@ async def admin_assign_user_to_clinic(
         # Create new doctor record
         doctor = Doctor(
             clinic_id=request.clinic_id,
-            auth0_user_id=request.auth0_user_id,
+            user_id=request.user_id,
             email=request.email,
             clinic_role=ClinicRole(request.role) if isinstance(request.role, str) else request.role,
             nombre=request.nombre,
@@ -333,7 +333,7 @@ async def admin_assign_user_to_clinic(
         logger.info(
             "ADMIN_ASSIGN_USER_CREATED",
             admin_user_id=current_user.id,
-            target_auth0_user_id=request.auth0_user_id,
+            target_user_id=request.user_id,
             doctor_id=str(doctor.doctor_id),
             clinic_id=request.clinic_id,
             role=request.role,
@@ -357,16 +357,16 @@ async def admin_assign_user_to_clinic(
     )
 
 
-@router.delete("/admin/unassign-user/{auth0_user_id}", response_model=None)
+@router.delete("/admin/unassign-user/{user_id}", response_model=None)
 async def admin_unassign_user_from_clinic(
-    auth0_user_id: str,
+    user_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> dict:
     """Admin endpoint to remove user from their clinic.
 
     Args:
-        auth0_user_id: Auth0 user ID to unassign
+        user_id: JWT user ID to unassign
         current_user: Authenticated user (must be SUPERADMIN)
         db: Database session
 
@@ -378,10 +378,10 @@ async def admin_unassign_user_from_clinic(
     logger.info(
         "ADMIN_UNASSIGN_USER_START",
         admin_user_id=current_user.id,
-        target_auth0_user_id=auth0_user_id,
+        target_user_id=user_id,
     )
 
-    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
+    doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
 
     if not doctor:
         return {
@@ -392,14 +392,14 @@ async def admin_unassign_user_from_clinic(
     clinic_id = str(doctor.clinic_id)
 
     # Soft delete: unlink and deactivate
-    doctor.auth0_user_id = None
+    doctor.user_id = None
     doctor.is_active = False
     db.commit()
 
     logger.info(
         "ADMIN_UNASSIGN_USER_SUCCESS",
         admin_user_id=current_user.id,
-        target_auth0_user_id=auth0_user_id,
+        target_user_id=user_id,
         clinic_id=clinic_id,
     )
 
@@ -410,16 +410,16 @@ async def admin_unassign_user_from_clinic(
     }
 
 
-@router.get("/admin/user-clinic-info/{auth0_user_id}")
+@router.get("/admin/user-clinic-info/{user_id}")
 async def admin_get_user_clinic_info(
-    auth0_user_id: str,
+    user_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> AdminUserClinicInfo:
     """Get clinic assignment info for a specific user.
 
     Args:
-        auth0_user_id: Auth0 user ID to query
+        user_id: JWT user ID to query
         current_user: Authenticated user (must be SUPERADMIN)
         db: Database session
 
@@ -431,14 +431,14 @@ async def admin_get_user_clinic_info(
     logger.info(
         "ADMIN_GET_USER_CLINIC_INFO",
         admin_user_id=current_user.id,
-        target_auth0_user_id=auth0_user_id,
+        target_user_id=user_id,
     )
 
-    doctor = db.query(Doctor).filter(Doctor.auth0_user_id == auth0_user_id).first()
+    doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
 
     if not doctor:
         return AdminUserClinicInfo(
-            auth0_user_id=auth0_user_id,
+            user_id=user_id,
             email="",
             doctor_id=None,
             clinic_id=None,
@@ -452,7 +452,7 @@ async def admin_get_user_clinic_info(
     clinic = db.query(Clinic).filter(Clinic.clinic_id == doctor.clinic_id).first()
 
     return AdminUserClinicInfo(
-        auth0_user_id=auth0_user_id,
+        user_id=user_id,
         email=doctor.email or "",
         doctor_id=str(doctor.doctor_id),
         clinic_id=str(doctor.clinic_id),

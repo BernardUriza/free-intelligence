@@ -7,6 +7,7 @@ Architecture:
   - One WebSocket connection per doctor_id
   - Broadcasts new messages to all connected clients of same doctor
   - Lightweight ping/pong for connection health
+  - JWT auth required via query param
 
 Endpoints (2 total):
 - WS  /ws - WebSocket connection for real-time sync
@@ -20,14 +21,40 @@ Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
+from backend.infrastructure.auth import UserRole
+from backend.infrastructure.auth.infrastructure.middleware.auth_middleware import get_auth_provider
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+async def _validate_websocket_auth(token: str | None, doctor_id: str) -> bool:
+    """Validate WebSocket JWT token and doctor_id access.
+
+    Returns True if valid, False otherwise.
+    SUPERADMIN can access any doctor_id.
+    """
+    if not token:
+        return False
+
+    try:
+        provider = get_auth_provider()
+        payload = await provider.token_service.validate(token)
+
+        # SUPERADMIN can access any doctor
+        if UserRole.SUPERADMIN in payload.roles:
+            return True
+
+        # Regular user: must match doctor_id
+        return payload.subject == doctor_id
+
+    except ValueError:
+        return False
 
 
 # ============================================================================
@@ -135,20 +162,25 @@ class NewMessageEvent(BaseModel):
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    doctor_id: str = Query(..., description="Doctor ID (Auth0 user.sub)"),
+    doctor_id: str = Query(..., description="Doctor ID (JWT user.sub)"),
+    token: str | None = Query(None, description="JWT access token for auth"),
     audit_service: DIAuditService = Depends(get_audit_service),
 ) -> None:
     """WebSocket endpoint for real-time chat sync.
 
-    Client connects with doctor_id, receives real-time updates
+    Client connects with doctor_id and JWT token, receives real-time updates
     when messages are sent from other devices.
 
+    Auth:
+        Requires valid JWT token as query param.
+        User can only connect to their own doctor_id (SUPERADMIN can connect to any).
+
     Protocol:
-        Client → Server: None (passive listener)
+        Client → Server: "ping" for keepalive
         Server → Client: {"type": "new_message", "role": "...", "content": "..."}
 
     Example:
-        const ws = new WebSocket("wss://backend/api/aurity/assistant/ws?doctor_id=auth0|123")
+        const ws = new WebSocket("wss://backend/api/aurity/assistant/ws?doctor_id=user-123&token=eyJ...")
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data)
             if (message.type === "new_message") {
@@ -156,6 +188,16 @@ async def websocket_endpoint(
             }
         }
     """
+    # Validate auth before accepting connection
+    if not await _validate_websocket_auth(token, doctor_id):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        logger.warning(
+            "WEBSOCKET_AUTH_FAILED",
+            doctor_id=doctor_id,
+            has_token=bool(token),
+        )
+        return
+
     await manager.connect(websocket, doctor_id)
 
     try:

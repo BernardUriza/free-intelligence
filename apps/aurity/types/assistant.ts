@@ -50,7 +50,7 @@ export interface FIChatContext {
   /** Current onboarding phase */
   phase?: OnboardingPhase;
 
-  /** Doctor/User ID from Auth0 */
+  /** Doctor/User ID from JWT */
   doctor_id?: string;
 
   /** Doctor/User name */

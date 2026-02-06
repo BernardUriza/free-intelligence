@@ -247,7 +247,7 @@ class DIMemoryService:
         """Get longitudinal memory combining chat messages and audio transcriptions.
 
         Args:
-            doctor_id: Doctor identifier (Auth0 user.sub)
+            doctor_id: Doctor identifier (JWT user.sub)
             offset: Number of events to skip for pagination
             limit: Maximum events to return
             event_type: Filter by "all", "chat", or "audio"

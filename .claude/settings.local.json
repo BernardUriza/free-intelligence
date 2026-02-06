@@ -250,7 +250,11 @@
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:www.glukhov.org)",
       "Bash(npx pyright:*)",
-      "Bash(git -C /Users/bernardurizaorozco/Documents/free-intelligence ls-files *.log *.log.*)"
+      "Bash(git -C /Users/bernardurizaorozco/Documents/free-intelligence ls-files *.log *.log.*)",
+      "Bash(JWT_SECRET=test-secret-key-that-is-at-least-32-characters-long make test:*)",
+      "Bash(npx next build)",
+      "Bash(pnpm build:*)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -24,8 +24,7 @@ from typing import TYPE_CHECKING, Any
 from typing import Annotated
 from fastapi import Depends
 from backend.api.audit.dependencies import get_audit_service, DIAuditService
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 
 # Type aliases for dependency injection
 AuditServiceDep = Annotated[DIAuditService, Depends(get_audit_service)]
@@ -81,6 +80,7 @@ async def diarize_session_workflow(
         HTTPException(500): Dispatch failed
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="dispatch diarization")
 
     try:
         result = await orchestrator.dispatch_diarization(
@@ -143,6 +143,7 @@ async def generate_soap_workflow(
         HTTPException(500): Dispatch failed
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="generate SOAP note")
 
     try:
         result = await orchestrator.dispatch_soap_generation(
@@ -204,6 +205,7 @@ async def analyze_emotion_workflow(
         HTTPException(500): Dispatch failed
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="analyze emotion")
 
     try:
         result = await orchestrator.dispatch_emotion_analysis(
@@ -290,6 +292,7 @@ async def analyze_session_intelligent_workflow(
         HTTPException(500): Orchestration failed
     """
     validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="analyze session")
 
     try:
         logger.info(
@@ -373,6 +376,9 @@ async def finalize_session_workflow(
     Raises:
         HTTPException(500): Finalization failed
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="finalize session")
+
     from backend.infrastructure.session.api.internal.finalize import (
         finalize_session as internal_finalize,
     )
@@ -438,6 +444,9 @@ async def checkpoint_session_workflow(
     Raises:
         HTTPException(500): Checkpoint failed
     """
+    validate_session_id(session_id)
+    validate_session_access(session_id, current_user, action="checkpoint session")
+
     from backend.infrastructure.session.api.internal.checkpoint import (
         checkpoint_session as internal_checkpoint,
     )

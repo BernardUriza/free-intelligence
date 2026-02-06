@@ -32,7 +32,7 @@ class LinkToClinicRequest(BaseModel):
 class AdminLinkUserRequest(BaseModel):
     """Admin request to link any user to a clinic."""
 
-    auth0_user_id: str = Field(..., description="Auth0 user ID to link")
+    user_id: str = Field(..., description="JWT user ID to link")
     email: str = Field(..., description="User's email")
     clinic_id: str = Field(..., description="Clinic ID to assign")
     role: ClinicRole = Field(default=ClinicRole.STAFF, description="Role in clinic")
@@ -76,7 +76,7 @@ class LinkToClinicResponse(BaseModel):
 class AdminUserClinicInfo(BaseModel):
     """User's clinic assignment info for admin view."""
 
-    auth0_user_id: str
+    user_id: str
     email: str
     doctor_id: str | None
     clinic_id: str | None

@@ -20,8 +20,8 @@ async def test_require_roles_allows_primary_role():
 
 @pytest.mark.asyncio
 async def test_require_roles_blocks_when_missing():
-    user = User(id="user-1", email="user@example.com", roles=[UserRole.PATIENT])
-    dependency = require_roles([UserRole.ADMIN])
+    user = User(id="user-1", email="user@example.com", roles=[UserRole.CLINICIAN])
+    dependency = require_roles([UserRole.SUPERADMIN])
 
     with pytest.raises(HTTPException):
         await dependency(user=user)
@@ -39,7 +39,7 @@ class _DenyProvider:
 
 @pytest.mark.asyncio
 async def test_require_permission_allows_when_provider_accepts():
-    user = User(id="user-1", email="user@example.com", roles=[UserRole.ADMIN])
+    user = User(id="user-1", email="user@example.com", roles=[UserRole.SUPERADMIN])
     dependency = require_permission("admin:write")
 
     resolved = await dependency(user=user, provider=_AllowAllProvider())
@@ -48,7 +48,7 @@ async def test_require_permission_allows_when_provider_accepts():
 
 @pytest.mark.asyncio
 async def test_require_permission_blocks_when_provider_rejects():
-    user = User(id="user-1", email="user@example.com", roles=[UserRole.ADMIN])
+    user = User(id="user-1", email="user@example.com", roles=[UserRole.SUPERADMIN])
     dependency = require_permission("admin:write")
 
     with pytest.raises(HTTPException):

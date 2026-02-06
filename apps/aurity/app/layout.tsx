@@ -4,7 +4,7 @@
 // Next.js 14 root layout component
 // Sprint: SPR-2025W44
 // Version: 0.1.0
-// Updated: HIPAA G-003 - Auth0 Integration + Always-Visible User Display
+// Updated: Self-hosted JWT Authentication + Always-Visible User Display
 // =============================================================================
 
 import type { Metadata } from 'next';
@@ -13,7 +13,7 @@ import './globals.css';
 import '@/polyfills';
 import { GlobalPolicyBanner } from '@/components/policy/GlobalPolicyBanner';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
-import { Auth0Provider } from '@/components/auth/Auth0Provider';
+import { AuthProvider } from '@/components/auth/AuthProvider';
 import { ProtectedLayout } from '@/components/auth/ProtectedLayout';
 import { ConditionalChatWidget } from '@/components/chat/ConditionalChatWidget';
 import { MockBootstrap } from '@/components/dev/MockBootstrap';
@@ -85,7 +85,7 @@ export default function RootLayout({
         <MockBootstrap />
         <DesktopReadySignal />
         <EnvironmentProvider>
-          <Auth0Provider>
+          <AuthProvider>
             <ThemeProvider>
               <AudioPlayerProvider>
                 {/* DesktopSetupWizard must be OUTSIDE ProtectedLayout to show without auth */}
@@ -102,7 +102,7 @@ export default function RootLayout({
                 </ProtectedLayout>
               </AudioPlayerProvider>
             </ThemeProvider>
-          </Auth0Provider>
+          </AuthProvider>
         </EnvironmentProvider>
       </body>
     </html>

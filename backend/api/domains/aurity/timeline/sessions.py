@@ -99,7 +99,7 @@ async def list_sessions(
         limit: Maximum sessions to return
         offset: Pagination offset
         sort: Sort order
-        current_user: Authenticated user from Auth0 JWT
+        current_user: Authenticated user from JWT
         task_repo: Task repository (injected via Depends)
 
     Performance target: p95 <300ms

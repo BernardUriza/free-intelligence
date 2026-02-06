@@ -216,7 +216,7 @@ class HistorySearchRequest(BaseModel):
     """Request for semantic search over conversation history."""
 
     query: str = Field(..., min_length=1, description="Search query (semantic)")
-    doctor_id: str = Field(..., description="Doctor ID (Auth0 user.sub)")
+    doctor_id: str = Field(..., description="Doctor ID (JWT user.sub)")
     limit: int = Field(default=10, ge=1, le=50, description="Max results")
     session_id: str | None = Field(None, description="Filter by session")
 

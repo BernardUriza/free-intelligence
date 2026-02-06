@@ -259,11 +259,7 @@ class Secrets:
     """
 
     __slots__ = (
-        "AUTH0_AUDIENCE",
-        "AUTH0_CLIENT_ID",
-        "AUTH0_DOMAIN",
-        "AUTH0_MANAGEMENT_CLIENT_ID",
-        "AUTH0_MANAGEMENT_CLIENT_SECRET",
+        "JWT_SECRET",
         "CLAUDE_API_KEY",
         "DATABASE_URL",
         "DEEPGRAM_API_KEY",
@@ -273,12 +269,8 @@ class Secrets:
     def __init__(
         self,
         *,
-        # Auth0
-        AUTH0_DOMAIN: str | None = None,  # noqa: N803
-        AUTH0_CLIENT_ID: str | None = None,  # noqa: N803
-        AUTH0_AUDIENCE: str | None = None,  # noqa: N803
-        AUTH0_MANAGEMENT_CLIENT_ID: str | None = None,  # noqa: N803
-        AUTH0_MANAGEMENT_CLIENT_SECRET: str | None = None,  # noqa: N803
+        # Auth
+        JWT_SECRET: str | None = None,  # noqa: N803
         # Database
         DATABASE_URL: str = "sqlite:///./data/aurity.db",  # noqa: N803
         # Optional services
@@ -286,11 +278,7 @@ class Secrets:
         CLAUDE_API_KEY: str | None = None,  # noqa: N803
         HF_TOKEN: str | None = None,  # noqa: N803
     ) -> None:
-        self.AUTH0_DOMAIN = AUTH0_DOMAIN
-        self.AUTH0_CLIENT_ID = AUTH0_CLIENT_ID
-        self.AUTH0_AUDIENCE = AUTH0_AUDIENCE
-        self.AUTH0_MANAGEMENT_CLIENT_ID = AUTH0_MANAGEMENT_CLIENT_ID
-        self.AUTH0_MANAGEMENT_CLIENT_SECRET = AUTH0_MANAGEMENT_CLIENT_SECRET
+        self.JWT_SECRET = JWT_SECRET
         self.DATABASE_URL = DATABASE_URL
         self.DEEPGRAM_API_KEY = DEEPGRAM_API_KEY
         self.CLAUDE_API_KEY = CLAUDE_API_KEY
@@ -300,12 +288,8 @@ class Secrets:
     def load(cls) -> Secrets:
         """Load all secrets from KeyVault/.env."""
         return cls(
-            # Auth0
-            AUTH0_DOMAIN=get_secret("AUTH0_DOMAIN"),
-            AUTH0_CLIENT_ID=get_secret("AUTH0_CLIENT_ID"),
-            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE"),  # No default - must be explicit per env
-            AUTH0_MANAGEMENT_CLIENT_ID=get_secret("AUTH0_MANAGEMENT_CLIENT_ID"),
-            AUTH0_MANAGEMENT_CLIENT_SECRET=get_secret("AUTH0_MANAGEMENT_CLIENT_SECRET"),
+            # Auth
+            JWT_SECRET=get_secret("JWT_SECRET"),
             # Database
             DATABASE_URL=get_secret("DATABASE_URL", "sqlite:///./data/aurity.db"),
             # Optional services
@@ -355,6 +339,5 @@ if __name__ == "__main__":
     # Test loading via legacy interface
     s = get_secrets()
     print("Loaded secrets:")
-    print(f"  AUTH0_DOMAIN: {s.AUTH0_DOMAIN or 'Missing'}")
-    print(f"  AUTH0_CLIENT_ID: {'Set' if s.AUTH0_CLIENT_ID else 'Missing'}")
+    print(f"  JWT_SECRET: {'Set' if s.JWT_SECRET else 'Missing'}")
     print(f"  DEEPGRAM_API_KEY: {'Set' if s.DEEPGRAM_API_KEY else 'Not configured'}")

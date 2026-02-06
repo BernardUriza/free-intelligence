@@ -19,8 +19,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.api.audit.dependencies import DIAuditService, get_audit_service
-from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
-from backend.infrastructure.auth.domain.entities.user import User
+from backend.infrastructure.auth import User, get_current_user, validate_session_access
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.infrastructure.common.repository_singletons import get_task_repository
@@ -151,8 +150,11 @@ async def get_evidence_pack_workflow(
         Evidence pack with sources, citations, and metadata
 
     Raises:
+        HTTPException: 403 if access denied
         HTTPException: 500 if generation fails
     """
+    validate_session_access(session_id, current_user, action="view evidence pack")
+
     try:
         logger.info("EVIDENCE_PACK_GET_STARTED", session_id=session_id)
 
