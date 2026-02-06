@@ -24,6 +24,8 @@ gethostname = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.10"
 dirs = "5.0"
+# Pin time to version compatible with Rust 1.85 (CI runner)
+time = "~0.3.36"
 
 [features]
 default = ["custom-protocol"]
