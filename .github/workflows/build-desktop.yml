@@ -293,7 +293,7 @@ jobs:
       - name: Build Next.js frontend
         working-directory: apps/aurity
         run: |
-          pnpm install
+          pnpm install --no-frozen-lockfile
           pnpm build
 
       - name: Upload frontend artifact
