@@ -3,18 +3,28 @@
     {
       "version": "1.0.14",
       "date": "2026-02-07",
-      "platforms": {"windows": {"url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_x64-setup.exe", "size": "96M", "sha256": "8c053e568547c4d95db5cc9dedc339d5c393b13446fb23be9d0168dc4d95fe1c"},"macos": {"url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_aarch64.dmg", "size": "95M", "sha256": "26075193fd61ea611f2f4c28f495f7692dad755de6f32e664d6013c350c1d942"}},
+      "platforms": {
+        "windows": {
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_x64-setup.exe",
+          "size": "~95 MB",
+          "sha256": "8c053e568547c4d95db5cc9dedc339d5c393b13446fb23be9d0168dc4d95fe1c"
+        },
+        "macos": {
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.12/Aurity_1.0.12_aarch64.dmg",
+          "size": "~95 MB",
+          "sha256": "pending",
+          "note": "macOS build is v1.0.12"
+        }
+      },
       "changelog": [
         "Aurity Desktop v1.0.14",
-        "Self-hosted JWT authentication with refresh tokens",
+        "Self-hosted JWT authentication",
         "Offline AI medical assistant powered by Ollama",
         "Local LLM integration (Qwen3, Llama, etc.)",
-        "Encrypted local storage in ~/.aurity",
-        "2-role RBAC (FI-superadmin, FI-clinician)"
+        "Direct download links"
       ]
     }
   ],
-  "generatedAt": "2026-02-07T15:15:22Z",
-  "source": "ci-cd",
-  "platforms_built": 2
+  "generatedAt": "2026-02-07T15:50:00Z",
+  "source": "manual-fix"
 }
