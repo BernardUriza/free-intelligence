@@ -6,7 +6,7 @@ thinking/reasoning from actual content.
 Architecture:
 - Abstract base class: LLMResponseParser
 - Implementations: QwenThinkingParser, GenericParser
-- Used by: OllamaProvider, ClaudeProvider, etc.
+- Used by: OllamaProvider
 
 Philosophy:
 - Single Responsibility: Each provider has its own parser

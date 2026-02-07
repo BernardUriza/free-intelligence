@@ -17,7 +17,7 @@ def get_provider(provider_name: str, config: dict[str, Any] | None = None) -> LL
     Factory function to get LLM provider instance.
 
     Args:
-        provider_name: "claude", "ollama", or "azure"
+        provider_name: "ollama" (only supported provider - routes to FI Local via tunnel)
         config: Provider-specific configuration
 
     Returns:
@@ -29,17 +29,16 @@ def get_provider(provider_name: str, config: dict[str, Any] | None = None) -> LL
     Example:
         >>> provider = get_provider("ollama", {"model": "qwen3:1.7b"})
         >>> response = provider.generate("Hello!")
+
+    Note:
+        Cloud backend only supports Ollama (routed to FI Local GPU via Cloudflare Tunnel).
+        Direct API calls to Claude/Azure are removed for PHI compliance.
     """
     # Import providers lazily to avoid circular imports
-    from backend.providers.azure_openai import AzureOpenAIProvider
-    from backend.providers.claude import ClaudeProvider
     from backend.providers.ollama import OllamaProvider
 
     provider_map: dict[str, Callable[[dict[str, Any] | None], LLMProvider]] = {
-        "claude": ClaudeProvider,
         "ollama": OllamaProvider,
-        "azure": AzureOpenAIProvider,
-        # "openai": OpenAIProvider,  # Future
     }
 
     provider_ctor = provider_map.get(provider_name.lower())

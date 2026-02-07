@@ -1,13 +1,16 @@
 """
-Backend LLM Providers - Unified interface for multi-provider LLM access.
+Backend LLM Providers - Unified interface for LLM access.
 
-Free Intelligence provides a provider-agnostic abstraction layer for LLM
-interactions, supporting:
-- Claude (Anthropic) - Primary for production
-- Ollama (Local inference) - Offline-first operation
-- Azure OpenAI (GPT-4, GPT-4o) - Enterprise cloud option
+Free Intelligence cloud backend routes all LLM requests to FI Local
+via Cloudflare Tunnel. This ensures PHI never leaves the clinic's
+local infrastructure.
 
-Philosophy: Provider-agnostic design. No vendor lock-in.
+Supported:
+- Ollama (routed to FI Local GPU via tunnel)
+
+Note:
+    Direct API providers (Claude, Azure) removed for PHI compliance.
+    Embeddings handled by FI Local RAG service.
 """
 
 from __future__ import annotations
@@ -26,9 +29,7 @@ from backend.providers.utils import (
 )
 
 # Provider implementations
-from backend.providers.claude import ClaudeProvider
 from backend.providers.ollama import OllamaProvider
-from backend.providers.azure_openai import AzureOpenAIProvider
 
 # Factory
 from backend.providers.factory import get_provider
@@ -68,9 +69,7 @@ __all__ = [
     "pad_embedding_to_768",
     "sanitize_error_message",
     # Providers
-    "ClaudeProvider",
     "OllamaProvider",
-    "AzureOpenAIProvider",
     # Factory & entry points
     "get_provider",
     "llm_generate",
