@@ -867,9 +867,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-windows, build-macos, build-linux]
+       needs.build-macos.result == 'success')
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -1032,9 +1031,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-windows, build-macos, build-linux, update-releases-json]
+       needs.build-macos.result == 'success')
+    needs: [build-windows, build-macos, update-releases-json]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -1161,9 +1159,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-linux, build-macos, build-windows]
+       needs.build-macos.result == 'success')
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
