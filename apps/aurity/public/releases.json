@@ -1,25 +1,30 @@
 {
   "releases": [
     {
-      "version": "1.0.6",
-      "date": "2026-01-23",
+      "version": "1.0.13",
+      "date": "2026-02-07",
       "platforms": {
         "windows": {
-          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.6/Aurity_1.0.6_x64-setup.exe",
-          "size": "~100 MB",
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.13/Aurity_1.0.13_x64-setup.exe",
+          "size": "~120 MB",
           "sha256": "pending"
+        },
+        "macos": {
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.12/Aurity_1.0.12_aarch64.dmg",
+          "size": "~95 MB",
+          "sha256": "pending",
+          "note": "macOS build is v1.0.12"
         }
       },
       "changelog": [
-        "Aurity Desktop v1.0.6",
-        "Shows app version in setup wizard",
-        "Auth0 OAuth 2.0 + PKCE authentication",
-        "Offline AI medical assistant powered by Ollama",
-        "Local LLM integration (Qwen3, Llama, etc.)",
-        "Encrypted local storage in ~/.aurity"
+        "Aurity Desktop v1.0.13",
+        "Fixed CI/CD pipeline for desktop builds",
+        "macOS DMG now uploads to GitHub Releases",
+        "Improved PyInstaller backend bundling",
+        "Auth0 removed - local authentication"
       ]
     }
   ],
-  "generatedAt": "2026-01-23T22:35:00Z",
-  "source": "manual-fix"
+  "generatedAt": "2026-02-07T05:30:00Z",
+  "source": "manual-update"
 }

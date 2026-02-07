@@ -23,6 +23,7 @@ import { Play, Pause, X, Volume2, ChevronDown, User, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
+import { getBackendUrl } from '@/lib/api/client';
 
 type VoiceChangeHandler = (voice: string) => void;
 
@@ -403,7 +404,7 @@ export function useAudioPlayer() {
   const [currentVoice, setCurrentVoice] = useState('nova');
   const [currentText, setCurrentText] = useState('');
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+  const BACKEND_URL = getBackendUrl();
 
   // Helper to extract display name from voice ID
   const getVoiceDisplayName = useCallback((voiceId: string): string => {

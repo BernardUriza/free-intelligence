@@ -284,17 +284,16 @@ jobs:
         working-directory: apps/aurity
         run: |
           cat > .env.production << EOF
-          NEXT_PUBLIC_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          NEXT_PUBLIC_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
           NEXT_PUBLIC_SUPERADMIN_EMAILS=${{ secrets.SUPERADMIN_EMAILS }}
           NEXT_PUBLIC_DEPLOYMENT_TARGET=desktop
           NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
+          NEXT_PUBLIC_API_URL=http://localhost:7001
           EOF
 
       - name: Build Next.js frontend
         working-directory: apps/aurity
         run: |
-          pnpm install
+          pnpm install --no-frozen-lockfile
           pnpm build
 
       - name: Upload frontend artifact
@@ -416,28 +415,33 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig
           retention-days: 7
 
+      - name: Extract build metadata
+        id: metadata
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          tag_name: v${{ steps.metadata.outputs.version }}
+          name: Aurity Desktop v${{ steps.metadata.outputs.version }}
           body: |
-            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+            ## Aurity Desktop v${{ steps.metadata.outputs.version }}
 
             ### Downloads
-            - Linux: AppImage
+            - Linux: AppImage (x86_64)
 
             ---
             🤖 Auto-generated release
           files: |
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.AppImage
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.nsis.zip
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+            apps/aurity-desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -546,15 +550,21 @@ jobs:
           path: apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg.sig
           retention-days: 7
 
+      - name: Extract build metadata
+        id: metadata
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          name: Release v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          tag_name: v${{ steps.metadata.outputs.version }}
+          name: Aurity Desktop v${{ steps.metadata.outputs.version }}
           body: |
-            ## Aurity Desktop v$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+            ## Aurity Desktop v${{ steps.metadata.outputs.version }}
 
             ### Downloads
             - macOS: DMG (Apple Silicon)
@@ -562,10 +572,11 @@ jobs:
             ---
             🤖 Auto-generated release
           files: |
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.dmg
-            apps/aurity-desktop/src-tauri/target/*/release/bundle/**/*.sig
+            apps/aurity-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -868,9 +879,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-windows, build-macos, build-linux]
+       needs.build-macos.result == 'success')
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -992,11 +1002,11 @@ jobs:
                 "platforms": $PLATFORMS_JSON,
                 "changelog": [
                   "Aurity Desktop v$VERSION",
-                  "Auth0 OAuth 2.0 + PKCE authentication",
+                  "Self-hosted JWT authentication with refresh tokens",
                   "Offline AI medical assistant powered by Ollama",
                   "Local LLM integration (Qwen3, Llama, etc.)",
                   "Encrypted local storage in ~/.aurity",
-                  "Secure token storage in OS Keychain"
+                  "2-role RBAC (FI-superadmin, FI-clinician)"
                 ]
               }
             ],
@@ -1033,9 +1043,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-windows, build-macos, build-linux, update-releases-json]
+       needs.build-macos.result == 'success')
+    needs: [build-windows, build-macos, update-releases-json]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -1162,9 +1171,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success' ||
-       needs.build-linux.result == 'success')
-    needs: [build-linux, build-macos, build-windows]
+       needs.build-macos.result == 'success')
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

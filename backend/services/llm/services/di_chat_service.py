@@ -8,8 +8,7 @@ Dependencies eliminated from direct imports:
 - AuditService → Constructor injected
 - PolicyLoader → Constructor injected
 - ConversationMemory → Via get_memory_manager (factory)
-- EventBus → Stub (Phase 3)
-- TraceStore → Stub (Phase 3)
+- TraceStore → In-memory implementation (InMemoryTraceStore)
 
 Author: Claude Code (refactored from chat.py)
 Created: 2026-01-28
@@ -23,22 +22,21 @@ import json
 import time
 import uuid as _uuid
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any, Awaitable, Callable
 
 import ulid
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.policy.policy_loader import PolicyLoader
-from backend.providers.llm import llm_generate, sanitize_error_message
-from backend.api.routers.assistant.public.assistant_websocket import broadcast_new_message
+from backend.providers import llm_generate, sanitize_error_message
 from backend.services.llm.services.conversation_memory import get_memory_manager
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
 
-# Stub trace store (Phase 3 will implement real trace storage)
-class StubTraceStore:
-    """Stub trace store - to be replaced in Phase 3."""
+# In-memory trace store for request tracing
+class InMemoryTraceStore:
+    """Simple in-memory trace store for LLM request tracing."""
 
     def __init__(self):
         self._store: dict[str, dict] = {}
@@ -109,6 +107,7 @@ class DIChatService:
         audit_service: AuditService,
         policy_loader: PolicyLoader,
         logger: ILogger | None = None,
+        broadcast_callback: Callable[[str, dict], Awaitable[None]] | None = None,
     ):
         """Initialize chat service with dependencies.
 
@@ -117,12 +116,14 @@ class DIChatService:
             audit_service: Audit logging service
             policy_loader: Policy configuration loader
             logger: Logger instance (defaults to module logger)
+            broadcast_callback: Optional WebSocket broadcast callback (injected from API layer)
         """
         self.persona_mgr = persona_manager
         self.audit_service = audit_service
         self.policy_loader = policy_loader
         self.logger = logger or get_logger(__name__)
-        self.trace_store = StubTraceStore()  # Stub for Phase 3
+        self.broadcast_callback = broadcast_callback
+        self.trace_store = InMemoryTraceStore()  # Stub for Phase 3
 
     async def process_chat(
         self,
@@ -130,7 +131,7 @@ class DIChatService:
         persona: str,
         doctor_id: str | None = None,
         session_id: str | None = None,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
         provider: str | None = None,
         use_memory: bool = False,
         request_id: str | None = None,
@@ -191,6 +192,7 @@ class DIChatService:
             message_len=len(message),
         )
 
+        primary_provider = "unknown"
         try:
             # Auto-enable memory for Azure GPT-4 (infinite conversation policy)
             primary_provider = self.policy_loader.get_primary_provider()
@@ -421,11 +423,15 @@ class DIChatService:
 
             # Log to observability hooks
             log_llm_call(
-                request_id=request_id,
-                persona=effective_persona,
-                tokens=tokens_used,
-                latency_ms=latency_ms,
                 model=model_name,
+                provider=primary_provider,
+                latency_ms=latency_ms,
+                prompt_tokens=tokens_used,
+                persona=effective_persona,
+                session_id=session_id,
+                client_id=effective_doctor_id,
+                prompt_hash=prompt_hash,
+                response_hash=response_hash,
             )
 
             # Extract optional reasoning from provider metadata
@@ -476,10 +482,12 @@ class DIChatService:
 
             # Log error to observability hooks
             log_llm_error(
-                request_id=request_id,
-                persona=persona,
-                error=sanitize_error_message(str(e)),
+                model="unknown",
+                provider=primary_provider,
                 latency_ms=latency_ms,
+                error_message=sanitize_error_message(str(e)),
+                persona=persona,
+                session_id=session_id,
             )
 
             raise
@@ -490,7 +498,7 @@ class DIChatService:
         persona: str,
         doctor_id: str,
         session_id: str | None,
-        context: Dict[str, Any] | None,
+        context: dict[str, Any] | None,
     ) -> tuple[str, dict]:
         """Build prompt with conversation memory.
 
@@ -516,13 +524,16 @@ class DIChatService:
         )
 
         # Broadcast user message to all connected devices (WebSocket)
-        await broadcast_new_message(
-            doctor_id=doctor_id,
-            role="user",
-            content=message,
-            timestamp=user_timestamp,
-            persona=persona,
-        )
+        if self.broadcast_callback and doctor_id:
+            await self.broadcast_callback(
+                doctor_id,
+                {
+                    "role": "user",
+                    "content": message,
+                    "timestamp": user_timestamp,
+                    "persona": persona,
+                },
+            )
 
         # Get conversation context
         context_obj = memory.get_context(
@@ -550,7 +561,7 @@ class DIChatService:
         self,
         message: str,
         persona: str,
-        context: Dict[str, Any] | None,
+        context: dict[str, Any] | None,
     ) -> str:
         """Build prompt without memory (original behavior).
 
@@ -599,11 +610,14 @@ class DIChatService:
         )
 
         # Broadcast assistant response to all connected devices (WebSocket)
-        await broadcast_new_message(
-            doctor_id=doctor_id,
-            role="assistant",
-            content=response_text,
-            timestamp=assistant_timestamp,
-            persona=persona,
-            model=model_name,  # LLM model that generated this response
-        )
+        if self.broadcast_callback and doctor_id:
+            await self.broadcast_callback(
+                doctor_id,
+                {
+                    "role": "assistant",
+                    "content": response_text,
+                    "timestamp": assistant_timestamp,
+                    "persona": persona,
+                    "model": model_name,
+                },
+            )

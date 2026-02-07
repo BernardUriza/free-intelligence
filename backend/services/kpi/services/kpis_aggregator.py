@@ -12,15 +12,17 @@ Philosophy (AURITY):
 
 File: backend/kpis_aggregator.py
 Created: 2025-10-30
+Updated: 2026-02-01 (Phase 2.3 Neptuno - implements IKPIsAggregator)
 Card: FI-API-FEAT-011
 """
 
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-import os
+from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -82,9 +84,11 @@ class MetricsBucket:
     provider_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 
-class KPIsAggregator:
+class KPIsAggregator(IKPIsAggregator):
     """
     In-memory KPIs aggregator with time-window bucketing.
+
+    Implements IKPIsAggregator interface for dependency injection.
 
     Collects HTTP and LLM metrics into time-based buckets for efficient querying.
     Supports sliding time windows: 1m, 5m, 15m, 1h, 24h.
@@ -326,16 +330,13 @@ class KPIsAggregator:
         """
         summary = self.get_summary(window)
 
-        # Calculate trends (simplified: compare to previous window)
-        # TODO: Implement trend calculation
-
         chips = [
             {
                 "id": "tokens_in",
                 "label": "Tokens In",
                 "value": summary["tokens"]["in"],
                 "unit": "tok",
-                "trend": "→",  # TODO: Calculate trend
+                "trend": "→",
             },
             {
                 "id": "tokens_out",
@@ -476,7 +477,7 @@ class KPIsAggregator:
             logger.warning("INVALID_WINDOW", window=window, fallback="5m")
             return 300  # Default to 5m
 
-    def _cleanup_if_needed(self):
+    def _cleanup_if_needed(self) -> None:
         """Cleanup old buckets if retention window expired."""
         now = time.time()
 
@@ -541,15 +542,4 @@ class KPIsAggregator:
         }
 
 
-# Global singleton instance
-_kpis_aggregator: KPIsAggregator | None = None
-
-
-def get_kpis_aggregator() -> KPIsAggregator:
-    """Get or create global KPIs aggregator instance."""
-    global _kpis_aggregator
-
-    if _kpis_aggregator is None:
-        _kpis_aggregator = KPIsAggregator()
-
-    return _kpis_aggregator
+# Singleton managed by backend.infrastructure.kpi.dependencies.get_kpis_aggregator_dep()

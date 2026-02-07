@@ -15,14 +15,10 @@ from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.tasks.base_worker import measure_time
-from pathlib import Path
+from backend.config import CORPUS_PATH
 
 if TYPE_CHECKING:
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
-
-
-# Default corpus path
-CORPUS_PATH = Path("storage/corpus.h5")
 
 logger = get_logger(__name__)
 
@@ -163,7 +159,7 @@ def analyze_emotion_worker(
 
         # Call LLM for emotion analysis using preset
         try:
-            from backend.providers.llm import llm_generate
+            from backend.providers import llm_generate
 
             # Build prompt: system prompt + patient text + few-shot examples
             prompt_parts = [preset.system_prompt]

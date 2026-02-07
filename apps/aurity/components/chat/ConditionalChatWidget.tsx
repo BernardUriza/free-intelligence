@@ -22,6 +22,8 @@ import { ChatWidget } from './ChatWidget';
 const EXCLUDED_ROUTES = [
   '/chat', // Dedicated chat page (has its own fullscreen chat)
   '/receptionist', // Receptionist check-in page
+  '/onboarding', // Onboarding flow (has its own embedded chat)
+  '/checkin', // Check-in flow (has ReceptionistChatWidget)
   '/_not-found', // 404 page
 ];
 

@@ -36,8 +36,6 @@ interface UsePersonasReturn {
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-const AUTH0_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io';
-const AUTH0_SCOPE = process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile email offline_access';
 
 // Icon mapping for personas (frontend only)
 const PERSONA_ICON_MAP: Record<string, string> = {
@@ -151,7 +149,6 @@ export function usePersonas(): UsePersonasReturn {
       let token: string | undefined;
       if (isAuthenticated) {
         try {
-          // audience and scope are configured in Auth0Provider
           token = await getAccessTokenSilently();
         } catch (tokenErr) {
           // Do not fail personas fetch solely due to token issues; fallback below
@@ -159,7 +156,7 @@ export function usePersonas(): UsePersonasReturn {
         }
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/personas`, {
+      const response = await fetch(`${BACKEND_URL}/api/aurity/assistant/personas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -168,6 +165,13 @@ export function usePersonas(): UsePersonasReturn {
       });
 
       if (!response.ok) {
+        // 401/403 = not authenticated, use fallback silently (expected in onboarding)
+        if (response.status === 401 || response.status === 403) {
+          console.debug('[usePersonas] Not authenticated, using FALLBACK_PERSONAS');
+          setPersonas(FALLBACK_PERSONAS);
+          setLoading(false);
+          return;
+        }
         throw new Error(`Failed to fetch personas: ${response.status}`);
       }
 

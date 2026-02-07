@@ -8,8 +8,7 @@ import type {
   AuditStatsResponse,
   AuditOperationsResponse,
 } from "../../types/audit";
-
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001";
+import { api } from "./client";
 
 export async function getAuditLogs(params?: {
   limit?: number;
@@ -22,45 +21,14 @@ export async function getAuditLogs(params?: {
   if (params?.operation) searchParams.append("operation", params.operation);
   if (params?.user) searchParams.append("user", params.user);
 
-  const url = `${API_BASE}/api/audit/logs${searchParams.toString() ? `?${searchParams}` : ""}`;
-
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch audit logs: ${response.statusText}`);
-  }
-
-  return response.json();
+  const query = searchParams.toString() ? `?${searchParams}` : "";
+  return api.get<AuditLogsResponse>(`/api/audit/logs${query}`);
 }
 
 export async function getAuditStats(): Promise<AuditStatsResponse> {
-  const response = await fetch(`${API_BASE}/api/audit/stats`, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch audit stats: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<AuditStatsResponse>("/api/audit/stats");
 }
 
 export async function getAuditOperations(): Promise<AuditOperationsResponse> {
-  const response = await fetch(`${API_BASE}/api/audit/operations`, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch audit operations: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<AuditOperationsResponse>("/api/audit/operations");
 }

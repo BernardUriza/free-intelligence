@@ -6,15 +6,13 @@ from datetime import UTC, datetime
 import h5py
 import numpy as np
 from backend.utils.common.logging.logger import get_logger
+from backend.config import CORPUS_PATH
 from fastapi import APIRouter, HTTPException, Request
-from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/timeline", tags=["internal-timeline"])
-
-CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 
 def compute_dataset_hash(ds: h5py.Dataset) -> str:
@@ -46,7 +44,7 @@ def find_target_in_h5(h5: h5py.File, target_id: str) -> tuple[str | None, h5py.D
     Target ID formats supported:
     - session_<id>: Session group (computes hash of all datasets)
     - session_<id>/path/to/dataset: Specific dataset
-    - <interaction_id>: Legacy interaction format
+    - <interaction_id>: Direct interaction ID
 
     Args:
         h5: HDF5 file handle

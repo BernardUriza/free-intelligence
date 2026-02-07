@@ -13,11 +13,9 @@ Refactored: 2025-11-14 (Pruned unused endpoints)
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import UTC
 import sys
 
 import os
-from backend.app.version import __version__
 from backend.middleware.idempotency import IdempotencyMiddleware
 from backend.middleware.internal_only import InternalOnlyMiddleware
 from backend.middleware.tracing import TracingMiddleware
@@ -54,14 +52,48 @@ async def lifespan(app: FastAPI):
         logger.error("DATABASE_INIT_FAILED", error=str(e))
         # Don't fail startup - continue with other services
 
-    # Verify Event Bus is accessible via Container (lazy init)
+    # Verify Event Bus is accessible (Phase 2.3 Plutón - direct instantiation)
     try:
-        from backend.container import get_container
-        _ = get_container().get_event_bus()  # Trigger lazy initialization
+        from backend.utils.common.event_bus import InMemoryEventBus
+        _ = InMemoryEventBus()  # Verify EventBus can be instantiated
         logger.info("EVENT_BUS_READY", implementation="InMemoryEventBus", status="available")
     except Exception as e:
         logger.warning("EVENT_BUS_VERIFICATION_FAILED", error=str(e))
         # Don't fail startup - services will handle missing event bus gracefully
+
+    # Warmup Ollama model (pre-load into VRAM for faster first request)
+    # This runs in background to not block startup
+    import asyncio
+    import httpx
+
+    async def warmup_ollama():
+        """Pre-load Ollama model into memory for faster inference."""
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        model = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
+
+        try:
+            logger.info("OLLAMA_WARMUP_STARTED", model=model, url=ollama_url)
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                # Send a tiny request to load the model into memory
+                response = await client.post(
+                    f"{ollama_url}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": "hi",
+                        "stream": False,
+                        "options": {"num_predict": 1},  # Generate just 1 token
+                    },
+                )
+                if response.status_code == 200:
+                    logger.info("OLLAMA_WARMUP_SUCCESS", model=model, status="model_loaded")
+                else:
+                    logger.warning("OLLAMA_WARMUP_FAILED", model=model, status_code=response.status_code)
+        except Exception as e:
+            logger.warning("OLLAMA_WARMUP_ERROR", model=model, error=str(e))
+            # Don't fail startup - Ollama might not be running yet
+
+    # Run warmup in background (non-blocking)
+    asyncio.create_task(warmup_ollama())
 
     yield
 

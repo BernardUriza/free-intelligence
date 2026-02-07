@@ -10,7 +10,6 @@ Usage:
     python scripts/fix_broken_imports.py [--dry-run]
 """
 
-from backend.container import get_container
 import re
 import subprocess
 from pathlib import Path

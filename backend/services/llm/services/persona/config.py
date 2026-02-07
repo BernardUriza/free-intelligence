@@ -24,6 +24,7 @@ class PersonaConfig:
         voice: TTS voice name
         template_sha256: Hash of the source template (for cache invalidation)
         template_version: Semantic version from template
+        response_format: Optional JSON schema for structured output (Ollama format param)
     """
 
     persona: str
@@ -35,6 +36,7 @@ class PersonaConfig:
     voice: str = "nova"
     template_sha256: str = ""
     template_version: str = "1.0.0"
+    response_format: dict | None = None
 
 
 @dataclass

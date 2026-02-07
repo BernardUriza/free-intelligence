@@ -14,7 +14,6 @@ Card: FI-RX-004
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
 
 from backend.domain.prescription.models.medication import MedicationRoute
 from pydantic import BaseModel, ConfigDict, Field

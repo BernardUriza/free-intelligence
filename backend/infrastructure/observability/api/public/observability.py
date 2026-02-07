@@ -9,13 +9,16 @@ Endpoints:
 Module: fi_observability.api.public.observability
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
+from backend.utils.common.logging.logger import get_logger
 from ...audio_metrics import audio_metrics
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 
@@ -59,7 +62,7 @@ async def receive_audio_metrics(metrics: FrontendAudioMetrics):
 
 
 @router.get("/audio/metrics")
-async def get_audio_metrics() -> Dict[str, Any]:
+async def get_audio_metrics() -> dict[str, Any]:
     """
     Get current audio metrics in JSON format
 
@@ -81,7 +84,7 @@ async def get_audio_metrics_prometheus():
 
 
 @router.post("/audio/events")
-async def log_audio_event(event: Dict[str, Any]):
+async def log_audio_event(event: dict[str, Any]):
     """
     Log audio event (errors, state transitions, etc.)
 
@@ -94,8 +97,11 @@ async def log_audio_event(event: Dict[str, Any]):
     Returns:
         Success confirmation
     """
-    # TODO: Integrate with structlog or logging infrastructure
-    print(f"[AudioEvent] {event.get('code', 'UNKNOWN')}: {event.get('message', '')}")
+    logger.info(
+        "AUDIO_EVENT",
+        code=event.get("code", "UNKNOWN"),
+        message=event.get("message", ""),
+    )
 
     # Record error if it's an error event
     if "error" in event.get("code", "").lower():

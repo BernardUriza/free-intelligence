@@ -16,14 +16,11 @@ from backend.providers.diarization import get_diarization_provider
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 from backend.infrastructure.workers.tasks.base_worker import WorkerResult, measure_time
-from pathlib import Path
+from backend.config import CORPUS_PATH
 
 if TYPE_CHECKING:
     from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
     from backend.services.workflow.interfaces import IWorkflowTracker
-
-# Default corpus path
-CORPUS_PATH = Path("storage/corpus.h5")
 
 logger = get_logger(__name__)
 

@@ -95,52 +95,16 @@ class MedicalChunkHandler(ChunkHandler):
             - Creates /sessions/{id}/tasks/TRANSCRIPTION/ in HDF5
             - Saves patient metadata as session attributes
         """
-        # Create TRANSCRIPTION task (first time only) - INJECTED (Phase 4B)
+        # Create TRANSCRIPTION task with initial metadata
+        initial_metadata = {
+            "status": "in_progress",
+            **(metadata or {}),
+        }
         self.task_repository.ensure_task_exists(
             session_id=session_id,
-            task_type=TaskType.TRANSCRIPTION,
-            allow_existing=True,  # Allow resuming (pause/resume)
+            task_type=TaskType.TRANSCRIPTION.value,
+            metadata=initial_metadata,
         )
-
-        # TODO(Phase 5): Re-enable session metadata persistence
-        #
-        # BLOCKED BY: Missing locked_session_h5() context manager
-        # SOLUTION: Implement in backend/repositories/hdf5_utils.py
-        #
-        # Pattern:
-        #   from contextlib import contextmanager
-        #   import h5py, fcntl
-        #
-        #   @contextmanager
-        #   def locked_session_h5(session_id: str, mode: str = "r"):
-        #       corpus_path = CORPUS_PATH
-        #       with h5py.File(corpus_path, mode) as f:
-        #           fcntl.flock(f.id.get_vfd_handle(), fcntl.LOCK_EX)
-        #           try:
-        #               yield f
-        #           finally:
-        #               fcntl.flock(f.id.get_vfd_handle(), fcntl.LOCK_UN)
-        #
-        # COMMENTED OUT CODE (restore after implementing locked_session_h5):
-        #
-        # if metadata and ("doctor_id" in metadata or any(k.startswith("patient_") for k in metadata)):
-        #     with locked_session_h5(session_id, mode="a") as f:
-        #         session_path = f"/sessions/{session_id}"
-        #         session_group = f[session_path]
-        #
-        #         # SECURITY: Save doctor_id for session ownership/isolation
-        #         if "doctor_id" in metadata:
-        #             session_group.attrs["doctor_id"] = metadata["doctor_id"]
-        #
-        #         # Save patient metadata as session attributes
-        #         if "patient_name" in metadata:
-        #             session_group.attrs["patient_name"] = metadata["patient_name"]
-        #         if "patient_age" in metadata:
-        #             session_group.attrs["patient_age"] = metadata["patient_age"]
-        #         if "patient_id" in metadata:
-        #             session_group.attrs["patient_id"] = metadata["patient_id"]
-        #         if "chief_complaint" in metadata:
-        #             session_group.attrs["chief_complaint"] = metadata["chief_complaint"]
 
         logger.info(
             "MEDICAL_SESSION_INITIALIZED",
@@ -174,43 +138,21 @@ class MedicalChunkHandler(ChunkHandler):
             - Saves audio_bytes to /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_N/audio
             - Saves transcript + metadata to /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_N/metadata
         """
-        # Save audio to HDF5
-        await self._save_audio_to_hdf5(session_id, chunk_number, audio_bytes)
+        # Save audio bytes to HDF5
+        audio_saved = await self._save_audio_to_hdf5(session_id, chunk_number, audio_bytes)
 
-        # TODO(Phase 5): Re-enable chunk metadata persistence
-        #
-        # BLOCKED BY: Missing append_chunk_to_task() function
-        # SOLUTION: Implement in backend/repositories/hdf5_utils.py or use task_repository directly
-        #
-        # Alternative (use existing task_repository):
-        #   chunk_metadata = {
-        #       "chunk_idx": chunk_number,
-        #       "transcript": transcript,
-        #       "audio_hash": str(hash(audio_bytes)),
-        #       "duration": metadata.get("duration", 0.0),
-        #       ...
-        #   }
-        #   self.task_repository.update_task_metadata(session_id, TaskType.TRANSCRIPTION, chunk_metadata)
-        #
-        # COMMENTED OUT CODE (restore after implementing append_chunk_to_task):
-        #
-        # append_chunk_to_task(
-        #     session_id=session_id,
-        #     task_type=TaskType.TRANSCRIPTION,
-        #     chunk_idx=chunk_number,
-        #     transcript=transcript,
-        #     audio_hash=str(hash(audio_bytes)),
-        #     duration=metadata.get("duration", 0.0),
-        #     language=metadata.get("language", "es-MX"),
-        #     timestamp_start=metadata.get("timestamp_start", 0.0),
-        #     timestamp_end=metadata.get("timestamp_end", 0.0),
-        #     confidence=metadata.get("confidence", 0.0),
-        #     audio_quality=metadata.get("audio_quality", 0.85),
-        #     provider=metadata.get("provider", "unknown"),
-        #     polling_attempts=metadata.get("polling_attempts", 0),
-        #     resolution_time_seconds=metadata.get("resolution_time_seconds", 0.0),
-        #     retry_attempts=metadata.get("retry_attempts", 0),
-        # )
+        # Save transcript and metadata to chunk attributes
+        chunk_metadata = {
+            "transcript": transcript,
+            "status": "completed",
+            **metadata,
+        }
+        self.task_repository.batch_update_chunk_datasets(
+            session_id=session_id,
+            task_type=TaskType.TRANSCRIPTION.value,
+            chunk_idx=chunk_number,
+            updates=chunk_metadata,
+        )
 
         logger.info(
             "MEDICAL_CHUNK_SAVED",
@@ -218,7 +160,7 @@ class MedicalChunkHandler(ChunkHandler):
             chunk_number=chunk_number,
             provider=metadata.get("provider"),
             audio_size_bytes=len(audio_bytes),
-            audio_persisted=True,  # Audio IS persisted (unlike chat)
+            audio_persisted=audio_saved,
         )
 
     async def get_session_status(self, session_id: str) -> dict[str, Any]:
@@ -346,44 +288,31 @@ class MedicalChunkHandler(ChunkHandler):
         session_id: str,
         chunk_number: int,
         audio_bytes: bytes,
-    ) -> None:
+    ) -> bool:
         """Save audio bytes to HDF5 chunk dataset.
-
-        Internal helper for save_chunk().
 
         Args:
             session_id: Session UUID
             chunk_number: Chunk index
             audio_bytes: Raw audio data
 
-        Behavior:
-            - Creates dataset at /sessions/{id}/tasks/TRANSCRIPTION/chunks/chunk_{N}/audio
-            - Stores audio bytes as binary blob
-
-        Note:
-            TEMPORARILY DISABLED - missing locked_session_h5() implementation.
-            Audio persistence will be re-enabled in Phase 5.
+        Returns:
+            True if saved successfully, False otherwise
         """
-        # TODO(Phase 5): Re-enable audio chunk persistence
-        #
-        # BLOCKED BY: Missing locked_session_h5() context manager (same as initialize_session)
-        #
-        # COMMENTED OUT CODE (restore after implementing locked_session_h5):
-        #
-        # with locked_session_h5(session_id, mode="a") as f:
-        #     audio_path = f"/sessions/{session_id}/tasks/{TaskType.TRANSCRIPTION.name.lower()}/chunks/chunk_{chunk_number}/audio"
-        #
-        #     # Delete if exists (overwrite)
-        #     if audio_path in f:
-        #         del f[audio_path]
-        #
-        #     # Create dataset with audio bytes
-        #     f.create_dataset(audio_path, data=audio_bytes)
+        # Use save_chunk_audio if available (HDF5TaskRepository has it)
+        if hasattr(self.task_repository, "save_chunk_audio"):
+            return self.task_repository.save_chunk_audio(
+                session_id=session_id,
+                task_type=TaskType.TRANSCRIPTION.value,
+                chunk_idx=chunk_number,
+                audio_bytes=audio_bytes,
+            )
 
-        logger.debug(
+        logger.warning(
             "AUDIO_CHUNK_SAVE_SKIPPED",
             session_id=session_id,
             chunk_number=chunk_number,
             size_bytes=len(audio_bytes),
-            reason="locked_session_h5 not implemented",
+            reason="task_repository doesn't support save_chunk_audio",
         )
+        return False

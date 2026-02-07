@@ -9,25 +9,11 @@ Updated: 2026-01-29 (Fix #1 - centralized config)
 Card: Backend Refactor Phase 4B - Complete Service Locator Elimination
 """
 
-from pathlib import Path
-
-from backend.repositories.audit_repository import AuditRepository
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository,
+)
 from backend.infrastructure.common.services.export_service import ExportService
-from backend.config import CORPUS_PATH
-
-
-
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4B).
-
-    Returns:
-        AuditRepository instance
-
-    Note:
-        Uses centralized corpus.h5 path.
-    """
-    return AuditRepository(CORPUS_PATH)
 
 
 def get_audit_service() -> AuditService:

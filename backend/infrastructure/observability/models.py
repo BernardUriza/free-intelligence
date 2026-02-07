@@ -5,7 +5,6 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class CallStatus(str, Enum):

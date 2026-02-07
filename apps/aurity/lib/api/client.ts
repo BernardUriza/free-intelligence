@@ -50,20 +50,32 @@ export class APIError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
+export interface RequestOptions extends RequestInit {
   timeout?: number;
   retries?: number; // Number of retry attempts (default: 0 for regular requests, 3 for uploads)
   retryDelay?: number; // Initial retry delay in ms (default: 1000)
+  /** Custom headers to add to the request (e.g., X-Onboarding-Mode) */
+  customHeaders?: Record<string, string>;
 }
 
 async function fetchWithTimeout(
   url: string,
   options: RequestOptions = {}
 ): Promise<Response> {
-  const { timeout = 30000, ...fetchOptions } = options;
+  const { timeout = 30000, signal: externalSignal, ...fetchOptions } = options;
 
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+
+  // If external signal is provided, link it to our controller
+  // This allows callers to abort requests externally while still having timeout protection
+  if (externalSignal) {
+    externalSignal.addEventListener('abort', () => controller.abort());
+    // If already aborted, abort immediately
+    if (externalSignal.aborted) {
+      controller.abort();
+    }
+  }
 
   try {
     const response = await fetch(url, {
@@ -79,61 +91,12 @@ async function fetchWithTimeout(
 }
 
 /**
- * Get auth token from storage (if available)
- *
- * FIXED: Now reads from Auth0's cache (@@auth0spajs@@ keys) instead of
- * non-existent legacy keys. Auth0 stores tokens in localStorage with
- * keys like: @@auth0spajs@@::<clientId>::<audience>::<scope>
+ * Get auth token from localStorage.
+ * Reads the self-hosted JWT stored by AuthProvider.
  */
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-
-  try {
-    // 1. Try legacy keys first (backward compatibility)
-    const legacyToken = sessionStorage.getItem('auth_token') ||
-      sessionStorage.getItem('access_token') ||
-      localStorage.getItem('auth_token') ||
-      localStorage.getItem('access_token');
-
-    if (legacyToken) return legacyToken;
-
-    // 2. Read from Auth0 SDK cache (@@auth0spajs@@::...)
-    // Auth0 stores cache in localStorage with format:
-    // @@auth0spajs@@::<clientId>::<audience>::<scope>
-    const auth0Keys = Object.keys(localStorage).filter(k =>
-      k.startsWith('@@auth0spajs@@') && !k.includes('@@user@@')
-    );
-
-    if (auth0Keys.length === 0) {
-      // User not authenticated or Auth0 cache cleared
-      return null;
-    }
-
-    // Parse Auth0 cache (JSON structure)
-    const cacheKey = auth0Keys[0]; // Use first match
-    const cacheData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-
-    // Extract access token from cache body
-    // Structure: { body: { access_token: "...", ... }, expiresAt: ... }
-    const accessToken = cacheData.body?.access_token;
-
-    if (!accessToken) {
-      console.warn('[getAuthToken] Auth0 cache exists but no access_token found');
-      return null;
-    }
-
-    // Optional: Check token expiration (expiresAt is Unix timestamp)
-    const expiresAt = cacheData.expiresAt;
-    if (expiresAt && Date.now() / 1000 > expiresAt) {
-      console.warn('[getAuthToken] Auth0 token expired, needs refresh');
-      // Token expired, but return it anyway - Auth0 SDK will refresh if needed
-    }
-
-    return accessToken;
-  } catch (error) {
-    console.error('[getAuthToken] Failed to read token:', error);
-    return null;
-  }
+  return localStorage.getItem('fi_access_token');
 }
 
 export async function apiRequest<T>(
@@ -146,6 +109,7 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
+    ...(options.customHeaders || {}), // Custom headers (e.g., X-Onboarding-Mode)
   };
 
   const authToken = getAuthToken();

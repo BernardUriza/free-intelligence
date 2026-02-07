@@ -16,7 +16,6 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import h5py
 import numpy as np
@@ -31,10 +30,14 @@ from backend.domain.document.models import (
     DocumentType,
     SearchResult,
 )
-from backend.services.document.services.embedding_service import cosine_similarity
+from backend.utils.math.cpu import cosine_similarity_batch
+from backend.services.assistant.services.monitor_client import similarity_search_gpu
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
+
+# GPU delegation threshold: use GPU for >1000 vectors
+GPU_SEARCH_THRESHOLD = 1000
 
 
 class HDF5DocumentRepository(IDocumentRepository):
@@ -524,7 +527,7 @@ class HDF5DocumentRepository(IDocumentRepository):
     # SEMANTIC SEARCH
     # =============================================================================
 
-    def search_by_embedding(
+    async def search_by_embedding(
         self,
         query_embedding: list[float],
         clinic_id: str,
@@ -534,15 +537,19 @@ class HDF5DocumentRepository(IDocumentRepository):
     ) -> list[SearchResult]:
         """Semantic search using query embedding.
 
+        AUTO GPU DELEGATION: Uses fi_monitor GPU for >1000 vectors.
+
         CRITICAL SECURITY: Only searches within clinic_id boundary.
         """
         if clinic_id not in self._vector_index:
             return []
 
         results = []
-        query_vector = np.array(query_embedding)
-
         clinic_docs = self._vector_index[clinic_id]
+
+        # Collect all vectors and metadata
+        all_vectors = []
+        all_metadata = []  # (doc_id, chunk_id, doc)
 
         for doc_id, chunk_data in clinic_docs.items():
             # Get document metadata
@@ -558,28 +565,53 @@ class HDF5DocumentRepository(IDocumentRepository):
             if doc.status != DocumentStatus.INDEXED:
                 continue
 
-            # Compute similarity for each chunk
+            # Collect vectors
             for chunk_id, chunk_embedding in chunk_data:
-                score = cosine_similarity(query_vector.tolist(), chunk_embedding.tolist())
+                all_vectors.append(chunk_embedding.tolist())
+                all_metadata.append((doc_id, chunk_id, doc))
 
-                if score >= min_score:
-                    # Get chunk text
-                    chunks = self.get_chunks(doc_id, clinic_id)
-                    chunk = next((c for c in chunks if c.chunk_id == chunk_id), None)
-                    if chunk is None:
-                        continue
+        # Compute similarities (GPU or CPU based on size)
+        if len(all_vectors) > GPU_SEARCH_THRESHOLD:
+            # GPU delegation to fi_monitor
+            try:
+                similarities = await similarity_search_gpu(
+                    query_embedding,
+                    all_vectors,
+                )
+            except (ConnectionError, ValueError) as e:
+                # Fallback to CPU if fi_monitor unavailable
+                logger.warning(
+                    "GPU_SEARCH_FALLBACK",
+                    vectors=len(all_vectors),
+                    error=str(e),
+                )
+                similarities = cosine_similarity_batch(query_embedding, all_vectors)
+        else:
+            # CPU local (sufficient for <1000 vectors)
+            similarities = cosine_similarity_batch(query_embedding, all_vectors)
 
-                    result = SearchResult(
-                        doc_id=doc.doc_id,
-                        title=doc.title,
-                        chunk_id=chunk_id,
-                        chunk_text=chunk.text,
-                        page_num=chunk.page_num,
-                        score=score,
-                        document_type=doc.metadata.document_type,
-                        specialty=doc.metadata.specialty
-                    )
-                    results.append(result)
+        # Filter by min_score and collect results
+        for idx, (doc_id, chunk_id, doc) in enumerate(all_metadata):
+            score = similarities[idx]
+
+            if score >= min_score:
+                # Get chunk text
+                chunks = self.get_chunks(doc_id, clinic_id)
+                chunk = next((c for c in chunks if c.chunk_id == chunk_id), None)
+                if chunk is None:
+                    continue
+
+                result = SearchResult(
+                    doc_id=doc.doc_id,
+                    title=doc.title,
+                    chunk_id=chunk_id,
+                    chunk_text=chunk.text,
+                    page_num=chunk.page_num,
+                    score=score,
+                    document_type=doc.metadata.document_type,
+                    specialty=doc.metadata.specialty
+                )
+                results.append(result)
 
         # Sort by score (highest first) and limit
         results.sort(key=lambda r: r.score, reverse=True)

@@ -17,7 +17,7 @@ function assertDevInternalAllowed(): void {
   const isProd = process.env.NODE_ENV === 'production';
   if (isProd) {
     throw new Error(
-      'Internal API endpoints are not available in production. Use public orchestrator endpoints under /api/workflows/aurity or call the backend from server-side code.'
+      'Internal API endpoints are not available in production. Use public orchestrator endpoints under /api/aurity or call the backend from server-side code.'
     );
   }
 }

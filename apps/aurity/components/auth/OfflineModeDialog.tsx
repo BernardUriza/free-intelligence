@@ -4,7 +4,7 @@
  * OfflineModeDialog - Confirmation dialog for enabling offline mode
  *
  * Shown when:
- * 1. Auth0 is unreachable during login attempt
+ * 1. Auth server is unreachable during login attempt
  * 2. User explicitly requests offline mode
  *
  * Requires explicit user confirmation with clear explanation of limitations.

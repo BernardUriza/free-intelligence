@@ -17,8 +17,7 @@ import { X, Send, Mic, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DEMO_CONSULTATION } from '@/lib/demo/consultation-script';
 import { toastError } from '@/lib/swal';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+import { getBackendUrl } from '@/lib/api/client';
 
 interface DemoConsultationModalProps {
   isOpen: boolean;
@@ -72,9 +71,11 @@ export function DemoConsultationModal({
 
     try {
       // 1. Call TTS endpoint to generate audio
+      // Note: TTS returns binary audio blob, not JSON - requires direct fetch
       console.log(`[Demo] Generating TTS for line ${currentLineIndex + 1}...`);
+      const backendUrl = getBackendUrl();
 
-      const ttsResponse = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
+      const ttsResponse = await fetch(`${backendUrl}/api/tts/synthesize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

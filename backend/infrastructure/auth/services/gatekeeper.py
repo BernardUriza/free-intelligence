@@ -9,15 +9,19 @@ Provides quality-based routing between providers:
 
 Philosophy: Start conservative (10% Ollama), increase progressively based on quality metrics.
 
-File: backend/gatekeeper.py
+File: backend/infrastructure/auth/services/gatekeeper.py
 Created: 2025-10-28 (Sprint 4)
+Updated: 2026-02-02 (Phase 2.3 Fase 6 - DI migration, removed service locator)
 """
 
 import re
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from backend.policy_loader import get_policy_loader  # type: ignore[import]
+if TYPE_CHECKING:
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -350,12 +354,19 @@ class Gatekeeper:
     - Phase 3 (100% Ollama): If avg score > 85 for 7 days
 
     Automatic rollback if quality degrades.
+
+    Phase 2.3 Fase 6: Now uses Constructor Injection instead of Service Locator.
     """
 
-    def __init__(self):
+    def __init__(self, policy_loader: "IPolicyLoader"):
+        """Initialize Gatekeeper with injected dependencies.
+
+        Args:
+            policy_loader: Policy loader instance (injected via DI)
+        """
         self.logger = get_logger(__name__)
         self.scorer = QualityScorer()
-        self.policy_loader = get_policy_loader()
+        self.policy_loader = policy_loader
 
     def should_use_primary(
         self, prompt: str, force_provider: str | None = None

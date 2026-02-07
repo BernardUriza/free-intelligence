@@ -110,7 +110,7 @@ COMMON_PAST_PARTICIPLES = {
     "CHECKED",
     "SNAPSHOT",
     "OBSERVED",
-    # Legacy terms (avoid in new code, kept for backwards compatibility)
+    # Less preferred terms (prefer honest uncertainty terms above)
     "RETRIEVED",
     "VERIFIED",
     "VALIDATED",

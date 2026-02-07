@@ -22,7 +22,7 @@ from backend.models.llm_model import (
     LLMProvider,
 )
 from backend.services.llm.interfaces.illm_model_service import ILLMModelService
-from backend.services.workflow.dependencies import get_llm_model_service_dep
+from backend.services.llm.dependencies import get_llm_model_service_dep
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
@@ -296,9 +296,9 @@ async def _test_ollama_model(model_id: str, prompt: str) -> str:
 
 async def _test_openai_model(model_id: str, prompt: str) -> str:
     """Test a model via OpenAI API."""
-    import os
+    from backend.config.secrets import get_secret
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_secret("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not configured")
 
@@ -327,9 +327,9 @@ async def _test_openai_model(model_id: str, prompt: str) -> str:
 
 async def _test_anthropic_model(model_id: str, prompt: str) -> str:
     """Test a model via Anthropic API."""
-    import os
+    from backend.config.secrets import get_secret
 
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = get_secret("ANTHROPIC_API_KEY")
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not configured")
 

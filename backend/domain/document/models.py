@@ -87,7 +87,7 @@ class Document:
     title: str
     content: str  # Full text content (extracted from PDF/DOCX)
     metadata: DocumentMetadata
-    uploaded_by: str  # User ID (Auth0 subject)
+    uploaded_by: str  # User ID (JWT subject)
 
     # Status (with defaults)
     status: DocumentStatus = DocumentStatus.PENDING

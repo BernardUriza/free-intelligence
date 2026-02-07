@@ -137,13 +137,13 @@ class TestRequireSuperadmin:
         assert exc_info.value.status_code == 403
         assert "SUPERADMIN role" in exc_info.value.detail
 
-    def test_admin_role_not_sufficient(self):
-        """FI-admin role is NOT sufficient (requires FI-superadmin)."""
+    def test_clinician_role_not_sufficient(self):
+        """FI-clinician role is NOT sufficient (requires FI-superadmin)."""
         user = User(
             id="user-1",
-            email="admin@clinic.com",
+            email="clinician@clinic.com",
             clinic_id="clinic-A",
-            roles=[UserRole.ADMIN]  # FI-admin, not FI-superadmin
+            roles=[UserRole.CLINICIAN]  # FI-clinician, not FI-superadmin
         )
 
         with pytest.raises(HTTPException) as exc_info:

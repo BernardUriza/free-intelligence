@@ -2,7 +2,7 @@
 
 /**
  * Unauthorized Page
- * HIPAA Card: G-003 - Auth0 Integration
+ * HIPAA Card: G-003 - Auth Integration
  *
  * Shown when user doesn't have required role permissions.
  */

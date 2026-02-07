@@ -14,29 +14,8 @@ import h5py
 
 from backend.domain.session import Session
 from backend.domain.interfaces.isession_repository import ISessionRepository
+from backend.mappers.session_mapper import SessionMapper, SessionHDF5Metadata
 from backend.repositories.interfaces.itask_repository import ITaskRepository
-
-# NOTE: SessionMapper and SessionHDF5Metadata are defined below in this file (lines 21-40)
-
-
-# TODO: Implement proper mapper and metadata classes
-class SessionMapper:
-    """Stub mapper - implement proper domain <-> HDF5 mapping"""
-    @staticmethod
-    def to_hdf5_metadata(session):
-        """Stub - implement proper conversion"""
-        return {}
-
-    @staticmethod
-    def from_hdf5(session_id, metadata):
-        """Stub - implement proper conversion"""
-        return Session(id=session_id, status="active")
-
-
-class SessionHDF5Metadata:
-    """Stub metadata - implement proper HDF5 metadata structure"""
-    def __init__(self, **kwargs):
-        pass
 
 
 class HDF5SessionRepository(ISessionRepository):
@@ -206,8 +185,7 @@ class HDF5SessionRepository(ISessionRepository):
         """
         # CASCADE DELETE: Remove all tasks for this session FIRST
         if self.task_repository is not None:
-            deleted_tasks = self.task_repository.delete_by_session(session_id)
-            # Note: delete_by_session() logs internally, no need to log here
+            self.task_repository.delete_by_session(session_id)
 
         with h5py.File(self.hdf5_path, "a") as f:
             session_group_path = f"/sessions/{session_id}"

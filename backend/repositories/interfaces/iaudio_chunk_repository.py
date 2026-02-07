@@ -8,8 +8,10 @@ Created: 2026-01-28
 Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class IAudioChunkRepository(ABC):
@@ -33,7 +35,7 @@ class IAudioChunkRepository(ABC):
         session_id: str,
         chunk_number: int,
         audio_data: bytes,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> str:
         """Save audio chunk with metadata.
 
@@ -53,7 +55,7 @@ class IAudioChunkRepository(ABC):
         pass
 
     @abstractmethod
-    def get_chunk(self, session_id: str, chunk_number: int) -> Dict[str, Any] | None:
+    def get_chunk(self, session_id: str, chunk_number: int) -> dict[str, Any] | None:
         """Retrieve chunk with all metadata.
 
         Args:
@@ -78,7 +80,7 @@ class IAudioChunkRepository(ABC):
         pass
 
     @abstractmethod
-    def list_chunks(self, session_id: str) -> List[Dict[str, Any]]:
+    def list_chunks(self, session_id: str) -> list[dict[str, Any]]:
         """List all chunks for session.
 
         Args:
@@ -98,7 +100,7 @@ class IAudioChunkRepository(ABC):
         self,
         session_id: str,
         chunk_number: int,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
     ) -> bool:
         """Update chunk metadata (e.g., after transcription completes).
 
@@ -142,6 +144,49 @@ class IAudioChunkRepository(ABC):
             Number of chunks (0 if session doesn't exist)
 
         Raises:
+            IOError: If read operation fails
+        """
+        pass
+
+    @abstractmethod
+    def get_audio_data(self, session_id: str, chunk_number: int) -> bytes | None:
+        """Retrieve raw audio bytes for a specific chunk.
+
+        Separate from get_chunk() for performance - audio can be very large.
+
+        Args:
+            session_id: Session UUID
+            chunk_number: Chunk index
+
+        Returns:
+            Raw audio bytes if chunk exists, None otherwise
+
+        Raises:
+            IOError: If read operation fails
+        """
+        pass
+
+    @abstractmethod
+    def get_audio_data_range(
+        self,
+        session_id: str,
+        start_chunk: int,
+        end_chunk: int,
+    ) -> list[bytes]:
+        """Retrieve audio bytes for a range of chunks.
+
+        Optimized batch retrieval for checkpoint concatenation.
+
+        Args:
+            session_id: Session UUID
+            start_chunk: First chunk index (inclusive)
+            end_chunk: Last chunk index (inclusive)
+
+        Returns:
+            List of audio bytes in chunk order
+
+        Raises:
+            ValueError: If start_chunk > end_chunk
             IOError: If read operation fails
         """
         pass

@@ -27,9 +27,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.dependencies import get_persona_manager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.services.soap.services.complexity_analyzer import (
     ComplexityMetrics,
     get_complexity_analyzer,
@@ -89,11 +90,16 @@ class DecisionalMiddleware(IDecisionalMiddleware):
     - Make clinical decisions (only orchestration)
     """
 
-    def __init__(self, preset_loader: "IPresetLoader") -> None:
+    def __init__(
+        self,
+        preset_loader: "IPresetLoader",
+        persona_manager: PersonaManager | None = None,
+    ) -> None:
         """Initialize decisional middleware.
 
         Args:
             preset_loader: IPresetLoader instance (REQUIRED)
+            persona_manager: PersonaManager instance (optional, uses singleton)
 
         Raises:
             ValueError: If preset_loader is None (DI misconfiguration)
@@ -109,7 +115,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
             )
         self.logger = get_logger(__name__)
         self.complexity_analyzer = get_complexity_analyzer()
-        self.persona_manager = PersonaManager()
+        self.persona_manager = persona_manager or get_persona_manager()
         self.preset_loader = preset_loader
 
     def process(
@@ -480,26 +486,3 @@ Return JSON with feedback."""
         final_confidence = base_confidence * completeness
 
         return round(final_confidence, 2)
-
-
-# ============================================================================
-# DEPRECATED FACTORY (Phase 2.3 - Use DI instead)
-# ============================================================================
-
-
-def get_decisional_middleware() -> DecisionalMiddleware:
-    """Get decisional middleware instance.
-
-    DEPRECATED: Use get_decisional_middleware_dep() from
-    backend.services.workflow.dependencies instead.
-
-    Returns:
-        DecisionalMiddleware instance with default PresetLoader
-
-    Note:
-        This function creates a new instance each call (no singleton).
-        For proper DI, use the factory from dependencies.py.
-    """
-    from backend.schemas.llm.preset_loader import PresetLoader
-
-    return DecisionalMiddleware(preset_loader=PresetLoader())

@@ -6,55 +6,41 @@ Direct repository/service instantiation - no service locator (Phase 4A).
 Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
+Updated: 2026-02-03 (Fix #2 - add missing get_task_repository, get_corpus_repository)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.repositories.audit_repository import AuditRepository
-from backend.api.audit.services.audit_service import AuditService
-from backend.config import CORPUS_PATH
-from backend.repositories.corpus_repository import CorpusRepository
-from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
-from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.repositories.task_repository import HDF5TaskRepository
+from typing import TYPE_CHECKING
+
+from backend.services.audit.services.audit_service import AuditService
+
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository,
+    get_task_repository_singleton,
+    get_corpus_repository_singleton,
+)
+
+if TYPE_CHECKING:
+    from backend.repositories.interfaces.itask_repository import ITaskRepository
+    from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
 
 
-def get_task_repository() -> ITaskRepository:
-    """Get task repository - direct instantiation (Phase 4A).
-
-    Returns:
-        ITaskRepository instance (HDF5TaskRepository)
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation enables better testability and explicit dependencies.
-    """
-    return HDF5TaskRepository(CORPUS_PATH)
-
-
-def get_corpus_repository() -> ICorpusRepository:
-    """Get corpus repository - direct instantiation (Phase 4A).
+def get_task_repository() -> "ITaskRepository":
+    """Get task repository - delegates to singleton.
 
     Returns:
-        ICorpusRepository instance (CorpusRepository)
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation with same corpus.h5 path.
+        ITaskRepository instance (HDF5TaskRepository singleton)
     """
-    return CorpusRepository(CORPUS_PATH)
+    return get_task_repository_singleton()
 
 
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4A).
+def get_corpus_repository() -> "ICorpusRepository":
+    """Get corpus repository - delegates to singleton.
 
     Returns:
-        AuditRepository instance
-
-    Note:
-        Created as a dependency for AuditService.
-        Uses same corpus.h5 path for consistency.
+        ICorpusRepository instance (CorpusRepository singleton)
     """
-    return AuditRepository(CORPUS_PATH)
+    return get_corpus_repository_singleton()
 
 
 def get_audit_service() -> AuditService:
@@ -81,5 +67,4 @@ def get_session_service() -> "SessionService":
         This function restores FastAPI Depends() compatibility for routers.
     """
     from backend.domain.session.services.session_service import SessionService
-    # SessionService accepts optional repository but can work without it (legacy compat)
     return SessionService(repository=None)

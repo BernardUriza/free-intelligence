@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { POLLING_CONFIG, BACKOFF_MULTIPLIER } from '@/lib/constants/polling';
+import { api } from '@/lib/api/client';
 
 interface DiarizationStatus {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
@@ -43,7 +44,17 @@ interface UseDiarizationPollingReturn {
   totalPolls: number; // Total polls attempted
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+// Response type from the monitor endpoint
+interface MonitorResponse {
+  status?: string;
+  progress?: number;
+  segment_count?: number;
+  error?: string;
+  diarization?: {
+    status: string;
+    progress: number;
+  };
+}
 
 export function useDiarizationPolling(
   options: UseDiarizationPollingOptions
@@ -78,31 +89,14 @@ export function useDiarizationPolling(
     }
 
     try {
-      const monitorUrl = `${BACKEND_URL}/api/workflows/aurity/sessions/${sessionId}/monitor`;
-
-      // AbortController with timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), POLLING_CONFIG.REQUEST_TIMEOUT);
-
-      const response = await fetch(monitorUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      // api.get has built-in timeout handling (30s default)
+      const data = await api.get<MonitorResponse>(
+        `/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
+        { timeout: POLLING_CONFIG.REQUEST_TIMEOUT }
+      );
 
       // Use diarization.status directly (backend doesn't return transcription_sources anymore)
-      const diarizationStatus = data.diarization?.status || data.status;
+      const diarizationStatus = data.diarization?.status || data.status || 'pending';
       const diarizationProgress = data.diarization?.progress || data.progress || 0;
 
       // Build detailed status message
@@ -110,7 +104,7 @@ export function useDiarizationPolling(
       if (diarizationStatus === 'pending') {
         statusMessage = 'Esperando en cola...';
       } else if (diarizationStatus === 'in_progress') {
-        if (data.segment_count > 0) {
+        if (data.segment_count && data.segment_count > 0) {
           statusMessage = `Analizando audio... ${data.segment_count} segmentos identificados`;
         } else {
           statusMessage = 'Iniciando análisis...';
@@ -122,7 +116,7 @@ export function useDiarizationPolling(
       }
 
       return {
-        status: diarizationStatus,
+        status: diarizationStatus as DiarizationStatus['status'],
         progress: diarizationProgress,
         segmentCount: data.segment_count,
         hasTripleVision: diarizationStatus === 'completed', // Completed = success

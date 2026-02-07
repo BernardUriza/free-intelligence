@@ -22,7 +22,7 @@ import hashlib
 import os
 import tempfile
 import time
-from typing import Any, Dict
+from typing import Any
 
 from backend.models.task_type import CHUNK_DURATION_SECONDS, TaskType
 from backend.repositories.interfaces import ITaskRepository
@@ -30,25 +30,17 @@ from backend.repositories.session_repository import SessionRepository
 from backend.utils.coder.utils.exceptions import SessionNotFoundError
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-from backend.utils.common.validation import validate_dependency
-
-# REMOVED: get_event_bus() helper (Phase 2.3)
-# Event bus is now injected via constructor instead of using get_container()
-# Old pattern (removed):
-#   def get_event_bus():
-#       from backend.container import get_container
-#       return get_container().get_event_bus()
 
 
 class TranscriptionChunkEvent:
-    """Stub event - to be replaced in Phase 3."""
+    """Event signaling chunk processed (marker event, no payload)."""
     @staticmethod
     def create(**kwargs):
         return TranscriptionChunkEvent()
 
 
 class TranscriptionStartedEvent:
-    """Stub event - to be replaced in Phase 3."""
+    """Event signaling transcription session started (marker event, no payload)."""
     @staticmethod
     def create(**kwargs):
         return TranscriptionStartedEvent()
@@ -292,7 +284,7 @@ class DITranscriptionService:
 
         # 5. Dispatch worker to background (fire-and-forget)
         from backend.infrastructure.workers.executor_pool import spawn_worker
-        from backend.infrastructure.workers.sync_workers import transcribe_chunk_worker
+        from backend.infrastructure.workers.tasks.transcription_worker import transcribe_chunk_worker
         from backend.utils.stt_load_balancer import get_stt_load_balancer
 
         # Use load balancer to select provider intelligently (policy-driven)

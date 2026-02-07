@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import BinaryIO
 
 from backend.repositories.interfaces.idocument_repository import IDocumentRepository
 from backend.domain.document.models import (
@@ -90,7 +89,7 @@ class DocumentService:
             clinic_id: Clinic ID (multi-tenancy)
             title: Document title
             content: Extracted text content
-            uploaded_by: User ID (Auth0 subject)
+            uploaded_by: User ID (JWT subject)
             file_content: Optional binary file content (PDF, DOCX)
             metadata: Optional document metadata
             origin: How document was uploaded
@@ -276,7 +275,7 @@ class DocumentService:
     # SEMANTIC SEARCH
     # =============================================================================
 
-    def search(
+    async def search(
         self,
         query: str,
         clinic_id: str,
@@ -285,6 +284,8 @@ class DocumentService:
         document_type: DocumentType | None = None
     ) -> list[SearchResult]:
         """Semantic search across documents.
+
+        AUTO GPU DELEGATION: Uses GPU for >1000 vectors via fi_monitor.
 
         Args:
             query: Natural language query (e.g., "diabetes treatment guidelines")
@@ -306,8 +307,8 @@ class DocumentService:
             # Generate query embedding
             query_embedding = generate_embedding(query)
 
-            # Search in repository (clinic_id filtered)
-            results = self.repository.search_by_embedding(
+            # Search in repository (clinic_id filtered, GPU-accelerated)
+            results = await self.repository.search_by_embedding(
                 query_embedding=query_embedding,
                 clinic_id=clinic_id,
                 limit=limit,

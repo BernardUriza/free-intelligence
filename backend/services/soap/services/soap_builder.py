@@ -7,7 +7,7 @@ handling type conversions and validation.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from backend.providers.models import (
     Analisis,
@@ -43,7 +43,7 @@ class SOAPBuilder:
     """Builds SOAP model instances from extracted JSON data."""
 
     @staticmethod
-    def build(job_id: str, soap_data: Dict[str, Any]) -> tuple[Subjetivo, Objetivo, Analisis, Plan]:
+    def build(job_id: str, soap_data: dict[str, Any]) -> tuple[Subjetivo, Objetivo, Analisis, Plan]:
         """Build SOAP sections from extracted data.
 
         Args:
@@ -119,7 +119,7 @@ class SOAPBuilder:
             raise SOAPBuildError(f"Failed to build SOAPNote: {e!s}") from e
 
     @staticmethod
-    def _build_subjetivo(soap_data: Dict[str, Any]) -> Subjetivo:
+    def _build_subjetivo(soap_data: dict[str, Any]) -> Subjetivo:
         """Build Subjetivo section."""
         # Read English keys from JSON
         subjetivo_data = soap_data.get("subjective", {})
@@ -146,7 +146,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _build_objetivo(soap_data: Dict[str, Any]) -> Objetivo:
+    def _build_objetivo(soap_data: dict[str, Any]) -> Objetivo:
         """Build Objetivo section."""
         # Read English keys from JSON
         objetivo_data = soap_data.get("objective", {})
@@ -189,7 +189,7 @@ class SOAPBuilder:
         )
 
     @staticmethod
-    def _build_analisis(soap_data: Dict[str, Any]) -> Analisis:
+    def _build_analisis(soap_data: dict[str, Any]) -> Analisis:
         """Build Analisis section."""
         # Read English keys from JSON
         analisis_data = soap_data.get("assessment", {})
@@ -274,7 +274,7 @@ class SOAPBuilder:
         return diagnosticos_diferenciales
 
     @staticmethod
-    def _build_plan(soap_data: Dict[str, Any]) -> Plan:
+    def _build_plan(soap_data: dict[str, Any]) -> Plan:
         """Build Plan section."""
         from backend.providers.models import Seguimiento
 

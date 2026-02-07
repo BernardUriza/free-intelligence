@@ -6,7 +6,7 @@ to ensure proper separation of reasoning blocks from response content.
 """
 
 import pytest
-from backend.providers.llm import parse_qwen_thinking_and_response
+from backend.providers import parse_qwen_thinking_and_response
 
 
 class TestQwenThinkingParser:
@@ -285,13 +285,13 @@ class TestQwenThinkingParser:
             parse_qwen_thinking_and_response(input_text)
 
     def test_mismatched_case(self):
-        """Tags with different case (<Think> instead of <think>)."""
+        """Tags with different case (<Think> instead of <think>) - case-insensitive match."""
         input_text = "<Think>Different case</Think>Response"
         thinking, content = parse_qwen_thinking_and_response(input_text)
 
-        # Case-sensitive regex won't match
-        assert thinking is None
-        assert content == "<Think>Different case</Think>Response"
+        # Parser is case-insensitive (handles <Think>, <THINK>, etc.)
+        assert thinking == "Different case"
+        assert content == "Response"
 
     def test_html_comment_like_content(self):
         """Content that looks like HTML comments but isn't."""

@@ -7,9 +7,7 @@ Created: 2026-01-28
 Card: Backend Refactor Phase 2.6 - Testing Strategy
 """
 
-import pytest
-from unittest.mock import Mock, patch
-from pathlib import Path
+from unittest.mock import patch
 
 
 class TestTriageService:

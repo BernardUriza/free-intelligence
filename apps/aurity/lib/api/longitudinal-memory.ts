@@ -6,13 +6,18 @@
  *
  * Card: FI-PHIL-DOC-014 (Memoria Longitudinal)
  * Created: 2025-11-22
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
 import {
-  MEMORY_API,
   MEMORY_PAGINATION,
   type EventTypeFilter,
 } from '@/config/timeline.config';
+import { api } from './client';
+
+// API endpoint base
+const MEMORY_ENDPOINT = '/api/aurity/memory/longitudinal';
+const MEMORY_STATS_ENDPOINT = '/api/aurity/memory/stats';
 
 // ============================================================================
 // Types (matching backend schemas)
@@ -81,28 +86,6 @@ export interface MemorySearchParams {
 // ============================================================================
 
 /**
- * Fetch with timeout using AbortController
- */
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit = {},
-  timeoutMs: number = MEMORY_API.TIMEOUT_MS
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/**
  * Get longitudinal memory with pagination and filters
  *
  * @param params - Query parameters
@@ -120,33 +103,24 @@ export async function getLongitudinalMemory(
     endTime,
   } = params;
 
-  const url = new URL(`${MEMORY_API.BASE_URL}${MEMORY_API.ENDPOINT}`);
-  url.searchParams.set('doctor_id', doctorId);
-  url.searchParams.set('offset', offset.toString());
-  url.searchParams.set('limit', Math.min(limit, MEMORY_PAGINATION.MAX_LIMIT).toString());
-  url.searchParams.set('event_type', eventType);
+  const queryParams = new URLSearchParams();
+  queryParams.set('doctor_id', doctorId);
+  queryParams.set('offset', offset.toString());
+  queryParams.set('limit', Math.min(limit, MEMORY_PAGINATION.MAX_LIMIT).toString());
+  queryParams.set('event_type', eventType);
 
   if (startTime) {
-    url.searchParams.set('start_time', startTime);
+    queryParams.set('start_time', startTime);
   }
   if (endTime) {
-    url.searchParams.set('end_time', endTime);
+    queryParams.set('end_time', endTime);
   }
 
   try {
-    console.log('[LongitudinalMemory] Fetching:', url.toString());
-    const response = await fetchWithTimeout(url.toString());
-
-    if (!response.ok) {
-      console.error('[LongitudinalMemory] Error:', response.status, response.statusText);
-      // Return empty response on error (graceful degradation)
-      return createEmptyResponse(offset, limit);
-    }
-
-    const data: LongitudinalMemoryResponse = await response.json();
+    console.log('[LongitudinalMemory] Fetching:', `${MEMORY_ENDPOINT}?${queryParams}`);
+    const data = await api.get<LongitudinalMemoryResponse>(`${MEMORY_ENDPOINT}?${queryParams}`);
     console.log('[LongitudinalMemory] Received:', data.events.length, 'events');
     return data;
-
   } catch (error) {
     console.error('[LongitudinalMemory] Fetch failed:', error);
     return createEmptyResponse(offset, limit);
@@ -159,17 +133,8 @@ export async function getLongitudinalMemory(
 export async function getMemoryStats(
   doctorId: string
 ): Promise<MemoryStatsResponse> {
-  const url = new URL(`${MEMORY_API.BASE_URL}${MEMORY_API.STATS_ENDPOINT}`);
-  url.searchParams.set('doctor_id', doctorId);
-
   try {
-    const response = await fetchWithTimeout(url.toString());
-
-    if (!response.ok) {
-      return createEmptyStats();
-    }
-
-    return response.json();
+    return await api.get<MemoryStatsResponse>(`${MEMORY_STATS_ENDPOINT}?doctor_id=${doctorId}`);
   } catch {
     return createEmptyStats();
   }
@@ -200,20 +165,14 @@ export async function searchMemory(
     return createEmptyResponse(offset, limit);
   }
 
-  const url = new URL(`${MEMORY_API.BASE_URL}/search`);
-  url.searchParams.set('doctor_id', doctorId);
-  url.searchParams.set('query', query.trim());
-  url.searchParams.set('offset', offset.toString());
-  url.searchParams.set('limit', limit.toString());
+  const queryParams = new URLSearchParams();
+  queryParams.set('doctor_id', doctorId);
+  queryParams.set('query', query.trim());
+  queryParams.set('offset', offset.toString());
+  queryParams.set('limit', limit.toString());
 
   try {
-    const response = await fetchWithTimeout(url.toString());
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return await api.get<LongitudinalMemoryResponse>(`/api/aurity/memory/search?${queryParams}`);
   } catch (error) {
     console.error('[searchMemory] Error:', error);
     return createEmptyResponse(offset, limit);

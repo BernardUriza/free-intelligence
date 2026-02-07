@@ -39,6 +39,7 @@ import {
   ChevronLeft,
   Maximize,
 } from "lucide-react"
+import { api } from "@/lib/api/client"
 
 // =============================================================================
 // INFO BAR - Bottom bar with time, date, branding (for TV mode)
@@ -133,12 +134,10 @@ const TVModeDisplay = memo(function TVModeDisplay() {
   useEffect(() => {
     async function fetchSlides() {
       try {
-        const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001"
-        const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/list?active_only=true`)
-        if (response.ok) {
-          const data = await response.json()
-          setSlides(data.media || [])
-        }
+        const data = await api.get<{ media: any[] }>(
+          '/api/aurity/clinic/clinic-media/list?active_only=true'
+        )
+        setSlides(data.media || [])
       } catch (error) {
         console.error("Failed to fetch slides:", error)
       }

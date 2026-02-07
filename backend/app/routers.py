@@ -31,19 +31,16 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.app.system_routes import router as system_router
     from backend.api.admin.api.internal.admin.users import router as users_router
 
-    # Assistant & Personas
-    from backend.api.routers.assistant.public import aurity_personas
-    from backend.api.routers.assistant.public.assistant_history import router as assistant_history_router
+    # NOTE: Assistant routers moved to aurity_router (backend.api.domains.aurity.assistant)
 
     # Audit
     from backend.api.audit.api.internal.audit import router as internal_audit_router
     from backend.api.audit.api.public import audit
     from backend.infrastructure.auth.adapters.fastapi_adapter import auth_router
 
-    # Check-in & Payments
-    from backend.api.routers.checkin import checkin
-    from backend.api.routers.clinic.public import clinics
-    from backend.api.routers.clinic.public import clinic_media_stub
+    # Payments
+    # NOTE: checkin router moved to aurity_router (backend.api.domains.aurity.checkin)
+    # NOTE: clinics router moved to aurity_router (backend.api.domains.aurity.clinic)
 
     # Coder
     from backend.utils.coder.api.internal.fi_coder import router as fi_coder_router
@@ -52,16 +49,18 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     from backend.infrastructure.common.api.internal.exports import router as exports_router
     from backend.infrastructure.common.api.public import notifications
 
-    # KPIs
-    from backend.api.routers.kpi.internal.router import router as kpis_router
+    # KPIs (migrated to infrastructure/)
+    from backend.infrastructure.kpi.api.internal.router import router as kpis_router
 
     # Licensing
     from backend.api.license.api.internal import router as licenses_admin_router
     from backend.api.license.api.public import router as licenses_router
 
     # LLM
-    from backend.api.routers.llm.internal.llm import router as llm_router
-    from backend.api.routers.llm.public import llm_models_admin
+    from backend.infrastructure.llm.api.internal import router as llm_router
+    from backend.infrastructure.model_catalog.api.public.llm_models_admin import (
+        router as llm_models_admin_router,
+    )
 
     # Model Catalog
     from backend.infrastructure.model_catalog.api.public import catalog_admin
@@ -69,72 +68,71 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # Observability
     from backend.infrastructure.observability.api import router as observability_router
 
-    # Patients & Providers
-    from backend.api.routers.patient.public import patients
+    # Providers & Payments
+    # NOTE: patients router moved to aurity_router (backend.api.domains.aurity.patients)
     from backend.api.payment.api.public import payments
 
     # Policy
     from backend.api.policy.api.public import policy
-    from backend.api.routers.provider.public import providers
+    # NOTE: providers router moved to aurity_router (backend.api.domains.aurity.providers)
 
-    # Sessions
-    from backend.api.routers.session.internal.sessions import router as sessions_router
-    from backend.api.routers.session.internal.sessions.finalize import (
-        router as sessions_finalize_router,
+    # Sessions (migrated to infrastructure/)
+    from backend.infrastructure.session.api.internal import (
+        sessions_router,
+        finalize_router as sessions_finalize_router,
     )
 
     # System Resources
     from backend.infrastructure.system.api.public import system_resources
-    from backend.infrastructure.system.api.public.system import router as system_info_router
+    # NOTE: system_info_router moved to aurity_router (backend.api.domains.aurity.system)
 
     # Timeline
     from backend.services.timeline.api.internal.timeline import router as timeline_internal_router
-    from backend.services.timeline.api.public import timeline
+    # NOTE: timeline public router moved to aurity_router (backend.api.domains.aurity.timeline)
 
-    # Transcription & Diarization
-    from backend.api.routers.transcription.internal.diarization import router as diarization_router
-    from backend.api.routers.transcription.internal.transcribe import router as transcribe_router
+    # Transcription & Diarization (migrated to infrastructure/)
+    from backend.infrastructure.transcription.api.internal import (
+        diarization_router,
+        transcribe_router,
+    )
 
     # TTS
     from backend.services.tts.api.public import tts
-    from backend.api.routers.user.public import user_clinic
+    # NOTE: user_clinic router moved to aurity_router (backend.api.domains.aurity.clinic.user_clinic)
 
-    # Triage
-    from backend.api.routers.workflow.internal.triage import router as triage_router
+    # Triage (migrated to infrastructure/)
+    from backend.infrastructure.workflow.api.internal import triage_router
 
-    # Workflows
-    from backend.api.routers.workflow.public.workflows_router import (
-        router as public_workflows_router,
-    )
+    # NOTE: public_workflows_router removed - replaced by aurity_router
 
     # =========================================================================
-    # PUBLIC API Registration (CORS enabled, orchestrators)
+    # AURITY Domain API (Phase 3 - Batipelágica)
+    # All AURITY-specific routes consolidated under /api/aurity/*
+    # =========================================================================
+    from backend.api.domains.aurity.router import aurity_router, tags_metadata
+
+    # FIXED: Don't add "/api" prefix since public_app is already mounted at "/api"
+    # The aurity_router has prefix="/aurity" internally, resulting in /api/aurity/*
+    public_app.include_router(aurity_router)
+    public_app.openapi_tags = tags_metadata
+
+    # =========================================================================
+    # PUBLIC API Registration (CORS enabled, non-AURITY routes)
     # =========================================================================
 
-    public_app.include_router(auth_router)  # Auth0 Authentication (HIPAA G-003)
-    public_app.include_router(public_workflows_router)  # AURITY orchestrator
-    public_app.include_router(timeline.router)  # Timeline/sessions listing
-    public_app.include_router(aurity_personas.router)  # Personas list (public)
-    public_app.include_router(
-        assistant_history_router,
-        prefix="/api/workflows/aurity/assistant/history",
-        tags=["assistant-history"],
-    )  # Assistant conversation history
-    public_app.include_router(system_info_router)  # System info (LLM status, disk usage)
-    public_app.include_router(patients.router)  # Patient CRUD (FI-DATA-DB-001)
-    public_app.include_router(providers.router)  # Provider CRUD (FI-DATA-DB-001)
+    public_app.include_router(auth_router)  # JWT Authentication
+    # NOTE: patients.router removed - now in aurity_router at /api/aurity/patients/*
+    # NOTE: providers.router removed - now in aurity_router at /api/aurity/providers/*
     public_app.include_router(
         audit.router, prefix="/audit", tags=["Audit"]
     )  # Audit logs (FI-UI-FEAT-206)
     public_app.include_router(policy.router)  # Policy viewer (FI-UI-FEAT-204)
     public_app.include_router(tts.router)  # Text-to-Speech (Azure OpenAI)
-    public_app.include_router(checkin.router)  # FI Receptionist Check-in (FI-CHECKIN-001)
+    # NOTE: checkin.router removed - now in aurity_router at /api/aurity/checkin/*
     public_app.include_router(payments.router)  # Stripe Payments (FI-CHECKIN-002)
-    public_app.include_router(clinics.router)  # Clinic/Doctor CRUD (FI-CHECKIN-002)
-    public_app.include_router(clinic_media_stub.router)  # Clinic Media (STUB - Phase 3)
-    public_app.include_router(user_clinic.router)  # User-Clinic membership
+    # NOTE: user_clinic.router removed - now in aurity_router at /api/aurity/clinic/users/me/*
     public_app.include_router(notifications.router)  # SMS/Email Notifications (FI-CHECKIN-003)
-    public_app.include_router(llm_models_admin)  # LLM Models Admin (superadmin CRUD)
+    public_app.include_router(llm_models_admin_router)  # LLM Models Admin (superadmin CRUD)
     public_app.include_router(catalog_admin.router)  # Model Catalog
     public_app.include_router(system_resources.router)  # System Resources Monitor
     public_app.include_router(observability_router)  # LLM Observability (FI Edge Monitor)

@@ -12,9 +12,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import os
 import stripe
+from backend.config.secrets import get_secret
 from backend.database import get_db_dependency
+from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
+from backend.infrastructure.auth.domain.entities.user import User
 from backend.models.checkin_models import (
     Appointment,
     PendingAction,
@@ -34,10 +36,10 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 # STRIPE CONFIGURATION
 # =============================================================================
 
-# Load Stripe keys from environment
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+# Load Stripe keys from secrets manager
+STRIPE_SECRET_KEY = get_secret("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = get_secret("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PUBLISHABLE_KEY = get_secret("STRIPE_PUBLISHABLE_KEY", "")
 
 # Initialize Stripe
 if STRIPE_SECRET_KEY:
@@ -157,6 +159,7 @@ async def get_stripe_config() -> StripeConfigResponse:
 @router.post("/create-intent", response_model=CreatePaymentIntentResponse)
 async def create_payment_intent(
     request: CreatePaymentIntentRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> CreatePaymentIntentResponse:
     """
@@ -167,12 +170,20 @@ async def create_payment_intent(
 
     Args:
         request: Payment intent creation request
+        current_user: Authenticated user (with clinic_id for multi-tenancy)
         db: Database session
 
     Returns:
         Payment intent details including client secret for frontend
     """
     verify_stripe_configured()
+
+    # Multi-tenancy: Validate user has clinic assigned
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User has no clinic assigned. Cannot process payments.",
+        )
 
     # Get and validate the pending action
     action = get_pending_action_for_payment(db, request.action_id, request.appointment_id)
@@ -184,6 +195,19 @@ async def create_payment_intent(
 
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
+
+    # Multi-tenancy: Validate appointment belongs to user's clinic
+    if appointment.clinic_id != current_user.clinic_id:
+        logger.error(
+            "PAYMENT_CLINIC_IMPERSONATION_BLOCKED",
+            user_clinic_id=current_user.clinic_id,
+            appointment_clinic_id=appointment.clinic_id,
+            appointment_id=str(appointment.appointment_id),
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: Cannot create payment for appointments from other clinics.",
+        )
 
     # Convert amount to cents (Stripe uses smallest currency unit)
     amount_cents = int(action.amount * 100)
@@ -241,6 +265,7 @@ async def create_payment_intent(
 @router.get("/status/{payment_intent_id}", response_model=PaymentStatusResponse)
 async def get_payment_status(
     payment_intent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> PaymentStatusResponse:
     """
@@ -248,12 +273,20 @@ async def get_payment_status(
 
     Args:
         payment_intent_id: Stripe payment intent ID
+        current_user: Authenticated user (with clinic_id for multi-tenancy)
         db: Database session
 
     Returns:
         Current payment status
     """
     verify_stripe_configured()
+
+    # Multi-tenancy: Validate user has clinic assigned
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User has no clinic assigned. Cannot access payment status.",
+        )
 
     try:
         intent = stripe.PaymentIntent.retrieve(payment_intent_id)
@@ -264,6 +297,26 @@ async def get_payment_status(
             .filter(PendingAction.payment_intent_id == payment_intent_id)
             .first()
         )
+
+        # Multi-tenancy: Validate action belongs to user's clinic
+        if action:
+            # Get appointment to check clinic_id
+            appointment = (
+                db.query(Appointment)
+                .filter(Appointment.appointment_id == action.appointment_id)
+                .first()
+            )
+            if appointment and appointment.clinic_id != current_user.clinic_id:
+                logger.error(
+                    "PAYMENT_STATUS_CLINIC_IMPERSONATION_BLOCKED",
+                    user_clinic_id=current_user.clinic_id,
+                    appointment_clinic_id=appointment.clinic_id,
+                    payment_intent_id=payment_intent_id,
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied: Cannot access payment status from other clinics.",
+                )
 
         return PaymentStatusResponse(
             payment_intent_id=intent.id,
@@ -399,6 +452,7 @@ async def handle_payment_failed(db: Session, payment_intent: dict) -> None:
 async def confirm_payment_action(
     action_id: str,
     payment_intent_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_dependency),
 ) -> dict:
     """
@@ -410,6 +464,7 @@ async def confirm_payment_action(
     Args:
         action_id: Pending action ID
         payment_intent_id: Stripe payment intent ID
+        current_user: Authenticated user (with clinic_id for multi-tenancy)
         db: Database session
 
     Returns:
@@ -417,11 +472,39 @@ async def confirm_payment_action(
     """
     verify_stripe_configured()
 
+    # Multi-tenancy: Validate user has clinic assigned
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User has no clinic assigned. Cannot confirm payments.",
+        )
+
     # Get the action
     action = db.query(PendingAction).filter(PendingAction.action_id == action_id).first()
 
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
+
+    # Multi-tenancy: Validate action belongs to user's clinic
+    appointment = (
+        db.query(Appointment)
+        .filter(Appointment.appointment_id == action.appointment_id)
+        .first()
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Associated appointment not found")
+
+    if appointment.clinic_id != current_user.clinic_id:
+        logger.error(
+            "PAYMENT_CONFIRM_CLINIC_IMPERSONATION_BLOCKED",
+            user_clinic_id=current_user.clinic_id,
+            appointment_clinic_id=appointment.clinic_id,
+            action_id=action_id,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: Cannot confirm payments from other clinics.",
+        )
 
     if action.status == PendingActionStatus.COMPLETED:
         return {"status": "already_completed", "action_id": action_id}

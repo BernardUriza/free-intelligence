@@ -16,11 +16,9 @@ from enum import Enum
 from typing import Any
 
 import os
+from backend.config.secrets import get_secret
 from backend.utils.common.logging.logger import get_logger
-from dotenv import load_dotenv
 from pathlib import Path
-
-load_dotenv()
 
 logger = get_logger(__name__)
 
@@ -114,8 +112,8 @@ class AzureWhisperProvider(STTProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.endpoint = get_secret("AZURE_OPENAI_ENDPOINT")
+        self.api_key = get_secret("AZURE_OPENAI_API_KEY")
         self.deployment = str(
             self.config.get("deployment") or os.getenv("AZURE_OPENAI_WHISPER_DEPLOYMENT", "whisper")
         )
@@ -359,7 +357,7 @@ class DeepgramProvider(STTProvider):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        self.api_key = os.getenv("DEEPGRAM_API_KEY")
+        self.api_key = get_secret("DEEPGRAM_API_KEY")
 
         if not self.api_key:
             raise ValueError("DEEPGRAM_API_KEY environment variable not set")

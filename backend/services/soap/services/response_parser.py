@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict
+from typing import Any
 
 from backend.utils.common.logging.logger import get_logger
 from backend.domain.soap.models import SOAPNote
@@ -195,7 +195,7 @@ class OllamaResponseParser:
             except json.JSONDecodeError:
                 return None
 
-    def _validate_soap_structure(self, data: Dict[str, Any]) -> None:
+    def _validate_soap_structure(self, data: dict[str, Any]) -> None:
         """Validate that parsed JSON matches SOAP structure.
 
         Uses Pydantic model validation for type safety.
@@ -227,7 +227,7 @@ class OllamaResponseParser:
 
     def validate_and_convert(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> SOAPNote:
         """Validate and convert raw dict to SOAPNote model.
 

@@ -2,7 +2,7 @@
  * Offline Mode Manager for Aurity Desktop
  *
  * Manages controlled offline mode for the desktop application when
- * Auth0 authentication is unavailable.
+ * backend authentication is unavailable.
  *
  * SECURITY CONSIDERATIONS:
  * - Offline mode is DISABLED by default (NEXT_PUBLIC_DESKTOP_OFFLINE=false)
@@ -12,7 +12,7 @@
  * - Logs all offline mode activations (no PHI)
  *
  * USAGE:
- * - Check availability: await checkAuth0Availability()
+ * - Check availability: await checkAuthAvailability()
  * - Enable: await enableOfflineMode('auth_unavailable')
  * - Disable: await disableOfflineMode()
  * - Check status: await isOfflineModeEnabled()
@@ -114,30 +114,26 @@ export async function getOfflineModeRemainingTime(): Promise<number> {
 }
 
 /**
- * Check if Auth0 is reachable
- * Uses the OIDC discovery endpoint which is always available
+ * Check if the backend auth service is reachable
  */
-export async function checkAuth0Availability(): Promise<boolean> {
+export async function checkAuthAvailability(): Promise<boolean> {
   try {
-    const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
-    if (!domain) {
-      console.warn('[OfflineMode] AUTH0_DOMAIN not configured');
-      return false;
-    }
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
       const response = await fetch(
-        `https://${domain}/.well-known/openid-configuration`,
+        `${backendUrl}/api/auth/me`,
         {
           method: 'HEAD',
           signal: controller.signal,
         }
       );
       clearTimeout(timeoutId);
-      return response.ok;
+      // 401 means server is reachable (just not authenticated)
+      return response.ok || response.status === 401;
     } catch {
       clearTimeout(timeoutId);
       return false;

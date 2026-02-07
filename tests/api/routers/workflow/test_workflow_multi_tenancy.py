@@ -39,7 +39,7 @@ def client():
 def doctor_a_clinic1():
     """Doctor A user (assigned to clinic-1)."""
     return User(
-        id="auth0|doctor-a",
+        id="user-doctor-a",
         email="doctor.a@clinic1.com",
         clinic_id="clinic-1",
         roles=[],
@@ -50,7 +50,7 @@ def doctor_a_clinic1():
 def doctor_b_clinic2():
     """Doctor B user (assigned to clinic-2)."""
     return User(
-        id="auth0|doctor-b",
+        id="user-doctor-b",
         email="doctor.b@clinic2.com",
         clinic_id="clinic-2",
         roles=[],

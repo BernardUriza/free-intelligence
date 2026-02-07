@@ -7,20 +7,10 @@ from typing import Any
 
 
 class UserRole(str, Enum):
-    """Unified role enum for FI RBAC.
-
-    Includes legacy values to keep backward compatibility with existing tokens
-    while normalizing to the new FI-* roles used across services.
-    """
+    """MVP role enum — only 2 roles: superadmin and clinician."""
 
     SUPERADMIN = "FI-superadmin"
-    ADMIN = "FI-admin"
     CLINICIAN = "FI-clinician"
-    PATIENT = "FI-patient"
-
-    LEGACY_ADMIN = "ADMIN"
-    LEGACY_MEDICO = "MEDICO"
-    LEGACY_NURSE = "ENFERMERA"
 
     @classmethod
     def coerce(cls, raw: str | None) -> UserRole | None:
@@ -34,10 +24,15 @@ class UserRole(str, Enum):
             fallback_map = {
                 "medico": cls.CLINICIAN,
                 "enfermera": cls.CLINICIAN,
-                "fi-admin": cls.ADMIN,
-                "fi-superadmin": cls.SUPERADMIN,
+                "fi-admin": cls.CLINICIAN,
+                "fi-doctor": cls.CLINICIAN,
+                "fi-nurse": cls.CLINICIAN,
+                "fi-staff": cls.CLINICIAN,
+                "fi-patient": cls.CLINICIAN,
+                "fi-viewer": cls.CLINICIAN,
+                "admin": cls.SUPERADMIN,
                 "superadmin": cls.SUPERADMIN,
-                "admin": cls.ADMIN,
+                "fi-superadmin": cls.SUPERADMIN,
             }
             mapped = fallback_map.get(normalized.lower())
             return mapped
@@ -49,7 +44,7 @@ class User:
     email: str
     roles: list[UserRole] = field(default_factory=list)
     tenant_id: str | None = None
-    clinic_id: str | None = None  # Multi-tenancy: extracted from Auth0 app_metadata
+    clinic_id: str | None = None  # Multi-tenancy: extracted from JWT claims
     metadata: dict[str, Any] = field(default_factory=dict)
     name: str | None = None
     username: str | None = None

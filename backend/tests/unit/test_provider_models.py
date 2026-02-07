@@ -15,7 +15,6 @@ from datetime import UTC, datetime
 
 import pytest
 from backend.providers.models import (
-    Analisis,
     DiagnosticoDiferencial,
     DiagnosticoPrincipal,
     EstudioUrgencia,
@@ -23,13 +22,9 @@ from backend.providers.models import (
     Gender,
     Gravedad,
     MessageRole,
-    Objetivo,
     PatientStub,
-    Plan,
     Severity,
     SOAPMetadata,
-    SOAPNote,
-    Subjetivo,
     UrgenciaTriaje,
     UrgencyLevel,
 )

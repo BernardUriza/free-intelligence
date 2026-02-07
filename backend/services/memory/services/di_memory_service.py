@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from backend.repositories.interfaces.imemory_store import IMemoryStore, AudioEventDict
+from backend.repositories.interfaces.imemory_store import IMemoryStore
 from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
@@ -247,7 +247,7 @@ class DIMemoryService:
         """Get longitudinal memory combining chat messages and audio transcriptions.
 
         Args:
-            doctor_id: Doctor identifier (Auth0 user.sub)
+            doctor_id: Doctor identifier (JWT user.sub)
             offset: Number of events to skip for pagination
             limit: Maximum events to return
             event_type: Filter by "all", "chat", or "audio"

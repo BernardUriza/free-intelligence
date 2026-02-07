@@ -34,7 +34,6 @@ import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Optional
 
 import os
 from pathlib import Path

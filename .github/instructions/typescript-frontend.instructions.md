@@ -207,14 +207,14 @@ function displayPatient(patient: Patient | null) {
 
 ### Auth Token Handling
 ```typescript
-// ✅ CORRECT - Secure token storage
-import { useAuth0 } from '@auth0/auth0-react';
+// ✅ CORRECT - Secure token storage (self-hosted JWT)
+import { useAuth } from '@/hooks/useAuth';
 
 function useAuthenticatedFetch() {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessToken } = useAuth();
 
   return async (url: string, options?: RequestInit) => {
-    const token = await getAccessTokenSilently();
+    const token = getAccessToken();
 
     return fetch(url, {
       ...options,
@@ -350,5 +350,5 @@ class ErrorBoundary extends Component<Props, State> {
 - [ ] Cleanup functions in useEffect
 - [ ] Type safety (no `any`)
 - [ ] Loading and error states
-- [ ] Auth tokens from Auth0
+- [ ] Auth tokens via useAuth hook
 - [ ] AbortController for fetch cancellation

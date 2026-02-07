@@ -7,7 +7,6 @@ Coverage targets: backend/models/transcription_job.py
 
 from __future__ import annotations
 
-import pytest
 from backend.models.job import JobStatus, JobType
 from backend.models.transcription_job import TranscriptionJob
 

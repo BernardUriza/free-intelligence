@@ -12,6 +12,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { api } from '@/lib/api/client';
 import {
   Trash2,
   Lock,
@@ -64,15 +65,13 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
   const fetchSlides = async () => {
     setIsLoading(true);
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
       const params = new URLSearchParams();
       // Don't filter by clinic_id - show all slides
       params.append('active_only', 'false');
 
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/list?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch slides');
-
-      const data = await response.json();
+      const data = await api.get<{ media: Slide[] }>(
+        `/api/aurity/clinic/clinic-media/list?${params}`
+      );
       // Sort by upload time (newest first) or by display_order if available
       const sorted = (data.media || []).sort((a: Slide, b: Slide) => {
         if (a.display_order !== undefined && b.display_order !== undefined) {
@@ -93,12 +92,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
     if (!confirmed) return;
 
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete slide');
+      await api.delete(`/api/aurity/clinic/clinic-media/${mediaId}`);
 
       await fetchSlides();
       onSlidesUpdate?.();
@@ -111,14 +105,9 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
 
   const _handleToggleActive = async (mediaId: string, currentState: boolean) => {
     try {
-      const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendURL}/api/workflows/aurity/clinic-media/${mediaId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !currentState }),
+      await api.put(`/api/aurity/clinic/clinic-media/${mediaId}`, {
+        is_active: !currentState,
       });
-
-      if (!response.ok) throw new Error('Failed to update slide');
 
       await fetchSlides();
       onSlidesUpdate?.();

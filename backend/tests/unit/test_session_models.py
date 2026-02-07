@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
 from backend.models.session import EncryptionMetadata, Session, SessionStatus
 from backend.models.task_type import (
     CHUNK_DURATION_SECONDS,

@@ -14,12 +14,11 @@ Card: Phase 3 - Monitor GPU Cache
 
 from __future__ import annotations
 
-import os
 import time
-from typing import Optional
 
 import httpx
 import numpy as np
+from backend.config.secrets import get_secret
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -31,15 +30,15 @@ logger = get_logger(__name__)
 
 
 async def discover_monitor_url() -> str | None:
-    """Discover FI Monitor URL from Azure Blob Storage.
+    """Discover FI Monitor URL.
 
-    FI Monitor uploads its tunnel URL to Azure Blob on startup.
+    Checks (in order):
+    1. OLLAMA_TUNNEL_URL environment variable
+    2. Local config file (~/.config/fi-monitor/tunnel-url.json)
 
     Returns:
         Monitor tunnel URL or None if unavailable
     """
-    # TODO: Implement Azure Blob discovery
-    # For now, check environment variable
     import os
 
     tunnel_url = os.getenv("OLLAMA_TUNNEL_URL")
@@ -90,7 +89,7 @@ async def get_embedding_from_monitor(text: str, timeout: float = 5.0) -> np.ndar
 
     try:
         # Get API key from environment (default for dev)
-        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
@@ -143,6 +142,74 @@ async def get_embedding(text: str) -> np.ndarray:
 # ============================================================================
 
 
+async def similarity_search_gpu(
+    query_vector: list[float],
+    document_vectors: list[list[float]],
+    timeout: float = 30.0,
+) -> list[float]:
+    """Delegate similarity search to fi_monitor GPU service.
+
+    10-200x faster than CPU for large batches (1000+ vectors).
+
+    Args:
+        query_vector: Query embedding (384 dims)
+        document_vectors: List of document embeddings to search
+        timeout: Request timeout in seconds (default: 30s)
+
+    Returns:
+        Similarity scores (0-1) for each document vector
+
+    Raises:
+        ConnectionError: If fi_monitor unavailable
+        ValueError: If dimensions mismatch
+    """
+    # Discover Monitor URL
+    monitor_url = await discover_monitor_url()
+    if not monitor_url:
+        raise ConnectionError("FI Monitor not available - tunnel URL not found")
+
+    start_time = time.time()
+
+    try:
+        # Get API key from environment (default for dev)
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                f"{monitor_url}/rag/similarity-search",
+                json={
+                    "query_vector": query_vector,
+                    "document_vectors": document_vectors,
+                },
+                headers={"X-API-Key": api_key},
+            )
+
+            if response.status_code == 401:
+                raise ConnectionError("Fi Monitor API key invalid")
+            elif response.status_code == 400:
+                raise ValueError(f"Invalid request: {response.json()['detail']}")
+            elif response.status_code != 200:
+                raise ConnectionError(f"Fi Monitor error: {response.status_code}")
+
+            data = response.json()
+
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            logger.info(
+                "GPU_SIMILARITY_SEARCH",
+                num_vectors=len(document_vectors),
+                device=data["device_used"],
+                duration_ms=data["duration_ms"],
+                total_latency_ms=elapsed_ms,
+            )
+
+            return data["similarities"]
+
+    except httpx.TimeoutException:
+        raise ConnectionError("Fi Monitor timeout (>30s)")
+    except httpx.ConnectError:
+        raise ConnectionError("Fi Monitor unavailable - is it running?")
+
+
 async def get_ollama_chat(
     messages: list[dict[str, str]],
     model: str = "llama3.1:8b",
@@ -173,7 +240,7 @@ async def get_ollama_chat(
 
     try:
         # Get API key from environment (default for dev)
-        api_key = os.getenv("FI_MONITOR_API_KEY", "dev-key-local-only")
+        api_key = get_secret("FI_MONITOR_API_KEY", "dev-key-local-only")
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(

@@ -3,9 +3,11 @@
  *
  * Cliente para el API del catálogo de modelos locales.
  * Soporta GPT4All, HuggingFace, y Ollama.
+ *
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+import { api, getBackendUrl } from './client';
 
 // =============================================================================
 // Types
@@ -83,56 +85,43 @@ const CATALOG_BASE = '/api/admin/catalog';
 export async function fetchCatalogModels(
   params?: CatalogSearchParams
 ): Promise<CatalogListResponse> {
-  const url = new URL(`${BACKEND_URL}${CATALOG_BASE}/models`);
+  const queryParams = new URLSearchParams();
 
-  if (params?.source) url.searchParams.set('source', params.source);
-  if (params?.query) url.searchParams.set('query', params.query);
-  if (params?.max_size_gb) url.searchParams.set('max_size_gb', params.max_size_gb.toString());
-  if (params?.max_ram_gb) url.searchParams.set('max_ram_gb', params.max_ram_gb.toString());
-  if (params?.installed_only) url.searchParams.set('installed_only', 'true');
-  if (params?.limit) url.searchParams.set('limit', params.limit.toString());
-  if (params?.offset) url.searchParams.set('offset', params.offset.toString());
+  if (params?.source) queryParams.set('source', params.source);
+  if (params?.query) queryParams.set('query', params.query);
+  if (params?.max_size_gb) queryParams.set('max_size_gb', params.max_size_gb.toString());
+  if (params?.max_ram_gb) queryParams.set('max_ram_gb', params.max_ram_gb.toString());
+  if (params?.installed_only) queryParams.set('installed_only', 'true');
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.offset) queryParams.set('offset', params.offset.toString());
 
-  const response = await fetch(url.toString(), {
-    signal: params?.signal,
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || 'Error al cargar el catálogo');
-  }
-  return response.json();
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `${CATALOG_BASE}/models?${queryString}`
+    : `${CATALOG_BASE}/models`;
+
+  return api.get<CatalogListResponse>(endpoint, { signal: params?.signal });
 }
 
 /**
  * Obtiene el estado de disponibilidad de las fuentes.
  */
 export async function fetchSourcesStatus(): Promise<SourcesStatus> {
-  const response = await fetch(`${BACKEND_URL}${CATALOG_BASE}/sources/status`);
-  if (!response.ok) {
-    throw new Error('Error al verificar fuentes');
-  }
-  return response.json();
+  return api.get<SourcesStatus>(`${CATALOG_BASE}/sources/status`);
 }
 
 /**
  * Instala un modelo (síncrono, sin progreso).
  */
 export async function installModel(modelId: string, source: CatalogSource): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}${CATALOG_BASE}/models/install`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model_id: modelId, source }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || 'Error al instalar el modelo');
-  }
+  await api.post(`${CATALOG_BASE}/models/install`, { model_id: modelId, source });
 }
 
 /**
  * Instala un modelo con streaming de progreso (SSE).
  * Includes 30-second inactivity timeout for robustness.
+ *
+ * Note: Uses direct EventSource for SSE streaming (api client doesn't support SSE)
  */
 export function installModelWithProgress(
   modelId: string,
@@ -141,7 +130,9 @@ export function installModelWithProgress(
   onError: (error: string) => void,
   timeoutMs: number = 30000
 ): () => void {
-  const url = `${BACKEND_URL}${CATALOG_BASE}/models/${encodeURIComponent(modelId)}/install/stream`;
+  // EventSource requires full URL - SSE streaming not supported by api client
+  const backendUrl = getBackendUrl();
+  const url = `${backendUrl}${CATALOG_BASE}/models/${encodeURIComponent(modelId)}/install/stream`;
 
   const eventSource = new EventSource(url);
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -202,15 +193,7 @@ export function installModelWithProgress(
  * Elimina un modelo instalado de Ollama.
  */
 export async function deleteInstalledModel(modelId: string): Promise<void> {
-  const response = await fetch(
-    `${BACKEND_URL}${CATALOG_BASE}/models/${encodeURIComponent(modelId)}`,
-    { method: 'DELETE' }
-  );
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || 'Error al eliminar el modelo');
-  }
+  await api.delete(`${CATALOG_BASE}/models/${encodeURIComponent(modelId)}`);
 }
 
 // =============================================================================

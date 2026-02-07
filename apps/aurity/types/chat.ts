@@ -22,9 +22,16 @@ export interface ChatHook {
   hasMoreMessages?: boolean;
   loadingOlder?: boolean;
   streamingMessage?: string;
+  streaming?: {
+    status: 'idle' | 'connecting' | 'streaming' | 'thinking' | 'complete' | 'error' | 'aborted';
+    content: string;
+    thinking: string;
+    isStreaming: boolean;
+  };
 
   // Core Actions
   sendMessage: (message: string, metadata?: object) => Promise<void>;
+  sendMessageStream?: (message: string, metadata?: object) => Promise<void>;
   loadOlderMessages?: () => Promise<void>;
 
   // Optional Actions

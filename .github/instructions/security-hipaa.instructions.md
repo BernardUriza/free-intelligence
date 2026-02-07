@@ -45,7 +45,7 @@ logger.error("operation_failed", resource_id=resource.id, error_code="E001")
 - ❌ Medical data (diagnoses, prescriptions, notes)
 - ❌ Audio transcripts containing patient speech
 
-## Authentication - Auth0 JWT
+## Authentication - Self-Hosted JWT
 
 ### Dependency Injection Pattern
 
@@ -86,7 +86,7 @@ async def finalize_session(
 
     if session.user_id != user.id:
         # Check if user has admin role
-        roles = get_user_roles(user.auth0_user)
+        roles = user.roles
 
         if "FI-superadmin" not in roles:
             raise HTTPException(
@@ -127,7 +127,7 @@ API_TOKEN = "eyJhbGc..."  # SECURITY VIOLATION
 ```typescript
 // ✅ CORRECT - Public env vars only (prefixed with NEXT_PUBLIC_)
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-const AUTH0_DOMAIN = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || BACKEND_URL;
 
 // ❌ FORBIDDEN - Secrets in frontend
 const API_KEY = "sk-abc123...";  // NEVER in client-side code

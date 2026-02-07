@@ -11,13 +11,13 @@
 /**
  * User roles in the healthcare system
  */
-export type Role = 'FI-superadmin' | 'FI-clinician' | 'FI-staff' | 'FI-patient';
+export type Role = 'FI-superadmin' | 'FI-clinician';
 
 /**
  * JWT token claims structure
  */
 export interface TokenClaims {
-  /** User ID from Auth0 (e.g., "auth0|123456") */
+  /** User ID from JWT (e.g., "user-123456") */
   sub: string;
   /** Array of roles assigned to the user */
   roles?: Role[];
@@ -36,7 +36,7 @@ export interface TokenClaims {
  * 
  * @example
  * ```typescript
- * const claims = { sub: 'auth0|123', roles: ['FI-clinician'] };
+ * const claims = { sub: 'user-123', roles: ['FI-clinician'] };
  * if (hasRole(claims, 'FI-clinician')) {
  *   console.log('User is a clinician');
  * }
@@ -54,9 +54,9 @@ export function hasRole(claims: TokenClaims, role: Role): boolean {
  * 
  * @example
  * ```typescript
- * const claims = { sub: 'auth0|123', roles: ['FI-clinician', 'FI-staff'] };
+ * const claims = { sub: 'user-123', roles: ['FI-clinician'] };
  * const roles = getRoles(claims);
- * console.log(roles); // ['FI-clinician', 'FI-staff']
+ * console.log(roles); // ['FI-clinician']
  * ```
  */
 export function getRoles(claims: TokenClaims): Role[] {
@@ -72,8 +72,8 @@ export function getRoles(claims: TokenClaims): Role[] {
  * 
  * @example
  * ```typescript
- * const claims = { sub: 'auth0|123', roles: ['FI-staff'] };
- * if (hasAnyRole(claims, ['FI-clinician', 'FI-staff'])) {
+ * const claims = { sub: 'user-123', roles: ['FI-clinician'] };
+ * if (hasAnyRole(claims, ['FI-clinician', 'FI-superadmin'])) {
  *   console.log('User has medical access');
  * }
  * ```
@@ -92,7 +92,7 @@ export function hasAnyRole(claims: TokenClaims, roles: Role[]): boolean {
  * 
  * @example
  * ```typescript
- * const claims = { sub: 'auth0|123', roles: ['FI-clinician', 'FI-superadmin'] };
+ * const claims = { sub: 'user-123', roles: ['FI-clinician', 'FI-superadmin'] };
  * if (hasAllRoles(claims, ['FI-clinician', 'FI-superadmin'])) {
  *   console.log('User is a super clinician');
  * }

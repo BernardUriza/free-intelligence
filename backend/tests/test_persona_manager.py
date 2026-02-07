@@ -17,11 +17,9 @@ import time
 
 import pytest
 import yaml
-from backend.services.llm.services.persona_manager import (
-    PersonaManager,
-    PersonaNotFound,
-    PersonaTemplateModel,
-)
+from backend.services.llm.services.persona.manager import PersonaManager
+from backend.services.llm.services.persona.exceptions import PersonaNotFound
+from backend.services.llm.services.persona.schemas import PersonaTemplateModel
 from pathlib import Path
 
 # ============================================================================
@@ -439,10 +437,7 @@ class TestCLI:
     """Smoke tests for CLI functionality."""
 
     def test_cli_import(self):
-        """CLI code should be importable without errors."""
-        # Just verify the module loads without syntax errors
-        from backend.services.llm import services
+        """PersonaManager should be importable."""
+        from backend.services.llm import PersonaManager
 
-        persona_manager = services.persona_manager
-
-        assert hasattr(persona_manager, "PersonaManager")
+        assert callable(PersonaManager)

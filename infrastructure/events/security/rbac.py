@@ -4,9 +4,7 @@ Defines permissions for accessing event streams, projections, and replays.
 
 Roles:
 - FI-superadmin: Full access to all event operations
-- FI-admin: Read access to all events, limited write
-- FI-user: Read access to own events only
-- FI-readonly: Read-only access to projections
+- FI-clinician: Read access to own events, limited write
 
 Usage:
     from infrastructure.events.security.rbac import check_event_access, require_event_permission
@@ -35,7 +33,7 @@ from backend.utils.common.logging.logger import get_logger
 from fastapi import Depends, HTTPException, status
 
 if TYPE_CHECKING:
-    from backend.core.infrastructure.auth.models import User
+    from backend.infrastructure.auth.domain import User
 
 logger = get_logger(__name__)
 
@@ -70,27 +68,11 @@ class EventPermission(str, Enum):
 # Role to permissions mapping
 ROLE_PERMISSIONS: dict[str, set[EventPermission]] = {
     "FI-superadmin": set(EventPermission),  # All permissions
-    "FI-admin": {
-        EventPermission.READ_STREAM,
-        EventPermission.READ_ALL_STREAMS,
-        EventPermission.REPLAY_AGGREGATE,
-        EventPermission.REBUILD_PROJECTION,
-        EventPermission.READ_PROJECTION,
-        EventPermission.READ_ALL_PROJECTIONS,
-        EventPermission.SUBSCRIBE_SSE,
-        EventPermission.READ_METRICS,
-        EventPermission.READ_TRACING,
-        EventPermission.MANAGE_CONSUMERS,
-    },
-    "FI-user": {
+    "FI-clinician": {
         EventPermission.READ_STREAM,
         EventPermission.REPLAY_AGGREGATE,
         EventPermission.READ_PROJECTION,
         EventPermission.SUBSCRIBE_SSE,
-    },
-    "FI-readonly": {
-        EventPermission.READ_PROJECTION,
-        EventPermission.READ_METRICS,
     },
 }
 
@@ -126,11 +108,8 @@ def check_event_access(
     Returns:
         True if access granted
     """
-    # Get user roles
+    # Get user roles (self-hosted JWT)
     roles = getattr(user, "roles", [])
-    if not roles:
-        # Try Auth0 custom claim
-        roles = getattr(user, "metadata", {}).get("https://aurity.app/roles", [])
 
     # Get permissions for roles
     user_permissions = get_permissions_for_roles(roles)

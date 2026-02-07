@@ -4,8 +4,6 @@ Tests the audit and feedback endpoints using existing sessions from HDF5.
 """
 
 from __future__ import annotations
-from backend.container import get_container
-
 
 import pytest
 
@@ -182,7 +180,7 @@ class TestAuditEndpoints:
 
     def test_analyze_session_flags(self):
         """Test flag detection heuristics."""
-        from backend.api.routers.session.public.sessions import _analyze_session_flags
+        from backend.api.domains.aurity.medical_ai.audit import _analyze_session_flags
 
         # Test low confidence flag
         flags = _analyze_session_flags(

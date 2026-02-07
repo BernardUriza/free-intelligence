@@ -6,7 +6,7 @@
  * Uses unified message primitives with chat-specific features:
  * - ReasoningBlock: AI thinking/reasoning display
  * - ModelBadge: LLM model indicator
- * - Auth0 integration for user names
+ * - Auth integration for user names
  * - TTS via AudioPlayer (injected into MessageActions)
  *
  * showThinking is read from ChatConfigContext (eliminates props drilling)

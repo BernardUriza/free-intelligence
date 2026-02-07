@@ -27,13 +27,14 @@ import base64
 from typing import Literal
 
 import httpx
-import os
 import structlog
+
+from backend.config.secrets import get_secret
 
 logger = structlog.get_logger(__name__)
 
 # OpenAI configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY", "")
 
 # Steerable voices (gpt-4o-audio-preview supports these)
 SteerableVoiceType = Literal["alloy", "echo", "shimmer"]

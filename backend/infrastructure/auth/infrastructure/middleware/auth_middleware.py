@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ...domain import IAuthProvider, User
-from ...infrastructure.auth0 import Auth0Provider, load_auth0_config
-from ...infrastructure.jwt import JWKSFetcher, JWTValidator
+from ...services.local_auth_provider import LocalAuthProvider
+from ...services.local_token_service import LocalTokenService
 
 logger = structlog.get_logger(__name__)
 
@@ -14,17 +14,9 @@ security = HTTPBearer(auto_error=False)
 _provider: "IAuthProvider | None" = None
 
 
-def _build_default_provider() -> Auth0Provider:
-    config = load_auth0_config()
-    jwks_fetcher = JWKSFetcher(config.jwks_url)
-    token_service = JWTValidator(
-        issuer=config.issuer,
-        audience=config.audience,
-        algorithms=config.algorithms,
-        roles_claim_key=config.roles_claim_key,
-        jwks_fetcher=jwks_fetcher,
-    )
-    return Auth0Provider(config=config, token_service=token_service)
+def _build_default_provider() -> LocalAuthProvider:
+    token_service = LocalTokenService()
+    return LocalAuthProvider(token_service=token_service)
 
 
 def get_auth_provider() -> IAuthProvider:
@@ -43,11 +35,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     provider: IAuthProvider = Depends(get_auth_provider),
 ) -> User:
-    """Validate JWT token and return the authenticated user.
-
-    All authentication goes through Auth0 - no offline bypass.
-    Desktop app uses Auth0 OAuth PKCE flow via DesktopAuth0Provider.
-    """
+    """Validate JWT token and return the authenticated user."""
     if not credentials or not credentials.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,3 +62,31 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_optional_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    provider: IAuthProvider = Depends(get_auth_provider),
+) -> User | None:
+    """Return user if authenticated, None if onboarding mode or no token.
+
+    Used for endpoints that support both authenticated and anonymous access.
+    Onboarding flow uses X-Onboarding-Mode header to bypass auth.
+    """
+    # Check for onboarding bypass header
+    if request.headers.get("X-Onboarding-Mode") == "true":
+        logger.debug("Onboarding mode detected, allowing anonymous access")
+        return None
+
+    # No credentials = anonymous access
+    if not credentials or not credentials.credentials:
+        return None
+
+    # Try to validate token, return None on failure (don't raise)
+    try:
+        user = await provider.validate_token(credentials.credentials)
+        return user if user else None
+    except Exception as exc:
+        logger.debug("Token validation failed, allowing anonymous", error=str(exc))
+        return None

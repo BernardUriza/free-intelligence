@@ -1,11 +1,12 @@
 /**
  * Workflows API Client
  *
- * Client for backend orchestrator endpoints (/api/workflows/aurity/*).
+ * Client for backend orchestrator endpoints (/api/aurity/*).
  * Provides end-to-end consultation workflows.
  *
  * File: apps/aurity/lib/api/workflows.ts
  * Created: 2025-11-08
+ * Updated: 2026-02 - Migrated to centralized api client
  */
 
 import { api } from './client';
@@ -45,7 +46,7 @@ export interface ConsultStatusResponse {
 
 /**
  * Start end-to-end consultation workflow
- * POST /api/workflows/aurity/consult
+ * POST /api/aurity/consult
  */
 export async function startConsultWorkflow(
   audio: File,
@@ -54,31 +55,19 @@ export async function startConsultWorkflow(
   const formData = new FormData();
   formData.append('audio', audio);
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/workflows/aurity/consult`,
-    {
-      method: 'POST',
-      headers: {
-        'X-Session-ID': sessionId,
-      },
-      body: formData,
-    }
-  );
+  // Use api.upload but we need custom headers, so we'll use a slightly different approach
+  // The api.upload doesn't support custom headers, so we create formData and add session ID
+  formData.append('session_id', sessionId);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to start consultation: ${error}`);
-  }
-
-  return response.json();
+  return api.upload<ConsultStartResponse>('/api/aurity/consult', formData);
 }
 
 /**
  * Get consultation workflow status
- * GET /api/workflows/aurity/consult/{jobId}
+ * GET /api/aurity/consult/{jobId}
  */
 export async function getConsultStatus(jobId: string): Promise<ConsultStatusResponse> {
-  return api.get<ConsultStatusResponse>(`/api/workflows/aurity/consult/${jobId}`);
+  return api.get<ConsultStatusResponse>(`/api/aurity/consult/${jobId}`);
 }
 
 /**

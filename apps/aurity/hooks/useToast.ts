@@ -100,30 +100,30 @@ export const TOAST_STYLES: Record<Toast['type'], {
   bg: string;
   border: string;
   text: string;
-  iconKey: string;
+  icon: string;
 }> = {
   success: {
     bg: 'bg-emerald-500/20',
     border: 'border-emerald-500/50',
     text: 'text-emerald-300',
-    iconKey: 'success',
+    icon: '✓',
   },
   error: {
     bg: 'bg-red-500/20',
     border: 'border-red-500/50',
     text: 'text-red-300',
-    iconKey: 'error',
+    icon: '✕',
   },
   info: {
     bg: 'bg-blue-500/20',
     border: 'border-blue-500/50',
     text: 'text-blue-300',
-    iconKey: 'info',
+    icon: 'ℹ',
   },
   warning: {
     bg: 'bg-amber-500/20',
     border: 'border-amber-500/50',
     text: 'text-amber-300',
-    iconKey: 'warning',
+    icon: '⚠',
   },
 };

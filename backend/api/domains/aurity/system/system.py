@@ -1,0 +1,294 @@
+"""System Information API - Disk usage, LLM status, and memory management.
+
+Endpoints:
+- GET  /system/disk-usage - Get disk usage for storage directory
+- GET  /system/llm-status - Get LLM/Ollama connection status
+- POST /system/clear-memory - Clear longitudinal memory (sessions, cache)
+
+Features:
+- fi-monitor gateway integration
+- Cloudflare tunnel URL detection
+- Disk usage monitoring
+
+Consolidated: 2026-02 (Oceanic API Restructure - Phase Consolidation)
+Migrated from: backend/infrastructure/system/api/public/system.py
+"""
+
+from __future__ import annotations
+
+import shutil
+import time
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import httpx
+from backend.infrastructure.auth import User, get_current_user
+from backend.infrastructure.model_catalog.services.tunnel_url_provider import (
+    get_tunnel_url_provider,
+)
+from backend.services.assistant.services.monitor_client import discover_monitor_url
+from backend.utils.common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
+logger = get_logger(__name__)
+
+router = APIRouter()
+
+# Default gateway URL when fi-monitor config not found
+FI_MONITOR_GATEWAY_FALLBACK = "http://localhost:11400"
+
+
+# ============================================================================
+# Pydantic Schemas
+# ============================================================================
+
+
+class DiskUsageResponse(BaseModel):
+    """Disk usage information."""
+
+    used: str  # Human-readable (e.g., "2.5 GB")
+    total: str  # Human-readable (e.g., "100 GB")
+    percent: float  # Percentage used (0-100)
+
+
+class LLMStatusResponse(BaseModel):
+    """LLM/Ollama connection status with detailed info."""
+
+    status: str = Field(..., description="online | offline | checking")
+    url: str = Field(..., description="Current Ollama URL being used")
+    is_tunnel: bool = Field(..., description="True if using Cloudflare tunnel")
+    tunnel_info: dict[str, Any] | None = Field(
+        None, description="Tunnel details (hostname, updated_at) if available"
+    )
+    models: list[str] = Field(default_factory=list, description="Available models")
+    latency_ms: int | None = Field(None, description="Response latency in ms")
+    last_check: str = Field(..., description="ISO timestamp of this check")
+    priority: str = Field(..., description="Current priority: 'tunnel' or 'local_fallback'")
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+
+@router.get("/disk-usage", response_model=DiskUsageResponse)
+async def get_disk_usage(
+    current_user: User = Depends(get_current_user),
+) -> DiskUsageResponse:
+    """Get disk usage for storage directory. Requires authentication.
+
+    Returns:
+        Disk usage statistics
+    """
+    try:
+        # Get storage directory path
+        storage_path = Path("storage")
+        if not storage_path.exists():
+            storage_path.mkdir(parents=True, exist_ok=True)
+
+        # Calculate directory size
+        total_size = sum(f.stat().st_size for f in storage_path.rglob("*") if f.is_file())
+
+        # Get disk usage for the mount point
+        disk_stat = shutil.disk_usage(storage_path)
+
+        # Convert to human-readable
+        def format_bytes(size: int) -> str:
+            size_float = float(size)
+            for unit in ["B", "KB", "MB", "GB", "TB"]:
+                if size_float < 1024:
+                    return f"{size_float:.1f} {unit}"
+                size_float /= 1024
+            return f"{size_float:.1f} PB"
+
+        used = format_bytes(total_size)
+        total = format_bytes(disk_stat.total)
+        percent = (total_size / disk_stat.total * 100) if disk_stat.total > 0 else 0
+
+        logger.info(
+            "DISK_USAGE_RETRIEVED",
+            used_bytes=total_size,
+            total_bytes=disk_stat.total,
+            percent=percent,
+        )
+
+        return DiskUsageResponse(used=used, total=total, percent=round(percent, 2))
+
+    except Exception as e:
+        logger.error("DISK_USAGE_FAILED", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to get disk usage")
+
+
+@router.post("/clear-memory")
+async def clear_longitudinal_memory(
+    current_user: User = Depends(get_current_user),
+    user_id: str = Query(..., description="User ID (JWT sub) for audit logging"),
+) -> dict[str, str]:
+    """Clear all longitudinal memory (HDF5 sessions and chat messages).
+
+    Deletes:
+    - storage/sessions/*.h5 (HDF5 session files)
+    - data/sessions/* (session metadata)
+    - Chat message history
+
+    Preserves:
+    - Persona configurations
+    - Patient records
+    - Provider data
+
+    Args:
+        user_id: User identifier for audit logging
+
+    Returns:
+        Success message with deletion count
+    """
+    try:
+        deleted_files = 0
+
+        # Delete HDF5 session files
+        sessions_path = Path("storage/sessions")
+        if sessions_path.exists():
+            for h5_file in sessions_path.glob("*.h5"):
+                h5_file.unlink()
+                deleted_files += 1
+                logger.info("SESSION_FILE_DELETED", file=str(h5_file), user_id=user_id)
+
+        # Delete session metadata
+        data_sessions_path = Path("data/sessions")
+        if data_sessions_path.exists():
+            for session_dir in data_sessions_path.iterdir():
+                if session_dir.is_dir():
+                    shutil.rmtree(session_dir)
+                    deleted_files += 1
+                    logger.info("SESSION_DIR_DELETED", dir=str(session_dir), user_id=user_id)
+
+        # Delete chat message cache (if exists)
+        chat_cache_path = Path("data/llm_cache")
+        if chat_cache_path.exists():
+            for cache_file in chat_cache_path.glob("*"):
+                if cache_file.is_file():
+                    cache_file.unlink()
+                    deleted_files += 1
+
+        logger.warning(
+            "LONGITUDINAL_MEMORY_CLEARED",
+            user_id=user_id,
+            files_deleted=deleted_files,
+        )
+
+        return {
+            "message": f"Memoria longitudinal eliminada exitosamente. {deleted_files} archivos eliminados.",
+            "files_deleted": str(deleted_files),
+        }
+
+    except Exception as e:
+        logger.error("CLEAR_MEMORY_FAILED", error=str(e), user_id=user_id)
+        raise HTTPException(status_code=500, detail=f"Failed to clear memory: {e!s}")
+
+
+@router.get("/llm-status", response_model=LLMStatusResponse)
+async def get_llm_status(
+    current_user: User = Depends(get_current_user),
+) -> LLMStatusResponse:
+    """Get detailed LLM/Ollama connection status. Requires authentication.
+
+    Returns comprehensive information about the current LLM connection:
+    - Connection status (online/offline)
+    - Active URL (tunnel or localhost fallback)
+    - Tunnel info (hostname, last update) if using tunnel
+    - Available models
+    - Response latency
+
+    Returns:
+        LLMStatusResponse with detailed connection info
+    """
+    provider = get_tunnel_url_provider()
+
+    # Get current URL (triggers cache refresh if needed)
+    current_url = await provider.get_ollama_url()
+    tunnel_info = await provider.get_tunnel_info()
+
+    # Determine if using tunnel
+    is_tunnel = tunnel_info is not None and "tunnel_url" in (tunnel_info or {})
+    # Note: No fallback URL - cloud MUST have Ollama configured (fail-fast policy)
+
+    # fi-monitor gateway URL (single entry point for all LLM services)
+    # Read from config file using existing discovery function
+    fi_monitor_gateway = await discover_monitor_url() or FI_MONITOR_GATEWAY_FALLBACK
+
+    # Check if fi-monitor gateway is reachable first, then Ollama via gateway
+    status = "offline"
+    models: list[str] = []
+    latency_ms: int | None = None
+
+    try:
+        async with httpx.AsyncClient() as client:
+            check_start = time.time()
+
+            # First: Check fi-monitor gateway health
+            try:
+                gateway_response = await client.get(
+                    f"{fi_monitor_gateway}/gateway/health", timeout=2.0
+                )
+                if gateway_response.status_code == 200:
+                    # Gateway is up, now check Ollama through gateway
+                    response = await client.get(
+                        f"{fi_monitor_gateway}/api/tags", timeout=2.0
+                    )
+                    latency_ms = int((time.time() - check_start) * 1000)
+
+                    if response.status_code == 200:
+                        status = "online"
+                        data = response.json()
+                        models = [m.get("name", "") for m in data.get("models", [])]
+                        # Update current_url to reflect we're using gateway
+                        current_url = fi_monitor_gateway
+                else:
+                    logger.debug(
+                        "FI_MONITOR_GATEWAY_NOT_OK",
+                        status_code=gateway_response.status_code,
+                    )
+            except Exception as gateway_err:
+                # Gateway not available, fall back to direct Ollama check
+                logger.debug(
+                    "FI_MONITOR_GATEWAY_UNREACHABLE",
+                    error=str(gateway_err),
+                    fallback_to="direct_ollama",
+                )
+                # Fallback: check Ollama directly
+                response = await client.get(f"{current_url}/api/tags", timeout=2.0)
+                latency_ms = int((time.time() - check_start) * 1000)
+
+                if response.status_code == 200:
+                    status = "online"
+                    data = response.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+
+    except Exception as e:
+        logger.debug("LLM_STATUS_CHECK_FAILED", error=str(e), url=current_url)
+        status = "offline"
+
+    # Priority: tunnel if using remote URL, otherwise local (desktop dev)
+    priority = "tunnel" if is_tunnel else "local"
+
+    logger.info(
+        "LLM_STATUS_CHECKED",
+        status=status,
+        url=current_url,
+        is_tunnel=is_tunnel,
+        models_count=len(models),
+        latency_ms=latency_ms,
+    )
+
+    return LLMStatusResponse(
+        status=status,
+        url=current_url,
+        is_tunnel=is_tunnel,
+        tunnel_info=tunnel_info,
+        models=models,
+        latency_ms=latency_ms,
+        last_check=datetime.now(UTC).isoformat(),
+        priority=priority,
+    )

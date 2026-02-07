@@ -15,6 +15,7 @@ import { profileHeader } from '@/config/page-headers';
 import { gradients } from '@/lib/styles/gradients';
 import { showSuccess, showError } from '@/lib/swal';
 import { CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
+import { api } from '@/lib/api/client';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -22,23 +23,16 @@ export default function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Auth0 tenant configuration
-  const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
-  const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-
-  // Detect if user logged in with social provider (Google, etc.)
-  // Auth0 includes 'sub' field like "google-oauth2|123456" or "auth0|123456"
-  const isSocialLogin = user?.sub ? !user.sub.startsWith('auth0|') : false;
+  // All users use email/password auth (no social login)
+  const isSocialLogin = false;
 
   // Callback declared before useEffect that uses it
   const fetchDiskUsage = useCallback(async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-      const response = await fetch(`${backendUrl}/api/workflows/aurity/system/disk-usage`);
-      if (response.ok) {
-        const data = await response.json();
-        setDiskUsage(data);
-      }
+      const data = await api.get<{ used: string; total: string; percent: number }>(
+        '/api/aurity/system/disk-usage'
+      );
+      setDiskUsage(data);
     } catch (error) {
       console.error('Error fetching disk usage:', error);
     }
@@ -53,52 +47,41 @@ export default function ProfilePage() {
 
   // Handlers for profile actions
   const handleChangePassword = () => {
-    // Redirect to Auth0 Universal Login with password reset screen
-    if (auth0Domain && clientId) {
-      const returnTo = encodeURIComponent(window.location.origin + '/profile');
-      window.location.href = `https://${auth0Domain}/authorize?client_id=${clientId}&response_type=code&redirect_uri=${returnTo}&scope=openid%20profile%20email&screen_hint=reset-password`;
-    }
+    // TODO: Implement change password endpoint (POST /auth/change-password)
+    alert('Cambio de contraseña no disponible aún. Contacta al administrador.');
   };
 
   const handleDeleteLongitudinalMemory = async () => {
     setIsDeleting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
       const userId = encodeURIComponent(user?.sub || 'unknown');
-      const response = await fetch(`${backendUrl}/api/workflows/aurity/system/clear-memory?user_id=${userId}`, {
-        method: 'POST',
-      });
+      const result = await api.post<{ message: string }>(
+        `/api/aurity/system/clear-memory?user_id=${userId}`
+      );
 
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Clear ChatWidget localStorage
-        // The ChatWidget stores messages with keys like 'chat_messages', 'chat_history', etc.
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.startsWith('chat_') || key.startsWith('aurity_chat_'))) {
-            keysToRemove.push(key);
-          }
+      // Clear ChatWidget localStorage
+      // The ChatWidget stores messages with keys like 'chat_messages', 'chat_history', etc.
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('chat_') || key.startsWith('aurity_chat_'))) {
+          keysToRemove.push(key);
         }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-        
-        await showSuccess('Memoria eliminada', `${result.message}\n\nTambién se limpió el caché local del chat.`);
-        setShowDeleteModal(false);
-        // Refresh disk usage
-        await fetchDiskUsage();
-        
-        // Force refresh chat widget if it's open (trigger storage event)
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'chat_messages',
-          oldValue: 'cleared',
-          newValue: null,
-          url: window.location.href
-        }));
-      } else {
-        const error = await response.json();
-        await showError('Error', error.detail || 'No se pudo eliminar la memoria');
       }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      await showSuccess('Memoria eliminada', `${result.message}\n\nTambién se limpió el caché local del chat.`);
+      setShowDeleteModal(false);
+      // Refresh disk usage
+      await fetchDiskUsage();
+
+      // Force refresh chat widget if it's open (trigger storage event)
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'chat_messages',
+        oldValue: 'cleared',
+        newValue: null,
+        url: window.location.href
+      }));
     } catch (error) {
       console.error('Error deleting memory:', error);
       await showError('Error de red', error instanceof Error ? error.message : 'No se pudo conectar al servidor');
@@ -132,7 +115,7 @@ export default function ProfilePage() {
   const headerConfig = profileHeader({
     email: user?.email,
     emailVerified: user?.email_verified,
-    role: user?.['https://aurity.app/roles']?.[0] || 'USER',
+    role: user?.roles?.[0] || 'USER',
   });
 
   return (
@@ -220,9 +203,7 @@ export default function ProfilePage() {
         <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-6">
           <h3 className="fi-title mb-4">Configuración</h3>
           <p className="text-slate-400 text-sm mb-4">
-            {isSocialLogin 
-              ? 'Iniciaste sesión con un proveedor social (Google, etc.). La configuración de tu cuenta se gestiona en ese proveedor.'
-              : 'La configuración de perfil se gestiona a través de Auth0. Para cambiar tu información, contacta al administrador.'}
+            Para cambiar tu información de perfil, contacta al administrador.
           </p>
           <div className="flex flex-wrap gap-3">
             {!isSocialLogin && (

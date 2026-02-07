@@ -23,7 +23,7 @@ export interface ChatHook {
   loadingOlder?: boolean;
   streamingMessage?: string;
   streaming?: {
-    status: 'idle' | 'streaming' | 'complete' | 'error';
+    status: 'idle' | 'connecting' | 'streaming' | 'thinking' | 'complete' | 'error' | 'aborted';
     content: string;
     thinking: string;
     isStreaming: boolean;

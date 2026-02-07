@@ -1,65 +1,35 @@
 from __future__ import annotations
 
-import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
 from backend.infrastructure.auth.domain.entities.user import UserRole
-from backend.infrastructure.auth.infrastructure.jwt.jwt_validator import JWTValidator
-from cryptography.hazmat.primitives.asymmetric import rsa
+from backend.infrastructure.auth.services.local_token_service import LocalTokenService
 
 
-class StaticJWKSFetcher:
-    def __init__(self, jwk: dict):
-        self._jwk = jwk
-
-    async def get_jwk(self, kid: str) -> dict:
-        return {**self._jwk, "kid": kid}
-
-
-@pytest.fixture(scope="session")
-def rsa_keypair():
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(private_key.public_key()))
-    return private_key, public_jwk
+@pytest.fixture(autouse=True)
+def set_jwt_secret(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", "test-secret-key-that-is-at-least-32-characters-long")
 
 
 @pytest.fixture()
-def jwt_validator(rsa_keypair):
-    private_key, public_jwk = rsa_keypair
-    fetcher = StaticJWKSFetcher(public_jwk)
-    return private_key, JWTValidator(
-        issuer="https://example.auth0.com/",
-        audience="https://app.aurity.io",
-        algorithms=["RS256"],
-        roles_claim_key="https://aurity.app/roles",
-        jwks_fetcher=fetcher,
-    )
+def token_service():
+    return LocalTokenService()
 
 
 @pytest.mark.asyncio
-async def test_validate_token_success(jwt_validator):
-    private_key, validator = jwt_validator
-    now = datetime.now(UTC)
-    kid = "unit-test"
-
-    token = jwt.encode(
-        {
-            "sub": "user-123",
-            "email": "user@example.com",
-            "https://aurity.app/roles": [UserRole.SUPERADMIN.value],
-            "iss": "https://example.auth0.com/",
-            "aud": "https://app.aurity.io",
-            "iat": now,
-            "exp": now + timedelta(minutes=5),
-        },
-        private_key,
-        algorithm="RS256",
-        headers={"kid": kid},
+async def test_create_and_validate_access_token(token_service):
+    token = token_service.create_access_token(
+        user_id="user-123",
+        email="user@example.com",
+        roles=[UserRole.SUPERADMIN],
+        clinic_id=None,
+        name="Test User",
     )
 
-    payload = await validator.validate(token)
+    payload = await token_service.validate(token)
 
     assert payload.subject == "user-123"
     assert payload.email == "user@example.com"
@@ -67,25 +37,55 @@ async def test_validate_token_success(jwt_validator):
 
 
 @pytest.mark.asyncio
-async def test_validate_token_expired(jwt_validator):
-    private_key, validator = jwt_validator
-    expired_at = datetime.now(UTC) - timedelta(minutes=1)
-    kid = "unit-test"
+async def test_validate_expired_token(token_service):
+    secret = os.environ["JWT_SECRET"]
+    now = datetime.now(UTC)
 
     token = jwt.encode(
         {
             "sub": "user-123",
             "email": "user@example.com",
-            "https://aurity.app/roles": [UserRole.SUPERADMIN.value],
-            "iss": "https://example.auth0.com/",
-            "aud": "https://app.aurity.io",
-            "iat": expired_at - timedelta(minutes=5),
-            "exp": expired_at,
+            "roles": [UserRole.SUPERADMIN.value],
+            "iat": now - timedelta(minutes=20),
+            "exp": now - timedelta(minutes=1),
         },
-        private_key,
-        algorithm="RS256",
-        headers={"kid": kid},
+        secret,
+        algorithm="HS256",
     )
 
     with pytest.raises(ValueError):
-        await validator.validate(token)
+        await token_service.validate(token)
+
+
+@pytest.mark.asyncio
+async def test_validate_bad_signature():
+    svc = LocalTokenService()
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "email": "user@example.com",
+            "roles": [],
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        "wrong-secret-key-that-is-also-32-chars",
+        algorithm="HS256",
+    )
+
+    with pytest.raises(ValueError):
+        await svc.validate(token)
+
+
+def test_create_refresh_token(token_service):
+    raw, hashed, expires_at = token_service.create_refresh_token()
+
+    assert raw != hashed
+    assert len(raw) == 64  # hex-encoded 32 bytes
+    assert token_service.hash_token(raw) == hashed
+    assert expires_at > datetime.now(UTC)
+
+
+def test_hash_token_deterministic(token_service):
+    raw = "test-token-value"
+    h1 = token_service.hash_token(raw)
+    h2 = token_service.hash_token(raw)
+    assert h1 == h2

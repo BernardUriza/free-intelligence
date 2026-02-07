@@ -74,7 +74,7 @@ class HDF5MemoryStore(IMemoryStore):
         Extracts from DIMemoryService._get_audio_events() (lines 191-361).
 
         Args:
-            doctor_id: Doctor identifier (Auth0 user.sub)
+            doctor_id: Doctor identifier (JWT user.sub)
             start_ts: Optional start of time range (Unix seconds)
             end_ts: Optional end of time range (Unix seconds)
             limit: Maximum events to return
@@ -225,7 +225,7 @@ class HDF5MemoryStore(IMemoryStore):
         Performance Warning:
             - O(N) scan of ALL chunks (no indexing) - SLOW with large datasets
             - Early exit when limit reached (mitigation)
-            - TODO: MUST implement Elasticsearch/Vector Search for production
+            - For production scale, consider Elasticsearch or Vector Search
 
         Note:
             Uses case-insensitive substring matching (not full-text search).

@@ -225,7 +225,7 @@ export default function ConfigPage() {
               <div className="fi-settings-row-bordered">
                 <div>
                   <p className="text-white font-medium">Roles & Permisos</p>
-                  <p className="fi-subtitle">Configurar RBAC (Auth0)</p>
+                  <p className="fi-subtitle">Configurar RBAC</p>
                 </div>
                 <Button
                   onClick={() => setShowRolesModal(true)}
@@ -275,7 +275,7 @@ export default function ConfigPage() {
                     <span className="text-white font-mono">{user?.email}</span>
                   </div>
                   <div className="fi-flex-between text-sm">
-                    <span className="text-slate-400">Auth0 Sub:</span>
+                    <span className="text-slate-400">User ID:</span>
                     <span className="text-slate-500 font-mono text-xs truncate max-w-xs">
                       {user?.sub}
                     </span>
@@ -317,11 +317,7 @@ export default function ConfigPage() {
                       </div>
                       <div className="fi-text-xs-muted">
                         {role === ROLES.SUPERADMIN && 'Acceso completo al sistema'}
-                        {role === ROLES.ADMIN && 'Administración general'}
-                        {role === ROLES.DOCTOR && 'Operaciones clínicas'}
-                        {role === ROLES.NURSE && 'Asistencia clínica'}
-                        {role === ROLES.STAFF && 'Personal administrativo'}
-                        {role === ROLES.VIEWER && 'Solo lectura'}
+                        {role === ROLES.CLINICIAN && 'Operaciones clinicas'}
                       </div>
                     </div>
                   ))}
@@ -336,39 +332,33 @@ export default function ConfigPage() {
                     <thead>
                       <tr className="fi-border-bottom">
                         <th className="text-left py-2 px-2 text-slate-400 font-medium">Permiso</th>
-                        <th className="text-center py-2 px-2 fi-text-purple font-medium">SUPER</th>
-                        <th className="text-center py-2 px-2 fi-text-primary font-medium">ADMIN</th>
-                        <th className="text-center py-2 px-2 fi-text-success font-medium">DOCTOR</th>
+                        <th className="text-center py-2 px-2 fi-text-purple font-medium">SUPERADMIN</th>
+                        <th className="text-center py-2 px-2 fi-text-success font-medium">CLINICIAN</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Gestionar Sistema</td>
                         <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">—</td>
-                        <td className="text-center text-slate-600">—</td>
+                        <td className="text-center text-slate-600">--</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Ver Logs</td>
                         <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">—</td>
+                        <td className="text-center text-slate-600">--</td>
                       </tr>
                       <tr className="border-b border-slate-800">
                         <td className="py-2 px-2 fi-text">Gestionar Usuarios</td>
                         <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">—</td>
-                        <td className="text-center text-slate-600">—</td>
+                        <td className="text-center text-slate-600">--</td>
                       </tr>
                       <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Crear Sesión</td>
-                        <td className="text-center">Si</td>
+                        <td className="py-2 px-2 fi-text">Crear Sesion</td>
                         <td className="text-center">Si</td>
                         <td className="text-center">Si</td>
                       </tr>
                       <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Ver Sesión</td>
-                        <td className="text-center">Si</td>
+                        <td className="py-2 px-2 fi-text">Ver Sesion</td>
                         <td className="text-center">Si</td>
                         <td className="text-center">Si</td>
                       </tr>
@@ -376,13 +366,11 @@ export default function ConfigPage() {
                         <td className="py-2 px-2 fi-text">Exportar Datos</td>
                         <td className="text-center">Si</td>
                         <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-2 fi-text">Eliminar Sesión</td>
+                        <td className="py-2 px-2 fi-text">Eliminar Sesion</td>
                         <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">—</td>
+                        <td className="text-center text-slate-600">--</td>
                       </tr>
                     </tbody>
                   </table>
@@ -408,20 +396,17 @@ export default function ConfigPage() {
                 </p>
               </div>
 
-              {/* Auth0 Integration Note */}
+              {/* Auth Integration Note */}
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-blue-300 mb-2">
-                   Integración Auth0
+                   Autenticación JWT
                 </h3>
                 <p className="text-xs fi-text-primary/80 mb-2">
-                  Los roles se configuran en Auth0 Dashboard y se incluyen en el JWT token bajo el namespace:
+                  Los roles se asignan al registrar usuarios y se incluyen en el JWT token bajo el claim:
                 </p>
                 <code className="block bg-slate-950/50 border border-blue-800/30 rounded p-2 text-xs text-blue-300 font-mono">
-                  https://aurity.app/roles
+                  roles: [&quot;FI-clinician&quot;, &quot;FI-superadmin&quot;]
                 </code>
-                <p className="fi-text-xs-muted mt-2">
-                   Documentación: <a href="https://auth0.com/docs/manage-users/access-control/rbac" className="fi-text-primary hover:underline" target="_blank" rel="noopener noreferrer">Auth0 RBAC Guide</a>
-                </p>
               </div>
             </div>
           </div>
@@ -440,44 +425,25 @@ export default function ConfigPage() {
           <div className="bg-slate-800 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 fi-border-bottom">
               <h2 className="fi-title-xl">Configurar Roles & Permisos</h2>
-              <p className="fi-subtitle mt-1">Guía de configuración RBAC en Auth0</p>
+              <p className="fi-subtitle mt-1">Configuración RBAC del sistema</p>
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-purple-300 mb-2"> Configuración en Auth0</h3>
+                <h3 className="text-sm font-semibold text-purple-300 mb-2"> Gestión de Roles</h3>
                 <ol className="text-xs fi-text space-y-3 list-decimal list-inside">
                   <li>
-                    <strong className="text-white">Crear Roles</strong>
-                    <p className="text-slate-400 ml-5 mt-1">Auth0 Dashboard → User Management → Roles → Create Role</p>
+                    <strong className="text-white">Roles disponibles</strong>
                     <div className="ml-5 mt-2 bg-slate-950/50 p-2 rounded text-[10px] font-mono text-slate-400">
-                      Nombres de roles: superadmin, admin, doctor, nurse, staff, viewer
+                      FI-superadmin, FI-clinician
                     </div>
                   </li>
                   <li>
-                    <strong className="text-white">Configurar Actions (JWT customization)</strong>
-                    <p className="text-slate-400 ml-5 mt-1">Actions → Flows → Login → Create Custom Action</p>
-                    <div className="ml-5 mt-2 bg-slate-950/50 p-3 rounded">
-                      <pre className="text-[10px] fi-text-green overflow-x-auto">
-{`exports.onExecutePostLogin = async (event, api) => {
-  const namespace = 'https://aurity.app';
-
-  if (event.authorization) {
-    api.idToken.setCustomClaim(
-      \`\${namespace}/roles\`,
-      event.authorization.roles
-    );
-    api.accessToken.setCustomClaim(
-      \`\${namespace}/roles\`,
-      event.authorization.roles
-    );
-  }
-};`}
-                      </pre>
-                    </div>
+                    <strong className="text-white">Asignación de roles</strong>
+                    <p className="text-slate-400 ml-5 mt-1">Los roles se asignan al registrar usuarios o via el panel de administración de usuarios.</p>
                   </li>
                   <li>
-                    <strong className="text-white">Asignar Roles a Usuarios</strong>
-                    <p className="text-slate-400 ml-5 mt-1">User Management → Users → [Usuario] → Roles → Assign Roles</p>
+                    <strong className="text-white">JWT Claims</strong>
+                    <p className="text-slate-400 ml-5 mt-1">Los roles se incluyen automáticamente en el JWT token bajo el claim &quot;roles&quot;.</p>
                   </li>
                 </ol>
               </div>
@@ -495,11 +461,7 @@ export default function ConfigPage() {
                       </div>
                       <span className="text-slate-500">
                         {role === ROLES.SUPERADMIN && 'Full access'}
-                        {role === ROLES.ADMIN && 'Admin operations'}
-                        {role === ROLES.DOCTOR && 'Clinical operations'}
-                        {role === ROLES.NURSE && 'Clinical assistance'}
-                        {role === ROLES.STAFF && 'Administrative'}
-                        {role === ROLES.VIEWER && 'Read-only'}
+                        {role === ROLES.CLINICIAN && 'Clinical operations'}
                       </span>
                     </div>
                   ))}
@@ -507,23 +469,14 @@ export default function ConfigPage() {
               </div>
 
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Referencias</h3>
-                <ul className="text-xs fi-text-primary/80 space-y-1">
-                  <li>→ <a href="https://auth0.com/docs/manage-users/access-control/rbac" target="_blank" rel="noopener noreferrer" className="hover:underline">Auth0 RBAC Documentation</a></li>
-                  <li>→ <a href="https://auth0.com/docs/customize/actions" target="_blank" rel="noopener noreferrer" className="hover:underline">Auth0 Actions Guide</a></li>
-                  <li>→ <a href="https://auth0.com/docs/secure/tokens/json-web-tokens/create-custom-claims" target="_blank" rel="noopener noreferrer" className="hover:underline">Custom JWT Claims</a></li>
-                </ul>
+                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Permisos por Rol</h3>
+                <p className="text-xs fi-text-primary/80">
+                  Cada rol tiene permisos predefinidos que se verifican automáticamente en cada endpoint del backend.
+                  El primer usuario registrado recibe el rol FI-superadmin automáticamente.
+                </p>
               </div>
             </div>
             <div className="p-4 fi-border-top flex justify-end gap-2">
-              <a
-                href="https://manage.auth0.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-              >
-                Abrir Auth0 Dashboard
-              </a>
               <Button
                 onClick={() => setShowRolesModal(false)}
                 variant="secondary"
@@ -570,7 +523,7 @@ export default function ConfigPage() {
 {`{
   "timestamp": "2025-11-20T02:45:12Z",
   "operation": "llm_generate",
-  "user_id": "auth0|123...",
+  "user_id": "user-123...",
   "user_email": "doctor@hospital.com",
   "payload_hash": "sha256:abc...",
   "result_hash": "sha256:def...",

@@ -86,6 +86,18 @@ def build_cli_parser() -> argparse.ArgumentParser:
 
 
 def run(args: argparse.Namespace) -> int:
+    """Execute health validation probes against API endpoints.
+
+    Performs shallow (HTTP status) and deep (response validation) health
+    checks against configured endpoints. Results are compared against SLO
+    policy thresholds to determine overall system health.
+
+    Args:
+        args: CLI arguments including base URL, probe paths, and timeouts
+
+    Returns:
+        Exit code (0 if all probes pass, 1 if any fail)
+    """
     try:
         ensure_read_only_mode(True)
         common = coerce_common_args(args)

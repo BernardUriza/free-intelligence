@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
 from backend.domain.prescription.models.medication import (
     Medication,
@@ -523,7 +523,7 @@ def get_medication_extractor(
     """
     if catalog_service is None:
         # Backwards compatibility: create default catalog service
-        from backend.services.workflow.dependencies import get_catalog_service_dep
+        from backend.domain.prescription.dependencies import get_catalog_service_dep
 
         catalog_service = get_catalog_service_dep()
 

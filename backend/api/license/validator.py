@@ -12,9 +12,8 @@ Used by both the admin CLI (for verification) and the desktop app
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from .generator import (
     LicensePayload,
@@ -208,10 +207,6 @@ def get_license_info(license_key: str) -> dict | None:
             "expires_at": payload.expires_at,
             "days_remaining": days_remaining,
             "version": payload.version,
-            # Auth0 config (masked for display)
-            "auth0_domain": payload.auth0_domain,
-            "auth0_client_id": _mask_string(payload.auth0_client_id),
-            "auth0_audience": payload.auth0_audience,
         }
 
     except Exception:

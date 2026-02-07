@@ -6,8 +6,9 @@
  */
 
 import type { LLMModel, LLMModelCreate, LLMModelUpdate, LLMProvider } from '@aurity-standalone/types/llm';
+import { api } from './client';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const API_BASE = '/api/admin/llm-models';
 
 /**
  * Fetch all LLM models
@@ -24,77 +25,29 @@ export async function fetchLLMModels(options?: {
     params.append('provider', options.provider);
   }
 
-  const url = `${BACKEND_URL}/api/admin/llm-models${params.toString() ? `?${params}` : ''}`;
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch LLM models: ${response.statusText}`);
-  }
-
-  return response.json();
+  const query = params.toString() ? `?${params}` : '';
+  return api.get<LLMModel[]>(`${API_BASE}${query}`);
 }
 
 /**
  * Fetch a specific LLM model by ID
  */
 export async function fetchLLMModel(modelId: string): Promise<LLMModel> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/${modelId}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch LLM model ${modelId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<LLMModel>(`${API_BASE}/${modelId}`);
 }
 
 /**
  * Create a new LLM model
  */
 export async function createLLMModel(data: LLMModelCreate): Promise<LLMModel> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to create LLM model: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<LLMModel>(API_BASE, data);
 }
 
 /**
  * Update an existing LLM model
  */
 export async function updateLLMModel(modelId: string, data: LLMModelUpdate): Promise<LLMModel> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/${modelId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to update LLM model ${modelId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.put<LLMModel>(`${API_BASE}/${modelId}`, data);
 }
 
 /**
@@ -102,53 +55,21 @@ export async function updateLLMModel(modelId: string, data: LLMModelUpdate): Pro
  */
 export async function deleteLLMModel(modelId: string, hardDelete = false): Promise<void> {
   const params = hardDelete ? '?hard_delete=true' : '';
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/${modelId}${params}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to delete LLM model ${modelId}: ${response.statusText}`);
-  }
+  await api.delete<void>(`${API_BASE}/${modelId}${params}`);
 }
 
 /**
  * Get list of available providers
  */
 export async function fetchProviders(): Promise<string[]> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/providers/list`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch providers: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<string[]>(`${API_BASE}/providers/list`);
 }
 
 /**
  * Get list of available cost tiers
  */
 export async function fetchCostTiers(): Promise<string[]> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/cost-tiers/list`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch cost tiers: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<string[]>(`${API_BASE}/cost-tiers/list`);
 }
 
 /**
@@ -166,17 +87,5 @@ export interface ModelTestResult {
  * Test an LLM model with a random medical prompt
  */
 export async function testLLMModel(modelId: string): Promise<ModelTestResult> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/llm-models/${modelId}/test`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to test model ${modelId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<ModelTestResult>(`${API_BASE}/${modelId}/test`);
 }

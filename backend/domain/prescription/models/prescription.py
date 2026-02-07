@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from backend.domain.prescription.models.medication import Medication
@@ -141,7 +141,7 @@ class PhysicianInfo(BaseModel):
 
     physician_id: str | None = Field(
         default=None,
-        description="ID del médico en el sistema (Auth0 sub)",
+        description="ID del médico en el sistema (JWT sub)",
     )
 
     model_config = ConfigDict(extra="allow")

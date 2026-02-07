@@ -5,11 +5,13 @@ Workers depend on this interface, not the concrete PolicyLoader implementation.
 
 Pattern: Dependency Inversion Principle (DIP)
 Card: Backend Refactor Phase 2.3 - Eliminate Service Locator
+Updated: 2026-02-01 (Phase 2.3 Urano - added policy/policy_path for API router)
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 
@@ -22,7 +24,15 @@ class IPolicyLoader(ABC):
 
     By depending on this interface instead of the concrete PolicyLoader,
     workers become easier to test (mock the interface) and more loosely coupled.
+
+    Attributes:
+        policy: The full loaded policy dictionary (None if not loaded)
+        policy_path: Path to the policy YAML file
     """
+
+    # Instance attributes (not abstract - implementations set these in __init__)
+    policy: dict[str, Any] | None
+    policy_path: Path
 
     @abstractmethod
     def get_diarization_config(self) -> dict[str, Any]:

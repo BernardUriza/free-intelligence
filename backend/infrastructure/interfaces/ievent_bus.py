@@ -1,15 +1,17 @@
 """Event bus interface for decoupled inter-layer communication."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Dict
+from typing import Any
 
 
 class IEventBus(ABC):
     """Abstract interface for event bus operations."""
 
     @abstractmethod
-    def publish(self, event_type: str, data: Dict[str, Any]) -> None:
+    def publish(self, event_type: str, data: dict[str, Any]) -> None:
         """Publish an event to all subscribers.
 
         Args:
@@ -19,7 +21,7 @@ class IEventBus(ABC):
         pass
 
     @abstractmethod
-    def subscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[dict[str, Any]], None]) -> None:
         """Subscribe to an event type.
 
         Args:
@@ -29,7 +31,7 @@ class IEventBus(ABC):
         pass
 
     @abstractmethod
-    def unsubscribe(self, event_type: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def unsubscribe(self, event_type: str, handler: Callable[[dict[str, Any]], None]) -> None:
         """Unsubscribe from an event type.
 
         Args:

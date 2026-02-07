@@ -124,6 +124,7 @@ class PersonaManager:
                 voice=validated.voice,
                 template_sha256=sha256,
                 template_version=validated.version,
+                response_format=validated.response_format,
             )
 
             # Update cache
@@ -174,6 +175,7 @@ class PersonaManager:
             loaded=loaded,
             failed=failed,
             cache_ttl_s=self._cache_ttl_s,
+            config_dir=str(self._config_dir),
         )
 
     def _check_and_reload_if_stale(self, persona: str) -> None:
@@ -372,12 +374,8 @@ class PersonaManager:
             voice=voice,
             template_sha256=template.template_sha256,
             template_version=template.template_version,
+            response_format=template.response_format,
         )
-
-    # Backward compatibility alias
-    def get_user_persona(self, persona: str, user_id: str, db: Session) -> PersonaConfig:
-        """Get persona with user overrides (backward compatible)."""
-        return self.get_effective_persona(persona, user_id=user_id, db=db)
 
     # ========================================================================
     # MULTI-TENANT MANAGEMENT

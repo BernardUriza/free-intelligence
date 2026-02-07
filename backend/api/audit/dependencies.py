@@ -6,25 +6,15 @@ Direct service instantiation - no service locator (Phase 4A).
 Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
+Updated: 2026-02-02 (Architecture fix: Moved audit services to services/)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
-from backend.repositories.audit_repository import AuditRepository
-from backend.api.audit.services.di_audit_service import DIAuditService
-from backend.config import CORPUS_PATH
+from backend.services.audit.services.di_audit_service import DIAuditService
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository,
+)
 from backend.utils.common.logging.logger import get_logger
-
-
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4A).
-
-    Returns:
-        AuditRepository instance
-
-    Note:
-        Uses centralized corpus.h5 path from backend.config.
-    """
-    return AuditRepository(CORPUS_PATH)
 
 
 def get_audit_service() -> DIAuditService:
@@ -40,3 +30,7 @@ def get_audit_service() -> DIAuditService:
     """
     logger = get_logger(__name__)
     return DIAuditService(logger=logger, repository=get_audit_repository())
+
+
+# Re-export for convenience
+__all__ = ["DIAuditService", "get_audit_service", "get_audit_repository"]

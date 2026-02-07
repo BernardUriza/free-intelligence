@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 import os
 import sys
@@ -160,7 +160,7 @@ class StructuredExtractRequest(BaseModel):
     """Request model for structured data extraction"""
 
     text: str
-    schema_definition: Dict[str, Any]
+    schema_definition: dict[str, Any]
     provider: str = "claude"
     temperature: float = 0.3  # Lower temperature for more consistent structured output
 
@@ -168,15 +168,15 @@ class StructuredExtractRequest(BaseModel):
 class StructuredResponse(BaseModel):
     """Response model for structured data extraction"""
 
-    extracted_data: Dict[str, Any]
+    extracted_data: dict[str, Any]
     provider: str
     success: bool
     message: str | None = None
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+async def health_check() -> dict[str, str]:
+    """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "llm-middleware",
@@ -200,9 +200,8 @@ async def get_metrics_json():
 
 @app.post("/llm/generate", response_model=LLMGenerateResponse)
 @require_audit_log
-async def generate_text(request: LLMGenerateRequest):
-    """
-    Generate text using the specified LLM provider.
+async def generate_text(request: LLMGenerateRequest) -> LLMGenerateResponse:
+    """Generate text using the specified LLM provider.
 
     This endpoint implements the LLM Router Policy by centralizing all LLM access
     and enforcing audit logging, cost controls, and privacy policies.
@@ -248,9 +247,8 @@ async def generate_text(request: LLMGenerateRequest):
 
 @app.post("/llm/structured-extract", response_model=StructuredResponse)
 @require_audit_log
-async def structured_extract(request: StructuredExtractRequest):
-    """
-    Extract structured data from text using LLM.
+async def structured_extract(request: StructuredExtractRequest) -> StructuredResponse:
+    """Extract structured data from text using LLM.
 
     This endpoint is used by various parts of the system that need structured
     output from LLMs, with appropriate privacy and audit controls.
@@ -316,9 +314,8 @@ async def structured_extract(request: StructuredExtractRequest):
 
 
 @app.post("/chat")
-async def chat_endpoint():
-    """
-    Chat endpoint placeholder.
+async def chat_endpoint() -> dict[str, str]:
+    """Chat endpoint placeholder.
 
     This would implement a chat-based interface using the LLM router.
     """

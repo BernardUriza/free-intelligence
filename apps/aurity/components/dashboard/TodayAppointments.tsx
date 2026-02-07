@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { api } from '@/lib/api/client';
 
 // =============================================================================
 // TYPES
@@ -133,21 +134,16 @@ export function TodayAppointments({
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7001';
-
   const fetchAppointments = useCallback(async () => {
     try {
       setError(null);
       const today = new Date().toISOString().split('T')[0];
-      let url = `${API_BASE}/api/clinics/${clinicId}/appointments?date=${today}`;
+      let url = `/api/clinics/${clinicId}/appointments?date=${today}`;
       if (doctorId) {
         url += `&doctor_id=${doctorId}`;
       }
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Error al cargar citas');
-
-      const data = await res.json();
+      const data = await api.get<{ appointments: Appointment[] }>(url);
       setAppointments(data.appointments || []);
       setLastRefresh(new Date());
     } catch (err) {
@@ -155,7 +151,7 @@ export function TodayAppointments({
     } finally {
       setLoading(false);
     }
-  }, [API_BASE, clinicId, doctorId]);
+  }, [clinicId, doctorId]);
 
   // Initial fetch and auto-refresh
   useEffect(() => {

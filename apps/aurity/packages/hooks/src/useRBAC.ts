@@ -1,14 +1,10 @@
 /**
  * useRBAC Hook - Centralized Role-Based Access Control
  *
- * Integrates with Auth0 JWT roles and provides extensible RBAC
- * architecture for granular permission management.
- *
  * Architecture:
- * - Reads roles from Auth0 JWT token (https://aurity.app/roles)
+ * - Reads roles from user context (provided by AuthProvider)
  * - Supports superadmin override list (configurable via env)
  * - Provides declarative permission checks
- * - Caches token parsing for performance
  */
 
 'use client';
@@ -22,11 +18,7 @@ import { useState, useEffect, useMemo } from 'react';
 
 export const ROLES = {
   SUPERADMIN: 'FI-superadmin',
-  ADMIN: 'FI-admin',
-  DOCTOR: 'FI-doctor',
-  NURSE: 'FI-nurse',
-  STAFF: 'FI-staff',
-  VIEWER: 'FI-viewer',
+  CLINICIAN: 'FI-clinician',
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -63,7 +55,6 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [ROLES.SUPERADMIN]: [
-    // Superadmin has ALL permissions
     PERMISSIONS.MANAGE_SYSTEM,
     PERMISSIONS.VIEW_LOGS,
     PERMISSIONS.MANAGE_USERS,
@@ -78,33 +69,10 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.RESET_ONBOARDING,
   ],
 
-  [ROLES.ADMIN]: [
-    PERMISSIONS.VIEW_LOGS,
-    PERMISSIONS.VIEW_USERS,
-    PERMISSIONS.CREATE_SESSION,
-    PERMISSIONS.VIEW_SESSION,
-    PERMISSIONS.DELETE_SESSION,
-    PERMISSIONS.EXPORT_DATA,
-    PERMISSIONS.VIEW_CONFIG,
-  ],
-
-  [ROLES.DOCTOR]: [
+  [ROLES.CLINICIAN]: [
     PERMISSIONS.CREATE_SESSION,
     PERMISSIONS.VIEW_SESSION,
     PERMISSIONS.EXPORT_DATA,
-  ],
-
-  [ROLES.NURSE]: [
-    PERMISSIONS.CREATE_SESSION,
-    PERMISSIONS.VIEW_SESSION,
-  ],
-
-  [ROLES.STAFF]: [
-    PERMISSIONS.VIEW_SESSION,
-  ],
-
-  [ROLES.VIEWER]: [
-    PERMISSIONS.VIEW_SESSION,
   ],
 };
 
@@ -125,7 +93,7 @@ const getSuperAdminEmails = (): string[] => {
   }
 
   // No fallback - env var is required for security
-  console.warn('⚠️ NEXT_PUBLIC_SUPERADMIN_EMAILS not set. No superadmins configured.');
+  console.warn('[WARN] NEXT_PUBLIC_SUPERADMIN_EMAILS not set. No superadmins configured.');
   return [];
 };
 
@@ -134,7 +102,7 @@ const getSuperAdminEmails = (): string[] => {
 // ============================================================================
 
 export interface UseRBACReturn {
-  /** User's roles from Auth0 */
+  /** User's roles from JWT */
   roles: Role[];
 
   /** Is user a superadmin (bypass all checks) */
@@ -166,7 +134,7 @@ export interface UseRBACReturn {
 }
 
 export function useRBAC(): UseRBACReturn {
-  const { user, isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -177,48 +145,31 @@ export function useRBAC(): UseRBACReturn {
     return superAdmins.includes(user.email.toLowerCase());
   }, [user?.email]);
 
-  // Load roles from Auth0 JWT token
+  // Load roles from user context (provided by AuthProvider)
   useEffect(() => {
-    const loadRoles = async () => {
-      if (authLoading) return;
+    if (authLoading) return;
 
-      if (!isAuthenticated || !user) {
-        setRoles([]);
-        setIsLoading(false);
-        return;
-      }
+    if (!isAuthenticated || !user) {
+      setRoles([]);
+      setIsLoading(false);
+      return;
+    }
 
-      // Superadmin bypass - automatically grant superadmin role
-      if (isSuperAdmin) {
-        setRoles([ROLES.SUPERADMIN]);
-        setIsLoading(false);
-        return;
-      }
+    // Superadmin bypass - automatically grant superadmin role
+    if (isSuperAdmin) {
+      setRoles([ROLES.SUPERADMIN]);
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        // Extract roles from Auth0 JWT token
-        // audience and scope are configured in Auth0Provider
-        const token = await getAccessTokenSilently();
-        const { extractRolesFromToken } = await import('@/lib/jwt-utils');
-        const userRoles = extractRolesFromToken(token);
+    // Read roles directly from user context
+    const userRoles = (user.roles || []).filter(role =>
+      Object.values(ROLES).includes(role as Role)
+    ) as Role[];
 
-        // Validate and cast roles
-        const validRoles = userRoles.filter(role =>
-          Object.values(ROLES).includes(role as Role)
-        ) as Role[];
-
-        setRoles(validRoles);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('[useRBAC] Failed to load roles:', error);
-        // On error, assume no roles (safe default)
-        setRoles([]);
-        setIsLoading(false);
-      }
-    };
-
-    loadRoles();
-  }, [isAuthenticated, user, authLoading, getAccessTokenSilently, isSuperAdmin]);
+    setRoles(userRoles);
+    setIsLoading(false);
+  }, [isAuthenticated, user, authLoading, isSuperAdmin]);
 
   // Compute all permissions from roles
   const permissions = useMemo(() => {
@@ -293,11 +244,7 @@ export function useRBAC(): UseRBACReturn {
 export function getRoleName(role: Role): string {
   const names: Record<Role, string> = {
     [ROLES.SUPERADMIN]: 'Superadministrador',
-    [ROLES.ADMIN]: 'Administrador',
-    [ROLES.DOCTOR]: 'Doctor',
-    [ROLES.NURSE]: 'Enfermera',
-    [ROLES.STAFF]: 'Personal',
-    [ROLES.VIEWER]: 'Observador',
+    [ROLES.CLINICIAN]: 'Medico',
   };
   return names[role] || role;
 }
@@ -308,11 +255,7 @@ export function getRoleName(role: Role): string {
 export function getRoleBadgeColor(role: Role): string {
   const colors: Record<Role, string> = {
     [ROLES.SUPERADMIN]: 'bg-purple-600',
-    [ROLES.ADMIN]: 'bg-blue-600',
-    [ROLES.DOCTOR]: 'bg-emerald-600',
-    [ROLES.NURSE]: 'bg-cyan-600',
-    [ROLES.STAFF]: 'bg-slate-600',
-    [ROLES.VIEWER]: 'bg-gray-600',
+    [ROLES.CLINICIAN]: 'bg-emerald-600',
   };
   return colors[role] || 'bg-gray-600';
 }

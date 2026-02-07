@@ -8,6 +8,8 @@ Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
 Updated: 2026-01-31 (Type-safe config validation with Pydantic)
 Updated: 2026-02-01 (Phase 2.3 - Worker dependency factories)
+Updated: 2026-02-02 (DI Refactor - Singleton factories with @lru_cache)
+Updated: 2026-02-02 (DI Refactor - Extracted non-workflow factories to domain modules)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
@@ -16,29 +18,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.config.interfaces.isecrets_manager import ISecretsManager
-    from backend.domain.prescription.interfaces.icatalog_repository import ICatalogRepository
-    from backend.domain.prescription.interfaces.icatalog_service import ICatalogService
-    from backend.infrastructure.cache.interfaces.icache import ICache
-    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
-    from backend.schemas.llm.interfaces.ipreset_loader import IPresetLoader
-    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
-    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
+    from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
+    from backend.repositories.interfaces.itask_repository import ITaskRepository
 
 import os
+from functools import lru_cache
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from typing import Annotated
 from fastapi import Depends
 
-from backend.repositories.audit_repository import AuditRepository
-from backend.api.audit.services.audit_service import AuditService
-from backend.repositories.interfaces.itask_repository import ITaskRepository
-from backend.repositories.interfaces.icorpus_repository import ICorpusRepository
-from backend.repositories.task_repository import HDF5TaskRepository
-from backend.repositories.corpus_repository import CorpusRepository
-from backend.api.routers.workflow.public.services.workflow_orchestrator import (
+from backend.infrastructure.common.repository_singletons import (
+    get_corpus_repository,
+    get_task_repository,
+)
+from backend.services.workflow.services.workflow_orchestrator import (
     WorkflowOrchestrator,
 )
 from backend.services.workflow.services.triage_service import TriageService
@@ -55,7 +50,12 @@ from backend.services.workflow.interfaces import (
 )
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-from backend.config import CORPUS_PATH
+
+# Import domain-specific factories from centralized locations
+# Extracted to break circular imports (Phase 2.3 DI Refactor)
+from backend.infrastructure.common.policy_provider import get_policy_loader_dep
+from backend.schemas.llm.dependencies import get_preset_loader_dep
+from backend.services.soap.dependencies import get_decisional_middleware_dep
 
 
 class WorkflowConfig(BaseModel):
@@ -151,88 +151,65 @@ def get_workflow_config() -> WorkflowConfig:
     )
 
 
-def get_task_repository() -> ITaskRepository:
-    """Get task repository - direct instantiation (Phase 4A).
+# get_task_repository and get_corpus_repository imported from repository_singletons
+
+
+@lru_cache(maxsize=1)
+def _get_triage_service_singleton() -> TriageService:
+    """Internal singleton factory for TriageService.
+
+    Uses @lru_cache to ensure only ONE instance is created.
+    Config validated via Pydantic at initialization time.
 
     Returns:
-        ITaskRepository instance (HDF5TaskRepository)
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation enables better testability and explicit dependencies.
-    """
-    return HDF5TaskRepository(CORPUS_PATH)
-
-
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository - direct instantiation (Phase 4A).
-
-    Returns:
-        AuditRepository instance
-
-    Note:
-        Created as a dependency for AuditService.
-        Uses same corpus.h5 path for consistency.
-    """
-    return AuditRepository(CORPUS_PATH)
-
-
-def get_triage_service_dep() -> TriageService:
-    """Get triage service - direct instantiation (Phase 4A).
-
-    Returns:
-        TriageService instance with type-safe configuration
-
-    Note:
-        No longer uses service locator (get_container).
-        Config validated via Pydantic (fail-fast on invalid triage_data_dir).
+        TriageService singleton instance
     """
     config = get_workflow_config()
     data_dir = Path(config.triage_data_dir)
     return TriageService(data_dir=data_dir)
 
 
-def get_audit_service_dep() -> AuditService:
-    """Get audit service - direct instantiation (Phase 4A).
+def get_triage_service_dep() -> TriageService:
+    """Get triage service singleton (Phase 4A + DI Refactor).
 
     Returns:
-        AuditService instance with injected AuditRepository
+        TriageService singleton instance with type-safe configuration
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+        Single instance created on first call, reused thereafter.
 
     Note:
         No longer uses service locator (get_container).
-        Directly injects AuditRepository dependency.
+        Config validated via Pydantic (fail-fast on invalid triage_data_dir).
     """
-    return AuditService(repository=get_audit_repository())
+    return _get_triage_service_singleton()
 
 
-def get_workflow_logger() -> ILogger:
-    """Get logger for workflow service.
-
-    Returns:
-        ILogger instance
-    """
+@lru_cache(maxsize=1)
+def _get_workflow_logger_singleton() -> ILogger:
+    """Internal singleton factory for workflow logger."""
     return get_logger("workflow")
 
 
-def get_corpus_repository() -> ICorpusRepository:
-    """Get corpus repository for session data.
+def get_workflow_logger() -> ILogger:
+    """Get logger singleton for workflow service.
 
     Returns:
-        ICorpusRepository instance
+        ILogger singleton instance
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
     """
-    return CorpusRepository(CORPUS_PATH)
+    return _get_workflow_logger_singleton()
 
 
-def get_workflow_orchestrator() -> IWorkflowOrchestrator:
-    """Get workflow orchestrator with injected dependencies.
+# get_corpus_repository imported from repository_singletons
 
-    FastAPI provider for WorkflowOrchestrator.
 
-    Phase 2.3 migration: Now injects all worker dependencies.
-
-    Returns:
-        IWorkflowOrchestrator instance with all dependencies
-    """
+@lru_cache(maxsize=1)
+def _get_workflow_orchestrator_singleton() -> IWorkflowOrchestrator:
+    """Internal singleton factory for WorkflowOrchestrator."""
     return WorkflowOrchestrator(
         task_repository=get_task_repository(),
         workflow_tracker=get_workflow_tracker(),
@@ -243,29 +220,63 @@ def get_workflow_orchestrator() -> IWorkflowOrchestrator:
     )
 
 
+def get_workflow_orchestrator() -> IWorkflowOrchestrator:
+    """Get workflow orchestrator singleton with injected dependencies.
+
+    FastAPI provider for WorkflowOrchestrator.
+
+    Phase 2.3 migration: Now injects all worker dependencies.
+
+    Returns:
+        IWorkflowOrchestrator singleton instance with all dependencies
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+    """
+    return _get_workflow_orchestrator_singleton()
+
+
+@lru_cache(maxsize=1)
+def _get_workflow_router_singleton() -> IWorkflowRouter:
+    """Internal singleton factory for WorkflowRouter."""
+    return WorkflowRouter(logger=get_workflow_logger())
+
+
 def get_workflow_router() -> IWorkflowRouter:
-    """Get workflow router with injected dependencies.
+    """Get workflow router singleton with injected dependencies.
 
     FastAPI provider for WorkflowRouter.
 
     Returns:
-        IWorkflowRouter instance with logger
+        IWorkflowRouter singleton instance with logger
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
     """
-    return WorkflowRouter(logger=get_workflow_logger())
+    return _get_workflow_router_singleton()
 
 
-def get_workflow_tracker() -> IWorkflowTracker:
-    """Get workflow tracker with injected dependencies.
-
-    FastAPI provider for WorkflowTracker.
-
-    Returns:
-        IWorkflowTracker instance with task_repository and logger
-    """
+@lru_cache(maxsize=1)
+def _get_workflow_tracker_singleton() -> IWorkflowTracker:
+    """Internal singleton factory for WorkflowTracker."""
     return WorkflowTracker(
         task_repository=get_task_repository(),
         logger=get_workflow_logger(),
     )
+
+
+def get_workflow_tracker() -> IWorkflowTracker:
+    """Get workflow tracker singleton with injected dependencies.
+
+    FastAPI provider for WorkflowTracker.
+
+    Returns:
+        IWorkflowTracker singleton instance with task_repository and logger
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+    """
+    return _get_workflow_tracker_singleton()
 
 
 def get_intelligent_orchestration_service(
@@ -291,155 +302,6 @@ def get_intelligent_orchestration_service(
         corpus_repository=corpus_repository,
         logger=logger,
     )
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# WORKER DEPENDENCY FACTORIES (Phase 2.3 - Service Locator Migration)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-def get_policy_loader_dep() -> IPolicyLoader:
-    """Get policy loader for workers - direct instantiation.
-
-    Returns:
-        IPolicyLoader instance with policy already loaded
-
-    Note:
-        Replaces deprecated get_policy_loader() service locator.
-        Workers receive this as a constructor parameter.
-    """
-    from backend.policy.policy_loader import PolicyLoader
-
-    loader = PolicyLoader()
-    loader.load()
-    return loader
-
-
-def get_preset_loader_dep() -> IPresetLoader:
-    """Get preset loader for workers - direct instantiation.
-
-    Returns:
-        IPresetLoader instance
-
-    Note:
-        Replaces deprecated get_preset_loader() service locator.
-        Workers receive this as a constructor parameter.
-    """
-    from backend.schemas.llm.preset_loader import PresetLoader
-
-    return PresetLoader()
-
-
-def get_decisional_middleware_dep() -> IDecisionalMiddleware:
-    """Get decisional middleware for SOAP worker - direct instantiation.
-
-    Phase 2.3 Venus: Now injects IPresetLoader dependency.
-
-    Returns:
-        IDecisionalMiddleware instance with preset_loader injected
-
-    Note:
-        Replaces deprecated get_decisional_middleware() service locator.
-        Handles intelligent SOAP generation orchestration.
-    """
-    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
-
-    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
-
-
-def get_cache_dep(ttl: int = 3600) -> ICache:
-    """Get LLM cache for services - direct instantiation.
-
-    Phase 2.3 Mercurio: Cache consolidation.
-
-    Args:
-        ttl: Default TTL in seconds (1 hour default)
-
-    Returns:
-        ICache instance (LLMCache)
-
-    Note:
-        Replaces deprecated get_cache() service locator.
-        In-memory cache with TTL and Prometheus export.
-    """
-    from backend.infrastructure.cache.cache import LLMCache
-
-    return LLMCache(default_ttl=ttl)
-
-
-def get_llm_model_service_dep() -> ILLMModelService:
-    """Get LLM model service for model catalog management.
-
-    Phase 2.3 Tierra: Replaces deprecated llm_model_service singleton.
-
-    Returns:
-        ILLMModelService instance
-
-    Note:
-        The LLMModelService uses internal singleton pattern (__new__),
-        but this factory provides the DI-compliant entry point.
-    """
-    from backend.services.llm.services.llm_model_service import LLMModelService
-
-    return LLMModelService()
-
-
-def get_catalog_service_dep() -> ICatalogService:
-    """Get medication catalog service - SOLID DI factory.
-
-    Phase 2.3 Marte: Replaces deprecated catalog_service singleton.
-
-    Returns:
-        ICatalogService instance with InMemoryCatalogRepository
-
-    Note:
-        Uses Repository pattern for data access (DIP).
-        The CatalogService uses internal singleton pattern (__new__).
-    """
-    from backend.domain.prescription.repositories import InMemoryCatalogRepository
-    from backend.domain.prescription.services.catalog_service import CatalogService
-
-    repository = InMemoryCatalogRepository()
-    return CatalogService(repository=repository)
-
-
-def get_catalog_repository_dep() -> ICatalogRepository:
-    """Get medication catalog repository - SOLID DI factory.
-
-    Phase 2.3 Marte: Provides raw data access for advanced use cases.
-
-    Returns:
-        ICatalogRepository instance (InMemoryCatalogRepository)
-    """
-    from backend.domain.prescription.repositories import InMemoryCatalogRepository
-
-    return InMemoryCatalogRepository()
-
-
-def get_secrets_manager_dep(use_keyvault: bool = True) -> "ISecretsManager":
-    """Get secrets manager for services - DI factory.
-
-    Phase 2.3 Jupiter: Centralized secrets management.
-
-    Args:
-        use_keyvault: If True, use Azure KeyVault with env fallback.
-                     If False, use environment variables only.
-
-    Returns:
-        ISecretsManager instance
-
-    Note:
-        Replaces deprecated get_secret() module-level function.
-        Services receive this as a constructor parameter.
-    """
-    from backend.config.secrets import (
-        AzureKeyVaultSecretsManager,
-        EnvSecretsManager,
-    )
-
-    if use_keyvault:
-        return AzureKeyVaultSecretsManager()
-    return EnvSecretsManager()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

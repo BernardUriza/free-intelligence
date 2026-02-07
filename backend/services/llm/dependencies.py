@@ -4,42 +4,28 @@ Provides dependency injection for routers using FastAPI Depends().
 
 Author: Claude Code
 Created: 2026-01-28
-Updated: 2026-01-29 (TODO cleanup - use centralized config)
 Card: Backend Refactor Phase 2.3 - Service Refactoring
 """
 
-from pathlib import Path
+from __future__ import annotations
 
-from backend.api.audit.services.audit_service import AuditService
-from backend.config import CORPUS_PATH
-from backend.policy.policy_loader import PolicyLoader, get_policy_loader
-from backend.repositories.audit_repository import AuditRepository
+from functools import lru_cache
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.repositories.audit_repository import AuditRepository
+    from backend.policy.interfaces.ipolicy_loader import IPolicyLoader
+    from backend.services.llm.interfaces.illm_model_service import ILLMModelService
+
+from backend.services.audit.services.audit_service import AuditService
+from backend.infrastructure.common.repository_singletons import (
+    get_audit_repository,
+)
+# Note: get_policy_loader_dep imported lazily in get_chat_service to avoid circular import
 from backend.services.llm.services.di_chat_service import DIChatService
-from backend.services.llm.services.persona_manager import PersonaManager
+from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
-
-
-def get_corpus_path() -> str:
-    """Get HDF5 corpus path from centralized config.
-
-    Returns:
-        Path to corpus.h5 file as string
-    """
-    return str(CORPUS_PATH)
-
-
-def get_audit_repository() -> AuditRepository:
-    """Get audit repository from corpus path.
-
-    Note: This is a temporary bridge during migration.
-    Eventually, this will be replaced with direct repository instantiation.
-
-    Returns:
-        AuditRepository instance
-    """
-    corpus_path = Path(get_corpus_path())
-    return AuditRepository(corpus_path)
 
 
 def get_audit_service(
@@ -57,16 +43,33 @@ def get_audit_service(
     return AuditService(audit_repo)
 
 
+@lru_cache(maxsize=1)
+def _get_persona_manager_singleton() -> PersonaManager:
+    """Internal singleton factory for PersonaManager.
+
+    Uses @lru_cache to ensure only ONE instance is created,
+    loading YAML configuration only once per process.
+
+    Returns:
+        PersonaManager singleton instance with YAML loaded
+    """
+    return PersonaManager()
+
+
 def get_persona_manager() -> PersonaManager:
     """Get persona manager singleton.
 
-    Note: PersonaManager is already a singleton (loads YAML config once).
-    This provider just returns the instance.
-
     Returns:
-        PersonaManager instance
+        PersonaManager singleton instance (shared across all callers)
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+
+    Performance:
+        YAML parsing happens only on first call.
+        Subsequent calls return the cached singleton.
     """
-    return PersonaManager()
+    return _get_persona_manager_singleton()
 
 
 def get_llm_logger() -> ILogger:
@@ -81,7 +84,7 @@ def get_llm_logger() -> ILogger:
 def get_chat_service(
     persona_manager: PersonaManager | None = None,
     audit_service: AuditService | None = None,
-    policy_loader: PolicyLoader | None = None,
+    policy_loader: "IPolicyLoader | None" = None,
     logger: ILogger | None = None,
 ) -> DIChatService:
     """Get chat service with injected dependencies.
@@ -97,9 +100,11 @@ def get_chat_service(
     Returns:
         DIChatService instance
     """
+    from backend.infrastructure.common.policy_provider import get_policy_loader_dep
+
     persona_manager = persona_manager or get_persona_manager()
     audit_service = audit_service or get_audit_service()
-    policy_loader = policy_loader or get_policy_loader()
+    policy_loader = policy_loader or get_policy_loader_dep()
     logger = logger or get_llm_logger()
 
     return DIChatService(
@@ -108,3 +113,37 @@ def get_chat_service(
         policy_loader=policy_loader,
         logger=logger,
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LLM MODEL SERVICE FACTORY (Phase 2.3 - Extracted from workflow)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@lru_cache(maxsize=1)
+def _get_llm_model_service_singleton() -> "ILLMModelService":
+    """Internal singleton factory for LLMModelService."""
+    from backend.services.llm.services.llm_model_service import LLMModelService
+
+    return LLMModelService()
+
+
+def get_llm_model_service_dep() -> "ILLMModelService":
+    """Get LLM model service singleton for model catalog management.
+
+    Returns:
+        ILLMModelService singleton instance
+
+    Thread Safety:
+        @lru_cache is thread-safe in Python 3.9+.
+    """
+    return _get_llm_model_service_singleton()
+
+
+__all__ = [
+    "get_audit_service",
+    "get_persona_manager",
+    "get_llm_logger",
+    "get_chat_service",
+    "get_llm_model_service_dep",
+]

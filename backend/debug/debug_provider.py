@@ -11,16 +11,16 @@ from pathlib import Path
 # Añadir el directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from backend.policy.policy_loader import get_policy_loader
-from backend.providers.llm import get_provider
+from backend.services.workflow.dependencies import get_policy_loader_dep
+from backend.providers import get_provider
 
 
 def main():
     print("🔍 Debugging Ollama Provider Configuration")
     print("=" * 50)
 
-    # Obtener el loader de políticas
-    policy_loader = get_policy_loader()
+    # Use singleton from DI (Phase 2.3 DI Refactor)
+    policy_loader = get_policy_loader_dep()
     print(f"📦 Primary provider: {policy_loader.get_primary_provider()}")
 
     # Obtener la configuración de Ollama

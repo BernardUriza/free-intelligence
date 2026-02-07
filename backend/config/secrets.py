@@ -6,7 +6,7 @@ It tries Azure KeyVault first, then falls back to environment variables.
 Phase 2.3 Jupiter: Implements ISecretsManager interface for DI.
 
 Usage (DI - Recommended):
-    from backend.services.workflow.dependencies import get_secrets_manager_dep
+    from backend.infrastructure.config.dependencies import get_secrets_manager_dep
 
     secrets_manager = get_secrets_manager_dep()
     api_key = secrets_manager.get("OPENAI_API_KEY")
@@ -208,10 +208,6 @@ class EnvSecretsManager(ISecretsManager):
         return True
 
 
-# ============================================================================
-# DEPRECATED: Legacy module-level functions (use ISecretsManager instead)
-# ============================================================================
-
 # Default secrets manager instance (lazy loaded)
 _default_secrets_manager: AzureKeyVaultSecretsManager | None = None
 
@@ -228,8 +224,6 @@ def _get_default_secrets_manager() -> AzureKeyVaultSecretsManager:
 def get_secret(name: str, default: str | None = None) -> str | None:
     """Get a secret from KeyVault with .env fallback.
 
-    DEPRECATED: Use ISecretsManager.get() via DI instead.
-
     Args:
         name: Secret name (can use underscores or hyphens)
         default: Default value if secret not found
@@ -242,8 +236,6 @@ def get_secret(name: str, default: str | None = None) -> str | None:
 
 def get_secret_required(name: str) -> str:
     """Get a required secret (raises if not found).
-
-    DEPRECATED: Use ISecretsManager.get_required() via DI instead.
 
     Args:
         name: Secret name
@@ -267,11 +259,7 @@ class Secrets:
     """
 
     __slots__ = (
-        "AUTH0_AUDIENCE",
-        "AUTH0_CLIENT_ID",
-        "AUTH0_DOMAIN",
-        "AUTH0_MANAGEMENT_CLIENT_ID",
-        "AUTH0_MANAGEMENT_CLIENT_SECRET",
+        "JWT_SECRET",
         "CLAUDE_API_KEY",
         "DATABASE_URL",
         "DEEPGRAM_API_KEY",
@@ -281,12 +269,8 @@ class Secrets:
     def __init__(
         self,
         *,
-        # Auth0
-        AUTH0_DOMAIN: str | None = None,  # noqa: N803
-        AUTH0_CLIENT_ID: str | None = None,  # noqa: N803
-        AUTH0_AUDIENCE: str | None = None,  # noqa: N803
-        AUTH0_MANAGEMENT_CLIENT_ID: str | None = None,  # noqa: N803
-        AUTH0_MANAGEMENT_CLIENT_SECRET: str | None = None,  # noqa: N803
+        # Auth
+        JWT_SECRET: str | None = None,  # noqa: N803
         # Database
         DATABASE_URL: str = "sqlite:///./data/aurity.db",  # noqa: N803
         # Optional services
@@ -294,11 +278,7 @@ class Secrets:
         CLAUDE_API_KEY: str | None = None,  # noqa: N803
         HF_TOKEN: str | None = None,  # noqa: N803
     ) -> None:
-        self.AUTH0_DOMAIN = AUTH0_DOMAIN
-        self.AUTH0_CLIENT_ID = AUTH0_CLIENT_ID
-        self.AUTH0_AUDIENCE = AUTH0_AUDIENCE
-        self.AUTH0_MANAGEMENT_CLIENT_ID = AUTH0_MANAGEMENT_CLIENT_ID
-        self.AUTH0_MANAGEMENT_CLIENT_SECRET = AUTH0_MANAGEMENT_CLIENT_SECRET
+        self.JWT_SECRET = JWT_SECRET
         self.DATABASE_URL = DATABASE_URL
         self.DEEPGRAM_API_KEY = DEEPGRAM_API_KEY
         self.CLAUDE_API_KEY = CLAUDE_API_KEY
@@ -308,12 +288,8 @@ class Secrets:
     def load(cls) -> Secrets:
         """Load all secrets from KeyVault/.env."""
         return cls(
-            # Auth0
-            AUTH0_DOMAIN=get_secret("AUTH0_DOMAIN"),
-            AUTH0_CLIENT_ID=get_secret("AUTH0_CLIENT_ID"),
-            AUTH0_AUDIENCE=get_secret("AUTH0_AUDIENCE"),  # No default - must be explicit per env
-            AUTH0_MANAGEMENT_CLIENT_ID=get_secret("AUTH0_MANAGEMENT_CLIENT_ID"),
-            AUTH0_MANAGEMENT_CLIENT_SECRET=get_secret("AUTH0_MANAGEMENT_CLIENT_SECRET"),
+            # Auth
+            JWT_SECRET=get_secret("JWT_SECRET"),
             # Database
             DATABASE_URL=get_secret("DATABASE_URL", "sqlite:///./data/aurity.db"),
             # Optional services
@@ -363,6 +339,5 @@ if __name__ == "__main__":
     # Test loading via legacy interface
     s = get_secrets()
     print("Loaded secrets:")
-    print(f"  AUTH0_DOMAIN: {s.AUTH0_DOMAIN or 'Missing'}")
-    print(f"  AUTH0_CLIENT_ID: {'Set' if s.AUTH0_CLIENT_ID else 'Missing'}")
+    print(f"  JWT_SECRET: {'Set' if s.JWT_SECRET else 'Missing'}")
     print(f"  DEEPGRAM_API_KEY: {'Set' if s.DEEPGRAM_API_KEY else 'Not configured'}")

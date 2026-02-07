@@ -95,10 +95,10 @@ class TokenResponse(BaseModel):
 async def exchange_token(request: TokenRequest):
     """
     Exchange authorization code for tokens.
-    In minimal mode, this is a pass-through to Auth0.
+    In minimal mode, this is a pass-through for auth.
     """
     # In minimal mode, we accept the code and return a mock token
-    # The actual Auth0 flow is handled by the desktop app
+    # The actual auth flow is handled by the desktop app
     return TokenResponse(
         access_token=f"minimal_dev_token_{request.code[:8]}",
         token_type="Bearer",

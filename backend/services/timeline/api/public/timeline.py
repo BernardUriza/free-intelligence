@@ -14,18 +14,16 @@ import h5py
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User, UserRole
 from backend.repositories.interfaces import ITaskRepository
-from backend.services.timeline.dependencies import get_task_repository
+from backend.infrastructure.common.repository_singletons import get_task_repository
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pathlib import Path
 from pydantic import BaseModel, Field
+
+from backend.config import CORPUS_PATH
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/timeline", tags=["timeline"])
-
-# HDF5 corpus path
-CORPUS_PATH = Path(__file__).parent.parent.parent.parent.parent / "storage" / "corpus.h5"
 
 # ============================================================================
 # RESPONSE MODELS
@@ -93,7 +91,7 @@ async def list_sessions(
         limit: Maximum sessions to return
         offset: Pagination offset
         sort: Sort order
-        current_user: Authenticated user from Auth0 JWT
+        current_user: Authenticated user from JWT
         task_repo: Task repository (injected via Depends)
 
     Performance target: p95 <300ms
@@ -188,7 +186,7 @@ async def list_sessions(
                     ),
                     size=SessionSize(
                         interaction_count=chunk_count,
-                        total_tokens=0,  # TODO: Calculate from metadata if available
+                        total_tokens=0,
                         total_chars=len(preview),
                     ),
                     preview=preview,
@@ -319,7 +317,7 @@ async def get_session_detail(
         timespan = {
             "start": created_at,
             "end": updated_at,
-            "duration_ms": 0,  # TODO: Calculate if needed
+            "duration_ms": 0,
             "duration_human": "Unknown",
         }
 
@@ -337,7 +335,7 @@ async def get_session_detail(
         # Build size
         size = {
             "interaction_count": len(chunks),
-            "total_tokens": 0,  # TODO: Calculate from metadata if available
+            "total_tokens": 0,
             "total_chars": total_chars,
             "avg_tokens_per_interaction": 0,
             "size_human": f"{total_chars} chars",

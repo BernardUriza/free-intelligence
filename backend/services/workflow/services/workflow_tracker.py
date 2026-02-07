@@ -34,7 +34,6 @@ from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.models.task_type import TaskStatus, TaskType
 from backend.repositories.interfaces.itask_repository import ITaskRepository
 from backend.services.workflow.interfaces import IWorkflowTracker
-from backend.utils.common.validation import validate_dependency
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -93,11 +92,12 @@ class WorkflowTracker(IWorkflowTracker):
 
     Thread-safe, in-memory state tracking with optional persistence.
 
-    Usage:
-        tracker = get_workflow_tracker()
+    Usage (DI via FastAPI):
+        from backend.services.workflow.dependencies import WorkflowTrackerDep
 
-        # Worker starts
-        tracker.mark_task_started("session-123", TaskType.DIARIZATION)
+        @router.post("/start")
+        def start_task(tracker: WorkflowTrackerDep):
+            tracker.mark_task_started("session-123", TaskType.DIARIZATION)
 
         # Worker completes
         tracker.mark_task_completed("session-123", TaskType.DIARIZATION, result={...})
@@ -498,56 +498,5 @@ class WorkflowTracker(IWorkflowTracker):
 # DEPRECATED: Service Locator Pattern Removed (PR #2)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# BEFORE (Service Locator):
-#   tracker = get_workflow_tracker()  # Global singleton
-#
-# AFTER (Dependency Injection):
-#   from backend.services.workflow.dependencies import WorkflowTrackerDep
-#
-#   @router.get("/status")
-#   def get_status(tracker: WorkflowTrackerDep) -> dict:
-#       return tracker.get_workflow_status(...)
-#
-# Migration complete: All callers updated to use FastAPI Depends() (PR #2)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TEMPORARY: Backward Compatibility Function (To Be Removed)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-def get_workflow_tracker() -> WorkflowTracker:
-    """DEPRECATED: Get workflow tracker instance (service locator pattern).
-
-    ⚠️  WARNING: This function is deprecated as of 2026-02-01 (Phase 2.3).
-    All workers have been migrated to DI. This function should be removed
-    once all remaining callers are migrated.
-
-    Use dependency injection instead:
-
-    ```python
-    from backend.services.workflow.dependencies import WorkflowTrackerDep
-
-    @router.get("/status")
-    def get_status(tracker: WorkflowTrackerDep) -> dict:
-        return tracker.get_workflow_status(...)
-    ```
-
-    Returns:
-        WorkflowTracker instance
-    """
-    import warnings
-    warnings.warn(
-        "get_workflow_tracker() is deprecated. Use DI via WorkflowTrackerDep instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    from backend.repositories.interfaces.itask_repository import ITaskRepository
-    from backend.repositories.task_repository import HDF5TaskRepository
-    from backend.config import CORPUS_PATH
-    from backend.utils.common.logging.logger import get_logger
-
-    task_repo: ITaskRepository = HDF5TaskRepository(CORPUS_PATH)
-    logger: ILogger = get_logger("workflow.tracker")
-    return WorkflowTracker(task_repository=task_repo, logger=logger)
+# Migration complete: All callers use FastAPI Depends() via WorkflowTrackerDep
+# Service Locator removed: 2026-02-02 (Phase 2.3 complete)

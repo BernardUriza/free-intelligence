@@ -13,28 +13,38 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.models.task_type import TaskType
 from backend.repositories.interfaces import ITaskRepository
 from backend.utils.common.logging.logger import get_logger
 
-# REMOVED: get_event_bus() helper (Phase 2.3)
-# Event bus is now injected via constructor instead of using get_container()
-# Old pattern (removed):
-#   def get_event_bus():
-#       from backend.container import get_container
-#       return get_container().get_event_bus()
+if TYPE_CHECKING:
+    from backend.infrastructure.interfaces.ievent_bus import IEventBus
+
 
 class TranscriptionChunkEvent:
-    """Stub event."""
-    pass
+    """Event signaling chunk processed (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionChunkEvent()
+
 
 class TranscriptionStartedEvent:
-    """Stub event."""
-    pass
+    """Event signaling transcription session started (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionStartedEvent()
+
 
 class TranscriptionEndedEvent:
-    """Stub event."""
-    pass
+    """Event signaling transcription session ended (marker event, no payload)."""
+
+    @staticmethod
+    def create(**kwargs):
+        return TranscriptionEndedEvent()
 
 
 logger = get_logger(__name__)
@@ -63,7 +73,11 @@ class ChunkProcessingResult:
 class TranscriptionService:
     """Service for audio transcription business logic."""
 
-    def __init__(self, task_repository: ITaskRepository, event_bus=None):
+    def __init__(
+        self,
+        task_repository: ITaskRepository,
+        event_bus: IEventBus | None = None,
+    ) -> None:
         """Initialize transcription service with dependencies.
 
         Args:
@@ -234,7 +248,7 @@ class TranscriptionService:
 
         # 5. Dispatch worker to background (fire-and-forget)
         from backend.infrastructure.workers.executor_pool import spawn_worker
-        from backend.infrastructure.workers.sync_workers import transcribe_chunk_worker
+        from backend.infrastructure.workers.tasks.transcription_worker import transcribe_chunk_worker
         from backend.utils.stt_load_balancer import get_stt_load_balancer
 
         # Use load balancer to select provider intelligently (policy-driven)

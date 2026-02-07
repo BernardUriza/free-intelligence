@@ -7,10 +7,11 @@ Created: 2026-01-28
 Card: Backend Refactor Phase 2 - True Dependency Injection
 """
 
-from pathlib import Path
-from typing import Any, Dict, List
+from __future__ import annotations
 
-import h5py
+from pathlib import Path
+from typing import Any
+
 from backend.repositories.base_repository import BaseRepository
 from backend.repositories.interfaces import IAudioChunkRepository
 from backend.utils.common.logging.logger import get_logger
@@ -18,7 +19,7 @@ from backend.utils.common.logging.logger import get_logger
 logger = get_logger(__name__)
 
 
-class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
+class HDF5AudioChunkRepository(BaseRepository[dict], IAudioChunkRepository):
     """HDF5 implementation of audio chunk storage.
 
     Storage Structure:
@@ -44,7 +45,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         session_id: str,
         chunk_number: int,
         audio_data: bytes,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> str:
         """Save audio chunk with metadata.
 
@@ -97,7 +98,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
 
         return chunk_id
 
-    def get_chunk(self, session_id: str, chunk_number: int) -> Dict[str, Any] | None:
+    def get_chunk(self, session_id: str, chunk_number: int) -> dict[str, Any] | None:
         """Retrieve chunk with metadata (excludes audio data for performance).
 
         Args:
@@ -126,7 +127,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
 
         return metadata
 
-    def list_chunks(self, session_id: str) -> List[Dict[str, Any]]:
+    def list_chunks(self, session_id: str) -> list[dict[str, Any]]:
         """List all chunks for session.
 
         Args:
@@ -156,7 +157,7 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         self,
         session_id: str,
         chunk_number: int,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
     ) -> bool:
         """Update chunk metadata.
 
@@ -232,15 +233,15 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
             return len(f[chunks_path].keys())
 
     # BaseRepository abstract methods (not used for audio chunks)
-    def create(self, entity: Dict, **kwargs: Any) -> str:
+    def create(self, entity: dict, **kwargs: Any) -> str:
         """Not used - use save_chunk instead."""
         raise NotImplementedError("Use save_chunk() instead")
 
-    def read(self, entity_id: str) -> Dict | None:
+    def read(self, entity_id: str) -> dict | None:
         """Not used - use get_chunk instead."""
         raise NotImplementedError("Use get_chunk() instead")
 
-    def update(self, entity_id: str, entity: Dict) -> bool:
+    def update(self, entity_id: str, entity: dict) -> bool:
         """Not used - use update_chunk_metadata instead."""
         raise NotImplementedError("Use update_chunk_metadata() instead")
 
@@ -248,6 +249,74 @@ class HDF5AudioChunkRepository(BaseRepository[Dict], IAudioChunkRepository):
         """Not used - use delete_chunk instead."""
         raise NotImplementedError("Use delete_chunk() instead")
 
-    def list_all(self, limit: int | None = None) -> list[Dict]:
+    def list_all(self, limit: int | None = None) -> list[dict]:
         """Not used - use list_chunks instead."""
         raise NotImplementedError("Use list_chunks() instead")
+
+    def get_audio_data(self, session_id: str, chunk_number: int) -> bytes | None:
+        """Retrieve raw audio bytes for a specific chunk.
+
+        Args:
+            session_id: Session UUID
+            chunk_number: Chunk index
+
+        Returns:
+            Raw audio bytes if chunk exists, None otherwise
+        """
+        chunk_path = f"sessions/{session_id}/transcription/chunks/{chunk_number}"
+
+        with self._open_file("r") as f:
+            if chunk_path not in f:
+                return None
+
+            chunk_group = f[chunk_path]
+            if "audio" not in chunk_group:
+                return None
+
+            return bytes(chunk_group["audio"][:])
+
+    def get_audio_data_range(
+        self,
+        session_id: str,
+        start_chunk: int,
+        end_chunk: int,
+    ) -> list[bytes]:
+        """Retrieve audio bytes for a range of chunks.
+
+        Optimized batch retrieval - single file open for all chunks.
+
+        Args:
+            session_id: Session UUID
+            start_chunk: First chunk index (inclusive)
+            end_chunk: Last chunk index (inclusive)
+
+        Returns:
+            List of audio bytes in chunk order (skips missing chunks)
+
+        Raises:
+            ValueError: If start_chunk > end_chunk
+        """
+        if start_chunk > end_chunk:
+            raise ValueError(f"start_chunk ({start_chunk}) > end_chunk ({end_chunk})")
+
+        chunks_path = f"sessions/{session_id}/transcription/chunks"
+        audio_list: list[bytes] = []
+
+        with self._open_file("r") as f:
+            if chunks_path not in f:
+                return audio_list
+
+            for chunk_num in range(start_chunk, end_chunk + 1):
+                chunk_path = f"{chunks_path}/{chunk_num}"
+                if chunk_path in f and "audio" in f[chunk_path]:
+                    audio_list.append(bytes(f[chunk_path]["audio"][:]))
+
+        logger.debug(
+            "AUDIO_RANGE_RETRIEVED",
+            session_id=session_id,
+            start_chunk=start_chunk,
+            end_chunk=end_chunk,
+            chunks_found=len(audio_list),
+        )
+
+        return audio_list

@@ -29,8 +29,7 @@ export interface PersonaCreateModalProps {
   onOpenChange: (open: boolean) => void;
   /** Callback when persona is created successfully */
   onCreated: (persona: Persona) => void;
-  /** Auth token for API calls */
-  authToken: string;
+  // Note: authToken removed - now handled automatically by api client
 }
 
 /**
@@ -43,7 +42,6 @@ export function PersonaCreateModal({
   open,
   onOpenChange,
   onCreated,
-  authToken,
 }: PersonaCreateModalProps) {
   // Form state
   const [formValues, setFormValues] = useState<PersonaCreateFormValues>(DEFAULT_PERSONA_VALUES);
@@ -80,7 +78,8 @@ export function PersonaCreateModal({
 
     try {
       const request = mapFormToCreateRequest(validation.data!);
-      const persona = await personaService.create(request, authToken);
+      // Note: Auth token is now handled automatically by api client
+      const persona = await personaService.create(request);
 
       onCreated(persona);
       resetForm();
@@ -96,7 +95,7 @@ export function PersonaCreateModal({
     } finally {
       setCreating(false);
     }
-  }, [formValues, authToken, onCreated, resetForm, onOpenChange]);
+  }, [formValues, onCreated, resetForm, onOpenChange]);
 
   // Handle form value changes
   const handleChange = useCallback((values: PersonaFormValues) => {

@@ -50,7 +50,7 @@ export interface FIChatContext {
   /** Current onboarding phase */
   phase?: OnboardingPhase;
 
-  /** Doctor/User ID from Auth0 */
+  /** Doctor/User ID from JWT */
   doctor_id?: string;
 
   /** Doctor/User name */
@@ -173,7 +173,7 @@ export interface FIChatRequest {
 }
 
 /**
- * Response from /api/workflows/aurity/assistant/chat or /introduction
+ * Response from /api/aurity/assistant/chat or /introduction
  * (Backend schema - adapted to match existing implementation)
  */
 export interface FIChatResponse {

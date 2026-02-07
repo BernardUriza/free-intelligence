@@ -93,9 +93,8 @@ def require_audit_log(func: Callable) -> Callable:
         LLMAuditViolation: Si la función no tiene audit logging
 
     Note:
-        - Esta versión es un marker decorator (fase 1)
-        - Fase 2: Runtime validation (verificar que se llamó append_audit_log)
-        - Por ahora solo sirve para detección estática
+        This is a marker decorator for static analysis detection.
+        Runtime validation may be added if needed.
     """
     import inspect
 
@@ -104,8 +103,6 @@ def require_audit_log(func: Callable) -> Callable:
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            # Marker para detección estática
-            # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
             logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
             return await func(*args, **kwargs)
 
@@ -118,8 +115,6 @@ def require_audit_log(func: Callable) -> Callable:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Marker para detección estática
-            # TODO(FI-CORE-FEAT-004-P2): Runtime validation de append_audit_log
             logger.info("LLM_FUNCTION_CALLED", function=func.__name__, module=func.__module__)
             return func(*args, **kwargs)
 
@@ -327,7 +322,7 @@ def scan_directory(directory: Path) -> dict[str, list[LLMFunctionInfo]]:
     Escanea un directorio recursivamente en busca de LLM functions.
 
     Returns:
-        Dict[filepath: str, violations: List[LLMFunctionInfo]]
+        dict[filepath: str, violations: list[LLMFunctionInfo]]
     """
     results = {}
 

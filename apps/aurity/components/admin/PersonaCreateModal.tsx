@@ -22,7 +22,7 @@ interface PersonaCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (persona: Persona) => void;
-  authToken: string;
+  // Note: authToken removed - now handled automatically by api client
 }
 
 // Available TTS voices
@@ -48,7 +48,6 @@ export function PersonaCreateModal({
   isOpen,
   onClose,
   onSuccess,
-  authToken,
 }: PersonaCreateModalProps) {
   // Form state
   const [formData, setFormData] = useState<PersonaCreateRequest>({
@@ -119,7 +118,8 @@ export function PersonaCreateModal({
       setCreating(true);
       setError(null);
 
-      const persona = await createPersona(formData, authToken);
+      // authToken is now handled automatically by api client
+      const persona = await createPersona(formData);
       onSuccess(persona);
       handleClose();
     } catch (err) {

@@ -9,7 +9,6 @@
  * Features:
  * - Max clinics capacity (clinics created AFTER activation)
  * - Optional license holder name
- * - Auth0 configuration with defaults from current env
  * - Feature toggles (checkboxes)
  * - Expiration date picker (preset + custom)
  * - Copy-to-clipboard for generated key
@@ -31,8 +30,6 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Building2,
-  Shield,
   Calendar,
   Sparkles,
   Download,
@@ -49,17 +46,6 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   // License capacity state
   const [maxClinics, setMaxClinics] = useState(1);
   const [licenseHolder, setLicenseHolder] = useState('');
-
-  // Auth0 fields - pre-fill with current env values
-  const [auth0Domain, setAuth0Domain] = useState(
-    process.env.NEXT_PUBLIC_AUTH0_DOMAIN || ''
-  );
-  const [auth0ClientId, setAuth0ClientId] = useState(
-    process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID || ''
-  );
-  const [auth0Audience, setAuth0Audience] = useState(
-    process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io'
-  );
 
   // Features state
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
@@ -178,9 +164,6 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       const request: LicenseGenerationRequest = {
         max_clinics: maxClinics,
         license_holder: licenseHolder.trim() || undefined,
-        auth0_domain: auth0Domain.trim(),
-        auth0_client_id: auth0ClientId.trim(),
-        auth0_audience: auth0Audience.trim() || 'https://app.aurity.io',
         features: selectedFeatures,
         expires_days: getExpirationDays(),
       };
@@ -210,7 +193,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   };
 
   // Determine if form is valid
-  const isFormValid = maxClinics >= 1 && auth0Domain && auth0ClientId;
+  const isFormValid = maxClinics >= 1;
 
   return (
     <div className={`max-w-4xl mx-auto ${className}`}>
@@ -336,61 +319,6 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                 <p className="mt-1 text-xs text-slate-500">
                   Opcional, solo para identificación
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Auth0 Configuration */}
-          <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-purple-400" />
-                <h3 className="text-lg font-medium text-slate-200">Configuración Auth0</h3>
-              </div>
-              <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">
-                Pre-llenado con config actual
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  Dominio Auth0 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={auth0Domain}
-                  onChange={(e) => setAuth0Domain(e.target.value)}
-                  placeholder="dev-xxxxxxxx.us.auth0.com"
-                  required
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">
-                    Client ID <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={auth0ClientId}
-                    onChange={(e) => setAuth0ClientId(e.target.value)}
-                    placeholder="HBevb9r9..."
-                    required
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-2">Audience</label>
-                  <input
-                    type="text"
-                    value={auth0Audience}
-                    onChange={(e) => setAuth0Audience(e.target.value)}
-                    placeholder="https://app.aurity.io"
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
               </div>
             </div>
           </div>

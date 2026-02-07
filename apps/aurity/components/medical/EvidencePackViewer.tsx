@@ -9,6 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { api } from '@/lib/api/client';
 import {
   FileText,
   Hash,
@@ -103,16 +104,9 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
 
       try {
         // Fetch evidence pack from workflow API (auto-generates if not exists)
-        const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-        const response = await fetch(
-          `${apiBase}/api/workflows/aurity/sessions/${sessionId}/evidence`
+        const data = await api.get<{ session_id: string; evidence_pack: EvidencePack }>(
+          `/api/aurity/medical-ai/sessions/${sessionId}/evidence`
         );
-
-        if (!response.ok) {
-          throw new Error(`Failed to load evidence pack: ${response.statusText}`);
-        }
-
-        const data = await response.json();
         setPack(data.evidence_pack);  // Backend wraps in { session_id, evidence_pack }
 
         console.log('[EvidencePackViewer] Loaded evidence pack:', data.evidence_pack.pack_id);

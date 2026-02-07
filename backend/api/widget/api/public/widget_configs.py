@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import random
-from typing import Any, List, Literal
+from typing import Any, Literal
 
 from backend.utils.common.logging.logger import get_logger
 from fastapi import APIRouter, HTTPException, status
@@ -43,12 +43,12 @@ class TriviaQuestion(BaseModel):
 
     id: str = Field(..., description="Unique question ID")
     question: str = Field(..., min_length=10, description="Question text")
-    options: List[str] = Field(..., min_length=2, max_length=6, description="Answer options")
+    options: list[str] = Field(..., min_length=2, max_length=6, description="Answer options")
     correct: int = Field(..., ge=0, description="Index of correct answer")
     explanation: str = Field(..., min_length=10, description="Explanation of correct answer")
     difficulty: Literal["easy", "medium", "hard"] = Field(default="medium")
     category: str = Field(..., description="Question category")
-    tags: List[str] = Field(default_factory=list, description="Search tags")
+    tags: list[str] = Field(default_factory=list, description="Search tags")
 
 
 class BreathingPhase(BaseModel):
@@ -69,9 +69,9 @@ class BreathingExercise(BaseModel):
     id: str = Field(..., description="Unique exercise ID")
     name: str = Field(..., description="Exercise name")
     description: str = Field(..., description="Exercise description")
-    pattern: List[BreathingPhase] = Field(..., min_length=2, description="Breathing pattern phases")
+    pattern: list[BreathingPhase] = Field(..., min_length=2, description="Breathing pattern phases")
     total_duration: int = Field(..., gt=0, description="Total cycle duration in seconds")
-    benefits: List[str] = Field(..., description="Health benefits")
+    benefits: list[str] = Field(..., description="Health benefits")
     difficulty: Literal["beginner", "intermediate", "advanced"] = Field(default="beginner")
 
 
@@ -82,30 +82,30 @@ class HealthTip(BaseModel):
     tip: str = Field(..., min_length=20, description="Tip content")
     icon: str = Field(..., description="Emoji icon")
     source: str = Field(..., description="Authoritative source")
-    tags: List[str] = Field(default_factory=list, description="Search tags")
+    tags: list[str] = Field(default_factory=list, description="Search tags")
 
 
 class TriviaConfigResponse(BaseModel):
     """Response for trivia configuration."""
 
     total_questions: int
-    questions: List[TriviaQuestion]
+    questions: list[TriviaQuestion]
 
 
 class BreathingConfigResponse(BaseModel):
     """Response for breathing exercise configuration."""
 
     total_exercises: int
-    exercises: List[BreathingExercise]
+    exercises: list[BreathingExercise]
     default_exercise: str
 
 
 class TipsConfigResponse(BaseModel):
     """Response for daily tips configuration."""
 
-    tips_by_category: dict[str, List[HealthTip]]
+    tips_by_category: dict[str, list[HealthTip]]
     total_tips: int
-    categories: List[str]
+    categories: list[str]
 
 
 # ============================================================================

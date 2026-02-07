@@ -37,7 +37,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   useEffect(() => {
     // In desktop mode, skip authentication requirements
-    // Desktop uses license-based access, not Auth0
+    // Desktop uses license-based access
     if (isDesktop()) {
       setIsAuthorized(true);
       return;

@@ -5,11 +5,7 @@ Tests data models and LLM-based diarization functionality.
 
 from __future__ import annotations
 
-import json
-from typing import Any
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 # ==============================================================================
 # SPEAKER MODEL TESTS
@@ -210,10 +206,9 @@ class TestDiarizationResponse:
 #
 # The following tests were for diarize_with_llm() and related functions
 # which have been replaced by provider-based architecture (PyannoteProvider,
-# AWSTranscribeProvider, GoogleSpeechProvider, DeepgramProvider).
+# DeepgramProvider, AzureGPT4Provider).
 #
 # Original tests: TestDiarizeWithLLM (140 lines) + TestPromptLoading (56 lines)
 # Total: 196 lines of obsolete tests removed
 #
-# TODO: Rewrite tests for new provider-based API when needed
 # ==============================================================================

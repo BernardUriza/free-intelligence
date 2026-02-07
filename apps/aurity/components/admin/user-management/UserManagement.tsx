@@ -9,7 +9,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Building2, X, Eye, Ban, Check, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { useRBAC, ROLES, getRoleName, getRoleBadgeColor, type Role } from '@aurity-standalone/hooks/useRBAC';
 import { toastError, toastSuccess } from '@/lib/swal';
 import {
@@ -23,7 +22,6 @@ import type { User, UserManagementProps } from './types';
 import { InviteUserModal, UserActivityModal, ClinicAssignmentModal } from './modals';
 
 export function UserManagement({ onClose, asPage = false }: UserManagementProps) {
-  const { getAccessTokenSilently } = useAuth();
   useRBAC(); // Initialize RBAC context
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +57,8 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
         created_at: u.created_at,
         last_login: u.last_login,
         logins_count: u.logins_count,
-        roles: u.roles || [],
-        blocked: u.blocked,
+        role: u.role || 'FI-clinician',
+        blocked: !u.is_active ? true : u.blocked,
       }));
 
       const usersWithClinicInfo = await Promise.all(
@@ -84,26 +82,9 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
   }, []);
 
   useEffect(() => {
-    const initAndLoad = async () => {
-      try {
-        const token = await getAccessTokenSilently({
-          authorizationParams: {
-            audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || 'https://app.aurity.io',
-          }
-        });
-        const { setAdminToken } = await import('@/lib/api/admin');
-        setAdminToken(token);
-
-        loadUsers();
-        loadClinics();
-      } catch (error) {
-        console.error('Failed to get auth token:', error);
-        setLoading(false);
-      }
-    };
-
-    initAndLoad();
-  }, [getAccessTokenSilently, loadUsers, loadClinics]);
+    loadUsers();
+    loadClinics();
+  }, [loadUsers, loadClinics]);
 
   const loadUserClinicInfo = async (user: User) => {
     setLoadingClinicInfo(user.user_id);
@@ -140,20 +121,19 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.roles.includes(roleFilter);
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const handleRoleToggle = async (user: User, role: Role) => {
+  const handleRoleChange = async (user: User, newRole: Role) => {
+    if (user.role === newRole) return;
     try {
-      const hasRole = user.roles.includes(role);
-      const updatedRoles = hasRole ? user.roles.filter(r => r !== role) : [...user.roles, role];
       const { adminApi } = await import('@/lib/api/admin');
-      await adminApi.updateUserRoles(user.user_id, updatedRoles);
-      setUsers(users.map(u => u.user_id === user.user_id ? { ...u, roles: updatedRoles } : u));
-      toastSuccess('Roles actualizados correctamente');
+      await adminApi.updateUserRole(user.user_id, newRole);
+      setUsers(users.map(u => u.user_id === user.user_id ? { ...u, role: newRole } : u));
+      toastSuccess('Rol actualizado correctamente');
     } catch {
-      toastError('Error al actualizar roles');
+      toastError('Error al actualizar rol');
     }
   };
 
@@ -309,23 +289,21 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                         <span>Logins: {user.logins_count || 0}</span>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {Object.values(ROLES).map(role => {
-                          const hasRole = user.roles.includes(role);
-                          return (
-                            <button
-                              key={role}
-                              onClick={() => handleRoleToggle(user, role)}
-                              className={hasRole
-                                ? `fi-role-toggle-active ${getRoleBadgeColor(role)}`
-                                : 'fi-role-toggle'
-                              }
-                            >
-                              {hasRole && <><Check className="w-3 h-3 inline mr-1" strokeWidth={1.5} aria-hidden="true" /></>}
-                              {getRoleName(role)}
-                            </button>
-                          );
-                        })}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Rol:</span>
+                        <Select value={user.role} onValueChange={(val) => handleRoleChange(user, val as Role)}>
+                          <SelectTrigger className="w-48 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.values(ROLES).map(role => (
+                              <SelectItem key={role} value={role}>{getRoleName(role)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className={`px-2 py-0.5 ${getRoleBadgeColor(user.role)} text-white text-xs rounded`}>
+                          {getRoleName(user.role)}
+                        </span>
                       </div>
                     </div>
                   </div>

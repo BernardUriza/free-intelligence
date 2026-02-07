@@ -11,7 +11,6 @@ Card: Document Repository Implementation
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import BinaryIO
 
 from backend.domain.document.models import (
     Document,
@@ -244,7 +243,7 @@ class IDocumentRepository(ABC):
     # =============================================================================
 
     @abstractmethod
-    def search_by_embedding(
+    async def search_by_embedding(
         self,
         query_embedding: list[float],
         clinic_id: str,
@@ -253,6 +252,8 @@ class IDocumentRepository(ABC):
         document_type: str | None = None
     ) -> list[SearchResult]:
         """Semantic search using query embedding.
+
+        AUTO GPU DELEGATION: Implementations may use GPU for >1000 vectors.
 
         Args:
             query_embedding: Query vector (same dimensions as chunk embeddings)

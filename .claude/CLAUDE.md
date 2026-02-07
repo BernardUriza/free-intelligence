@@ -95,7 +95,35 @@ free-intelligence/
 
 ---
 
+## ⚠️ Project Status
+
+**THIS APP HAS NOT BEEN LAUNCHED. NO USERS. NO DEADLINE.**
+
+Therefore:
+- **NO DEPRECATED CODE** - Delete it, don't mark it deprecated
+- **NO LEGACY CODE** - Refactor it now, not "later"
+- **NO BACKWARD COMPATIBILITY HACKS** - There's nothing to be compatible with
+- **NO TODOs FOR "FUTURE"** - Do it now or delete it
+
+If you (Claude) ever justify keeping dead code as "intentional for compatibility" in a pre-launch app, you are wrong. Delete the garbage.
+
+---
+
 ## 🚫 Critical Rules
+
+### Backend: Make Only, Never Raw Commands
+```bash
+# ❌ PROHIBITED - Never run uvicorn/python directly
+uvicorn backend.main:app --reload
+python -m backend.main
+PYTHONPATH=. uvicorn ...
+
+# ✅ CORRECT - Always use Make
+make dev-all-local        # Local development
+make dev-all              # Cloud development (with tunnel)
+make dev-kill             # Stop all services
+make test                 # Run tests
+```
 
 ### No Emojis in Code
 ```typescript

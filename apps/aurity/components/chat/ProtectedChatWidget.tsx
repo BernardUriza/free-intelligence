@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * ProtectedChatWidget - Chat Widget with Auth0 Protection
+ * ProtectedChatWidget - Chat Widget with Auth Protection
  *
- * Wrapper que asegura que el ChatWidget esté envuelto por Auth0Provider.
- * Resuelve el error "You forgot to wrap your component in <Auth0Provider>".
+ * Wrapper que asegura que el ChatWidget esté envuelto por AuthProvider.
  */
 
-import { Auth0Provider } from '../auth/Auth0Provider';
+import { AuthProvider } from '../auth/AuthProvider';
 import { ChatWidget } from './ChatWidget';
 import type { ChatConfig } from '@/config/chat.config';
 
@@ -18,9 +17,9 @@ export interface ProtectedChatWidgetProps {
 
 export function ProtectedChatWidget({ config }: ProtectedChatWidgetProps) {
   return (
-    <Auth0Provider>
+    <AuthProvider>
       <ChatWidget config={config} />
-    </Auth0Provider>
+    </AuthProvider>
   );
 }
 

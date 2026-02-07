@@ -20,33 +20,33 @@ import {
 let orders = [...medicalOrders];
 
 export const workflowHandlers = [
-  http.post('/api/workflows/aurity/stream', async ({ request }) => {
+  http.post('/api/aurity/stream', async ({ request }) => {
     const form = await request.formData();
     const chunkNumber = Number(form.get('chunk_number') ?? 0);
     return HttpResponse.json(streamChunkResponse(chunkNumber));
   }),
 
-  http.post('/api/workflows/aurity/sessions/:id/checkpoint', () => {
+  http.post('/api/aurity/medical-ai/sessions/:id/checkpoint', () => {
     return HttpResponse.json(checkpointResponse);
   }),
 
-  http.post('/api/workflows/aurity/end-session', async ({ request }) => {
+  http.post('/api/aurity/end-session', async ({ request }) => {
     const form = await request.formData();
     const incomingSession = form.get('session_id')?.toString() || sessionId;
     return HttpResponse.json({ ...endSessionResponse, session_id: incomingSession });
   }),
 
-  http.post('/api/workflows/aurity/sessions/:id/diarization', () => {
+  http.post('/api/aurity/medical-ai/sessions/:id/diarization', () => {
     return HttpResponse.json({ job_id: diarizationJobId });
   }),
 
-  http.get('/api/workflows/aurity/diarization/jobs/:jobId', ({ params }) => {
+  http.get('/api/aurity/medical-ai/diarization/jobs/:jobId', ({ params }) => {
     const { jobId } = params;
     const progress = jobId === diarizationJobId ? 100 : 50;
     return HttpResponse.json({ status: 'completed', progress });
   }),
 
-  http.get('/api/workflows/aurity/sessions/:id/diarization/segments', () => {
+  http.get('/api/aurity/medical-ai/sessions/:id/diarization/segments', () => {
     return HttpResponse.json({
       session_id: sessionId,
       segments: diarizationSegments,
@@ -56,22 +56,22 @@ export const workflowHandlers = [
     });
   }),
 
-  http.post('/api/workflows/aurity/sessions/:id/soap', () => {
+  http.post('/api/aurity/medical-ai/sessions/:id/soap', () => {
     return HttpResponse.json({ job_id: 'soap-job-1' });
   }),
 
-  http.get('/api/workflows/aurity/sessions/:id/soap', () => HttpResponse.json(soapNote)),
+  http.get('/api/aurity/medical-ai/sessions/:id/soap', () => HttpResponse.json(soapNote)),
 
-  http.put('/api/workflows/aurity/sessions/:id/soap', async ({ request }) => {
+  http.put('/api/aurity/medical-ai/sessions/:id/soap', async ({ request }) => {
     const body = await request.json();
     // Accept payload; respond with created orders count
     const ordersCreated = body?.soap_note?.plan?.medications?.length ? 1 : 0;
     return HttpResponse.json({ orders_created: ordersCreated });
   }),
 
-  http.get('/api/workflows/aurity/sessions/:id/orders', () => HttpResponse.json(orders)),
+  http.get('/api/aurity/medical-ai/sessions/:id/orders', () => HttpResponse.json(orders)),
 
-  http.post('/api/workflows/aurity/sessions/:id/orders', async ({ request }) => {
+  http.post('/api/aurity/medical-ai/sessions/:id/orders', async ({ request }) => {
     const body = (await request.json()) as Partial<MedicalOrder> & { description: string };
     const newOrder = {
       id: `order-${Date.now()}`,
@@ -85,48 +85,48 @@ export const workflowHandlers = [
     return HttpResponse.json(newOrder.id);
   }),
 
-  http.put('/api/workflows/aurity/sessions/:id/orders/:orderId', async ({ params, request }) => {
+  http.put('/api/aurity/medical-ai/sessions/:id/orders/:orderId', async ({ params, request }) => {
     const { orderId } = params;
     const body = await request.json();
     orders = orders.map((o) => (o.id === orderId ? { ...o, ...body } : o));
     return HttpResponse.json({ success: true });
   }),
 
-  http.delete('/api/workflows/aurity/sessions/:id/orders/:orderId', ({ params }) => {
+  http.delete('/api/aurity/medical-ai/sessions/:id/orders/:orderId', ({ params }) => {
     const { orderId } = params;
     orders = orders.filter((o) => o.id !== orderId);
     return HttpResponse.json({ success: true });
   }),
 
-  http.get('/api/workflows/aurity/sessions/:id/transcription-sources', () =>
+  http.get('/api/aurity/medical-ai/sessions/:id/transcription-sources', () =>
     HttpResponse.json(transcriptionSources)
   ),
 
-  http.get('/api/workflows/aurity/sessions/:id/chunks', () =>
+  http.get('/api/aurity/medical-ai/sessions/:id/chunks', () =>
     HttpResponse.json(transcriptionSources.transcription_per_chunks)
   ),
 
-  http.get('/api/workflows/aurity/sessions/:id/monitor', () =>
+  http.get('/api/aurity/medical-ai/sessions/:id/monitor', () =>
     new HttpResponse(sessionMonitorText, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   ),
 
-  http.get('/api/workflows/aurity/sessions/:id', () => HttpResponse.json(timelineSession)),
+  http.get('/api/aurity/medical-ai/sessions/:id', () => HttpResponse.json(timelineSession)),
 
   http.get('/api/sessions', () => HttpResponse.json({ sessions: [timelineSession], total: 1 })),
 
-  http.get('/api/workflows/aurity/timeline/sessions', () =>
+  http.get('/api/aurity/timeline/sessions', () =>
     HttpResponse.json({ sessions: [timelineSession], total: 1 })
   ),
 
-  http.get('/api/workflows/aurity/timeline/events', () => HttpResponse.json({ events: timelineEvents })),
+  http.get('/api/aurity/timeline/events', () => HttpResponse.json({ events: timelineEvents })),
 
-  http.get('/api/workflows/aurity/timeline/stats', () =>
+  http.get('/api/aurity/timeline/stats', () =>
     HttpResponse.json({ total_sessions: 1, avg_duration_minutes: 18 })
   ),
 
-  http.get('/api/workflows/aurity/timeline/memory', () =>
+  http.get('/api/aurity/timeline/memory', () =>
     HttpResponse.json({
       session_id: timelineSession.session_id,
       summary: 'Memoria de la sesión mock',
@@ -134,19 +134,19 @@ export const workflowHandlers = [
     })
   ),
 
-  http.get('/api/workflows/aurity/health', () => HttpResponse.json({ status: 'healthy' })),
+  http.get('/api/aurity/health', () => HttpResponse.json({ status: 'healthy' })),
 
-  http.get('/api/workflows/aurity/kpis', () => HttpResponse.json(kpiSummary)),
+  http.get('/api/aurity/kpis', () => HttpResponse.json(kpiSummary)),
 
-  http.get('/api/workflows/aurity/clinic-media/list', () =>
+  http.get('/api/aurity/clinic/clinic-media/list', () =>
     HttpResponse.json({ items: [{ id: 'media-1', title: 'Pantalla demo', active: true }] })
   ),
 
-  http.get('/api/workflows/aurity/system/disk-usage', () =>
+  http.get('/api/aurity/system/disk-usage', () =>
     HttpResponse.json({ used_gb: 120, total_gb: 500 })
   ),
 
-  http.post('/api/workflows/aurity/system/clear-memory', () =>
+  http.post('/api/aurity/system/clear-memory', () =>
     HttpResponse.json({ status: 'ok', cleared_gb: 1.5 })
   ),
 ];

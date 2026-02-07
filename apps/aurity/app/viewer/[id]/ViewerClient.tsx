@@ -16,8 +16,7 @@ import { Button } from '@/components/ui/button';
 import { SplitView } from '@/components/layout/SplitView';
 import { MetadataPanel } from '@/components/dashboard/MetadataPanel';
 import type { Interaction } from '@/components/types/interaction';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:7001';
+import { api } from '@/lib/api/client';
 
 export default function ViewerClient() {
   const params = useParams();
@@ -35,22 +34,53 @@ export default function ViewerClient() {
 
   // Fetch interaction data
   useEffect(() => {
+    interface SessionResponse {
+      interactions?: Array<{
+        id?: string;
+        prompt?: string;
+        user_message?: string;
+        response?: string;
+        assistant_message?: string;
+        provider?: string;
+        model?: string;
+        latency_ms?: number;
+        tokens_in?: number;
+        prompt_tokens?: number;
+        tokens_out?: number;
+        completion_tokens?: number;
+        content_hash?: string;
+        manifest_hash?: string;
+        created_at?: string;
+        updated_at?: string;
+        metadata?: Record<string, unknown>;
+      }>;
+      provider?: string;
+      model?: string;
+      created_at?: string;
+    }
+
+    interface MemoryResponse {
+      events?: Array<{
+        id?: string;
+        content?: string;
+        provider?: string;
+        model?: string;
+        duration?: number;
+        content_hash?: string;
+        timestamp?: number;
+        metadata?: Record<string, unknown>;
+      }>;
+    }
+
     const fetchInteraction = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
         // Try to fetch from sessions API
-        const response = await fetch(
-          `${API_BASE}/api/workflows/aurity/sessions/${id}`,
-          { headers: { Accept: 'application/json' } }
+        const data = await api.get<SessionResponse>(
+          `/api/aurity/medical-ai/sessions/${id}`
         );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch session: ${response.statusText}`);
-        }
-
-        const data = await response.json();
 
         // Get interaction by index
         const interactions = data.interactions || [];
@@ -80,33 +110,30 @@ export default function ViewerClient() {
       } catch (err) {
         // Fallback: try to load from timeline/memory endpoint
         try {
-          const memResponse = await fetch(
-            `${API_BASE}/api/workflows/aurity/timeline/memory?session_id=${id}&limit=100`
+          const memData = await api.get<MemoryResponse>(
+            `/api/aurity/timeline/memory?session_id=${id}&limit=100`
           );
 
-          if (memResponse.ok) {
-            const memData = await memResponse.json();
-            const events = memData.events || [];
-            const event = events[index];
+          const events = memData.events || [];
+          const event = events[index];
 
-            if (event) {
-              setInteraction({
-                id: event.id || `${id}-${index}`,
-                session_id: id,
-                prompt: event.content || '',
-                response: '',
-                provider: event.provider || 'unknown',
-                model: event.model || 'unknown',
-                latency_ms: event.duration,
-                tokens_in: 0,
-                tokens_out: 0,
-                content_hash: event.content_hash || '',
-                created_at: new Date(event.timestamp * 1000).toISOString(),
-                metadata: event.metadata || {},
-              });
-              setError(null);
-              return;
-            }
+          if (event) {
+            setInteraction({
+              id: event.id || `${id}-${index}`,
+              session_id: id,
+              prompt: event.content || '',
+              response: '',
+              provider: event.provider || 'unknown',
+              model: event.model || 'unknown',
+              latency_ms: event.duration,
+              tokens_in: 0,
+              tokens_out: 0,
+              content_hash: event.content_hash || '',
+              created_at: new Date((event.timestamp || 0) * 1000).toISOString(),
+              metadata: event.metadata || {},
+            });
+            setError(null);
+            return;
           }
         } catch {
           // Ignore fallback errors

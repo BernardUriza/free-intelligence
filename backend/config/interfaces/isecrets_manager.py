@@ -20,7 +20,7 @@ class ISecretsManager(ABC):
     - EnvSecretsManager: Pure environment variables (for testing)
 
     Usage:
-        from backend.services.workflow.dependencies import get_secrets_manager_dep
+        from backend.infrastructure.config.dependencies import get_secrets_manager_dep
 
         secrets_manager = get_secrets_manager_dep()
         api_key = secrets_manager.get("OPENAI_API_KEY")

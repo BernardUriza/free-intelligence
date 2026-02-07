@@ -36,12 +36,13 @@ import { useRecorder } from './useRecorder';
 import { useAudioAnalysis } from './useAudioAnalysis';
 import { useChunkProcessor } from './useChunkProcessor';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
+import { getBackendUrl } from '@/lib/config/deployment';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const BACKEND_URL = getBackendUrl();
 const CHUNK_INTERVAL_MS = 30000; // 30s chunks
 
 interface UseChatVoiceRecorderConfig {
-  userId: string; // Auth0 user.sub
+  userId: string; // JWT user.sub
   onTranscriptUpdate?: (transcript: string) => void;
   onError?: (error: string) => void;
   /** Specific audio input device ID (null = use system default) */
@@ -77,7 +78,7 @@ export function useChatVoiceRecorder(
   const { userId, onTranscriptUpdate, onError, deviceId = null } = config;
 
   // Generate session ID: chat_{sanitized_user_sub}
-  // Auth0 user.sub contains pipe chars (e.g., "google-oauth2|123") which aren't allowed
+  // User ID may contain special chars that need sanitization
   // Backend validates: alphanumeric + hyphens + underscores only (10-128 chars)
   const sanitizedUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const sessionId = `chat_${sanitizedUserId}`;
@@ -125,7 +126,7 @@ export function useChatVoiceRecorder(
           chunk_number: number;
           session_id: string;
           status?: string;
-        }>('/api/workflows/aurity/stream', formData);
+        }>('/api/aurity/stream', formData);
 
         console.log(`[Chat Voice] Chunk ${chunkNumber} uploaded, polling job ${result.session_id}...`);
         addLog(`Chunk ${chunkNumber} uploaded (${(blob.size / 1024).toFixed(1)}KB)`);

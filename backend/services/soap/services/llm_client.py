@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.providers.llm import llm_generate
+from backend.providers import llm_generate
 from backend.utils.common.logging.logger import get_logger
 from backend.services.soap.services.prompt_builder import OllamaPromptBuilder
 from backend.services.soap.services.response_parser import (

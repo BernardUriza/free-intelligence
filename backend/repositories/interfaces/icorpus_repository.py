@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from backend.type_defs import DiarizationChunkDict
+from backend.utils.common.types.type_defs import DiarizationChunkDict
 
 
 class ICorpusRepository(ABC):
@@ -150,6 +150,19 @@ class ICorpusRepository(ABC):
 
         Returns:
             Session metadata dict or None if not found
+        """
+        pass
+
+    @abstractmethod
+    def update_session_metadata(self, session_id: str, updates: dict[str, Any]) -> bool:
+        """Update session metadata in corpus (merge with existing).
+
+        Args:
+            session_id: Session identifier
+            updates: Dictionary of metadata fields to update/add
+
+        Returns:
+            True if update successful, False otherwise
         """
         pass
 

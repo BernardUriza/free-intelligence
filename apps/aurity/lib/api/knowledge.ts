@@ -14,8 +14,9 @@ import type {
   DocumentStatus,
   DocumentQuestion,
 } from '@aurity-standalone/types/knowledge';
+import { api } from './client';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
+const API_BASE = '/api/aurity/knowledge-base/documents';
 
 /**
  * Fetch all documents with optional filters
@@ -29,20 +30,7 @@ export async function fetchDocuments(params?: {
   if (params?.persona) query.set('persona', params.persona);
 
   const queryString = query.toString();
-  const url = `${BACKEND_URL}/api/workflows/aurity/documents${queryString ? `?${queryString}` : ''}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch documents: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<DocumentsListResponse>(`${API_BASE}${queryString ? `?${queryString}` : ''}`);
 }
 
 /**
@@ -52,20 +40,7 @@ export async function fetchDocuments(params?: {
  * @param includeText - Whether to include extracted text content
  */
 export async function fetchDocument(docId: string, includeText = false): Promise<Document> {
-  const url = `${BACKEND_URL}/api/workflows/aurity/documents/${docId}${includeText ? '?include_text=true' : ''}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch document ${docId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<Document>(`${API_BASE}/${docId}${includeText ? '?include_text=true' : ''}`);
 }
 
 /**
@@ -87,17 +62,7 @@ export async function uploadDocument(
     formData.append('assigned_personas', JSON.stringify(metadata.assigned_personas));
   }
 
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || `Upload failed: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.upload<DocumentMetadata>(`${API_BASE}/upload`, formData);
 }
 
 /**
@@ -107,47 +72,21 @@ export async function updateDocument(
   docId: string,
   updates: DocumentUpdateRequest
 ): Promise<DocumentMetadata> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(updates),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to update document ${docId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.put<DocumentMetadata>(`${API_BASE}/${docId}`, updates);
 }
 
 /**
  * Delete a document
  */
 export async function deleteDocument(docId: string): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}`, {
-    method: 'DELETE',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete document ${docId}: ${response.statusText}`);
-  }
+  await api.delete<void>(`${API_BASE}/${docId}`);
 }
 
 /**
  * Reindex a document (regenerate embeddings)
  */
 export async function reindexDocument(docId: string): Promise<DocumentMetadata> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/${docId}/reindex`, {
-    method: 'POST',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to reindex document ${docId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<DocumentMetadata>(`${API_BASE}/${docId}/reindex`);
 }
 
 /**
@@ -160,23 +99,11 @@ export async function searchDocuments(
     persona_filter?: string;
   }
 ): Promise<SearchResponse> {
-  const response = await fetch(`${BACKEND_URL}/api/workflows/aurity/documents/search`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      top_k: options?.top_k ?? 5,
-      persona_filter: options?.persona_filter,
-    }),
+  return api.post<SearchResponse>(`${API_BASE}/search`, {
+    query,
+    top_k: options?.top_k ?? 5,
+    persona_filter: options?.persona_filter,
   });
-
-  if (!response.ok) {
-    throw new Error(`Search failed: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 /**
@@ -187,21 +114,7 @@ export async function searchDocuments(
  * - User queries via RAG (source="user_query") - accumulated during usage
  */
 export async function getDocumentQuestions(docId: string): Promise<DocumentQuestion[]> {
-  const response = await fetch(
-    `${BACKEND_URL}/api/workflows/aurity/documents/${docId}/questions`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch questions for document ${docId}: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.get<DocumentQuestion[]>(`${API_BASE}/${docId}/questions`);
 }
 
 /**

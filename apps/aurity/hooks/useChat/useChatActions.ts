@@ -92,6 +92,7 @@ export function useChatActions({
   });
 
   const streamControllerRef = useRef<StreamController | null>(null);
+  const introAbortRef = useRef<AbortController | null>(null);
   const [, setStreamUpdateCounter] = useState(0);  // Force re-renders for each chunk
 
   // Stop stream
@@ -121,6 +122,10 @@ export function useChatActions({
   // Get Introduction
   // ========================================================================
   const getIntroduction = useCallback(async (): Promise<FIChatResponse | null> => {
+    // Cancel any previous introduction request (prevents race conditions)
+    introAbortRef.current?.abort();
+    introAbortRef.current = new AbortController();
+
     setLoading(true);
     setError(null);
     setIsTyping(true);
@@ -129,7 +134,7 @@ export function useChatActions({
       const response = await assistantApi.introduction({
         ...context,
         phase,
-      });
+      }, introAbortRef.current.signal);
 
       const introMsgId = generateMessageId('intro');
 
@@ -150,6 +155,11 @@ export function useChatActions({
       setLoading(false);
       return response;
     } catch (err) {
+      // Ignore intentional abort errors (component unmount, new request started)
+      if (err instanceof Error && err.name === 'AbortError') {
+        return null;
+      }
+
       if (err instanceof BackendUnavailableError || isConnectionError(err)) {
         setIsTyping(false);
         setLoading(false);
@@ -173,6 +183,16 @@ export function useChatActions({
       getIntroduction();
     }
   }, [autoIntroduction, messages.length, loadingInitial, getIntroduction, introductionLoadedRef]);
+
+  // ========================================================================
+  // Cleanup: Abort pending requests on unmount
+  // ========================================================================
+  useEffect(() => {
+    return () => {
+      // Abort any pending introduction request when component unmounts
+      introAbortRef.current?.abort();
+    };
+  }, []);
 
   // ========================================================================
   // Send Message
@@ -209,7 +229,7 @@ export function useChatActions({
         session_id: storageKey || 'unknown',
         behavior_metrics: behaviorMetrics,
         enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-        response_mode: context?.response_mode as string | undefined, // concise vs explanatory
+        response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
       });
 
       if (response.emotional_analysis) {
@@ -332,7 +352,7 @@ export function useChatActions({
           session_id: storageKey || 'unknown',
           behavior_metrics: behaviorMetrics,
           enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-          response_mode: context?.response_mode as string | undefined, // concise vs explanatory
+          response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
         },
         {
           onThinking: (thinking) => {

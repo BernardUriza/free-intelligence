@@ -9,7 +9,7 @@ Card: Backend Refactor Phase 2.6 - Testing Strategy
 
 import pytest
 from unittest.mock import Mock, patch
-from backend.api.routers.workflow.public.services.workflow_orchestrator import (
+from backend.services.workflow.services.workflow_orchestrator import (
     WorkflowOrchestrator,
 )
 from backend.repositories.interfaces import ITaskRepository
@@ -35,10 +35,40 @@ def mock_logger():
 
 
 @pytest.fixture
-def orchestrator(mock_task_repo, mock_logger):
+def mock_workflow_tracker():
+    """Mock IWorkflowTracker."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_policy_loader():
+    """Mock IPolicyLoader."""
+    loader = Mock()
+    loader.get_primary_provider = Mock(return_value="ollama")
+    return loader
+
+
+@pytest.fixture
+def mock_preset_loader():
+    """Mock IPresetLoader."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_decisional_middleware():
+    """Mock IDecisionalMiddleware."""
+    return Mock()
+
+
+@pytest.fixture
+def orchestrator(mock_task_repo, mock_workflow_tracker, mock_policy_loader, mock_preset_loader, mock_decisional_middleware, mock_logger):
     """WorkflowOrchestrator instance with mocked dependencies."""
     return WorkflowOrchestrator(
         task_repository=mock_task_repo,
+        workflow_tracker=mock_workflow_tracker,
+        policy_loader=mock_policy_loader,
+        preset_loader=mock_preset_loader,
+        decisional_middleware=mock_decisional_middleware,
         logger=mock_logger,
     )
 
@@ -46,7 +76,7 @@ def orchestrator(mock_task_repo, mock_logger):
 class TestDispatchDiarization:
     """Tests for dispatch_diarization() method."""
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_creates_task_and_dispatches_worker(
         self, mock_spawn_worker, orchestrator, mock_task_repo
     ):
@@ -63,7 +93,7 @@ class TestDispatchDiarization:
         assert result["session_id"] == session_id
         assert result["status"] == "dispatched"
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_returns_job_response(
         self, mock_spawn_worker, orchestrator
     ):
@@ -83,7 +113,7 @@ class TestDispatchDiarization:
 class TestDispatchSOAP:
     """Tests for dispatch_soap_generation() method."""
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_dispatches_soap_worker(
         self, mock_spawn_worker, orchestrator, mock_task_repo
     ):
@@ -103,7 +133,7 @@ class TestDispatchSOAP:
 class TestDispatchEmotion:
     """Tests for dispatch_emotion_analysis() method."""
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_dispatches_emotion_worker(
         self, mock_spawn_worker, orchestrator, mock_task_repo
     ):
@@ -123,7 +153,7 @@ class TestDispatchEmotion:
 class TestDispatchEncryption:
     """Tests for dispatch_encryption() method."""
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_dispatches_encryption_worker(
         self, mock_spawn_worker, orchestrator, mock_task_repo
     ):
@@ -144,7 +174,7 @@ class TestDispatchEncryption:
 class TestDispatchWorkflow:
     """Tests for dispatch_workflow() generic method."""
 
-    @patch("backend.services.workflow.api.public.services.workflow_orchestrator.spawn_worker")
+    @patch("backend.services.workflow.services.workflow_orchestrator.spawn_worker")
     def test_routes_to_correct_workflow(
         self, mock_spawn_worker, orchestrator
     ):

@@ -406,35 +406,24 @@ _policy_loader_lock = threading.Lock()
 
 
 def get_policy_loader(policy_path: str | None = None) -> PolicyLoader:
-    """
-    Get singleton PolicyLoader instance (thread-safe).
+    """Get singleton PolicyLoader instance (thread-safe).
 
-    ⚠️  NOTE: For workers, prefer DI via get_policy_loader_dep() from
-    backend.services.workflow.dependencies instead.
-
-    Uses double-checked locking pattern to ensure thread safety
-    without performance penalty after initialization.
+    Uses double-checked locking pattern to ensure thread safety.
 
     Args:
         policy_path: Optional path to policy file (only used on first call)
 
     Returns:
         PolicyLoader instance
-
-    Thread Safety:
-        - Multiple threads can safely call this function concurrently
-        - Only one instance will be created even under high concurrency
-        - Lock is only acquired on first call (fast path for subsequent calls)
     """
     global _policy_loader
 
-    # Fast path: check without lock (99.9% of calls)
+    # Fast path: check without lock
     if _policy_loader is not None:
         return _policy_loader
 
     # Slow path: acquire lock and check again
     with _policy_loader_lock:
-        # Double-check: another thread might have initialized while we waited
         if _policy_loader is None:
             logger.info("POLICY_LOADER_INITIALIZING", thread_id=threading.current_thread().name)
             _policy_loader = PolicyLoader(policy_path)

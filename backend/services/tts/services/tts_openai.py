@@ -33,10 +33,12 @@ import httpx
 import os
 import structlog
 
+from backend.config.secrets import get_secret
+
 logger = structlog.get_logger(__name__)
 
 # OpenAI configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY", "")
 OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")  # tts-1 or tts-1-hd
 
 # OpenAI voice types (11 voices as of 2025)

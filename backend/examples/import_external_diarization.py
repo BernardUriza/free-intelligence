@@ -15,7 +15,6 @@ Created: 2026-01-27
 """
 
 import requests
-import json
 from typing import Any
 
 # Example diarization data from external service (e.g., Cue.ai)

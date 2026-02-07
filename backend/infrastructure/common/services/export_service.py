@@ -13,7 +13,7 @@ import json
 import random
 import time
 from datetime import UTC, datetime
-from typing import Any, List
+from typing import Any
 
 import os
 from backend.utils.common.logging.logger import get_logger
@@ -127,7 +127,7 @@ class ExportService:
         self,
         session_id: str,
         content_dict: dict[str, str],
-        formats: List[str],
+        formats: list[str],
     ) -> dict[str, Any]:
         """Create export bundle.
 
@@ -299,7 +299,7 @@ class ExportService:
             logger.error("EXPORT_METADATA_FAILED", export_id=export_id, error=str(e))
             raise
 
-    def verify_export(self, export_id: str, targets: List[str]) -> dict[str, Any]:
+    def verify_export(self, export_id: str, targets: list[str]) -> dict[str, Any]:
         """Verify export file integrity.
 
         Args:

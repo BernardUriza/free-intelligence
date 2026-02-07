@@ -163,29 +163,17 @@ class Clinic(Base):
     whatsapp_enabled = Column(Boolean, default=False)
 
     # Subscription
-    subscription_plan = Column(String(50), default="starter")  # Legacy: will be replaced by plan_id
+    subscription_plan = Column(String(50), default="starter")
     subscription_valid_until = Column(DateTime(timezone=True), nullable=True)
-
-    # Plan-based limits (new) - COMMENTED OUT: columns don't exist in DB yet
-    # TODO: Run migration to add these columns
-    # plan_id = Column(
-    #     UUID(as_uuid=False),
-    #     ForeignKey("subscription_plans.plan_id"),
-    #     nullable=True,  # Nullable during migration
-    # )
-    # max_doctors_override = Column(
-    #     Integer, nullable=True
-    # )  # Superadmin override, NULL = use plan limit
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True)
 
-    # Relationships (no type hints for SQLAlchemy 2.0 compatibility)
+    # Relationships
     doctors = relationship("Doctor", back_populates="clinic")
     appointments = relationship("Appointment", back_populates="clinic")
-    # subscription = relationship("SubscriptionPlan", back_populates="clinics")  # COMMENTED: plan_id doesn't exist yet
 
     def __repr__(self) -> str:
         """Return string representation of Clinic."""
@@ -230,7 +218,7 @@ class ClinicRole(str, enum.Enum):
 class Doctor(Base):
     """Doctor/healthcare provider for appointments.
 
-    Also serves as the user-clinic membership table when auth0_user_id is set.
+    Also serves as the user-clinic membership table when user_id is set.
     """
 
     __tablename__ = "doctors"
@@ -238,9 +226,9 @@ class Doctor(Base):
     doctor_id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     clinic_id = Column(UUID(as_uuid=False), ForeignKey("clinics.clinic_id"), nullable=False)
 
-    # Auth0 User Linking (nullable for legacy/unlinked doctors)
-    auth0_user_id = Column(String(255), nullable=True, unique=True, index=True)
-    email = Column(String(255), nullable=True)  # Cached from Auth0 for display
+    # User Linking (nullable until doctor links their account)
+    user_id = Column(String(255), nullable=True, unique=True, index=True)
+    email = Column(String(255), nullable=True)
     clinic_role = Column(Enum(ClinicRole), nullable=False, default=ClinicRole.DOCTOR)
 
     # Identity
@@ -255,8 +243,8 @@ class Doctor(Base):
 
     # Availability
     avg_consultation_minutes = Column(Integer, default=30)
-    work_start_time = Column(String(5), nullable=True)  # Legacy: e.g., "09:00" (HH:MM format)
-    work_end_time = Column(String(5), nullable=True)  # Legacy: e.g., "18:00" (HH:MM format)
+    work_start_time = Column(String(5), nullable=True)  # e.g., "09:00" (HH:MM format)
+    work_end_time = Column(String(5), nullable=True)  # e.g., "18:00" (HH:MM format)
     working_hours = Column(JSONB, nullable=True)  # New: Full availability config
     is_active = Column(Boolean, default=True)
 
@@ -284,7 +272,7 @@ class Doctor(Base):
         return {
             "doctor_id": str(self.doctor_id),
             "clinic_id": str(self.clinic_id),
-            "auth0_user_id": self.auth0_user_id,
+            "user_id": self.user_id,
             "email": self.email,
             "clinic_role": self.clinic_role.value if self.clinic_role else None,
             "nombre": self.nombre,
@@ -298,7 +286,7 @@ class Doctor(Base):
             "work_end_time": self.work_end_time,
             "working_hours": self.working_hours,
             "is_active": self.is_active,
-            "is_linked": self.auth0_user_id is not None,
+            "is_linked": self.user_id is not None,
         }
 
 

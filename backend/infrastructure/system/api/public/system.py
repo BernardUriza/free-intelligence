@@ -11,22 +11,26 @@ from __future__ import annotations
 
 import shutil
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
-from backend.utils.common.logging.logger import get_logger
+from backend.infrastructure.auth import User, get_current_user
 from backend.infrastructure.model_catalog.services.tunnel_url_provider import (
     get_tunnel_url_provider,
 )
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pathlib import Path
+from backend.services.assistant.services.monitor_client import discover_monitor_url
+from backend.utils.common.logging.logger import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/system", tags=["System"])
+
+# Default gateway URL when fi-monitor config not found
+FI_MONITOR_GATEWAY_FALLBACK = "http://localhost:11400"
 
 
 # ============================================================================
@@ -63,8 +67,10 @@ class LLMStatusResponse(BaseModel):
 
 
 @router.get("/disk-usage", response_model=DiskUsageResponse)
-async def get_disk_usage() -> DiskUsageResponse:
-    """Get disk usage for storage directory.
+async def get_disk_usage(
+    current_user: User = Depends(get_current_user),
+) -> DiskUsageResponse:
+    """Get disk usage for storage directory. Requires authentication.
 
     Returns:
         Disk usage statistics
@@ -109,9 +115,10 @@ async def get_disk_usage() -> DiskUsageResponse:
 
 @router.post("/clear-memory")
 async def clear_longitudinal_memory(
-    user_id: str = Query(..., description="User ID (Auth0 sub) for audit logging"),
+    current_user: User = Depends(get_current_user),
+    user_id: str = Query(..., description="User ID (JWT sub) for audit logging"),
 ) -> dict[str, str]:
-    """Clear all longitudinal memory (HDF5 sessions and chat messages).
+    """Clear all longitudinal memory (HDF5 sessions and chat messages). Requires authentication.
 
     Deletes:
     - storage/sessions/*.h5 (HDF5 session files)
@@ -174,8 +181,10 @@ async def clear_longitudinal_memory(
 
 
 @router.get("/llm-status", response_model=LLMStatusResponse)
-async def get_llm_status() -> LLMStatusResponse:
-    """Get detailed LLM/Ollama connection status.
+async def get_llm_status(
+    current_user: User = Depends(get_current_user),
+) -> LLMStatusResponse:
+    """Get detailed LLM/Ollama connection status. Requires authentication.
 
     Returns comprehensive information about the current LLM connection:
     - Connection status (online/offline)
@@ -190,7 +199,6 @@ async def get_llm_status() -> LLMStatusResponse:
     provider = get_tunnel_url_provider()
 
     # Get current URL (triggers cache refresh if needed)
-    start_time = time.time()
     current_url = await provider.get_ollama_url()
     tunnel_info = await provider.get_tunnel_info()
 
@@ -198,7 +206,11 @@ async def get_llm_status() -> LLMStatusResponse:
     is_tunnel = tunnel_info is not None and "tunnel_url" in (tunnel_info or {})
     fallback_url = "http://localhost:11434"
 
-    # Check if Ollama is actually reachable and get models
+    # fi-monitor gateway URL (single entry point for all LLM services)
+    # Read from config file using existing discovery function
+    fi_monitor_gateway = await discover_monitor_url() or FI_MONITOR_GATEWAY_FALLBACK
+
+    # Check if fi-monitor gateway is reachable first, then Ollama via gateway
     status = "offline"
     models: list[str] = []
     latency_ms: int | None = None
@@ -206,13 +218,46 @@ async def get_llm_status() -> LLMStatusResponse:
     try:
         async with httpx.AsyncClient() as client:
             check_start = time.time()
-            response = await client.get(f"{current_url}/api/tags", timeout=2.0)
-            latency_ms = int((time.time() - check_start) * 1000)
 
-            if response.status_code == 200:
-                status = "online"
-                data = response.json()
-                models = [m.get("name", "") for m in data.get("models", [])]
+            # First: Check fi-monitor gateway health
+            try:
+                gateway_response = await client.get(
+                    f"{fi_monitor_gateway}/gateway/health", timeout=2.0
+                )
+                if gateway_response.status_code == 200:
+                    # Gateway is up, now check Ollama through gateway
+                    response = await client.get(
+                        f"{fi_monitor_gateway}/api/tags", timeout=2.0
+                    )
+                    latency_ms = int((time.time() - check_start) * 1000)
+
+                    if response.status_code == 200:
+                        status = "online"
+                        data = response.json()
+                        models = [m.get("name", "") for m in data.get("models", [])]
+                        # Update current_url to reflect we're using gateway
+                        current_url = fi_monitor_gateway
+                else:
+                    logger.debug(
+                        "FI_MONITOR_GATEWAY_NOT_OK",
+                        status_code=gateway_response.status_code,
+                    )
+            except Exception as gateway_err:
+                # Gateway not available, fall back to direct Ollama check
+                logger.debug(
+                    "FI_MONITOR_GATEWAY_UNREACHABLE",
+                    error=str(gateway_err),
+                    fallback_to="direct_ollama",
+                )
+                # Fallback: check Ollama directly
+                response = await client.get(f"{current_url}/api/tags", timeout=2.0)
+                latency_ms = int((time.time() - check_start) * 1000)
+
+                if response.status_code == 200:
+                    status = "online"
+                    data = response.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+
     except Exception as e:
         logger.debug("LLM_STATUS_CHECK_FAILED", error=str(e), url=current_url)
         status = "offline"

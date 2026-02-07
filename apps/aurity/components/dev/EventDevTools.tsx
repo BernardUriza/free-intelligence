@@ -31,6 +31,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { api, getBackendUrl } from '@/lib/api/client';
 
 // Types
 interface EventData {
@@ -71,7 +72,7 @@ interface EventDevToolsProps {
 }
 
 // Constants
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:7001";
+const API_BASE = getBackendUrl();
 const EVENT_COLORS: Record<string, string> = {
   TRANSCRIPTION_STARTED: "bg-green-500",
   TRANSCRIPTION_CHUNK_RECEIVED: "bg-blue-500",
@@ -173,11 +174,8 @@ export function EventDevTools({
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/workflows/events/metrics/summary`);
-      if (res.ok) {
-        const data = await res.json();
-        setMetrics(data);
-      }
+      const data = await api.get<MetricsSummary>('/api/workflows/events/metrics/summary');
+      setMetrics(data);
     } catch (err) {
       console.error("Failed to fetch metrics:", err);
     }
@@ -186,11 +184,8 @@ export function EventDevTools({
   // Fetch projections
   const fetchProjections = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/workflows/events/projections`);
-      if (res.ok) {
-        const data = await res.json();
-        setProjections(data);
-      }
+      const data = await api.get<ProjectionInfo[]>('/api/workflows/events/projections');
+      setProjections(data);
     } catch (err) {
       console.error("Failed to fetch projections:", err);
     }
@@ -201,11 +196,10 @@ export function EventDevTools({
     if (!sessionId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/workflows/events/replay/${sessionId}`);
-      if (res.ok) {
-        const data = await res.json();
-        alert(`Replay completed: ${data.event_count} events, ${data.replay_duration_ms}ms`);
-      }
+      const data = await api.get<{ event_count: number; replay_duration_ms: number }>(
+        `/api/workflows/events/replay/${sessionId}`
+      );
+      alert(`Replay completed: ${data.event_count} events, ${data.replay_duration_ms}ms`);
     } catch (err) {
       console.error("Failed to trigger replay:", err);
     }

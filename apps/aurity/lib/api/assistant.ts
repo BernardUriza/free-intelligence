@@ -55,7 +55,7 @@ export class InvalidResponseError extends Error {
 export interface HistorySearchRequest {
   /** Search query text */
   query: string;
-  /** Filter by doctor ID (Auth0 user.sub) */
+  /** Filter by doctor ID (JWT user.sub) */
   doctor_id?: string;
   /** Maximum number of results to return */
   limit?: number;
@@ -95,11 +95,11 @@ export interface ChatRequest {
   context?: Record<string, unknown>;
   /** Previous conversation messages for context */
   conversationHistory?: Array<{ role: string; content: string }>;
-  /** Doctor ID for H5 storage (Auth0 user.sub) */
+  /** Doctor ID for H5 storage (JWT user.sub) */
   doctor_id?: string;
   /** Session ID for grouping messages */
   session_id?: string;
-  /** Auth0 claims for RBAC validation (roles in https://aurity.app/roles) */
+  /** JWT claims for RBAC validation */
   claims?: TokenClaims;
   /** Behavior metrics for hybrid emotional analysis */
   behavior_metrics?: {
@@ -163,7 +163,7 @@ const CHAT_TIMEOUT_MS = 120000; // 2 minutes
 /**
  * Timeout for introduction requests (shorter since it's a simple greeting)
  */
-const INTRO_TIMEOUT_MS = 30000; // 30 seconds
+const INTRO_TIMEOUT_MS = 60000; // 60 seconds (local Ollama can take 30-50s)
 
 // ============================================================================
 // Helper Functions
@@ -320,6 +320,12 @@ export const assistantApi = {
       messages: `[${payload.messages.length} messages]`, // Don't log full messages
     });
 
+    // Add onboarding mode header for onboarding_guide persona (bypasses auth)
+    const customHeaders: Record<string, string> = {};
+    if (personaFromContext === 'onboarding_guide') {
+      customHeaders['X-Onboarding-Mode'] = 'true';
+    }
+
     const response = await api.post<{
       id: string;
       model: string;  // LLM model identifier
@@ -331,9 +337,12 @@ export const assistantApi = {
       emotional_analysis?: ChatResponse['emotional_analysis'];
       thinking?: string | null;  // Qwen3 thinking mode
     }>(
-      '/api/workflows/aurity/assistant/chat',
+      '/api/aurity/assistant/chat',
       payload,
-      { timeout: CHAT_TIMEOUT_MS } // 2 minutes for LLM inference
+      {
+        timeout: CHAT_TIMEOUT_MS, // 2 minutes for LLM inference
+        customHeaders, // X-Onboarding-Mode for unauthenticated onboarding
+      }
     );
 
     // Validate response structure
@@ -366,7 +375,7 @@ export const assistantApi = {
    */
   searchHistory: async (request: HistorySearchRequest): Promise<HistorySearchResponse> => {
     return api.post<HistorySearchResponse>(
-      '/api/workflows/aurity/assistant/history/search',
+      '/api/aurity/assistant/history/search',
       request
     );
   },
@@ -375,46 +384,35 @@ export const assistantApi = {
    * Get AI introduction message
    * Used for greeting users when starting a new conversation
    */
-  introduction: async (context: Record<string, unknown>): Promise<ChatResponse> => {
-    // Use the chat endpoint with a special introduction request
+  introduction: async (
+    context: Record<string, unknown>,
+    signal?: AbortSignal
+  ): Promise<ChatResponse> => {
+    // Use dedicated introduction endpoint
+    // Always include X-Onboarding-Mode for introduction (it's always during onboarding)
     const response = await api.post<{
-      id: string;
-      model: string;  // LLM model identifier
-      choices: Array<{
-        message: { role: string; content: string };
-        finish_reason: string;
-      }>;
+      message: string;
       persona: string;
+      tokens_used: number;
+      latency_ms: number;
     }>(
-      '/api/workflows/aurity/assistant/chat',
+      '/api/aurity/assistant/introduction',
       {
-        messages: [
-          {
-            role: 'system',
-            content: 'Generate a brief, friendly greeting for a medical professional. Be concise and professional.',
-          },
-          {
-            role: 'user',
-            content: 'Hola',
-          },
-        ],
-        user: context.doctor_id as string,
-        persona: 'onboarding_guide',
+        physician_name: context.physician_name as string | undefined,
+        clinic_name: context.clinic_name as string | undefined,
       },
-      { timeout: INTRO_TIMEOUT_MS } // 30 seconds for simple greeting
+      {
+        timeout: INTRO_TIMEOUT_MS, // 60 seconds (local Ollama can take 30-50s)
+        signal,
+        customHeaders: { 'X-Onboarding-Mode': 'true' },
+      }
     );
 
-    // Validate response structure
-    validateChatResponse(response);
-
-    // Extract message with fallback
-    const assistantMessage = extractAssistantMessage(response) || '¡Hola! ¿En qué puedo ayudarte hoy?';
-
     return {
-      message: assistantMessage,
-      persona: response.persona || 'general_assistant',
+      message: response.message,
+      persona: response.persona,
       voice: 'nova',
-      model: response.model || 'unknown',  // LLM model that generated this response
+      model: 'qwen3:1.7b',  // Introduction uses default model
     };
   },
 
@@ -463,6 +461,7 @@ export const assistantApi = {
       let thinking = '';
       let content = '';
       let model = '';
+      let persona = '';  // Capture persona from backend done event
       let currentEvent = 'message';
 
       try {
@@ -486,21 +485,28 @@ export const assistantApi = {
           requestBody.response_mode = request.context.response_mode;
         }
 
+        // Add onboarding mode header for onboarding_guide persona (bypasses auth)
+        const streamHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        };
+        if (requestBody.persona === 'onboarding_guide') {
+          streamHeaders['X-Onboarding-Mode'] = 'true';
+        }
+
         console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
-          url: `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
+          url: `${backendUrl}/api/aurity/assistant/chat/stream`,
           persona: requestBody.persona,
           messages: messages.length,
           lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
+          hasOnboardingHeader: requestBody.persona === 'onboarding_guide',
         });
 
         const response = await fetch(
-          `${backendUrl}/api/workflows/aurity/assistant/chat/stream`,
+          `${backendUrl}/api/aurity/assistant/chat/stream`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'text/event-stream',
-            },
+            headers: streamHeaders,
             body: JSON.stringify(requestBody),
             signal: abortController.signal,
           }
@@ -563,10 +569,14 @@ export const assistantApi = {
               try {
                 const jsonData = JSON.parse(data);
 
-                // Capture model if present (sent by backend in metadata)
+                // Capture model and persona if present (sent by backend in done event)
                 if (jsonData.model) {
                   model = jsonData.model;
                   console.log('[assistantApi.chatStream] [MODEL] Model:', model);
+                }
+                if (jsonData.persona) {
+                  persona = jsonData.persona;
+                  console.log('[assistantApi.chatStream] [PERSONA] Persona:', persona);
                 }
 
                 if (currentEvent === 'meta' && jsonData.thinking) {
@@ -606,10 +616,10 @@ export const assistantApi = {
           thinkingLength: thinking.length,
         });
 
-        // Stream complete
+        // Stream complete - use persona from backend or fallback to request persona
         onComplete?.({
           message: sanitizeMessagePreview(content, 10_000),
-          persona: 'general_assistant',
+          persona: persona || (request.context?.persona as string) || 'general_assistant',
           voice: 'nova',
           model: model || undefined,  // LLM model that generated this response
           thinking: sanitizeMessagePreview(thinking, 10_000) || undefined,

@@ -356,7 +356,7 @@ class TestOllamaProviderRetry:
         # Skip if ollama is not installed
         pytest.importorskip("ollama")
 
-        from backend.providers.llm import OllamaProvider
+        from backend.providers import OllamaProvider
         from backend.providers.retry import reset_circuit_breaker
 
         # Reset circuit breaker
@@ -389,7 +389,7 @@ class TestOllamaProviderRetry:
         """OllamaProvider circuit breaker should open after threshold failures."""
         pytest.importorskip("ollama")
 
-        from backend.providers.llm import OllamaProvider
+        from backend.providers import OllamaProvider
         from backend.providers.retry import CircuitOpenError
 
         # Use unique base_url to get fresh circuit breaker
@@ -425,7 +425,7 @@ class TestOllamaProviderRetry:
         """Response metadata should include retry attempt count."""
         pytest.importorskip("ollama")
 
-        from backend.providers.llm import OllamaProvider
+        from backend.providers import OllamaProvider
         from backend.providers.retry import reset_circuit_breaker
 
         reset_circuit_breaker("ollama_http://localhost:11434")

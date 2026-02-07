@@ -20,7 +20,7 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.domain.session.services.session_service import SessionService
 from backend.services.transcription.services.transcription_service import TranscriptionService
 from backend.services.workflow.services.triage_service import TriageService

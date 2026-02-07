@@ -243,6 +243,73 @@ class SessionRepository(BaseRepository):
             logger.error("SESSION_READ_FAILED", session_id=entity_id, error=str(e))
             return None
 
+    def read_batch(self, session_ids: list[str]) -> dict[str, dict[str, Any] | None]:
+        """Read multiple sessions in a single HDF5 operation (batch loading).
+
+        Performance optimization: Single file open for N session_ids vs N file opens.
+        Eliminates N+1 query pattern when fetching sessions for multiple operations.
+
+        Args:
+            session_ids: List of session identifiers
+
+        Returns:
+            Dict mapping session_id → session data (None if session not found)
+
+        Example:
+            # BEFORE (N+1 queries):
+            for session_id in session_ids:
+                session = repo.read(session_id)  # Opens file N times
+
+            # AFTER (Batch loading):
+            sessions = repo.read_batch(session_ids)  # Opens file 1 time
+            for session_id, session in sessions.items():
+                if session is not None:
+                    process(session)
+
+        Note:
+            Phase P4-3 Performance Optimization (Holoceno Tardío)
+            Batch loading pattern to avoid N+1 queries.
+        """
+        results: dict[str, dict[str, Any] | None] = {}
+
+        try:
+            with self._open_file("r") as f:
+                sessions_group = f[self.SESSIONS_GROUP]  # type: ignore[index]
+
+                for session_id in session_ids:
+                    if session_id not in sessions_group:  # type: ignore[operator]
+                        logger.warning(
+                            "SESSION_NOT_FOUND_BATCH",
+                            session_id=session_id,
+                        )
+                        results[session_id] = None
+                        continue
+
+                    session_group = sessions_group[session_id]  # type: ignore[index]
+                    raw_metadata = dict(session_group.attrs)  # type: ignore[attr-defined]
+                    metadata = self._deserialize_metadata(raw_metadata)
+
+                    results[session_id] = {
+                        "session_id": session_id,
+                        "metadata": metadata,
+                        "status": metadata.get("status", "unknown"),
+                    }
+
+            found_count = sum(1 for v in results.values() if v is not None)
+            logger.info(
+                "SESSIONS_BATCH_READ",
+                total_requested=len(session_ids),
+                found=found_count,
+                not_found=len(session_ids) - found_count,
+            )
+
+            return results
+
+        except Exception as e:
+            logger.error("SESSIONS_BATCH_READ_FAILED", error=str(e))
+            # Return partial results on error
+            return {session_id: None for session_id in session_ids}
+
     def update(
         self,
         entity_id: str,

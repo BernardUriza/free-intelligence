@@ -16,7 +16,7 @@ Module: fi_observability.audio_metrics
 import threading
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 
 class AudioMetrics:
@@ -31,13 +31,13 @@ class AudioMetrics:
         self._lock = threading.Lock()
 
         # Counters
-        self.tts_requests_total: Dict[str, int] = defaultdict(int)  # {provider:voice:count}
+        self.tts_requests_total: dict[str, int] = defaultdict(int)  # {provider:voice:count}
         self.cache_hits_total: int = 0
         self.cache_misses_total: int = 0
-        self.errors_total: Dict[str, int] = defaultdict(int)  # {error_code:count}
+        self.errors_total: dict[str, int] = defaultdict(int)  # {error_code:count}
 
         # Histograms (simplified - store samples)
-        self.latency_samples: Dict[str, list] = defaultdict(list)  # {provider:[latencies]}
+        self.latency_samples: dict[str, list] = defaultdict(list)  # {provider:[latencies]}
 
         # Gauges
         self.cache_size: int = 0
@@ -112,7 +112,7 @@ class AudioMetrics:
             idx = int(len(sorted_samples) * 0.95)
             return sorted_samples[idx] if idx < len(sorted_samples) else sorted_samples[-1]
 
-    def get_metrics_dict(self) -> Dict[str, Any]:
+    def get_metrics_dict(self) -> dict[str, Any]:
         """
         Get all metrics as a dictionary
 

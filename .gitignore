@@ -74,7 +74,9 @@ pnpm-debug.log*
 # Rust
 target/
 **/*.rs.bk
+# Cargo.lock for libraries (apps/ commit their Cargo.lock for reproducible builds)
 Cargo.lock
+!apps/*/src-tauri/Cargo.lock
 
 # =============================================================================
 # Build Artifacts & Distribution
@@ -174,3 +176,4 @@ temp/
 
 # Documentation artifacts
 docs/13 Startups de Salud Digital Revolucionando el Sector.pdf
+Icon?

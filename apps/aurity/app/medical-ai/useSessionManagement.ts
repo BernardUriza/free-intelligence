@@ -5,9 +5,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { SessionSummary, SessionTaskStatus } from '@aurity-standalone/types/patient';
+import { SessionSummary, SessionTaskStatus, TaskStatus } from '@aurity-standalone/types/patient';
 import { getSessionSummaries } from '@aurity-standalone/api-client/timeline';
 import { toastError } from '@/lib/swal';
+import { api } from '@/lib/api/client';
 
 export function useSessionManagement() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -47,28 +48,17 @@ export function useSessionManagement() {
     await Promise.all(
       sessionIds.map(async (sessionId) => {
         try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const data = await api.get<{
+            soap?: { status: string };
+            diarization?: { status: string };
+          }>(`/api/aurity/medical-ai/sessions/${sessionId}/monitor`, {
+            timeout: 5000,
+          });
 
-          const response = await fetch(
-            `${backendUrl}/api/workflows/aurity/sessions/${sessionId}/monitor`,
-            {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-              signal: controller.signal,
-            }
-          );
-
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data = await response.json();
-            statusesMap[sessionId] = {
-              soapStatus: data.soap?.status || 'not_started',
-              diarizationStatus: data.diarization?.status || 'not_started',
-            };
-          }
+          statusesMap[sessionId] = {
+            soapStatus: (data.soap?.status as TaskStatus) || 'not_started',
+            diarizationStatus: (data.diarization?.status as TaskStatus) || 'not_started',
+          };
         } catch {
           // Silently fail - status will remain not_started
         }

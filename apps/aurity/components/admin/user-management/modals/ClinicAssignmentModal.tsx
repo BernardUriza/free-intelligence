@@ -46,7 +46,7 @@ export function ClinicAssignmentModal({
     setSaving(true);
     try {
       const result = await adminAssignUserToClinic({
-        auth0_user_id: user.user_id,
+        user_id: user.user_id,
         email: user.email,
         clinic_id: selectedClinicId,
         role: selectedRole,
@@ -58,7 +58,7 @@ export function ClinicAssignmentModal({
       if (result.success && result.membership) {
         toastSuccess('Usuario asignado a clínica');
         onAssigned({
-          auth0_user_id: user.user_id,
+          user_id: user.user_id,
           email: user.email,
           doctor_id: result.membership.doctor_id,
           clinic_id: result.membership.clinic_id,

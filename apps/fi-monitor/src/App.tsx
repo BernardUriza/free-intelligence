@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { ModelManager } from './components/ModelManager'
 import { BenchmarkCharts } from './components/BenchmarkCharts'
 import { EnvVarEditor } from './components/EnvVarEditor'
-import { LogsViewer } from './components/LogsViewer'
 import { TestSuiteLibrary } from './components/TestSuiteLibrary'
 import { invoke, listen, getVersion, isTauriContext } from './lib/tauri-adapter'
 

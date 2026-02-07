@@ -3,6 +3,9 @@
  * Card: FI-UI-FEAT-204
  *
  * Proxies policy configuration from backend FastAPI service
+ *
+ * Note: Server-side routes cannot use the browser api client (no localStorage).
+ * We read BACKEND_URL from environment directly.
  */
 
 import { NextResponse } from 'next/server';
@@ -10,6 +13,7 @@ import { NextResponse } from 'next/server';
 // Required for static export (Next.js 16 with output: 'export')
 export const dynamic = 'force-static';
 
+// Server-side backend URL - cannot use browser api client
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
 export async function GET() {

@@ -62,19 +62,6 @@ def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
 
 
 @pytest.fixture
-def session_service(di_container: DIContainer):
-    """Get SessionService from DI container.
-
-    Args:
-        di_container: DI container fixture
-
-    Returns:
-        SessionService instance
-    """
-    return di_container.get_session_service()
-
-
-@pytest.fixture
 def audit_service(di_container: DIContainer):
     """Get AuditService from DI container.
 
@@ -187,3 +174,80 @@ def audit_entry_factory():
         }
 
     return _create_audit_entry
+
+
+# ============================================================================
+# FastAPI Testing Infrastructure (P3-3)
+# ============================================================================
+
+# Import fixtures from fixtures/ directory
+pytest_plugins = [
+    "backend.tests.fixtures.services",
+    "backend.tests.fixtures.repositories",
+    "backend.tests.fixtures.auth",
+]
+
+
+@pytest.fixture
+def app():
+    """FastAPI application instance for testing.
+
+    Returns:
+        FastAPI app instance with all routes registered
+
+    Example:
+        >>> def test_endpoint(app, client):
+        ...     # Override dependencies
+        ...     app.dependency_overrides[get_current_user] = lambda: mock_user
+        ...     response = client.get("/api/protected")
+        ...     app.dependency_overrides.clear()
+    """
+    from backend.app.main import app as fastapi_app
+
+    yield fastapi_app
+
+    # Cleanup: Clear any dependency overrides after test
+    fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client(app):
+    """FastAPI TestClient for making HTTP requests.
+
+    Args:
+        app: FastAPI app fixture
+
+    Returns:
+        TestClient instance
+
+    Example:
+        >>> def test_get_session(client):
+        ...     response = client.get("/api/sessions/123")
+        ...     assert response.status_code == 200
+    """
+    from fastapi.testclient import TestClient
+
+    return TestClient(app)
+
+
+@pytest.fixture
+def override_dependencies(app):
+    """Helper fixture for overriding FastAPI dependencies.
+
+    Automatically clears overrides after test completion.
+
+    Args:
+        app: FastAPI app fixture
+
+    Yields:
+        App instance (for chaining)
+
+    Example:
+        >>> def test_with_mocks(app, override_dependencies, mock_audit_service):
+        ...     from backend.api.audit.dependencies import get_audit_service
+        ...     app.dependency_overrides[get_audit_service] = lambda: mock_audit_service
+        ...     # Test code here
+        ...     # Overrides automatically cleared after test
+    """
+    yield app
+    app.dependency_overrides.clear()

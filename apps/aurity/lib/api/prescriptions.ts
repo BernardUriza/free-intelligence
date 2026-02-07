@@ -2,14 +2,14 @@
  * Prescriptions API Client
  *
  * Types and API functions for the prescription template engine.
- * Connects to: /api/workflows/aurity/prescriptions/*
+ * Connects to: /api/aurity/prescriptions/*
  *
  * @author Bernard Uriza Orozco
  * @created 2025-12-28
  * @card FI-RX-002
  */
 
-import { getBackendUrl } from "./client";
+import { api } from "./client";
 
 // ============================================================================
 // Enums
@@ -348,7 +348,7 @@ export interface ExportResponse {
 // API Client Functions
 // ============================================================================
 
-const API_BASE = () => `${getBackendUrl()}/api/workflows/aurity/prescriptions`;
+const API_BASE = "/api/aurity/prescriptions";
 
 /**
  * List available prescription templates
@@ -361,11 +361,7 @@ export async function listTemplates(
   if (ownerId) params.set("owner_id", ownerId);
   params.set("include_system", String(includeSystem));
 
-  const response = await fetch(`${API_BASE()}/templates?${params}`);
-  if (!response.ok) {
-    throw new Error(`Failed to list templates: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<TemplateListResponse>(`${API_BASE}/templates?${params}`);
 }
 
 /**
@@ -374,11 +370,7 @@ export async function listTemplates(
 export async function getTemplate(
   templateId: string
 ): Promise<PrescriptionTemplate> {
-  const response = await fetch(`${API_BASE()}/templates/${templateId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to get template: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<PrescriptionTemplate>(`${API_BASE}/templates/${templateId}`);
 }
 
 /**
@@ -387,16 +379,7 @@ export async function getTemplate(
 export async function createPrescription(
   data: CreatePrescriptionRequest
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(API_BASE(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to create prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.post<PrescriptionResponse>(API_BASE, data);
 }
 
 /**
@@ -405,16 +388,7 @@ export async function createPrescription(
 export async function createPrescriptionFromSOAP(
   data: CreateFromSOAPRequest
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(`${API_BASE()}/from-soap`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to create prescription from SOAP: ${response.statusText}`);
-  }
-  return response.json();
+  return api.post<PrescriptionResponse>(`${API_BASE}/from-soap`, data);
 }
 
 /**
@@ -423,11 +397,7 @@ export async function createPrescriptionFromSOAP(
 export async function getPrescription(
   prescriptionId: string
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(`${API_BASE()}/${prescriptionId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to get prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<PrescriptionResponse>(`${API_BASE}/${prescriptionId}`);
 }
 
 /**
@@ -447,11 +417,7 @@ export async function listPrescriptions(options?: {
   if (options?.status) params.set("status", options.status);
   if (options?.limit) params.set("limit", String(options.limit));
 
-  const response = await fetch(`${API_BASE()}?${params}`);
-  if (!response.ok) {
-    throw new Error(`Failed to list prescriptions: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<PrescriptionListResponse>(`${API_BASE}?${params}`);
 }
 
 /**
@@ -461,16 +427,7 @@ export async function updatePrescription(
   prescriptionId: string,
   data: UpdatePrescriptionRequest
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(`${API_BASE()}/${prescriptionId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to update prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.put<PrescriptionResponse>(`${API_BASE}/${prescriptionId}`, data);
 }
 
 /**
@@ -479,14 +436,7 @@ export async function updatePrescription(
 export async function signPrescription(
   prescriptionId: string
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(`${API_BASE()}/${prescriptionId}/sign`, {
-    method: "POST",
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to sign prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.post<PrescriptionResponse>(`${API_BASE}/${prescriptionId}/sign`);
 }
 
 /**
@@ -496,16 +446,7 @@ export async function cancelPrescription(
   prescriptionId: string,
   reason?: string
 ): Promise<PrescriptionResponse> {
-  const response = await fetch(`${API_BASE()}/${prescriptionId}/cancel`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reason }),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Failed to cancel prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.post<PrescriptionResponse>(`${API_BASE}/${prescriptionId}/cancel`, { reason });
 }
 
 /**
@@ -515,13 +456,7 @@ export async function exportPrescription(
   prescriptionId: string,
   format: "text" | "json" = "text"
 ): Promise<ExportResponse> {
-  const response = await fetch(
-    `${API_BASE()}/${prescriptionId}/export?format=${format}`
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to export prescription: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<ExportResponse>(`${API_BASE}/${prescriptionId}/export?format=${format}`);
 }
 
 // ============================================================================
@@ -722,11 +657,7 @@ export async function searchCatalog(options: {
   if (options.otcOnly) params.set("otc_only", "true");
   if (options.limit) params.set("limit", String(options.limit));
 
-  const response = await fetch(`${API_BASE()}/catalog/search?${params}`);
-  if (!response.ok) {
-    throw new Error(`Failed to search catalog: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<CatalogSearchResponse>(`${API_BASE}/catalog/search?${params}`);
 }
 
 /**
@@ -742,11 +673,7 @@ export async function autocompleteMedication(
   params.set("limit", String(limit));
   if (category) params.set("category", category);
 
-  const response = await fetch(`${API_BASE()}/catalog/autocomplete?${params}`);
-  if (!response.ok) {
-    throw new Error(`Failed to autocomplete: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<AutocompleteResponse>(`${API_BASE}/catalog/autocomplete?${params}`);
 }
 
 /**
@@ -755,11 +682,7 @@ export async function autocompleteMedication(
 export async function getCatalogMedication(
   medicationId: string
 ): Promise<{ medication: MedicationCatalogEntry }> {
-  const response = await fetch(`${API_BASE()}/catalog/${medicationId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to get medication: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{ medication: MedicationCatalogEntry }>(`${API_BASE}/catalog/${medicationId}`);
 }
 
 /**
@@ -768,22 +691,14 @@ export async function getCatalogMedication(
 export async function getCatalogCategories(): Promise<{
   categories: CategoryOption[];
 }> {
-  const response = await fetch(`${API_BASE()}/catalog/categories/list`);
-  if (!response.ok) {
-    throw new Error(`Failed to get categories: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{ categories: CategoryOption[] }>(`${API_BASE}/catalog/categories/list`);
 }
 
 /**
  * Get catalog statistics
  */
 export async function getCatalogStats(): Promise<{ stats: CatalogStats }> {
-  const response = await fetch(`${API_BASE()}/catalog/stats`);
-  if (!response.ok) {
-    throw new Error(`Failed to get catalog stats: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{ stats: CatalogStats }>(`${API_BASE}/catalog/stats`);
 }
 
 /**
@@ -792,13 +707,9 @@ export async function getCatalogStats(): Promise<{ stats: CatalogStats }> {
 export async function getEssentialMedications(
   limit = 50
 ): Promise<{ count: number; medications: MedicationCatalogEntry[] }> {
-  const response = await fetch(
-    `${API_BASE()}/catalog/essential?limit=${limit}`
+  return api.get<{ count: number; medications: MedicationCatalogEntry[] }>(
+    `${API_BASE}/catalog/essential?limit=${limit}`
   );
-  if (!response.ok) {
-    throw new Error(`Failed to get essential medications: ${response.statusText}`);
-  }
-  return response.json();
 }
 
 /**
@@ -807,11 +718,9 @@ export async function getEssentialMedications(
 export async function getOTCMedications(
   limit = 50
 ): Promise<{ count: number; medications: MedicationCatalogEntry[] }> {
-  const response = await fetch(`${API_BASE()}/catalog/otc?limit=${limit}`);
-  if (!response.ok) {
-    throw new Error(`Failed to get OTC medications: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{ count: number; medications: MedicationCatalogEntry[] }>(
+    `${API_BASE}/catalog/otc?limit=${limit}`
+  );
 }
 
 // ============================================================================
@@ -940,15 +849,14 @@ export async function checkInteractions(
   summary: string;
   alerts: InteractionAlertData[];
 }> {
-  const response = await fetch(`${API_BASE()}/interactions/check`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ medications }),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to check interactions: ${response.statusText}`);
-  }
-  return response.json();
+  return api.post<{
+    medications_checked: string[];
+    alert_count: number;
+    has_major_interactions: boolean;
+    can_proceed: boolean;
+    summary: string;
+    alerts: InteractionAlertData[];
+  }>(`${API_BASE}/interactions/check`, { medications });
 }
 
 /**
@@ -966,18 +874,18 @@ export async function checkAllergies(
   summary: string;
   alerts: AllergyAlertData[];
 }> {
-  const response = await fetch(`${API_BASE()}/allergies/check`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      medications,
-      patient_allergies: patientAllergies,
-    }),
+  return api.post<{
+    medications_checked: string[];
+    patient_allergies: string[];
+    alert_count: number;
+    has_severe_allergies: boolean;
+    can_proceed: boolean;
+    summary: string;
+    alerts: AllergyAlertData[];
+  }>(`${API_BASE}/allergies/check`, {
+    medications,
+    patient_allergies: patientAllergies,
   });
-  if (!response.ok) {
-    throw new Error(`Failed to check allergies: ${response.statusText}`);
-  }
-  return response.json();
 }
 
 /**
@@ -987,18 +895,10 @@ export async function runSafetyCheck(
   medications: Medication[],
   patientAllergies: string[] = []
 ): Promise<SafetyCheckResponse> {
-  const response = await fetch(`${API_BASE()}/safety/check`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      medications,
-      patient_allergies: patientAllergies,
-    }),
+  return api.post<SafetyCheckResponse>(`${API_BASE}/safety/check`, {
+    medications,
+    patient_allergies: patientAllergies,
   });
-  if (!response.ok) {
-    throw new Error(`Failed to run safety check: ${response.statusText}`);
-  }
-  return response.json();
 }
 
 /**
@@ -1018,13 +918,18 @@ export async function getDrugInteractions(
     mechanism: string | null;
   }>;
 }> {
-  const response = await fetch(
-    `${API_BASE()}/interactions/drug/${encodeURIComponent(drugName)}`
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to get drug interactions: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{
+    drug_name: string;
+    interaction_count: number;
+    interactions: Array<{
+      id: string;
+      interacting_drug: string;
+      severity: InteractionSeverity;
+      effect: string;
+      recommendation: string;
+      mechanism: string | null;
+    }>;
+  }>(`${API_BASE}/interactions/drug/${encodeURIComponent(drugName)}`);
 }
 
 /**
@@ -1043,11 +948,15 @@ export async function getMedicationAllergens(
     notes: string | null;
   }>;
 }> {
-  const response = await fetch(
-    `${API_BASE()}/allergies/medication/${encodeURIComponent(medicationName)}`
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to get medication allergens: ${response.statusText}`);
-  }
-  return response.json();
+  return api.get<{
+    medication_name: string;
+    allergen_count: number;
+    allergens: Array<{
+      id: string;
+      name: string;
+      type: string;
+      severity: AllergySeverity;
+      notes: string | null;
+    }>;
+  }>(`${API_BASE}/allergies/medication/${encodeURIComponent(medicationName)}`);
 }

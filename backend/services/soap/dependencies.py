@@ -7,17 +7,23 @@ Author: Claude Code
 Created: 2026-01-28
 Updated: 2026-01-29 (Fix #1 - centralized config)
 Updated: 2026-01-31 (Type-safe config validation with Pydantic)
+Updated: 2026-02-02 (Phase 2.3 - DI Refactor - Added decisional_middleware factory)
 Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
+from __future__ import annotations
+
 import os
-from pathlib import Path
+from functools import lru_cache
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.repositories.interfaces import ITaskRepository
-from backend.repositories.task_repository import HDF5TaskRepository
 from backend.services.soap.services.soap_generation_service import SOAPGenerationService
 from backend.config import CORPUS_PATH
+
+if TYPE_CHECKING:
+    from backend.services.soap.interfaces.idecisional_middleware import IDecisionalMiddleware
 
 
 class SOAPConfig(BaseModel):
@@ -126,14 +132,40 @@ def get_soap_service() -> SOAPGenerationService:
     )
 
 
-def get_task_repository() -> ITaskRepository:
-    """Get task repository - direct instantiation (Phase 4A).
+# Re-export get_task_repository from repository_singletons for backward compatibility
+from backend.infrastructure.common.repository_singletons import get_task_repository
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DECISIONAL MIDDLEWARE FACTORY (Phase 2.3 - Extracted from workflow)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@lru_cache(maxsize=1)
+def _get_decisional_middleware_singleton() -> "IDecisionalMiddleware":
+    """Internal singleton factory for DecisionalMiddleware."""
+    from backend.schemas.llm.dependencies import get_preset_loader_dep
+    from backend.services.soap.services.decisional_middleware import DecisionalMiddleware
+
+    return DecisionalMiddleware(preset_loader=get_preset_loader_dep())
+
+
+def get_decisional_middleware_dep() -> "IDecisionalMiddleware":
+    """Get decisional middleware singleton for SOAP worker.
 
     Returns:
-        ITaskRepository instance (HDF5TaskRepository)
+        IDecisionalMiddleware singleton with preset_loader injected
 
     Note:
-        No longer uses service locator (get_container).
-        Direct instantiation enables better testability and explicit dependencies.
+        Handles intelligent SOAP generation orchestration via DI.
     """
-    return HDF5TaskRepository(CORPUS_PATH)
+    return _get_decisional_middleware_singleton()
+
+
+__all__ = [
+    "SOAPConfig",
+    "get_soap_config",
+    "get_soap_service",
+    "get_decisional_middleware_dep",
+    "get_task_repository",
+]

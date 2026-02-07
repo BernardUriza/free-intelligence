@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from backend.api.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.common.services.export_service import ExportService
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -56,11 +56,9 @@ async def create_export(
     """
     try:
 
-        # Generate content for each format
+        # Generate content for each format (placeholder metadata)
         content_dict = {}
         for fmt in request.formats:
-            # TODO: Implement deterministic content generation
-            # For now, use placeholder
             content_dict[fmt] = json.dumps(
                 {
                     "session_id": request.session_id,

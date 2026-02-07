@@ -11,15 +11,15 @@ Card: Backend Refactor Phase 4A - Eliminate Service Locator
 """
 
 import os
-from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.domain.session import ISessionRepository
 from backend.repositories.hdf5_session_repository import HDF5SessionRepository
-from backend.repositories.interfaces import ITaskRepository
-from backend.repositories.task_repository import HDF5TaskRepository
 from backend.services.transcription.services.di_transcription_service import DITranscriptionService
 from backend.infrastructure.interfaces.ilogger import ILogger
+from backend.infrastructure.common.repository_singletons import (
+    get_task_repository,
+)
 from backend.utils.common.logging.logger import get_logger
 from backend.config import CORPUS_PATH
 
@@ -107,19 +107,7 @@ def get_transcription_config() -> TranscriptionConfig:
     )
 
 
-def get_task_repository() -> ITaskRepository:
-    """Get task repository - direct instantiation (Phase 4A).
-
-    Returns:
-        ITaskRepository instance (HDF5TaskRepository)
-
-    Note:
-        No longer uses service locator (get_container).
-        Direct instantiation enables better testability and explicit dependencies.
-        Referential integrity (Fix #5) is OPTIONAL - only enabled when session_repository
-        is explicitly injected (not needed for most operations).
-    """
-    return HDF5TaskRepository(CORPUS_PATH)
+# get_task_repository imported from repository_singletons (singleton)
 
 
 def get_session_repository() -> ISessionRepository:
