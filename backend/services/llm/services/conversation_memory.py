@@ -2,7 +2,7 @@
 Conversation Memory Manager - Free Intelligence
 
 Implementa "Memoria Longitudinal Unificada" (FI-PHIL-DOC-014)
-"No existen sesiones. Solo una conversación infinita."
+"No existen sesiones. Solo una conversacion infinita."
 
 Arquitectura: Memory Index Centralizado (Pinecone-like en H5)
     storage/
@@ -17,41 +17,41 @@ Arquitectura: Memory Index Centralizado (Pinecone-like en H5)
                 ├── /metadata/content [str]
                 └── /metadata/personas [str]
 
+Cloud Architecture (PHI-Safe):
+    Cloud Backend --> FI Monitor (via Cloudflare Tunnel) --> GPU Embeddings
+
+    The cloud backend does NOT run embeddings locally.
+    All embedding operations are delegated to FI Monitor running on clinic hardware.
+
 Basado en Cognitive Workspace (2025 research):
 - Active memory management (no pasivo como RAG tradicional)
 - Cross-session semantic search (54-60% memory reuse)
 - Hierarchical context retrieval (recent + relevant + historical)
 - Sub-linear growth O(log n) vs O(n)
 
-Separación de concerns:
+Separacion de concerns:
 - Sessions H5: Immutable evidence packs (audio + tasks)
 - Memory Index: Mutable vector store for semantic search
 - Content refs: Apuntan a session H5 para full content
 
 Author: Bernard Uriza Orozco
 Created: 2025-11-18
+Updated: 2026-02-07 (Cloud refactor - embeddings via FI Monitor API)
 Card: FI-PHIL-DOC-014 (Memoria Longitudinal Unificada)
 """
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import h5py
+import httpx
 import numpy as np
 from pathlib import Path
-
-# Optional: sentence_transformers (heavy ML dependency, not required in production)
-try:
-    from sentence_transformers import SentenceTransformer
-
-    HAS_SENTENCE_TRANSFORMERS = True
-except ImportError:
-    SentenceTransformer = None  # type: ignore
-    HAS_SENTENCE_TRANSFORMERS = False
 
 from backend.utils.common.logging.logger import get_logger
 
@@ -60,52 +60,97 @@ logger = get_logger(__name__)
 # Memory index storage path
 MEMORY_INDEX_PATH = Path(__file__).parent.parent.parent.parent / "storage" / "memory_index"
 
-# Embedding model (384-dim, local, no API keys needed)
-_embedding_model: SentenceTransformer | None = None
+# Embedding configuration
 _embedding_dim: int = 384  # all-MiniLM-L6-v2 dimensions
 _memory_lock = threading.RLock()  # Lock for memory index writes
-_embedding_model_lock = threading.Lock()  # Lock for embedding model initialization
+
+# FI Monitor configuration (for remote embeddings)
+FI_MONITOR_URL = os.getenv("FI_MONITOR_URL", "")
+RAG_API_KEY = os.getenv("RAG_API_KEY", "")
+
+# httpx client singleton
+_http_client: httpx.AsyncClient | None = None
+_http_client_lock = threading.Lock()
 
 
-def get_embedding_model() -> SentenceTransformer:
-    """Get singleton embedding model (thread-safe lazy initialization).
+def _get_http_client() -> httpx.AsyncClient:
+    """Get singleton async HTTP client for FI Monitor API calls."""
+    global _http_client
+    if _http_client is None:
+        with _http_client_lock:
+            if _http_client is None:
+                _http_client = httpx.AsyncClient(
+                    timeout=httpx.Timeout(30.0),
+                    headers={"X-API-Key": RAG_API_KEY},
+                )
+    return _http_client
 
-    Model: all-MiniLM-L6-v2 (384 dimensions)
-    - Fast: ~3000 sentences/sec on CPU
-    - Lightweight: 80MB download
-    - Local: No API keys, no cloud
-    - Quality: 84.6% accuracy on STS benchmark
+
+async def get_embeddings_from_fi(texts: list[str]) -> np.ndarray:
+    """Get embeddings from FI Monitor RAG service.
+
+    FI Monitor runs on clinic hardware with GPU and handles all
+    embedding operations locally (PHI never leaves clinic).
+
+    Args:
+        texts: List of texts to embed
 
     Returns:
-        SentenceTransformer model instance
+        numpy array of shape (len(texts), 384)
 
     Raises:
-        RuntimeError: If sentence_transformers is not installed (production mode)
+        RuntimeError: If FI Monitor is not configured or unavailable
     """
-    if not HAS_SENTENCE_TRANSFORMERS:
+    if not FI_MONITOR_URL:
         raise RuntimeError(
-            "Conversation memory requires sentence_transformers library. "
-            "Install it with: pip install sentence-transformers"
+            "FI_MONITOR_URL not configured. "
+            "Embeddings require FI Monitor running on clinic hardware."
         )
 
-    global _embedding_model
-    # Double-checked locking pattern for performance
-    if _embedding_model is None:
-        with _embedding_model_lock:
-            # Check again inside lock (another thread may have initialized it)
-            if _embedding_model is None:
-                import torch
+    client = _get_http_client()
 
-                # Use GPU if available (leverages CUDA libraries like cuBLAS, cuDNN)
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-                logger.info(
-                    "EMBEDDING_MODEL_INIT",
-                    model="all-MiniLM-L6-v2",
-                    device=device,
-                    gpu_available=torch.cuda.is_available(),
-                )
-                _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-    return _embedding_model
+    try:
+        response = await client.post(
+            f"{FI_MONITOR_URL}/rag/embed",
+            json={"texts": texts},
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        embeddings = np.array(data["embeddings"], dtype=np.float32)
+
+        logger.info(
+            "EMBEDDINGS_FETCHED_FROM_FI_MONITOR",
+            num_texts=len(texts),
+            device=data.get("device", "unknown"),
+            embedding_dim=embeddings.shape[1] if len(embeddings.shape) > 1 else 0,
+        )
+
+        return embeddings
+
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            "FI_MONITOR_EMBED_HTTP_ERROR",
+            status_code=e.response.status_code,
+            detail=str(e),
+        )
+        raise RuntimeError(f"FI Monitor embedding failed: {e.response.status_code}") from e
+    except httpx.RequestError as e:
+        logger.error(
+            "FI_MONITOR_EMBED_CONNECTION_ERROR",
+            error=str(e),
+            url=FI_MONITOR_URL,
+        )
+        raise RuntimeError(f"FI Monitor unavailable: {e}") from e
+
+
+def is_embeddings_available() -> bool:
+    """Check if embedding service is available.
+
+    Returns:
+        True if FI_MONITOR_URL is configured, False otherwise
+    """
+    return bool(FI_MONITOR_URL)
 
 
 @dataclass(kw_only=True)
@@ -171,21 +216,25 @@ class ConversationMemoryManager:
         ├── /metadata/personas (N,) |S64
         └── /metadata/models (N,) |S64
 
+    Cloud Architecture:
+        Embeddings are computed by FI Monitor (clinic GPU) via HTTP API.
+        This class handles storage and retrieval; FI Monitor handles ML.
+
     Usage:
         >>> memory = ConversationMemoryManager(doctor_id="doc-123")
-        >>> # Store interaction
-        >>> memory.store_interaction(
+        >>> # Store interaction (async - calls FI Monitor for embedding)
+        >>> await memory.store_interaction(
         ...     session_id="session-456",
         ...     role="user",
         ...     content="What is the patient's diagnosis?",
         ...     persona="clinical_advisor"
         ... )
-        >>> # Retrieve context
-        >>> context = memory.get_context(
+        >>> # Retrieve context (async - calls FI Monitor for query embedding)
+        >>> context = await memory.get_context(
         ...     current_message="Can you explain the treatment options?",
         ...     session_id="session-456"
         ... )
-        >>> # Build enriched prompt
+        >>> # Build enriched prompt (sync - no ML)
         >>> prompt = memory.build_prompt(context, system_prompt, current_message)
     """
 
@@ -205,7 +254,6 @@ class ConversationMemoryManager:
         self.doctor_id = doctor_id
         self.recent_buffer_size = recent_buffer_size
         self.retrieval_top_k = retrieval_top_k
-        self.embedding_model = get_embedding_model()
 
         # Memory index path
         self.memory_path = MEMORY_INDEX_PATH / doctor_id / "conversation_memory.h5"
@@ -296,7 +344,7 @@ class ConversationMemoryManager:
             path=str(self.memory_path),
         )
 
-    def store_interaction(
+    async def store_interaction(
         self,
         session_id: str,
         role: str,
@@ -307,6 +355,7 @@ class ConversationMemoryManager:
         """Store interaction in memory index with embedding.
 
         Appends to centralized H5 index for cross-session search.
+        Embedding is computed by FI Monitor (async HTTP call).
 
         Args:
             session_id: Session identifier
@@ -317,11 +366,16 @@ class ConversationMemoryManager:
 
         Returns:
             Index of stored interaction
+
+        Raises:
+            RuntimeError: If FI Monitor is unavailable
         """
         start_time = time.time()
 
-        # Generate embedding
-        embedding = self.embedding_model.encode(content, convert_to_numpy=True)
+        # Get embedding from FI Monitor
+        embeddings = await get_embeddings_from_fi([content])
+        embedding = embeddings[0]
+
         timestamp = int(datetime.now(UTC).timestamp())
 
         # Append to H5 index
@@ -383,7 +437,7 @@ class ConversationMemoryManager:
 
         return current_size
 
-    def get_context(
+    async def get_context(
         self,
         current_message: str,
         session_id: str | None = None,
@@ -394,6 +448,8 @@ class ConversationMemoryManager:
         1. Recent context: Last N interactions (from current session if specified)
         2. Relevant context: Top-K semantically similar interactions (cross-session)
 
+        Query embedding is computed by FI Monitor (async HTTP call).
+
         Args:
             current_message: Current user message (for semantic search)
             session_id: Optional session filter for recent context
@@ -403,8 +459,9 @@ class ConversationMemoryManager:
         """
         start_time = time.time()
 
-        # Generate embedding for current message
-        query_embedding = self.embedding_model.encode(current_message, convert_to_numpy=True)
+        # Get embedding for current message from FI Monitor
+        embeddings = await get_embeddings_from_fi([current_message])
+        query_embedding = embeddings[0]
 
         recent: list[Interaction] = []
         relevant: list[Interaction] = []
@@ -422,7 +479,7 @@ class ConversationMemoryManager:
                 )
 
             # Load all data (vectorized operations)
-            embeddings = f["/embeddings/vectors"][:]  # (N, _embedding_dim)
+            stored_embeddings = f["/embeddings/vectors"][:]  # (N, _embedding_dim)
             # Decode bytes as UTF-8 explicitly (h5py stores as bytes)
             session_ids = [
                 s.decode("utf-8") if isinstance(s, bytes) else str(s)
@@ -468,7 +525,7 @@ class ConversationMemoryManager:
                         timestamp=int(timestamps[idx]),
                         role=roles[idx],
                         content=content[idx],
-                        embedding=embeddings[idx],
+                        embedding=stored_embeddings[idx],
                         persona=personas[idx] if personas[idx] else None,
                         model=models[idx] if models[idx] else None,
                     )
@@ -487,7 +544,7 @@ class ConversationMemoryManager:
                     timestamp=int(timestamps[idx]),
                     role=roles[idx],
                     content=content[idx],
-                    embedding=embeddings[idx],
+                    embedding=stored_embeddings[idx],
                     persona=personas[idx] if personas[idx] else None,
                     model=models[idx] if models[idx] else None,
                 )
@@ -499,9 +556,9 @@ class ConversationMemoryManager:
 
         # Compute cosine similarity (vectorized)
         # scores = embeddings @ query / (||embeddings|| * ||query||)
-        norms = np.linalg.norm(embeddings, axis=1)  # type: ignore[call-overload]
+        norms = np.linalg.norm(stored_embeddings, axis=1)  # type: ignore[call-overload]
         query_norm = np.linalg.norm(query_embedding)
-        similarities = embeddings @ query_embedding / (norms * query_norm)
+        similarities = stored_embeddings @ query_embedding / (norms * query_norm)
 
         # Exclude recent interactions
         available_mask = np.ones(total_interactions, dtype=bool)
@@ -522,7 +579,7 @@ class ConversationMemoryManager:
                 timestamp=int(timestamps[idx]),
                 role=roles[idx],
                 content=content[idx],
-                embedding=embeddings[idx],
+                embedding=stored_embeddings[idx],
                 persona=personas[idx] if personas[idx] else None,
                 model=models[idx] if models[idx] else None,
                 similarity=float(similarities[idx]),
@@ -770,8 +827,8 @@ def get_memory_manager(doctor_id: str) -> ConversationMemoryManager | None:
     """
     global _memory_managers
 
-    # Return None if sentence_transformers not available (production mode without ML deps)
-    if not HAS_SENTENCE_TRANSFORMERS:
+    # Return None if FI Monitor not configured (embeddings unavailable)
+    if not is_embeddings_available():
         return None
 
     if doctor_id not in _memory_managers:

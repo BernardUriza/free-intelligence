@@ -1,6 +1,6 @@
-# Free Intelligence - Production Dependencies
-# Updated: 2025-12-28
-# RAM requirement: 4GB (sentence-transformers + model ~1.5GB)
+# Free Intelligence - Production Dependencies (Cloud Backend)
+# Updated: 2026-02-07
+# RAM requirement: ~512MB (no ML dependencies - handled by FI Local)
 
 # ============================================================================
 # Core Dependencies
@@ -35,9 +35,8 @@ dnspython>=2.8.0
 # ============================================================================
 # LLM Providers
 # ============================================================================
-# anthropic: Claude API client
-# ollama: HTTP client only (server runs on FI Edge via Cloudflare Tunnel)
-anthropic==0.71.0
+# Ollama HTTP client only - server runs on FI Local via Cloudflare Tunnel
+# Direct API providers (Claude, Azure) removed for PHI compliance
 ollama==0.6.0
 
 # ============================================================================
@@ -73,13 +72,9 @@ pyarrow>=14.0.0
 filelock>=3.12.0
 
 # ============================================================================
-# ML / Embeddings (Memoria Longitudinal Infinita)
+# Note: ML / Embeddings
 # ============================================================================
-# PyTorch CPU-only first (NO CUDA - saves ~3GB disk space)
-# Install via: pip install torch --index-url https://download.pytorch.org/whl/cpu
-# Then sentence-transformers will use this torch
-#
-# sentence-transformers: Local embeddings for semantic search
-# Model: all-MiniLM-L6-v2 (384-dim, 80MB, no API keys needed)
-# RAM usage: ~1.5GB with model loaded
-sentence-transformers>=2.2.0
+# torch, sentence-transformers, etc. are NOT installed in cloud backend.
+# All embedding/RAG operations are handled by FI Local (clinic GPU)
+# via Cloudflare Tunnel. This keeps the cloud image small (~500MB vs ~4GB)
+# and ensures PHI never leaves the clinic's local infrastructure.
