@@ -534,27 +534,26 @@ export default function DownloadsPage() {
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4 px-2">
-                  <button
-                    className="glass-hero-cta w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3"
-                    onClick={() => {
-                      // Detect OS and download appropriate version
+                  <a
+                    className="glass-hero-cta w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3 cursor-pointer"
+                    href={(() => {
+                      // Detect OS and return appropriate download URL
+                      if (typeof navigator === 'undefined') return '#';
                       const ua = navigator.userAgent.toLowerCase();
-                      let downloadUrl = '';
                       if (ua.includes('mac')) {
-                        downloadUrl = latestRelease?.platforms.macos?.url || '';
+                        return latestRelease?.platforms.macos?.url || '#';
                       } else if (ua.includes('win')) {
-                        downloadUrl = latestRelease?.platforms.windows?.url || '';
+                        return latestRelease?.platforms.windows?.url || '#';
                       } else if (ua.includes('linux')) {
-                        downloadUrl = latestRelease?.platforms.linux?.url || '';
+                        return latestRelease?.platforms.linux?.url || '#';
                       }
-                      if (downloadUrl && downloadUrl !== '#coming-soon') {
-                        window.open(downloadUrl, '_blank');
-                      }
-                    }}
+                      return latestRelease?.platforms.windows?.url || '#';
+                    })()}
+                    download
                   >
                     <Download className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
                     Descargar Gratis
-                  </button>
+                  </a>
                   {latestRelease && (
                     <p className="text-slate-400 text-xs sm:text-sm">
                       Versión {latestRelease.version} · macOS, Windows y Linux
@@ -707,20 +706,16 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.macos ? (
-                      <button
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
-                        onClick={() => {
-                          if (latestRelease.platforms.macos?.url !== '#coming-soon') {
-                            window.open(latestRelease.platforms.macos?.url, '_blank');
-                          }
-                        }}
-                        disabled={latestRelease.platforms.macos.url === '#coming-soon'}
+                      <a
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        href={latestRelease.platforms.macos.url !== '#coming-soon' ? latestRelease.platforms.macos.url : undefined}
+                        download
                       >
                         <Download className="w-4 h-4" />
                         {latestRelease.platforms.macos.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar DMG`}
-                      </button>
+                      </a>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
@@ -738,20 +733,16 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.windows ? (
-                      <button
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
-                        onClick={() => {
-                          if (latestRelease.platforms.windows?.url !== '#coming-soon') {
-                            window.open(latestRelease.platforms.windows?.url, '_blank');
-                          }
-                        }}
-                        disabled={latestRelease.platforms.windows.url === '#coming-soon'}
+                      <a
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        href={latestRelease.platforms.windows.url !== '#coming-soon' ? latestRelease.platforms.windows.url : undefined}
+                        download
                       >
                         <Download className="w-4 h-4" />
                         {latestRelease.platforms.windows.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar EXE`}
-                      </button>
+                      </a>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
@@ -769,20 +760,16 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.linux ? (
-                      <button
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2"
-                        onClick={() => {
-                          if (latestRelease.platforms.linux?.url !== '#coming-soon') {
-                            window.open(latestRelease.platforms.linux?.url, '_blank');
-                          }
-                        }}
-                        disabled={latestRelease.platforms.linux.url === '#coming-soon'}
+                      <a
+                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        href={latestRelease.platforms.linux.url !== '#coming-soon' ? latestRelease.platforms.linux.url : undefined}
+                        download
                       >
                         <Download className="w-4 h-4" />
                         {latestRelease.platforms.linux.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar AppImage`}
-                      </button>
+                      </a>
                     ) : (
                       <p className="text-slate-500 text-sm">Aún no disponible</p>
                     )}
@@ -829,26 +816,25 @@ export default function DownloadsPage() {
               </p>
 
               {!loading && !error && (
-                <button
-                  className="glass-hero-cta h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3"
-                  onClick={() => {
+                <a
+                  className="glass-hero-cta h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl text-white rounded-xl inline-flex items-center justify-center gap-2 sm:gap-3 cursor-pointer"
+                  href={(() => {
+                    if (typeof navigator === 'undefined') return '#';
                     const ua = navigator.userAgent.toLowerCase();
-                    let downloadUrl = '';
                     if (ua.includes('mac')) {
-                      downloadUrl = latestRelease?.platforms.macos?.url || '';
+                      return latestRelease?.platforms.macos?.url || '#';
                     } else if (ua.includes('win')) {
-                      downloadUrl = latestRelease?.platforms.windows?.url || '';
+                      return latestRelease?.platforms.windows?.url || '#';
                     } else if (ua.includes('linux')) {
-                      downloadUrl = latestRelease?.platforms.linux?.url || '';
+                      return latestRelease?.platforms.linux?.url || '#';
                     }
-                    if (downloadUrl && downloadUrl !== '#coming-soon') {
-                      window.open(downloadUrl, '_blank');
-                    }
-                  }}
+                    return latestRelease?.platforms.windows?.url || '#';
+                  })()}
+                  download
                 >
                   <Download className="w-5 h-5 sm:w-6 sm:h-6" />
                   Obtener Mi Licencia Piloto
-                </button>
+                </a>
               )}
 
               {/* Ollama requirement note */}
