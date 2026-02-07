@@ -52,6 +52,9 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     # KPIs (migrated to infrastructure/)
     from backend.infrastructure.kpi.api.internal.router import router as kpis_router
 
+    # Downloads (GitHub release proxy for private repo)
+    from backend.api.downloads.api.public import router as downloads_router
+
     # Licensing
     from backend.api.license.api.internal import router as licenses_admin_router
     from backend.api.license.api.public import router as licenses_router
@@ -138,6 +141,7 @@ def register_routers(public_app: FastAPI, internal_app: FastAPI) -> None:
     public_app.include_router(observability_router)  # LLM Observability (FI Edge Monitor)
     public_app.include_router(licenses_router)  # License renewal API
     public_app.include_router(licenses_admin_router)  # License generation (superadmin)
+    public_app.include_router(downloads_router)  # GitHub release proxy (private repo)
     public_app.include_router(system_router)  # Health, version, root endpoints
 
     # =========================================================================
