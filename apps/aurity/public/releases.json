@@ -5,15 +5,14 @@
       "date": "2026-02-07",
       "platforms": {
         "windows": {
-          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_x64-setup.exe",
+          "url": "/api/downloads/windows",
           "size": "~95 MB",
           "sha256": "8c053e568547c4d95db5cc9dedc339d5c393b13446fb23be9d0168dc4d95fe1c"
         },
         "macos": {
-          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.12/Aurity_1.0.12_aarch64.dmg",
+          "url": "/api/downloads/macos",
           "size": "~95 MB",
-          "sha256": "pending",
-          "note": "macOS build is v1.0.12"
+          "sha256": "pending"
         }
       },
       "changelog": [
@@ -21,10 +20,10 @@
         "Self-hosted JWT authentication",
         "Offline AI medical assistant powered by Ollama",
         "Local LLM integration (Qwen3, Llama, etc.)",
-        "Direct download links"
+        "Direct download from server"
       ]
     }
   ],
-  "generatedAt": "2026-02-07T15:50:00Z",
-  "source": "manual-fix"
+  "generatedAt": "2026-02-07T16:30:00Z",
+  "source": "backend-proxy"
 }
