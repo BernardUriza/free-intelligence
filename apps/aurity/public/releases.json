@@ -1,30 +1,20 @@
 {
   "releases": [
     {
-      "version": "1.0.13",
+      "version": "1.0.14",
       "date": "2026-02-07",
-      "platforms": {
-        "windows": {
-          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.13/Aurity_1.0.13_x64-setup.exe",
-          "size": "~120 MB",
-          "sha256": "pending"
-        },
-        "macos": {
-          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.12/Aurity_1.0.12_aarch64.dmg",
-          "size": "~95 MB",
-          "sha256": "pending",
-          "note": "macOS build is v1.0.12"
-        }
-      },
+      "platforms": {"windows": {"url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_x64-setup.exe", "size": "96M", "sha256": "8c053e568547c4d95db5cc9dedc339d5c393b13446fb23be9d0168dc4d95fe1c"},"macos": {"url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.14/Aurity_1.0.14_aarch64.dmg", "size": "95M", "sha256": "26075193fd61ea611f2f4c28f495f7692dad755de6f32e664d6013c350c1d942"}},
       "changelog": [
-        "Aurity Desktop v1.0.13",
-        "Fixed CI/CD pipeline for desktop builds",
-        "macOS DMG now uploads to GitHub Releases",
-        "Improved PyInstaller backend bundling",
-        "Auth0 removed - local authentication"
+        "Aurity Desktop v1.0.14",
+        "Self-hosted JWT authentication with refresh tokens",
+        "Offline AI medical assistant powered by Ollama",
+        "Local LLM integration (Qwen3, Llama, etc.)",
+        "Encrypted local storage in ~/.aurity",
+        "2-role RBAC (FI-superadmin, FI-clinician)"
       ]
     }
   ],
-  "generatedAt": "2026-02-07T05:30:00Z",
-  "source": "manual-update"
+  "generatedAt": "2026-02-07T15:15:22Z",
+  "source": "ci-cd",
+  "platforms_built": 2
 }
