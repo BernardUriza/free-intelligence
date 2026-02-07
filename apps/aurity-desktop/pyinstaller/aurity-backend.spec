@@ -8,8 +8,7 @@ Build command:
     pyinstaller aurity-backend.spec
 
 Output:
-    dist/aurity-backend (macOS/Linux)
-    dist/aurity-backend.exe (Windows)
+    dist/aurity-backend-<target-triple> (single executable)
 """
 
 import sys
@@ -17,11 +16,9 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules, collect_all
 
 # Project paths
-# Note: SPECPATH is provided by PyInstaller and points to the spec file directory
-# Using SPECPATH instead of __file__ for Python 3.14 compatibility
+# SPECPATH is provided by PyInstaller and points to the spec file directory
 PROJECT_ROOT = Path(SPECPATH).parent.parent.parent.absolute()
 BACKEND_ROOT = PROJECT_ROOT / "backend"
-BACKEND_SRC = BACKEND_ROOT / "src"
 BACKEND_APP = BACKEND_ROOT / "app"
 
 # Platform detection for cross-platform builds
@@ -42,8 +39,9 @@ else:  # Linux
 
 print(f"Building for platform: {SYSTEM} ({MACHINE})")
 print(f"Target triple: {TARGET_TRIPLE}")
+print(f"Backend root: {BACKEND_ROOT}")
 
-# Verify paths exist with helpful error messages
+# Verify paths exist
 def check_path(path, description):
     """Check if a path exists and provide a helpful error message if not."""
     if not path.exists():
@@ -54,18 +52,12 @@ def check_path(path, description):
         print(f"\nTo fix this:")
         print(f"  1. Ensure you're running from the correct directory")
         print(f"  2. Run: cd apps/aurity-desktop/pyinstaller")
-        print(f"  3. Run: ./build.sh")
-        print(f"\nProject structure expected:")
-        print(f"  free-intelligence/")
-        print(f"  ├── backend/")
-        print(f"  │   ├── src/")
-        print(f"  │   └── app/")
-        print(f"  └── apps/aurity-desktop/pyinstaller/")
+        print(f"  3. Run: pyinstaller aurity-backend.spec")
         print(f"{'='*60}\n")
         sys.exit(1)
 
 check_path(BACKEND_ROOT, "Backend root directory not found")
-check_path(BACKEND_SRC, "Backend src directory not found")
+check_path(BACKEND_APP, "Backend app directory not found")
 
 block_cipher = None
 
@@ -97,65 +89,94 @@ hidden_imports = [
     # Database
     "h5py",
     "sqlalchemy",
+    "sqlalchemy.ext.asyncio",
+    "alembic",
     # Ollama client
     "ollama",
-    # Our modules
-    "fi_common",
-    "fi_common.config",
-    "fi_common.config.deployment",
-    "fi_common.logging",
-    "fi_storage",
-    "fi_auth",
-    "fi_workflow",
-    "fi_assistant",
-    "fi_llm",
     # Async support
     "anyio",
     "anyio._backends",
     "anyio._backends._asyncio",
-    # Payment (stub for import compatibility - not used in desktop mode)
+    # Backend modules (new architecture)
+    "backend",
+    "backend.app",
+    "backend.api",
+    "backend.clients",
+    "backend.domain",
+    "backend.infrastructure",
+    "backend.middleware",
+    "backend.models",
+    "backend.observability",
+    "backend.policy",
+    "backend.providers",
+    "backend.repositories",
+    "backend.schemas",
+    "backend.services",
+    "backend.utils",
+    # Payment (stub for import compatibility)
     "stripe",
     # System monitoring
     "psutil",
-] + collect_submodules("stripe")
+    # JWT/Auth
+    "jose",
+    "passlib",
+    "bcrypt",
+    # Metrics
+    "prometheus_client",
+    # Structlog
+    "structlog",
+]
 
-# Collect all stripe data (binaries, datas, hiddenimports)
-stripe_datas, stripe_binaries, stripe_hiddenimports = collect_all("stripe")
-hidden_imports = hidden_imports + stripe_hiddenimports
+# Collect all submodules from key packages
+for pkg in ["backend", "stripe", "sqlalchemy", "fastapi", "starlette"]:
+    try:
+        hidden_imports.extend(collect_submodules(pkg))
+    except Exception as e:
+        print(f"Warning: Could not collect submodules for {pkg}: {e}")
+
+# Collect stripe data (binaries, datas, hiddenimports)
+try:
+    stripe_datas, stripe_binaries, stripe_hiddenimports = collect_all("stripe")
+    hidden_imports.extend(stripe_hiddenimports)
+except Exception:
+    stripe_datas = []
+    stripe_binaries = []
 
 # Data files to include
-# SECURITY: Only include code modules, NOT config files that may contain secrets
-# Config is loaded at runtime from user's data directory
+# Include the entire backend directory structure
 datas = [
-    # Include all fi_* modules from backend/src
-    (str(BACKEND_SRC / "fi_common"), "fi_common"),
-    (str(BACKEND_SRC / "fi_storage"), "fi_storage"),
-    (str(BACKEND_SRC / "fi_auth"), "fi_auth"),
-    (str(BACKEND_SRC / "fi_workflow"), "fi_workflow"),
-    (str(BACKEND_SRC / "fi_assistant"), "fi_assistant"),
-    (str(BACKEND_SRC / "fi_llm"), "fi_llm"),
-    (str(BACKEND_SRC / "fi_session"), "fi_session"),
-    (str(BACKEND_SRC / "fi_transcription"), "fi_transcription"),
-    (str(BACKEND_SRC / "fi_tts"), "fi_tts"),
-    (str(BACKEND_SRC / "fi_model_catalog"), "fi_model_catalog"),
-    (str(BACKEND_SRC / "fi_payment"), "fi_payment"),
-    (str(BACKEND_SRC / "fi_checkin"), "fi_checkin"),
-    (str(BACKEND_SRC / "fi_audit"), "fi_audit"),
-    # NOTE: config/ and policy/ directories are NOT bundled
-    # - Config may contain secrets or environment-specific settings
-    # - Policy is bundled inline in fi_workflow module
-    # - Desktop app creates config at ~/.aurity/config/ on first run
+    # Include all backend Python modules
+    (str(BACKEND_ROOT / "api"), "backend/api"),
+    (str(BACKEND_ROOT / "app"), "backend/app"),
+    (str(BACKEND_ROOT / "clients"), "backend/clients"),
+    (str(BACKEND_ROOT / "domain"), "backend/domain"),
+    (str(BACKEND_ROOT / "infrastructure"), "backend/infrastructure"),
+    (str(BACKEND_ROOT / "middleware"), "backend/middleware"),
+    (str(BACKEND_ROOT / "models"), "backend/models"),
+    (str(BACKEND_ROOT / "observability"), "backend/observability"),
+    (str(BACKEND_ROOT / "policy"), "backend/policy"),
+    (str(BACKEND_ROOT / "providers"), "backend/providers"),
+    (str(BACKEND_ROOT / "repositories"), "backend/repositories"),
+    (str(BACKEND_ROOT / "schemas"), "backend/schemas"),
+    (str(BACKEND_ROOT / "services"), "backend/services"),
+    (str(BACKEND_ROOT / "utils"), "backend/utils"),
+    (str(BACKEND_ROOT / "mappers"), "backend/mappers"),
+    (str(BACKEND_ROOT / "validators"), "backend/validators"),
+    (str(BACKEND_ROOT / "workflows_core"), "backend/workflows_core"),
+    (str(BACKEND_ROOT / "security_core"), "backend/security_core"),
+    # NOTE: config/ directory is NOT bundled (may contain secrets)
+    # Desktop app creates config at ~/.aurity/config/ on first run
 ]
 
 # Filter out non-existent paths
 datas = [(src, dst) for src, dst in datas if Path(src).exists()]
 
 # Warn about excluded directories
-excluded_dirs = ['config', 'policy']
+excluded_dirs = ['config', 'tests', 'scripts', 'debug', 'examples', 'docs']
 for dirname in excluded_dirs:
     dirpath = BACKEND_ROOT / dirname
     if dirpath.exists():
-        print(f"NOTE: {dirname}/ directory NOT bundled (security: may contain secrets)")
+        print(f"NOTE: {dirname}/ directory NOT bundled (security/size)")
 
 # Exclude packages not needed for desktop (reduce size)
 excludes = [
@@ -170,19 +191,13 @@ excludes = [
     "notebook",
     "IPython",
     # Unused cloud services (for offline mode)
-    # Note: stripe is REQUIRED for import compatibility even if not used
     "twilio",
     "sendgrid",
-    # Large ML packages (if not using local embeddings)
-    # Uncomment these if you want a smaller build without sentence-transformers
-    # "torch",
-    # "transformers",
-    # "sentence_transformers",
 ]
 
 a = Analysis(
     [str(BACKEND_APP / "main.py")],
-    pathex=[str(BACKEND_SRC), str(BACKEND_ROOT)],
+    pathex=[str(BACKEND_ROOT), str(PROJECT_ROOT)],
     binaries=stripe_binaries,
     datas=datas + stripe_datas,
     hiddenimports=hidden_imports,
@@ -212,7 +227,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
-    upx=False,  # Disabled: UPX not guaranteed to be available on all CI runners
+    upx=False,  # Disabled: UPX not guaranteed on all CI runners
     console=True,  # Keep console for debugging; set False for release
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -222,5 +237,5 @@ exe = EXE(
 )
 
 # NOTE: No COLLECT step - we produce a single executable file
-# Output: dist/aurity-backend (single file, not directory)
+# Output: dist/aurity-backend-<target-triple> (single file)
 # This is required for Tauri sidecar to work correctly
