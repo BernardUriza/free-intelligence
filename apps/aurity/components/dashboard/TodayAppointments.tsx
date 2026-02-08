@@ -138,7 +138,7 @@ export function TodayAppointments({
     try {
       setError(null);
       const today = new Date().toISOString().split('T')[0];
-      let url = `/api/clinics/${clinicId}/appointments?date=${today}`;
+      let url = `/api/aurity/clinic/clinics/${clinicId}/appointments?date=${today}`;
       if (doctorId) {
         url += `&doctor_id=${doctorId}`;
       }

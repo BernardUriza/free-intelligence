@@ -16,7 +16,7 @@ export interface Clinic {
 
 export async function fetchClinicsAPI(): Promise<Clinic[]> {
   try {
-    const data = await api.get<{ clinics: Clinic[] }>('/api/clinics');
+    const data = await api.get<{ clinics: Clinic[] }>('/api/aurity/clinic/clinics');
     return data.clinics || [];
   } catch (error) {
     console.error("Failed to fetch clinics:", error);
@@ -27,7 +27,7 @@ export async function fetchClinicsAPI(): Promise<Clinic[]> {
 
 export async function fetchDoctorsAPI(clinicId: string): Promise<Doctor[]> {
   try {
-    const data = await api.get<{ doctors: Doctor[] }>(`/api/clinics/${clinicId}/doctors`);
+    const data = await api.get<{ doctors: Doctor[] }>(`/api/aurity/clinic/clinics/${clinicId}/doctors`);
     return data.doctors || [];
   } catch (error) {
     console.error("Failed to fetch doctors:", error);
@@ -40,7 +40,7 @@ export async function fetchAppointmentsAPI(clinicId: string, date: Date): Promis
   try {
     const dateStr = date.toISOString().split("T")[0];
     const data = await api.get<{ appointments: Appointment[] }>(
-      `/api/clinics/${clinicId}/appointments?date=${dateStr}`
+      `/api/aurity/clinic/clinics/${clinicId}/appointments?date=${dateStr}`
     );
     return data.appointments || [];
   } catch (error) {
@@ -56,7 +56,7 @@ export async function updateAppointmentAPI(
   data: Partial<Appointment>
 ): Promise<Appointment> {
   return api.patch<Appointment>(
-    `/api/clinics/${clinicId}/appointments/${appointmentId}`,
+    `/api/aurity/clinic/clinics/${clinicId}/appointments/${appointmentId}`,
     data
   );
 }
@@ -76,7 +76,7 @@ export async function createAppointmentAPI(
   const payload = { ...appointmentData, scheduled_at: scheduledAt };
 
   return api.post<Appointment>(
-    `/api/clinics/${clinicId}/appointments`,
+    `/api/aurity/clinic/clinics/${clinicId}/appointments`,
     payload
   );
 }
