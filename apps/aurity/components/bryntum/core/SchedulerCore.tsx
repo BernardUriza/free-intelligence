@@ -213,7 +213,7 @@ export function SchedulerCore({
       console.warn('[SchedulerCore] Failed to apply updated data/config:', e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeWindowStartTs, timeWindowEndTs, isReady, instance]);
+  }, [timeWindowStartTs, timeWindowEndTs, isReady, instance, getConfig]);
 
   // ============================================================================
   // WORKAROUND: Fix blocked time event positions (CSS/JS version mismatch)
