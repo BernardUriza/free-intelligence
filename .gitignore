@@ -141,8 +141,8 @@ exports/*
 !exports/.gitkeep
 !backend/src/fi_common/api/internal/exports/
 
-# Runtime data
-data/
+# Runtime data (root-level only, not backend/domain/*/data/)
+/data/
 backups/
 backend/static/*.mp3
 backend/migration-manifest.json
