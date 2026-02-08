@@ -5,6 +5,7 @@
 // silently when FI Monitor detects Python is not available.
 
 use serde::Serialize;
+#[cfg(target_os = "windows")]
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -110,31 +111,21 @@ fn find_python_path() -> Option<String> {
 }
 
 /// Get path to bundled Python installer (Windows only)
+#[cfg(target_os = "windows")]
 fn get_bundled_python_installer_path() -> Option<PathBuf> {
-    #[cfg(target_os = "windows")]
-    {
-        // When bundled, python-3.14.0-amd64.exe is in the same directory as FI Monitor.exe
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let installer_path = exe_dir.join("python-3.14.0-amd64.exe");
-                if installer_path.exists() {
-                    return Some(installer_path);
-                }
-            }
-        }
-    }
-
-    None
+    // When bundled, python-3.14.0-amd64.exe is in the same directory as FI Monitor.exe
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let installer_path = exe_dir.join("python-3.14.0-amd64.exe");
+    installer_path.exists().then_some(installer_path)
 }
 
 /// Install Python 3.14 silently from bundled installer (Windows only)
 #[tauri::command]
-pub async fn install_python_silent(app: tauri::AppHandle) -> Result<bool, String> {
-    use tauri::Emitter;
-
+pub async fn install_python_silent(_app: tauri::AppHandle) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let _ = app.emit("python-install-status", "Buscando instalador de Python...");
+        use tauri::Emitter;
+        let _ = _app.emit("python-install-status", "Buscando instalador de Python...");
 
         let installer_path = get_bundled_python_installer_path()
             .ok_or("Python installer not found in bundle".to_string())?;
@@ -143,7 +134,7 @@ pub async fn install_python_silent(app: tauri::AppHandle) -> Result<bool, String
             "[FI Monitor] Found bundled Python installer: {:?}",
             installer_path
         );
-        let _ = app.emit("python-install-status", "Instalando Python 3.14...");
+        let _ = _app.emit("python-install-status", "Instalando Python 3.14...");
 
         // Run Python installer silently
         // Python installer supports /quiet for silent install
@@ -162,7 +153,7 @@ pub async fn install_python_silent(app: tauri::AppHandle) -> Result<bool, String
 
         if output.status.success() {
             println!("[FI Monitor] Python installed successfully");
-            let _ = app.emit("python-install-status", "Python 3.14 instalado ✓");
+            let _ = _app.emit("python-install-status", "Python 3.14 instalado ✓");
 
             // Wait for installation to complete
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -188,12 +179,11 @@ pub async fn install_python_silent(app: tauri::AppHandle) -> Result<bool, String
 
 /// Download and install Python from python.org (fallback)
 #[tauri::command]
-pub async fn download_and_install_python(app: tauri::AppHandle) -> Result<bool, String> {
-    use tauri::Emitter;
-
+pub async fn download_and_install_python(_app: tauri::AppHandle) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let _ = app.emit(
+        use tauri::Emitter;
+        let _ = _app.emit(
             "python-install-status",
             "Descargando Python desde python.org...",
         );
@@ -218,7 +208,7 @@ pub async fn download_and_install_python(app: tauri::AppHandle) -> Result<bool, 
             .map_err(|e| format!("Failed to write installer: {}", e))?;
 
         println!("[FI Monitor] Python installer downloaded to {:?}", installer_path);
-        let _ = app.emit("python-install-status", "Instalando Python...");
+        let _ = _app.emit("python-install-status", "Instalando Python...");
 
         // Run installer
         let output = Command::new(&installer_path)
@@ -233,10 +223,12 @@ pub async fn download_and_install_python(app: tauri::AppHandle) -> Result<bool, 
             .map_err(|e| format!("Failed to run installer: {}", e))?;
 
         // Clean up
-        let _ = std::fs::remove_file(&installer_path);
+        if let Err(e) = std::fs::remove_file(&installer_path) {
+            eprintln!("[FI Monitor] Failed to cleanup temp installer {:?}: {}", installer_path, e);
+        }
 
         if output.status.success() {
-            let _ = app.emit("python-install-status", "Python instalado ✓");
+            let _ = _app.emit("python-install-status", "Python instalado ✓");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
             let status = check_python_installed();

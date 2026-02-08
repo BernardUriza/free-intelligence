@@ -21,7 +21,7 @@ interface TestResult {
   answer: string
   elapsed_ms: number
   timestamp: string
-  rag_metadata?: any | null
+  rag_metadata?: Record<string, unknown> | null
 }
 
 interface SetupState {
@@ -168,7 +168,7 @@ export default function App({ setupState }: AppProps) {
           if (ollamaRes.ok) {
             const data = await ollamaRes.json()
             ollamaRunning = true
-            ollamaModels = data.models?.map((m: any) => m.name) || []
+            ollamaModels = data.models?.map((m: { name: string }) => m.name) || []
             console.log('[App] Ollama detected:', ollamaModels.length, 'models')
           }
         } catch (err) {
@@ -391,15 +391,18 @@ export default function App({ setupState }: AppProps) {
             response: answer,
             error: success ? undefined : `Expected '4' in response, got: ${answer}`
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           const latency_ms = Date.now() - start
+          const error = err instanceof Error
+            ? (err.name === 'AbortError'
+              ? 'Request timeout (15s) - Ollama may be loading the model'
+              : `HTTP request failed: ${err.message}`)
+            : `Unknown error: ${String(err)}`
           result = {
             success: false,
             latency_ms,
             response: '',
-            error: err.name === 'AbortError'
-              ? 'Request timeout (15s) - Ollama may be loading the model'
-              : `HTTP request failed: ${err.message}`
+            error,
           }
         }
       }
@@ -630,10 +633,6 @@ export default function App({ setupState }: AppProps) {
                 </button>
               )}
 
-              {/* Logs Viewer - Disabled (get_service_logs not implemented) */}
-              {/* {ollamaOn && (
-                <LogsViewer serviceName="ollama" serviceDisplayName="Ollama" />
-              )} */}
             </div>
           </div>
 

@@ -196,6 +196,7 @@ impl Default for TunnelMode {
 #[derive(Default)]
 struct AppState {
     ollama_running: Mutex<bool>,
+    ollama_process: Mutex<Option<u32>>,
     tunnel_running: Mutex<bool>,
     tunnel_url: Mutex<Option<String>>,
     tunnel_process: Mutex<Option<u32>>,
@@ -227,11 +228,18 @@ struct SystemInfo {
     hostname: String,
 }
 
-async fn check_ollama() -> bool {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(3))
+/// Build an HTTP client with a given timeout. Returns Err(String) on failure.
+fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
         .build()
-        .unwrap();
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))
+}
+
+async fn check_ollama() -> bool {
+    let Ok(client) = http_client(3) else {
+        return false;
+    };
     client
         .get("http://localhost:11434/api/tags")
         .send()
@@ -249,10 +257,9 @@ async fn get_ollama_models() -> Vec<String> {
         name: String,
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .unwrap();
+    let Ok(client) = http_client(5) else {
+        return vec![];
+    };
 
     match client.get("http://localhost:11434/api/tags").send().await {
         Ok(response) => match response.json::<ModelsResponse>().await {
@@ -553,12 +560,13 @@ async fn start_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, St
         .stderr(Stdio::null())
         .spawn();
     match result {
-        Ok(_) => {
+        Ok(child) => {
+            *state.ollama_process.lock().unwrap() = Some(child.id());
             for _ in 0..30 {
                 sleep(Duration::from_millis(500)).await;
                 if check_ollama().await {
                     *state.ollama_running.lock().unwrap() = true;
-                    println!("[FI Monitor] Ollama started");
+                    println!("[FI Monitor] Ollama started (PID: {})", child.id());
                     return Ok(true);
                 }
             }
@@ -571,16 +579,34 @@ async fn start_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, St
 #[tauri::command]
 async fn stop_ollama(state: tauri::State<'_, Arc<AppState>>) -> Result<bool, String> {
     println!("[FI Monitor] Stopping Ollama...");
-    #[cfg(target_os = "windows")]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/IM", "ollama.exe"])
-            .output();
+
+    if let Some(pid) = state.ollama_process.lock().unwrap().take() {
+        // Kill our own process by PID (precise — won't touch user's other ollama instances)
+        println!("[FI Monitor] Killing Ollama PID {}", pid);
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
+    } else {
+        // Fallback: ollama was running before FI Monitor started, kill by name
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/IM", "ollama.exe"])
+                .output();
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = Command::new("pkill").arg("ollama").output();
+        }
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = Command::new("pkill").arg("ollama").output();
-    }
+
     *state.ollama_running.lock().unwrap() = false;
     Ok(true)
 }
@@ -596,10 +622,9 @@ async fn check_rag_service() -> bool {
         gpu_name: Option<String>,
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(3))
-        .build()
-        .unwrap();
+    let Ok(client) = http_client(3) else {
+        return false;
+    };
 
     match client.get("http://localhost:11435/rag/health").send().await {
         Ok(response) if response.status().is_success() => {
@@ -634,10 +659,9 @@ async fn check_rag_service() -> bool {
 }
 
 async fn check_gateway() -> bool {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(3))
-        .build()
-        .unwrap();
+    let Ok(client) = http_client(3) else {
+        return false;
+    };
     client
         .get("http://localhost:11400/gateway/health")
         .send()
@@ -1330,7 +1354,8 @@ async fn start_tunnel_cloudflared_internal(
         // Keep child alive for the duration of this thread
         let _child_guard = child;
         let reader = BufReader::new(stderr);
-        let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com").unwrap();
+        let url_regex = Regex::new(r"https://[a-z0-9-]+\.trycloudflare\.com")
+            .expect("static regex must compile");
 
         for line in reader.lines().map_while(Result::ok) {
             println!("[cloudflared] {}", line);
@@ -1387,11 +1412,21 @@ async fn start_tunnel_cloudflared_internal(
 }
 
 fn find_cloudflared() -> Result<String, String> {
-    let candidates = vec![
-        "cloudflared".to_string(),
-        "C:\\cloudflared\\cloudflared.exe".to_string(),
-        "C:\\Program Files\\cloudflared\\cloudflared.exe".to_string(),
-    ];
+    #[allow(unused_mut)] // mut needed on Windows for cfg-gated pushes
+    let mut candidates = vec!["cloudflared".to_string()];
+
+    #[cfg(target_os = "windows")]
+    {
+        // Use environment variables instead of hardcoded C:\ — supports
+        // Windows installed on any drive letter
+        if let Ok(pf) = std::env::var("ProgramFiles") {
+            candidates.push(format!("{}\\cloudflared\\cloudflared.exe", pf));
+        }
+        if let Ok(sd) = std::env::var("SystemDrive") {
+            candidates.push(format!("{}\\cloudflared\\cloudflared.exe", sd));
+        }
+    }
+
     for path in candidates {
         if Command::new(&path).arg("--version").output().is_ok() {
             return Ok(path);
@@ -1446,10 +1481,7 @@ async fn test_ollama(mode: Option<String>, question: Option<String>) -> Result<T
         println!("[FI Monitor] RAG Testing: {}", query_text);
         let start = Instant::now();
 
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()
-            .unwrap();
+        let client = http_client(60)?;
 
         #[derive(Serialize)]
         struct RagQuery {
@@ -1564,7 +1596,7 @@ async fn test_ollama(mode: Option<String>, question: Option<String>) -> Result<T
     } else {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
         let idx = (now % questions.len() as u64) as usize;
         questions[idx].1.to_string()
@@ -1574,10 +1606,7 @@ async fn test_ollama(mode: Option<String>, question: Option<String>) -> Result<T
 
     println!("[FI Monitor] LLM Testing: {}", prompt);
     let start = Instant::now();
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .unwrap();
+    let client = http_client(60)?;
     #[derive(Serialize)]
     struct Req {
         model: String,
@@ -1703,10 +1732,7 @@ async fn test_llm_health() -> Result<SmokeTestResult, String> {
 
     // 2. Send simple test query
     let start = Instant::now();
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))  // Allow Ollama cold start (model loading)
-        .build()
-        .unwrap();
+    let client = http_client(15)?;
 
     #[derive(Serialize)]
     struct OllamaRequest {
@@ -1877,11 +1903,8 @@ async fn benchmark_rag_service() -> Result<RagBenchmark, String> {
 
     println!("[FI Monitor] Starting RAG Service benchmark...");
 
-    let api_key = std::env::var("RAG_API_KEY").unwrap_or_else(|_| "test-key".to_string());
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .unwrap();
+    let api_key = std::env::var("RAG_API_KEY").unwrap_or_default();
+    let client = http_client(30)?;
 
     // 1. Health check - get GPU info
     #[derive(Deserialize)]
@@ -1980,10 +2003,7 @@ async fn benchmark_ollama() -> Result<OllamaBenchmark, String> {
 
     println!("[FI Monitor] Starting Ollama benchmark...");
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .unwrap();
+    let client = http_client(60)?;
 
     #[derive(Serialize)]
     struct GenerateRequest {
@@ -1994,6 +2014,7 @@ async fn benchmark_ollama() -> Result<OllamaBenchmark, String> {
 
     #[derive(Deserialize)]
     struct GenerateResponse {
+        #[allow(dead_code)]
         response: String,
         #[serde(default)]
         eval_duration: u64,
@@ -2064,10 +2085,7 @@ async fn benchmark_gateway() -> Result<GatewayBenchmark, String> {
 
     println!("[FI Monitor] Starting Gateway benchmark...");
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .unwrap();
+    let client = http_client(30)?;
 
     // 1. Health check latency
     let start = Instant::now();
@@ -2207,8 +2225,12 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let tray_builder = TrayIconBuilder::new();
+            let tray_builder = match app.default_window_icon() {
+                Some(icon) => tray_builder.icon(icon.clone()),
+                None => tray_builder,
+            };
+            let _tray = tray_builder
                 .menu(&menu)
                 .tooltip("FI Monitor")
                 .on_menu_event(move |app, event| match event.id.as_ref() {

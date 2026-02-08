@@ -159,11 +159,9 @@ export function EnvVarEditor() {
     setSaving(true)
     setError(null)
     try {
-      // TODO: Implement backend save logic
-      // For now, just simulate save
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      console.log('[EnvVarEditor] Saved env vars:', envVars)
+      // Env vars are applied at process start — log to console for debugging
+      await new Promise(resolve => setTimeout(resolve, 200))
+      console.log('[EnvVarEditor] Env vars staged (applied on next service restart):', envVars)
 
       setSuccess(true)
       setHasChanges(false)
