@@ -17,6 +17,7 @@ import { ErrorClassifier } from './ErrorClassifier';
 import { ErrorDeduplicator } from './ErrorDeduplicator';
 import { ErrorSampler } from './ErrorSampler';
 import { redactPII } from './ErrorPolicy';
+import { ROUTES } from '@/lib/api/routes';
 import type {
   ClassifiedError,
   ReporterState,
@@ -286,7 +287,7 @@ export class ErrorReporter {
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
         try {
-          await fetch(`${this.backendUrl}/api/timeline/audio-error`, {
+          await fetch(`${this.backendUrl}${ROUTES.timeline}/audio-error`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(timelineEvent),

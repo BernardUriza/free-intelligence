@@ -9,6 +9,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ROUTES } from '@/lib/api/routes';
 
 interface AuthUser {
   id: string;
@@ -87,7 +88,7 @@ export function useAuth() {
    */
   const autoLoginAdmin = async () => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${ROUTES.auth}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +127,7 @@ export function useAuth() {
    */
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${ROUTES.auth}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
