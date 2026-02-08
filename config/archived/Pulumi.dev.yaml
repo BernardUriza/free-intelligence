@@ -1,7 +1,0 @@
-encryptionsalt: v1:V5zy3b3JTN8=:v1:5tVAJKWdOo6LNLQ1:N9cRBdPZ69lO3syGGCVQ8OLPWhhOwQ==
-config:
-  digitalocean:token:
-    secure: v1:BEu++e3qCK3C87xQ:nhil4Su3z7ubTI7oisQ/tuzgETbwQnWgyGx7DwuVrXwwRzbxk0whXIpOZHvWTyaVRa0h68pscOUWMhuAXAhaidEl7uIZbDQqnqHK5wc5kEgx6QQCwTFc
-  free-intelligence-do:region: nyc3
-  free-intelligence-do:environment: dev
-  free-intelligence-do:use_droplet: "false"

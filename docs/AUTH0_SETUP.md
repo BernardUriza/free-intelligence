@@ -21,7 +21,7 @@ This guide walks you through setting up Auth0 authentication for AURITY Medical 
 - [ ] Auth0 account (free Developer plan works for MVP)
 - [ ] Domain: `dev-1r4daup7ofj7q6gn.auth0.com`
 - [ ] Client ID: `rYOowVCxSqeSNFVOFsZuVIiYsjw4wkKp`
-- [ ] Production URL: `https://fi-aurity.duckdns.org`
+- [ ] Production URL: `https://app.aurity.io`
 
 ---
 
@@ -37,7 +37,7 @@ Auth0 Dashboard → Applications → APIs → Create API
 ### 1.2 Configure API
 ```
 Name: AURITY Medical AI API
-Identifier: https://api.fi-aurity.duckdns.org
+Identifier: https://api.aurity.io
 Signing Algorithm: RS256
 ```
 
@@ -67,25 +67,25 @@ Auth0 Dashboard → Applications → Applications → (Select your app)
 
 **Allowed Callback URLs:**
 ```
-https://fi-aurity.duckdns.org/callback
+https://app.aurity.io/callback
 http://localhost:9000/callback
 ```
 
 **Allowed Logout URLs:**
 ```
-https://fi-aurity.duckdns.org
+https://app.aurity.io
 http://localhost:9000
 ```
 
 **Allowed Web Origins:**
 ```
-https://fi-aurity.duckdns.org
+https://app.aurity.io
 http://localhost:9000
 ```
 
 **Allowed Origins (CORS):**
 ```
-https://fi-aurity.duckdns.org
+https://app.aurity.io
 http://localhost:9000
 ```
 
@@ -220,8 +220,8 @@ For each user:
 ```bash
 export AUTH0_DOMAIN=dev-1r4daup7ofj7q6gn.auth0.com
 export AUTH0_CLIENT_ID=rYOowVCxSqeSNFVOFsZuVIiYsjw4wkKp
-export AUTH0_API_IDENTIFIER=https://api.fi-aurity.duckdns.org
-export FRONTEND_URL_PROD=https://fi-aurity.duckdns.org
+export AUTH0_API_IDENTIFIER=https://api.aurity.io
+export FRONTEND_URL_PROD=https://app.aurity.io
 export FRONTEND_URL_DEV=http://localhost:9000
 ```
 
@@ -269,7 +269,7 @@ curl --request POST \
   --data '{
     "client_id":"rYOowVCxSqeSNFVOFsZuVIiYsjw4wkKp",
     "client_secret":"YOUR_CLIENT_SECRET",
-    "audience":"https://api.fi-aurity.duckdns.org",
+    "audience":"https://api.aurity.io",
     "grant_type":"client_credentials"
   }'
 ```
@@ -317,7 +317,7 @@ function MyApp({ Component, pageProps }) {
         redirect_uri: typeof window !== 'undefined'
           ? window.location.origin + '/callback'
           : '',
-        audience: 'https://api.fi-aurity.duckdns.org',
+        audience: 'https://api.aurity.io',
         scope: 'openid profile email'
       }}
     >

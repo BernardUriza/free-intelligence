@@ -106,16 +106,13 @@ pnpm build
 ls -lah out/
 ```
 
-### Deploy a DigitalOcean
+### Deploy a Azure Static Web Apps
 
 ```bash
-# Opción 1: Script automatizado
-./scripts/deploy-frontend-do.sh
+# Deploy via CI/CD (push to main triggers GitHub Actions)
+git push origin main
 
-# Opción 2: Manual
-cd apps/aurity
-pnpm build  # Genera out/
-doctl spaces upload fi-aurity out/* --recursive --acl public-read
+# The pipeline builds and deploys to Azure Static Web Apps automatically
 ```
 
 ---
@@ -192,13 +189,13 @@ RESULTADO: 95% compatible con static export!
 
 | Feature | SSR (actual) | Static Export |
 |---------|--------------|---------------|
-| **Hosting** | Droplet + Node.js | Spaces CDN |
-| **Costo** | $6/mes | $5/mes |
+| **Hosting** | VM + Node.js | Azure Static Web Apps |
+| **Costo** | $6/mes | Free tier |
 | **Velocidad** | ~100ms | ~20ms (CDN) |
-| **Escalamiento** | Manual | Automático |
+| **Escalamiento** | Manual | Automatico |
 | **Mantenimiento** | Actualizar Node | Cero |
-| **Deploy** | pm2/docker | doctl upload |
-| **SSL** | Manual | Automático |
+| **Deploy** | Manual | CI/CD (push to main) |
+| **SSL** | Manual | Automatico |
 
 ---
 
@@ -242,7 +239,7 @@ python3 -m http.server 3000
 ### Step 6: Update Backend CORS (1 min)
 ```bash
 # backend/.env
-ALLOWED_ORIGINS="http://localhost:9000,https://fi-aurity.nyc3.cdn.digitaloceanspaces.com"
+ALLOWED_ORIGINS="http://localhost:9000,https://app.aurity.io"
 ```
 
 ---
@@ -293,14 +290,7 @@ pnpm build
 
 ### 2. Cache Headers
 
-Spaces CDN cachea automáticamente. Para invalidar:
-```bash
-# Subir con headers custom
-doctl spaces upload fi-aurity out/* \
-  --recursive \
-  --acl public-read \
-  --header "Cache-Control: max-age=3600"
-```
+Azure Static Web Apps CDN cachea automaticamente. Cache headers se configuran en `staticwebapp.config.json`.
 
 ### 3. Error Pages
 
@@ -323,11 +313,11 @@ Antes (SSR):
 - Latency: ~100ms
 - Scaling: Manual
 
-Después (Static):
-- Hosting: Spaces CDN $5/mes
-- Deploy: doctl upload (5s)
+Despues (Static):
+- Hosting: Azure Static Web Apps (Free)
+- Deploy: CI/CD push to main
 - Latency: ~20ms (CDN global)
-- Scaling: Infinito automático
+- Scaling: Infinito automatico
 
 Bonus:
 ✅ $1/mes más barato
@@ -345,8 +335,8 @@ Bonus:
 # Build + test local
 pnpm build && cd out && python3 -m http.server 3000
 
-# Build + deploy en 1 comando
-pnpm build && doctl spaces upload fi-aurity out/* --recursive --acl public-read
+# Build + deploy via CI/CD
+git push origin main  # Triggers Azure Static Web Apps deployment
 
 # Watch + rebuild (dev)
 pnpm dev
@@ -366,9 +356,9 @@ du -sh out/
 - [ ] Test local funciona: `python3 -m http.server` en `out/`
 - [ ] Variables de entorno actualizadas
 - [ ] CORS configurado en backend
-- [ ] Deploy exitoso a Spaces
+- [ ] Deploy exitoso a Azure Static Web Apps
 - [ ] CDN habilitado
-- [ ] URL funciona: `https://fi-aurity.nyc3.cdn.digitaloceanspaces.com`
+- [ ] URL funciona: `https://app.aurity.io`
 
 ---
 

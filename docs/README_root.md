@@ -374,7 +374,7 @@ Eventos admiten método y limitaciones (SCAN_COMPLETED, not VALIDATION_PASSED).
 - **CI/CD**: pre-commit hooks + GitHub Actions
 - **Git**: Trunk-based development, semantic versioning
 - **Auth**: Auth0 JWT con RBAC
-- **Deployment**: DigitalOcean (app.aurity.io)
+- **Deployment**: Azure (app.aurity.io)
 
 ---
 

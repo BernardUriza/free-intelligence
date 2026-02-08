@@ -1,4 +1,4 @@
-# DigitalOcean Optimized Dockerfile
+# Azure Container Apps Dockerfile
 # Smaller image = Faster deploys = Lower costs
 
 FROM python:3.14-slim

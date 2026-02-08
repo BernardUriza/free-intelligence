@@ -234,13 +234,13 @@ pnpm playwright test
 ### Deployment
 
 ```bash
-# Frontend (DigitalOcean)
+# Frontend (Azure Static Web Apps)
 cd apps/aurity
 pnpm build
-# Deploy via CI/CD
+# Deploy via CI/CD (push to main)
 
-# Backend (DigitalOcean)
-make ci-deploy  # From root
+# Backend (Azure Container Apps)
+# Deploy via CI/CD (push to main)
 ```
 
 ---

@@ -187,7 +187,7 @@ pnpm start
 pnpm build
 
 # 3. Static files are in ./out/
-# Deploy to: Vercel, Netlify, S3, DigitalOcean Spaces, etc.
+# Deploy to: Azure Static Web Apps, Vercel, Netlify, S3, etc.
 ```
 
 ---
@@ -310,7 +310,7 @@ vercel
 netlify deploy --prod
 ```
 
-### DigitalOcean App Platform
+### Docker
 
 ```bash
 # Dockerfile included in project

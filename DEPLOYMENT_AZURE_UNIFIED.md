@@ -186,7 +186,7 @@ curl -X POST \
 5. Test TTS endpoint: `/api/tts/synthesize` (text → speech)
 
 ### For Production
-1. Store API key in deployment secrets (DigitalOcean App Platform, K8s, etc.)
+1. Store API key in deployment secrets (Azure Key Vault)
 2. Set environment variables on all production workers
 3. Restart backend services
 4. Verify with production health check: `curl https://app.aurity.io/api/health`

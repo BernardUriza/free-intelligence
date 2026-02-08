@@ -401,7 +401,7 @@ apps/fi-monitor/rag_service/
 ```
 
 **Razones:**
-1. Backend (Digital Ocean) NO tiene GPU
+1. Backend (Azure Container Apps) NO tiene GPU
 2. Fi Monitor (Windows) YA tiene implementación PyTorch separada
 3. CPU batch suficiente para 10-1000 vectores (~10ms)
 4. Eliminar PyTorch ahorra ~3GB en producción
@@ -410,7 +410,7 @@ apps/fi-monitor/rag_service/
 
 ```
 ┌─────────────────────────────────────────┐
-│ Backend (Digital Ocean - NO GPU)        │
+│ Backend (Azure - NO GPU)                │
 │ ├── utils/math/cpu/vector_utils.py      │
 │ │   └── NumPy implementation            │
 │ └── Use case: 10-1000 vectors (~10ms)   │

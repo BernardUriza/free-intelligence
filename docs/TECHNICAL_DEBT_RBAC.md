@@ -32,7 +32,7 @@ from jose import jwt, JWTError
 import os
 
 DOMAIN = os.getenv("AUTH0_DOMAIN")
-API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.fi-aurity.duckdns.org")
+API_IDENTIFIER = os.getenv("AUTH0_API_IDENTIFIER", "https://api.aurity.io")
 
 async def require_superadmin(
     authorization: str = Header(None)

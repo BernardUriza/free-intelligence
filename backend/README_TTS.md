@@ -58,7 +58,7 @@ Backward compatibility: If you use old variable names (`AZURE_TTS_ENDPOINT`, `AZ
 
 ### Production
 
-Add these to your deployment secrets (DigitalOcean, Docker Swarm, Kubernetes, or CI env):
+Add these to your deployment secrets (Azure Key Vault, or CI env):
 - `AZURE_OPENAI_TTS_ENDPOINT`
 - `AZURE_OPENAI_TTS_API_KEY`
 - `AZURE_OPENAI_TTS_API_VERSION`

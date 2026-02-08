@@ -70,7 +70,7 @@ jobs:
           echo "Building image: $FULL_IMAGE"
 
           docker build \
-            -f docker/Dockerfile.digitalocean \
+            -f docker/Dockerfile.azure \
             -t "$FULL_IMAGE" \
             -t "$LATEST_IMAGE" \
             .
