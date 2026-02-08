@@ -71,7 +71,7 @@ export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) 
           {/* Animated spinner */}
           <div className="relative w-24 h-24 mx-auto mb-6">
             <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="layout-spinner-ring"></div>
           </div>
 
           {/* Loading text */}

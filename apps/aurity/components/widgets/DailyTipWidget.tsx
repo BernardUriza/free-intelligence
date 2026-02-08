@@ -57,7 +57,7 @@ export function DailyTipWidget({ tip, category, generatedBy = 'static' }: DailyT
   const config = categoryConfig[category];
 
   return (
-    <div className={`h-full flex flex-col ${config.bgColor} border ${config.borderColor} rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8`}>
+    <div className={`wgt-card-base ${config.bgColor} border ${config.borderColor}`}>
       <div className="fi-flex-between mb-4 sm:mb-6 flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className={`${config.accentBg} rounded-full p-3 sm:p-4 ${config.color}`}>
@@ -73,7 +73,7 @@ export function DailyTipWidget({ tip, category, generatedBy = 'static' }: DailyT
           </div>
         </div>
         {generatedBy === 'FI' && (
-          <div className="flex items-center gap-2 fi-text-purple bg-purple-500/10 px-3 py-1.5 rounded-full" style={{ fontSize: 'clamp(0.75rem, 1vw, 1rem)' }}>
+          <div className="wgt-fi-badge" style={{ fontSize: 'clamp(0.75rem, 1vw, 1rem)' }}>
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M13 7H7v6h6V7z" />
               <path fillRule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2zM5 5h10v10H5V5z" clipRule="evenodd" />

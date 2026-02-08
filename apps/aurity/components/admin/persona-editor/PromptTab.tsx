@@ -21,7 +21,7 @@ export function PromptTab({ persona, onChange }: PromptTabProps) {
         </div>
       </div>
       <textarea
-        className="w-full p-4 fi-panel text-white font-mono text-sm focus:border-purple-500 focus:outline-none"
+        className="admin-prompt-textarea"
         rows={25}
         value={persona.system_prompt}
         onChange={(e) => onChange({ system_prompt: e.target.value })}

@@ -114,7 +114,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
               variant="ghost"
               size="sm"
               icon={Trash2}
-              className="opacity-0 group-hover/session:opacity-100 hover:bg-red-500/20 text-slate-400 hover:fi-text-error"
+              className="pat-session-delete-btn"
               title="Eliminar sesión"
               aria-label="Eliminar sesión"
             />

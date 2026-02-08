@@ -18,10 +18,10 @@ export function PromotionBannerWidget({
   backgroundColor = 'from-purple-950/70 to-indigo-950/70',
 }: PromotionBannerWidgetProps) {
   return (
-    <div className={`h-full flex flex-col items-center justify-center bg-gradient-to-br ${backgroundColor} border border-purple-600/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8 text-center`}>
+    <div className={`wgt-promo-card bg-gradient-to-br ${backgroundColor}`}>
       {highlight && (
         <div
-          className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-full mb-4 sm:mb-6 lg:mb-8 animate-pulse"
+          className="wgt-promo-highlight"
           style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.5rem)' }}
         >
           {highlight}
@@ -47,7 +47,7 @@ export function PromotionBannerWidget({
 
       {ctaText && (
         <div
-          className="bg-white/10 border border-white/30 text-white font-semibold px-6 sm:px-10 py-3 sm:py-5 rounded-xl"
+          className="wgt-promo-cta"
           style={{ fontSize: 'clamp(1rem, 2vw, 2rem)' }}
         >
           {ctaText}

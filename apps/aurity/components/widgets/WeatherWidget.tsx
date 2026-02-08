@@ -36,7 +36,7 @@ export function WeatherWidget({ city = 'Ciudad de México' }: WeatherWidgetProps
   });
 
   return (
-    <div className="bg-gradient-to-br from-blue-950/40 to-cyan-950/40 border border-blue-600/40 rounded-xl p-6 backdrop-blur-sm">
+    <div className="wgt-weather-card">
       <div className="flex items-start justify-between">
         <div>
           <div className="text-5xl font-bold text-white mb-2 font-mono">

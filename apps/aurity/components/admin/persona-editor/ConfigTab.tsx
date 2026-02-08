@@ -143,7 +143,7 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
           </label>
           <input
             type="number"
-            className="w-full p-3 fi-panel text-white font-mono focus:border-purple-500 focus:outline-none"
+            className="admin-config-textarea"
             value={persona.max_tokens}
             onChange={(e) =>
               onChange({ max_tokens: parseInt(e.target.value) || 0 })
@@ -230,7 +230,7 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
           min="0"
           max="1"
           step="0.05"
-          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+          className="admin-range-input"
           value={persona.temperature}
           onChange={(e) => onChange({ temperature: parseFloat(e.target.value) })}
         />

@@ -24,7 +24,7 @@ export function UpdatePrompt() {
         </div>
         <button
           onClick={skipWaiting}
-          className="px-4 py-2 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors"
+          className="pwa-update-btn"
         >
           Actualizar
         </button>

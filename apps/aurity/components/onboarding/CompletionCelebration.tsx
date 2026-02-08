@@ -90,7 +90,7 @@ export const CompletionCelebration = memo(function CompletionCelebration({
         {/* Main Celebration */}
         <div className="celeb-hero">
           <div className="celeb-party-icon">
-            <PartyPopper className="w-20 h-20 text-yellow-400" strokeWidth={1.5} />
+            <PartyPopper className="celeb-party-icon-svg" strokeWidth={1.5} />
           </div>
 
           <h1 className="celeb-title">
@@ -111,12 +111,12 @@ export const CompletionCelebration = memo(function CompletionCelebration({
 
               <div className="celeb-badge-body">
                 <div className="flex justify-center">
-                  <Medal className="w-12 h-12 text-yellow-400" strokeWidth={1.5} />
+                  <Medal className="celeb-badge-icon" strokeWidth={1.5} />
                 </div>
                 <h3 className="celeb-badge-title">Badge Desbloqueado</h3>
                 <div className="celeb-badge-label">
                   <p className="celeb-badge-name">AURITY Pioneer</p>
-                  <p className="text-xs text-slate-400 mt-1">Primer usuario de Free-Intelligence</p>
+                  <p className="celeb-badge-desc">Primer usuario de Free-Intelligence</p>
                 </div>
               </div>
             </div>
@@ -127,19 +127,19 @@ export const CompletionCelebration = memo(function CompletionCelebration({
         {showMessage && (
           <div className="celeb-features-grid">
             <div className="celeb-feature-card">
-              <Database className="w-8 h-8 mx-auto mb-2 text-emerald-400" strokeWidth={1.5} />
+              <Database className="celeb-feature-icon text-emerald-400" strokeWidth={1.5} />
               <p className="celeb-feature-title">100% Local</p>
-              <p className="text-xs text-slate-500 mt-1">Tus datos nunca salen</p>
+              <p className="celeb-feature-desc">Tus datos nunca salen</p>
             </div>
             <div className="celeb-feature-card">
-              <Shield className="w-8 h-8 mx-auto mb-2 text-cyan-400" strokeWidth={1.5} />
+              <Shield className="celeb-feature-icon text-cyan-400" strokeWidth={1.5} />
               <p className="celeb-feature-title">Encriptado</p>
-              <p className="text-xs text-slate-500 mt-1">AES-256 + HIPAA ready</p>
+              <p className="celeb-feature-desc">AES-256 + HIPAA ready</p>
             </div>
             <div className="celeb-feature-card">
-              <Bot className="w-8 h-8 mx-auto mb-2 text-purple-400" strokeWidth={1.5} />
+              <Bot className="celeb-feature-icon text-purple-400" strokeWidth={1.5} />
               <p className="celeb-feature-title">Notas SOAP</p>
-              <p className="text-xs text-slate-500 mt-1">Documentación automática</p>
+              <p className="celeb-feature-desc">Documentación automática</p>
             </div>
           </div>
         )}
@@ -155,7 +155,7 @@ export const CompletionCelebration = memo(function CompletionCelebration({
           >
             Ir al Dashboard
           </Button>
-          <p className="text-xs text-slate-500 mt-4">
+          <p className="celeb-footer-hint">
             Free-Intelligence estará esperándote
           </p>
         </div>

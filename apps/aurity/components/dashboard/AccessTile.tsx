@@ -22,7 +22,7 @@ export function AccessTile({ route, onClick }: AccessTileProps) {
     <Link
       href={route.href}
       onClick={onClick}
-      className="dash-access-tile"
+      className="group dash-access-tile"
       aria-label={`${route.title}: ${route.description}. Shortcut: ${route.shortcut}`}
     >
       {/* Shortcut badge */}

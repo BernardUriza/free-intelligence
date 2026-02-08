@@ -18,6 +18,10 @@
   @apply animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500;
 }
 
+@utility aud-status {
+  @apply inline-block px-2 py-1 rounded text-sm;
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -120,10 +124,6 @@
   /* ========================================
    * STATUS BADGES
    * ======================================== */
-  .aud-status {
-    @apply inline-block px-2 py-1 rounded text-sm;
-  }
-
   .aud-status-success {
     @apply aud-status bg-green-900/30 fi-text-green;
   }
@@ -145,5 +145,23 @@
 
   .aud-metadata-pre {
     @apply bg-slate-900 fi-text p-3 rounded text-xs overflow-x-auto;
+  }
+
+  /* ========================================
+   * EVENT TIMELINE
+   * ======================================== */
+  .audit-search-input {
+    @apply w-full pl-10 pr-4 py-2 fi-panel text-white
+           placeholder-slate-400 focus:border-emerald-500 focus:outline-none;
+  }
+
+  .audit-timestamp-chip {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-slate-900/50 border border-slate-700 rounded-md;
+  }
+
+  .audit-close-btn {
+    @apply p-1.5 text-slate-400 hover:text-white hover:bg-slate-800
+           rounded-lg transition-colors;
   }
 }

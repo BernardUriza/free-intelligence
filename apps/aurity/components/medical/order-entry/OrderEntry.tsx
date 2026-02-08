@@ -105,7 +105,7 @@ export function OrderEntry({
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500 rounded-xl p-5 flex items-start gap-3 animate-shake">
+        <div className="med-order-error">
           <AlertCircle className="h-6 w-6 fi-text-error flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="fi-text-error font-semibold mb-1">Error al cargar órdenes</p>

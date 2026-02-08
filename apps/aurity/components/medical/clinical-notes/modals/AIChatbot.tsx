@@ -109,11 +109,11 @@ export function AIChatbot({
 
   return (
     <div
-      className="fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl border border-emerald-500 shadow-2xl z-40 flex flex-col max-h-[600px]"
+      className="med-chatbot-shell"
       role="dialog"
       aria-label="Asistente IA"
     >
-      <div className="bg-gradient-to-r from-emerald-600 to-cyan-600 p-4 rounded-t-xl flex justify-between items-center">
+      <div className="med-chatbot-header">
         <div className="fi-flex-gap">
           <Zap className="h-5 w-5 text-white" aria-hidden="true" />
           <h3 className="text-white font-bold">Asistente IA</h3>

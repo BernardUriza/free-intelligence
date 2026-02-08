@@ -166,7 +166,7 @@
   }
 
   .kno-line-row {
-    @apply flex group hover:bg-slate-800/30 -mx-2 px-2 rounded;
+    @apply flex hover:bg-slate-800/30 -mx-2 px-2 rounded;
   }
 
   .kno-line-number {
@@ -178,7 +178,7 @@
   }
 
   .kno-content-rich {
-    @apply prose prose-invert prose-slate max-w-none;
+    @apply max-w-none;
   }
 
   /* ========================================
@@ -251,7 +251,7 @@
    * METADATA SECTION & ITEM
    * ======================================== */
   .kno-meta-toggle {
-    @apply flex items-center gap-2 w-full text-left mb-3 group;
+    @apply flex items-center gap-2 w-full text-left mb-3;
   }
 
   .kno-meta-chevron {

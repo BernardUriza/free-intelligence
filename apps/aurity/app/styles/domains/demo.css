@@ -23,6 +23,10 @@
          rounded-full text-xs font-bold flex-shrink-0;
 }
 
+@utility demo-status-msg {
+  @apply mb-6 p-4 rounded-xl flex items-center gap-3;
+}
+
 @layer components {
   /* ========================================
    * PAGE LAYOUT
@@ -51,16 +55,12 @@
   }
 
   .demo-info-banner-text {
-    @apply text-sm fi-text-purple/80 mt-1;
+    @apply text-sm text-purple-400/80 mt-1;
   }
 
   /* ========================================
    * STATUS MESSAGE
    * ======================================== */
-  .demo-status-msg {
-    @apply mb-6 p-4 rounded-xl flex items-center gap-3;
-  }
-
   .demo-status-msg-success {
     @apply demo-status-msg bg-emerald-500/10 border border-emerald-500/30;
   }

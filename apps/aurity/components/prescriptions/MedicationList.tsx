@@ -87,7 +87,7 @@ function MedicationCard({
     : "Segun indicacion";
 
   return (
-    <div className="rx-list-card">
+    <div className="group rx-list-card">
       {/* Drag Handle (for future drag-drop) */}
       {!readonly && (
         <div className="rx-list-drag-handle">

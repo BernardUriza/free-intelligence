@@ -103,7 +103,7 @@ export const PatientList: React.FC<PatientListProps> = ({
       </div>
 
       {/* Patient Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="pat-list-grid">
         {filteredPatients.length === 0 ? (
           renderEmpty ? (
             renderEmpty()

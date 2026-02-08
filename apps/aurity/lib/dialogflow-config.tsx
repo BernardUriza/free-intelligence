@@ -82,7 +82,7 @@ export const dialogFlowConfig: TimelineConfig = {
                 dialogFlowConfig.actions.onPlay(event);
               }
             }}
-            className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/50 hover:bg-slate-900 border border-slate-700 rounded-md transition-colors group"
+            className="group chat-playback-btn"
             title="Ir a este momento"
             variant="ghost"
             size="sm"

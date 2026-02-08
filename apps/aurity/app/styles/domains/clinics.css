@@ -28,6 +28,26 @@
   @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border;
 }
 
+@utility clinic-member-banner {
+  @apply p-3 rounded-lg fi-flex-between;
+}
+
+@utility clinic-badge {
+  @apply px-2 py-0.5 text-xs rounded-full font-medium;
+}
+
+@utility clinic-doctor-row {
+  @apply p-3 bg-slate-800/50 rounded-lg fi-flex-between;
+}
+
+@utility clinic-apt-status {
+  @apply text-xs;
+}
+
+@utility doc-modal-container {
+  @apply bg-slate-900 rounded-xl shadow-2xl w-full flex flex-col;
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -164,10 +184,6 @@
   /* ========================================
    * MEMBER BANNERS (superadmin / linked user)
    * ======================================== */
-  .clinic-member-banner {
-    @apply p-3 rounded-lg fi-flex-between;
-  }
-
   .clinic-member-banner-superadmin {
     @apply clinic-member-banner bg-yellow-900/30 border border-yellow-500/30;
   }
@@ -178,10 +194,6 @@
 
   .clinic-member-name {
     @apply text-white font-medium;
-  }
-
-  .clinic-badge {
-    @apply px-2 py-0.5 text-xs rounded-full font-medium;
   }
 
   .clinic-badge-superadmin {
@@ -203,10 +215,6 @@
   /* ========================================
    * DOCTOR ROW
    * ======================================== */
-  .clinic-doctor-row {
-    @apply p-3 bg-slate-800/50 rounded-lg fi-flex-between;
-  }
-
   .clinic-doctor-row-inactive {
     @apply clinic-doctor-row opacity-50;
   }
@@ -373,10 +381,6 @@
   /* ========================================
    * STATUS BADGES (appointment status)
    * ======================================== */
-  .clinic-apt-status {
-    @apply text-xs;
-  }
-
   .clinic-apt-status-scheduled {
     @apply clinic-apt-status text-yellow-400;
   }
@@ -445,10 +449,6 @@
   /* --- Overlay & Container --- */
   .doc-modal-overlay {
     @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4;
-  }
-
-  .doc-modal-container {
-    @apply bg-slate-900 rounded-xl shadow-2xl w-full flex flex-col;
   }
 
   .doc-modal-container-edit {

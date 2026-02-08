@@ -52,7 +52,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   doctorMessage,
   success,
 }) => (
-  <aside className="w-96 flex-shrink-0 flex flex-col bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-2xl overflow-hidden">
+  <aside className="cc-side-panel">
     <div className="flex items-center justify-between px-4 py-3 fi-border-bottom">
       <div className="fi-flex-gap-sm">
         <button
@@ -144,7 +144,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                 {queuePatients.filter((p: Patient) => p.status === 'in_progress').map((p: Patient) => (
                   <div
                     key={p.ticketNumber}
-                    className="px-3 py-2 rounded-lg text-sm font-mono font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-2"
+                    className="cc-patient-progress"
                   >
                     <Activity className="w-3 h-3 animate-pulse" />
                     {p.ticketNumber}

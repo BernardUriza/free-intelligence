@@ -32,7 +32,7 @@ export function SessionBadges({
 
   return (
     <div className="absolute top-0 right-0 z-10">
-      <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg px-3 py-1.5 shadow-lg">
+      <div className="med-session-badge">
         <div className="flex flex-col gap-1">
           {sessionId && (
             <div className="flex items-center gap-2 group">

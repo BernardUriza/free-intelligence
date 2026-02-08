@@ -68,20 +68,20 @@ export function BreathingExerciseWidget() {
   const config = phaseConfig[phase];
 
   return (
-    <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-950/80 to-slate-900/80 border border-slate-700 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8">
-      <div className="text-center mb-4 sm:mb-6 lg:mb-8 flex-shrink-0">
-        <div className="text-purple-400 mb-2">
+    <div className="wgt-breathing-card">
+      <div className="wgt-breathing-header">
+        <div className="wgt-breathing-icon">
           <Heart className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 mx-auto" strokeWidth={1.5} />
         </div>
         <h3 className="font-bold text-white" style={{ fontSize: 'clamp(1.5rem, 3vw, 3rem)' }}>
           Ejercicio de Respiración
         </h3>
-        <p className="text-slate-400 mt-1" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.5rem)' }}>
+        <p className="wgt-breathing-subtitle" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.5rem)' }}>
           Técnica 4-7-8 para reducir ansiedad
         </p>
       </div>
 
-      <div className="flex-1 flex items-center justify-center w-full min-h-0">
+      <div className="wgt-breathing-center">
         <div
           className={`
             relative rounded-full
@@ -104,7 +104,7 @@ export function BreathingExerciseWidget() {
         </div>
       </div>
 
-      <div className="text-center mt-4 sm:mt-6 lg:mt-8 flex-shrink-0">
+      <div className="wgt-breathing-footer">
         <p className={`font-semibold ${config.color}`} style={{ fontSize: 'clamp(1.25rem, 3vw, 3rem)' }}>
           {config.label}
         </p>

@@ -154,7 +154,7 @@
   }
 
   .evt-event-row {
-    @apply flex items-start gap-2 p-2 bg-gray-800 rounded hover:bg-gray-750;
+    @apply flex items-start gap-2 p-2 bg-gray-800 rounded hover:bg-gray-700;
   }
 
   /* Event color dots */
@@ -301,5 +301,65 @@
    * ======================================== */
   .evt-error-bar {
     @apply px-3 py-1 bg-red-900/50 fi-text-error evt-text-tiny;
+  }
+
+  /* ========================================
+   * H5 DEBUG MODAL
+   * ======================================== */
+  .h5-modal {
+    @apply bg-slate-900 rounded-2xl border border-yellow-500/50
+           max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col
+           animate-fade-in;
+  }
+
+  .h5-header {
+    @apply px-6 py-4 border-b border-yellow-500/50
+           flex items-center justify-between
+           bg-gradient-to-r from-yellow-900/20 to-slate-900;
+  }
+
+  .h5-dev-badge {
+    @apply px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs
+           font-bold rounded border border-yellow-500/50;
+  }
+
+  .h5-footer {
+    @apply px-6 py-4 border-t border-yellow-500/50
+           flex items-center justify-between bg-slate-800/50;
+  }
+
+  /* ========================================
+   * VERSION BADGE
+   * ======================================== */
+  .ver-wrapper {
+    @apply fixed bottom-4 left-4 z-50;
+  }
+
+  .ver-badge-btn {
+    @apply flex items-center gap-2 px-3 py-1.5 text-xs font-mono
+           bg-slate-800/90 text-slate-300 rounded-full border border-slate-700
+           hover:bg-slate-700 transition-colors shadow-lg backdrop-blur-sm;
+  }
+
+  .ver-pulse-dot {
+    @apply w-2 h-2 rounded-full bg-emerald-500 animate-pulse;
+  }
+
+  .ver-details-panel {
+    @apply absolute bottom-full left-0 mb-2 p-3 bg-slate-800/95
+           border border-slate-700 rounded-lg shadow-xl
+           backdrop-blur-sm min-w-[280px];
+  }
+
+  .ver-details-body {
+    @apply text-xs font-mono text-slate-300 space-y-1;
+  }
+
+  .ver-detail-row {
+    @apply flex justify-between;
+  }
+
+  .ver-detail-footer {
+    @apply pt-2 border-t border-slate-700 mt-2;
   }
 }

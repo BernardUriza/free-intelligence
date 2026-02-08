@@ -69,6 +69,9 @@
 @import "./styles/domains/demo.css";
 @import "./styles/domains/audit.css";
 @import "./styles/domains/recording.css";
+@import "./styles/domains/widgets.css";
+@import "./styles/domains/patients.css";
+@import "./styles/domains/ui.css";
 
 /* ========================================
  * LEGACY STYLES (to be migrated)

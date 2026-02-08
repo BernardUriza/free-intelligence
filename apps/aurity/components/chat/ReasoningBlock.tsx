@@ -269,7 +269,7 @@ export function ReasoningBlock({
 
         <div
           ref={contentRef}
-          className="chat-think-content-scroll"
+          className="reasoning-scrollbar chat-think-content-scroll"
         >
           {/* Content with improved typography */}
           <div

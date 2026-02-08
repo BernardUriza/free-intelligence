@@ -21,7 +21,7 @@ export function PreviewModal({ isOpen, onClose, soapData }: PreviewModalProps) {
       aria-labelledby="preview-title"
     >
       <div className="med-preview-content">
-        <div className="sticky top-0 bg-slate-900 fi-border-bottom p-6 flex justify-between items-center">
+        <div className="med-preview-sticky-header">
           <div>
             <h3 id="preview-title" className="fi-title-xl">
               Vista Previa - Notas SOAP

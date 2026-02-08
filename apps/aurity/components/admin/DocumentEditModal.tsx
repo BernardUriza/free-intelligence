@@ -93,7 +93,7 @@ export function DocumentEditModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="admin-modal-doc-edit">
         {/* Header */}
         <div className="flex items-center justify-between p-6 fi-border-bottom">
           <div className="fi-flex-gap-md">
@@ -120,7 +120,7 @@ export function DocumentEditModal({
         <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
+            <div className="admin-error-banner">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>

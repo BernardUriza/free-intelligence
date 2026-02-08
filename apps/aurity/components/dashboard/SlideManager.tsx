@@ -161,7 +161,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
           <Button
             type="button"
             onClick={fetchSlides}
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors flex items-center gap-1.5"
+            className="slide-refresh-btn"
             variant="ghost"
             size="sm"
           >
@@ -188,14 +188,14 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
                 >
                   {/* Content info */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-300">
+                    <div className="slide-thumb-icon">
                       <info.icon className="w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-200 font-medium truncate">{info.label}</span>
                         {!info.editable && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700/50 border border-slate-600/50 backdrop-blur-sm">
+                          <span className="slide-fi-badge">
                             <Lock className="w-3 h-3 text-slate-400" />
                             <span className="fi-text-xs-medium fi-text">FI</span>
                           </span>
@@ -207,7 +207,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
                           {(item.duration || 15000) / 1000}s
                         </span>
                         {!info.editable && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-900/20 border border-emerald-700/30 text-emerald-300">
+                          <span className="slide-system-badge">
                             <CheckCircle2 className="w-3 h-3" />
                             Sistema
                           </span>
@@ -222,7 +222,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
                       <Button
                         type="button"
                         disabled
-                        className="p-2.5 rounded-lg bg-gradient-to-br from-slate-800/50 to-slate-700/50 border border-slate-600/50 text-slate-400 cursor-not-allowed backdrop-blur-sm"
+                        className="slide-btn-disabled"
                         title="Edición disponible próximamente"
                         variant="ghost"
                         size="sm"
@@ -232,7 +232,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
                       <Button
                         type="button"
                         disabled
-                        className="p-2.5 rounded-lg bg-gradient-to-br from-red-900/30 to-red-800/30 border border-red-700/40 fi-text-error/50 cursor-not-allowed backdrop-blur-sm"
+                        className="slide-btn-delete-disabled"
                         title="Eliminación disponible próximamente"
                         variant="ghost"
                         size="sm"

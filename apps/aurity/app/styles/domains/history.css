@@ -358,10 +358,10 @@
 
   /* --- Section Dividers --- */
   .mem-tech-section {
-    @apply pt-3 mt-3 fi-border-top/50 space-y-2;
+    @apply pt-3 mt-3 border-t border-slate-700/50 space-y-2;
   }
   .mem-session-divider {
-    @apply pt-3 mt-3 fi-border-top/50;
+    @apply pt-3 mt-3 border-t border-slate-700/50;
   }
 
   /* --- Technical Details --- */
@@ -383,7 +383,7 @@
 
   /* --- Footer --- */
   .mem-footer {
-    @apply mt-3 pt-3 fi-border-top/50 flex items-center gap-2 flex-wrap;
+    @apply mt-3 pt-3 border-t border-slate-700/50 flex items-center gap-2 flex-wrap;
   }
   .mem-footer-who {
     @apply px-2 py-0.5 bg-slate-700/30 rounded fi-text-xs font-mono;

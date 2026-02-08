@@ -222,7 +222,7 @@ function OnboardingEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 px-4">
       <div className="relative mb-6">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 flex items-center justify-center animate-pulse">
+        <div className="onboard-chat-avatar">
           <Bot className="w-10 h-10 text-emerald-400" />
         </div>
         <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-cyan-400 animate-bounce" />

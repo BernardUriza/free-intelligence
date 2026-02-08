@@ -21,6 +21,12 @@
   @apply opacity-50;
 }
 
+@utility apt-view-btn {
+  @apply flex items-center gap-1 px-2 py-1 rounded
+         fi-text-xs-medium transition-colors
+         disabled:cursor-not-allowed;
+}
+
 @utility apt-zoom-label {
   @apply px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center;
 }
@@ -47,12 +53,6 @@
 
   .apt-view-switcher {
     @apply apt-control-group;
-  }
-
-  .apt-view-btn {
-    @apply flex items-center gap-1 px-2 py-1 rounded
-           fi-text-xs-medium transition-colors
-           disabled:cursor-not-allowed;
   }
 
   .apt-view-btn-active {
@@ -225,5 +225,23 @@
   .apt-loading-spinner {
     @apply animate-spin w-8 h-8 border-2 border-indigo-500
            border-t-transparent rounded-full;
+  }
+
+  /* ========================================
+   * BRYNTUM EVENT RENDERER
+   * ======================================== */
+  .appt-event-card {
+    @apply ml-2 mr-1 flex-1 rounded-md bg-slate-800/90
+           shadow-sm px-2 py-1.5 border border-slate-700/60 overflow-hidden;
+  }
+
+  .appt-status-success {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-emerald-500/10 fi-text-success rounded-lg text-xs;
+  }
+
+  .appt-status-error {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-red-500/10 fi-text-error rounded-lg text-xs;
   }
 }

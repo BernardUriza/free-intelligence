@@ -39,7 +39,7 @@ export function ModelRow({
         <div className="fi-flex-gap">
           <span className="font-medium text-white truncate">{model.name}</span>
           {model.is_installed && (
-            <span className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-xs bg-emerald-700/50 text-emerald-300 rounded">
+            <span className="admin-model-active-badge">
               <Check className="fi-icon-xs" />
             </span>
           )}
@@ -95,7 +95,7 @@ export function ModelRow({
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
-                className="text-slate-500 hover:fi-text-error hover:bg-red-950/30 opacity-0 group-hover:opacity-100"
+                className="admin-model-delete-btn"
                 title="Eliminar"
                 aria-label="Eliminar modelo"
               />
@@ -114,7 +114,7 @@ export function ModelRow({
       </div>
 
       {/* Expand indicator */}
-      <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <ChevronRight className="admin-model-chevron" />
     </div>
   );
 }

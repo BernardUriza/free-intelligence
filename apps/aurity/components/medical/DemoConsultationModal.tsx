@@ -162,7 +162,7 @@ export function DemoConsultationModal({
 
   return (
     <div className="fi-modal-backdrop">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="med-demo-modal">
         {/* Header */}
         <div className="flex items-center justify-between p-6 fi-border-bottom">
           <div>
@@ -289,7 +289,7 @@ export function DemoConsultationModal({
                 editedText.length > 4096
               }
               icon={Send}
-              className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
+              className="med-btn-gradient-cp"
             >
               {isLastLine ? 'Enviar y Finalizar' : 'Enviar Línea'}
             </Button>

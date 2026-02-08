@@ -46,11 +46,11 @@ export function H5DebugModal({ h5Data, isOpen, onClose }: H5DebugModalProps) {
 
   return (
     <div className="fi-modal-backdrop bg-black/80 animate-in fade-in">
-      <div className="bg-slate-900 rounded-2xl border border-yellow-500/50 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+      <div className="h5-modal">
         {/* Modal Header - DEV MODE WARNING */}
-        <div className="px-6 py-4 border-b border-yellow-500/50 flex items-center justify-between bg-gradient-to-r from-yellow-900/20 to-slate-900">
+        <div className="h5-header">
           <div className="fi-flex-gap-md">
-            <div className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded border border-yellow-500/50">
+            <div className="h5-dev-badge">
               DEV TOOLS
             </div>
             <div>
@@ -168,7 +168,7 @@ export function H5DebugModal({ h5Data, isOpen, onClose }: H5DebugModalProps) {
         </div>
 
         {/* Modal Footer - DEV MODE INFO */}
-        <div className="px-6 py-4 border-t border-yellow-500/50 flex items-center justify-between bg-slate-800/50">
+        <div className="h5-footer">
           <p className="fi-text-xs">
             Hotkey: <kbd className="px-2 py-1 bg-slate-700 rounded text-yellow-400 font-mono">Ctrl+Shift+H</kbd>
           </p>

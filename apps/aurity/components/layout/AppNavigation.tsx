@@ -128,7 +128,7 @@ export function AppNavigation({ compact = false }: AppNavigationProps) {
             return (
               <div key={category.id} className="mb-2">
                 {/* Category Label */}
-                <div className="px-4 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <div className="layout-nav-category">
                   <span>{category.icon}</span>
                   <span>{category.label}</span>
                 </div>

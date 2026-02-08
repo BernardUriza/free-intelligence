@@ -71,11 +71,11 @@
   }
 
   .cfg-superadmin-dot {
-    @apply fi-text-purple/60 text-sm;
+    @apply text-purple-400/60 text-sm;
   }
 
   .cfg-superadmin-email {
-    @apply fi-text-purple/80 text-sm;
+    @apply text-purple-400/80 text-sm;
   }
 
   .cfg-superadmin-tag {
@@ -269,11 +269,11 @@
   }
 
   .cfg-info-text-purple {
-    @apply text-xs fi-text-purple/80 mb-3;
+    @apply text-xs text-purple-400/80 mb-3;
   }
 
   .cfg-info-text-blue {
-    @apply text-xs fi-text-primary/80 mb-2;
+    @apply text-xs text-blue-400/80 mb-2;
   }
 
   .cfg-info-text-yellow {
@@ -281,7 +281,7 @@
   }
 
   .cfg-info-text-blue-body {
-    @apply text-xs fi-text-primary/80;
+    @apply text-xs text-blue-400/80;
   }
 
   .cfg-info-text-body {

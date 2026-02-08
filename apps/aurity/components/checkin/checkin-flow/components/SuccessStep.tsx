@@ -22,7 +22,7 @@ export function SuccessStep({ patientName, onClose }: SuccessStepProps) {
         <div className="w-24 h-24 mx-auto rounded-full fi-bg-card-emerald fi-flex-center animate-pulse">
           <CheckCircle className="w-12 h-12 fi-text-success" />
         </div>
-        <div className="absolute inset-0 w-24 h-24 mx-auto rounded-full border-4 border-emerald-500/30 animate-ping" />
+        <div className="checkin-success-ping" />
       </div>
 
       {/* Message */}

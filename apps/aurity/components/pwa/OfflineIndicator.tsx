@@ -18,7 +18,7 @@ export function OfflineIndicator() {
   if (wasOffline && isOnline) {
     return (
       <div className="fixed left-0 right-0 top-0 z-50">
-        <div className="bg-green-600 text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+        <div className="pwa-banner-online">
           <RefreshCw className="w-4 h-4 animate-spin" />
           <span>Conexion restaurada. Sincronizando...</span>
         </div>
@@ -30,7 +30,7 @@ export function OfflineIndicator() {
   if (!isOnline) {
     return (
       <div className="fixed left-0 right-0 top-0 z-50">
-        <div className="bg-amber-600 text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+        <div className="pwa-banner-offline">
           <WifiOff className="w-4 h-4" />
           <span>Sin conexion. Los cambios se guardaran localmente.</span>
         </div>

@@ -464,7 +464,7 @@ function ContentRenderer({ text, docType }: { text: string; docType: DocumentTyp
       {isCode ? (
         <div className="relative">
           {text.split('\n').map((line, i) => (
-            <div key={i} className="kno-line-row">
+            <div key={i} className="group kno-line-row">
               <span className="kno-line-number">
                 {i + 1}
               </span>
@@ -499,7 +499,7 @@ function MetadataSection({ title, icon: Icon, children, defaultCollapsed = false
     <div>
       <Button
         onClick={() => setCollapsed(!collapsed)}
-        className="kno-meta-toggle"
+        className="group kno-meta-toggle"
         variant="ghost"
         size="sm"
         type="button"

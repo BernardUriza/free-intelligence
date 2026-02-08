@@ -139,7 +139,7 @@ export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUplo
       />
 
       {/* Modal */}
-      <div className="relative z-10 bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl border border-slate-700 max-h-[90vh] overflow-y-auto">
+      <div className="admin-modal-upload">
           {/* Header */}
           <div className="flex items-center justify-between p-6 fi-border-bottom">
             <div className="fi-flex-gap-md">

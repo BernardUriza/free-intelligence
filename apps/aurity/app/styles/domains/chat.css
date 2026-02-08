@@ -581,7 +581,7 @@
 
   /* Seek bar container */
   .aplay-seek {
-    @apply flex-1 relative h-1 group cursor-pointer min-w-[80px];
+    @apply flex-1 relative h-1 cursor-pointer min-w-[80px];
   }
 
   /* Seek bar track */
@@ -838,7 +838,7 @@
   }
 
   .chat-think-content-scroll {
-    @apply px-4 py-4 overflow-y-auto max-h-80 relative reasoning-scrollbar;
+    @apply px-4 py-4 overflow-y-auto max-h-80 relative;
   }
 
   .chat-think-content-text {
@@ -921,5 +921,19 @@
     .reasoning-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(167, 139, 250, 0.8);
     }
+  }
+
+  /* ========================================
+   * PERSONA SELECTOR
+   * ======================================== */
+  .chat-persona-trigger {
+    @apply bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/50
+           transition-colors min-w-0 px-2 py-1.5;
+  }
+
+  .chat-playback-btn {
+    @apply flex items-center gap-1.5 px-2 py-1 bg-slate-900/50
+           hover:bg-slate-900 border border-slate-700 rounded-md
+           transition-colors;
   }
 }

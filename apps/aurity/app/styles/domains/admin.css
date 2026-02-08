@@ -47,6 +47,16 @@
   @apply p-5 rounded-xl border-2 transition-all;
 }
 
+@utility admin-doc-action {
+  @apply p-1.5 sm:p-2 rounded-lg transition-all
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@utility admin-modal-std {
+  @apply relative bg-slate-900 rounded-2xl shadow-2xl w-full
+         border border-slate-700 max-h-[90vh];
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -712,10 +722,6 @@
   /* ========================================
    * DOCUMENT CARD ACTIONS
    * ======================================== */
-  .admin-doc-action {
-    @apply p-1.5 sm:p-2 rounded-lg transition-all
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
   .admin-doc-action-default {
     @apply admin-doc-action text-slate-400 hover:text-slate-200 hover:bg-slate-700/50;
   }
@@ -990,5 +996,79 @@
   .pex-textarea {
     @apply w-full p-2 bg-slate-900 border border-slate-600 rounded
            text-white text-sm font-mono focus:border-purple-500 focus:outline-none;
+  }
+
+  /* ========================================
+   * MODAL CONTAINERS (shared pattern)
+   * ======================================== */
+  .admin-modal-upload {
+    @apply admin-modal-std max-w-xl overflow-y-auto z-10;
+  }
+
+  .admin-modal-persona {
+    @apply admin-modal-std max-w-2xl flex flex-col;
+  }
+
+  .admin-modal-doc-edit {
+    @apply admin-modal-std max-w-2xl shadow-xl overflow-hidden;
+  }
+
+  .admin-error-banner {
+    @apply flex items-center gap-2 p-3 bg-red-900/30
+           border border-red-700 rounded-lg text-red-300;
+  }
+
+  /* ========================================
+   * PERSONA EDITOR (ConfigTab, PromptTab, PersonaTestTab)
+   * ======================================== */
+  .admin-config-textarea {
+    @apply w-full p-3 fi-panel text-white font-mono
+           focus:border-purple-500 focus:outline-none;
+  }
+
+  .admin-prompt-textarea {
+    @apply w-full p-4 fi-panel text-white font-mono text-sm
+           focus:border-purple-500 focus:outline-none;
+  }
+
+  .admin-range-input {
+    @apply w-full h-2 bg-slate-700 rounded-lg appearance-none
+           cursor-pointer accent-purple-600;
+  }
+
+  .admin-code-preview {
+    @apply text-sm fi-text whitespace-pre-wrap font-mono
+           bg-slate-900 p-4 rounded overflow-x-auto;
+  }
+
+  /* ========================================
+   * MODEL CATALOG (ModelRow)
+   * ======================================== */
+  .admin-model-active-badge {
+    @apply flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
+           text-xs bg-emerald-700/50 text-emerald-300 rounded;
+  }
+
+  .admin-model-delete-btn {
+    @apply text-slate-500 hover:fi-text-error hover:bg-red-950/30
+           opacity-0 group-hover:opacity-100;
+  }
+
+  .admin-model-chevron {
+    @apply w-4 h-4 text-slate-600 flex-shrink-0
+           opacity-0 group-hover:opacity-100 transition-opacity;
+  }
+
+  /* ========================================
+   * AVAILABILITY DESIGNER (DayRow, SlotEditor)
+   * ======================================== */
+  .admin-slot-number {
+    @apply w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center
+           text-xs text-slate-400 flex-shrink-0;
+  }
+
+  .admin-add-slot-btn {
+    @apply w-full border border-dashed border-slate-700 text-slate-500
+           hover:text-slate-300 hover:border-slate-600 hover:bg-slate-800/30;
   }
 }

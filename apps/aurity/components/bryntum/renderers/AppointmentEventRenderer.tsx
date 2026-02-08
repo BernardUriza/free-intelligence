@@ -77,7 +77,7 @@ export function AppointmentEventRenderer({ eventRecord }: RendererProps) {
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getStatusBarClass(status)} rounded-l-md`} />
 
       {/* Card body */}
-      <div className="ml-2 mr-1 flex-1 rounded-md bg-slate-800/90 shadow-sm px-2 py-1.5 border border-slate-700/60 overflow-hidden">
+      <div className="appt-event-card">
         {/* Header */}
         <div className="flex items-center gap-1.5">
           <Icon className="h-3.5 w-3.5 fi-text" />

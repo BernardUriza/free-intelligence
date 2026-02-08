@@ -61,7 +61,7 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
           </div>
           <Button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            className="audit-close-btn"
             variant="ghost"
             size="sm"
             title="Cerrar"

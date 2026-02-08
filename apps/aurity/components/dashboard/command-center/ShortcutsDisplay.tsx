@@ -5,7 +5,7 @@ import { KEYBOARD_SHORTCUTS } from "@/lib/dashboard/constants"
 import { formatShortcutKey } from "@/hooks/useDashboardShortcuts"
 
 export const ShortcutsDisplay = ({ onClose }: { onClose: () => void }) => (
-  <div className="absolute top-16 right-4 z-50 p-4 bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl w-80">
+  <div className="cc-shortcuts-panel">
     <div className="flex items-center justify-between mb-3">
       <h3 className="fi-title-sm-medium flex items-center gap-2">
         <Keyboard className="w-4 h-4 fi-text-purple" />

@@ -440,13 +440,13 @@ export default function BryntumDemoPage() {
 
           {/* Status Indicator */}
           {renderStatus === 'success' && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 fi-text-success rounded-lg text-xs">
+            <div className="appt-status-success">
               <CheckCircle2 className="h-3 w-3" />
               Renderizado OK
             </div>
           )}
           {renderStatus === 'error' && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 fi-text-error rounded-lg text-xs">
+            <div className="appt-status-error">
               <XCircle className="h-3 w-3" />
               Error
             </div>

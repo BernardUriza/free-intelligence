@@ -293,7 +293,7 @@ export default function ViewerClient() {
               {/* Export Button */}
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                className="ui-btn-emerald"
               >
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline text-sm">Export</span>
@@ -315,7 +315,7 @@ export default function ViewerClient() {
 
         {/* Copy success indicators */}
         {(copiedPrompt || copiedResponse) && (
-          <div className="fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-lg">
+          <div className="ui-toast-success">
             <CheckCircle className="h-4 w-4" />
             Copied to clipboard!
           </div>

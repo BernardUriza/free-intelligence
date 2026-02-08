@@ -93,8 +93,8 @@ export default function OnboardingResetPage() {
       padding="0"
       showGeometricBg={true}
     >
-      <div className="relative flex-1 max-w-3xl mx-auto px-6 sm:px-8 py-16 flex items-center justify-center">
-        <div className="bg-slate-900/50 p-12 rounded-xl border border-slate-800 text-center space-y-8 w-full">
+      <div className="onboard-reset-wrapper">
+        <div className="onboard-reset-card">
           {/* Header */}
           <div>
             <div className="mb-4">

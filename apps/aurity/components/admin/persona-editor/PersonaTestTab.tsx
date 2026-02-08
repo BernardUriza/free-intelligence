@@ -72,7 +72,7 @@ export function PersonaTestTab({ personaId }: PersonaTestTabProps) {
       {testResult && (
         <div className="mt-6 p-4 fi-panel">
           <h4 className="fi-title-sm mb-3">Resultado</h4>
-          <pre className="text-sm fi-text whitespace-pre-wrap font-mono bg-slate-900 p-4 rounded overflow-x-auto">
+          <pre className="admin-code-preview">
             {JSON.stringify(testResult.output, null, 2)}
           </pre>
           <div className="mt-4 fi-grid-3 text-sm">

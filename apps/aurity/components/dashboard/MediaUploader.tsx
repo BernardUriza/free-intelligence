@@ -342,7 +342,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="w-full px-6 py-8 border-2 border-dashed border-slate-600 rounded-lg hover:border-cyan-500 hover:bg-slate-900/30 transition-colors fi-disabled"
+                className="mu-dropzone"
                 variant="ghost"
                 size="lg"
                 fullWidth
@@ -437,7 +437,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
               {mediaList.map((item) => (
                 <div
                   key={item.media_id}
-                  className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-700 rounded-lg hover:border-purple-500/50 transition-colors"
+                  className="mu-file-row"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">

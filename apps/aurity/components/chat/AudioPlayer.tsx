@@ -326,7 +326,7 @@ export function AudioPlayer({
             </span>
 
             {/* Seek bar - takes remaining space */}
-            <div className="aplay-seek">
+            <div className="group aplay-seek">
               {/* Track background */}
               <div className="aplay-seek-track">
                 {/* Progress fill - white for consistency */}

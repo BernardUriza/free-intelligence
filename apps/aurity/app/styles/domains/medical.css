@@ -1300,7 +1300,7 @@
 
   /* Response prose */
   .evpack-response-prose {
-    @apply prose prose-invert prose-sm max-w-none;
+    @apply max-w-none;
   }
 
   .evpack-response-pre {
@@ -1464,7 +1464,7 @@
   /* Modal container */
   .diar-modal {
     @apply w-full max-w-md rounded-xl bg-slate-800 border border-slate-700
-           p-8 shadow-2xl animate-slide-up;
+           p-8 shadow-2xl fi-animate-slide-up;
   }
 
   /* Progress circle area */
@@ -1599,7 +1599,7 @@
 
   /* Metrics adaptive divider */
   .diar-metrics-divider {
-    @apply mt-2 pt-2 fi-border-top/50;
+    @apply mt-2 pt-2 border-t border-slate-700/50;
   }
 
   .diar-metrics-adaptive-text {
@@ -1640,7 +1640,7 @@
 
   /* Card */
   .rx-list-card {
-    @apply group relative flex items-start gap-3 p-4 bg-white dark:bg-slate-800
+    @apply relative flex items-start gap-3 p-4 bg-white dark:bg-slate-800
            rounded-lg border border-slate-200 dark:border-slate-700
            hover:border-slate-300 dark:hover:border-slate-600 transition-colors;
   }
@@ -1830,5 +1830,154 @@
   /* Non-overridable warning */
   .rx-alert-no-override {
     @apply flex items-center gap-1.5 text-xs text-red-600 font-medium;
+  }
+
+  /* ========================================
+   * AI CHATBOT (AIChatbot.tsx + OrderChatbot.tsx)
+   * Prefix: med-chatbot-
+   * ======================================== */
+  .med-chatbot-shell {
+    @apply fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl
+           border border-emerald-500 shadow-2xl z-40 flex flex-col max-h-[600px];
+  }
+
+  .med-chatbot-shell-orders {
+    @apply fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl
+           border border-emerald-500 shadow-2xl z-50 flex flex-col h-[600px];
+  }
+
+  .med-chatbot-header {
+    @apply bg-gradient-to-r from-emerald-600 to-cyan-600 p-4
+           rounded-t-xl flex justify-between items-center;
+  }
+
+  .med-chatbot-input {
+    @apply flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg
+           border border-slate-700 focus:border-emerald-500 focus:outline-none;
+  }
+
+  /* ========================================
+   * DEMO CONSULTATION MODAL
+   * ======================================== */
+  .med-demo-modal {
+    @apply bg-slate-900 border border-slate-700 rounded-xl shadow-2xl
+           w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col;
+  }
+
+  .med-btn-gradient-cp {
+    @apply bg-gradient-to-r from-cyan-500 to-purple-500
+           hover:from-cyan-600 hover:to-purple-600;
+  }
+
+  /* ========================================
+   * SLIM INDEX HUB (SlimIndexHub.tsx)
+   * ======================================== */
+  .med-onboarding-banner {
+    @apply mb-8 p-6 bg-blue-950/30 backdrop-blur-md border border-white/10
+           rounded-2xl shadow-lg hover:shadow-xl transition-shadow;
+  }
+
+  .med-lock-badge {
+    @apply absolute top-3 right-3 px-3 py-1.5 bg-slate-800/80 backdrop-blur-sm
+           border border-slate-600/50 rounded-lg text-xs fi-text font-medium
+           shadow-md flex items-center gap-1.5;
+  }
+
+  /* ========================================
+   * ORDER ENTRY (OrderEntry + OrdersList)
+   * ======================================== */
+  .med-order-error {
+    @apply bg-red-500/10 border border-red-500 rounded-xl p-5
+           flex items-start gap-3 animate-shake;
+  }
+
+  .med-order-empty {
+    @apply fi-gradient-slate-card-muted backdrop-blur-sm rounded-2xl p-12
+           border border-dashed border-slate-700/50 text-center;
+  }
+
+  .med-order-empty-icon {
+    @apply inline-flex items-center justify-center w-16 h-16
+           bg-slate-800/50 rounded-2xl mb-4;
+  }
+
+  .med-order-group {
+    @apply fi-gradient-slate-card backdrop-blur-sm rounded-2xl p-6
+           border border-slate-700/50 shadow-xl;
+  }
+
+  .med-order-item {
+    @apply flex items-start justify-between p-4 bg-slate-900/80 rounded-xl
+           border border-slate-700/50 hover:border-slate-600/50 transition-all;
+  }
+
+  .med-order-auto-badge {
+    @apply inline-flex items-center gap-1 mt-2 px-2 py-1
+           bg-cyan-500/10 fi-text-info text-xs rounded-md;
+  }
+
+  .med-order-remove-btn {
+    @apply opacity-0 group-hover:opacity-100 fi-text-error
+           hover:text-red-300 hover:bg-red-500/10 ml-4;
+  }
+
+  /* ========================================
+   * SESSION / DIALOGUE (SessionBadges, DialogueFlow)
+   * ======================================== */
+  .med-session-badge {
+    @apply bg-slate-800/90 backdrop-blur-sm border border-slate-700
+           rounded-lg px-3 py-1.5 shadow-lg;
+  }
+
+  .med-tag-blue {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-blue-500/10 border border-blue-500/30 rounded-md;
+  }
+
+  .med-tag-green {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-emerald-500/10 border border-emerald-500/30 rounded-md;
+  }
+
+  /* ========================================
+   * WORKFLOW & PREVIEW
+   * ======================================== */
+  .med-progress-bar {
+    @apply h-3 rounded-full transition-all duration-500 ease-out
+           bg-gradient-to-r from-emerald-500 to-cyan-500;
+  }
+
+  .med-code-block {
+    @apply bg-slate-900/50 rounded-lg border border-slate-700
+           p-3 font-mono text-xs max-h-48 overflow-y-auto;
+  }
+
+  .med-preview-sticky-header {
+    @apply sticky top-0 bg-slate-900 fi-border-bottom p-6
+           flex justify-between items-center;
+  }
+
+  /* ========================================
+   * PRESCRIPTION FORM (MedicationForm)
+   * ======================================== */
+  .rx-form-container {
+    @apply space-y-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg
+           border border-slate-200 dark:border-slate-700;
+  }
+
+  .rx-form-input {
+    @apply w-full px-3 py-2 border border-slate-300 dark:border-slate-600
+           rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+
+  .med-danger-icon-box {
+    @apply w-12 h-12 bg-red-500/20 rounded-xl flex items-center
+           justify-center flex-shrink-0;
+  }
+
+  .med-progress-gradient {
+    @apply bg-gradient-to-r from-emerald-500 to-cyan-500 h-2
+           rounded-full transition-all duration-500 shadow-lg;
   }
 }

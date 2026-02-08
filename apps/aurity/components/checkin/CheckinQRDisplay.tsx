@@ -198,14 +198,14 @@ export function CheckinQRDisplay({
       <div className="flex-1 flex items-center justify-center min-h-0 mb-3 sm:mb-4">
         <div className="relative w-full max-w-[90%] aspect-square flex items-center justify-center">
           {isLoading ? (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex items-center justify-center">
+            <div className="checkin-qr-placeholder">
               <RefreshCw
                 className="text-indigo-400 animate-spin"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
               />
             </div>
           ) : error ? (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex flex-col items-center justify-center p-4">
+            <div className="checkin-qr-error-box">
               <QrCode
                 className="text-slate-600 mb-2"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
@@ -242,7 +242,7 @@ export function CheckinQRDisplay({
               />
             </div>
           ) : (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex items-center justify-center">
+            <div className="checkin-qr-placeholder">
               <QrCode
                 className="text-slate-600"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
@@ -253,7 +253,7 @@ export function CheckinQRDisplay({
           {/* Timer badge */}
           {!isLoading && !error && timeLeft > 0 && (
             <div
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 border border-slate-700 rounded-full"
+              className="checkin-qr-timer-badge"
             >
               <span
                 className="text-slate-400"

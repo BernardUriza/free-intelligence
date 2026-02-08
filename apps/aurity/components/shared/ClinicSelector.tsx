@@ -73,7 +73,7 @@ export function ClinicSelector({
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="ui-dropdown-panel">
           <div className="p-2 border-b border-slate-700">
             <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">
               Clínicas disponibles

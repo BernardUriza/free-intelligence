@@ -9,7 +9,7 @@ import { memo } from 'react';
 export const InteractiveHint = memo(function InteractiveHint() {
   return (
     <div className="mt-3 sm:mt-4 text-center flex-shrink-0">
-      <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-900/30 border border-purple-500/30 rounded-lg">
+      <div className="wrh-hint-box">
         <span className="text-xs sm:text-sm text-purple-300">
           Escanea el código QR para interactuar →
         </span>

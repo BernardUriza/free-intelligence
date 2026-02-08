@@ -509,7 +509,7 @@ export default function MedicalAIWorkflow() {
             <div className="med-delete-backdrop">
               <div className="med-delete-modal">
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="med-danger-icon-box">
                     <Trash2 className="h-6 w-6 fi-text-error" />
                   </div>
                   <div className="flex-1">
@@ -684,7 +684,7 @@ export default function MedicalAIWorkflow() {
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-2 rounded-full transition-all duration-500 shadow-lg"
+                className="med-progress-gradient"
                 style={{ width: `${progress}%` }}
               />
             </div>

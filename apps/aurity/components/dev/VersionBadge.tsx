@@ -72,20 +72,20 @@ export function VersionBadge() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 z-50"
+      className="ver-wrapper"
       data-testid="version-badge"
       data-version={version?.version || 'loading'}
       data-environment={version?.environment || 'unknown'}
     >
       <Button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono bg-slate-800/90 text-slate-300 rounded-full border border-slate-700 hover:bg-slate-700 transition-colors shadow-lg backdrop-blur-sm"
+        className="ver-badge-btn"
         title="Click for version details"
         variant="ghost"
         size="sm"
         type="button"
       >
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="ver-pulse-dot" />
         <span>
           {version ? `v${version.version}` : 'Loading...'}
         </span>
@@ -98,41 +98,41 @@ export function VersionBadge() {
       </Button>
 
       {expanded && version && (
-        <div className="absolute bottom-full left-0 mb-2 p-3 bg-slate-800/95 border border-slate-700 rounded-lg shadow-xl backdrop-blur-sm min-w-[280px]">
-          <div className="text-xs font-mono text-slate-300 space-y-1">
-            <div className="flex justify-between">
+        <div className="ver-details-panel">
+          <div className="ver-details-body">
+            <div className="ver-detail-row">
               <span className="text-slate-500">Service:</span>
               <span className="text-emerald-400">{version.service}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="ver-detail-row">
               <span className="text-slate-500">Version:</span>
               <span className="text-white">{version.version}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="ver-detail-row">
               <span className="text-slate-500">Environment:</span>
               <span className={version.environment === 'production' ? 'text-emerald-400' : 'text-amber-400'}>
                 {version.environment}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="ver-detail-row">
               <span className="text-slate-500">Target:</span>
               <span className={isDesktop() ? 'text-purple-400' : 'text-cyan-400'}>
                 {getTarget().toUpperCase()}
               </span>
             </div>
             {version.backend_port && (
-              <div className="flex justify-between">
+              <div className="ver-detail-row">
                 <span className="text-slate-500">Backend Port:</span>
                 <span className="text-orange-400">{version.backend_port}</span>
               </div>
             )}
-            <div className="flex justify-between">
+            <div className="ver-detail-row">
               <span className="text-slate-500">Build:</span>
               <span className="text-slate-400 text-[10px]">
                 {new Date(version.build_timestamp).toLocaleString()}
               </span>
             </div>
-            <div className="pt-2 border-t border-slate-700 mt-2">
+            <div className="ver-detail-footer">
               <span className="text-slate-500 text-[10px]">
                 E2E: curl /version | jq -r .python_e2e_code | python3
               </span>

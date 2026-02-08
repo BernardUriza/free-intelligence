@@ -119,7 +119,7 @@ export function PersonaCreateModal({
 
       {/* Modal */}
       <div className="relative flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-700 max-h-[90vh] flex flex-col">
+        <div className="admin-modal-persona">
           {/* Header */}
           <div className="flex items-center justify-between p-6 fi-border-bottom flex-shrink-0">
             <div className="fi-flex-gap-md">

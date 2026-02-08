@@ -259,7 +259,7 @@ export function TodayAppointments({
               <Button
                 key={apt.appointment_id}
                 onClick={() => onAppointmentClick?.(apt)}
-                className="dash-today-apt-row"
+                className="group dash-today-apt-row"
                 variant="ghost"
                 size="sm"
                 type="button"
