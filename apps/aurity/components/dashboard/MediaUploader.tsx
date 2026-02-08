@@ -12,7 +12,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Trash2, Eye, EyeOff, CloudUpload, Send, Layers, Loader2, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { confirmDelete, toastError, toastSuccess, showWarning } from '@/lib/swal';
-import { api } from '@/lib/api/client';
+import {
+  listClinicMedia,
+  uploadClinicMedia,
+  deleteClinicMedia,
+  updateClinicMedia,
+} from '@/lib/api/clinic-media';
+import { ROUTES } from '@/lib/api/routes';
 
 interface MediaUploaderProps {
   /** Callback when media is uploaded */
@@ -100,10 +106,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       if (clinicId) formData.append('clinic_id', clinicId);
       if (doctorId) formData.append('doctor_id', doctorId);
 
-      const data = await api.upload<{ media_id: string }>(
-        '/api/aurity/clinic/clinic-media/upload',
-        formData
-      );
+      const data = await uploadClinicMedia(formData);
 
       // Notify parent component
       onMediaUpload({
@@ -111,7 +114,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
         mediaType: activeTab,
         title: title || file.name,
         description,
-        url: `/api/aurity/clinic/clinic-media/${data.media_id}/file`,
+        url: `${ROUTES.clinicMedia}/${data.media_id}/file`,
         duration: duration * 1000,
       });
 
@@ -152,10 +155,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       if (clinicId) formData.append('clinic_id', clinicId);
       if (doctorId) formData.append('doctor_id', doctorId);
 
-      const data = await api.upload<{ media_id: string }>(
-        '/api/aurity/clinic/clinic-media/upload',
-        formData
-      );
+      const data = await uploadClinicMedia(formData);
 
       // Notify parent component
       onMediaUpload({
@@ -185,14 +185,8 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
   const fetchMediaList = async () => {
     setIsLoadingList(true);
     try {
-      const params = new URLSearchParams();
-      if (clinicId) params.append('clinic_id', clinicId);
-      params.append('active_only', 'false');
-
-      const data = await api.get<{ media: MediaItem[] }>(
-        `/api/aurity/clinic/clinic-media/list?${params}`
-      );
-      setMediaList(data.media || []);
+      const media = await listClinicMedia({ activeOnly: false, clinicId });
+      setMediaList(media as MediaItem[]);
     } catch (error) {
       console.error('Failed to fetch media list:', error);
     } finally {
@@ -205,7 +199,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
     if (!confirmed) return;
 
     try {
-      await api.delete(`/api/aurity/clinic/clinic-media/${mediaId}`);
+      await deleteClinicMedia(mediaId);
 
       // Refresh list
       await fetchMediaList();
@@ -218,9 +212,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
 
   const handleToggleActive = async (mediaId: string, currentState: boolean) => {
     try {
-      await api.put(`/api/aurity/clinic/clinic-media/${mediaId}`, {
-        is_active: !currentState,
-      });
+      await updateClinicMedia(mediaId, { is_active: !currentState });
 
       // Refresh list
       await fetchMediaList();

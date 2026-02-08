@@ -1,13 +1,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchClinicsAPI,
-  fetchDoctorsAPI,
-  fetchAppointmentsAPI,
-  updateAppointmentAPI,
-  createAppointmentAPI,
-  Clinic,
-} from "@/services/appointmentService";
+  fetchClinics,
+  fetchDoctors,
+  fetchAppointments as fetchAppointmentsApi,
+  updateAppointment as updateAppointmentApi,
+  createAppointment as createAppointmentApi,
+  type Clinic,
+} from "@/lib/api/clinics";
 import type { Appointment, Doctor } from "@/components/bryntum/utils/appointment-transform.utils";
 import { toastError, toastSuccess } from "@/lib/swal";
 
@@ -19,9 +19,9 @@ export function useAppointments(initialDate: Date = new Date()) {
   const [currentDate, setCurrentDate] = useState(initialDate);
   const [loading, setLoading] = useState(true);
 
-  const fetchClinics = useCallback(async () => {
+  const loadClinics = useCallback(async () => {
     setLoading(true);
-    const clinicData = await fetchClinicsAPI();
+    const clinicData = await fetchClinics();
     setClinics(clinicData);
     if (clinicData.length > 0) {
       setSelectedClinic(clinicData[0].clinic_id);
@@ -30,28 +30,29 @@ export function useAppointments(initialDate: Date = new Date()) {
     }
   }, []);
 
-  const fetchDoctors = useCallback(async (clinicId: string) => {
-    const doctorData = await fetchDoctorsAPI(clinicId);
+  const loadDoctors = useCallback(async (clinicId: string) => {
+    const doctorData = await fetchDoctors(clinicId);
     setDoctors(doctorData);
   }, []);
 
-  const fetchAppointments = useCallback(async (clinicId: string, date: Date) => {
-    const appointmentData = await fetchAppointmentsAPI(clinicId, date);
-    setAppointments(appointmentData);
+  const loadAppointments = useCallback(async (clinicId: string, date: Date) => {
+    const dateStr = date.toISOString().split("T")[0];
+    const appointmentData = await fetchAppointmentsApi(clinicId, { date: dateStr });
+    setAppointments(appointmentData as Appointment[]);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchClinics();
-  }, [fetchClinics]);
+    loadClinics();
+  }, [loadClinics]);
 
   useEffect(() => {
     if (selectedClinic) {
       setLoading(true);
-      fetchDoctors(selectedClinic);
-      fetchAppointments(selectedClinic, currentDate);
+      loadDoctors(selectedClinic);
+      loadAppointments(selectedClinic, currentDate);
     }
-  }, [selectedClinic, currentDate, fetchDoctors, fetchAppointments]);
+  }, [selectedClinic, currentDate, loadDoctors, loadAppointments]);
 
   const updateAppointment = async (
     appointmentId: string,
@@ -59,7 +60,7 @@ export function useAppointments(initialDate: Date = new Date()) {
   ) => {
     if (!selectedClinic) return;
     try {
-      const updated = await updateAppointmentAPI(selectedClinic, appointmentId, data);
+      const updated = await updateAppointmentApi(selectedClinic, appointmentId, data);
       setAppointments((prev) =>
         prev.map((apt) =>
           apt.appointment_id === updated.appointment_id ? updated : apt
@@ -70,14 +71,14 @@ export function useAppointments(initialDate: Date = new Date()) {
       console.error("Failed to update appointment:", error);
       toastError(error instanceof Error ? error.message : "Error al actualizar cita");
       // Revert UI
-      fetchAppointments(selectedClinic, currentDate);
+      loadAppointments(selectedClinic, currentDate);
     }
   };
 
   const createAppointment = async (appointmentData: any) => {
     if (!selectedClinic) return;
     try {
-      const newAppointment = await createAppointmentAPI(selectedClinic, appointmentData);
+      const newAppointment = await createAppointmentApi(selectedClinic, appointmentData);
       setAppointments((prev) => [...prev, newAppointment]);
       toastSuccess("Cita creada correctamente");
       return newAppointment;
@@ -98,7 +99,7 @@ export function useAppointments(initialDate: Date = new Date()) {
     currentDate,
     setCurrentDate,
     loading,
-    fetchAppointments,
+    fetchAppointments: loadAppointments,
     updateAppointment,
     createAppointment,
   };

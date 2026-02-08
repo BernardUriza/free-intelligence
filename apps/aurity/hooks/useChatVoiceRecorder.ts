@@ -37,6 +37,7 @@ import { useAudioAnalysis } from './useAudioAnalysis';
 import { useChunkProcessor } from './useChunkProcessor';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
 import { getBackendUrl } from '@/lib/config/deployment';
+import { ROUTES } from '@/lib/api/routes';
 
 const BACKEND_URL = getBackendUrl();
 const CHUNK_INTERVAL_MS = 30000; // 30s chunks
@@ -126,7 +127,7 @@ export function useChatVoiceRecorder(
           chunk_number: number;
           session_id: string;
           status?: string;
-        }>('/api/aurity/stream', formData);
+        }>(ROUTES.stream, formData);
 
         console.log(`[Chat Voice] Chunk ${chunkNumber} uploaded, polling job ${result.session_id}...`);
         addLog(`Chunk ${chunkNumber} uploaded (${(blob.size / 1024).toFixed(1)}KB)`);

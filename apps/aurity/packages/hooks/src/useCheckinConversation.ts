@@ -14,6 +14,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
+import { ROUTES } from '@/lib/api/routes';
 
 // =============================================================================
 // TYPES
@@ -144,7 +145,7 @@ interface ChatCompletionStreamResponse {
 async function apiChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  const response = await fetch(`${API_BASE}/api/aurity/assistant/chat`, {
+  const response = await fetch(`${API_BASE}${ROUTES.assistant}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -164,7 +165,7 @@ async function* apiChatCompletionStreaming(
   // Add stream: true to request
   const streamRequest = { ...request, stream: true };
 
-  const response = await fetch(`${API_BASE}/api/aurity/assistant/chat/stream`, {
+  const response = await fetch(`${API_BASE}${ROUTES.assistant}/chat/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(streamRequest),

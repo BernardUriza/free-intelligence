@@ -17,6 +17,7 @@ import { SplitView } from '@/components/layout/SplitView';
 import { MetadataPanel } from '@/components/dashboard/MetadataPanel';
 import type { Interaction } from '@/components/types/interaction';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export default function ViewerClient() {
   const params = useParams();
@@ -79,7 +80,7 @@ export default function ViewerClient() {
       try {
         // Try to fetch from sessions API
         const data = await api.get<SessionResponse>(
-          `/api/aurity/medical-ai/sessions/${id}`
+          `${ROUTES.medicalAi}/sessions/${id}`
         );
 
         // Get interaction by index
@@ -111,7 +112,7 @@ export default function ViewerClient() {
         // Fallback: try to load from timeline/memory endpoint
         try {
           const memData = await api.get<MemoryResponse>(
-            `/api/aurity/timeline/memory?session_id=${id}&limit=100`
+            `${ROUTES.timeline}/memory?session_id=${id}&limit=100`
           );
 
           const events = memData.events || [];

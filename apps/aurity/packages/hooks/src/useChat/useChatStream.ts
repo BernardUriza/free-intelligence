@@ -13,6 +13,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // ============================================================================
 // Types
@@ -67,7 +68,7 @@ export interface UseChatStreamReturn {
 // Constants
 // ============================================================================
 
-const STREAM_ENDPOINT = '/api/aurity/assistant/chat/stream';
+const STREAM_ENDPOINT = `${ROUTES.assistant}/chat/stream`;
 const DEFAULT_THROTTLE_MS = 50;
 
 // ============================================================================

@@ -10,6 +10,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 export interface ConsultStartRequest {
   audio: File;
@@ -59,7 +60,7 @@ export async function startConsultWorkflow(
   // The api.upload doesn't support custom headers, so we create formData and add session ID
   formData.append('session_id', sessionId);
 
-  return api.upload<ConsultStartResponse>('/api/aurity/consult', formData);
+  return api.upload<ConsultStartResponse>(ROUTES.consult, formData);
 }
 
 /**
@@ -67,7 +68,7 @@ export async function startConsultWorkflow(
  * GET /api/aurity/consult/{jobId}
  */
 export async function getConsultStatus(jobId: string): Promise<ConsultStatusResponse> {
-  return api.get<ConsultStatusResponse>(`/api/aurity/consult/${jobId}`);
+  return api.get<ConsultStatusResponse>(`${ROUTES.consult}/${jobId}`);
 }
 
 /**

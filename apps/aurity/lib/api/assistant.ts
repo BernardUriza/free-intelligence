@@ -9,6 +9,7 @@
  */
 
 import { api, getBackendUrl } from './client';
+import { ROUTES } from './routes';
 import { getRoles, type TokenClaims } from '@aurity-standalone/auth';
 import { sanitizeMessagePreview, hash8 } from '@aurity-standalone/observability';
 
@@ -337,7 +338,7 @@ export const assistantApi = {
       emotional_analysis?: ChatResponse['emotional_analysis'];
       thinking?: string | null;  // Qwen3 thinking mode
     }>(
-      '/api/aurity/assistant/chat',
+      `${ROUTES.assistant}/chat`,
       payload,
       {
         timeout: CHAT_TIMEOUT_MS, // 2 minutes for LLM inference
@@ -375,7 +376,7 @@ export const assistantApi = {
    */
   searchHistory: async (request: HistorySearchRequest): Promise<HistorySearchResponse> => {
     return api.post<HistorySearchResponse>(
-      '/api/aurity/assistant/history/search',
+      `${ROUTES.assistantHistory}/search`,
       request
     );
   },
@@ -396,7 +397,7 @@ export const assistantApi = {
       tokens_used: number;
       latency_ms: number;
     }>(
-      '/api/aurity/assistant/introduction',
+      `${ROUTES.assistant}/introduction`,
       {
         physician_name: context.physician_name as string | undefined,
         clinic_name: context.clinic_name as string | undefined,
@@ -495,7 +496,7 @@ export const assistantApi = {
         }
 
         console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
-          url: `${backendUrl}/api/aurity/assistant/chat/stream`,
+          url: `${backendUrl}${ROUTES.assistant}/chat/stream`,
           persona: requestBody.persona,
           messages: messages.length,
           lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
@@ -503,7 +504,7 @@ export const assistantApi = {
         });
 
         const response = await fetch(
-          `${backendUrl}/api/aurity/assistant/chat/stream`,
+          `${backendUrl}${ROUTES.assistant}/chat/stream`,
           {
             method: 'POST',
             headers: streamHeaders,

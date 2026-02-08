@@ -2,9 +2,10 @@
 import { http, HttpResponse, ws } from 'msw';
 import { assistantChat, assistantGreeting, historySearchResponse } from '@/mocks/fixtures/assistant';
 import { sse } from '@/mocks/utils/sse';
+import { ROUTES } from '@/lib/api/routes';
 
 export const assistantHandlers = [
-  http.post('/api/aurity/assistant/chat', async ({ request }) => {
+  http.post(`${ROUTES.assistant}/chat`, async ({ request }) => {
     const body = await request.json();
     const isIntro = Array.isArray(body?.messages) && body.messages.some((m: any) => m.role === 'system');
     if (isIntro) {
@@ -29,7 +30,7 @@ export const assistantHandlers = [
     });
   }),
 
-  http.post('/api/aurity/assistant/chat/stream', async ({ request }) => {
+  http.post(`${ROUTES.assistant}/chat/stream`, async ({ request }) => {
     await request.json();
     return sse([
       { event: 'meta', data: { thinking: assistantChat.thinking } },
@@ -52,7 +53,7 @@ export const assistantHandlers = [
     ]);
   }),
 
-  http.post('/api/aurity/assistant/history/search', () => {
+  http.post(`${ROUTES.assistantHistory}/search`, () => {
     return HttpResponse.json(historySearchResponse);
   }),
 

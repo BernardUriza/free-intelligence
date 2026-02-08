@@ -9,6 +9,7 @@ import { SessionSummary, SessionTaskStatus, TaskStatus } from '@aurity-standalon
 import { getSessionSummaries } from '@aurity-standalone/api-client/timeline';
 import { toastError } from '@/lib/swal';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export function useSessionManagement() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -51,7 +52,7 @@ export function useSessionManagement() {
           const data = await api.get<{
             soap?: { status: string };
             diarization?: { status: string };
-          }>(`/api/aurity/medical-ai/sessions/${sessionId}/monitor`, {
+          }>(`${ROUTES.medicalAi}/sessions/${sessionId}/monitor`, {
             timeout: 5000,
           });
 

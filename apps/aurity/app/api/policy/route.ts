@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { ROUTES } from '@/lib/api/routes';
 
 // Required for static export (Next.js 16 with output: 'export')
 export const dynamic = 'force-static';
@@ -18,7 +19,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:700
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/policy`, {
+    const response = await fetch(`${BACKEND_URL}${ROUTES.policy}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

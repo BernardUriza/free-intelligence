@@ -16,6 +16,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 } from 'lucide-react';
 import { confirmDelete, toastSuccess } from '@/lib/swal';
+import { ROUTES } from '@/lib/api/routes';
 import { VoiceMicButton } from './VoiceMicButton';
 import { PersonaSelectorPanel } from './PersonaSelectorPanel';
 import { usePersonas } from '@aurity-standalone/hooks/usePersonas';
@@ -227,7 +228,7 @@ export function ChatToolbar({
                       <button
                         onClick={async () => {
                           const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-                          const template = `curl -v -X POST '${BACKEND_URL}/api/tts/synthesize' \\\n  -H 'Content-Type: application/json' \\\n  --data-raw '{"text":"<TU_TEXTO_AQUI>","voice":"nova","provider":"<providerId>","speed":1.0}'`;
+                          const template = `curl -v -X POST '${BACKEND_URL}${ROUTES.tts}/synthesize' \\\n  -H 'Content-Type: application/json' \\\n  --data-raw '{"text":"<TU_TEXTO_AQUI>","voice":"nova","provider":"<providerId>","speed":1.0}'`;
 
                           try {
                             await navigator.clipboard.writeText(template);

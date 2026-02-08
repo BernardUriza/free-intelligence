@@ -11,6 +11,7 @@
 
 import type { Session, SessionsListResponse } from "../../types/session";
 import { api } from "./client";
+import { ROUTES } from "./routes";
 
 const CACHE_KEY_SESSIONS = "fi_sessions_cache";
 const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
@@ -69,7 +70,7 @@ export async function getSessions(params?: {
   if (params?.owner_hash) query.set("owner_hash", params.owner_hash);
 
   try {
-    const data = await api.get<SessionsListResponse>(`/api/sessions?${query.toString()}`);
+    const data = await api.get<SessionsListResponse>(`${ROUTES.sessions}?${query.toString()}`);
 
     // Cache successful response
     setCachedData(CACHE_KEY_SESSIONS, data);
@@ -92,5 +93,5 @@ export async function getSessions(params?: {
  * Get single session detail
  */
 export async function getSession(sessionId: string): Promise<Session> {
-  return api.get<Session>(`/api/sessions/${sessionId}`);
+  return api.get<Session>(`${ROUTES.sessions}/${sessionId}`);
 }

@@ -15,8 +15,9 @@ import type {
   DocumentQuestion,
 } from '@aurity-standalone/types/knowledge';
 import { api } from './client';
+import { ROUTES } from './routes';
 
-const API_BASE = '/api/aurity/knowledge-base/documents';
+const API_BASE = ROUTES.knowledgeBase;
 
 /**
  * Fetch all documents with optional filters

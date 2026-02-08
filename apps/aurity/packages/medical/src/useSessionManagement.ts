@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { SessionSummary, SessionTaskStatus } from '@aurity-standalone/types/patient';
 import { getSessionSummaries } from '@/lib/api/timeline';
+import { ROUTES } from '@/lib/api/routes';
 import { toastError } from '@/lib/swal';
 
 export function useSessionManagement() {
@@ -52,7 +53,7 @@ export function useSessionManagement() {
           const timeoutId = setTimeout(() => controller.abort(), 5000);
 
           const response = await fetch(
-            `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
+            `${backendUrl}${ROUTES.medicalAi}/sessions/${sessionId}/monitor`,
             {
               method: 'GET',
               headers: { Accept: 'application/json' },

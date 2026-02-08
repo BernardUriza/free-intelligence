@@ -8,6 +8,7 @@
  */
 
 import { api, type RequestOptions } from './client';
+import { ROUTES } from './routes';
 
 // Gender enum matching backend
 export type Gender = 'MASCULINO' | 'FEMENINO' | 'OTRO' | 'NO_ESPECIFICADO';
@@ -129,7 +130,7 @@ export async function fetchPatients(
   // P1 FIX: Use API client instead of hardcoded fetch
   const query = queryParams.toString();
   const data = await api.get<PatientResponse[]>(
-    `/api/patients/${query ? `?${query}` : ''}`,
+    `${ROUTES.patients}/${query ? `?${query}` : ''}`,
     options
   );
   return data.map(toFrontendPatient);
@@ -141,7 +142,7 @@ export async function fetchPatients(
 export async function fetchPatient(patientId: string): Promise<Patient> {
   // P1 FIX: Use API client instead of hardcoded fetch
   try {
-    const data = await api.get<PatientResponse>(`/api/patients/${patientId}`);
+    const data = await api.get<PatientResponse>(`${ROUTES.patients}/${patientId}`);
     return toFrontendPatient(data);
   } catch (error: any) {
     if (error?.status === 404) {
@@ -156,7 +157,7 @@ export async function fetchPatient(patientId: string): Promise<Patient> {
  */
 export async function createPatient(patient: PatientCreate): Promise<Patient> {
   try {
-    const data = await api.post<PatientResponse>('/api/patients/', patient);
+    const data = await api.post<PatientResponse>(`${ROUTES.patients}/`, patient);
     return toFrontendPatient(data);
   } catch (error: unknown) {
     // Parse backend error message for user-friendly display
@@ -180,7 +181,7 @@ export async function createPatient(patient: PatientCreate): Promise<Patient> {
  */
 export async function updatePatient(patientId: string, updates: PatientUpdate): Promise<Patient> {
   // P1 FIX: Use API client instead of hardcoded fetch
-  const data = await api.put<PatientResponse>(`/api/patients/${patientId}`, updates);
+  const data = await api.put<PatientResponse>(`${ROUTES.patients}/${patientId}`, updates);
   return toFrontendPatient(data);
 }
 
@@ -189,7 +190,7 @@ export async function updatePatient(patientId: string, updates: PatientUpdate): 
  */
 export async function deletePatient(patientId: string): Promise<void> {
   // P1 FIX: Use API client instead of hardcoded fetch
-  await api.delete(`/api/patients/${patientId}`);
+  await api.delete(`${ROUTES.patients}/${patientId}`);
 }
 
 /**
@@ -212,7 +213,7 @@ export async function validateCurp(
       curp,
       exclude_patient_id: excludePatientId,
     };
-    return await api.post<CurpValidationResponse>('/api/patients/validate-curp', request);
+    return await api.post<CurpValidationResponse>(`${ROUTES.patients}/validate-curp`, request);
   } catch {
     // On network error, return a soft failure that doesn't block the form
     return {

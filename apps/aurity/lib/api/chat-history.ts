@@ -10,8 +10,9 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
-const API_BASE = '/api/aurity/assistant/history';
+const API_BASE = ROUTES.assistantHistory;
 
 // ============================================================================
 // Types

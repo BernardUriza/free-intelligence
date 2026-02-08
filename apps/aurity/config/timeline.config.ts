@@ -8,6 +8,8 @@
  * Created: 2025-11-22
  */
 
+import { ROUTES } from '@/lib/api/routes';
+
 // ============================================================================
 // API Configuration
 // ============================================================================
@@ -17,10 +19,10 @@ export const MEMORY_API = {
   BASE_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001',
 
   /** Longitudinal memory endpoint */
-  ENDPOINT: '/api/aurity/timeline/memory',
+  ENDPOINT: `${ROUTES.timeline}/memory`,
 
   /** Stats endpoint */
-  STATS_ENDPOINT: '/api/aurity/timeline/memory/stats',
+  STATS_ENDPOINT: `${ROUTES.timeline}/memory/stats`,
 
   /** Request timeout in milliseconds */
   TIMEOUT_MS: 10000,

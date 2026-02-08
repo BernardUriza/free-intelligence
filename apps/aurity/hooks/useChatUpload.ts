@@ -16,6 +16,7 @@ import { useState, useCallback, useRef } from 'react';
 import { uploadDocument, updateDocument } from '@aurity-standalone/api-client/knowledge';
 import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export type UploadStatus =
   | 'idle'
@@ -241,7 +242,7 @@ export function useChatUpload(options: UseChatUploadOptions) {
     const poll = async () => {
       try {
         const doc = await api.get<DocumentMetadata & { status: string; error_message?: string }>(
-          `/api/aurity/knowledge-base/documents/${docId}`
+          `${ROUTES.knowledgeBase}/${docId}`
         );
 
         if (doc.status === 'indexed') {

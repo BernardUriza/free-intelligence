@@ -8,6 +8,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // ============================================================================
 // Types
@@ -52,7 +53,7 @@ export const licensesApi = {
   generate: async (
     request: LicenseGenerationRequest
   ): Promise<LicenseGenerationResponse> => {
-    return api.post<LicenseGenerationResponse>('/api/admin/licenses/generate', request);
+    return api.post<LicenseGenerationResponse>(`${ROUTES.adminLicenses}/generate`, request);
   },
 
   /**
@@ -60,7 +61,7 @@ export const licensesApi = {
    * Requires FI-superadmin role.
    */
   getFeatures: async (): Promise<FeaturesResponse> => {
-    return api.get<FeaturesResponse>('/api/admin/licenses/features');
+    return api.get<FeaturesResponse>(`${ROUTES.adminLicenses}/features`);
   },
 };
 

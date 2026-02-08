@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 import {
   FileText,
   Hash,
@@ -105,7 +106,7 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
       try {
         // Fetch evidence pack from workflow API (auto-generates if not exists)
         const data = await api.get<{ session_id: string; evidence_pack: EvidencePack }>(
-          `/api/aurity/medical-ai/sessions/${sessionId}/evidence`
+          `${ROUTES.medicalAi}/sessions/${sessionId}/evidence`
         );
         setPack(data.evidence_pack);  // Backend wraps in { session_id, evidence_pack }
 

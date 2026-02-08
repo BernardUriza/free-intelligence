@@ -7,6 +7,7 @@
 import { useState, useCallback } from 'react';
 import { medicalWorkflowApi, type MedicalOrder } from '@aurity-standalone/api-client/medical-workflow';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 import type { ChatMessage, OrderType } from '../types';
 
 interface UseOrderChatbotProps {
@@ -41,7 +42,7 @@ export function useOrderChatbot({ sessionId, onOrderCreated }: UseOrderChatbotPr
       const result = await api.post<{
         updates: Record<string, string>;
         explanation: string;
-      }>(`/api/aurity/medical-ai/sessions/${sessionId}/assistant`, {
+      }>(`${ROUTES.medicalAi}/sessions/${sessionId}/assistant`, {
         command: userMessage,
         current_soap: {
           diagnosticTests: [],

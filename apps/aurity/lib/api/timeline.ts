@@ -8,9 +8,7 @@
  */
 
 import { api } from './client';
-
-// Timeline router mounted at /api/aurity
-const API_BASE = '/api/aurity';
+import { ROUTES } from './routes';
 
 const CACHE_KEY_SUMMARIES = 'fi_timeline_summaries';
 const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
@@ -166,7 +164,7 @@ export async function getSessionSummaries(params?: {
 
   try {
     const data = await api.get<SessionSummary[]>(
-      `${API_BASE}/timeline/sessions?limit=${limit}&offset=${offset}&sort=${sort}`
+      `${ROUTES.timeline}/sessions?limit=${limit}&offset=${offset}&sort=${sort}`
     );
 
     // Cache successful response
@@ -200,7 +198,7 @@ export async function getSessionsList(params?: {
   const { limit = 20, offset = 0 } = params || {};
 
   return api.get<SessionsListResponse>(
-    `${API_BASE}/sessions?limit=${limit}&offset=${offset}`
+    `${ROUTES.auritySessions}?limit=${limit}&offset=${offset}`
   );
 }
 
@@ -210,7 +208,7 @@ export async function getSessionsList(params?: {
 export async function getSessionDetail(
   sessionId: string
 ): Promise<SessionDetail> {
-  return api.get<SessionDetail>(`${API_BASE}/timeline/sessions/${sessionId}`);
+  return api.get<SessionDetail>(`${ROUTES.timeline}/sessions/${sessionId}`);
 }
 
 /**
@@ -232,14 +230,14 @@ export async function getEvents(params?: {
   queryParams.set('limit', limit.toString());
   queryParams.set('offset', offset.toString());
 
-  return api.get<EventResponse[]>(`${API_BASE}/timeline/events?${queryParams}`);
+  return api.get<EventResponse[]>(`${ROUTES.timeline}/events?${queryParams}`);
 }
 
 /**
  * Fetch timeline statistics
  */
 export async function getTimelineStats(): Promise<TimelineStats> {
-  return api.get<TimelineStats>(`${API_BASE}/timeline/stats`);
+  return api.get<TimelineStats>(`${ROUTES.timeline}/stats`);
 }
 
 /**
@@ -256,7 +254,7 @@ export async function healthCheck(): Promise<{
     storage_path: string;
     storage_exists: boolean;
     timestamp: string;
-  }>(`${API_BASE}/health`);
+  }>(ROUTES.health);
 }
 
 /**
@@ -285,7 +283,7 @@ export interface AudioChunk {
  */
 export async function getSessionChunks(sessionId: string): Promise<AudioChunk[]> {
   const data = await api.get<{ chunks: AudioChunk[] }>(
-    `${API_BASE}/sessions/${sessionId}/chunks`
+    `${ROUTES.auritySessions}/${sessionId}/chunks`
   );
   return data.chunks || [];
 }

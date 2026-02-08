@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { DEMO_CONSULTATION } from '@/lib/demo/consultation-script';
 import { toastError } from '@/lib/swal';
 import { getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface DemoConsultationModalProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export function DemoConsultationModal({
       console.log(`[Demo] Generating TTS for line ${currentLineIndex + 1}...`);
       const backendUrl = getBackendUrl();
 
-      const ttsResponse = await fetch(`${backendUrl}/api/tts/synthesize`, {
+      const ttsResponse = await fetch(`${backendUrl}${ROUTES.tts}/synthesize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -14,10 +14,11 @@ import {
   type EventTypeFilter,
 } from '@/config/timeline.config';
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // API endpoint base
-const MEMORY_ENDPOINT = '/api/aurity/memory/longitudinal';
-const MEMORY_STATS_ENDPOINT = '/api/aurity/memory/stats';
+const MEMORY_ENDPOINT = `${ROUTES.memory}/longitudinal`;
+const MEMORY_STATS_ENDPOINT = `${ROUTES.memory}/stats`;
 
 // ============================================================================
 // Types (matching backend schemas)
@@ -172,7 +173,7 @@ export async function searchMemory(
   queryParams.set('limit', limit.toString());
 
   try {
-    return await api.get<LongitudinalMemoryResponse>(`/api/aurity/memory/search?${queryParams}`);
+    return await api.get<LongitudinalMemoryResponse>(`${ROUTES.memory}/search?${queryParams}`);
   } catch (error) {
     console.error('[searchMemory] Error:', error);
     return createEmptyResponse(offset, limit);

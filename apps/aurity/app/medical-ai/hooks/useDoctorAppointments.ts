@@ -8,10 +8,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 import {
-  fetchAppointmentsAPI,
-  createAppointmentAPI,
-  updateAppointmentAPI,
-} from '@/services/appointmentService';
+  fetchAppointments as fetchAppointmentsApi,
+  createAppointment as createAppointmentApi,
+  updateAppointment as updateAppointmentApi,
+} from '@/lib/api/clinics';
 
 interface CreateAppointmentData {
   patient_id: string;
@@ -100,7 +100,7 @@ export function useDoctorAppointments(
       }
 
       const results = await Promise.all(
-        days.map((day) => fetchAppointmentsAPI(clinicId, day))
+        days.map((day) => fetchAppointmentsApi(clinicId, { date: day.toISOString().split('T')[0] }))
       );
 
       // Flatten and filter by doctor
@@ -144,7 +144,7 @@ export function useDoctorAppointments(
         notes: data.notes || '',
       };
 
-      const created = await createAppointmentAPI(clinicId, appointmentData);
+      const created = await createAppointmentApi(clinicId, appointmentData);
 
       // Add to local state
       setAppointments((prev) => [...prev, created]);
@@ -161,7 +161,7 @@ export function useDoctorAppointments(
         throw new Error('No clinic configured');
       }
 
-      const updated = await updateAppointmentAPI(clinicId, appointmentId, {
+      const updated = await updateAppointmentApi(clinicId, appointmentId, {
         status: 'in_progress',
         started_at: new Date().toISOString(),
       });

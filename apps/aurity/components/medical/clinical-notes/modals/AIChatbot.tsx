@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SOAPData, ChatMessage } from '../types';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface AIChatbotProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export function AIChatbot({
       const result = await api.post<{
         updates: Record<string, string>;
         explanation: string;
-      }>(`/api/aurity/medical-ai/sessions/${sessionId}/assistant`, {
+      }>(`${ROUTES.medicalAi}/sessions/${sessionId}/assistant`, {
         command: message,
         current_soap: soapData,
       });

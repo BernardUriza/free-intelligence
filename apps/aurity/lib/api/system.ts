@@ -5,6 +5,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // =============================================================================
 // Types
@@ -54,7 +55,7 @@ export interface ModelCompatibility {
 // API Functions
 // =============================================================================
 
-const API_BASE = '/api/admin/system';
+const API_BASE = ROUTES.adminSystem;
 
 /**
  * Obtiene recursos del sistema (RAM, CPU, plataforma).

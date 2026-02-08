@@ -12,8 +12,9 @@ import type {
   PersonaTestResponse,
 } from '@aurity-standalone/types/persona';
 import { api } from './client';
+import { ROUTES } from './routes';
 
-const API_BASE = '/api/admin/personas';
+const API_BASE = ROUTES.adminPersonas;
 
 /**
  * Fetch all personas

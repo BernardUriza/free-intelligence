@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Brain, Monitor, Cloud } from 'lucide-react';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface LLMStatusResponse {
   status: 'online' | 'offline' | 'checking';
@@ -28,7 +29,7 @@ export function SystemStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const data = await api.get<LLMStatusResponse>('/api/aurity/system/llm-status');
+        const data = await api.get<LLMStatusResponse>(`${ROUTES.system}/llm-status`);
         setStatus(data);
       } catch {
         setStatus({

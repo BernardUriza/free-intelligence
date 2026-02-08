@@ -14,6 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 import { getTarget, isDesktop, getBackendPort } from '@/lib/config/deployment';
 import { Button } from '@/components/ui/button';
 
@@ -46,7 +47,7 @@ export function VersionBadge() {
 
         // Fetch backend info (environment, build_timestamp, etc.)
         const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/api/version`, {
+        const res = await fetch(`${backendUrl}${ROUTES.version}`, {
           headers: { 'Accept': 'application/json' },
         });
         if (res.ok) {

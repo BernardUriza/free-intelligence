@@ -32,6 +32,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { api, getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // Types
 interface EventData {
@@ -119,7 +120,7 @@ export function EventDevTools({
       eventSourceRef.current.close();
     }
 
-    const url = `${API_BASE}/api/workflows/events/sse/${sessionId}`;
+    const url = `${API_BASE}${ROUTES.workflowEvents}/sse/${sessionId}`;
     const eventSource = new EventSource(url);
 
     eventSource.onopen = () => {
@@ -174,7 +175,7 @@ export function EventDevTools({
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
     try {
-      const data = await api.get<MetricsSummary>('/api/workflows/events/metrics/summary');
+      const data = await api.get<MetricsSummary>(`${ROUTES.workflowEvents}/metrics/summary`);
       setMetrics(data);
     } catch (err) {
       console.error("Failed to fetch metrics:", err);
@@ -184,7 +185,7 @@ export function EventDevTools({
   // Fetch projections
   const fetchProjections = useCallback(async () => {
     try {
-      const data = await api.get<ProjectionInfo[]>('/api/workflows/events/projections');
+      const data = await api.get<ProjectionInfo[]>(`${ROUTES.workflowEvents}/projections`);
       setProjections(data);
     } catch (err) {
       console.error("Failed to fetch projections:", err);
@@ -197,7 +198,7 @@ export function EventDevTools({
 
     try {
       const data = await api.get<{ event_count: number; replay_duration_ms: number }>(
-        `/api/workflows/events/replay/${sessionId}`
+        `${ROUTES.workflowEvents}/replay/${sessionId}`
       );
       alert(`Replay completed: ${data.event_count} events, ${data.replay_duration_ms}ms`);
     } catch (err) {

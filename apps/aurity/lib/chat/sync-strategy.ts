@@ -12,6 +12,7 @@
 
 import type { FIMessage, FITone, OnboardingPhase } from '@aurity-standalone/types/assistant';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
+import { ROUTES } from '@/lib/api/routes';
 
 /**
  * Interface for backend sync operations.
@@ -76,7 +77,7 @@ export class BackendSyncStrategy implements IBackendSync {
 
     try {
       const response = await fetch(
-        `${this.backendUrl}/api/aurity/assistant/history/paginated?` +
+        `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=0&` +
         `limit=${limit}`
@@ -136,7 +137,7 @@ export class BackendSyncStrategy implements IBackendSync {
   ): Promise<{ messages: FIMessage[]; hasMore: boolean }> {
     try {
       const response = await fetch(
-        `${this.backendUrl}/api/aurity/assistant/history/paginated?` +
+        `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=${offset}&` +
         `limit=${limit}`
@@ -265,7 +266,7 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
       const wsUrl = this.backendUrl.replace(/^https?/, wsProtocol);
 
       this.ws = new WebSocket(
-        `${wsUrl}/api/aurity/assistant/ws?doctor_id=${encodeURIComponent(doctorId)}`
+        `${wsUrl}${ROUTES.assistant}/ws?doctor_id=${encodeURIComponent(doctorId)}`
       );
 
       this.ws.onopen = () => {

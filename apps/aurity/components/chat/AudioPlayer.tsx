@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
 import { getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 type VoiceChangeHandler = (voice: string) => void;
 
@@ -430,7 +431,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
+      const response = await fetch(`${BACKEND_URL}${ROUTES.tts}/synthesize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voice: voiceValue, speed: 1.0 }),
@@ -466,7 +467,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
+      const response = await fetch(`${BACKEND_URL}${ROUTES.tts}/synthesize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: currentText, voice: newVoiceValue, speed: 1.0 }),

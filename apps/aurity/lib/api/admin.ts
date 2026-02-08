@@ -11,6 +11,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // ============================================================================
 // Types
@@ -54,7 +55,7 @@ export const adminApi = {
     if (options?.page) params.append('page', options.page.toString());
 
     const query = params.toString();
-    return api.get<UsersListResponse>(`/internal/admin/users${query ? `?${query}` : ''}`);
+    return api.get<UsersListResponse>(`${ROUTES.internalAdmin}/users${query ? `?${query}` : ''}`);
   },
 
   /**
@@ -62,7 +63,7 @@ export const adminApi = {
    */
   updateUserRole: async (userId: string, role: string): Promise<UserRoleResponse> => {
     return api.put<UserRoleResponse>(
-      `/internal/admin/users/${encodeURIComponent(userId)}/roles`,
+      `${ROUTES.internalAdmin}/users/${encodeURIComponent(userId)}/roles`,
       { role }
     );
   },
@@ -72,7 +73,7 @@ export const adminApi = {
    */
   blockUser: async (userId: string, blocked: boolean): Promise<{ success: boolean }> => {
     return api.put<{ success: boolean }>(
-      `/internal/admin/users/${encodeURIComponent(userId)}/block`,
+      `${ROUTES.internalAdmin}/users/${encodeURIComponent(userId)}/block`,
       { blocked }
     );
   },
@@ -85,7 +86,7 @@ export const adminApi = {
     name?: string;
     password?: string;
   }): Promise<User> => {
-    return api.post<User>('/internal/admin/users', userData);
+    return api.post<User>(`${ROUTES.internalAdmin}/users`, userData);
   },
 };
 

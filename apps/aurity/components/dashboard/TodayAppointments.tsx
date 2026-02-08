@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // =============================================================================
 // TYPES
@@ -138,7 +139,7 @@ export function TodayAppointments({
     try {
       setError(null);
       const today = new Date().toISOString().split('T')[0];
-      let url = `/api/aurity/clinic/clinics/${clinicId}/appointments?date=${today}`;
+      let url = `${ROUTES.clinics}/${clinicId}/appointments?date=${today}`;
       if (doctorId) {
         url += `&doctor_id=${doctorId}`;
       }

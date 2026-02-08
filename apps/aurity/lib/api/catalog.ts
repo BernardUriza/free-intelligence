@@ -8,6 +8,7 @@
  */
 
 import { api, getBackendUrl } from './client';
+import { ROUTES } from './routes';
 
 // =============================================================================
 // Types
@@ -77,7 +78,7 @@ export interface CatalogSearchParams {
 // API Functions
 // =============================================================================
 
-const CATALOG_BASE = '/api/admin/catalog';
+const CATALOG_BASE = ROUTES.adminCatalog;
 
 /**
  * Lista modelos del catálogo con filtros opcionales.

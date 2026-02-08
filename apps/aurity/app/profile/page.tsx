@@ -16,6 +16,7 @@ import { gradients } from '@/lib/styles/gradients';
 import { showSuccess, showError } from '@/lib/swal';
 import { CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -30,7 +31,7 @@ export default function ProfilePage() {
   const fetchDiskUsage = useCallback(async () => {
     try {
       const data = await api.get<{ used: string; total: string; percent: number }>(
-        '/api/aurity/system/disk-usage'
+        `${ROUTES.system}/disk-usage`
       );
       setDiskUsage(data);
     } catch (error) {
@@ -56,7 +57,7 @@ export default function ProfilePage() {
     try {
       const userId = encodeURIComponent(user?.sub || 'unknown');
       const result = await api.post<{ message: string }>(
-        `/api/aurity/system/clear-memory?user_id=${userId}`
+        `${ROUTES.system}/clear-memory?user_id=${userId}`
       );
 
       // Clear ChatWidget localStorage

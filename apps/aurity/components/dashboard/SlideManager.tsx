@@ -12,7 +12,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api/client';
+import { listClinicMedia, deleteClinicMedia, updateClinicMedia } from '@/lib/api/clinic-media';
 import {
   Trash2,
   Lock,
@@ -65,15 +65,9 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
   const fetchSlides = async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
-      // Don't filter by clinic_id - show all slides
-      params.append('active_only', 'false');
-
-      const data = await api.get<{ media: Slide[] }>(
-        `/api/aurity/clinic/clinic-media/list?${params}`
-      );
+      const media = await listClinicMedia({ activeOnly: false });
       // Sort by upload time (newest first) or by display_order if available
-      const sorted = (data.media || []).sort((a: Slide, b: Slide) => {
+      const sorted = (media as Slide[]).sort((a: Slide, b: Slide) => {
         if (a.display_order !== undefined && b.display_order !== undefined) {
           return a.display_order - b.display_order;
         }
@@ -92,7 +86,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
     if (!confirmed) return;
 
     try {
-      await api.delete(`/api/aurity/clinic/clinic-media/${mediaId}`);
+      await deleteClinicMedia(mediaId);
 
       await fetchSlides();
       onSlidesUpdate?.();
@@ -105,9 +99,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
 
   const _handleToggleActive = async (mediaId: string, currentState: boolean) => {
     try {
-      await api.put(`/api/aurity/clinic/clinic-media/${mediaId}`, {
-        is_active: !currentState,
-      });
+      await updateClinicMedia(mediaId, { is_active: !currentState });
 
       await fetchSlides();
       onSlidesUpdate?.();

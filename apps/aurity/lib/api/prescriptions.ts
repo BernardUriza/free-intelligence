@@ -10,6 +10,7 @@
  */
 
 import { api } from "./client";
+import { ROUTES } from "./routes";
 
 // ============================================================================
 // Enums
@@ -348,7 +349,7 @@ export interface ExportResponse {
 // API Client Functions
 // ============================================================================
 
-const API_BASE = "/api/aurity/prescriptions";
+const API_BASE = ROUTES.prescriptions;
 
 /**
  * List available prescription templates

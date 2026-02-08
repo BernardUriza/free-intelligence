@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export interface PersonaOption {
   id: string;
@@ -151,7 +152,7 @@ export function usePersonas(): UsePersonasReturn {
         model?: string;
         temperature?: number;
         max_tokens?: number;
-      }> }>('/api/aurity/assistant/personas', {
+      }> }>(`${ROUTES.assistant}/personas`, {
         customHeaders: { 'X-Onboarding-Mode': 'true' },
       });
 

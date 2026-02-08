@@ -8,6 +8,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // ============================================================================
 // Types
@@ -46,7 +47,7 @@ export interface GenerateTriviaResponse {
 // API Functions
 // ============================================================================
 
-const API_BASE = '/api/aurity/clinic/waiting-room';
+const API_BASE = ROUTES.waitingRoom;
 
 /**
  * Generate a health tip using Free Intelligence
