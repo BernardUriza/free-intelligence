@@ -40,8 +40,8 @@ export function ExamplesTab({ persona, onChange }: ExamplesTabProps) {
   };
 
   return (
-    <div className="space-y-4 max-w-4xl">
-      <div className="flex items-center justify-between mb-4">
+    <div className="pex-root">
+      <div className="pex-header">
         <h3 className="fi-title">
           Few-Shot Examples ({persona.examples.length})
         </h3>
@@ -56,9 +56,9 @@ export function ExamplesTab({ persona, onChange }: ExamplesTabProps) {
 
       {persona.examples.length === 0 ? (
         <div className="fi-empty-state-muted">
-          <List className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <List className="pex-empty-icon" />
           <p>No hay examples configurados</p>
-          <p className="text-sm mt-1">
+          <p className="pex-empty-hint">
             Agrega examples para mejorar la precisión de la persona
           </p>
         </div>
@@ -69,7 +69,7 @@ export function ExamplesTab({ persona, onChange }: ExamplesTabProps) {
               key={index}
               className="fi-card-solid"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="pex-card-header">
                 <span className="fi-title-sm">
                   Example {index + 1}
                 </span>
@@ -78,16 +78,16 @@ export function ExamplesTab({ persona, onChange }: ExamplesTabProps) {
                   variant="ghost"
                   size="sm"
                   icon={Trash2}
-                  className="fi-text-error hover:bg-slate-700"
+                  className="pex-delete-btn"
                   aria-label="Eliminar example"
                 />
               </div>
 
-              <div className="space-y-3">
+              <div className="pex-fields">
                 <div>
-                  <label className="block fi-text-xs mb-1">Input</label>
+                  <label className="pex-field-label">Input</label>
                   <textarea
-                    className="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white text-sm font-mono focus:border-purple-500 focus:outline-none"
+                    className="pex-textarea"
                     rows={3}
                     value={example.input}
                     onChange={(e) => updateExample(index, 'input', e.target.value)}
@@ -95,9 +95,9 @@ export function ExamplesTab({ persona, onChange }: ExamplesTabProps) {
                   />
                 </div>
                 <div>
-                  <label className="block fi-text-xs mb-1">Output</label>
+                  <label className="pex-field-label">Output</label>
                   <textarea
-                    className="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white text-sm font-mono focus:border-purple-500 focus:outline-none"
+                    className="pex-textarea"
                     rows={3}
                     value={
                       typeof example.output === 'string'

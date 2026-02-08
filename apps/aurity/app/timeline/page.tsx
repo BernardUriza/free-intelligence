@@ -45,8 +45,8 @@ const TimelineScheduler = dynamic(
   {
     ssr: false, // Bryntum requires window object
     loading: () => (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="tl-loading-wrapper">
+        <Loader2 className="tl-loading-spinner-sm" />
       </div>
     ),
   }
@@ -192,10 +192,10 @@ export default function TimelinePage() {
 
   if (isLoading && events.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 text-emerald-500 mx-auto mb-4" />
-          <p className="text-slate-400 text-[15px] leading-6">
+      <div className="tl-page-loading">
+        <div className="tl-page-loading-inner">
+          <Loader2 className="tl-page-loading-spinner" />
+          <p className="tl-page-loading-text">
             Cargando memoria longitudinal...
           </p>
         </div>
@@ -216,9 +216,9 @@ export default function TimelinePage() {
   });
 
   const headerActions = (
-      <div className="flex items-center gap-2">
+      <div className="tl-header-actions">
       {/* View Mode Toggle */}
-      <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+      <div className="tl-view-toggle-group">
         <Button
           onClick={() => setViewType('scheduler')}
           className={viewType === 'scheduler' ? 'fi-view-toggle-active' : 'fi-view-toggle'}
@@ -226,8 +226,8 @@ export default function TimelinePage() {
           size="sm"
           title="Vista Scheduler"
         >
-          <BarChart3 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Visual</span>
+          <BarChart3 className="tl-icon-sm" />
+          <span className="tl-responsive-label">Visual</span>
         </Button>
         <Button
           onClick={() => setViewType('list')}
@@ -236,8 +236,8 @@ export default function TimelinePage() {
           size="sm"
           title="Vista Lista"
         >
-          <List className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Lista</span>
+          <List className="tl-icon-sm" />
+          <span className="tl-responsive-label">Lista</span>
         </Button>
         <Button
           onClick={() => setViewType('both')}
@@ -246,8 +246,8 @@ export default function TimelinePage() {
           size="sm"
           title="Ambas vistas"
         >
-          <span className="hidden sm:inline">Ambas</span>
-          <span className="sm:hidden">2</span>
+          <span className="tl-responsive-label">Ambas</span>
+          <span className="tl-responsive-label-inverse">2</span>
         </Button>
       </div>
 
@@ -260,7 +260,7 @@ export default function TimelinePage() {
         size="sm"
         title="Refresh"
       >
-        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        <RefreshCw className={isLoading ? 'tl-refresh-icon-spinning' : 'tl-refresh-icon'} />
         Refresh
       </Button>
     </div>
@@ -272,26 +272,26 @@ export default function TimelinePage() {
 
   return (
     <AppTemplate headerConfig={{ ...headerConfig, actions: headerActions }} showWatermark={true} showGeometricBg={true}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <div className="tl-content">
         <div className="fi-stack-xl">
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="tl-stats-grid">
             <div className="fi-stat-card">
               <div className="fi-stat-value">{metrics.totalEvents}</div>
               <div className="fi-stat-label">Total Eventos</div>
             </div>
             <div className="fi-stat-card-sky">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4 text-sky-400" />
-                <div className="text-2xl font-bold text-sky-400">{metrics.chatCount}</div>
+              <div className="tl-stat-inner">
+                <MessageCircle className="tl-stat-icon-sky" />
+                <div className="tl-stat-value-sky">{metrics.chatCount}</div>
               </div>
               <div className="fi-text-xs">Chat Messages</div>
             </div>
             <div className="fi-stat-card-emerald">
-              <div className="flex items-center gap-2">
-                <Mic className="h-4 w-4 fi-text-success" />
-                <div className="text-2xl font-bold fi-text-success">{metrics.audioCount}</div>
+              <div className="tl-stat-inner">
+                <Mic className="tl-stat-icon-sm fi-text-success" />
+                <div className="tl-stat-value-accent fi-text-success">{metrics.audioCount}</div>
               </div>
               <div className="fi-text-xs">Transcripciones</div>
             </div>
@@ -307,7 +307,7 @@ export default function TimelinePage() {
           <TimelineSearch
             onSearch={setSearchQuery}
             isSearching={isSearching}
-            className="w-full"
+            className="tl-search-full"
           />
 
           {/* TimelineFilters Component - Event type only (time filtering via scheduler) */}
@@ -321,17 +321,17 @@ export default function TimelinePage() {
 
           {/* Bryntum SchedulerPro Visualization */}
           {(viewType === 'scheduler' || viewType === 'both') && (
-            <div className="rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm bg-slate-900">
+            <div className="tl-scheduler-container">
               {viewType === 'both' && (
                 <Button
                   onClick={() => setSchedulerExpanded(!schedulerExpanded)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/50 fi-border-bottom hover:bg-slate-800 transition-colors"
+                  className="tl-scheduler-toggle fi-border-bottom"
                   variant="ghost"
                   size="sm"
                   title={schedulerExpanded ? 'Contraer Scheduler' : 'Expandir Scheduler'}
                 >
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-emerald-400" />
+                  <div className="tl-scheduler-label">
+                    <BarChart3 className="tl-scheduler-icon" />
                     <span className="fi-title-sm-medium">
                       Visualización Timeline
                     </span>
@@ -340,9 +340,9 @@ export default function TimelinePage() {
                     </span>
                   </div>
                   {schedulerExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-slate-400" />
+                    <ChevronUp className="tl-chevron-icon" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                    <ChevronDown className="tl-chevron-icon" />
                   )}
                 </Button>
               )}
@@ -351,7 +351,7 @@ export default function TimelinePage() {
                   events={events}
                   isLoading={isLoading}
                   onTimeRangeChange={handleTimeRangeChange}
-                  className="h-[400px]"
+                  className="tl-scheduler-view"
                 />
               )}
             </div>
@@ -359,10 +359,10 @@ export default function TimelinePage() {
 
           {/* Error State */}
           {error && (
-            <div className="flex items-center gap-3 p-4 bg-red-950/30 border border-red-700/30 rounded-xl">
-              <AlertCircle className="h-5 w-5 fi-text-error flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-red-300">{error}</p>
+            <div className="tl-error">
+              <AlertCircle className="tl-error-icon fi-text-error" />
+              <div className="tl-error-body">
+                <p className="tl-error-text">{error}</p>
               </div>
               <Button
                 onClick={() => refresh()}
@@ -379,10 +379,10 @@ export default function TimelinePage() {
           {/* Empty State */}
           {!isLoading && !error && timelineEvents.length === 0 && (
             <div className="fi-empty-state">
-              <p className="text-slate-400 text-sm">
+              <p className="tl-empty-text">
                 Sin eventos en el período seleccionado.
               </p>
-              <p className="text-slate-500 text-xs mt-2">
+              <p className="tl-empty-subtext">
                 &quot;No existen sesiones. Solo una conversación infinita&quot;
               </p>
             </div>
@@ -390,10 +390,10 @@ export default function TimelinePage() {
 
           {/* Unified Timeline - All Events (List View with Virtualization) */}
           {(viewType === 'list' || viewType === 'both') && timelineEvents.length > 0 && (
-            <div className="rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm">
+            <div className="tl-list-container">
               {viewType === 'both' && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 fi-border-bottom">
-                  <List className="h-4 w-4 text-sky-400" />
+                <div className="tl-list-header fi-border-bottom">
+                  <List className="tl-list-icon" />
                   <span className="fi-title-sm-medium">
                     Lista de Eventos
                   </span>
@@ -401,7 +401,7 @@ export default function TimelinePage() {
                     ({timelineEvents.length} eventos)
                   </span>
                   {searchQuery && (
-                    <span className="ml-2 text-xs fi-text-success">
+                    <span className="tl-search-badge fi-text-success">
                       · Búsqueda: &quot;{searchQuery}&quot;
                     </span>
                   )}
@@ -423,20 +423,20 @@ export default function TimelinePage() {
           <div
             ref={sentinelRef}
             aria-hidden="true"
-            className="h-1"
+            className="tl-sentinel"
           />
 
           {/* Loading More Indicator */}
           {isLoadingMore && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="animate-spin h-6 w-6 text-emerald-500 mr-2" />
+            <div className="tl-loading-more">
+              <Loader2 className="tl-loading-more-spinner" />
               <span className="fi-subtitle">Cargando más eventos...</span>
             </div>
           )}
 
           {/* End of Timeline Indicator */}
           {!hasMore && timelineEvents.length > 0 && !isLoadingMore && (
-            <div className="text-center py-8 border-t border-slate-800">
+            <div className="tl-end-indicator">
               <p className="fi-text-xs-muted">
                 Fin de la memoria longitudinal · {total} eventos totales
               </p>
@@ -444,8 +444,8 @@ export default function TimelinePage() {
           )}
 
           {/* Philosophy Note */}
-          <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
-            <p className="fi-text-xs-muted italic text-center">
+          <div className="tl-philosophy-note">
+            <p className="fi-text-xs-muted tl-philosophy-text">
               &quot;No existen sesiones. Solo una conversación infinita&quot; — FI-PHIL-DOC-014
             </p>
           </div>

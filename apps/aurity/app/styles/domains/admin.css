@@ -583,6 +583,83 @@
     @apply fi-text-error hover:text-red-300;
   }
 
+  /* --- User Management: Search & Filter Bar --- */
+  .admin-user-search-bar {
+    @apply mt-4 flex gap-3;
+  }
+
+  .admin-user-search-icon {
+    @apply absolute right-3 top-2.5;
+  }
+
+  /* --- User Management: List Area --- */
+  .admin-user-list {
+    @apply flex-1 overflow-y-auto p-6;
+  }
+
+  .admin-user-loading {
+    @apply flex items-center justify-center h-64;
+  }
+
+  .admin-user-spinner {
+    @apply animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full;
+  }
+
+  .admin-user-empty {
+    @apply text-center text-slate-500 py-12;
+  }
+
+  /* --- User Management: Card Layout --- */
+  .admin-user-card-row {
+    @apply flex items-start gap-4;
+  }
+
+  .admin-user-avatar {
+    @apply w-12 h-12 rounded-full;
+  }
+
+  .admin-user-card-header {
+    @apply flex items-start justify-between mb-2;
+  }
+
+  .admin-user-name {
+    @apply text-white font-medium flex items-center gap-2;
+  }
+
+  .admin-user-clinic-row {
+    @apply flex items-center gap-2 mb-3;
+  }
+
+  .admin-user-meta {
+    @apply flex gap-4 mb-3;
+  }
+
+  .admin-user-role-row {
+    @apply flex items-center gap-2;
+  }
+
+  /* --- User Management: Footer --- */
+  .admin-user-footer {
+    @apply p-4 bg-slate-900/50;
+  }
+
+  .admin-user-footer-inner {
+    @apply flex items-center justify-between;
+  }
+
+  /* --- Invite Modal --- */
+  .admin-invite-role-label {
+    @apply flex items-center gap-2 cursor-pointer;
+  }
+
+  .admin-invite-radio {
+    @apply w-4 h-4 border-slate-700 bg-slate-900;
+  }
+
+  .admin-invite-actions {
+    @apply flex gap-2 pt-4;
+  }
+
   /* ========================================
    * LICENSE GENERATOR
    * ======================================== */
@@ -688,5 +765,230 @@
   .admin-doc-persona-check-active {
     @apply w-4 h-4 rounded border-2 flex items-center justify-center
            bg-blue-500 border-blue-500;
+  }
+
+  /* ========================================
+   * ROLE BADGES (used across admin UIs)
+   * Compose: size class + color class
+   * Example: className={`admin-role-badge-sm ${getRoleBadgeColor(role)}`}
+   * ======================================== */
+  .admin-role-badge-sm {
+    @apply px-2 py-0.5 text-white text-xs rounded;
+  }
+
+  .admin-role-badge-md {
+    @apply px-2 py-1 text-white text-xs font-medium rounded;
+  }
+
+  .admin-role-badge-lg {
+    @apply px-3 py-1 text-white text-xs font-medium rounded;
+  }
+
+  /* Role color classes (returned by getRoleBadgeColor) */
+  .admin-role-superadmin {
+    @apply bg-purple-600;
+  }
+
+  .admin-role-clinician {
+    @apply bg-emerald-600;
+  }
+
+  .admin-role-default {
+    @apply bg-gray-600;
+  }
+
+  /* ========================================
+   * USER DISPLAY (UserDisplay.tsx)
+   * Naming: usr-{component}[-variant]
+   * ======================================== */
+
+  /* --- Loading State --- */
+  .usr-loading-container {
+    @apply flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-lg border border-slate-700;
+  }
+
+  .usr-loading-avatar {
+    @apply w-8 h-8 rounded-full bg-slate-700 animate-pulse;
+  }
+
+  .usr-loading-info {
+    @apply flex flex-col gap-1;
+  }
+
+  .usr-loading-name {
+    @apply w-24 h-3 bg-slate-700 rounded animate-pulse;
+  }
+
+  .usr-loading-role {
+    @apply w-16 h-2 bg-slate-700 rounded animate-pulse;
+  }
+
+  /* --- Role Badge Colors (for getRoleBadgeColor) --- */
+  .usr-role-medico {
+    @apply bg-green-500/20;
+  }
+
+  .usr-role-enfermera {
+    @apply bg-blue-500/20;
+  }
+
+  .usr-role-admin {
+    @apply bg-purple-500/20;
+  }
+
+  .usr-role-default {
+    @apply bg-gray-500/20 text-gray-400;
+  }
+
+  /* --- Dropdown Portal --- */
+  .usr-dropdown-backdrop {
+    @apply fixed inset-0 z-[9998];
+  }
+
+  .usr-dropdown-panel {
+    @apply fixed w-64 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 z-[10000] overflow-hidden;
+  }
+
+  /* --- Dropdown Header --- */
+  .usr-dropdown-header {
+    @apply px-4 py-3 bg-slate-900/50;
+  }
+
+  .usr-dropdown-header-label {
+    @apply uppercase tracking-wider font-semibold mb-1;
+  }
+
+  .usr-dropdown-header-email {
+    @apply truncate;
+  }
+
+  .usr-verified-badge {
+    @apply flex items-center gap-1 mt-1;
+  }
+
+  .usr-verified-icon {
+    @apply w-3 h-3 text-green-500;
+  }
+
+  .usr-verified-text {
+    @apply text-xs;
+  }
+
+  /* --- Menu Section --- */
+  .usr-menu-section {
+    @apply py-2;
+  }
+
+  .usr-menu-item {
+    @apply w-full px-4 py-2 text-left text-sm hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2;
+  }
+
+  .usr-menu-icon {
+    @apply w-4 h-4;
+  }
+
+  .usr-menu-star {
+    @apply w-3 h-3 ml-auto fill-purple-400;
+  }
+
+  .usr-menu-divider {
+    @apply py-2;
+  }
+
+  .usr-menu-item-danger {
+    @apply w-full px-4 py-2 text-left text-sm hover:bg-red-900/20 hover:text-red-300 transition-colors flex items-center gap-2;
+  }
+
+  /* --- Main Trigger Button --- */
+  .usr-trigger {
+    @apply flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/60 hover:bg-slate-700/60 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-all;
+  }
+
+  .usr-avatar-wrapper {
+    @apply relative;
+  }
+
+  .usr-avatar-img {
+    @apply w-7 h-7 rounded-full ring-1 ring-slate-600/50;
+  }
+
+  .usr-avatar-fallback {
+    @apply w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs ring-1 ring-slate-600/50;
+  }
+
+  .usr-online-indicator {
+    @apply absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-slate-800;
+  }
+
+  /* --- Compact Info Row --- */
+  .usr-info-row {
+    @apply flex items-center gap-1.5;
+  }
+
+  .usr-name {
+    @apply text-white/90 truncate max-w-[100px];
+  }
+
+  .usr-role-badge {
+    @apply px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase;
+  }
+
+  .usr-chevron {
+    @apply w-3 h-3 text-slate-400 transition-transform;
+  }
+
+  .usr-chevron-open {
+    @apply w-3 h-3 text-slate-400 transition-transform rotate-180;
+  }
+
+  /* ========================================
+   * PERSONA EXAMPLES TAB (ExamplesTab.tsx)
+   * Naming: pex-{component}[-variant]
+   * ======================================== */
+
+  /* Root container */
+  .pex-root {
+    @apply space-y-4 max-w-4xl;
+  }
+
+  /* Header row with title + add button */
+  .pex-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  /* Empty state icon */
+  .pex-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-50;
+  }
+
+  /* Empty state hint text */
+  .pex-empty-hint {
+    @apply text-sm mt-1;
+  }
+
+  /* Example card header row */
+  .pex-card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  /* Delete button on example card */
+  .pex-delete-btn {
+    @apply fi-text-error hover:bg-slate-700;
+  }
+
+  /* Fields container inside example card */
+  .pex-fields {
+    @apply space-y-3;
+  }
+
+  /* Field label */
+  .pex-field-label {
+    @apply block fi-text-xs mb-1;
+  }
+
+  /* Textarea for input/output */
+  .pex-textarea {
+    @apply w-full p-2 bg-slate-900 border border-slate-600 rounded
+           text-white text-sm font-mono focus:border-purple-500 focus:outline-none;
   }
 }

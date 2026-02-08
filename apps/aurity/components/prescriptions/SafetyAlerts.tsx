@@ -80,21 +80,21 @@ export function SafetyAlerts({
   const totalAlerts = interactionAlerts.length + allergyAlerts.length;
 
   return (
-    <div className={cn("rounded-lg border border-slate-200 bg-white", className)}>
+    <div className={cn("safety-panel", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <Shield className="w-5 h-5 text-slate-400" />
+      <div className="safety-header">
+        <div className="safety-header-left">
+          <Shield className="safety-header-icon" />
           <div>
-            <h3 className="font-semibold text-slate-800">
+            <h3 className="safety-header-title">
               Verificación de Seguridad
             </h3>
             {safetyCheck && (
-              <p className="text-sm text-slate-500">{safetyCheck.summary}</p>
+              <p className="safety-header-summary">{safetyCheck.summary}</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="safety-header-right">
           <SafetyBadge
             status={status}
             interactionCount={interactionAlerts.length}
@@ -106,16 +106,14 @@ export function SafetyAlerts({
               type="button"
               onClick={onRunCheck}
               disabled={isLoading}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                isLoading
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  : "hover:bg-slate-100 text-slate-600"
-              )}
+              className={isLoading
+                ? "safety-refresh-btn-disabled"
+                : "safety-refresh-btn-enabled"
+              }
               title="Ejecutar verificación"
             >
               <RefreshCw
-                className={cn("w-4 h-4", isLoading && "animate-spin")}
+                className={cn("safety-refresh-icon", isLoading && "safety-spinning")}
               />
             </button>
           )}
@@ -123,38 +121,38 @@ export function SafetyAlerts({
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-4">
+      <div className="safety-content">
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-8 text-slate-500">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+          <div className="safety-loading">
+            <RefreshCw className="safety-loading-icon" />
             <span>Verificando seguridad...</span>
           </div>
         )}
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="safety-error">
+            <AlertCircle className="safety-error-icon" />
             <div>
-              <p className="font-medium">Error en verificación</p>
-              <p className="text-sm">{error}</p>
+              <p className="safety-error-title">Error en verificación</p>
+              <p className="safety-error-message">{error}</p>
             </div>
           </div>
         )}
 
         {/* Unchecked State */}
         {!safetyCheck && !isLoading && !error && (
-          <div className="text-center py-6">
-            <Shield className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-            <p className="text-slate-500 mb-3">
+          <div className="safety-unchecked">
+            <Shield className="safety-unchecked-icon" />
+            <p className="safety-unchecked-text">
               Aún no se ha ejecutado la verificación de seguridad
             </p>
             {onRunCheck && (
               <button
                 type="button"
                 onClick={onRunCheck}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="safety-unchecked-btn"
               >
                 Verificar Ahora
               </button>
@@ -167,10 +165,10 @@ export function SafetyAlerts({
           <>
             {/* No Alerts */}
             {totalAlerts === 0 && (
-              <div className="text-center py-6 text-green-600">
-                <Shield className="w-12 h-12 mx-auto mb-2" />
-                <p className="font-medium">Sin alertas de seguridad</p>
-                <p className="text-sm text-slate-500">
+              <div className="safety-clear">
+                <Shield className="safety-clear-icon" />
+                <p className="safety-clear-title">Sin alertas de seguridad</p>
+                <p className="safety-clear-subtitle">
                   Los medicamentos son compatibles y no hay alergias detectadas
                 </p>
               </div>
@@ -178,29 +176,29 @@ export function SafetyAlerts({
 
             {/* Interaction Alerts Section */}
             {interactionAlerts.length > 0 && (
-              <div className="space-y-2">
+              <div className="safety-section-stack">
                 <button
                   type="button"
                   onClick={() => setInteractionsExpanded(!interactionsExpanded)}
-                  className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  className="safety-section-toggle"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-700">
+                  <div className="safety-section-label-row">
+                    <span className="safety-section-label">
                       Interacciones Medicamentosas
                     </span>
-                    <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">
+                    <span className="safety-section-count-interaction">
                       {interactionAlerts.length}
                     </span>
                   </div>
                   {interactionsExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                    <ChevronUp className="safety-chevron" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    <ChevronDown className="safety-chevron" />
                   )}
                 </button>
 
                 {interactionsExpanded && (
-                  <div className="space-y-2 pl-2">
+                  <div className="safety-section-body">
                     {interactionAlerts.map((alert, index) => (
                       <InteractionAlert
                         key={`${alert.drug_1}-${alert.drug_2}-${index}`}
@@ -219,29 +217,29 @@ export function SafetyAlerts({
 
             {/* Allergy Alerts Section */}
             {allergyAlerts.length > 0 && (
-              <div className="space-y-2">
+              <div className="safety-section-stack">
                 <button
                   type="button"
                   onClick={() => setAllergiesExpanded(!allergiesExpanded)}
-                  className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  className="safety-section-toggle"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-700">
+                  <div className="safety-section-label-row">
+                    <span className="safety-section-label">
                       Alertas de Alergia
                     </span>
-                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+                    <span className="safety-section-count-allergy">
                       {allergyAlerts.length}
                     </span>
                   </div>
                   {allergiesExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                    <ChevronUp className="safety-chevron" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    <ChevronDown className="safety-chevron" />
                   )}
                 </button>
 
                 {allergiesExpanded && (
-                  <div className="space-y-2 pl-2">
+                  <div className="safety-section-body">
                     {allergyAlerts.map((alert, index) => (
                       <AllergyAlert
                         key={`${alert.medication}-${alert.patient_allergy}-${index}`}
@@ -257,12 +255,12 @@ export function SafetyAlerts({
 
             {/* Action Guidance */}
             {!safetyCheck.can_proceed && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 font-medium flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+              <div className="safety-banner-blocked">
+                <p className="safety-banner-blocked-title">
+                  <AlertTriangle className="safety-banner-icon" strokeWidth={1.5} aria-hidden="true" />
                   No se puede proceder con la receta
                 </p>
-                <p className="text-xs text-red-600 mt-1">
+                <p className="safety-banner-blocked-desc">
                   Existen alertas críticas que requieren atención. Revise las
                   alertas y anule con justificación clínica si es necesario.
                 </p>
@@ -270,12 +268,12 @@ export function SafetyAlerts({
             )}
 
             {safetyCheck.can_proceed && totalAlerts > 0 && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-700 font-medium flex items-center gap-1">
-                  <Zap className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+              <div className="safety-banner-caution">
+                <p className="safety-banner-caution-title">
+                  <Zap className="safety-banner-icon" strokeWidth={1.5} aria-hidden="true" />
                   Proceder con precaución
                 </p>
-                <p className="text-xs text-yellow-600 mt-1">
+                <p className="safety-banner-caution-desc">
                   Hay alertas que deben revisarse antes de continuar. La receta
                   puede generarse después de revisar las alertas.
                 </p>

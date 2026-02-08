@@ -22,13 +22,13 @@ import { BUTTON_SIZES, type ButtonSize } from './types';
 export interface RecordingButtonProps {
   /** Button size variant */
   size?: ButtonSize;
-  /** Background color (Tailwind classes) */
+  /** Background color (domain class) */
   bgColor: string;
   /** Icon to display */
   icon: LucideIcon;
   /** Whether icon should spin (for loading states) */
   iconSpin?: boolean;
-  /** Icon color (Tailwind classes, default: text-white) */
+  /** Icon color (domain class, default: rec-icon-white) */
   iconColor?: string;
   /** Whether button is disabled */
   disabled?: boolean;
@@ -51,7 +51,7 @@ export const RecordingButton = forwardRef<HTMLButtonElement, RecordingButtonProp
       bgColor,
       icon: Icon,
       iconSpin = false,
-      iconColor = 'text-white',
+      iconColor = 'rec-icon-white',
       disabled = false,
       onClick,
       ariaLabel,
@@ -70,10 +70,10 @@ export const RecordingButton = forwardRef<HTMLButtonElement, RecordingButtonProp
         onClick={onClick}
         disabled={disabled}
         aria-label={ariaLabel}
-        className={`fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
+        className={`fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? 'rec-btn-disabled' : 'rec-btn-enabled'} ${className}`}
       >
         <DisplayIcon
-          className={`${sizeConfig.icon} ${iconColor} ${iconSpin ? 'animate-spin' : ''}`}
+          className={`${sizeConfig.icon} ${iconColor} ${iconSpin ? 'rec-icon-spin' : ''}`}
         />
       </button>
     );

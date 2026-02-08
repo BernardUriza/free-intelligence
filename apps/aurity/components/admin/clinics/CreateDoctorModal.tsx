@@ -35,13 +35,6 @@ const SPECIALTIES = [
   'Otorrinolaringología',
 ];
 
-const ROLES: { value: ClinicRole; label: string }[] = [
-  { value: 'DOCTOR', label: 'Doctor' },
-  { value: 'ADMIN', label: 'Administrador' },
-  { value: 'STAFF', label: 'Staff' },
-  { value: 'OWNER', label: 'Propietario' },
-];
-
 export function CreateDoctorModal({
   clinicId,
   clinicName,
@@ -104,40 +97,40 @@ export function CreateDoctorModal({
   const isValid = formData.nombre.trim() && formData.apellido.trim();
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-xl max-w-lg w-full shadow-2xl border border-slate-700">
+    <div className="cdoc-overlay">
+      <div className="cdoc-container">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/20 rounded-lg">
-              <UserPlus className="w-5 h-5 text-indigo-400" />
+        <div className="cdoc-header">
+          <div className="cdoc-header-info">
+            <div className="cdoc-header-icon-wrap">
+              <UserPlus className="cdoc-header-icon" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="cdoc-title">
                 Agregar Doctor
               </h2>
-              <p className="text-xs text-slate-400">{clinicName}</p>
+              <p className="cdoc-subtitle">{clinicName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+            className="cdoc-close-btn"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="cdoc-close-icon" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="cdoc-form">
           {/* Limit Error */}
           {limitError && (
-            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="cdoc-limit-error">
+              <AlertCircle className="cdoc-limit-error-icon" />
               <div>
-                <p className="text-sm text-red-300 font-medium">
+                <p className="cdoc-limit-error-title">
                   Límite de doctores alcanzado
                 </p>
-                <p className="text-xs text-red-400 mt-1">
+                <p className="cdoc-limit-error-detail">
                   Esta clínica tiene {limitError.current}/{limitError.max}{' '}
                   doctores ({limitError.plan}). Contacta al administrador para
                   aumentar el límite.
@@ -148,15 +141,15 @@ export function CreateDoctorModal({
 
           {/* General Error */}
           {error && (
-            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-              <p className="text-sm text-red-300">{error}</p>
+            <div className="cdoc-error">
+              <p className="cdoc-error-text">{error}</p>
             </div>
           )}
 
           {/* Name Row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="cdoc-row">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label className="cdoc-label">
                 Nombre *
               </label>
               <input
@@ -166,11 +159,11 @@ export function CreateDoctorModal({
                 onChange={handleChange}
                 placeholder="Juan"
                 required
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                className="cdoc-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label className="cdoc-label">
                 Apellido *
               </label>
               <input
@@ -180,21 +173,21 @@ export function CreateDoctorModal({
                 onChange={handleChange}
                 placeholder="Pérez"
                 required
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                className="cdoc-input"
               />
             </div>
           </div>
 
           {/* Specialty */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label className="cdoc-label">
               Especialidad
             </label>
             <select
               name="especialidad"
               value={formData.especialidad}
               onChange={handleChange}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              className="cdoc-input"
             >
               <option value="">Seleccionar...</option>
               {SPECIALTIES.map((spec) => (
@@ -206,20 +199,20 @@ export function CreateDoctorModal({
           </div>
 
           {/* Email and Cedula Row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="cdoc-row">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Email</label>
+              <label className="cdoc-label">Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="doctor@clinica.com"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                className="cdoc-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label className="cdoc-label">
                 Cédula Profesional
               </label>
               <input
@@ -228,14 +221,14 @@ export function CreateDoctorModal({
                 value={formData.cedula_profesional}
                 onChange={handleChange}
                 placeholder="12345678"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                className="cdoc-input"
               />
             </div>
           </div>
 
           {/* Consultation Duration */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label className="cdoc-label">
               Duración de consulta (minutos)
             </label>
             <input
@@ -245,32 +238,32 @@ export function CreateDoctorModal({
               onChange={handleChange}
               min={5}
               max={180}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              className="cdoc-input"
             />
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+          <div className="cdoc-actions">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+              className="cdoc-cancel-btn"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving || !isValid}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+              className="cdoc-submit-btn"
             >
               {saving ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="cdoc-spinner" />
                   Guardando...
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="cdoc-btn-icon" />
                   Crear Doctor
                 </>
               )}

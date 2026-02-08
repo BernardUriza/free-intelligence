@@ -28,7 +28,7 @@ export const TurnoActual = memo(function TurnoActual({ calledPatient }: TurnoAct
   if (calledPatient) {
     return (
       <div
-        className="flex items-center gap-3 sm:gap-4 md:gap-5 px-4 sm:px-5 md:px-6 lg:px-8 py-2 sm:py-3 md:py-4 bg-emerald-500/20 border-2 border-emerald-500/50 rounded-xl sm:rounded-2xl shadow-lg shadow-emerald-500/20 animate-pulse"
+        className="que-turno-active"
         role="status"
         aria-live="assertive"
         aria-label={`Turno actual: ${calledPatient.ticketNumber}`}
@@ -36,19 +36,19 @@ export const TurnoActual = memo(function TurnoActual({ calledPatient }: TurnoAct
         tabIndex={-1}
       >
         <Bell
-          className="fi-text-success flex-shrink-0"
+          className="fi-text-success que-turno-icon"
           style={{ width: 'clamp(1.5rem, 4vw, 3rem)', height: 'clamp(1.5rem, 4vw, 3rem)' }}
           aria-hidden="true"
         />
         <div>
           <p
-            className="fi-text-success/80 font-bold tracking-widest"
+            className="fi-text-success/80 que-turno-label-active"
             style={{ fontSize: 'clamp(0.6rem, 1vw, 0.875rem)' }}
           >
             TURNO ACTUAL
           </p>
           <p
-            className="font-black text-emerald-300 tracking-wider leading-none"
+            className="que-turno-number-active"
             style={{ fontSize: 'clamp(2rem, 6vw, 5rem)' }}
           >
             {calledPatient.ticketNumber}
@@ -60,25 +60,25 @@ export const TurnoActual = memo(function TurnoActual({ calledPatient }: TurnoAct
 
   return (
     <div
-      className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 md:px-6 py-2 sm:py-3 md:py-4 bg-slate-800/60 border-2 border-slate-700 rounded-xl sm:rounded-2xl"
+      className="que-turno-idle"
       role="status"
       aria-live="polite"
       aria-label="Sin turno activo actualmente"
     >
       <Timer
-        className="text-slate-500 flex-shrink-0"
+        className="que-turno-icon-idle"
         style={{ width: 'clamp(1.5rem, 4vw, 3rem)', height: 'clamp(1.5rem, 4vw, 3rem)' }}
         aria-hidden="true"
       />
       <div>
         <p
-          className="text-slate-500 font-bold tracking-widest"
+          className="que-turno-label-idle"
           style={{ fontSize: 'clamp(0.6rem, 1vw, 0.875rem)' }}
         >
           TURNO ACTUAL
         </p>
         <p
-          className="font-medium text-slate-400"
+          className="que-turno-text-idle"
           style={{ fontSize: 'clamp(1.25rem, 3vw, 2.5rem)' }}
         >
           En espera...
@@ -105,13 +105,13 @@ export const QueueStats = memo(function QueueStats({
 
   return (
     <div
-      className="flex items-center justify-center gap-4 sm:gap-6 md:gap-8 lg:gap-10"
+      className="que-stats-row"
       role="region"
       aria-label="Estadísticas de la cola"
     >
       {/* Waiting Count */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1">
+      <div className="que-stat-cell">
+        <div className="que-stat-icon-row">
           <Users
             className="fi-text-primary"
             style={{ width: 'clamp(0.875rem, 1.5vw, 1.25rem)', height: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
@@ -119,7 +119,7 @@ export const QueueStats = memo(function QueueStats({
           />
         </div>
         <p
-          className="font-bold text-blue-300"
+          className="que-stat-value-blue"
           style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
           aria-label={`${waitingCount} pacientes en espera`}
         >
@@ -128,14 +128,14 @@ export const QueueStats = memo(function QueueStats({
       </div>
 
       <div
-        className="bg-slate-700"
+        className="que-stat-divider"
         style={{ width: '1px', height: 'clamp(2rem, 5vw, 4rem)' }}
         aria-hidden="true"
       />
 
       {/* In Progress Count */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1">
+      <div className="que-stat-cell">
+        <div className="que-stat-icon-row">
           <Activity
             className="fi-text-purple"
             style={{ width: 'clamp(0.875rem, 1.5vw, 1.25rem)', height: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
@@ -143,7 +143,7 @@ export const QueueStats = memo(function QueueStats({
           />
         </div>
         <p
-          className="font-bold text-purple-300"
+          className="que-stat-value-purple"
           style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
           aria-label={`${inProgressCount} en consulta`}
         >
@@ -152,14 +152,14 @@ export const QueueStats = memo(function QueueStats({
       </div>
 
       <div
-        className="bg-slate-700"
+        className="que-stat-divider"
         style={{ width: '1px', height: 'clamp(2rem, 5vw, 4rem)' }}
         aria-hidden="true"
       />
 
       {/* Estimated Wait Time */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1">
+      <div className="que-stat-cell">
+        <div className="que-stat-icon-row">
           <Clock
             className="fi-text-warning"
             style={{ width: 'clamp(0.875rem, 1.5vw, 1.25rem)', height: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
@@ -167,13 +167,13 @@ export const QueueStats = memo(function QueueStats({
           />
         </div>
         <p
-          className="font-bold text-amber-300"
+          className="que-stat-value-amber"
           style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
           aria-label={`Tiempo estimado de espera: ${estimatedWaitTime} minutos`}
         >
           {estimatedWaitTime}
           <span
-            className="fi-text-warning/60 ml-1"
+            className="fi-text-warning/60 que-stat-suffix"
             style={{ fontSize: 'clamp(0.75rem, 1.5vw, 1.25rem)' }}
           >
             min
@@ -199,26 +199,22 @@ export const NextInQueue = memo(function NextInQueue({ patients }: NextInQueuePr
 
   return (
     <div
-      className="hidden md:flex items-center gap-2 sm:gap-3"
+      className="que-next-row"
       role="list"
       aria-label="Próximos turnos"
     >
       <p
-        className="text-slate-500"
+        className="que-next-label"
         style={{ fontSize: 'clamp(0.6rem, 1vw, 0.875rem)' }}
       >
         Próximos:
       </p>
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="que-next-badges">
         {waitingPatients.slice(0, NEXT_PATIENTS_PREVIEW_COUNT).map((p, i) => (
           <span
             key={p.ticketNumber}
             role="listitem"
-            className={`font-mono font-medium ${
-              i === 0
-                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                : 'bg-slate-800 text-slate-400 border border-slate-700'
-            }`}
+            className={i === 0 ? 'que-next-badge-first' : 'que-next-badge'}
             style={{
               fontSize: 'clamp(0.75rem, 1.2vw, 1rem)',
               padding: 'clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.5rem, 1vw, 0.75rem)',
@@ -230,7 +226,7 @@ export const NextInQueue = memo(function NextInQueue({ patients }: NextInQueuePr
         ))}
         {waitingPatients.length > NEXT_PATIENTS_PREVIEW_COUNT && (
           <span
-            className="text-slate-500"
+            className="que-next-more"
             style={{ fontSize: 'clamp(0.6rem, 1vw, 0.75rem)' }}
           >
             +{waitingPatients.length - NEXT_PATIENTS_PREVIEW_COUNT}
@@ -272,14 +268,14 @@ export const QueueStatusBar = memo(function QueueStatusBar({ patients, doctors, 
 
   return (
     <div
-      className="bg-slate-900/90 backdrop-blur-sm fi-border-bottom/50"
+      className="que-statusbar-wrap fi-border-bottom/50"
       role="region"
       aria-label="Estado de la cola de pacientes"
     >
-      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 md:py-4">
-        <div className="flex flex-col xl:flex-row items-center justify-between gap-3 sm:gap-4 md:gap-6">
+      <div className="que-statusbar-inner">
+        <div className="que-statusbar-row">
           {/* Giant Turno Display */}
-          <div className="flex justify-center sm:justify-start">
+          <div className="que-statusbar-turno">
             <TurnoActual calledPatient={calledPatient} />
           </div>
 
@@ -291,7 +287,7 @@ export const QueueStatusBar = memo(function QueueStatusBar({ patients, doctors, 
 
           {/* Right-side info: Doctors availability + Clinic card */}
           {(doctors?.length || clinic) && (
-            <div className="w-full xl:w-auto flex items-stretch gap-3 sm:gap-4">
+            <div className="que-statusbar-right">
               {clinic && <ClinicCard clinic={clinic} />}
               {doctors && doctors.length > 0 && <DoctorAvailabilityList doctors={doctors} />}
             </div>
@@ -330,21 +326,16 @@ export const QuickStatCard = memo(function QuickStatCard({
   return (
     <Component
       onClick={onClick}
-      className={`
-        bg-slate-800/50 border border-slate-700 rounded-xl p-4
-        transition-all duration-200
-        ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:bg-slate-800/70 hover:border-slate-600 active:scale-[0.98]' : ''}
-        ${highlight ? 'ring-2 ring-emerald-500/50' : ''}
-      `}
+      className={`que-stat-card ${onClick ? 'que-stat-card-clickable' : ''} ${highlight ? 'que-stat-card-highlight' : ''}`}
       aria-label={`${label}: ${value}${suffix || ''}`}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />
+      <div className="que-stat-header">
+        <Icon className={`que-stat-icon ${iconColor}`} aria-hidden="true" />
         <span className="fi-text-xs">{label}</span>
       </div>
       <p className="fi-title-2xl">
         {value}
-        {suffix && <span className="fi-subtitle ml-1">{suffix}</span>}
+        {suffix && <span className="fi-subtitle que-stat-suffix">{suffix}</span>}
       </p>
     </Component>
   );
@@ -357,7 +348,7 @@ export const QuickStatCard = memo(function QuickStatCard({
 function AvailabilityDot({ online }: { online: boolean }) {
   return (
     <span
-      className={`inline-block w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-500'}`}
+      className={`que-avail-dot ${online ? 'que-avail-dot-online' : 'que-avail-dot-offline'}`}
       aria-hidden="true"
     />
   );
@@ -366,18 +357,18 @@ function AvailabilityDot({ online }: { online: boolean }) {
 export function DoctorAvailabilityList({ doctors }: { doctors: DoctorInfo[] }) {
   return (
     <div
-      className="flex-1 xl:flex-none min-w-60 bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2"
+      className="que-doctor-list"
       role="region"
       aria-label="Doctores disponibles"
     >
-      <div className="fi-text-xs mb-1">Doctores disponibles</div>
-      <ul className="space-y-1">
+      <div className="fi-text-xs que-doctor-list-label">Doctores disponibles</div>
+      <ul className="que-doctor-list-items">
         {doctors.slice(0, 4).map((d) => (
-          <li key={d.id} className="flex items-center gap-2 text-sm">
+          <li key={d.id} className="que-doctor-item">
             <AvailabilityDot online={d.available} />
-            <span className={`text-slate-200 ${!d.available ? 'opacity-60' : ''}`}>{d.name}</span>
+            <span className={d.available ? 'que-doctor-name' : 'que-doctor-name-off'}>{d.name}</span>
             {d.specialty && (
-              <span className="text-slate-500 text-xs truncate">· {d.specialty}</span>
+              <span className="que-doctor-spec">· {d.specialty}</span>
             )}
           </li>
         ))}
@@ -392,17 +383,17 @@ export function DoctorAvailabilityList({ doctors }: { doctors: DoctorInfo[] }) {
 export function ClinicCard({ clinic }: { clinic: ClinicInfo }) {
   return (
     <div
-      className="flex-1 xl:flex-none min-w-[220px] bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2"
+      className="que-clinic-card"
       role="region"
       aria-label="Clinica actual"
     >
-      <div className="fi-text-xs mb-1">Clínica</div>
-      <div className="text-sm text-white font-semibold">{clinic.name}</div>
+      <div className="fi-text-xs que-clinic-label">Clínica</div>
+      <div className="que-clinic-name">{clinic.name}</div>
       {clinic.location && (
         <div className="fi-text-xs">{clinic.location}</div>
       )}
       {clinic.phone && (
-        <div className="fi-text-xs-muted mt-1">Tel: {clinic.phone}</div>
+        <div className="fi-text-xs-muted que-clinic-phone">Tel: {clinic.phone}</div>
       )}
     </div>
   );

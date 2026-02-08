@@ -70,11 +70,11 @@ export function UserDisplay() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
-        <div className="w-8 h-8 rounded-full bg-slate-700 animate-pulse" />
-        <div className="flex flex-col gap-1">
-          <div className="w-24 h-3 bg-slate-700 rounded animate-pulse" />
-          <div className="w-16 h-2 bg-slate-700 rounded animate-pulse" />
+      <div className="usr-loading-container">
+        <div className="usr-loading-avatar" />
+        <div className="usr-loading-info">
+          <div className="usr-loading-name" />
+          <div className="usr-loading-role" />
         </div>
       </div>
     );
@@ -97,13 +97,13 @@ export function UserDisplay() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'MEDICO':
-        return 'bg-green-500/20 fi-text-green';
+        return 'usr-role-medico fi-text-green';
       case 'ENFERMERA':
-        return 'bg-blue-500/20 fi-text-primary';
+        return 'usr-role-enfermera fi-text-primary';
       case 'ADMIN':
-        return 'bg-purple-500/20 fi-text-purple';
+        return 'usr-role-admin fi-text-purple';
       default:
-        return 'bg-gray-500/20 text-gray-400';
+        return 'usr-role-default';
     }
   };
 
@@ -112,40 +112,40 @@ export function UserDisplay() {
     <>
       {/* Backdrop to close dropdown */}
       <div
-        className="fixed inset-0 z-[9998]"
+        className="usr-dropdown-backdrop"
         onClick={() => setDropdownOpen(false)}
       />
 
       {/* Dropdown Content - Portal ensures it's not clipped */}
       <div
-        className="fixed w-64 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 z-[10000] overflow-hidden"
+        className="usr-dropdown-panel"
         style={{
           top: `${dropdownPosition.top}px`,
           right: `${dropdownPosition.right}px`,
         }}
       >
         {/* User Info Header */}
-        <div className="px-4 py-3 bg-slate-900/50 fi-border-bottom">
-          <p className="fi-text-xs uppercase tracking-wider font-semibold mb-1">Usuario Actual</p>
-          <p className="fi-title-sm-medium truncate">{user?.email}</p>
+        <div className="usr-dropdown-header fi-border-bottom">
+          <p className="fi-text-xs usr-dropdown-header-label">Usuario Actual</p>
+          <p className="fi-title-sm-medium usr-dropdown-header-email">{user?.email}</p>
           {user?.email_verified && (
-            <div className="flex items-center gap-1 mt-1">
-              <CheckCircle2 className="w-3 h-3 text-green-500" />
-              <span className="text-xs fi-text-green">Email verificado</span>
+            <div className="usr-verified-badge">
+              <CheckCircle2 className="usr-verified-icon" />
+              <span className="usr-verified-text fi-text-green">Email verificado</span>
             </div>
           )}
         </div>
 
         {/* Menu Items */}
-        <div className="py-2">
+        <div className="usr-menu-section">
           <button
             onClick={() => {
               setDropdownOpen(false);
               router.push('/profile');
             }}
-            className="w-full px-4 py-2 text-left text-sm fi-text hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"
+            className="usr-menu-item fi-text"
           >
-            <User className="w-4 h-4" />
+            <User className="usr-menu-icon" />
             Mi Perfil
           </button>
 
@@ -156,11 +156,11 @@ export function UserDisplay() {
                 setDropdownOpen(false);
                 router.push('/config');
               }}
-              className="w-full px-4 py-2 text-left text-sm fi-text hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"
+              className="usr-menu-item fi-text"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="usr-menu-icon" />
               Configuración
-              <Star className="w-3 h-3 fi-text-purple ml-auto fill-purple-400" />
+              <Star className="usr-menu-star fi-text-purple" />
             </button>
           )}
 
@@ -171,16 +171,16 @@ export function UserDisplay() {
                 setDropdownOpen(false);
                 resetDesktopSetupWizard();
               }}
-              className="w-full px-4 py-2 text-left text-sm fi-text hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2"
+              className="usr-menu-item fi-text"
             >
-              <Wrench className="w-4 h-4" />
+              <Wrench className="usr-menu-icon" />
               Asistente de Instalación
             </button>
           )}
         </div>
 
         {/* Logout Button */}
-        <div className="fi-border-top py-2">
+        <div className="fi-border-top usr-menu-divider">
           <button
             onClick={async () => {
               console.log('[UserDisplay] Logout button clicked');
@@ -194,9 +194,9 @@ export function UserDisplay() {
                 console.error('[UserDisplay] Logout failed:', error);
               }
             }}
-            className="w-full px-4 py-2 text-left text-sm fi-text-error hover:bg-red-900/20 hover:text-red-300 transition-colors flex items-center gap-2"
+            className="usr-menu-item-danger fi-text-error"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="usr-menu-icon" />
             Cerrar Sesión
           </button>
         </div>
@@ -211,38 +211,38 @@ export function UserDisplay() {
       <button
         ref={buttonRef}
         onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/60 hover:bg-slate-700/60 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-all"
+        className="usr-trigger"
       >
         {/* Compact Avatar */}
-        <div className="relative">
+        <div className="usr-avatar-wrapper">
           {user?.picture ? (
             <img
               src={user.picture}
               alt={user.name || 'User'}
-              className="w-7 h-7 rounded-full ring-1 ring-slate-600/50"
+              className="usr-avatar-img"
             />
           ) : (
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs ring-1 ring-slate-600/50">
+            <div className="usr-avatar-fallback">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
           {/* Minimal online indicator */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-slate-800" />
+          <div className="usr-online-indicator" />
         </div>
 
         {/* Compact User Info */}
-        <div className="flex items-center gap-1.5">
-          <span className="fi-text-xs-medium text-white/90 truncate max-w-[100px]">
+        <div className="usr-info-row">
+          <span className="fi-text-xs-medium usr-name">
             {user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
           </span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${getRoleBadgeColor(userRole)}`}>
+          <span className={`usr-role-badge ${getRoleBadgeColor(userRole)}`}>
             {userRole === 'MEDICO' ? 'MD' : userRole === 'ENFERMERA' ? 'RN' : userRole === 'ADMIN' ? 'ADM' : 'USR'}
           </span>
         </div>
 
         {/* Minimal Dropdown Arrow */}
         <ChevronDown
-          className={`w-3 h-3 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
+          className={dropdownOpen ? 'usr-chevron-open' : 'usr-chevron'}
         />
       </button>
 

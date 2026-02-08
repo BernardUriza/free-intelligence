@@ -65,26 +65,26 @@ interface EvidencePackViewerProps {
 
 const DocumentTypeIcon: React.FC<{ type: string }> = ({ type }) => {
   const icons: { [key: string]: JSX.Element } = {
-    transcripcion_audio: <Activity className="w-4 h-4 text-cyan-500" />,
-    lab_result: <FileText className="w-4 h-4 text-blue-500" />,
-    clinical_note: <FileText className="w-4 h-4 text-green-500" />,
-    prescription: <FileText className="w-4 h-4 text-purple-500" />,
-    imaging: <FileText className="w-4 h-4 text-amber-500" />,
+    transcripcion_audio: <Activity className="evpack-docicon-cyan" />,
+    lab_result: <FileText className="evpack-docicon-blue" />,
+    clinical_note: <FileText className="evpack-docicon-green" />,
+    prescription: <FileText className="evpack-docicon-purple" />,
+    imaging: <FileText className="evpack-docicon-amber" />,
   };
-  return icons[type] || <FileText className="w-4 h-4 text-slate-400" />;
+  return icons[type] || <FileText className="evpack-docicon-default" />;
 };
 
 const SeverityBadge: React.FC<{ severity?: string }> = ({ severity }) => {
   if (!severity) return null;
 
   const colors = {
-    leve: 'bg-green-500/10 fi-text-green border-green-500/30',
-    moderada: 'bg-amber-500/10 fi-text-warning border-amber-500/30',
-    grave: 'bg-red-500/10 fi-text-error border-red-500/30',
+    leve: 'evpack-severity-leve',
+    moderada: 'evpack-severity-moderada',
+    grave: 'evpack-severity-grave',
   };
 
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-md fi-text-xs-medium border ${colors[severity as keyof typeof colors] || 'bg-slate-500/10 text-slate-400 border-slate-500/30'}`}>
+    <span className={`evpack-severity-wrap fi-text-xs-medium ${colors[severity as keyof typeof colors] || 'evpack-severity-default'}`}>
       {severity}
     </span>
   );
@@ -136,12 +136,12 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto">
-        <Card className="bg-slate-900/50 border-slate-800/50">
+      <div className="evpack-container">
+        <Card className="evpack-card">
           <CardContent className="py-12">
             <div className="fi-empty-state gap-4">
-              <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
-              <p className="text-slate-400">Cargando Evidence Pack...</p>
+              <Loader2 className="evpack-loading-icon" />
+              <p className="evpack-loading-text">Cargando Evidence Pack...</p>
             </div>
           </CardContent>
         </Card>
@@ -151,18 +151,18 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
 
   if (error || !pack) {
     return (
-      <div className="max-w-5xl mx-auto">
-        <Card className="bg-slate-900/50 border-slate-800/50">
+      <div className="evpack-container">
+        <Card className="evpack-card">
           <CardContent className="py-8">
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="h-4 w-4 fi-text-warning mt-0.5 flex-shrink-0" />
-              <p className="text-amber-300 text-sm">
+            <div className="evpack-warning-banner">
+              <AlertCircle className="evpack-warning-icon fi-text-warning" />
+              <p className="evpack-warning-text">
                 {error || 'No se encontró Evidence Pack para esta sesión'}
               </p>
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between mt-6">
+            <div className="evpack-error-nav">
               <Button
                 onClick={onPrevious}
                 variant="secondary"
@@ -185,29 +185,29 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="evpack-container-spaced">
       {/* Header Card */}
-      <Card className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
+      <Card className="evpack-card-header">
         <CardHeader>
-          <div className="flex items-start justify-between">
+          <div className="evpack-header-row">
             <div className="fi-flex-gap-md">
-              <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                <Shield className="h-6 w-6 fi-text-info" />
+              <div className="evpack-header-icon-box">
+                <Shield className="evpack-header-shield fi-text-info" />
               </div>
               <div>
-                <CardTitle className="text-white">Evidence Pack</CardTitle>
-                <p className="fi-subtitle mt-1">
+                <CardTitle className="evpack-card-title">Evidence Pack</CardTitle>
+                <p className="evpack-subtitle">
                   ID: {pack.pack_id}
                 </p>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge className="bg-emerald-500/10 fi-text-success border border-emerald-500/30">
-                <CheckCircle className="h-3 w-3 mr-1" />
+            <div className="evpack-header-meta">
+              <Badge className="evpack-badge-sources">
+                <CheckCircle className="evpack-badge-icon" />
                 {pack.sources.length} fuente{pack.sources.length !== 1 ? 's' : ''}
               </Badge>
-              <div className="fi-flex-gap fi-text-xs">
-                <Calendar className="h-3 w-3" />
+              <div className="evpack-date-row">
+                <Calendar className="evpack-date-icon" />
                 {new Date(pack.created_at).toLocaleDateString('es-MX')}
               </div>
             </div>
@@ -217,15 +217,15 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
 
       {/* Clinical Question */}
       {pack.consulta && (
-        <Card className="bg-slate-900/50 border-slate-800/50">
+        <Card className="evpack-card">
           <CardHeader>
-            <CardTitle className="text-lg text-white fi-flex-gap">
-              <Quote className="h-5 w-5 fi-text-purple" />
+            <CardTitle className="evpack-card-title-section">
+              <Quote className="evpack-section-icon fi-text-purple" />
               Consulta Clínica
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="fi-text text-base leading-relaxed">
+            <p className="fi-text evpack-consulta-text">
               {pack.consulta}
             </p>
           </CardContent>
@@ -234,16 +234,16 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
 
       {/* Evidence-Based Response */}
       {pack.response && (
-        <Card className="bg-slate-900/50 border-slate-800/50">
+        <Card className="evpack-card">
           <CardHeader>
-            <CardTitle className="text-lg text-white fi-flex-gap">
-              <FileText className="h-5 w-5 fi-text-info" />
+            <CardTitle className="evpack-card-title-section">
+              <FileText className="evpack-section-icon fi-text-info" />
               Respuesta Basada en Evidencia
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-invert prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap fi-text text-sm leading-relaxed font-sans bg-slate-800/50 p-4 rounded-lg">
+            <div className="evpack-response-prose">
+              <pre className="evpack-response-pre fi-text">
                 {pack.response}
               </pre>
             </div>
@@ -252,24 +252,24 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
       )}
 
       {/* Sources */}
-      <Card className="bg-slate-900/50 border-slate-800/50">
+      <Card className="evpack-card">
         <CardHeader>
-          <CardTitle className="text-lg text-white fi-flex-gap">
-            <FileText className="h-5 w-5 fi-text-success" />
+          <CardTitle className="evpack-card-title-section">
+            <FileText className="evpack-section-icon fi-text-success" />
             Fuentes Clínicas ({pack.sources.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="evpack-sources-list">
           {pack.sources.map((source, idx) => (
             <div
               key={source.source_id}
-              className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl"
+              className="evpack-source-card"
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="evpack-source-header">
                 <div className="fi-flex-gap-md">
                   <DocumentTypeIcon type={source.tipo_doc} />
                   <div>
-                    <h3 className="text-white font-semibold">
+                    <h3 className="evpack-source-title">
                       {source.tipo_doc.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </h3>
                     <p className="fi-text-xs">
@@ -281,16 +281,16 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
               </div>
 
               {source.hallazgo && (
-                <div className="mb-3">
-                  <p className="text-sm fi-text">
+                <div className="evpack-source-finding">
+                  <p className="evpack-source-finding-text fi-text">
                     {source.hallazgo}
                   </p>
                 </div>
               )}
 
-              <div className="fi-flex-gap text-xs">
-                <Hash className="h-3 w-3 text-slate-500" />
-                <code className="text-slate-400 font-mono text-xs">
+              <div className="fi-flex-gap evpack-source-hash-row">
+                <Hash className="evpack-source-hash-icon" />
+                <code className="evpack-source-hash-code">
                   {pack.source_hashes[idx]?.slice(0, 16)}...
                 </code>
               </div>
@@ -300,9 +300,9 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
       </Card>
 
       {/* Medical Disclaimer */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-start gap-3">
-        <AlertCircle className="h-4 w-4 fi-text-warning mt-0.5 flex-shrink-0" />
-        <p className="text-amber-300 text-sm">
+      <div className="evpack-warning-banner">
+        <AlertCircle className="evpack-warning-icon fi-text-warning" />
+        <p className="evpack-warning-text">
           <strong>Nota importante:</strong> Esta respuesta contiene únicamente evidencia extraída de los documentos fuente.
           No constituye un diagnóstico médico. Toda decisión clínica debe ser validada por un profesional de la salud.
         </p>
@@ -323,7 +323,7 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
           variant="cyan"
           size="lg"
           icon={ChevronRight}
-          className="shadow-lg shadow-cyan-500/20"
+          className="evpack-next-btn"
         >
           Siguiente
         </Button>

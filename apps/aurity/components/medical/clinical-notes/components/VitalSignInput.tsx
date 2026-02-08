@@ -3,6 +3,16 @@
 import { memo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
+/** Static lookup: iconColor → { card, input, icon } CSS classes */
+const VITAL_VARIANTS: Record<string, { card: string; input: string; icon: string }> = {
+  'text-red-400':    { card: 'med-vital-card-red',   input: 'med-vital-input-red',   icon: 'text-red-400' },
+  'text-cyan-400':   { card: 'med-vital-card-cyan',  input: 'med-vital-input-cyan',  icon: 'text-cyan-400' },
+  'fi-text-primary': { card: 'med-vital-card-blue',  input: 'med-vital-input-blue',  icon: 'fi-text-primary' },
+  'fi-text-green':   { card: 'med-vital-card-green', input: 'med-vital-input-green', icon: 'fi-text-green' },
+};
+
+const DEFAULT_VARIANT = VITAL_VARIANTS['text-red-400'];
+
 interface VitalSignInputProps {
   icon: LucideIcon;
   iconColor: string;
@@ -28,20 +38,15 @@ export const VitalSignInput = memo(function VitalSignInput({
   step,
   inputWidth = 'w-14',
 }: VitalSignInputProps) {
-  const borderColor = iconColor.replace('text-', 'border-').replace('-400', '-500');
-  const ringColor = iconColor.replace('text-', 'ring-').replace('-400', '-500/50');
+  const variant = VITAL_VARIANTS[iconColor] ?? DEFAULT_VARIANT;
 
   return (
-    <div
-      className={`bg-slate-900 p-3 rounded-lg border border-slate-600 hover:${borderColor} transition-colors`}
-    >
+    <div className={variant.card}>
       <div className="fi-flex-gap mb-2">
-        <Icon className={`h-4 w-4 ${iconColor}`} aria-hidden="true" />
+        <Icon className={`h-4 w-4 ${variant.icon}`} aria-hidden="true" />
         <span className="fi-text-xs">{label}</span>
       </div>
-      <div
-        className={`flex items-center gap-1 bg-slate-800/50 px-2 py-1 rounded border border-slate-700 hover:${borderColor} focus-within:${borderColor} focus-within:ring-1 focus-within:${ringColor}`}
-      >
+      <div className={variant.input}>
         <input
           type={type}
           step={step}

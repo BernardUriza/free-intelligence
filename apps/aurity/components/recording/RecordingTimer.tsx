@@ -23,9 +23,9 @@ export interface RecordingTimerProps {
   size?: 'sm' | 'md' | 'lg';
   /** Show blinking recording dot */
   showDot?: boolean;
-  /** Text color (Tailwind class) */
+  /** Text color (domain class) */
   textColor?: string;
-  /** Dot color (Tailwind class) */
+  /** Dot color (domain class) */
   dotColor?: string;
   /** Additional classes */
   className?: string;
@@ -41,9 +41,9 @@ export function formatRecordingTime(seconds: number): string {
 }
 
 const SIZE_CLASSES = {
-  sm: 'text-sm',
-  md: 'text-lg',
-  lg: 'text-3xl',
+  sm: 'rec-timer-sm',
+  md: 'rec-timer-md',
+  lg: 'rec-timer-lg',
 };
 
 export function RecordingTimer({
@@ -51,17 +51,17 @@ export function RecordingTimer({
   visible = true,
   size = 'md',
   showDot = false,
-  textColor = 'text-white',
-  dotColor = 'bg-red-500',
+  textColor = 'rec-timer-text-white',
+  dotColor = 'rec-timer-dot-red',
   className = '',
 }: RecordingTimerProps) {
   if (!visible || time <= 0) return null;
 
   return (
-    <div className={`flex items-center gap-2 font-mono ${SIZE_CLASSES[size]} ${className}`}>
+    <div className={`rec-timer-wrap ${SIZE_CLASSES[size]} ${className}`}>
       {showDot && (
         <motion.div
-          className={`w-2 h-2 rounded-full ${dotColor}`}
+          className={`rec-timer-dot ${dotColor}`}
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{
             duration: 1.5,
@@ -70,7 +70,7 @@ export function RecordingTimer({
           }}
         />
       )}
-      <span className={`${textColor} font-semibold`}>
+      <span className={`${textColor} rec-timer-value`}>
         {formatRecordingTime(time)}
       </span>
     </div>

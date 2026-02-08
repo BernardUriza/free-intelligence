@@ -72,22 +72,22 @@ export function DiarizationProcessingModal({
 
   // Determine polling mode (fast/adaptive/idle)
   const getPollingMode = () => {
-    if (currentInterval <= 1000) return { label: 'Fast', color: 'fi-text-success', bg: 'bg-emerald-500/10' };
-    if (currentInterval <= 3000) return { label: 'Adaptive', color: 'fi-text-info', bg: 'bg-cyan-500/10' };
-    return { label: 'Idle', color: 'text-slate-400', bg: 'bg-slate-500/10' };
+    if (currentInterval <= 1000) return { label: 'Fast', className: 'diar-mode-fast' };
+    if (currentInterval <= 3000) return { label: 'Adaptive', className: 'diar-mode-adaptive' };
+    return { label: 'Idle', className: 'diar-mode-idle' };
   };
 
   const pollingMode = getPollingMode();
 
   return (
-    <div className="fi-modal-backdrop bg-black/80">
-      <div className="w-full max-w-md rounded-xl bg-slate-800 border border-slate-700 p-8 shadow-2xl animate-slide-up">
+    <div className="diar-backdrop">
+      <div className="diar-modal">
         {/* Icon / Progress Circle */}
-        <div className="flex justify-center mb-6">
+        <div className="diar-circle-wrap">
           {status === 'completed' ? (
-            <div className="relative w-20 h-20">
+            <div className="diar-circle-container">
               {/* SVG Progress Circle - 100% complete */}
-              <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
+              <svg className="diar-circle-svg" viewBox="0 0 100 100">
                 {/* Background circle */}
                 <circle
                   cx="50"
@@ -96,7 +96,7 @@ export function DiarizationProcessingModal({
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="none"
-                  className="text-slate-700"
+                  className="diar-circle-bg"
                 />
                 {/* Progress circle - full green */}
                 <circle
@@ -107,24 +107,24 @@ export function DiarizationProcessingModal({
                   strokeWidth="8"
                   fill="none"
                   strokeLinecap="round"
-                  className="text-green-500"
+                  className="diar-circle-complete"
                   strokeDasharray={`${2 * Math.PI * 45}`}
                   strokeDashoffset="0"
                 />
               </svg>
               {/* 100% text in center */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold fi-text-green">100%</span>
+              <div className="diar-circle-center">
+                <span className="diar-circle-pct fi-text-green">100%</span>
               </div>
             </div>
           ) : status === 'failed' ? (
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
-              <XCircle className="h-8 w-8 fi-text-error" />
+            <div className="diar-fail-icon-wrap">
+              <XCircle className="diar-fail-icon fi-text-error" />
             </div>
           ) : (
-            <div className="relative w-20 h-20">
+            <div className="diar-circle-container">
               {/* SVG Progress Circle - animated */}
-              <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
+              <svg className="diar-circle-svg" viewBox="0 0 100 100">
                 {/* Background circle */}
                 <circle
                   cx="50"
@@ -133,7 +133,7 @@ export function DiarizationProcessingModal({
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="none"
-                  className="text-slate-700"
+                  className="diar-circle-bg"
                 />
                 {/* Progress circle */}
                 <circle
@@ -144,14 +144,14 @@ export function DiarizationProcessingModal({
                   strokeWidth="8"
                   fill="none"
                   strokeLinecap="round"
-                  className="text-emerald-500 transition-all duration-500 ease-out"
+                  className="diar-circle-progress"
                   strokeDasharray={`${2 * Math.PI * 45}`}
                   strokeDashoffset={`${2 * Math.PI * 45 * (1 - (status === 'waiting_for_chunks' ? chunkProgress : progress) / 100)}`}
                 />
               </svg>
               {/* Percentage text in center */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold fi-text-success">
+              <div className="diar-circle-center">
+                <span className="diar-circle-pct fi-text-success">
                   {status === 'waiting_for_chunks' ? chunkProgress : progress}%
                 </span>
               </div>
@@ -160,7 +160,7 @@ export function DiarizationProcessingModal({
         </div>
 
         {/* Title */}
-        <h2 className="text-xl font-semibold text-white text-center mb-2">
+        <h2 className="diar-title">
           {status === 'completed'
             ? '¡Diarización Completada!'
             : status === 'failed'
@@ -171,7 +171,7 @@ export function DiarizationProcessingModal({
         </h2>
 
         {/* Description */}
-        <p className="text-slate-400 text-center mb-6">
+        <p className="diar-description">
           {status === 'completed'
             ? `Se identificaron ${segmentCount || 0} segmentos con clasificación de hablantes.`
             : status === 'failed'
@@ -184,7 +184,7 @@ export function DiarizationProcessingModal({
         {/* Progress bar */}
         {status !== 'failed' && status !== 'completed' && (
           <div className="fi-stack-md">
-            <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div className="diar-progress-track">
               <div
                 className="fi-progress-bar duration-500 ease-out"
                 style={{
@@ -195,7 +195,7 @@ export function DiarizationProcessingModal({
                 }}
               />
             </div>
-            <p className="text-sm text-slate-500 text-center">
+            <p className="diar-progress-label">
               {status === 'waiting_for_chunks'
                 ? estimatedSecondsRemaining > 0
                   ? `${chunkProgress}% completado (${completedChunks}/${totalChunks} chunks) · ~${estimatedSecondsRemaining}s restantes`
@@ -207,27 +207,27 @@ export function DiarizationProcessingModal({
 
         {/* Adaptive Polling Metrics - ALWAYS VISIBLE FOR DEBUG */}
         {status !== 'completed' && status !== 'failed' && (
-          <div className="mt-4 p-3 bg-slate-900/50 rounded-lg border border-yellow-500/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="fi-text-xs-medium text-slate-400">Monitor en tiempo real</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${pollingMode.bg} ${pollingMode.color} font-medium`}>
+          <div className="diar-metrics-panel">
+            <div className="diar-metrics-header">
+              <span className="fi-text-xs-medium">Monitor en tiempo real</span>
+              <span className={`diar-metrics-mode-badge ${pollingMode.className}`}>
                 {pollingMode.label}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="flex flex-col">
-                <span className="text-slate-500 mb-1">Intervalo</span>
-                <span className="text-white font-mono font-medium">{intervalSeconds}s</span>
+            <div className="diar-metrics-grid">
+              <div className="diar-metrics-col">
+                <span className="diar-metrics-label">Intervalo</span>
+                <span className="diar-metrics-value">{intervalSeconds}s</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-slate-500 mb-1">Verificaciones</span>
-                <span className="text-white font-mono font-medium">{totalPolls}</span>
+              <div className="diar-metrics-col">
+                <span className="diar-metrics-label">Verificaciones</span>
+                <span className="diar-metrics-value">{totalPolls}</span>
               </div>
             </div>
             {currentInterval > 1000 && (
               <div className="mt-2 pt-2 fi-border-top/50">
                 <p className="fi-text-xs-muted flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                  <span className="diar-metrics-adaptive"></span>
                   Modo adaptativo: reduciendo frecuencia para ahorrar recursos
                 </p>
               </div>
@@ -237,18 +237,18 @@ export function DiarizationProcessingModal({
 
         {/* Info */}
         {status === 'waiting_for_chunks' && (
-          <div className="mt-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <p className="fi-text-xs text-center flex items-center justify-center gap-2">
-              <Mic className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          <div className="diar-info-box">
+            <p className="fi-text-xs diar-info-text">
+              <Mic className="diar-info-icon" strokeWidth={1.5} aria-hidden="true" />
               <span><strong>Transcripción en progreso:</strong> Procesando chunks de audio
               con Whisper AI (13 segundos por chunk).</span>
             </p>
           </div>
         )}
         {status === 'in_progress' && (
-          <div className="mt-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <p className="fi-text-xs text-center flex items-center justify-center gap-2">
-              <Lightbulb className="w-4 h-4 flex-shrink-0 text-yellow-400" strokeWidth={1.5} aria-hidden="true" />
+          <div className="diar-info-box">
+            <p className="fi-text-xs diar-info-text">
+              <Lightbulb className="diar-info-icon-yellow" strokeWidth={1.5} aria-hidden="true" />
               <span><strong>Triple Vision:</strong> Analizando 3 fuentes de transcripción
               simultáneamente para máxima precisión.</span>
             </p>
@@ -257,14 +257,14 @@ export function DiarizationProcessingModal({
 
         {/* Error details */}
         {status === 'failed' && error && (
-          <div className="mt-4 p-3 bg-red-900/20 rounded-lg border border-red-700/30">
-            <p className="text-xs fi-text-error font-mono">{error}</p>
+          <div className="diar-error-box">
+            <p className="diar-error-text fi-text-error">{error}</p>
           </div>
         )}
 
         {/* Note */}
         {status !== 'failed' && status !== 'completed' && (
-          <p className="fi-text-xs-muted text-center mt-6">
+          <p className="fi-text-xs-muted diar-note">
             Este proceso puede tomar 1-3 minutos dependiendo de la duración del audio.
           </p>
         )}
@@ -275,7 +275,7 @@ export function DiarizationProcessingModal({
             onClick={onCancel}
             variant="secondary"
             fullWidth
-            className="mt-4"
+            className="diar-cancel-btn"
           >
             Cancelar (ESC)
           </Button>

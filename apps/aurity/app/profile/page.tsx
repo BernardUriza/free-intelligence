@@ -12,7 +12,6 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { profileHeader } from '@/config/page-headers';
-import { gradients } from '@/lib/styles/gradients';
 import { showSuccess, showError } from '@/lib/swal';
 import { CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api/client';
@@ -94,7 +93,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="layout-loading-screen">
-        <div className="animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full"></div>
+        <div className="prof-spinner"></div>
       </div>
     );
   }
@@ -102,9 +101,9 @@ export default function ProfilePage() {
   if (!isAuthenticated) {
     return (
       <div className="layout-loading-screen">
-        <div className="text-center">
-          <p className="text-slate-400 mb-4">Debes iniciar sesión para ver tu perfil</p>
-          <Link href="/" className="fi-text-primary hover:text-blue-300">
+        <div className="prof-unauth-wrapper">
+          <p className="prof-unauth-text">Debes iniciar sesión para ver tu perfil</p>
+          <Link href="/" className="fi-text-primary prof-unauth-link">
             Volver al inicio
           </Link>
         </div>
@@ -123,36 +122,36 @@ export default function ProfilePage() {
     <AppTemplate headerConfig={headerConfig} showWatermark={true} showGeometricBg={true}>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="prof-main">
         {/* Profile Card */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
+        <div className="prof-card">
           {/* Header with Avatar */}
-          <div className={`${gradients.primarySubtle} px-6 py-8`}>
-            <div className="flex items-center gap-4">
+          <div className="prof-card-header">
+            <div className="prof-avatar-row">
               {user?.picture ? (
                 <img
                   src={user.picture}
                   alt={user.name || 'User'}
-                  className="w-20 h-20 rounded-full ring-4 ring-slate-700"
+                  className="prof-avatar-img"
                 />
               ) : (
-                <div className="fi-avatar-lg ring-4 ring-slate-700 p-3">
+                <div className="fi-avatar-lg prof-avatar-fallback">
                   <Image
                     src="/logo.svg"
                     alt="Aurity Logo"
                     width={64}
                     height={64}
-                    className="w-full h-full"
+                    className="prof-avatar-logo"
                   />
                 </div>
               )}
               <div>
                 <h2 className="fi-title-2xl">{user?.name || 'Usuario'}</h2>
-                <p className="text-slate-400">{user?.email}</p>
+                <p className="prof-email">{user?.email}</p>
                 {user?.email_verified && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <CheckCircle2 className="fi-icon-sm text-green-500" />
-                    <span className="text-sm fi-text-green">Email verificado</span>
+                  <div className="prof-verified-row">
+                    <CheckCircle2 className="fi-icon-sm prof-verified-icon" />
+                    <span className="prof-verified-text fi-text-green">Email verificado</span>
                   </div>
                 )}
               </div>
@@ -160,26 +159,26 @@ export default function ProfilePage() {
           </div>
 
           {/* Profile Information */}
-          <div className="p-6 space-y-6">
+          <div className="prof-info-content">
             {/* Account Information */}
             <div>
-              <h3 className="fi-title mb-4">Información de la Cuenta</h3>
+              <h3 className="fi-title prof-info-title">Información de la Cuenta</h3>
               <div className="fi-stack-md">
-                <div className="flex justify-between py-3 fi-border-bottom">
-                  <span className="text-slate-400">Nombre</span>
-                  <span className="text-white font-medium">{user?.name || 'No disponible'}</span>
+                <div className="prof-info-row fi-border-bottom">
+                  <span className="prof-label">Nombre</span>
+                  <span className="prof-value">{user?.name || 'No disponible'}</span>
                 </div>
-                <div className="flex justify-between py-3 fi-border-bottom">
-                  <span className="text-slate-400">Email</span>
-                  <span className="text-white font-medium">{user?.email || 'No disponible'}</span>
+                <div className="prof-info-row fi-border-bottom">
+                  <span className="prof-label">Email</span>
+                  <span className="prof-value">{user?.email || 'No disponible'}</span>
                 </div>
-                <div className="flex justify-between py-3 fi-border-bottom">
-                  <span className="text-slate-400">Nickname</span>
-                  <span className="text-white font-medium">{user?.nickname || 'No disponible'}</span>
+                <div className="prof-info-row fi-border-bottom">
+                  <span className="prof-label">Nickname</span>
+                  <span className="prof-value">{user?.nickname || 'No disponible'}</span>
                 </div>
-                <div className="flex justify-between py-3 fi-border-bottom">
-                  <span className="text-slate-400">Última actualización</span>
-                  <span className="text-white font-medium">
+                <div className="prof-info-row fi-border-bottom">
+                  <span className="prof-label">Última actualización</span>
+                  <span className="prof-value">
                     {user?.updated_at ? new Date(user.updated_at).toLocaleDateString('es-MX') : 'No disponible'}
                   </span>
                 </div>
@@ -189,9 +188,9 @@ export default function ProfilePage() {
             {/* User Metadata */}
             {user && Object.keys(user).length > 0 && (
               <div>
-                <h3 className="fi-title mb-4">Datos Adicionales</h3>
-                <div className="bg-slate-900/50 rounded-lg p-4">
-                  <pre className="fi-text-xs overflow-auto max-h-64">
+                <h3 className="fi-title prof-info-title">Datos Adicionales</h3>
+                <div className="prof-metadata-block">
+                  <pre className="fi-text-xs prof-metadata-pre">
                     {JSON.stringify(user, null, 2)}
                   </pre>
                 </div>
@@ -201,12 +200,12 @@ export default function ProfilePage() {
         </div>
 
         {/* Settings Section */}
-        <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-          <h3 className="fi-title mb-4">Configuración</h3>
-          <p className="text-slate-400 text-sm mb-4">
+        <div className="prof-section">
+          <h3 className="fi-title prof-section-title">Configuración</h3>
+          <p className="prof-section-desc">
             Para cambiar tu información de perfil, contacta al administrador.
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="prof-button-row">
             {!isSocialLogin && (
               <Button 
                 variant="secondary" 
@@ -220,34 +219,34 @@ export default function ProfilePage() {
         </div>
 
         {/* Disk Usage Section */}
-        <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-          <h3 className="fi-title mb-4">Estado del Almacenamiento</h3>
+        <div className="prof-section">
+          <h3 className="fi-title prof-section-title">Estado del Almacenamiento</h3>
           {diskUsage ? (
             <div className="fi-stack-md">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Usado</span>
-                <span className="text-white font-medium">{diskUsage.used}</span>
+              <div className="prof-disk-row">
+                <span className="prof-disk-label">Usado</span>
+                <span className="prof-disk-value">{diskUsage.used}</span>
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2">
+              <div className="prof-disk-track">
                 <div 
                   className={diskUsage.percent > 80 ? 'layout-progress-critical' : diskUsage.percent > 60 ? 'layout-progress-warning' : 'layout-progress-healthy'}
                   style={{ width: `${Math.min(diskUsage.percent, 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Total disponible</span>
-                <span className="text-white font-medium">{diskUsage.total}</span>
+              <div className="prof-disk-row">
+                <span className="prof-disk-label">Total disponible</span>
+                <span className="prof-disk-value">{diskUsage.total}</span>
               </div>
             </div>
           ) : (
-            <p className="text-slate-400 text-sm">Cargando información del disco...</p>
+            <p className="prof-disk-loading">Cargando información del disco...</p>
           )}
         </div>
 
         {/* Danger Zone */}
-        <div className="mt-6 bg-red-950/20 border border-red-900/50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold fi-text-error mb-2">Zona Peligrosa</h3>
-          <p className="text-slate-400 text-sm mb-4">
+        <div className="prof-danger-zone">
+          <h3 className="prof-danger-title fi-text-error">Zona Peligrosa</h3>
+          <p className="prof-danger-desc">
             Estas acciones son irreversibles. Los datos eliminados no se pueden recuperar.
           </p>
           <Button 
@@ -255,43 +254,43 @@ export default function ProfilePage() {
             size="sm"
             onClick={() => setShowDeleteModal(true)}
           >
-            <Trash2 className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
+            <Trash2 className="prof-icon-sm" strokeWidth={1.5} aria-hidden="true" />
             Borrar toda la memoria longitudinal
           </Button>
-          <p className="text-slate-500 text-xs mt-2">
+          <p className="prof-danger-footnote">
             Elimina todas las sesiones HDF5 y mensajes de chat. Configuraciones de personalidades y pacientes se mantienen.
           </p>
         </div>
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 border border-red-900/50 rounded-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-bold fi-text-error mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
+          <div className="prof-modal-overlay">
+            <div className="prof-modal-content">
+              <h3 className="prof-modal-title fi-text-error">
+                <AlertTriangle className="prof-icon-md" strokeWidth={1.5} aria-hidden="true" />
                 Confirmar eliminación
               </h3>
-              <p className="fi-text mb-4">
+              <p className="fi-text prof-modal-body">
                 Estás a punto de eliminar <strong>TODA la memoria longitudinal</strong>:
               </p>
-              <ul className="text-slate-400 text-sm space-y-2 mb-6 list-disc list-inside">
+              <ul className="prof-modal-list">
                 <li>Todos los archivos HDF5 de sesiones</li>
                 <li>Todos los mensajes de chat</li>
                 <li>Historial de conversaciones</li>
               </ul>
-              <p className="text-yellow-400 text-sm mb-6 flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" strokeWidth={1.5} aria-hidden="true" />
+              <p className="prof-modal-warning">
+                <CheckCircle2 className="prof-modal-warning-icon" strokeWidth={1.5} aria-hidden="true" />
                 Se mantendrán: configuraciones de personalidades y registros de pacientes
               </p>
-              <p className="fi-text-error font-bold mb-6">
+              <p className="fi-text-error prof-modal-irreversible">
                 Esta acción NO se puede deshacer.
               </p>
-              <div className="flex gap-3">
+              <div className="prof-modal-actions">
                 <Button 
                   variant="secondary" 
                   onClick={() => setShowDeleteModal(false)}
                   disabled={isDeleting}
-                  className="flex-1"
+                  className="prof-modal-btn"
                 >
                   Cancelar
                 </Button>
@@ -299,7 +298,7 @@ export default function ProfilePage() {
                   variant="danger" 
                   onClick={handleDeleteLongitudinalMemory}
                   disabled={isDeleting}
-                  className="flex-1"
+                  className="prof-modal-btn"
                 >
                   {isDeleting ? 'Eliminando...' : 'Sí, eliminar todo'}
                 </Button>

@@ -79,6 +79,54 @@
   @apply flex items-center gap-1;
 }
 
+@utility chat-char-counter {
+  @apply absolute bottom-2 right-2 text-xs font-mono transition-colors;
+}
+
+@utility chat-loading-inline {
+  @apply flex items-center gap-2 text-slate-400 text-sm py-2;
+}
+
+@utility chat-spinner-sm {
+  @apply w-4 h-4 animate-spin;
+}
+
+@utility chat-error-icon {
+  @apply w-5 h-5 fi-text-error flex-shrink-0 mt-0.5;
+}
+
+@utility chat-error-title {
+  @apply text-red-300 font-medium mb-1;
+}
+
+@utility chat-skeleton-row {
+  @apply flex items-start gap-3 animate-pulse;
+}
+
+@utility chat-skeleton-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+@utility chat-skeleton-bar-wide {
+  @apply h-3 w-32 bg-slate-700/50 rounded;
+}
+
+@utility chat-skeleton-bar-narrow {
+  @apply h-3 w-4 bg-slate-700/50 rounded;
+}
+
+@utility chat-skeleton-line-full {
+  @apply h-3 w-full bg-slate-700/30 rounded;
+}
+
+@utility chat-skeleton-line-5of6 {
+  @apply h-3 w-5/6 bg-slate-700/30 rounded;
+}
+
+@utility chat-skeleton-line-4of6 {
+  @apply h-3 w-4/6 bg-slate-700/30 rounded;
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -322,6 +370,31 @@
 
   .chat-instructions-confirm { @apply px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors; }
 
+  /* UNREAD COUNT BADGE */
+  .chat-unread-badge {
+    @apply absolute -top-1 -right-1 w-5 h-5 rounded-full
+           bg-red-500 text-white text-xs font-bold
+           flex items-center justify-center;
+  }
+
+  /* CHARACTER COUNTER */
+  .chat-char-counter-ok {
+    @apply chat-char-counter text-slate-500;
+  }
+
+  .chat-char-counter-warning {
+    @apply chat-char-counter text-yellow-400;
+  }
+
+  .chat-char-counter-error {
+    @apply chat-char-counter fi-text-error;
+  }
+
+  /* EMPTY STATE (ChatUtilities) */
+  .chat-empty-title-lg { @apply text-lg font-medium fi-text mb-2; }
+  .chat-empty-desc { @apply text-sm text-slate-500 mb-6 max-w-sm; }
+  .chat-empty-cta-gradient { @apply bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700; }
+
   /* SCROLL TO BOTTOM FAB */
   .chat-scroll-fab { @apply sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full z-40 bg-slate-900/80 backdrop-blur-2xl backdrop-saturate-150 hover:bg-slate-800/80 border border-white/[0.08] hover:border-white/[0.15] text-slate-300/90 hover:text-white/95 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-purple-500/10 ring-1 ring-white/5 transition-all duration-300 ease-out flex items-center justify-center; }
   .chat-scroll-fab-badge { @apply absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-purple-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse; }
@@ -383,6 +456,221 @@
   .chat-persona-footer-text { @apply text-[9px] text-slate-500 leading-tight; }
 
   .chat-persona-edit-link { @apply flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors; }
+
+  /* ========================================
+   * AUDIO PLAYER (aplay-*)
+   * ======================================== */
+
+  /* Main floating bar */
+  .aplay-bar {
+    @apply fixed top-0 left-0 right-0 z-50
+           bg-gradient-to-r from-emerald-600 to-cyan-600
+           backdrop-blur-xl
+           border-b border-white/20
+           shadow-lg shadow-purple-900/30
+           animate-slide-down;
+  }
+
+  /* Loading state row */
+  .aplay-loading-row {
+    @apply flex items-center gap-4 px-4 py-3;
+  }
+
+  /* Loading icon circle */
+  .aplay-loading-icon {
+    @apply w-8 h-8 bg-white/20 rounded-full flex items-center justify-center;
+  }
+
+  /* Loading text label */
+  .aplay-loading-text {
+    @apply text-white text-sm font-medium;
+  }
+
+  /* Loading voice name */
+  .aplay-loading-voice {
+    @apply text-purple-200 text-xs;
+  }
+
+  /* Spacer (flex-1) */
+  .aplay-spacer {
+    @apply flex-1;
+  }
+
+  /* Close/Cancel button (ghost style on glass) */
+  .aplay-btn-close {
+    @apply p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors;
+  }
+
+  /* Close icon sizes */
+  .aplay-icon-sm {
+    @apply w-4 h-4;
+  }
+
+  .aplay-icon-md {
+    @apply w-5 h-5;
+  }
+
+  /* Controls row */
+  .aplay-controls {
+    @apply flex items-center gap-3 px-4 py-2;
+  }
+
+  /* Left voice indicator group */
+  .aplay-voice-group {
+    @apply flex items-center gap-2 min-w-0;
+  }
+
+  /* Voice indicator circle - AI variant */
+  .aplay-voice-indicator {
+    @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-white/20;
+  }
+
+  /* Voice indicator circle - User variant */
+  .aplay-voice-indicator-user {
+    @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-amber-500/30;
+  }
+
+  /* Icons inside voice indicator */
+  .aplay-voice-icon-user {
+    @apply w-4 h-4 text-amber-200;
+  }
+
+  .aplay-voice-icon-ai {
+    @apply w-4 h-4 text-white;
+  }
+
+  /* Voice name text (next to indicator) */
+  .aplay-voice-name {
+    @apply text-purple-200 truncate hidden sm:block;
+  }
+
+  /* Skip button (-10s / +10s) */
+  .aplay-btn-skip {
+    @apply flex items-center gap-1 px-2 py-1 rounded
+           text-white/70 hover:text-white hover:bg-white/10
+           text-xs font-semibold transition-colors
+           disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+
+  /* Skip button icon */
+  .aplay-skip-icon {
+    @apply w-3.5 h-3.5;
+  }
+
+  /* Play/Pause button */
+  .aplay-btn-play {
+    @apply bg-white/20 hover:bg-white/30 rounded-full w-10 h-10
+           flex items-center justify-center text-white transition-colors
+           hover:scale-105 active:scale-95;
+  }
+
+  /* Play icon offset */
+  .aplay-play-offset {
+    @apply ml-0.5;
+  }
+
+  /* Time display (current time) */
+  .aplay-time {
+    @apply text-white/80 text-xs font-mono tabular-nums;
+  }
+
+  /* Duration display */
+  .aplay-duration {
+    @apply text-white/50 text-xs font-mono tabular-nums;
+  }
+
+  /* Seek bar container */
+  .aplay-seek {
+    @apply flex-1 relative h-1 group cursor-pointer min-w-[80px];
+  }
+
+  /* Seek bar track */
+  .aplay-seek-track {
+    @apply absolute inset-0 bg-white/30 rounded-full overflow-hidden;
+  }
+
+  /* Seek bar progress fill */
+  .aplay-seek-fill {
+    @apply h-full bg-white rounded-full transition-all duration-75;
+  }
+
+  /* Seek bar hidden input */
+  .aplay-seek-input {
+    @apply absolute inset-0 w-full h-full opacity-0 cursor-pointer;
+  }
+
+  /* Seek bar thumb (appears on hover) */
+  .aplay-seek-thumb {
+    @apply absolute top-1/2 -translate-y-1/2
+           w-3 h-3 rounded-full
+           bg-white shadow-md
+           pointer-events-none
+           opacity-0 group-hover:opacity-100
+           transition-opacity;
+  }
+
+  /* PulsingDot container */
+  .aplay-pulsing-dots {
+    @apply flex items-center justify-center gap-1;
+  }
+
+  /* PulsingDot individual dots with staggered animation */
+  .aplay-pulsing-dot-1 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot;
+  }
+
+  .aplay-pulsing-dot-2 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-1;
+  }
+
+  .aplay-pulsing-dot-3 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-2;
+  }
+
+  /* VoiceSelector wrapper */
+  .aplay-voice-selector {
+    @apply relative;
+  }
+
+  /* VoiceSelector hidden label */
+  .aplay-voice-label {
+    @apply hidden sm:inline;
+  }
+
+  /* VoiceSelector voice name highlight */
+  .aplay-voice-highlight {
+    @apply text-purple-200;
+  }
+
+  /* VoiceSelector chevron icon */
+  .aplay-chevron {
+    @apply w-3 h-3 transition-transform;
+  }
+
+  /* VoiceSelector chevron rotated */
+  .aplay-chevron-open {
+    @apply w-3 h-3 transition-transform rotate-180;
+  }
+
+  /* VoiceSelector backdrop */
+  .aplay-dropdown-backdrop {
+    @apply fixed inset-0 z-40;
+  }
+
+  /* VoiceSelector option button - default */
+  .aplay-voice-option {
+    @apply w-full px-3 py-2 text-left text-sm flex items-center justify-between text-white;
+  }
+
+  /* VoiceSelector option button - active/selected */
+  .aplay-voice-option-active {
+    @apply w-full px-3 py-2 text-left text-sm flex items-center justify-between bg-purple-500/20 text-purple-200;
+  }
+
+  /* VoiceSelector check icon */
+  .aplay-check-icon {
+    @apply w-3 h-3;
+  }
 
   /* REASONING BLOCK SCROLLBAR */
   .reasoning-scrollbar {

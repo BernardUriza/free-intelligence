@@ -1,0 +1,232 @@
+/**
+ * Profile Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: prof-{component}[-variant]
+ * Covers: /app/profile/page.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility prof-icon-sm {
+  @apply w-4 h-4;
+}
+
+@utility prof-icon-md {
+  @apply w-5 h-5;
+}
+
+@utility prof-label {
+  @apply text-slate-400;
+}
+
+@utility prof-value {
+  @apply text-white font-medium;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * LOADING / UNAUTHENTICATED STATES
+   * ======================================== */
+  .prof-spinner {
+    @apply animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full;
+  }
+
+  .prof-unauth-wrapper {
+    @apply text-center;
+  }
+
+  .prof-unauth-text {
+    @apply text-slate-400 mb-4;
+  }
+
+  .prof-unauth-link {
+    @apply hover:text-blue-300;
+  }
+
+  /* ========================================
+   * MAIN LAYOUT
+   * ======================================== */
+  .prof-main {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  /* ========================================
+   * PROFILE CARD
+   * ======================================== */
+  .prof-card {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden;
+  }
+
+  .prof-card-header {
+    @apply bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 px-6 py-8;
+  }
+
+  .prof-avatar-row {
+    @apply flex items-center gap-4;
+  }
+
+  .prof-avatar-img {
+    @apply w-20 h-20 rounded-full ring-4 ring-slate-700;
+  }
+
+  .prof-avatar-fallback {
+    @apply ring-4 ring-slate-700 p-3;
+  }
+
+  .prof-avatar-logo {
+    @apply w-full h-full;
+  }
+
+  .prof-email {
+    @apply text-slate-400;
+  }
+
+  .prof-verified-row {
+    @apply flex items-center gap-1 mt-2;
+  }
+
+  .prof-verified-icon {
+    @apply text-green-500;
+  }
+
+  .prof-verified-text {
+    @apply text-sm;
+  }
+
+  /* ========================================
+   * PROFILE INFORMATION
+   * ======================================== */
+  .prof-info-content {
+    @apply p-6 space-y-6;
+  }
+
+  .prof-info-title {
+    @apply mb-4;
+  }
+
+  .prof-info-row {
+    @apply flex justify-between py-3;
+  }
+
+  /* ========================================
+   * METADATA SECTION
+   * ======================================== */
+  .prof-metadata-block {
+    @apply bg-slate-900/50 rounded-lg p-4;
+  }
+
+  .prof-metadata-pre {
+    @apply overflow-auto max-h-64;
+  }
+
+  /* ========================================
+   * SETTINGS SECTION
+   * ======================================== */
+  .prof-section {
+    @apply mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-6;
+  }
+
+  .prof-section-title {
+    @apply mb-4;
+  }
+
+  .prof-section-desc {
+    @apply text-slate-400 text-sm mb-4;
+  }
+
+  .prof-button-row {
+    @apply flex flex-wrap gap-3;
+  }
+
+  /* ========================================
+   * DISK USAGE
+   * ======================================== */
+  .prof-disk-row {
+    @apply flex justify-between text-sm;
+  }
+
+  .prof-disk-label {
+    @apply text-slate-400;
+  }
+
+  .prof-disk-value {
+    @apply text-white font-medium;
+  }
+
+  .prof-disk-track {
+    @apply w-full bg-slate-700 rounded-full h-2;
+  }
+
+  .prof-disk-loading {
+    @apply text-slate-400 text-sm;
+  }
+
+  /* ========================================
+   * DANGER ZONE
+   * ======================================== */
+  .prof-danger-zone {
+    @apply mt-6 bg-red-950/20 border border-red-900/50 rounded-lg p-6;
+  }
+
+  .prof-danger-title {
+    @apply text-lg font-semibold mb-2;
+  }
+
+  .prof-danger-desc {
+    @apply text-slate-400 text-sm mb-4;
+  }
+
+  .prof-danger-footnote {
+    @apply text-slate-500 text-xs mt-2;
+  }
+
+  /* ========================================
+   * DELETE CONFIRMATION MODAL
+   * ======================================== */
+  .prof-modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  }
+
+  .prof-modal-content {
+    @apply bg-slate-800 border border-red-900/50 rounded-lg max-w-md w-full p-6;
+  }
+
+  .prof-modal-title {
+    @apply text-xl font-bold mb-4 flex items-center gap-2;
+  }
+
+  .prof-modal-body {
+    @apply mb-4;
+  }
+
+  .prof-modal-list {
+    @apply text-slate-400 text-sm space-y-2 mb-6 list-disc list-inside;
+  }
+
+  .prof-modal-warning {
+    @apply text-yellow-400 text-sm mb-6 flex items-start gap-2;
+  }
+
+  .prof-modal-warning-icon {
+    @apply prof-icon-sm mt-0.5 flex-shrink-0;
+  }
+
+  .prof-modal-irreversible {
+    @apply font-bold mb-6;
+  }
+
+  .prof-modal-actions {
+    @apply flex gap-3;
+  }
+
+  .prof-modal-btn {
+    @apply flex-1;
+  }
+}

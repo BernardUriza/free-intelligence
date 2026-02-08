@@ -80,11 +80,11 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   unknown: 'Unknown',
 };
 
-const STATUS_CONFIG: Record<DocumentStatus, { icon: typeof Clock; color: string; bg: string; label: string }> = {
-  pending: { icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-500/10', label: 'Pendiente' },
-  processing: { icon: Loader2, color: 'fi-text-primary', bg: 'bg-blue-500/10', label: 'Procesando' },
-  indexed: { icon: CheckCircle, color: 'fi-text-success', bg: 'bg-emerald-500/10', label: 'Indexado' },
-  error: { icon: AlertCircle, color: 'fi-text-error', bg: 'bg-red-500/10', label: 'Error' },
+const STATUS_CONFIG: Record<DocumentStatus, { icon: typeof Clock; statusClass: string; label: string }> = {
+  pending: { icon: Clock, statusClass: 'kno-status-pending', label: 'Pendiente' },
+  processing: { icon: Loader2, statusClass: 'kno-status-processing', label: 'Procesando' },
+  indexed: { icon: CheckCircle, statusClass: 'kno-status-indexed', label: 'Indexado' },
+  error: { icon: AlertCircle, statusClass: 'kno-status-error', label: 'Error' },
 };
 
 const PERSONA_CONFIG: Record<string, { icon: typeof Bot; color: string; label: string }> = {
@@ -190,36 +190,28 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="kno-modal-overlay">
       {/* Backdrop with blur */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="kno-modal-backdrop"
         onClick={onClose}
       />
 
       {/* Modal Container */}
       <div
-        className={`
-          absolute bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden
-          flex flex-col
-          transition-all duration-300 ease-out
-          ${isFullscreen
-            ? 'inset-2 rounded-xl'
-            : 'inset-4 sm:inset-8 lg:inset-12 xl:inset-16 rounded-2xl'
-          }
-        `}
+        className={`kno-modal-container ${isFullscreen ? 'kno-modal-fullscreen' : 'kno-modal-normal'}`}
       >
         {/* Header */}
-        <header className="flex items-center justify-between px-4 sm:px-6 py-4 fi-border-bottom bg-slate-800/50">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="kno-header">
+          <div className="kno-header-left">
             {/* Document Type Icon */}
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600">
-              <TypeIcon className="w-5 h-5 fi-text" />
+            <div className="kno-type-icon-box">
+              <TypeIcon className="kno-type-icon" />
             </div>
 
             {/* Title & Type */}
-            <div className="min-w-0">
-              <h2 className="fi-title truncate">
+            <div className="kno-header-title-wrap">
+              <h2 className="kno-title">
                 {docMeta.title || docMeta.filename || 'Documento'}
               </h2>
               <p className="fi-text-xs">
@@ -235,10 +227,10 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
               variant="ghost"
               size="sm"
               onClick={() => setShowMetadata(!showMetadata)}
-              className="hidden lg:flex"
+              className="kno-desktop-only"
               title={showMetadata ? 'Ocultar metadatos' : 'Mostrar metadatos'}
             >
-              <Layers className="w-4 h-4" />
+              <Layers className="kno-btn-icon" />
             </Button>
 
             {/* Fullscreen Toggle */}
@@ -249,9 +241,9 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
               title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
             >
               {isFullscreen ? (
-                <Minimize2 className="w-4 h-4" />
+                <Minimize2 className="kno-btn-icon" />
               ) : (
-                <Maximize2 className="w-4 h-4" />
+                <Maximize2 className="kno-btn-icon" />
               )}
             </Button>
 
@@ -260,35 +252,32 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="text-slate-400 hover:text-white"
+              className="kno-ghost-action"
             >
-              <X className="w-5 h-5" />
+              <X className="kno-close-icon" />
             </Button>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="kno-content-wrap">
           {/* Main Content Panel */}
-          <main className="flex-1 flex flex-col overflow-hidden">
+          <main className="kno-main-panel">
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 fi-border-bottom/50 bg-slate-800/30">
+            <div className="kno-toolbar">
               <div className="fi-flex-gap">
                 {/* Status Badge */}
                 <span
-                  className={`
-                    inline-flex items-center gap-1.5 px-3 py-1 rounded-full fi-text-xs-medium
-                    ${statusConfig.bg} ${statusConfig.color} border border-current/20
-                  `}
+                  className={`kno-status-badge ${statusConfig.statusClass}`}
                 >
-                  <StatusIcon className={`w-3.5 h-3.5 ${docMeta.status === 'processing' ? 'animate-spin' : ''}`} />
+                  <StatusIcon className={`kno-status-icon ${docMeta.status === 'processing' ? 'animate-spin' : ''}`} />
                   {statusConfig.label}
                 </span>
 
                 {/* Chunks Count */}
                 {docMeta.chunks_count > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-700/50 fi-text-xs">
-                    <Hash className="w-3 h-3" />
+                  <span className="kno-chunks-badge">
+                    <Hash className="kno-chunks-icon" />
                     {docMeta.chunks_count} chunks
                   </span>
                 )}
@@ -301,14 +290,14 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                   size="sm"
                   onClick={handleCopy}
                   disabled={!fullDoc?.text || loading}
-                  className="text-slate-400 hover:text-white"
+                  className="kno-ghost-action"
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 fi-text-success" />
+                    <Check className="kno-btn-icon fi-text-success" />
                   ) : (
-                    <Copy className="w-4 h-4" />
+                    <Copy className="kno-btn-icon" />
                   )}
-                  <span className="ml-1.5 hidden sm:inline">Copiar</span>
+                  <span className="kno-action-label">Copiar</span>
                 </Button>
 
                 <Button
@@ -316,26 +305,26 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                   size="sm"
                   onClick={handleDownload}
                   disabled={!fullDoc?.text || loading}
-                  className="text-slate-400 hover:text-white"
+                  className="kno-ghost-action"
                 >
-                  <Download className="w-4 h-4" />
-                  <span className="ml-1.5 hidden sm:inline">Descargar</span>
+                  <Download className="kno-btn-icon" />
+                  <span className="kno-action-label">Descargar</span>
                 </Button>
               </div>
             </div>
 
             {/* Content Viewer */}
-            <div className="flex-1 overflow-auto p-4 sm:p-6">
+            <div className="kno-content-area">
               {loading ? (
-                <div className="fi-empty-state h-full text-slate-400">
-                  <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                <div className="kno-state-muted">
+                  <Loader2 className="kno-loading-spinner" />
                   <p>Cargando contenido...</p>
                 </div>
               ) : error ? (
-                <div className="fi-empty-state h-full fi-text-error">
-                  <AlertCircle className="w-10 h-10 mb-4" />
-                  <p className="font-medium">Error al cargar</p>
-                  <p className="text-sm text-slate-500 mt-1">{error}</p>
+                <div className="kno-state-error-full">
+                  <AlertCircle className="kno-state-icon" />
+                  <p className="kno-error-title">Error al cargar</p>
+                  <p className="kno-state-detail">{error}</p>
                 </div>
               ) : fullDoc?.text ? (
                 <ContentRenderer
@@ -343,10 +332,10 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                   docType={docMeta.doc_type}
                 />
               ) : (
-                <div className="fi-empty-state h-full text-slate-400">
-                  <FileQuestion className="w-10 h-10 mb-4 opacity-50" />
+                <div className="kno-state-muted">
+                  <FileQuestion className="kno-empty-icon" />
                   <p>No hay contenido disponible</p>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <p className="kno-state-detail">
                     El documento no tiene texto extraído
                   </p>
                 </div>
@@ -356,8 +345,8 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
 
           {/* Metadata Sidebar */}
           {showMetadata && (
-            <aside className="hidden lg:flex w-80 flex-col border-l border-slate-700 bg-slate-800/30 overflow-y-auto">
-              <div className="p-6 space-y-6">
+            <aside className="kno-sidebar">
+              <div className="kno-sidebar-body">
                 {/* Document Info Section */}
                 <MetadataSection title="Información" icon={FileText}>
                   <MetadataItem icon={Calendar} label="Subido">
@@ -371,7 +360,7 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                   </MetadataItem>
                   {docMeta.filename && (
                     <MetadataItem icon={File} label="Archivo">
-                      <span className="truncate" title={docMeta.filename}>
+                      <span className="kno-filename" title={docMeta.filename}>
                         {docMeta.filename}
                       </span>
                     </MetadataItem>
@@ -381,7 +370,7 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                 {/* Usage Instructions */}
                 {docMeta.usage_instructions && (
                   <MetadataSection title="Instrucciones de Uso" icon={FileCode}>
-                    <p className="text-sm fi-text italic leading-relaxed">
+                    <p className="kno-usage-text">
                       &ldquo;{docMeta.usage_instructions}&rdquo;
                     </p>
                   </MetadataSection>
@@ -394,17 +383,17 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                       {docMeta.assigned_personas.map((personaId) => {
                         const config = PERSONA_CONFIG[personaId] || {
                           icon: Bot,
-                          color: 'text-slate-400',
+                          color: 'kno-persona-icon-default',
                           label: personaId,
                         };
                         const PersonaIcon = config.icon;
                         return (
                           <div
                             key={personaId}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700/30 border border-slate-600/50"
+                            className="kno-persona-card"
                           >
-                            <PersonaIcon className={`w-4 h-4 ${config.color}`} />
-                            <span className="text-sm fi-text">{config.label}</span>
+                            <PersonaIcon className={`kno-persona-icon ${config.color}`} />
+                            <span className="kno-persona-label">{config.label}</span>
                           </div>
                         );
                       })}
@@ -415,14 +404,14 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                 {/* Questions Section */}
                 <MetadataSection title={`Preguntas (${questions.length})`} icon={HelpCircle}>
                   {loadingQuestions ? (
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                    <div className="kno-questions-loading">
+                      <Loader2 className="kno-qloading-icon" />
                       <span>Cargando...</span>
                     </div>
                   ) : questions.length === 0 ? (
-                    <p className="text-slate-500 text-sm italic">Sin preguntas aún</p>
+                    <p className="kno-questions-empty">Sin preguntas aún</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="fi-stack-md">
                       <QuestionGroup
                         source="llm_initial"
                         questions={questions.filter(q => q.source === 'llm_initial')}
@@ -438,15 +427,15 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
                 {/* Error Message */}
                 {docMeta.error_message && (
                   <MetadataSection title="Error" icon={AlertCircle}>
-                    <div className="p-3 rounded-lg bg-red-900/20 border border-red-700/50">
-                      <p className="text-sm fi-text-error">{docMeta.error_message}</p>
+                    <div className="kno-error-card">
+                      <p className="kno-error-text">{docMeta.error_message}</p>
                     </div>
                   </MetadataSection>
                 )}
 
                 {/* Hash for verification */}
                 <MetadataSection title="Verificación" icon={Hash} defaultCollapsed>
-                  <div className="font-mono fi-text-xs-muted break-all p-2 bg-slate-900/50 rounded">
+                  <div className="kno-hash-display">
                     SHA256: {docMeta.sha256}
                   </div>
                 </MetadataSection>
@@ -469,26 +458,22 @@ function ContentRenderer({ text, docType }: { text: string; docType: DocumentTyp
 
   return (
     <div
-      className={`
-        ${isCode ? 'font-mono text-sm' : 'text-base'}
-        fi-text whitespace-pre-wrap leading-relaxed
-        selection:bg-emerald-500/30
-      `}
+      className={isCode ? 'kno-content-code' : 'kno-content-prose'}
     >
       {/* Line numbers for code-like content */}
       {isCode ? (
         <div className="relative">
           {text.split('\n').map((line, i) => (
-            <div key={i} className="flex group hover:bg-slate-800/30 -mx-2 px-2 rounded">
-              <span className="w-10 flex-shrink-0 text-slate-600 text-right pr-4 select-none text-xs leading-6">
+            <div key={i} className="kno-line-row">
+              <span className="kno-line-number">
                 {i + 1}
               </span>
-              <span className="flex-1 leading-6">{line || ' '}</span>
+              <span className="kno-line-content">{line || ' '}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="prose prose-invert prose-slate max-w-none">
+        <div className="kno-content-rich">
           {text}
         </div>
       )}
@@ -514,18 +499,18 @@ function MetadataSection({ title, icon: Icon, children, defaultCollapsed = false
     <div>
       <Button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 w-full text-left mb-3 group"
+        className="kno-meta-toggle"
         variant="ghost"
         size="sm"
         type="button"
       >
         {collapsed ? (
-          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />
+          <ChevronRight className="kno-meta-chevron" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />
+          <ChevronDown className="kno-meta-chevron" />
         )}
-        <Icon className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-medium fi-text group-hover:text-white">
+        <Icon className="kno-meta-section-icon" />
+        <span className="kno-meta-title">
           {title}
         </span>
       </Button>
@@ -542,10 +527,10 @@ interface MetadataItemProps {
 
 function MetadataItem({ icon: Icon, label, children }: MetadataItemProps) {
   return (
-    <div className="flex items-start gap-2 text-sm">
-      <Icon className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
-      <span className="text-slate-500 flex-shrink-0">{label}:</span>
-      <span className="fi-text min-w-0">{children}</span>
+    <div className="kno-meta-item">
+      <Icon className="kno-meta-item-icon" />
+      <span className="kno-meta-item-label">{label}:</span>
+      <span className="kno-meta-value">{children}</span>
     </div>
   );
 }
@@ -566,20 +551,20 @@ function QuestionGroup({ source, questions }: QuestionGroupProps) {
   const Icon = config.icon;
 
   return (
-    <div className={`rounded-lg p-3 ${config.bgClass}`}>
-      <div className={`flex items-center gap-2 mb-2 ${config.textClass}`}>
-        <Icon className="w-4 h-4" />
-        <span className="text-sm font-medium">
+    <div className={`kno-question-group ${config.bgClass}`}>
+      <div className={`kno-question-header ${config.textClass}`}>
+        <Icon className="kno-btn-icon" />
+        <span className="kno-question-title">
           {config.label} ({questions.length})
         </span>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="kno-question-list">
         {questions.map((q) => (
-          <li key={q.question_id} className="text-sm text-slate-300">
-            <span className="text-slate-500 mr-1">•</span>
+          <li key={q.question_id} className="kno-question-item">
+            <span className="kno-question-bullet">•</span>
             {q.question}
             {source === 'user_query' && q.timestamp && (
-              <span className="text-slate-500 text-xs ml-2">
+              <span className="kno-question-time">
                 {formatRelativeTime(q.timestamp)}
               </span>
             )}

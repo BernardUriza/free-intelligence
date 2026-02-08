@@ -30,19 +30,19 @@ function ChatCheckinContent() {
   // Validate QR parameters
   if (!clinicId) {
     return (
-      <div className="fi-page-centered p-4">
-        <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-950/30 flex items-center justify-center">
+      <div className="chk-page-centered">
+        <div className="checkin-card">
+          <div className="checkin-icon-wrapper checkin-icon-error">
             <AlertCircle className="fi-icon-xl fi-text-error" />
           </div>
-          <h1 className="fi-title-2xl mb-2">
+          <h1 className="chk-title">
             Enlace inválido
           </h1>
-          <p className="text-slate-400 mb-6">
+          <p className="chk-body-muted">
             Este enlace de check-in no es válido o ha expirado.
             Por favor, escanea el código QR en la sala de espera.
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+          <div className="checkin-hint">
             <QrCode className="fi-icon-sm" />
             <span>Escanea el QR para hacer check-in</span>
           </div>
@@ -59,21 +59,21 @@ function ChatCheckinContent() {
 
     if (now - qrTime > fiveMinutes) {
       return (
-        <div className="fi-page-centered p-4">
-          <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-orange-950/30 flex items-center justify-center">
-              <AlertCircle className="w-8 h-8 text-orange-400" />
+        <div className="chk-page-centered">
+          <div className="checkin-card">
+            <div className="checkin-icon-wrapper checkin-icon-warning">
+              <AlertCircle className="chk-alert-icon" />
             </div>
-            <h1 className="fi-title-2xl mb-2">
+            <h1 className="chk-title">
               Código QR expirado
             </h1>
-            <p className="text-slate-400 mb-6">
+            <p className="chk-body-muted">
               Este código QR ha expirado por seguridad.
               Por favor, escanea el código QR actualizado en la pantalla de la sala de espera.
             </p>
             <button
               onClick={() => window.close()}
-              className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
+              className="chk-btn-close"
             >
               Cerrar
             </button>
@@ -90,15 +90,15 @@ function ChatCheckinContent() {
   if (nonce) fallbackParams.set('n', nonce);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col">
+    <div className="chk-page-layout">
       {/* Header with fallback link */}
-      <header className="flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
+      <header className="chk-header">
+        <div className="chk-header-brand">
+          <div className="chk-header-logo">
+            <span className="chk-header-logo-text">A</span>
           </div>
           <div>
-            <h1 className="text-white font-semibold">FI Receptionist</h1>
+            <h1 className="chk-header-title">FI Receptionist</h1>
             <p className="fi-text-xs">Check-in conversacional</p>
           </div>
         </div>
@@ -106,16 +106,16 @@ function ChatCheckinContent() {
         {/* Fallback to form-based check-in */}
         <Link
           href={`/checkin?${fallbackParams.toString()}`}
-          className="flex items-center gap-2 px-3 py-1.5 fi-subtitle hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+          className="chk-fallback-link"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Formulario tradicional</span>
-          <span className="sm:hidden">Formulario</span>
+          <ArrowLeft className="chk-fallback-icon" />
+          <span className="chk-fallback-label-full">Formulario tradicional</span>
+          <span className="chk-fallback-label-short">Formulario</span>
         </Link>
       </header>
 
       {/* Chat Widget - Full screen */}
-      <main className="flex-1 relative">
+      <main className="chk-main">
         <ReceptionistChatWidget
           clinicId={clinicId}
           patientName={patientName || undefined}
@@ -127,7 +127,7 @@ function ChatCheckinContent() {
       </main>
 
       {/* Footer */}
-      <footer className="px-4 py-2 bg-slate-900/80 border-t border-slate-800 text-center">
+      <footer className="chk-footer">
         <p className="fi-text-xs-muted">
           100% Local · Datos protegidos · Powered by AURITY
         </p>
@@ -140,12 +140,12 @@ export default function ChatCheckinPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-indigo-600/20 flex items-center justify-center animate-pulse">
-              <Building2 className="w-6 h-6 text-indigo-400" strokeWidth={1.5} aria-hidden="true" />
+        <div className="chk-loading-wrapper">
+          <div className="chk-loading-content">
+            <div className="chk-loading-icon-ring">
+              <Building2 className="chk-loading-icon" strokeWidth={1.5} aria-hidden="true" />
             </div>
-            <p className="text-slate-400 animate-pulse">Iniciando asistente de check-in...</p>
+            <p className="chk-loading-text">Iniciando asistente de check-in...</p>
           </div>
         </div>
       }

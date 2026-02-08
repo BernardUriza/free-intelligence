@@ -196,25 +196,25 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
   const isFormValid = maxClinics >= 1;
 
   return (
-    <div className={`max-w-4xl mx-auto ${className}`}>
+    <div className={`lic-gen-container ${className}`}>
       {/* Result Display */}
       {result && (
         <div className="admin-license-result">
-          <div className="flex items-center gap-2 mb-4">
-            <Check className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-lg font-semibold text-emerald-400">
+          <div className="lic-gen-result-header">
+            <Check className="lic-gen-result-icon" />
+            <h3 className="lic-gen-result-title">
               Licencia generada exitosamente
             </h3>
           </div>
 
           {/* License Key */}
-          <div className="mb-4">
-            <label className="block text-sm text-slate-400 mb-2">Clave de Licencia</label>
-            <div className="flex gap-2">
+          <div className="lic-gen-key-wrapper">
+            <label className="lic-gen-key-label">Clave de Licencia</label>
+            <div className="lic-gen-key-row">
               <code className="admin-license-key-display">
                 {result.license_key}
               </code>
-              <div className="flex flex-col gap-2">
+              <div className="lic-gen-key-actions">
                 <Button
                   onClick={downloadLicenseFile}
                   variant="primary"
@@ -236,33 +236,33 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           </div>
 
           {/* License Details */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="lic-gen-details-grid">
             <div>
-              <span className="text-slate-400">ID de Licencia:</span>
-              <span className="ml-2 text-slate-200 font-mono">{result.license_id}</span>
+              <span className="lic-text-label">ID de Licencia:</span>
+              <span className="lic-text-value-mono">{result.license_id}</span>
             </div>
             <div>
-              <span className="text-slate-400">Titular:</span>
-              <span className="ml-2 text-slate-200">
+              <span className="lic-text-label">Titular:</span>
+              <span className="lic-text-value">
                 {result.license_holder || '(no especificado)'}
               </span>
             </div>
             <div>
-              <span className="text-slate-400">Máx. Clínicas:</span>
-              <span className="ml-2 text-slate-200">{result.max_clinics}</span>
+              <span className="lic-text-label">Max. Clinicas:</span>
+              <span className="lic-text-value">{result.max_clinics}</span>
             </div>
             <div>
-              <span className="text-slate-400">Expira:</span>
-              <span className="ml-2 text-slate-200">{formatDate(result.expires_at)}</span>
+              <span className="lic-text-label">Expira:</span>
+              <span className="lic-text-value">{formatDate(result.expires_at)}</span>
             </div>
-            <div className="col-span-2">
-              <span className="text-slate-400">Features:</span>
-              <span className="ml-2 text-slate-200">{result.features.join(', ')}</span>
+            <div className="lic-gen-details-full">
+              <span className="lic-text-label">Features:</span>
+              <span className="lic-text-value">{result.features.join(', ')}</span>
             </div>
           </div>
 
           {/* Generate Another Button */}
-          <div className="mt-6 pt-4 border-t border-slate-700">
+          <div className="lic-gen-details-divider">
             <Button onClick={handleReset} variant="outline" icon={RefreshCw}>
               Generar Otra Licencia
             </Button>
@@ -273,24 +273,24 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       {/* Error Display */}
       {error && (
         <div className="admin-license-error">
-          <p className="text-red-400">{error}</p>
+          <p className="lic-gen-error-text">{error}</p>
         </div>
       )}
 
       {/* Generation Form */}
       {!result && (
-        <form onSubmit={handleGenerate} className="space-y-6">
+        <form onSubmit={handleGenerate} className="lic-gen-form">
           {/* License Capacity */}
           <div className="admin-license-section">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-blue-400" />
-              <h3 className="text-lg font-medium text-slate-200">Capacidad de Licencia</h3>
+            <div className="lic-gen-section-header">
+              <Users className="lic-gen-section-icon-blue" />
+              <h3 className="lic-gen-section-title">Capacidad de Licencia</h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="lic-gen-field-grid">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  Máximo de Clínicas <span className="text-red-400">*</span>
+                <label className="lic-gen-field-label">
+                  Maximo de Clinicas <span className="lic-gen-field-required">*</span>
                 </label>
                 <input
                   type="number"
@@ -301,23 +301,23 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   required
                   className="admin-license-input"
                 />
-                <p className="mt-1 text-xs text-slate-500">
-                  El admin creará las clínicas después de activar la licencia
+                <p className="lic-gen-field-hint">
+                  El admin creara las clinicas despues de activar la licencia
                 </p>
               </div>
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
+                <label className="lic-gen-field-label">
                   Titular de Licencia
                 </label>
                 <input
                   type="text"
                   value={licenseHolder}
                   onChange={(e) => setLicenseHolder(e.target.value)}
-                  placeholder="Dr. García / Hospital Central"
+                  placeholder="Dr. Garcia / Hospital Central"
                   className="admin-license-input"
                 />
-                <p className="mt-1 text-xs text-slate-500">
-                  Opcional, solo para identificación
+                <p className="lic-gen-field-hint">
+                  Opcional, solo para identificacion
                 </p>
               </div>
             </div>
@@ -325,12 +325,12 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
 
           {/* Features */}
           <div className="admin-license-section">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-medium text-slate-200">Funcionalidades</h3>
+            <div className="lic-gen-section-header">
+              <Sparkles className="lic-gen-section-icon-amber" />
+              <h3 className="lic-gen-section-title">Funcionalidades</h3>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="lic-gen-features-grid">
               {features.map((feature) => (
                 <label
                   key={feature.id}
@@ -340,11 +340,11 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                     type="checkbox"
                     checked={selectedFeatures.includes(feature.id)}
                     onChange={() => toggleFeature(feature.id)}
-                    className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                    className="lic-gen-feature-checkbox"
                   />
                   <div>
-                    <div className="text-sm font-medium text-slate-200">{feature.name}</div>
-                    <div className="text-xs text-slate-500">{feature.description}</div>
+                    <div className="lic-gen-feature-name">{feature.name}</div>
+                    <div className="lic-gen-feature-desc">{feature.description}</div>
                   </div>
                 </label>
               ))}
@@ -353,12 +353,12 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
 
           {/* Expiration */}
           <div className="admin-license-section">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-cyan-400" />
-              <h3 className="text-lg font-medium text-slate-200">Vigencia</h3>
+            <div className="lic-gen-section-header">
+              <Calendar className="lic-gen-section-icon-cyan" />
+              <h3 className="lic-gen-section-title">Vigencia</h3>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="lic-gen-expiration-row">
               <label
                 className={expirationPreset === '1year' ? 'admin-license-radio-active' : 'admin-license-radio'}
               >
@@ -367,9 +367,9 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   name="expiration"
                   checked={expirationPreset === '1year'}
                   onChange={() => setExpirationPreset('1year')}
-                  className="w-4 h-4"
+                  className="lic-gen-radio-size"
                 />
-                <span className="text-slate-200">1 Año</span>
+                <span className="lic-gen-radio-label">1 Ano</span>
               </label>
 
               <label
@@ -380,9 +380,9 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   name="expiration"
                   checked={expirationPreset === '2years'}
                   onChange={() => setExpirationPreset('2years')}
-                  className="w-4 h-4"
+                  className="lic-gen-radio-size"
                 />
-                <span className="text-slate-200">2 Años</span>
+                <span className="lic-gen-radio-label">2 Anos</span>
               </label>
 
               <label
@@ -393,22 +393,22 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   name="expiration"
                   checked={expirationPreset === 'custom'}
                   onChange={() => setExpirationPreset('custom')}
-                  className="w-4 h-4"
+                  className="lic-gen-radio-size"
                 />
-                <span className="text-slate-200">Personalizado</span>
+                <span className="lic-gen-radio-label">Personalizado</span>
               </label>
 
               {expirationPreset === 'custom' && (
-                <div className="flex items-center gap-2">
+                <div className="lic-gen-custom-days-row">
                   <input
                     type="number"
                     value={customDays}
                     onChange={(e) => setCustomDays(Math.max(1, parseInt(e.target.value) || 1))}
                     min={1}
                     max={3650}
-                    className="w-24 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 focus:border-cyan-500 focus:outline-none"
+                    className="lic-gen-custom-days-input"
                   />
-                  <span className="text-slate-400">días</span>
+                  <span className="lic-gen-custom-days-label">dias</span>
                 </div>
               )}
             </div>

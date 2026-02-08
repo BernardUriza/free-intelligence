@@ -8,11 +8,11 @@ import type { AISuggestion, SuggestionStyles } from './types';
 export function getSeverityStyles(severity: string | undefined): string {
   switch (severity) {
     case 'Leve':
-      return 'bg-yellow-500/20 text-yellow-400';
+      return 'cnotes-severity-leve';
     case 'Moderada':
-      return 'bg-orange-500/20 text-orange-400';
+      return 'cnotes-severity-moderada';
     default:
-      return 'bg-red-500/20 text-red-400';
+      return 'cnotes-severity-default';
   }
 }
 

@@ -1,0 +1,401 @@
+/**
+ * Onboarding Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: onb-{component}[-variant]
+ * Covers: /components/onboarding/DesktopSetupWizard.tsx
+ */
+
+/* ==========================================
+ * @utility — composable base classes
+ * ========================================== */
+
+@utility onb-icon-sm {
+  @apply w-4 h-4;
+}
+
+@utility onb-icon-md {
+  @apply w-6 h-6;
+}
+
+@utility onb-icon-lg {
+  @apply w-8 h-8;
+}
+
+@utility onb-icon-xl {
+  @apply w-10 h-10;
+}
+
+@utility onb-icon-cyan {
+  @apply text-cyan-500;
+}
+
+@utility onb-icon-white {
+  @apply text-white;
+}
+
+@utility onb-icon-emerald {
+  @apply text-emerald-500;
+}
+
+@utility onb-icon-red {
+  @apply text-red-400;
+}
+
+@utility onb-icon-yellow {
+  @apply text-yellow-400;
+}
+
+@utility onb-icon-spin {
+  @apply animate-spin;
+}
+
+@utility onb-text-title {
+  @apply text-2xl font-bold text-white;
+}
+
+@utility onb-text-subtitle {
+  @apply text-xl font-bold text-white;
+}
+
+@utility onb-text-label {
+  @apply text-white font-medium;
+}
+
+@utility onb-text-body {
+  @apply text-slate-300 text-sm;
+}
+
+@utility onb-text-muted {
+  @apply text-slate-400 text-sm;
+}
+
+@utility onb-text-version {
+  @apply text-cyan-400 text-sm font-mono;
+}
+
+@utility onb-text-fine {
+  @apply text-xs text-slate-500;
+}
+
+@utility onb-text-fine-muted {
+  @apply text-xs text-slate-400;
+}
+
+@utility onb-stack-sm {
+  @apply space-y-2;
+}
+
+@utility onb-stack-md {
+  @apply space-y-3;
+}
+
+@utility onb-stack-lg {
+  @apply space-y-4;
+}
+
+@utility onb-row {
+  @apply flex items-center gap-3;
+}
+
+@utility onb-row-mb {
+  @apply flex items-center gap-3 mb-3;
+}
+
+@utility onb-btn-row {
+  @apply flex gap-3;
+}
+
+@utility onb-icon-mr {
+  @apply mr-2;
+}
+
+@utility onb-list {
+  @apply list-disc list-inside space-y-1 ml-2;
+}
+
+@utility onb-font-medium {
+  @apply font-medium;
+}
+
+@layer components {
+  /* ==========================================
+   * OVERLAY + MODAL SHELL
+   * ========================================== */
+  .onb-overlay {
+    @apply fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm
+           flex items-center justify-center p-4 overflow-y-auto;
+  }
+
+  .onb-modal {
+    @apply bg-slate-900 border border-slate-700 rounded-2xl
+           shadow-2xl max-w-lg w-full p-6 space-y-6 my-4;
+  }
+
+  /* ==========================================
+   * HEADER
+   * ========================================== */
+  .onb-header {
+    @apply text-center space-y-2;
+  }
+
+  .onb-header-icon {
+    @apply w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-cyan-500
+           rounded-2xl flex items-center justify-center;
+  }
+
+  /* ==========================================
+   * CHECKING SCREEN
+   * ========================================== */
+  .onb-checking-box {
+    @apply flex items-center justify-center gap-3 p-4 bg-slate-800 rounded-lg;
+  }
+
+  /* ==========================================
+   * NOT INSTALLED SCREEN
+   * ========================================== */
+  .onb-info-card {
+    @apply p-4 bg-cyan-900/20 rounded-lg border border-cyan-700;
+  }
+
+  .onb-info-body {
+    @apply space-y-2 text-sm text-slate-300;
+  }
+
+  .onb-btn-primary {
+    @apply flex-1 bg-cyan-600 hover:bg-cyan-500 text-white;
+  }
+
+  .onb-text-center-fine {
+    @apply text-xs text-slate-500 text-center;
+  }
+
+  /* ==========================================
+   * INSTALLING SCREEN
+   * ========================================== */
+  .onb-progress-track {
+    @apply h-2 bg-slate-800 rounded-full overflow-hidden;
+  }
+
+  .onb-progress-fill {
+    @apply h-full bg-gradient-to-r from-cyan-600 to-cyan-400
+           transition-all duration-300;
+  }
+
+  .onb-progress-log {
+    @apply max-h-48 overflow-y-auto p-3 bg-slate-800 rounded-lg
+           border border-slate-700;
+  }
+
+  .onb-log-line {
+    @apply text-xs font-mono mb-1 text-slate-300;
+  }
+
+  .onb-log-line-success {
+    @apply text-xs font-mono mb-1 text-emerald-400;
+  }
+
+  /* ==========================================
+   * READY SCREEN
+   * ========================================== */
+  .onb-ready-wrapper {
+    @apply space-y-4 text-center;
+  }
+
+  .onb-ready-icon {
+    @apply w-16 h-16 mx-auto bg-emerald-500/20 rounded-full
+           flex items-center justify-center;
+  }
+
+  .onb-ready-title {
+    @apply text-xl font-bold text-white mb-2;
+  }
+
+  .onb-ready-info {
+    @apply text-sm text-cyan-300 flex items-center gap-2;
+  }
+
+  .onb-ready-subtext {
+    @apply text-xs text-slate-400 mt-2;
+  }
+
+  /* ==========================================
+   * ERROR SCREEN
+   * ========================================== */
+  .onb-error-card {
+    @apply p-4 bg-red-900/20 rounded-lg border border-red-700;
+  }
+
+  .onb-error-icon {
+    @apply w-10 h-10 bg-red-500/20 rounded-full
+           flex items-center justify-center;
+  }
+
+  .onb-error-detail {
+    @apply text-red-300 text-sm mt-1;
+  }
+
+  .onb-hint-box {
+    @apply p-3 bg-slate-800 rounded-lg;
+  }
+
+  .onb-hint-text {
+    @apply text-xs text-slate-400 flex items-start gap-2;
+  }
+
+  .onb-hint-icon {
+    @apply w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5;
+  }
+
+  .onb-link {
+    @apply text-cyan-400 hover:underline;
+  }
+}
+
+/* ==========================================
+ * AUTH LOGIN DOMAIN
+ * Covers: /app/login/page.tsx
+ * Naming: auth-login-{component}[-variant]
+ * ========================================== */
+
+@utility auth-login-icon-spin {
+  @apply animate-spin h-4 w-4;
+}
+
+@layer components {
+  .auth-login-wrapper {
+    @apply min-h-screen flex items-center justify-center bg-slate-950 px-4;
+  }
+
+  .auth-login-card {
+    @apply w-full max-w-sm;
+  }
+
+  .auth-login-title {
+    @apply text-2xl font-bold text-white text-center mb-1;
+  }
+
+  .auth-login-subtitle {
+    @apply text-slate-400 text-center text-sm mb-8;
+  }
+
+  .auth-login-form {
+    @apply space-y-4;
+  }
+
+  .auth-login-label {
+    @apply block text-sm text-slate-300 mb-1;
+  }
+
+  .auth-login-error {
+    @apply text-red-400 text-sm;
+  }
+
+  .auth-login-footer {
+    @apply text-slate-500 text-sm text-center mt-6;
+  }
+
+  .auth-login-link {
+    @apply text-emerald-400 hover:text-emerald-300;
+  }
+}
+
+/* ==========================================
+ * AUTH REGISTER DOMAIN
+ * Covers: /app/register/page.tsx
+ * Naming: auth-register-{component}[-variant]
+ * ========================================== */
+
+@utility auth-register-icon-spin {
+  @apply animate-spin h-4 w-4;
+}
+
+@layer components {
+  .auth-register-wrapper {
+    @apply min-h-screen flex items-center justify-center bg-slate-950 px-4;
+  }
+
+  .auth-register-card {
+    @apply w-full max-w-sm;
+  }
+
+  .auth-register-title {
+    @apply text-2xl font-bold text-white text-center mb-1;
+  }
+
+  .auth-register-subtitle {
+    @apply text-slate-400 text-center text-sm mb-8;
+  }
+
+  .auth-register-form {
+    @apply space-y-4;
+  }
+
+  .auth-register-label {
+    @apply block text-sm text-slate-300 mb-1;
+  }
+
+  .auth-register-error {
+    @apply text-red-400 text-sm;
+  }
+
+  .auth-register-footer {
+    @apply text-slate-500 text-sm text-center mt-6;
+  }
+
+  .auth-register-link {
+    @apply text-emerald-400 hover:text-emerald-300;
+  }
+}
+
+/* ==========================================
+ * AUTH UNAUTHORIZED DOMAIN
+ * Covers: /app/unauthorized/page.tsx
+ * Naming: auth-unauth-{component}[-variant]
+ * ========================================== */
+
+@utility auth-unauth-icon-alert {
+  @apply w-12 h-12 text-red-500;
+}
+
+@utility auth-unauth-title-mb {
+  @apply text-center mb-3;
+}
+
+@utility auth-unauth-help-label-mb {
+  @apply mb-2;
+}
+
+@utility auth-unauth-help-text {
+  @apply text-sm;
+}
+
+@layer components {
+  .auth-unauth-wrapper {
+    @apply min-h-screen flex items-center justify-center bg-slate-900 px-4;
+  }
+
+  .auth-unauth-card {
+    @apply max-w-md w-full bg-red-900/20 border border-red-500/50 rounded-lg p-8;
+  }
+
+  .auth-unauth-icon-row {
+    @apply flex justify-center mb-6;
+  }
+
+  .auth-unauth-icon-circle {
+    @apply w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center;
+  }
+
+  .auth-unauth-message {
+    @apply text-red-200 text-center mb-6;
+  }
+
+  .auth-unauth-help-box {
+    @apply bg-slate-800/50 rounded-lg p-4 mb-6;
+  }
+
+  .auth-unauth-actions {
+    @apply flex flex-col gap-3;
+  }
+}

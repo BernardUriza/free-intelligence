@@ -20,10 +20,10 @@ export interface KPICardProps {
 }
 
 const statusColors: Record<KPIStatus, string> = {
-  success: "text-emerald-600 dark:fi-text-success",
-  warning: "text-amber-600 dark:fi-text-warning",
-  error: "text-red-600 dark:fi-text-error",
-  neutral: "text-slate-600 dark:text-slate-400",
+  success: "dash-kpi-status-success",
+  warning: "dash-kpi-status-warning",
+  error: "dash-kpi-status-error",
+  neutral: "dash-kpi-status-neutral",
 }
 
 const trendIcons: Record<KPITrend, React.ReactNode> = {
@@ -47,14 +47,14 @@ export function KPICard({
 
   return (
     <Card className={`hover:shadow-lg transition-shadow ${className}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-slate-600 dark:fi-text">
+      <CardHeader className="dash-kpi-card-header">
+        <CardTitle className="dash-kpi-card-title">
           {title}
         </CardTitle>
         {icon && <div className="text-slate-400">{icon}</div>}
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
+        <div className="dash-kpi-value-row">
           <div className={`text-3xl font-bold ${statusColor}`}>
             {value}
             {unit && <span className="text-lg ml-1">{unit}</span>}
@@ -66,12 +66,12 @@ export function KPICard({
           )}
         </div>
         {description && (
-          <p className="fi-text-xs-muted dark:text-slate-400 mt-2">
+          <p className="dash-kpi-description">
             {description}
           </p>
         )}
         {target && (
-          <p className="fi-text-xs dark:text-slate-500 mt-1">
+          <p className="dash-kpi-target">
             Target: {target}
           </p>
         )}

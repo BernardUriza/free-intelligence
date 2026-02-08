@@ -95,17 +95,17 @@ export function DoctorOverrideEditor({
   };
 
   return (
-    <div className="p-4 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+    <div className="dov-container">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <Shield className="w-4 h-4 text-yellow-400" />
-        <span className="text-sm font-medium text-yellow-300">
+      <div className="dov-header">
+        <Shield className="dov-header-icon" />
+        <span className="dov-header-title">
           Override de Límite (Superadmin)
         </span>
       </div>
 
       {/* Info */}
-      <p className="text-xs text-yellow-400/70 mb-3">
+      <p className="dov-info">
         El límite del plan ({limits.plan_display_name}) es{' '}
         {limits.max_allowed === null ? 'ilimitado' : `${limits.max_allowed} doctores`}.
         {limits.has_override && ' Actualmente hay un override activo.'}
@@ -113,16 +113,16 @@ export function DoctorOverrideEditor({
 
       {/* Error */}
       {error && (
-        <div className="p-2 bg-red-500/20 border border-red-500/30 rounded mb-3">
-          <p className="text-xs text-red-300">{error}</p>
+        <div className="dov-error">
+          <p className="dov-error-text">{error}</p>
         </div>
       )}
 
       {/* Editor */}
       {isEditing ? (
-        <div className="space-y-3">
+        <div className="dov-editor">
           <div>
-            <label className="block text-xs text-yellow-400/70 mb-1">
+            <label className="dov-label">
               Nuevo límite de doctores
             </label>
             <input
@@ -132,65 +132,65 @@ export function DoctorOverrideEditor({
               placeholder="Dejar vacío para usar límite del plan"
               min={1}
               max={1000}
-              className="w-full px-3 py-2 bg-slate-900 border border-yellow-700/50 rounded-lg text-white text-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none"
+              className="dov-input"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="dov-hint">
               Dejar vacío para usar el límite del plan
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="dov-btn-row">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+              className="dov-save-btn"
             >
               {saving ? (
-                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="dov-spinner" />
               ) : (
-                <Save className="w-3 h-3" />
+                <Save className="dov-btn-icon" />
               )}
               Guardar
             </button>
             <button
               onClick={handleCancel}
               disabled={saving}
-              className="px-3 py-1.5 text-slate-400 hover:text-white text-xs transition-colors flex items-center gap-1.5"
+              className="dov-cancel-btn"
             >
-              <X className="w-3 h-3" />
+              <X className="dov-btn-icon" />
               Cancelar
             </button>
             {limits.has_override && (
               <button
                 onClick={handleRemoveOverride}
                 disabled={saving}
-                className="ml-auto px-3 py-1.5 text-red-400 hover:text-red-300 text-xs transition-colors flex items-center gap-1.5"
+                className="dov-remove-btn"
               >
-                <AlertTriangle className="w-3 h-3" />
+                <AlertTriangle className="dov-btn-icon" />
                 Eliminar override
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
+        <div className="dov-display">
           <div>
-            <span className="text-sm text-slate-300">
+            <span className="dov-status-text">
               {limits.has_override ? (
                 <>
                   Override activo:{' '}
-                  <span className="text-yellow-300 font-medium">
+                  <span className="dov-status-value">
                     {limits.max_allowed} doctores
                   </span>
                 </>
               ) : (
-                <span className="text-slate-500">Sin override configurado</span>
+                <span className="dov-status-empty">Sin override configurado</span>
               )}
             </span>
           </div>
           <button
             onClick={() => setIsEditing(true)}
-            className="px-3 py-1.5 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 text-xs font-medium rounded-lg transition-colors"
+            className="dov-edit-btn"
           >
             {limits.has_override ? 'Editar' : 'Configurar override'}
           </button>

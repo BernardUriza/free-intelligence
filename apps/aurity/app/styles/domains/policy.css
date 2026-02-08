@@ -1,0 +1,295 @@
+/**
+ * Policy Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: pol-{component}[-variant]
+ * Covers: /components/policy/PolicyViewer.tsx
+ *         /components/policy/GenericPolicyViewer.tsx
+ *         /components/policy/GlobalPolicyBanner.tsx
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility pol-accordion-trigger {
+  @apply px-6 py-4 hover:bg-slate-700/50;
+}
+
+@utility pol-trigger-inner {
+  @apply flex items-center space-x-3;
+}
+
+@utility pol-section-title {
+  @apply text-lg font-semibold text-slate-50;
+}
+
+@utility pol-accordion-body {
+  @apply px-6 pb-4 space-y-3;
+}
+
+@utility pol-label {
+  @apply text-sm font-medium text-slate-400;
+}
+
+@utility pol-code-item {
+  @apply px-3 py-2 bg-slate-900 rounded border border-slate-700 font-mono text-sm text-slate-200;
+}
+
+@utility pol-code-value {
+  @apply text-slate-200;
+}
+
+@utility pol-code-warning {
+  @apply text-yellow-400;
+}
+
+@utility pol-empty {
+  @apply text-slate-500 italic;
+}
+
+/* ========================================
+ * GENERIC VIEWER UTILITIES
+ * ======================================== */
+
+@utility pol-viewer-root {
+  @apply space-y-6;
+}
+
+@utility pol-viewer-meta-grid {
+  @apply text-sm;
+}
+
+@utility pol-viewer-meta-label {
+  @apply text-slate-500;
+}
+
+@utility pol-viewer-meta-value {
+  @apply ml-2 font-mono;
+}
+
+@utility pol-viewer-meta-date {
+  @apply ml-2;
+}
+
+@utility pol-viewer-meta-source {
+  @apply ml-2 text-slate-400 font-mono text-xs;
+}
+
+@utility pol-viewer-section-header {
+  @apply flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/50 transition-colors;
+}
+
+@utility pol-viewer-section-title {
+  @apply text-lg font-semibold text-slate-50 capitalize;
+}
+
+@utility pol-viewer-section-content {
+  @apply px-4 pb-4;
+}
+
+@utility pol-viewer-content-inner {
+  @apply mt-4 font-mono text-sm;
+}
+
+@utility pol-viewer-copy-btn {
+  @apply p-2 hover:bg-slate-600 rounded transition-colors;
+}
+
+@utility pol-value-null {
+  @apply text-slate-500 italic;
+}
+
+@utility pol-value-string {
+  @apply text-amber-300;
+}
+
+@utility pol-value-empty-arr {
+  @apply text-slate-500;
+}
+
+@utility pol-value-fallback {
+  @apply text-slate-400;
+}
+
+@utility pol-value-arr-wrap {
+  @apply ml-4 space-y-1;
+}
+
+@utility pol-value-arr-item {
+  @apply flex items-start gap-2;
+}
+
+@utility pol-value-arr-dash {
+  @apply text-slate-600;
+}
+
+@utility pol-value-obj-wrap {
+  @apply ml-4 space-y-2;
+}
+
+@utility pol-value-obj-entry {
+  @apply flex items-start gap-2;
+}
+
+@utility pol-value-obj-key {
+  @apply font-mono;
+}
+
+@utility pol-viewer-chevron {
+  @apply h-5 w-5 text-slate-400;
+}
+
+@utility pol-viewer-icon-sm {
+  @apply h-4 w-4;
+}
+
+@utility pol-viewer-icon-copy {
+  @apply h-4 w-4 text-slate-400;
+}
+
+/* ========================================
+ * BANNER UTILITIES
+ * ======================================== */
+
+@utility pol-banner-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5;
+}
+
+@utility pol-banner-principles {
+  @apply flex items-center gap-6;
+}
+
+@utility pol-banner-icon {
+  @apply h-4 w-4;
+}
+
+@utility pol-banner-label {
+  @apply text-sm font-medium text-emerald-200;
+}
+
+@utility pol-banner-desc {
+  @apply text-xs text-emerald-300/60;
+}
+
+@utility pol-banner-dismiss {
+  @apply text-emerald-300 hover:bg-emerald-800/30;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE HEADER
+   * ======================================== */
+  .pol-page-title {
+    @apply text-3xl font-bold text-slate-50 flex items-center space-x-3;
+  }
+
+  .pol-page-subtitle {
+    @apply text-slate-400 mt-2;
+  }
+
+  .pol-header-icon {
+    @apply h-8 w-8;
+  }
+
+  /* ========================================
+   * SECTION ICONS
+   * ======================================== */
+  .pol-section-icon {
+    @apply h-5 w-5;
+  }
+
+  .pol-icon-orange {
+    @apply text-orange-400;
+  }
+
+  /* ========================================
+   * ACCORDION LAYOUT
+   * ======================================== */
+  .pol-accordion-list {
+    @apply space-y-4;
+  }
+
+  /* ========================================
+   * METADATA
+   * ======================================== */
+  .pol-metadata {
+    @apply space-y-1;
+  }
+
+  /* ========================================
+   * LIST & ITEMS
+   * ======================================== */
+  .pol-list {
+    @apply mt-1 space-y-2;
+  }
+
+  .pol-code-item-inline {
+    @apply px-3 py-2 bg-slate-900 rounded border border-slate-700 font-mono text-sm text-slate-200 inline-block mr-2;
+  }
+
+  /* ========================================
+   * INPUT DISPLAY MONO
+   * ======================================== */
+  .pol-input-mono {
+    @apply font-mono text-sm text-slate-200;
+  }
+
+  /* ========================================
+   * FOOTER
+   * ======================================== */
+  .pol-note-strong {
+    @apply text-slate-50;
+  }
+
+  /* ========================================
+   * FOOTER PANEL
+   * ======================================== */
+  .pol-footer {
+    @apply p-4;
+  }
+
+  /* ========================================
+   * GENERIC VIEWER - COMPOUND
+   * ======================================== */
+  .pol-viewer-panel {
+    @apply fi-panel overflow-hidden;
+  }
+
+  .pol-viewer-field-badge {
+    @apply px-2 py-0.5 bg-slate-700 text-slate-400 text-xs rounded;
+  }
+
+  .pol-viewer-meta-section {
+    @apply bg-slate-800/30 border border-slate-700/50 rounded-lg p-4;
+  }
+
+  .pol-viewer-meta-title {
+    @apply text-sm font-semibold text-slate-400 mb-3;
+  }
+
+  .pol-viewer-meta-body {
+    @apply font-mono text-sm;
+  }
+
+  /* ========================================
+   * BANNER - COMPOUND
+   * ======================================== */
+  .pol-banner-root {
+    @apply border-b backdrop-blur-sm bg-emerald-900/20 border-emerald-800/50 transition-opacity duration-300;
+  }
+
+  .pol-banner-visible {
+    @apply opacity-100;
+  }
+
+  .pol-banner-hidden {
+    @apply opacity-0;
+  }
+}

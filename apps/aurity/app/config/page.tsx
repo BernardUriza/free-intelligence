@@ -70,7 +70,7 @@ export default function ConfigPage() {
   if (isLoading) {
     return (
       <div className="layout-loading-screen">
-        <div className="animate-spin h-12 w-12 border-4 border-purple-400 border-t-transparent rounded-full"></div>
+        <div className="cfg-loading-spinner"></div>
       </div>
     );
   }
@@ -84,29 +84,29 @@ export default function ConfigPage() {
 
   return (
     <AppTemplate headerConfig={headerConfig} maxWidth="full" padding="0" showWatermark={true} showGeometricBg={true}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="cfg-page-container">
         {/* Superadmin Badge */}
-        <div className="mb-6 bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+        <div className="cfg-superadmin-banner">
           <div className="fi-flex-gap">
-<Star className="w-5 h-5 fi-text-purple fill-purple-400" />
-            <span className="text-purple-300 font-medium">SUPERADMIN Access</span>
-            <span className="fi-text-purple/60 text-sm">·</span>
-            <span className="fi-text-purple/80 text-sm">{user?.email}</span>
+<Star className="cfg-superadmin-star" />
+            <span className="cfg-superadmin-label">SUPERADMIN Access</span>
+            <span className="cfg-superadmin-dot">·</span>
+            <span className="cfg-superadmin-email">{user?.email}</span>
           </div>
         </div>
 
         {/* Configuration Sections */}
-        <div className="space-y-6">
+        <div className="cfg-sections">
           {/* System Settings */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900/50 fi-border-bottom">
+          <div className="cfg-section-card">
+            <div className="cfg-section-header">
               <h2 className="fi-title">Sistema</h2>
               <p className="fi-subtitle">Configuración global del sistema</p>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="cfg-section-body">
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Modo de Mantenimiento</p>
+                  <p className="cfg-setting-label">Modo de Mantenimiento</p>
                   <p className="fi-subtitle">Bloquear acceso para usuarios no-admin</p>
                 </div>
                 <Button variant="secondary" size="sm">
@@ -116,7 +116,7 @@ export default function ConfigPage() {
 
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Logs del Sistema</p>
+                  <p className="cfg-setting-label">Logs del Sistema</p>
                   <p className="fi-subtitle">Ver logs de errores y auditoría</p>
                 </div>
                 <Button variant="primary" size="sm">
@@ -126,7 +126,7 @@ export default function ConfigPage() {
 
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Base de Datos</p>
+                  <p className="cfg-setting-label">Base de Datos</p>
                   <p className="fi-subtitle">Estado de HDF5 corpus</p>
                 </div>
                 <Button variant="secondary" size="sm">
@@ -136,7 +136,7 @@ export default function ConfigPage() {
 
               <div className="fi-settings-row">
                 <div>
-                  <p className="text-white font-medium">Reiniciar Onboarding</p>
+                  <p className="cfg-setting-label">Reiniciar Onboarding</p>
                   <p className="fi-subtitle">Resetear estado de onboarding para testing</p>
                 </div>
                 <Button
@@ -145,7 +145,7 @@ export default function ConfigPage() {
                   variant="danger"
                   size="sm"
                   loading={resettingOnboarding}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="cfg-reset-btn-override"
                 >
                   {resettingOnboarding ? 'Reseteando...' : 'Resetear'}
                 </Button>
@@ -154,47 +154,47 @@ export default function ConfigPage() {
           </div>
 
           {/* Feature Flags */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900/50 fi-border-bottom">
+          <div className="cfg-section-card">
+            <div className="cfg-section-header">
               <h2 className="fi-title">Feature Flags</h2>
               <p className="fi-subtitle">Activar/desactivar características experimentales</p>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="cfg-section-body">
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Demo Mode</p>
+                  <p className="cfg-setting-label">Demo Mode</p>
                   <p className="fi-subtitle">Modo demo con TTS simulado</p>
                 </div>
                 <div className="fi-flex-gap">
-                  <span className="fi-text-green text-sm font-medium">Activo</span>
-                  <div className="w-12 h-6 bg-green-600 rounded-full relative cursor-pointer">
-                    <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+                  <span className="cfg-toggle-label-active">Activo</span>
+                  <div className="cfg-toggle-on">
+                    <div className="cfg-toggle-knob-right"></div>
                   </div>
                 </div>
               </div>
 
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Timeline View</p>
+                  <p className="cfg-setting-label">Timeline View</p>
                   <p className="fi-subtitle">Vista cronológica de eventos</p>
                 </div>
                 <div className="fi-flex-gap">
-                  <span className="fi-text-green text-sm font-medium">Activo</span>
-                  <div className="w-12 h-6 bg-green-600 rounded-full relative cursor-pointer">
-                    <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+                  <span className="cfg-toggle-label-active">Activo</span>
+                  <div className="cfg-toggle-on">
+                    <div className="cfg-toggle-knob-right"></div>
                   </div>
                 </div>
               </div>
 
               <div className="fi-settings-row">
                 <div>
-                  <p className="text-white font-medium">Advanced Diarization</p>
+                  <p className="cfg-setting-label">Advanced Diarization</p>
                   <p className="fi-subtitle">Separación de voces mejorada</p>
                 </div>
                 <div className="fi-flex-gap">
-                  <span className="text-slate-400 text-sm font-medium">Inactivo</span>
-                  <div className="w-12 h-6 bg-slate-600 rounded-full relative cursor-pointer">
-                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+                  <span className="cfg-toggle-label-inactive">Inactivo</span>
+                  <div className="cfg-toggle-off">
+                    <div className="cfg-toggle-knob-left"></div>
                   </div>
                 </div>
               </div>
@@ -202,15 +202,15 @@ export default function ConfigPage() {
           </div>
 
           {/* Security & Access */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900/50 fi-border-bottom">
+          <div className="cfg-section-card">
+            <div className="cfg-section-header">
               <h2 className="fi-title">Seguridad & Acceso</h2>
               <p className="fi-subtitle">Gestión de roles y permisos</p>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="cfg-section-body">
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Usuarios Activos</p>
+                  <p className="cfg-setting-label">Usuarios Activos</p>
                   <p className="fi-subtitle">Gestionar usuarios del sistema</p>
                 </div>
                 <Button
@@ -224,7 +224,7 @@ export default function ConfigPage() {
 
               <div className="fi-settings-row-bordered">
                 <div>
-                  <p className="text-white font-medium">Roles & Permisos</p>
+                  <p className="cfg-setting-label">Roles & Permisos</p>
                   <p className="fi-subtitle">Configurar RBAC</p>
                 </div>
                 <Button
@@ -238,7 +238,7 @@ export default function ConfigPage() {
 
               <div className="fi-settings-row">
                 <div>
-                  <p className="text-white font-medium">Audit Trail</p>
+                  <p className="cfg-setting-label">Audit Trail</p>
                   <p className="fi-subtitle">Registro completo de cambios</p>
                 </div>
                 <Button
@@ -253,47 +253,47 @@ export default function ConfigPage() {
           </div>
 
           {/* User & Role Management */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 bg-slate-900/50 fi-border-bottom">
+          <div className="cfg-section-card">
+            <div className="cfg-section-header">
               <h2 className="fi-title">Gestión de Usuarios & Roles</h2>
               <p className="fi-subtitle">Administración centralizada de permisos RBAC</p>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="cfg-section-body-lg">
               {/* Current User Info */}
-              <div className="bg-slate-900/50 border border-slate-600 rounded-lg p-4">
-                <div className="fi-flex-between mb-3">
+              <div className="cfg-user-card">
+                <div className="cfg-header-gap">
                   <h3 className="fi-title-sm">Usuario Actual</h3>
                   {isSuperAdmin && (
-                    <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
+                    <span className="cfg-superadmin-tag">
                       SUPERADMIN
                     </span>
                   )}
                 </div>
                 <div className="fi-stack-sm">
-                  <div className="fi-flex-between text-sm">
-                    <span className="text-slate-400">Email:</span>
-                    <span className="text-white font-mono">{user?.email}</span>
+                  <div className="fi-flex-between cfg-user-info-row">
+                    <span className="cfg-user-label">Email:</span>
+                    <span className="cfg-user-email">{user?.email}</span>
                   </div>
-                  <div className="fi-flex-between text-sm">
-                    <span className="text-slate-400">User ID:</span>
-                    <span className="text-slate-500 font-mono text-xs truncate max-w-xs">
+                  <div className="fi-flex-between cfg-user-info-row">
+                    <span className="cfg-user-label">User ID:</span>
+                    <span className="cfg-user-id">
                       {user?.sub}
                     </span>
                   </div>
-                  <div className="flex items-start justify-between text-sm pt-2 fi-border-top">
-                    <span className="text-slate-400">Roles:</span>
-                    <div className="flex flex-wrap gap-1 justify-end max-w-xs">
+                  <div className="cfg-user-roles-row">
+                    <span className="cfg-user-label">Roles:</span>
+                    <div className="cfg-user-roles-wrap">
                       {roles.length > 0 ? (
                         roles.map(role => (
                           <span
                             key={role}
-                            className={`px-2 py-1 ${getRoleBadgeColor(role)} text-white fi-text-xs-medium rounded`}
+                            className={`admin-role-badge-md ${getRoleBadgeColor(role)}`}
                           >
                             {getRoleName(role)}
                           </span>
                         ))
                       ) : (
-                        <span className="text-slate-500 text-xs">Sin roles asignados</span>
+                        <span className="cfg-user-no-roles">Sin roles asignados</span>
                       )}
                     </div>
                   </div>
@@ -302,18 +302,18 @@ export default function ConfigPage() {
 
               {/* Roles Definition */}
               <div>
-                <h3 className="fi-title-sm mb-3">Roles Disponibles</h3>
-                <div className="space-y-2">
+                <h3 className="cfg-title-gap">Roles Disponibles</h3>
+                <div className="cfg-roles-list">
                   {Object.entries(ROLES).map(([_key, role]) => (
                     <div
                       key={role}
                       className="fi-list-item"
                     >
                       <div className="fi-flex-gap-md">
-                        <span className={`px-3 py-1 ${getRoleBadgeColor(role)} text-white fi-text-xs-medium rounded`}>
+                        <span className={`admin-role-badge-lg ${getRoleBadgeColor(role)}`}>
                           {getRoleName(role)}
                         </span>
-                        <span className="text-slate-400 text-sm font-mono">{role}</span>
+                        <span className="cfg-role-code">{role}</span>
                       </div>
                       <div className="fi-text-xs-muted">
                         {role === ROLES.SUPERADMIN && 'Acceso completo al sistema'}
@@ -326,51 +326,51 @@ export default function ConfigPage() {
 
               {/* Permission Matrix */}
               <div>
-                <h3 className="fi-title-sm mb-3">Permisos por Rol</h3>
-                <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-4 overflow-x-auto">
-                  <table className="w-full text-xs">
+                <h3 className="cfg-title-gap">Permisos por Rol</h3>
+                <div className="cfg-perm-table-wrap">
+                  <table className="cfg-perm-table">
                     <thead>
                       <tr className="fi-border-bottom">
-                        <th className="text-left py-2 px-2 text-slate-400 font-medium">Permiso</th>
-                        <th className="text-center py-2 px-2 fi-text-purple font-medium">SUPERADMIN</th>
-                        <th className="text-center py-2 px-2 fi-text-success font-medium">CLINICIAN</th>
+                        <th className="cfg-perm-th-left">Permiso</th>
+                        <th className="cfg-perm-th-purple">SUPERADMIN</th>
+                        <th className="cfg-perm-th-green">CLINICIAN</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Gestionar Sistema</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">--</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Gestionar Sistema</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-na">--</td>
                       </tr>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Ver Logs</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">--</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Ver Logs</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-na">--</td>
                       </tr>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Gestionar Usuarios</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">--</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Gestionar Usuarios</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-na">--</td>
                       </tr>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Crear Sesion</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Crear Sesion</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-center">Si</td>
                       </tr>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Ver Sesion</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Ver Sesion</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-center">Si</td>
                       </tr>
-                      <tr className="border-b border-slate-800">
-                        <td className="py-2 px-2 fi-text">Exportar Datos</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center">Si</td>
+                      <tr className="cfg-perm-row">
+                        <td className="cfg-perm-td">Exportar Datos</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-center">Si</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-2 fi-text">Eliminar Sesion</td>
-                        <td className="text-center">Si</td>
-                        <td className="text-center text-slate-600">--</td>
+                        <td className="cfg-perm-td">Eliminar Sesion</td>
+                        <td className="cfg-perm-center">Si</td>
+                        <td className="cfg-perm-na">--</td>
                       </tr>
                     </tbody>
                   </table>
@@ -378,33 +378,33 @@ export default function ConfigPage() {
               </div>
 
               {/* Superadmin Configuration */}
-              <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-purple-300 mb-2 fi-flex-gap">
-                  <Star className="w-4 h-4 fill-current" />
+              <div className="cfg-info-card-purple">
+                <h3 className="cfg-info-title-purple-flex">
+                  <Star className="cfg-star-sm" />
                   Configuración Superadmin
                 </h3>
-                <p className="text-xs fi-text-purple/80 mb-3">
-                  Lista de emails con acceso completo al sistema (configurado via <code className="bg-purple-950/50 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPERADMIN_EMAILS</code>)
+                <p className="cfg-info-text-purple">
+                  Lista de emails con acceso completo al sistema (configurado via <code className="cfg-code-inline-purple">NEXT_PUBLIC_SUPERADMIN_EMAILS</code>)
                 </p>
-                <div className="bg-slate-950/50 border border-purple-800/30 rounded p-3">
-                  <code className="text-xs text-purple-300 font-mono">
+                <div className="cfg-code-block-purple">
+                  <code className="cfg-code-text-purple">
                     NEXT_PUBLIC_SUPERADMIN_EMAILS=bernarduriza@gmail.com,admin@aurity.app
                   </code>
                 </div>
-                <p className="fi-text-xs-muted mt-2">
+                <p className="cfg-note-gap">
                   Nota: Cambios requieren rebuild del frontend (pnpm build)
                 </p>
               </div>
 
               {/* Auth Integration Note */}
-              <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2">
+              <div className="cfg-info-card-blue">
+                <h3 className="cfg-info-title-blue">
                    Autenticación JWT
                 </h3>
-                <p className="text-xs fi-text-primary/80 mb-2">
+                <p className="cfg-info-text-blue">
                   Los roles se asignan al registrar usuarios y se incluyen en el JWT token bajo el claim:
                 </p>
-                <code className="block bg-slate-950/50 border border-blue-800/30 rounded p-2 text-xs text-blue-300 font-mono">
+                <code className="cfg-code-block-blue">
                   roles: [&quot;FI-clinician&quot;, &quot;FI-superadmin&quot;]
                 </code>
               </div>
@@ -421,45 +421,45 @@ export default function ConfigPage() {
 
       {/* Roles Configuration Modal */}
       {showRolesModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRolesModal(false)}>
-          <div className="bg-slate-800 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 fi-border-bottom">
+        <div className="fi-modal-backdrop" onClick={() => setShowRolesModal(false)}>
+          <div className="cfg-modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="cfg-modal-header">
               <h2 className="fi-title-xl">Configurar Roles & Permisos</h2>
-              <p className="fi-subtitle mt-1">Configuración RBAC del sistema</p>
+              <p className="cfg-subtitle-gap">Configuración RBAC del sistema</p>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-purple-300 mb-2"> Gestión de Roles</h3>
-                <ol className="text-xs fi-text space-y-3 list-decimal list-inside">
+            <div className="cfg-section-body">
+              <div className="cfg-info-card-purple">
+                <h3 className="cfg-info-title-purple"> Gestión de Roles</h3>
+                <ol className="cfg-list-ordered">
                   <li>
-                    <strong className="text-white">Roles disponibles</strong>
-                    <div className="ml-5 mt-2 bg-slate-950/50 p-2 rounded text-[10px] font-mono text-slate-400">
+                    <strong className="cfg-strong-white">Roles disponibles</strong>
+                    <div className="cfg-code-mini">
                       FI-superadmin, FI-clinician
                     </div>
                   </li>
                   <li>
-                    <strong className="text-white">Asignación de roles</strong>
-                    <p className="text-slate-400 ml-5 mt-1">Los roles se asignan al registrar usuarios o via el panel de administración de usuarios.</p>
+                    <strong className="cfg-strong-white">Asignación de roles</strong>
+                    <p className="cfg-indent-text">Los roles se asignan al registrar usuarios o via el panel de administración de usuarios.</p>
                   </li>
                   <li>
-                    <strong className="text-white">JWT Claims</strong>
-                    <p className="text-slate-400 ml-5 mt-1">Los roles se incluyen automáticamente en el JWT token bajo el claim &quot;roles&quot;.</p>
+                    <strong className="cfg-strong-white">JWT Claims</strong>
+                    <p className="cfg-indent-text">Los roles se incluyen automáticamente en el JWT token bajo el claim &quot;roles&quot;.</p>
                   </li>
                 </ol>
               </div>
 
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                <h3 className="fi-title-sm mb-3">Roles Definidos en AURITY</h3>
-                <div className="space-y-2">
+              <div className="cfg-section-inner">
+                <h3 className="cfg-title-gap">Roles Definidos en AURITY</h3>
+                <div className="cfg-roles-list">
                   {Object.entries(ROLES).map(([_key, role]) => (
-                    <div key={role} className="fi-flex-between text-xs p-2 bg-slate-800/50 rounded">
+                    <div key={role} className="cfg-role-row-modal">
                       <div className="fi-flex-gap">
-                        <span className={`px-2 py-1 ${getRoleBadgeColor(role)} text-white font-medium rounded`}>
+                        <span className={`admin-role-badge-md ${getRoleBadgeColor(role)}`}>
                           {getRoleName(role)}
                         </span>
-                        <code className="text-slate-400 font-mono">{role}</code>
+                        <code className="cfg-role-code-modal">{role}</code>
                       </div>
-                      <span className="text-slate-500">
+                      <span className="cfg-role-muted">
                         {role === ROLES.SUPERADMIN && 'Full access'}
                         {role === ROLES.CLINICIAN && 'Clinical operations'}
                       </span>
@@ -468,15 +468,15 @@ export default function ConfigPage() {
                 </div>
               </div>
 
-              <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Permisos por Rol</h3>
-                <p className="text-xs fi-text-primary/80">
+              <div className="cfg-info-card-blue">
+                <h3 className="cfg-info-title-blue"> Permisos por Rol</h3>
+                <p className="cfg-info-text-blue-body">
                   Cada rol tiene permisos predefinidos que se verifican automáticamente en cada endpoint del backend.
                   El primer usuario registrado recibe el rol FI-superadmin automáticamente.
                 </p>
               </div>
             </div>
-            <div className="p-4 fi-border-top flex justify-end gap-2">
+            <div className="cfg-modal-footer">
               <Button
                 onClick={() => setShowRolesModal(false)}
                 variant="secondary"
@@ -491,35 +491,35 @@ export default function ConfigPage() {
 
       {/* Audit Trail Modal */}
       {showAuditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAuditModal(false)}>
-          <div className="bg-slate-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 fi-border-bottom">
+        <div className="fi-modal-backdrop" onClick={() => setShowAuditModal(false)}>
+          <div className="cfg-modal-md" onClick={(e) => e.stopPropagation()}>
+            <div className="cfg-modal-header">
               <h2 className="fi-title-xl">Audit Trail</h2>
-              <p className="fi-subtitle mt-1">Registro de auditoría del sistema</p>
+              <p className="cfg-subtitle-gap">Registro de auditoría del sistema</p>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-emerald-300 mb-2">Si Backend Audit Trail Activo</h3>
-                <p className="text-xs fi-text mb-3">
+            <div className="cfg-section-body">
+              <div className="cfg-info-card-emerald">
+                <h3 className="cfg-info-title-emerald">Si Backend Audit Trail Activo</h3>
+                <p className="cfg-info-text-body">
                   El backend ya registra todas las operaciones en HDF5:
                 </p>
-                <ul className="fi-text-xs space-y-2 list-disc list-inside">
+                <ul className="cfg-list-bullets">
                   <li>Operaciones LLM (generate, embed)</li>
                   <li>Exportaciones de datos</li>
                   <li>Búsquedas en corpus</li>
                   <li>Operaciones críticas (delete)</li>
                 </ul>
-                <div className="mt-3 bg-slate-950/50 p-2 rounded">
-                  <code className="text-[10px] fi-text-success">
+                <div className="cfg-code-wrap">
+                  <code className="cfg-code-text-success">
                     Location: /storage/corpus.h5:/audit_logs
                   </code>
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-                <h3 className="fi-title-sm mb-3">Estructura de Logs</h3>
-                <div className="bg-slate-950/50 p-3 rounded">
-                  <pre className="text-[10px] text-slate-400 overflow-x-auto">
+              <div className="cfg-section-inner">
+                <h3 className="cfg-title-gap">Estructura de Logs</h3>
+                <div className="cfg-pre-wrap">
+                  <pre className="cfg-pre-text">
 {`{
   "timestamp": "2025-11-20T02:45:12Z",
   "operation": "llm_generate",
@@ -534,12 +534,12 @@ export default function ConfigPage() {
                 </div>
               </div>
 
-              <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-yellow-300 mb-2"> UI de Auditoría - En Desarrollo</h3>
-                <p className="text-xs text-yellow-400/80 mb-2">
+              <div className="cfg-info-card-yellow">
+                <h3 className="cfg-info-title-yellow"> UI de Auditoría - En Desarrollo</h3>
+                <p className="cfg-info-text-yellow">
                   Próximamente: Interfaz para visualizar y filtrar logs de auditoría
                 </p>
-                <ul className="fi-text-xs space-y-1 list-disc list-inside">
+                <ul className="cfg-list-bullets-tight">
                   <li>Timeline de eventos con filtros</li>
                   <li>Búsqueda por usuario, operación, fecha</li>
                   <li>Export de logs (CSV, JSON)</li>
@@ -548,19 +548,19 @@ export default function ConfigPage() {
                 </ul>
               </div>
 
-              <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-300 mb-2"> Inspección Manual</h3>
-                <p className="text-xs fi-text mb-2">
+              <div className="cfg-info-card-blue">
+                <h3 className="cfg-info-title-blue"> Inspección Manual</h3>
+                <p className="cfg-info-text-body-sm">
                   Puedes inspeccionar los logs manualmente usando:
                 </p>
-                <div className="bg-slate-950/50 p-2 rounded">
-                  <code className="text-[10px] fi-text-primary">
+                <div className="cfg-code-wrap-plain">
+                  <code className="cfg-code-text-primary">
                     python backend/tools/inspect_corpus.py --audit-logs
                   </code>
                 </div>
               </div>
             </div>
-            <div className="p-4 fi-border-top flex justify-end">
+            <div className="cfg-modal-footer-single">
               <Button
                 onClick={() => setShowAuditModal(false)}
                 variant="secondary"

@@ -1,0 +1,103 @@
+/**
+ * Export Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: export-{component}[-variant]
+ * Examples: export-format-btn, export-verify-result
+ *
+ * @utility defines base classes composable with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility export-format-btn {
+  @apply flex-1 flex items-center justify-center gap-2 px-4 py-3
+         rounded-lg border transition-colors;
+}
+
+@utility export-verify-result {
+  @apply p-4 rounded-lg border;
+}
+
+@utility export-dialog {
+  @apply w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl;
+}
+
+@utility export-header {
+  @apply flex items-center justify-between px-6 py-4;
+}
+
+@utility export-progress-track {
+  @apply h-2 bg-slate-800 rounded-full overflow-hidden;
+}
+
+@utility export-progress-fill {
+  @apply h-full bg-emerald-500 transition-all duration-300;
+}
+
+@utility export-alert {
+  @apply flex items-center gap-2 p-3 rounded-lg border;
+}
+
+@utility export-alert-icon {
+  @apply h-4 w-4 flex-shrink-0;
+}
+
+@utility export-result-icon {
+  @apply h-5 w-5;
+}
+
+@utility export-verify-details {
+  @apply mt-3 pt-3 space-y-2;
+}
+
+@utility export-verify-row {
+  @apply flex items-center justify-between text-sm;
+}
+
+@utility export-footer {
+  @apply px-6 py-4 bg-slate-800/50 rounded-b-xl;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * FORMAT SELECTION BUTTONS
+   * ======================================== */
+  .export-format-btn-default {
+    @apply export-format-btn border-slate-700 text-slate-400
+           hover:border-slate-600;
+  }
+
+  .export-format-btn-selected {
+    @apply export-format-btn bg-emerald-900/30 border-emerald-500
+           fi-text-success;
+  }
+
+  /* ========================================
+   * VERIFY RESULT
+   * ======================================== */
+  .export-verify-result-ok {
+    @apply export-verify-result bg-emerald-900/20 border-emerald-700/30;
+  }
+
+  .export-verify-result-fail {
+    @apply export-verify-result bg-red-900/20 border-red-700/30;
+  }
+
+  /* ========================================
+   * ALERT VARIANTS
+   * ======================================== */
+  .export-alert-error {
+    @apply export-alert bg-red-900/20 border-red-700/30;
+  }
+
+  .export-alert-success {
+    @apply export-alert bg-emerald-900/20 border-emerald-700/30;
+  }
+}

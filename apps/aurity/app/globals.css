@@ -55,6 +55,20 @@
 @import "./styles/domains/dashboard.css";
 @import "./styles/domains/layout.css";
 @import "./styles/domains/history.css";
+@import "./styles/domains/export.css";
+@import "./styles/domains/downloads.css";
+@import "./styles/domains/policy.css";
+@import "./styles/domains/config.css";
+@import "./styles/domains/knowledge.css";
+@import "./styles/domains/infra.css";
+@import "./styles/domains/models.css";
+@import "./styles/domains/onboarding.css";
+@import "./styles/domains/profile.css";
+@import "./styles/domains/license.css";
+@import "./styles/domains/dev.css";
+@import "./styles/domains/demo.css";
+@import "./styles/domains/audit.css";
+@import "./styles/domains/recording.css";
 
 /* ========================================
  * LEGACY STYLES (to be migrated)

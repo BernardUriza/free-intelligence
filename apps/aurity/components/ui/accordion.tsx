@@ -101,7 +101,7 @@ export function AccordionItem({ value, children, className = '' }: AccordionItem
 
   return (
     <AccordionItemContext.Provider value={{ value, isExpanded }}>
-      <div className={`border-b ${className}`}>{children}</div>
+      <div className={`fi-accordion-item ${className}`}>{children}</div>
     </AccordionItemContext.Provider>
   );
 }
@@ -119,12 +119,12 @@ export function AccordionTrigger({ children, className = '' }: AccordionTriggerP
     <button
       type="button"
       onClick={() => toggleItem(value)}
-      className={`flex w-full items-center justify-between py-4 text-left transition-all hover:underline ${className}`}
+      className={`fi-accordion-trigger ${className}`}
     >
       {children}
       <ChevronDown
-        className={`h-4 w-4 transition-transform duration-200 ${
-          isExpanded ? 'rotate-180' : ''
+        className={`fi-accordion-chevron ${
+          isExpanded ? 'fi-accordion-chevron-open' : ''
         }`}
       />
     </button>
@@ -142,7 +142,7 @@ export function AccordionContent({ children, className = '' }: AccordionContentP
   if (!isExpanded) return null;
 
   return (
-    <div className={`overflow-hidden pb-4 transition-all ${className}`}>
+    <div className={`fi-accordion-content ${className}`}>
       {children}
     </div>
   );

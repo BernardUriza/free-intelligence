@@ -104,14 +104,14 @@ export const QUESTION_SOURCE_CONFIG: Record<QuestionSource, {
   llm_initial: {
     label: 'Generadas por IA',
     icon: Sparkles,
-    bgClass: 'bg-purple-500/10',
-    textClass: 'text-purple-400',
+    bgClass: 'kno-qgroup-ai-bg',
+    textClass: 'kno-qgroup-ai-text',
   },
   user_query: {
     label: 'Preguntas de Usuarios',
     icon: MessageCircle,
-    bgClass: 'bg-blue-500/10',
-    textClass: 'text-blue-400',
+    bgClass: 'kno-qgroup-user-bg',
+    textClass: 'kno-qgroup-user-text',
   },
 };
 

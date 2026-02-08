@@ -92,4 +92,156 @@
     @apply px-3 py-2 bg-slate-900/30 border-t border-slate-800
            fi-text-xs-muted flex items-center gap-4;
   }
+
+  /* ========================================
+   * TIMELINE PAGE (tl-* prefix)
+   * ======================================== */
+
+  /* --- Loading States --- */
+  .tl-loading-wrapper {
+    @apply flex items-center justify-center h-full;
+  }
+  .tl-loading-spinner-sm {
+    @apply h-8 w-8 animate-spin text-emerald-500;
+  }
+  .tl-page-loading {
+    @apply flex items-center justify-center min-h-screen bg-slate-950;
+  }
+  .tl-page-loading-inner {
+    @apply text-center;
+  }
+  .tl-page-loading-spinner {
+    @apply animate-spin h-12 w-12 text-emerald-500 mx-auto mb-4;
+  }
+  .tl-page-loading-text {
+    @apply text-slate-400 text-[15px] leading-6;
+  }
+  .tl-loading-more {
+    @apply flex items-center justify-center py-8;
+  }
+  .tl-loading-more-spinner {
+    @apply animate-spin h-6 w-6 text-emerald-500 mr-2;
+  }
+
+  /* --- Header Actions --- */
+  .tl-header-actions {
+    @apply flex items-center gap-2;
+  }
+  .tl-view-toggle-group {
+    @apply flex items-center bg-slate-800 rounded-lg p-0.5;
+  }
+  .tl-icon-sm {
+    @apply h-3.5 w-3.5;
+  }
+  .tl-responsive-label {
+    @apply hidden sm:inline;
+  }
+  .tl-responsive-label-inverse {
+    @apply sm:hidden;
+  }
+  .tl-refresh-icon {
+    @apply h-3.5 w-3.5;
+  }
+  .tl-refresh-icon-spinning {
+    @apply h-3.5 w-3.5 animate-spin;
+  }
+
+  /* --- Page Content --- */
+  .tl-content {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8;
+  }
+  .tl-stats-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+  }
+  .tl-stat-inner {
+    @apply flex items-center gap-2;
+  }
+  .tl-stat-icon-sky {
+    @apply h-4 w-4 text-sky-400;
+  }
+  .tl-stat-icon-sm {
+    @apply h-4 w-4;
+  }
+  .tl-stat-value-sky {
+    @apply text-2xl font-bold text-sky-400;
+  }
+  .tl-stat-value-accent {
+    @apply text-2xl font-bold;
+  }
+  .tl-search-full {
+    @apply w-full;
+  }
+
+  /* --- Scheduler Section --- */
+  .tl-scheduler-container {
+    @apply rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm bg-slate-900;
+  }
+  .tl-scheduler-toggle {
+    @apply w-full flex items-center justify-between px-4 py-3
+           bg-slate-800/50 hover:bg-slate-800 transition-colors;
+  }
+  .tl-scheduler-label {
+    @apply flex items-center gap-2;
+  }
+  .tl-scheduler-icon {
+    @apply h-4 w-4 text-emerald-400;
+  }
+  .tl-chevron-icon {
+    @apply h-4 w-4 text-slate-400;
+  }
+  .tl-scheduler-view {
+    @apply h-[400px];
+  }
+
+  /* --- Error State --- */
+  .tl-error {
+    @apply flex items-center gap-3 p-4 bg-red-950/30 border border-red-700/30 rounded-xl;
+  }
+  .tl-error-icon {
+    @apply h-5 w-5 flex-shrink-0;
+  }
+  .tl-error-body {
+    @apply flex-1;
+  }
+  .tl-error-text {
+    @apply text-sm text-red-300;
+  }
+
+  /* --- Empty State --- */
+  .tl-empty-text {
+    @apply text-slate-400 text-sm;
+  }
+  .tl-empty-subtext {
+    @apply text-slate-500 text-xs mt-2;
+  }
+
+  /* --- List Section --- */
+  .tl-list-container {
+    @apply rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm;
+  }
+  .tl-list-header {
+    @apply flex items-center gap-2 px-4 py-3 bg-slate-800/50;
+  }
+  .tl-list-icon {
+    @apply h-4 w-4 text-sky-400;
+  }
+  .tl-search-badge {
+    @apply ml-2 text-xs;
+  }
+
+  /* --- Sentinel & End --- */
+  .tl-sentinel {
+    @apply h-1;
+  }
+  .tl-end-indicator {
+    @apply text-center py-8 border-t border-slate-800;
+  }
+
+  /* --- Philosophy Note --- */
+  .tl-philosophy-note {
+    @apply p-4 bg-slate-800/30 border border-slate-700 rounded-xl;
+  }
+  .tl-philosophy-text {
+    @apply italic text-center;
+  }
 }

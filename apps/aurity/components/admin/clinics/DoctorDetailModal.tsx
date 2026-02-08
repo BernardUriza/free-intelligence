@@ -120,23 +120,21 @@ export function DoctorDetailModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="doc-modal-overlay"
       onClick={handleClose}
     >
       <div
-        className={`bg-slate-900 rounded-xl shadow-2xl w-full ${
-          isEditMode ? 'max-w-2xl max-h-[90vh]' : 'max-w-md'
-        } flex flex-col`}
+        className={isEditMode ? 'doc-modal-container-edit' : 'doc-modal-container-view'}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b border-slate-800">
-          <div className="flex items-center gap-3">
+        <div className="doc-header">
+          <div className="doc-header-info">
             <div
-              className="p-2 rounded-lg"
+              className="doc-header-icon-wrap"
               style={{
                 backgroundColor: doctor.eventColor
                   ? `${doctor.eventColor}20`
@@ -144,82 +142,82 @@ export function DoctorDetailModal({
               }}
             >
               <Stethoscope
-                className="w-5 h-5"
+                className="doc-header-icon"
                 style={{
                   color: doctor.eventColor || 'rgb(129 140 248)',
                 }}
               />
             </div>
             <div>
-              <h2 id="modal-title" className="text-lg font-semibold text-white">
+              <h2 id="modal-title" className="doc-header-title">
                 {displayName}
               </h2>
-              <p className="text-sm text-slate-400">{specialty}</p>
+              <p className="doc-header-specialty">{specialty}</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+            className="doc-header-close"
             aria-label="Cerrar"
           >
-            <X className="w-5 h-5" />
+            <X className="doc-header-icon" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="doc-content">
           {isEditMode ? (
             // Edit mode: Full availability designer with tabs
-            <div className="flex flex-col h-full">
+            <div className="doc-edit-wrapper">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
-                className="flex flex-col h-full"
+                className="doc-tabs-container"
               >
                 {/* Tab navigation */}
-                <div className="px-4 pt-3 border-b border-slate-800">
-                  <TabsList className="bg-slate-800/50 p-1 rounded-lg w-full grid grid-cols-5 gap-1">
+                <div className="doc-tabs-nav">
+                  <TabsList className="doc-tabs-list">
                     <TabsTrigger
                       value="weekly"
-                      className="data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-400 rounded-md py-2 text-xs"
+                      className="doc-tab-trigger-weekly"
                     >
-                      <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                      <Calendar className="doc-tab-icon" />
                       Semanal
                     </TabsTrigger>
                     <TabsTrigger
                       value="exceptions"
-                      className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 rounded-md py-2 text-xs"
+                      className="doc-tab-trigger-exceptions"
                     >
-                      <CalendarOff className="w-3.5 h-3.5 mr-1.5" />
+                      <CalendarOff className="doc-tab-icon" />
                       Excepciones
                     </TabsTrigger>
                     <TabsTrigger
                       value="rules"
-                      className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400 rounded-md py-2 text-xs"
+                      className="doc-tab-trigger-rules"
                     >
-                      <Settings className="w-3.5 h-3.5 mr-1.5" />
+                      <Settings className="doc-tab-icon" />
                       Reglas
                     </TabsTrigger>
                     <TabsTrigger
                       value="templates"
-                      className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 rounded-md py-2 text-xs"
+                      className="doc-tab-trigger-templates"
                     >
-                      <Zap className="w-3.5 h-3.5 mr-1.5" />
+                      <Zap className="doc-tab-icon" />
                       Plantillas
                     </TabsTrigger>
                     <TabsTrigger
                       value="preview"
-                      className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 rounded-md py-2 text-xs"
+                      className="doc-tab-trigger-preview"
                     >
-                      <Eye className="w-3.5 h-3.5 mr-1.5" />
+                      <Eye className="doc-tab-icon" />
                       Preview
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
                 {/* Tab content */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  <TabsContent value="weekly" className="mt-0">
+                <div className="doc-tab-scroll-area">
+                  <TabsContent value="weekly" className="doc-tab-content">
                     <WeeklyScheduleTab
                       weeklySchedule={form.weeklySchedule}
                       errors={form.errors}
@@ -231,7 +229,7 @@ export function DoctorDetailModal({
                     />
                   </TabsContent>
 
-                  <TabsContent value="exceptions" className="mt-0">
+                  <TabsContent value="exceptions" className="doc-tab-content">
                     <ExceptionsTab
                       overrides={form.overrides}
                       errors={form.errors}
@@ -242,7 +240,7 @@ export function DoctorDetailModal({
                     />
                   </TabsContent>
 
-                  <TabsContent value="rules" className="mt-0">
+                  <TabsContent value="rules" className="doc-tab-content">
                     <RulesTab
                       rules={form.rules}
                       errors={form.errors}
@@ -251,7 +249,7 @@ export function DoctorDetailModal({
                     />
                   </TabsContent>
 
-                  <TabsContent value="templates" className="mt-0">
+                  <TabsContent value="templates" className="doc-tab-content">
                     <TemplatesTab
                       currentAvailability={currentAvailability}
                       onApplyTemplate={form.applyTemplate}
@@ -259,7 +257,7 @@ export function DoctorDetailModal({
                     />
                   </TabsContent>
 
-                  <TabsContent value="preview" className="mt-0">
+                  <TabsContent value="preview" className="doc-tab-content">
                     <PreviewTab availability={currentAvailability} />
                   </TabsContent>
                 </div>
@@ -267,34 +265,34 @@ export function DoctorDetailModal({
             </div>
           ) : (
             // View mode: Simple info display
-            <div className="p-4 space-y-4">
+            <div className="doc-view-body">
               {/* Doctor Info */}
-              <div className="p-3 bg-slate-800/50 rounded-lg space-y-2">
+              <div className="doc-info-card">
                 {doctor.email && (
-                  <p className="text-sm">
-                    <span className="text-slate-500">Email:</span>{' '}
-                    <span className="text-slate-300">{doctor.email}</span>
+                  <p className="doc-info-row">
+                    <span className="doc-info-label">Email:</span>{' '}
+                    <span className="doc-info-value">{doctor.email}</span>
                   </p>
                 )}
                 {doctor.cedula_profesional && (
-                  <p className="text-sm">
-                    <span className="text-slate-500">Cédula:</span>{' '}
-                    <span className="text-slate-300">{doctor.cedula_profesional}</span>
+                  <p className="doc-info-row">
+                    <span className="doc-info-label">Cédula:</span>{' '}
+                    <span className="doc-info-value">{doctor.cedula_profesional}</span>
                   </p>
                 )}
                 {doctor.eventColor && (
-                  <p className="text-sm flex items-center gap-2">
-                    <span className="text-slate-500">Color:</span>
+                  <p className="doc-info-row-flex">
+                    <span className="doc-info-label">Color:</span>
                     <span
-                      className="w-4 h-4 rounded"
+                      className="doc-color-swatch"
                       style={{ backgroundColor: doctor.eventColor }}
                     />
                   </p>
                 )}
                 {(doctor.id || doctor.doctor_id) && (
-                  <p className="text-sm">
-                    <span className="text-slate-500">ID:</span>{' '}
-                    <span className="text-slate-400 font-mono text-xs">
+                  <p className="doc-info-row">
+                    <span className="doc-info-label">ID:</span>{' '}
+                    <span className="doc-info-id">
                       {doctor.id || doctor.doctor_id}
                     </span>
                   </p>
@@ -302,22 +300,22 @@ export function DoctorDetailModal({
               </div>
 
               {/* Schedule Summary */}
-              <div className="p-3 bg-slate-800/50 rounded-lg">
-                <div className="flex items-center gap-2 text-slate-400 text-sm mb-2">
-                  <Clock className="w-4 h-4" />
+              <div className="doc-schedule-card">
+                <div className="doc-schedule-header">
+                  <Clock className="doc-schedule-icon" />
                   <span>Disponibilidad</span>
                 </div>
                 {currentAvailability.weeklySchedule.length > 0 ? (
-                  <div className="space-y-1">
-                    <p className="text-sm text-white">
+                  <div className="doc-schedule-days-list">
+                    <p className="doc-schedule-days-text">
                       {workingDays.map((d) => DAYS_OF_WEEK[d]?.short).join(', ')}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="doc-schedule-meta">
                       {weeklyHours}h/semana · {form.overrides.length} excepciones
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">
+                  <p className="doc-schedule-legacy">
                     {doctor.work_start_time || '09:00'} - {doctor.work_end_time || '18:00'}
                   </p>
                 )}
@@ -327,22 +325,22 @@ export function DoctorDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-slate-800">
+        <div className="doc-footer">
           {/* Status */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="doc-footer-status">
             {form.hasValidationErrors && (
-              <div className="flex items-center gap-1 text-red-400">
-                <AlertCircle className="w-3.5 h-3.5" />
+              <div className="doc-footer-error">
+                <AlertCircle className="doc-footer-error-icon" />
                 <span>Hay errores en el formulario</span>
               </div>
             )}
             {form.isDirty && !form.hasValidationErrors && (
-              <div className="text-amber-400">Cambios sin guardar</div>
+              <div className="doc-footer-dirty">Cambios sin guardar</div>
             )}
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="doc-footer-actions">
             <Button onClick={handleClose} variant="outline" disabled={isSaving}>
               {isEditMode ? 'Cancelar' : 'Cerrar'}
             </Button>

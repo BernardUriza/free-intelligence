@@ -174,7 +174,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
             )}
           </div>
 
-          <div className="mt-4 flex gap-3">
+          <div className="admin-user-search-bar">
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -183,7 +183,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="fi-input-blue"
               />
-              <Search className="absolute right-3 top-2.5 fi-icon-md fi-icon-slate" />
+              <Search className="admin-user-search-icon fi-icon-md fi-icon-slate" />
             </div>
 
             <Select value={roleFilter} onValueChange={(val) => setRoleFilter(val as Role | 'all')}>
@@ -205,13 +205,13 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
         </div>
 
         {/* User List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="admin-user-list">
           {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full" />
+            <div className="admin-user-loading">
+              <div className="admin-user-spinner" />
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center text-slate-500 py-12">No se encontraron usuarios</div>
+            <div className="admin-user-empty">No se encontraron usuarios</div>
           ) : (
             <div className="space-y-3">
               {filteredUsers.map(user => (
@@ -219,10 +219,10 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                   key={user.user_id}
                   className={user.blocked ? 'admin-user-card-blocked' : 'admin-user-card'}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="admin-user-card-row">
                     <div className="flex-shrink-0">
                       {user.picture ? (
-                        <img src={user.picture} alt={user.name} className="w-12 h-12 rounded-full" />
+                        <img src={user.picture} alt={user.name} className="admin-user-avatar" />
                       ) : (
                         <div className="fi-avatar-md">
                           {user.name?.[0] || user.email[0].toUpperCase()}
@@ -231,9 +231,9 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
+                      <div className="admin-user-card-header">
                         <div>
-                          <h3 className="text-white font-medium flex items-center gap-2">
+                          <h3 className="admin-user-name">
                             {user.name || user.email}
                             {user.blocked && (
                               <span className="admin-user-badge-blocked">
@@ -263,7 +263,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                       </div>
 
                       {user.clinicInfo?.is_linked && (
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="admin-user-clinic-row">
                           <span className="admin-user-badge-clinic">
                             <Building2 className="w-3 h-3" />
                             {user.clinicInfo.clinic_name} ({user.clinicInfo.clinic_role})
@@ -279,7 +279,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                         </div>
                       )}
 
-                      <div className="flex gap-4 fi-text-xs-muted mb-3">
+                      <div className="admin-user-meta fi-text-xs-muted">
                         <span>Creado: {new Date(user.created_at).toLocaleDateString('es-MX')}</span>
                         {user.last_login && (
                           <span>Último acceso: {new Date(user.last_login).toLocaleDateString('es-MX')}</span>
@@ -287,7 +287,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                         <span>Logins: {user.logins_count || 0}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="admin-user-role-row">
                         <span className="text-xs text-slate-400">Rol:</span>
                         <Select value={user.role} onValueChange={(val) => handleRoleChange(user, val as Role)}>
                           <SelectTrigger className="w-48 h-8">
@@ -299,7 +299,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                             ))}
                           </SelectContent>
                         </Select>
-                        <span className={`px-2 py-0.5 ${getRoleBadgeColor(user.role)} text-white text-xs rounded`}>
+                        <span className={`admin-role-badge-sm ${getRoleBadgeColor(user.role)}`}>
                           {getRoleName(user.role)}
                         </span>
                       </div>
@@ -312,8 +312,8 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
         </div>
 
         {/* Footer */}
-        <div className="p-4 fi-border-top bg-slate-900/50">
-          <div className="flex items-center justify-between fi-subtitle">
+        <div className="admin-user-footer fi-border-top">
+          <div className="admin-user-footer-inner fi-subtitle">
             <span>
               {filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}
               {searchTerm || roleFilter !== 'all' ? ` (filtrado de ${users.length})` : ''}

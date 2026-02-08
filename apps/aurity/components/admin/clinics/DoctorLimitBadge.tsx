@@ -46,7 +46,7 @@ export function DoctorLimitBadge({
 
   if (loading) {
     return (
-      <div className="px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500 animate-pulse">
+      <div className="clinic-limit-loading">
         ...
       </div>
     );
@@ -62,17 +62,15 @@ export function DoctorLimitBadge({
   const isAtLimit = !isUnlimited && current_count >= max_allowed;
   const isNearLimit = !isUnlimited && percentage >= 80;
 
-  // Color classes based on status
-  const colorClasses = isAtLimit
-    ? 'bg-red-500/20 text-red-400 border-red-500/30'
-    : isNearLimit
-      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-      : 'bg-slate-700/50 text-slate-400 border-slate-600/30';
-
   if (compact) {
+    const badgeClass = isAtLimit
+      ? 'clinic-limit-compact-critical'
+      : isNearLimit
+        ? 'clinic-limit-compact-warning'
+        : 'clinic-limit-compact-ok';
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${colorClasses}`}
+        className={badgeClass}
         title={
           isUnlimited
             ? 'Sin límite de doctores'
@@ -87,7 +85,11 @@ export function DoctorLimitBadge({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border ${colorClasses}`}
+      className={isAtLimit
+        ? 'clinic-limit-full-critical'
+        : isNearLimit
+          ? 'clinic-limit-full-warning'
+          : 'clinic-limit-full-ok'}
     >
       <Users className="w-3.5 h-3.5" />
       <span className="font-medium">
