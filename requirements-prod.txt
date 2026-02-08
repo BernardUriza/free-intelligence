@@ -1,5 +1,5 @@
-# Free Intelligence - Production Dependencies (Cloud Backend)
-# Updated: 2026-02-07
+# Free Intelligence - Production Dependencies (Azure Cloud Backend)
+# Updated: 2026-02-08
 # RAM requirement: ~512MB (no ML dependencies - handled by FI Local)
 
 # ============================================================================
@@ -9,6 +9,7 @@ h5py>=3.14.0
 structlog>=25.4.0
 PyYAML>=6.0.0
 pydantic>=2.0.0
+pydantic-settings>=2.0.0
 
 # ============================================================================
 # Web Framework & API
@@ -27,7 +28,6 @@ passlib[bcrypt]>=1.7.4
 requests>=2.31.0
 cffi>=2.0.0
 cryptography>=46.0.0
-auth0-python>=4.13.0
 pyjwt>=2.10.0
 email-validator>=2.3.0
 dnspython>=2.8.0
@@ -36,7 +36,7 @@ dnspython>=2.8.0
 # LLM Providers
 # ============================================================================
 # Ollama HTTP client only - server runs on FI Local via Cloudflare Tunnel
-# Direct API providers (Claude, Azure) removed for PHI compliance
+# Direct API providers (Claude, Anthropic) removed for PHI compliance
 ollama==0.6.0
 
 # ============================================================================
@@ -44,6 +44,8 @@ ollama==0.6.0
 # ============================================================================
 jsonschema>=4.20.0
 python-dateutil>=2.8.2
+ulid-py>=1.1.0
+langdetect>=1.0.9
 
 # ============================================================================
 # Integrations
@@ -56,13 +58,15 @@ py-trello>=0.20.0
 stripe>=14.0.0
 twilio>=9.0.0
 qrcode[pil]>=8.0
+Pillow>=10.0.0
 
 # ============================================================================
-# Database
+# Database & Search
 # ============================================================================
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.9
 alembic>=1.13.0
+elasticsearch>=8.11.0
 
 # ============================================================================
 # Monitoring & Utilities
@@ -70,6 +74,14 @@ alembic>=1.13.0
 psutil>=6.1.1
 pyarrow>=14.0.0
 filelock>=3.12.0
+prometheus-client>=0.19.0
+portalocker>=2.8.2
+
+# ============================================================================
+# Document Extraction (knowledge base)
+# ============================================================================
+pdfplumber>=0.11.0
+python-docx>=1.0.0
 
 # ============================================================================
 # Note: ML / Embeddings
