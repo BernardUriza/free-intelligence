@@ -26,19 +26,9 @@ from enum import Enum
 from typing import Any
 
 # mypy: ignore-errors
-import os
-from backend.config.secrets import get_secret
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-CLAUDE_API_KEY = get_secret("CLAUDE_API_KEY", "")
-CLAUDE_MODEL = os.getenv("CHECKIN_CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 
 # =============================================================================
@@ -244,18 +234,6 @@ class CheckinConversationService:
 
     def __init__(self) -> None:
         self._contexts: dict[str, ConversationContext] = {}
-        self._claude_client = None
-
-    def _get_claude_client(self) -> Any | None:
-        """Lazy-load Claude client."""
-        if self._claude_client is None and CLAUDE_API_KEY:
-            try:
-                from anthropic import Anthropic
-
-                self._claude_client = Anthropic(api_key=CLAUDE_API_KEY)
-            except ImportError:
-                logger.warning("ANTHROPIC_NOT_INSTALLED")
-        return self._claude_client
 
     def start_conversation(
         self,

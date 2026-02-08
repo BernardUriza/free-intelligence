@@ -28,7 +28,7 @@ system_prompt: |
   ```
 
   Task Types:
-  - TRANSCRIPTION: Audio to text conversion (Whisper/Deepgram)
+  - TRANSCRIPTION: Audio to text conversion (Azure Whisper)
   - DIARIZATION: Speaker classification (doctor/patient/other)
   - SOAP_GENERATION: Clinical note generation
   - EMOTION_ANALYSIS: Patient emotional state detection

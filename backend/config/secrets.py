@@ -260,9 +260,7 @@ class Secrets:
 
     __slots__ = (
         "JWT_SECRET",
-        "CLAUDE_API_KEY",
         "DATABASE_URL",
-        "DEEPGRAM_API_KEY",
         "HF_TOKEN",
     )
 
@@ -274,14 +272,10 @@ class Secrets:
         # Database
         DATABASE_URL: str = "sqlite:///./data/aurity.db",  # noqa: N803
         # Optional services
-        DEEPGRAM_API_KEY: str | None = None,  # noqa: N803
-        CLAUDE_API_KEY: str | None = None,  # noqa: N803
         HF_TOKEN: str | None = None,  # noqa: N803
     ) -> None:
         self.JWT_SECRET = JWT_SECRET
         self.DATABASE_URL = DATABASE_URL
-        self.DEEPGRAM_API_KEY = DEEPGRAM_API_KEY
-        self.CLAUDE_API_KEY = CLAUDE_API_KEY
         self.HF_TOKEN = HF_TOKEN
 
     @classmethod
@@ -293,8 +287,6 @@ class Secrets:
             # Database
             DATABASE_URL=get_secret("DATABASE_URL", "sqlite:///./data/aurity.db"),
             # Optional services
-            DEEPGRAM_API_KEY=get_secret("DEEPGRAM_API_KEY"),
-            CLAUDE_API_KEY=get_secret("CLAUDE_API_KEY"),
             HF_TOKEN=get_secret("HF_TOKEN"),
         )
 
@@ -340,4 +332,3 @@ if __name__ == "__main__":
     s = get_secrets()
     print("Loaded secrets:")
     print(f"  JWT_SECRET: {'Set' if s.JWT_SECRET else 'Missing'}")
-    print(f"  DEEPGRAM_API_KEY: {'Set' if s.DEEPGRAM_API_KEY else 'Not configured'}")

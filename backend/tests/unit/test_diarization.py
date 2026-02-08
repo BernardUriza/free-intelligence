@@ -206,7 +206,7 @@ class TestDiarizationResponse:
 #
 # The following tests were for diarize_with_llm() and related functions
 # which have been replaced by provider-based architecture (PyannoteProvider,
-# DeepgramProvider, AzureGPT4Provider).
+# AzureGPT4Provider, PyannoteProvider).
 #
 # Original tests: TestDiarizeWithLLM (140 lines) + TestPromptLoading (56 lines)
 # Total: 196 lines of obsolete tests removed

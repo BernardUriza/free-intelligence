@@ -367,7 +367,7 @@ async def get_session_detail(
                     "causality": [],
                     "tags": ["transcription", f"chunk_{idx}"],
                     "auto_generated": True,
-                    "generation_mode": "deepgram",
+                    "generation_mode": "stt",
                     "confidence_score": chunk.get("confidence", 0.0),
                 }
             )

@@ -186,7 +186,7 @@ Existing Tasks: {", ".join(existing_tasks) if existing_tasks else "none"}
 User Intent: {user_intent or "none provided"}
 
 Available Workflows:
-1. TRANSCRIPTION - Convert audio to text (Whisper/Deepgram)
+1. TRANSCRIPTION - Convert audio to text (Azure Whisper)
 2. DIARIZATION - Classify speakers (DOCTOR/PATIENT)
 3. SOAP_GENERATION - Extract clinical notes (Subjective/Objective/Assessment/Plan)
 4. EMOTION_ANALYSIS - Detect patient emotional state

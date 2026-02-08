@@ -20,9 +20,7 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
       - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - LOG_LEVEL=info
     deploy:
       resources:

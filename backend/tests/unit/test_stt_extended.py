@@ -210,18 +210,6 @@ class TestGetSTTProvider:
         assert isinstance(provider1, AzureWhisperProvider)
         assert isinstance(provider2, AzureWhisperProvider)
 
-    @patch.dict("os.environ", {
-        "DEEPGRAM_API_KEY": "test-deepgram-key",
-    })
-    def test_get_stt_provider_deepgram_fallback(self) -> None:
-        """Test get_stt_provider with deepgram provider."""
-        from backend.providers.stt import DeepgramProvider, get_stt_provider
-
-        # Deepgram is a valid provider
-        provider = get_stt_provider("deepgram")
-
-        assert isinstance(provider, DeepgramProvider)
-
     def test_get_stt_provider_unknown(self) -> None:
         """Test get_stt_provider raises error for unknown provider."""
         from backend.providers.stt import get_stt_provider

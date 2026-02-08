@@ -1,7 +1,7 @@
 """Circuit Breaker pattern - Prevents cascading failures from external services.
 
 Philosophy:
-  - External services fail (Azure, Deepgram, Claude, OpenAI)
+  - External services fail (Azure, OpenAI)
   - Cascading failures destroy system reliability
   - Circuit breaker fails fast when service is down
   - Automatic recovery detection
@@ -111,13 +111,13 @@ class CircuitBreaker:
         HALF_OPEN -> OPEN: After any failure
 
     Usage as decorator:
-        @circuit_breaker(name="deepgram")
-        def call_deepgram_api():
+        @circuit_breaker(name="azure_whisper")
+        def call_stt_api():
             return requests.post(...)
 
     Usage as context manager:
-        with circuit_breaker_context("deepgram") as breaker:
-            result = call_deepgram_api()
+        with circuit_breaker_context("azure_whisper") as breaker:
+            result = call_stt_api()
             return result
     """
 
@@ -381,7 +381,7 @@ def get_circuit_breaker(
     Get or create circuit breaker (singleton per name).
 
     Args:
-        name: Circuit breaker name (e.g., "deepgram", "azure_whisper" deprecated)
+        name: Circuit breaker name (e.g., "azure_whisper", "ollama")
         failure_threshold: Failures before opening
         recovery_timeout: Seconds before trying recovery
         success_threshold: Successes before closing
@@ -428,8 +428,8 @@ def circuit_breaker(
     Decorator for protecting functions with circuit breaker.
 
     Example:
-        @circuit_breaker(name="deepgram", failure_threshold=3)
-        def call_deepgram_api():
+        @circuit_breaker(name="azure_whisper", failure_threshold=3)
+        def call_stt_api():
             return requests.post(...)
 
     Args:

@@ -175,8 +175,6 @@ def validate_critical_env_vars() -> None:
 
     # Critical env vars that MUST be present in production
     CRITICAL_ENV_VARS = {
-        "CLAUDE_API_KEY": "AI assistant won't work without Claude API",
-        "DEEPGRAM_API_KEY": "Audio transcription won't work without Deepgram",
         "DATABASE_URL": "PostgreSQL connection required for patients/providers",
         "ALLOWED_ORIGINS": "CORS will block frontend without allowed origins",
     }
@@ -212,7 +210,7 @@ Process natural language commands to update medical records using Claude AI.
 
 ### 🔑 **Key Features:**
 - **AI Assistant** - Natural language processing with Claude
-- **Audio Transcription** - Deepgram speech-to-text (Azure Whisper endpoint removed)
+- **Audio Transcription** - Azure Whisper speech-to-text
 - **SOAP Notes** - Structured medical documentation
 - **HDF5 Storage** - Append-only data persistence
 
@@ -247,8 +245,8 @@ POST /api/workflows/aurity/sessions/{session_id}/finalize
 
 ### 🔐 **Configuration**
 Requires environment variables:
-- `CLAUDE_API_KEY` - Anthropic Claude API
-- `DEEPGRAM_API_KEY` - Deepgram transcription (required)
+- `DATABASE_URL` - PostgreSQL connection string
+- `ALLOWED_ORIGINS` - CORS allowed origins
 
 ### 📖 **Quick Start**
 1. Check health: `GET /health`
@@ -272,7 +270,7 @@ Requires environment variables:
         },
         {
             "name": "Transcription",
-            "description": "Audio to text transcription using Deepgram",
+            "description": "Audio to text transcription using Azure Whisper",
         },
         {
             "name": "Sessions",
