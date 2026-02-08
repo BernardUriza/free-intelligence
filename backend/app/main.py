@@ -94,10 +94,21 @@ async def lifespan(app: FastAPI):
     # Run warmup in background (non-blocking)
     asyncio.create_task(warmup_ollama())
 
+    # Initialize repository singletons (HDF5-backed, thread-safe)
+    from backend.infrastructure.common.repository_singletons import (
+        init_repositories,
+        shutdown_repositories,
+    )
+    try:
+        init_repositories()
+        logger.info("REPOSITORIES_INITIALIZED", status="success")
+    except Exception as e:
+        logger.warning("REPOSITORIES_INIT_FAILED", error=str(e))
+
     yield
 
-    # Shutdown (if needed in the future)
-    # Add cleanup code here
+    # Shutdown: cleanup repository singletons
+    shutdown_repositories()
 
 
 def validate_all_configs() -> None:

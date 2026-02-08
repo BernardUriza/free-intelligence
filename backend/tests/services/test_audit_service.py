@@ -5,17 +5,7 @@ Validates audit logging functionality.
 
 from __future__ import annotations
 
-import pytest
-
-# Skip all tests - AuditService constructor signature changed
-pytestmark = pytest.mark.skip(
-    reason="Service initialization tests - AuditService() signature mismatch with DIContainer"
-)
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.services.audit.services.audit_service import AuditService
+from backend.services.audit.services.audit_service import AuditService
 
 
 class TestAuditService:

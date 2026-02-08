@@ -9,6 +9,7 @@ available in CI. They are skipped if backend.services import fails.
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 
 import h5py
 import pytest
@@ -42,22 +43,21 @@ def test_h5_path(tmp_path: Path) -> str:
 
 
 @pytest.fixture
-def client(test_h5_path: str, monkeypatch) -> TestClient:
-    """Create FastAPI test client with test HDF5."""
+def client(test_h5_path: str, monkeypatch) -> Generator[TestClient]:
+    """Create FastAPI test client with test HDF5.
+
+    Uses context manager to activate lifespan (required for repository init).
+    """
     # Set environment variable to use test HDF5
     monkeypatch.setenv("AURITY_DIARIZATION_HDF5", test_h5_path)
     monkeypatch.setenv("AURITY_DIARIZATION_PERSIST_RESOLVED_STATUS", "false")
-
-    # Force container reset to pick up new env vars
-    from backend.infrastructure.common.container import reset_container
-
-    reset_container()
 
     # Import app after setting env vars
     from backend.app.main import create_app
 
     app = create_app()
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
 def test_endpoint_returns_200_completed_with_errors(client: TestClient, test_h5_path: str) -> None:
