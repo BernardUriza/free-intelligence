@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["Clinics - CRUD"])
 
 
-@router.get("", response_model=ClinicListResponse)
+@router.get("/", response_model=ClinicListResponse)
 def list_clinics(
     skip: int = 0,
     limit: int = 50,
@@ -88,7 +88,7 @@ def get_clinic(
     return model_to_response(clinic, ClinicResponse)
 
 
-@router.post("", response_model=ClinicResponse, status_code=201)
+@router.post("/", response_model=ClinicResponse, status_code=201)
 async def create_clinic(
     request: ClinicCreate,
     current_user: User = Depends(get_current_user),

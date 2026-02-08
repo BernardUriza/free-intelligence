@@ -39,4 +39,8 @@ EXPOSE 7001
 
 # Run with uvicorn
 # Run with uvicorn
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7001", "--workers", "1"]
+# Azure Container Apps: TLS terminates at the managed Envoy ingress.
+# --proxy-headers reads X-Forwarded-Proto so redirect URLs use https://.
+# --forwarded-allow-ips '*' is safe: containers are NOT directly accessible
+# from the internet, all traffic routes through Azure's ingress controller.
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7001", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
