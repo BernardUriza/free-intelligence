@@ -1,0 +1,166 @@
+
+/**
+ * Appointments Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: apt-{component}[-variant]
+ * Examples: apt-toolbar, apt-legend, apt-empty
+ *
+ * @utility defines base classes composable with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility apt-control-group {
+  @apply flex items-center gap-1 bg-slate-800 rounded-lg p-0.5;
+}
+
+@utility apt-control-group-disabled {
+  @apply opacity-50;
+}
+
+@utility apt-zoom-label {
+  @apply px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * TOOLBAR
+   * ======================================== */
+  .apt-toolbar {
+    @apply fi-flex-gap-md;
+  }
+
+  .apt-clinic-select {
+    @apply w-48;
+  }
+
+  .apt-view-switcher {
+    @apply apt-control-group;
+  }
+
+  .apt-view-btn {
+    @apply flex items-center gap-1 px-2 py-1 rounded
+           fi-text-xs-medium transition-colors
+           disabled:cursor-not-allowed;
+  }
+
+  .apt-view-btn-active {
+    @apply apt-view-btn bg-cyan-600 text-white shadow-sm;
+  }
+
+  .apt-view-btn-inactive {
+    @apply apt-view-btn text-slate-400
+           hover:bg-slate-700 hover:text-slate-200
+           disabled:hover:bg-transparent;
+  }
+
+  .apt-date-nav {
+    @apply apt-control-group;
+  }
+
+  .apt-date-display {
+    @apply px-2 py-1 fi-text-xs-medium min-w-[120px] text-center text-slate-200;
+  }
+
+  .apt-zoom-controls {
+    @apply apt-control-group;
+  }
+
+  .apt-scroll-controls {
+    @apply apt-control-group;
+  }
+
+  /* ========================================
+   * STATUS LEGEND
+   * ======================================== */
+  .apt-legend {
+    @apply bg-slate-900/50 fi-border-bottom px-6 py-2;
+  }
+
+  .apt-legend-inner {
+    @apply flex items-center gap-6 text-sm;
+  }
+
+  .apt-legend-label {
+    @apply text-slate-500;
+  }
+
+  .apt-legend-dot {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  /* ========================================
+   * EMPTY STATE
+   * ======================================== */
+  .apt-empty {
+    @apply flex items-center justify-center min-h-[400px]
+           bg-slate-900/50 rounded-lg border border-slate-700/50;
+  }
+
+  .apt-empty-content {
+    @apply text-center;
+  }
+
+  .apt-empty-icon {
+    @apply h-16 w-16 text-slate-600 mx-auto mb-4;
+  }
+
+  .apt-empty-title {
+    @apply text-lg font-medium text-slate-200;
+  }
+
+  .apt-empty-description {
+    @apply text-slate-400 mt-1 mb-4;
+  }
+
+  .apt-empty-action {
+    @apply inline-flex items-center gap-2 px-4 py-2
+           bg-cyan-600 hover:bg-cyan-500 text-white
+           text-sm font-medium rounded-lg transition-colors;
+  }
+
+  .apt-empty-action-icon {
+    @apply h-4 w-4;
+  }
+
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .apt-toolbar-container {
+    @apply px-6 pt-4;
+  }
+
+  .apt-context-bar {
+    @apply px-6 py-2 flex flex-col md:flex-row gap-3;
+  }
+
+  .apt-scheduler-container {
+    @apply p-6 relative;
+  }
+
+  /* ========================================
+   * LOADING
+   * ======================================== */
+  .apt-loading-full {
+    @apply flex items-center justify-center h-screen;
+  }
+
+  .apt-loading-spinner {
+    @apply h-12 w-12 animate-spin text-cyan-500;
+  }
+
+  .apt-loading-inline {
+    @apply flex items-center justify-center h-full;
+  }
+
+  .apt-loading-spinner-sm {
+    @apply h-8 w-8 animate-spin text-cyan-500;
+  }
+}

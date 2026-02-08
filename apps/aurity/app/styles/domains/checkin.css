@@ -1,0 +1,66 @@
+/**
+ * Check-in Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: checkin-{component}[-variant]
+ * Examples: checkin-card, checkin-icon-error, checkin-fab-chat
+ */
+
+@layer components {
+  /* ========================================
+   * STATUS CARDS (error, warning states)
+   * ======================================== */
+  .checkin-card {
+    @apply max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center;
+  }
+
+  /* ========================================
+   * STATUS ICONS (circular wrappers)
+   * ======================================== */
+  .checkin-icon-wrapper {
+    @apply w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center;
+  }
+
+  .checkin-icon-error {
+    @apply bg-red-950/30;
+  }
+
+  .checkin-icon-warning {
+    @apply bg-orange-950/30;
+  }
+
+  /* ========================================
+   * HINT TEXT ROW
+   * ======================================== */
+  .checkin-hint {
+    @apply flex items-center justify-center gap-2 text-sm text-slate-500;
+  }
+
+  /* ========================================
+   * BUTTONS
+   * ======================================== */
+  .checkin-btn-close {
+    @apply px-6 py-3 bg-slate-800 fi-hover-bg text-white rounded-lg;
+  }
+
+  /* ========================================
+   * FLOATING ACTION BUTTON (Chat Mode)
+   * ======================================== */
+  .checkin-fab-chat {
+    @apply fixed bottom-6 right-6 z-50
+           flex items-center gap-2
+           px-4 py-3
+           bg-indigo-600 hover:bg-indigo-700
+           text-white text-sm font-medium
+           rounded-full shadow-lg
+           transition-all hover:scale-105;
+  }
+
+  /* ========================================
+   * LOADING STATE
+   * ======================================== */
+  .checkin-loading-page {
+    @apply min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950
+           flex items-center justify-center;
+  }
+}

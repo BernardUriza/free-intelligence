@@ -27,8 +27,8 @@ function CheckinContent() {
   if (!clinicId) {
     return (
       <div className="fi-page-centered p-4">
-        <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-950/30 flex items-center justify-center">
+        <div className="checkin-card">
+          <div className="checkin-icon-wrapper checkin-icon-error">
             <AlertCircle className="fi-icon-xl fi-text-error" />
           </div>
           <h1 className="fi-title-2xl mb-2">
@@ -38,7 +38,7 @@ function CheckinContent() {
             Este enlace de check-in no es válido o ha expirado.
             Por favor, escanea el código QR en la sala de espera.
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+          <div className="checkin-hint">
             <QrCode className="fi-icon-sm" />
             <span>Escanea el QR para hacer check-in</span>
           </div>
@@ -56,8 +56,8 @@ function CheckinContent() {
     if (now - qrTime > fiveMinutes) {
       return (
         <div className="fi-page-centered p-4">
-          <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-orange-950/30 flex items-center justify-center">
+          <div className="checkin-card">
+            <div className="checkin-icon-wrapper checkin-icon-warning">
               <AlertCircle className="fi-icon-xl text-orange-400" />
             </div>
             <h1 className="fi-title-2xl mb-2">
@@ -69,7 +69,7 @@ function CheckinContent() {
             </p>
             <button
               onClick={() => window.close()}
-              className="px-6 py-3 bg-slate-800 fi-hover-bg text-white rounded-lg"
+              className="checkin-btn-close"
             >
               Cerrar
             </button>
@@ -93,15 +93,7 @@ function CheckinContent() {
       {/* Floating Chat Mode Toggle */}
       <Link
         href={`/checkin/chat?${chatParams.toString()}`}
-        className="
-          fixed bottom-6 right-6 z-50
-          flex items-center gap-2
-          px-4 py-3
-          bg-indigo-600 hover:bg-indigo-700
-          text-white text-sm font-medium
-          rounded-full shadow-lg
-          transition-all hover:scale-105
-        "
+        className="checkin-fab-chat"
       >
         <MessageCircle className="w-5 h-5" />
         <span className="hidden sm:inline">Prefiero chatear</span>
@@ -130,7 +122,7 @@ export default function CheckinPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="checkin-loading-page">
           <div className="animate-pulse text-slate-400">Cargando check-in...</div>
         </div>
       }

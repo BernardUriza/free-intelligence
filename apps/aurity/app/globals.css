@@ -47,8 +47,11 @@
  * DOMAIN-SPECIFIC STYLES
  * ======================================== */
 @import "./styles/domains/chat.css";
+@import "./styles/domains/checkin.css";
 @import "./styles/domains/medical.css";
 @import "./styles/domains/admin.css";
+@import "./styles/domains/appointments.css";
+@import "./styles/domains/clinics.css";
 @import "./styles/domains/dashboard.css";
 @import "./styles/domains/layout.css";
 

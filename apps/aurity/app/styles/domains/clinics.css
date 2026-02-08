@@ -1,0 +1,401 @@
+/**
+ * Clinics Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: clinic-{component}[-variant]
+ * Examples: clinic-card, clinic-detail, clinic-modal
+ *
+ * @utility defines base classes composable with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility clinic-loading {
+  @apply flex items-center justify-center py-12;
+}
+
+@utility clinic-loading-icon {
+  @apply w-8 h-8 text-indigo-400 animate-spin;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .clinic-grid {
+    @apply grid grid-cols-1 lg:grid-cols-3 gap-6;
+  }
+
+  .clinic-sidebar {
+    @apply lg:col-span-1 space-y-4;
+  }
+
+  .clinic-main {
+    @apply lg:col-span-2;
+  }
+
+  /* ========================================
+   * ERROR STATE
+   * ======================================== */
+  .clinic-error {
+    @apply p-4 bg-red-950/20 border border-red-800 rounded-lg;
+  }
+
+  .clinic-error-icon {
+    @apply w-5 h-5 fi-text-error;
+  }
+
+  .clinic-error-text {
+    @apply text-red-300 text-sm;
+  }
+
+  /* ========================================
+   * CLINIC LIST CARDS
+   * ======================================== */
+  .clinic-list-card {
+    @apply p-4 rounded-lg border cursor-pointer transition-all
+           bg-slate-900/50 border-slate-700 hover:border-slate-600;
+  }
+
+  .clinic-list-card-selected {
+    @apply p-4 rounded-lg border cursor-pointer transition-all
+           bg-indigo-950/50 border-indigo-500;
+  }
+
+  .clinic-list-card-inactive {
+    @apply opacity-50;
+  }
+
+  .clinic-list-card-header {
+    @apply flex items-start justify-between;
+  }
+
+  .clinic-list-card-name {
+    @apply font-medium text-white;
+  }
+
+  .clinic-list-card-chevron {
+    @apply w-5 h-5 text-slate-500;
+  }
+
+  .clinic-inactive-label {
+    @apply text-xs fi-text-error mt-2 block;
+  }
+
+  .clinic-feature-icon {
+    @apply w-4 h-4;
+  }
+
+  /* ========================================
+   * DETAIL PANEL
+   * ======================================== */
+  .clinic-detail {
+    @apply bg-slate-900/50 rounded-lg border border-slate-700 p-6;
+  }
+
+  .clinic-detail-header {
+    @apply flex items-start justify-between mb-6;
+  }
+
+  .clinic-detail-specialty {
+    @apply text-slate-400;
+  }
+
+  .clinic-detail-plan {
+    @apply text-sm text-slate-500 mt-1;
+  }
+
+  .clinic-detail-actions {
+    @apply flex gap-2;
+  }
+
+  /* ========================================
+   * INFO GRID
+   * ======================================== */
+  .clinic-info-grid {
+    @apply grid grid-cols-2 gap-4 mb-6 p-4 bg-slate-800/50 rounded-lg;
+  }
+
+  .clinic-info-label {
+    @apply text-sm text-slate-500;
+  }
+
+  .clinic-info-value {
+    @apply text-white;
+  }
+
+  .clinic-info-full {
+    @apply col-span-2;
+  }
+
+  .clinic-color-swatch {
+    @apply w-6 h-6 rounded;
+  }
+
+  /* ========================================
+   * EMPTY / PLACEHOLDER STATE
+   * ======================================== */
+  .clinic-placeholder {
+    @apply flex flex-col items-center justify-center h-full py-24 text-slate-500;
+  }
+
+  .clinic-placeholder-icon {
+    @apply w-16 h-16 mb-4 opacity-50;
+  }
+
+  .clinic-empty-text {
+    @apply text-slate-500 text-sm;
+  }
+
+  /* ========================================
+   * MEMBER BANNERS (superadmin / linked user)
+   * ======================================== */
+  .clinic-member-banner {
+    @apply p-3 rounded-lg fi-flex-between;
+  }
+
+  .clinic-member-banner-superadmin {
+    @apply clinic-member-banner bg-yellow-900/30 border border-yellow-500/30;
+  }
+
+  .clinic-member-banner-linked {
+    @apply clinic-member-banner bg-emerald-900/30 border border-emerald-500/30;
+  }
+
+  .clinic-member-name {
+    @apply text-white font-medium;
+  }
+
+  .clinic-badge {
+    @apply px-2 py-0.5 text-xs rounded-full font-medium;
+  }
+
+  .clinic-badge-superadmin {
+    @apply clinic-badge bg-yellow-500/20 text-yellow-400;
+  }
+
+  .clinic-badge-self {
+    @apply clinic-badge bg-emerald-500/20 fi-text-success;
+  }
+
+  .clinic-member-email-yellow {
+    @apply text-xs text-yellow-400;
+  }
+
+  .clinic-member-email-green {
+    @apply text-xs fi-text-success;
+  }
+
+  /* ========================================
+   * DOCTOR ROW
+   * ======================================== */
+  .clinic-doctor-row {
+    @apply p-3 bg-slate-800/50 rounded-lg fi-flex-between;
+  }
+
+  .clinic-doctor-row-inactive {
+    @apply clinic-doctor-row opacity-50;
+  }
+
+  .clinic-doctor-edit-btn {
+    @apply text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10;
+  }
+
+  .clinic-doctor-add-btn {
+    @apply fi-text-primary border-indigo-400/50 hover:bg-indigo-400/10 disabled:opacity-50;
+  }
+
+  .clinic-doctor-link-btn {
+    @apply fi-text-success border-emerald-400/50 hover:bg-emerald-400/10;
+  }
+
+  /* ========================================
+   * SECTION HEADERS
+   * ======================================== */
+  .clinic-section-header {
+    @apply fi-flex-between mb-3;
+  }
+
+  .clinic-section-title {
+    @apply fi-title fi-flex-gap;
+  }
+
+  .clinic-section-icon {
+    @apply w-5 h-5 text-indigo-400;
+  }
+
+  .clinic-section-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .clinic-section-title-group {
+    @apply flex items-center gap-3;
+  }
+
+  /* ========================================
+   * APPOINTMENTS LIST
+   * ======================================== */
+  .clinic-apt-list {
+    @apply space-y-2 max-h-64 overflow-y-auto;
+  }
+
+  .clinic-apt-row {
+    @apply p-3 bg-slate-800/50 rounded-lg;
+  }
+
+  .clinic-apt-time {
+    @apply text-white text-sm;
+  }
+
+  .clinic-apt-reason {
+    @apply text-slate-400 text-xs;
+  }
+
+  .clinic-apt-code {
+    @apply font-mono text-lg fi-text-green;
+  }
+
+  .clinic-apt-code-icon {
+    @apply w-4 h-4 fi-text-green;
+  }
+
+  /* ========================================
+   * MODALS
+   * ======================================== */
+  .clinic-modal-overlay {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
+  }
+
+  .clinic-modal {
+    @apply bg-slate-900 rounded-lg border border-slate-700 p-6 w-full max-w-md;
+  }
+
+  .clinic-modal-header {
+    @apply fi-flex-between mb-6;
+  }
+
+  .clinic-modal-form {
+    @apply space-y-4;
+  }
+
+  .clinic-modal-row {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .clinic-modal-hint {
+    @apply text-slate-400 text-sm mb-4;
+  }
+
+  .clinic-modal-actions {
+    @apply flex gap-3 pt-4;
+  }
+
+  .clinic-modal-textarea {
+    @apply w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg
+           text-white focus:border-indigo-500 focus:outline-none;
+  }
+
+  .clinic-modal-checkbox-group {
+    @apply fi-flex-gap-md;
+  }
+
+  .clinic-modal-checkbox {
+    @apply w-4 h-4 text-indigo-500;
+  }
+
+  .clinic-modal-error {
+    @apply p-3 bg-red-950/20 border border-red-800 rounded-lg text-red-300 text-sm;
+  }
+
+  .clinic-modal-submit-btn {
+    @apply flex-1 bg-emerald-600 hover:bg-emerald-700;
+  }
+
+  .clinic-modal-submit-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  .clinic-delete-btn {
+    @apply fi-text-error hover:bg-red-950/50;
+  }
+
+  /* ========================================
+   * ROLE ICONS
+   * ======================================== */
+  .clinic-role-icon {
+    @apply w-4 h-4;
+  }
+
+  .clinic-role-icon-lg {
+    @apply w-5 h-5;
+  }
+
+  /* ========================================
+   * INLINE BUTTON ICONS
+   * ======================================== */
+  .clinic-btn-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  .clinic-linked-check {
+    @apply w-3 h-3 fi-text-green;
+  }
+
+  /* ========================================
+   * DOCTOR LIST
+   * ======================================== */
+  .clinic-doctor-list {
+    @apply space-y-2;
+  }
+
+  .clinic-doctor-name {
+    @apply text-white font-medium;
+  }
+
+  .clinic-doctor-meta {
+    @apply text-right;
+  }
+
+  /* ========================================
+   * STATUS BADGES (appointment status)
+   * ======================================== */
+  .clinic-apt-status {
+    @apply text-xs;
+  }
+
+  .clinic-apt-status-scheduled {
+    @apply clinic-apt-status text-yellow-400;
+  }
+
+  .clinic-apt-status-confirmed {
+    @apply clinic-apt-status fi-text-primary;
+  }
+
+  .clinic-apt-status-checked-in {
+    @apply clinic-apt-status fi-text-green;
+  }
+
+  .clinic-apt-status-default {
+    @apply clinic-apt-status text-slate-400;
+  }
+
+  /* ========================================
+   * RETRY BUTTON
+   * ======================================== */
+  .clinic-retry-btn {
+    @apply mt-2 fi-text-error hover:text-red-300;
+  }
+
+  /* ========================================
+   * INPUT FIELDS (dark themed)
+   * ======================================== */
+  .clinic-input-dark {
+    @apply bg-slate-800 border-slate-700 text-white;
+  }
+}

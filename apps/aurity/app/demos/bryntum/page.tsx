@@ -122,6 +122,7 @@ const DEMO_DOCTORS: Doctor[] = [
     avg_consultation_minutes: 30,
     work_start_time: '09:00',
     work_end_time: '17:00',
+    is_active: true,
     working_hours: [
       { date: '2025-01-06', day: 1, start: '', end: '', fullDayClosed: true, reason: 'Feriado' },
       { day: 1, start: '09:00', end: '17:00' },
@@ -141,6 +142,7 @@ const DEMO_DOCTORS: Doctor[] = [
     avg_consultation_minutes: 25,
     work_start_time: '08:30',
     work_end_time: '16:30',
+    is_active: true,
     working_hours: [
       { day: 1, start: '08:30', end: '16:30' },
       { date: '2025-01-07', day: 2, start: '10:00', end: '14:00', reason: 'Capacitación' },
@@ -159,6 +161,7 @@ const DEMO_DOCTORS: Doctor[] = [
     avg_consultation_minutes: 20,
     work_start_time: '10:00',
     work_end_time: '18:00',
+    is_active: true,
     working_hours: [
       { day: 1, start: '10:00', end: '18:00' },
       { day: 2, start: '10:00', end: '18:30' },

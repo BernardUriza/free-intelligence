@@ -34,8 +34,8 @@ const AppointmentsCalendar = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+      <div className="apt-loading-inline">
+        <Loader2 className="apt-loading-spinner-sm" />
       </div>
     ),
   }
@@ -246,8 +246,8 @@ export default function AppointmentsCalendarPage() {
   // Loading state
   if (loading && !selectedClinic) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-cyan-500" />
+      <div className="apt-loading-full">
+        <Loader2 className="apt-loading-spinner" />
       </div>
     );
   }
@@ -271,7 +271,7 @@ export default function AppointmentsCalendarPage() {
         showGeometricBg={true}
       >
         {/* Toolbar + Scheduler Container */}
-        <div className="px-6 pt-4">
+        <div className="apt-toolbar-container">
           <AppointmentsToolbar
             clinics={clinics}
             selectedClinic={selectedClinic}
@@ -294,7 +294,7 @@ export default function AppointmentsCalendarPage() {
         </div>
         <StatusLegend />
         {/* Doctors & Clinic mini status bar */}
-        <div className="px-6 pb-2 flex flex-col md:flex-row gap-3">
+        <div className="apt-context-bar">
           {selectedClinic && (
             <ClinicCard
               clinic={{
@@ -309,14 +309,14 @@ export default function AppointmentsCalendarPage() {
                 id: d.doctor_id,
                 name: d.display_name || `${d.nombre} ${d.apellido}`.trim() || 'Doctor',
                 specialty: d.especialidad || undefined,
-                available: true, // TODO: Add availability field to Doctor type when backend supports it
+                available: d.is_active,
               }))}
             />
           )}
         </div>
 
         {/* Scheduler Container */}
-        <div className="p-6 relative">
+        <div className="apt-scheduler-container">
           {doctors.length > 0 ? (
             <AppointmentsCalendar
               doctors={doctors}
