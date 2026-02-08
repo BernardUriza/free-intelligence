@@ -3,7 +3,7 @@
  *
  * CRUD operations for clinic and doctor management.
  *
- * File: apps/aurity/lib/api/clinics.ts
+ * File: apps/aurity/lib/api/aurity/clinic/clinics.ts
  * Card: FI-CHECKIN-002
  * Created: 2025-11-22
  */
@@ -142,25 +142,25 @@ export interface AppointmentCreate {
 
 export async function fetchClinics(activeOnly = true): Promise<Clinic[]> {
   const data = await api.get<{ clinics: Clinic[]; total: number }>(
-    `/api/clinics?active_only=${activeOnly}`
+    `/api/aurity/clinic/clinics?active_only=${activeOnly}`
   );
   return data.clinics;
 }
 
 export async function fetchClinic(clinicId: string): Promise<Clinic> {
-  return api.get<Clinic>(`/api/clinics/${clinicId}`);
+  return api.get<Clinic>(`/api/aurity/clinic/clinics/${clinicId}`);
 }
 
 export async function createClinic(data: ClinicCreate): Promise<Clinic> {
-  return api.post<Clinic>('/api/clinics', data);
+  return api.post<Clinic>('/api/aurity/clinic/clinics', data);
 }
 
 export async function updateClinic(clinicId: string, data: ClinicUpdate): Promise<Clinic> {
-  return api.patch<Clinic>(`/api/clinics/${clinicId}`, data);
+  return api.patch<Clinic>(`/api/aurity/clinic/clinics/${clinicId}`, data);
 }
 
 export async function deleteClinic(clinicId: string): Promise<void> {
-  await api.delete<void>(`/api/clinics/${clinicId}`);
+  await api.delete<void>(`/api/aurity/clinic/clinics/${clinicId}`);
 }
 
 // =============================================================================
@@ -169,25 +169,25 @@ export async function deleteClinic(clinicId: string): Promise<void> {
 
 export async function fetchDoctors(clinicId: string, activeOnly = true): Promise<Doctor[]> {
   const data = await api.get<{ doctors: Doctor[]; total: number }>(
-    `/api/clinics/${clinicId}/doctors?active_only=${activeOnly}`
+    `/api/aurity/clinic/clinics/${clinicId}/doctors?active_only=${activeOnly}`
   );
   return data.doctors;
 }
 
 export async function fetchDoctor(clinicId: string, doctorId: string): Promise<Doctor> {
-  return api.get<Doctor>(`/api/clinics/${clinicId}/doctors/${doctorId}`);
+  return api.get<Doctor>(`/api/aurity/clinic/clinics/${clinicId}/doctors/${doctorId}`);
 }
 
 export async function createDoctor(clinicId: string, data: DoctorCreate): Promise<Doctor> {
-  return api.post<Doctor>(`/api/clinics/${clinicId}/doctors`, data);
+  return api.post<Doctor>(`/api/aurity/clinic/clinics/${clinicId}/doctors`, data);
 }
 
 export async function updateDoctor(clinicId: string, doctorId: string, data: DoctorUpdate): Promise<Doctor> {
-  return api.patch<Doctor>(`/api/clinics/${clinicId}/doctors/${doctorId}`, data);
+  return api.patch<Doctor>(`/api/aurity/clinic/clinics/${clinicId}/doctors/${doctorId}`, data);
 }
 
 export async function deleteDoctor(clinicId: string, doctorId: string): Promise<void> {
-  await api.delete<void>(`/api/clinics/${clinicId}/doctors/${doctorId}`);
+  await api.delete<void>(`/api/aurity/clinic/clinics/${clinicId}/doctors/${doctorId}`);
 }
 
 // =============================================================================
@@ -204,13 +204,13 @@ export async function fetchAppointments(
   if (options?.status) params.set('status', options.status);
 
   const data = await api.get<{ appointments: Appointment[] }>(
-    `/api/clinics/${clinicId}/appointments?${params.toString()}`
+    `/api/aurity/clinic/clinics/${clinicId}/appointments?${params.toString()}`
   );
   return data.appointments;
 }
 
 export async function createAppointment(clinicId: string, data: AppointmentCreate): Promise<Appointment> {
-  return api.post<Appointment>(`/api/clinics/${clinicId}/appointments`, data);
+  return api.post<Appointment>(`/api/aurity/clinic/clinics/${clinicId}/appointments`, data);
 }
 
 // =============================================================================
@@ -256,7 +256,7 @@ export async function getClinicMembership(
   if (email) params.append('email', email);
 
   const data = await api.get<ClinicMembership | { linked: false }>(
-    `/api/users/me/clinic-membership?${params}`
+    `/api/aurity/clinic/users/me/clinic-membership?${params}`
   );
 
   // If not linked, data will have { linked: false }
@@ -278,7 +278,7 @@ export async function linkToClinic(
   const params = new URLSearchParams({ user_id: userId });
   if (email) params.append('email', email);
 
-  return api.post<LinkToClinicResponse>(`/api/users/me/link-to-clinic?${params}`, request);
+  return api.post<LinkToClinicResponse>(`/api/aurity/clinic/users/me/link-to-clinic?${params}`, request);
 }
 
 /**
@@ -286,7 +286,7 @@ export async function linkToClinic(
  */
 export async function unlinkFromClinic(userId: string): Promise<{ success: boolean; message: string }> {
   const params = new URLSearchParams({ user_id: userId });
-  return api.delete<{ success: boolean; message: string }>(`/api/users/me/unlink-from-clinic?${params}`);
+  return api.delete<{ success: boolean; message: string }>(`/api/aurity/clinic/users/me/unlink-from-clinic?${params}`);
 }
 
 // =============================================================================
@@ -321,7 +321,7 @@ export interface AdminUserClinicInfo {
 export async function adminAssignUserToClinic(
   request: AdminLinkUserRequest
 ): Promise<LinkToClinicResponse> {
-  return api.post<LinkToClinicResponse>('/api/users/me/admin/assign-to-clinic', request);
+  return api.post<LinkToClinicResponse>('/api/aurity/clinic/users/me/admin/assign-to-clinic', request);
 }
 
 /**
@@ -331,7 +331,7 @@ export async function adminUnassignUserFromClinic(
   userId: string
 ): Promise<{ success: boolean; message: string; clinic_id?: string }> {
   return api.delete<{ success: boolean; message: string; clinic_id?: string }>(
-    `/api/users/me/admin/unassign-user/${encodeURIComponent(userId)}`
+    `/api/aurity/clinic/users/me/admin/unassign-user/${encodeURIComponent(userId)}`
   );
 }
 
@@ -342,7 +342,7 @@ export async function adminGetUserClinicInfo(
   userId: string
 ): Promise<AdminUserClinicInfo> {
   return api.get<AdminUserClinicInfo>(
-    `/api/users/me/admin/user-clinic-info/${encodeURIComponent(userId)}`
+    `/api/aurity/clinic/users/me/admin/user-clinic-info/${encodeURIComponent(userId)}`
   );
 }
 
@@ -371,7 +371,7 @@ export interface DoctorLimitError {
  * Get doctor limit information for a clinic
  */
 export async function fetchDoctorLimits(clinicId: string): Promise<DoctorLimitInfo> {
-  return api.get<DoctorLimitInfo>(`/api/clinics/${clinicId}/doctor-limits`);
+  return api.get<DoctorLimitInfo>(`/api/aurity/clinic/clinics/${clinicId}/doctor-limits`);
 }
 
 /**
@@ -381,7 +381,7 @@ export async function updateDoctorOverride(
   clinicId: string,
   maxDoctorsOverride: number | null
 ): Promise<Clinic> {
-  return api.patch<Clinic>(`/api/clinics/${clinicId}/doctor-override`, {
+  return api.patch<Clinic>(`/api/aurity/clinic/clinics/${clinicId}/doctor-override`, {
     max_doctors_override: maxDoctorsOverride,
   });
 }
@@ -394,7 +394,7 @@ export async function createDoctorWithLimitCheck(
   data: DoctorCreate
 ): Promise<{ success: true; doctor: Doctor } | { success: false; error: DoctorLimitError }> {
   try {
-    const doctor = await api.post<Doctor>(`/api/clinics/${clinicId}/doctors`, data);
+    const doctor = await api.post<Doctor>(`/api/aurity/clinic/clinics/${clinicId}/doctors`, data);
     return { success: true, doctor };
   } catch (error) {
     // Check if this is a 403 with DOCTOR_LIMIT_EXCEEDED
