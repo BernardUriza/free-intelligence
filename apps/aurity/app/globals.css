@@ -54,6 +54,7 @@
 @import "./styles/domains/clinics.css";
 @import "./styles/domains/dashboard.css";
 @import "./styles/domains/layout.css";
+@import "./styles/domains/history.css";
 
 /* ========================================
  * LEGACY STYLES (to be migrated)

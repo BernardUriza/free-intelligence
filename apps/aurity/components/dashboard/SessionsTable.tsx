@@ -13,13 +13,11 @@ interface SessionsTableProps {
 const getStatusBadgeColor = (status: string): string => {
   switch (status) {
     case "active":
-      return "bg-green-900/30 fi-text-green";
+      return "dash-status-active";
     case "complete":
-      return "bg-blue-900/30 fi-text-primary";
-    case "new":
-      return "bg-slate-700/30 text-slate-400";
+      return "dash-status-complete";
     default:
-      return "bg-slate-700/30 text-slate-400";
+      return "dash-status-default";
   }
 };
 

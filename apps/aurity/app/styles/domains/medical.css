@@ -281,4 +281,114 @@
   .med-panel-body {
     @apply p-4;
   }
+
+  /* ========================================
+   * ORDER ENTRY
+   * ======================================== */
+  .med-order-icon-box {
+    @apply inline-flex items-center justify-center w-16 h-16
+           fi-gradient-emerald-cyan-soft rounded-2xl mb-4
+           backdrop-blur-sm border border-emerald-500/20;
+  }
+
+  .med-order-form-card {
+    @apply fi-gradient-slate-card-solid backdrop-blur-sm rounded-2xl p-8
+           border border-slate-700/50 shadow-2xl;
+  }
+
+  .med-order-input {
+    @apply w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2
+           border-slate-700/50 focus:border-emerald-500 focus:outline-none
+           focus:ring-2 focus:ring-emerald-500/20 transition-all;
+  }
+
+  .med-order-textarea {
+    @apply w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2
+           border-slate-700/50 focus:border-emerald-500 focus:outline-none
+           focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none;
+  }
+
+  .med-order-summary-card {
+    @apply fi-gradient-emerald-cyan-subtle backdrop-blur-sm rounded-2xl p-6
+           border border-emerald-500/20;
+  }
+
+  /* ========================================
+   * MEDICAL AI PAGE
+   * ======================================== */
+  .med-error-banner {
+    @apply mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl
+           flex items-start gap-3;
+  }
+
+  .med-calendar-container {
+    @apply bg-slate-900/50 backdrop-blur-md border border-white/10
+           rounded-2xl p-6 shadow-xl h-[calc(100vh-220px)];
+  }
+
+  .med-calendar-placeholder {
+    @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800/50
+           rounded-2xl p-12 shadow-xl flex items-center justify-center
+           h-[calc(100vh-220px)];
+  }
+
+  .med-delete-backdrop {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-md z-50
+           flex items-center justify-center p-4;
+  }
+
+  .med-delete-modal {
+    @apply bg-slate-800/90 backdrop-blur-lg border border-white/10
+           rounded-2xl p-6 max-w-md w-full shadow-2xl;
+  }
+
+  .med-back-btn {
+    @apply px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm
+           rounded-lg transition-all border border-slate-700
+           hover:border-slate-600 flex items-center gap-2;
+  }
+
+  .med-workflow-step {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-slate-800/50 border border-slate-700/50
+           text-slate-400 hover:bg-slate-800 hover:border-slate-600;
+  }
+
+  .med-workflow-step-active {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-emerald-500/20 border-2 border-emerald-500/50
+           text-emerald-300 shadow-lg;
+  }
+
+  .med-workflow-step-completed {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-green-500/10 border border-green-500/30
+           text-green-300 hover:bg-green-500/20;
+  }
+
+  /* ========================================
+   * PREVIEW MODAL
+   * ======================================== */
+  .med-preview-backdrop {
+    @apply fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4;
+  }
+
+  .med-preview-content {
+    @apply bg-slate-900 rounded-xl max-w-3xl w-full max-h-[80vh]
+           overflow-y-auto border border-slate-700;
+  }
+
+  /* ========================================
+   * PATIENT CARD
+   * ======================================== */
+  .med-session-badge {
+    @apply flex items-center gap-1.5 px-2 py-0.5
+           bg-cyan-500/10 border border-cyan-500/20 rounded;
+  }
+
+  .med-patient-edit-btn {
+    @apply opacity-0 group-hover:opacity-100 bg-slate-700/50
+           hover:bg-blue-500/20 border border-slate-600/50
+           hover:border-blue-500/50 text-slate-400 hover:fi-text-primary;
+  }
 }

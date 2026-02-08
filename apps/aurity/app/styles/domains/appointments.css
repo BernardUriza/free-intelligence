@@ -25,6 +25,10 @@
   @apply px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center;
 }
 
+@utility apt-field-label {
+  @apply flex items-center gap-2 fi-label;
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -162,5 +166,64 @@
 
   .apt-loading-spinner-sm {
     @apply h-8 w-8 animate-spin text-cyan-500;
+  }
+
+  /* ========================================
+   * CALENDAR
+   * ======================================== */
+  .apt-calendar-wrapper {
+    @apply bg-slate-900 rounded-lg shadow-lg border border-slate-700;
+  }
+
+  /* ========================================
+   * MODAL
+   * ======================================== */
+  .apt-modal-delete-btn {
+    @apply fi-text-error hover:bg-red-900/30;
+  }
+
+  /* ========================================
+   * PATIENT SEARCH
+   * ======================================== */
+  .apt-patient-selected {
+    @apply px-4 py-2 bg-cyan-900/20 border border-cyan-500/30
+           rounded-lg flex items-center justify-between;
+  }
+
+  .apt-search-icon {
+    @apply absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400;
+  }
+
+  .apt-patient-new-btn {
+    @apply fi-text-success hover:bg-emerald-900/20 whitespace-nowrap;
+  }
+
+  .apt-patient-dropdown-item {
+    @apply w-full px-4 py-3 text-left fi-hover-bg fi-border-bottom last:border-0;
+  }
+
+  .apt-patient-create-form {
+    @apply mt-3 p-4 bg-slate-800/50 border border-emerald-500/30 rounded-lg space-y-3;
+  }
+
+  .apt-patient-create-header {
+    @apply flex items-center justify-between mb-2;
+  }
+
+  .apt-patient-create-title {
+    @apply text-sm font-medium fi-text-success;
+  }
+
+  /* ========================================
+   * CALENDAR LOADING
+   * ======================================== */
+  .apt-loading-overlay {
+    @apply absolute inset-0 bg-slate-900/50 z-10
+           flex items-center justify-center rounded-lg;
+  }
+
+  .apt-loading-spinner {
+    @apply animate-spin w-8 h-8 border-2 border-indigo-500
+           border-t-transparent rounded-full;
   }
 }

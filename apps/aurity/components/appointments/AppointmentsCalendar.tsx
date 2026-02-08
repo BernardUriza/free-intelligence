@@ -132,7 +132,7 @@ export function AppointmentsCalendar({
       timeWindow={timeWindow}
       onReady={handleReady}
       onError={handleError}
-      className="bg-slate-900 rounded-lg shadow-lg border border-slate-700"
+      className="apt-calendar-wrapper"
       style={{ height: 'calc(100vh - 220px)' }}
     />
   );

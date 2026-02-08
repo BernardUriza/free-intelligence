@@ -173,22 +173,14 @@ export function DocumentEditModal({
                     <Button
                       key={persona.id}
                       onClick={() => handlePersonaToggle(persona.id)}
-                      className={`flex items-center gap-2 p-3 rounded-lg border transition-colors text-left ${
-                        isSelected
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
-                      }`}
+                      className={isSelected ? 'admin-doc-persona-toggle-active' : 'admin-doc-persona-toggle'}
                       variant={isSelected ? 'primary' : 'ghost'}
                       size="sm"
                       type="button"
                       aria-pressed={isSelected}
                     >
                       <div
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'border-slate-600'
-                        }`}
+                        className={isSelected ? 'admin-doc-persona-check-active' : 'admin-doc-persona-check'}
                       >
                         {isSelected && (
                           <svg

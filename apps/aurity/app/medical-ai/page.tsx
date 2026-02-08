@@ -405,7 +405,7 @@ export default function MedicalAIWorkflow() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Error Loading Patients */}
           {patientsError && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+            <div className="med-error-banner">
               <AlertCircle className="h-5 w-5 fi-text-error flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-red-300">Error al cargar pacientes</p>
@@ -446,7 +446,7 @@ export default function MedicalAIWorkflow() {
 
           {/* Doctor Appointments Calendar */}
           {effectiveDoctor ? (
-            <div className="bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl h-[calc(100vh-220px)]">
+            <div className="med-calendar-container">
               <DoctorAppointmentsCalendar
                 appointments={appointments}
                 currentDate={currentDate}
@@ -458,7 +458,7 @@ export default function MedicalAIWorkflow() {
               />
             </div>
           ) : (
-            <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-12 shadow-xl flex items-center justify-center h-[calc(100vh-220px)]">
+            <div className="med-calendar-placeholder">
               <p className="text-slate-400 text-lg">Selecciona un doctor para ver su calendario</p>
             </div>
           )}
@@ -506,8 +506,8 @@ export default function MedicalAIWorkflow() {
 
           {/* Delete Confirmation Modal */}
           {deleteConfirmSession && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-800/90 backdrop-blur-lg border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="med-delete-backdrop">
+              <div className="med-delete-modal">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Trash2 className="h-6 w-6 fi-text-error" />
@@ -627,7 +627,7 @@ export default function MedicalAIWorkflow() {
           actions: (
             <button
               onClick={handleBackToCalendar}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded-lg transition-all border border-slate-700 hover:border-slate-600 flex items-center gap-2"
+              className="med-back-btn"
             >
               <Calendar className="w-4 h-4" />
               Volver al Calendario
@@ -654,13 +654,7 @@ export default function MedicalAIWorkflow() {
                 <React.Fragment key={step.id}>
                   <button
                     onClick={() => setCurrentStep(step.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
-                      isActive
-                        ? 'bg-emerald-500/20 border-2 border-emerald-500/50 text-emerald-300 shadow-lg'
-                        : isCompleted
-                        ? 'bg-green-500/10 border border-green-500/30 text-green-300 hover:bg-green-500/20'
-                        : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:border-slate-600'
-                    }`}
+                    className={isActive ? 'med-workflow-step-active' : isCompleted ? 'med-workflow-step-completed' : 'med-workflow-step'}
                   >
                     {isCompleted ? (
                       <CheckCircle2 className="h-4 w-4" />

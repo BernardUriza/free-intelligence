@@ -127,7 +127,7 @@ export function CheckinQRDisplay({
 
   if (compact) {
     return (
-      <div className="bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-600/40 rounded-xl p-4 backdrop-blur-sm">
+      <div className="checkin-qr-container-compact">
         <div className="fi-flex-gap-lg">
           {/* QR Code */}
           <div className="flex-shrink-0">
@@ -163,11 +163,11 @@ export function CheckinQRDisplay({
   // FI-TV-007: TV Mode with 16:9 aspect ratio optimization
   // Full-height layout that fills the side panel properly
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-600/30 rounded-xl backdrop-blur-sm p-3 sm:p-4 lg:p-6">
+    <div className="checkin-qr-container-full">
       {/* Header - Compact for TV */}
       <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
         <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-900/30 border border-indigo-500/30 rounded-full mb-2 sm:mb-3"
+          className="checkin-qr-header-badge"
         >
           <Smartphone
             className="text-indigo-400"
@@ -228,7 +228,7 @@ export function CheckinQRDisplay({
             </div>
           ) : qrData?.qrDataUrl ? (
             <div
-              className="bg-white rounded-xl sm:rounded-2xl shadow-2xl shadow-indigo-500/20 p-2 sm:p-3 lg:p-4"
+              className="checkin-qr-code-wrapper"
               style={{ maxWidth: 'min(100%, 250px)', maxHeight: 'min(100%, 250px)' }}
             >
               <img
@@ -275,10 +275,10 @@ export function CheckinQRDisplay({
         ].map(step => (
           <div
             key={step.num}
-            className="flex items-center gap-2 p-2 bg-slate-900/50 rounded-lg"
+            className="checkin-qr-step"
           >
             <div
-              className="rounded-full bg-indigo-600/20 flex items-center justify-center flex-shrink-0"
+              className="checkin-qr-step-number"
               style={{
                 width: 'clamp(1.25rem, 2vw, 1.75rem)',
                 height: 'clamp(1.25rem, 2vw, 1.75rem)',

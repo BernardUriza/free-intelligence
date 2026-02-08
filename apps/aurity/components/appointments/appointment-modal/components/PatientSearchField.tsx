@@ -71,7 +71,7 @@ export function PatientSearchField({
 }: PatientSearchFieldProps) {
   return (
     <div className="relative">
-      <label htmlFor="patient-search" className="flex items-center gap-2 fi-label">
+      <label htmlFor="patient-search" className="apt-field-label">
         <User className="fi-icon-sm" />
         Paciente
       </label>
@@ -79,7 +79,7 @@ export function PatientSearchField({
       <div className="relative" ref={dropdownRef}>
         {selectedPatientId ? (
           // Selected patient display
-          <div className="px-4 py-2 bg-cyan-900/20 border border-cyan-500/30 rounded-lg flex items-center justify-between">
+          <div className="apt-patient-selected">
             <span className="text-white">{selectedPatientName || selectedPatientId}</span>
             <Button
               type="button"
@@ -105,14 +105,14 @@ export function PatientSearchField({
                 className="fi-input-cyan pr-10 w-full"
                 aria-label="Buscar paciente"
               />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 fi-icon-sm text-slate-400" />
+              <Search className="apt-search-icon" />
             </div>
             <Button
               type="button"
               onClick={onOpenCreateForm}
               variant="ghost"
               size="sm"
-              className="fi-text-success hover:bg-emerald-900/20 whitespace-nowrap"
+              className="apt-patient-new-btn"
             >
               <Plus className="fi-icon-sm mr-1" />
               Nuevo
@@ -135,7 +135,7 @@ export function PatientSearchField({
                   e.stopPropagation();
                   onSelectPatient(patient);
                 }}
-                className="w-full px-4 py-3 text-left fi-hover-bg fi-border-bottom last:border-0"
+                className="apt-patient-dropdown-item"
               >
                 <div className="font-medium text-white">{patient.name}</div>
                 <div className="fi-subtitle text-xs truncate">ID: {patient.id}</div>
@@ -155,9 +155,9 @@ export function PatientSearchField({
 
       {/* Create patient form */}
       {showCreateForm && (
-        <div className="mt-3 p-4 bg-slate-800/50 border border-emerald-500/30 rounded-lg space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium fi-text-success">Nuevo Paciente</h4>
+        <div className="apt-patient-create-form">
+          <div className="apt-patient-create-header">
+            <h4 className="apt-patient-create-title">Nuevo Paciente</h4>
             <Button
               type="button"
               onClick={onCloseCreateForm}

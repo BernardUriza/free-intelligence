@@ -199,7 +199,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
     <div className={`max-w-4xl mx-auto ${className}`}>
       {/* Result Display */}
       {result && (
-        <div className="mb-8 p-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+        <div className="admin-license-result">
           <div className="flex items-center gap-2 mb-4">
             <Check className="w-5 h-5 text-emerald-400" />
             <h3 className="text-lg font-semibold text-emerald-400">
@@ -211,7 +211,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           <div className="mb-4">
             <label className="block text-sm text-slate-400 mb-2">Clave de Licencia</label>
             <div className="flex gap-2">
-              <code className="flex-1 p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono text-slate-200 break-all max-h-32 overflow-y-auto">
+              <code className="admin-license-key-display">
                 {result.license_key}
               </code>
               <div className="flex flex-col gap-2">
@@ -272,7 +272,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
 
       {/* Error Display */}
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+        <div className="admin-license-error">
           <p className="text-red-400">{error}</p>
         </div>
       )}
@@ -281,7 +281,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       {!result && (
         <form onSubmit={handleGenerate} className="space-y-6">
           {/* License Capacity */}
-          <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+          <div className="admin-license-section">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-blue-400" />
               <h3 className="text-lg font-medium text-slate-200">Capacidad de Licencia</h3>
@@ -299,7 +299,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   min={1}
                   max={100}
                   required
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="admin-license-input"
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   El admin creará las clínicas después de activar la licencia
@@ -314,7 +314,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
                   value={licenseHolder}
                   onChange={(e) => setLicenseHolder(e.target.value)}
                   placeholder="Dr. García / Hospital Central"
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="admin-license-input"
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   Opcional, solo para identificación
@@ -324,7 +324,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           </div>
 
           {/* Features */}
-          <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+          <div className="admin-license-section">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-amber-400" />
               <h3 className="text-lg font-medium text-slate-200">Funcionalidades</h3>
@@ -334,14 +334,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
               {features.map((feature) => (
                 <label
                   key={feature.id}
-                  className={`
-                    flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors
-                    ${
-                      selectedFeatures.includes(feature.id)
-                        ? 'bg-blue-500/20 border-blue-500/50'
-                        : 'bg-slate-900 border-slate-700 hover:border-slate-600'
-                    }
-                  `}
+                  className={selectedFeatures.includes(feature.id) ? 'admin-license-toggle-active' : 'admin-license-toggle'}
                 >
                   <input
                     type="checkbox"
@@ -359,7 +352,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
           </div>
 
           {/* Expiration */}
-          <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+          <div className="admin-license-section">
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="w-5 h-5 text-cyan-400" />
               <h3 className="text-lg font-medium text-slate-200">Vigencia</h3>
@@ -367,14 +360,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
 
             <div className="flex flex-wrap gap-3">
               <label
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors
-                  ${
-                    expirationPreset === '1year'
-                      ? 'bg-cyan-500/20 border-cyan-500/50'
-                      : 'bg-slate-900 border-slate-700 hover:border-slate-600'
-                  }
-                `}
+                className={expirationPreset === '1year' ? 'admin-license-radio-active' : 'admin-license-radio'}
               >
                 <input
                   type="radio"
@@ -387,14 +373,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
               </label>
 
               <label
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors
-                  ${
-                    expirationPreset === '2years'
-                      ? 'bg-cyan-500/20 border-cyan-500/50'
-                      : 'bg-slate-900 border-slate-700 hover:border-slate-600'
-                  }
-                `}
+                className={expirationPreset === '2years' ? 'admin-license-radio-active' : 'admin-license-radio'}
               >
                 <input
                   type="radio"
@@ -407,14 +386,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
               </label>
 
               <label
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors
-                  ${
-                    expirationPreset === 'custom'
-                      ? 'bg-cyan-500/20 border-cyan-500/50'
-                      : 'bg-slate-900 border-slate-700 hover:border-slate-600'
-                  }
-                `}
+                className={expirationPreset === 'custom' ? 'admin-license-radio-active' : 'admin-license-radio'}
               >
                 <input
                   type="radio"

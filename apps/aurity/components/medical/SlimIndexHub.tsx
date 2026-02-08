@@ -96,9 +96,7 @@ export function SlimIndexHub() {
         )}
 
         {/* Medical AI Workflow - Neo-minimalist glassmorphism */}
-        <div className={`mb-8 p-6 bg-emerald-950/30 backdrop-blur-md border border-white/10 hover:border-emerald-500/40 rounded-2xl shadow-lg hover:shadow-xl transition-all relative ${
-          !hasFullAccess ? 'opacity-50 pointer-events-none' : ''
-        }`}>
+        <div className={`dash-promo-card-emerald ${!hasFullAccess ? 'opacity-50 pointer-events-none' : ''}`}>
           {!hasFullAccess && (
             <div className="absolute top-3 right-3 px-3 py-1.5 bg-slate-800/80 backdrop-blur-sm border border-slate-600/50 rounded-lg text-xs fi-text font-medium shadow-md flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5" />

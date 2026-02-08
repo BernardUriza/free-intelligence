@@ -93,7 +93,7 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="layout-loading-screen">
         <div className="animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full"></div>
       </div>
     );
@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="layout-loading-screen">
         <div className="text-center">
           <p className="text-slate-400 mb-4">Debes iniciar sesión para ver tu perfil</p>
           <Link href="/" className="fi-text-primary hover:text-blue-300">
@@ -230,11 +230,7 @@ export default function ProfilePage() {
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
                 <div 
-                  className={`h-2 rounded-full transition-all ${
-                    diskUsage.percent > 80 ? 'bg-red-500' : 
-                    diskUsage.percent > 60 ? 'bg-yellow-500' : 
-                    'bg-emerald-500'
-                  }`}
+                  className={diskUsage.percent > 80 ? 'layout-progress-critical' : diskUsage.percent > 60 ? 'layout-progress-warning' : 'layout-progress-healthy'}
                   style={{ width: `${Math.min(diskUsage.percent, 100)}%` }}
                 />
               </div>

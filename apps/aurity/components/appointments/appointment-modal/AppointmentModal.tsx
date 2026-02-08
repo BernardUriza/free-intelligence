@@ -101,7 +101,7 @@ export function AppointmentModal({
                 size="sm"
                 icon={Trash2}
                 disabled={deleting || loading}
-                className="fi-text-error hover:bg-red-900/30"
+                className="apt-modal-delete-btn"
                 title="Eliminar cita"
                 aria-label="Eliminar cita"
               />

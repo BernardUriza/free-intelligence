@@ -12,6 +12,14 @@ import type { LLMModel } from '@aurity-standalone/types/llm';
 import { PROVIDER_INFO, COST_TIER_INFO } from '@aurity-standalone/types/llm';
 import { ProviderLogo, ProviderLogoBox } from '@/components/ui/ProviderLogo';
 
+// Static class map for cost tier colors — avoids dynamic Tailwind interpolation
+const COST_TIER_CLASSES: Record<string, string> = {
+  green: 'admin-cost-green',
+  yellow: 'admin-cost-yellow',
+  red: 'admin-cost-red',
+  slate: 'admin-cost-slate',
+};
+
 interface LLMModelCardProps {
   model: LLMModel;
   isSelected: boolean;
@@ -71,13 +79,13 @@ export function LLMModelCard({
 
   return (
     <div
-      className={`p-6 rounded-xl border-2 cursor-pointer transition-all ${
+      className={
         isSelected
-          ? 'border-emerald-500 bg-emerald-950/30 shadow-lg shadow-emerald-900/20'
+          ? 'admin-model-card-selected'
           : model.is_active
-          ? 'border-slate-700 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-900/70'
-          : 'border-slate-800 bg-slate-950/50 opacity-60'
-      }`}
+          ? 'admin-model-card-active'
+          : 'admin-model-card-inactive'
+      }
       onClick={onClick}
     >
       {/* Header */}
@@ -88,7 +96,7 @@ export function LLMModelCard({
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               {model.id}
               {!model.is_active && (
-                <span className="px-2 py-0.5 text-xs bg-red-900/50 fi-text-error rounded-full">
+                <span className="admin-model-badge-inactive">
                   Inactivo
                 </span>
               )}
@@ -107,7 +115,7 @@ export function LLMModelCard({
             icon={model.is_active ? PowerOff : Power}
             aria-label={model.is_active ? 'Desactivar modelo' : 'Activar modelo'}
             title={model.is_active ? 'Desactivar' : 'Activar'}
-            className={model.is_active ? 'text-yellow-400 hover:bg-yellow-900/30' : 'fi-text-green hover:bg-green-900/30'}
+            className={model.is_active ? 'admin-model-toggle-on' : 'admin-model-toggle-off'}
           />
           {model.is_active && onTest && (
             <Button
@@ -120,7 +128,7 @@ export function LLMModelCard({
               icon={FlaskConical}
               aria-label="Probar modelo"
               title="Probar modelo"
-              className="fi-text-purple hover:text-purple-300 hover:bg-purple-900/30"
+              className="admin-model-test-btn"
             />
           )}
           <Button
@@ -142,7 +150,7 @@ export function LLMModelCard({
             size="sm"
             icon={Trash2}
             aria-label="Eliminar modelo"
-            className="text-slate-400 hover:fi-text-error hover:bg-red-900/30"
+            className="admin-model-delete-btn"
           />
         </div>
       </div>
@@ -179,7 +187,7 @@ export function LLMModelCard({
         ) : (
           <div className="fi-card-mini">
             <div className="fi-text-xs-muted">Costo</div>
-            <div className={`text-sm font-medium text-${costInfo.color}-400`}>
+            <div className={COST_TIER_CLASSES[costInfo.color] || 'admin-cost-slate'}>
               {costInfo.icon} {costInfo.label}
             </div>
           </div>

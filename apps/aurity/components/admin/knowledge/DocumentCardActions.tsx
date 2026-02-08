@@ -47,12 +47,10 @@ function ActionButton({
   variant = 'default',
   children,
 }: ActionButtonProps) {
-  const baseClasses = 'p-1.5 sm:p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed';
-
   const variantClasses = {
-    default: 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50',
-    danger: 'text-slate-400 hover:text-red-400 hover:bg-red-900/30',
-    success: 'text-slate-400 hover:text-emerald-300 hover:bg-emerald-900/30',
+    default: 'admin-doc-action-default',
+    danger: 'admin-doc-action-danger',
+    success: 'admin-doc-action-success',
   };
 
   return (
@@ -60,7 +58,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
+      className={`${variantClasses[variant]} ${className}`}
     >
       {children}
     </button>

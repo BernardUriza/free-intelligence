@@ -58,11 +58,7 @@ export function TimelineToolbar({
         {/* Drawer Toggle */}
         <Button
           onClick={onToggleDrawer}
-          className={`p-2 rounded-lg transition-colors ${
-            drawerOpen
-              ? 'bg-emerald-600 text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
+          className={drawerOpen ? 'history-drawer-toggle-active' : 'history-drawer-toggle'}
           variant="ghost"
           size="sm"
           title="Navegar"
@@ -80,11 +76,7 @@ export function TimelineToolbar({
               <Button
                 key={mode}
                 onClick={() => onViewModeChange(mode)}
-                className={`flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                }`}
+                className={isActive ? 'history-view-btn-active' : 'history-view-btn'}
                 variant="ghost"
                 size="sm"
                 title={config.label}
@@ -99,14 +91,14 @@ export function TimelineToolbar({
 
       {/* Center: Date Navigation */}
       <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
-        <Button onClick={() => onNavigateDate('prev')} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200" variant="ghost" size="sm" title="Anterior">
+        <Button onClick={() => onNavigateDate('prev')} className="history-nav-btn" variant="ghost" size="sm" title="Anterior">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Button onClick={onGoToToday} className="px-2 py-1 fi-text-xs-medium hover:bg-slate-700 rounded fi-text" variant="ghost" size="sm" title="Hoy">Hoy</Button>
         <span className="px-2 py-1 fi-text-xs-medium min-w-[120px] text-center text-slate-200">
           {dateText}
         </span>
-        <Button onClick={() => onNavigateDate('next')} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200" variant="ghost" size="sm" title="Siguiente">
+        <Button onClick={() => onNavigateDate('next')} className="history-nav-btn" variant="ghost" size="sm" title="Siguiente">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -118,7 +110,7 @@ export function TimelineToolbar({
           <Button
             onClick={() => onZoom('out')}
             disabled={zoomLevel <= 0.5}
-            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="history-zoom-btn"
             title="Alejar"
             variant="ghost"
             size="sm"
@@ -131,7 +123,7 @@ export function TimelineToolbar({
           <Button
             onClick={() => onZoom('in')}
             disabled={zoomLevel >= 2}
-            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="history-zoom-btn"
             title="Acercar"
             variant="ghost"
             size="sm"
@@ -144,7 +136,7 @@ export function TimelineToolbar({
         {onJumpToLatest && (
           <Button
             onClick={onJumpToLatest}
-            className="flex items-center gap-1.5 px-2 py-1.5 fi-text-xs-medium fi-text hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+            className="history-jump-latest-btn"
             title="Ir al último evento"
             variant="ghost"
             size="sm"

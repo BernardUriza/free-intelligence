@@ -150,12 +150,12 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
   };
 
   const wrapperClass = asPage
-    ? "min-h-screen bg-slate-950"
-    : "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4";
+    ? "admin-user-wrapper-page"
+    : "admin-user-wrapper-modal";
 
   const containerClass = asPage
-    ? "bg-slate-900 min-h-screen flex flex-col"
-    : "bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col";
+    ? "admin-user-container-page"
+    : "admin-user-container-modal";
 
   return (
     <div className={wrapperClass} onClick={asPage ? undefined : onClose}>
@@ -217,9 +217,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
               {filteredUsers.map(user => (
                 <div
                   key={user.user_id}
-                  className={`bg-slate-900/50 border rounded-lg p-4 hover:border-slate-600 transition-colors ${
-                    user.blocked ? 'border-red-900/50 opacity-60' : 'border-slate-700'
-                  }`}
+                  className={user.blocked ? 'admin-user-card-blocked' : 'admin-user-card'}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
@@ -238,7 +236,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                           <h3 className="text-white font-medium flex items-center gap-2">
                             {user.name || user.email}
                             {user.blocked && (
-                              <span className="px-2 py-0.5 bg-red-900/30 border border-red-700 fi-text-error text-xs rounded">
+                              <span className="admin-user-badge-blocked">
                                 Bloqueado
                               </span>
                             )}
@@ -266,7 +264,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
 
                       {user.clinicInfo?.is_linked && (
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded flex items-center gap-1">
+                          <span className="admin-user-badge-clinic">
                             <Building2 className="w-3 h-3" />
                             {user.clinicInfo.clinic_name} ({user.clinicInfo.clinic_role})
                           </span>
@@ -274,7 +272,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
                             onClick={() => handleUnassignFromClinic(user)}
                             variant="ghost"
                             size="xs"
-                            className="fi-text-error hover:text-red-300"
+                            className="admin-user-remove-btn"
                           >
                             Remover
                           </Button>

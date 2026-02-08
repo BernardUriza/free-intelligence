@@ -84,9 +84,7 @@ export function ModelCatalogDrawer({
 
       {/* Drawer */}
       <div
-        className={`fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`admin-catalog-drawer ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
         role="dialog"
         aria-modal="true"
         aria-label="Catálogo de modelos"
@@ -153,7 +151,7 @@ export function ModelCatalogDrawer({
               variant="outline"
               size="sm"
               icon={DatabaseZap}
-              className={`text-emerald-300 border-emerald-700/50 hover:bg-emerald-700/50 ${isSyncing ? '[&_svg]:animate-pulse' : ''}`}
+              className={`admin-catalog-sync-btn ${isSyncing ? '[&_svg]:animate-pulse' : ''}`}
               title="Sincronizar modelos instalados a Base de Datos"
               aria-label="Sincronizar modelos"
             />

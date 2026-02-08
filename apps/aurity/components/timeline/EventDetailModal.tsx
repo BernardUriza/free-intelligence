@@ -45,7 +45,7 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden"
+        className="history-modal-container"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -93,7 +93,7 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
             <span className="fi-text-xs-muted uppercase tracking-wide">Contenido</span>
             <Button
               onClick={handleCopyContent}
-              className="flex items-center gap-1.5 px-2 py-1 fi-text-xs hover:text-white hover:bg-slate-800 rounded transition-colors"
+              className="history-copy-btn"
               variant="ghost"
               size="sm"
               title="Copiar contenido"

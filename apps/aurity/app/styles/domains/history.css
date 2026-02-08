@@ -1,0 +1,95 @@
+/**
+ * History / Timeline Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: history-{component}[-variant]
+ * Examples: history-toolbar, history-filter-btn, history-modal
+ *
+ * Covers: timeline scheduler, event detail modal, audit table,
+ *         keyboard shortcuts bar, filters
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility history-nav-btn {
+  @apply p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200;
+}
+
+@utility history-zoom-btn {
+  @apply p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200
+         disabled:opacity-30 disabled:cursor-not-allowed;
+}
+
+@utility history-kbd {
+  @apply px-1 py-0.5 bg-slate-800 rounded text-slate-400;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * TOOLBAR
+   * ======================================== */
+  .history-drawer-toggle {
+    @apply p-2 rounded-lg transition-colors text-slate-400
+           hover:text-white hover:bg-slate-800;
+  }
+  .history-drawer-toggle-active {
+    @apply p-2 rounded-lg transition-colors bg-emerald-600 text-white;
+  }
+
+  .history-view-btn {
+    @apply flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium
+           transition-colors text-slate-400 hover:bg-slate-700 hover:text-slate-200;
+  }
+  .history-view-btn-active {
+    @apply flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium
+           transition-colors bg-emerald-600 text-white shadow-sm;
+  }
+
+  .history-jump-latest-btn {
+    @apply flex items-center gap-1.5 px-2 py-1.5 fi-text-xs-medium fi-text
+           hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors;
+  }
+
+  /* ========================================
+   * FILTERS
+   * ======================================== */
+  .history-filter-btn {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors text-slate-400 hover:text-white hover:bg-slate-700;
+  }
+  .history-filter-btn-emerald {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors bg-emerald-600 text-white;
+  }
+  .history-filter-btn-sky {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors bg-sky-600 text-white;
+  }
+
+  /* ========================================
+   * EVENT DETAIL MODAL
+   * ======================================== */
+  .history-modal-container {
+    @apply bg-slate-900 rounded-2xl shadow-2xl border border-slate-700
+           w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden;
+  }
+
+  .history-copy-btn {
+    @apply flex items-center gap-1.5 px-2 py-1 fi-text-xs
+           hover:text-white hover:bg-slate-800 rounded transition-colors;
+  }
+
+  /* ========================================
+   * KEYBOARD SHORTCUTS BAR
+   * ======================================== */
+  .history-shortcuts-bar {
+    @apply px-3 py-2 bg-slate-900/30 border-t border-slate-800
+           fi-text-xs-muted flex items-center gap-4;
+  }
+}

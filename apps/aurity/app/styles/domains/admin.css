@@ -412,4 +412,281 @@
   .admin-installed-badge-icon {
     @apply w-3 h-3;
   }
+
+  /* ========================================
+   * PERSONA CARDS (per-color variants)
+   * ======================================== */
+
+  /* Default state */
+  .admin-persona-emerald {
+    @apply admin-card cursor-pointer border-emerald-700/30 bg-emerald-950/10
+           hover:border-emerald-600 hover:bg-emerald-950/20;
+  }
+  .admin-persona-blue {
+    @apply admin-card cursor-pointer border-blue-700/30 bg-blue-950/10
+           hover:border-blue-600 hover:bg-blue-950/20;
+  }
+  .admin-persona-purple {
+    @apply admin-card cursor-pointer border-purple-700/30 bg-purple-950/10
+           hover:border-purple-600 hover:bg-purple-950/20;
+  }
+  .admin-persona-rose {
+    @apply admin-card cursor-pointer border-rose-700/30 bg-rose-950/10
+           hover:border-rose-600 hover:bg-rose-950/20;
+  }
+  .admin-persona-slate {
+    @apply admin-card cursor-pointer border-slate-700/30 bg-slate-950/10
+           hover:border-slate-600 hover:bg-slate-950/20;
+  }
+
+  /* Selected state */
+  .admin-persona-emerald-selected {
+    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
+           shadow-lg shadow-emerald-900/20;
+  }
+  .admin-persona-blue-selected {
+    @apply admin-card cursor-pointer border-blue-500 bg-blue-950/30
+           shadow-lg shadow-blue-900/20;
+  }
+  .admin-persona-purple-selected {
+    @apply admin-card cursor-pointer border-purple-500 bg-purple-950/30
+           shadow-lg shadow-purple-900/20;
+  }
+  .admin-persona-rose-selected {
+    @apply admin-card cursor-pointer border-rose-500 bg-rose-950/30
+           shadow-lg shadow-rose-900/20;
+  }
+  .admin-persona-slate-selected {
+    @apply admin-card cursor-pointer border-slate-500 bg-slate-950/30
+           shadow-lg shadow-slate-900/20;
+  }
+
+  /* Icon wrapper */
+  .admin-persona-icon-emerald {
+    @apply p-2 rounded-lg bg-emerald-900 border border-emerald-700;
+  }
+  .admin-persona-icon-blue {
+    @apply p-2 rounded-lg bg-blue-900 border border-blue-700;
+  }
+  .admin-persona-icon-purple {
+    @apply p-2 rounded-lg bg-purple-900 border border-purple-700;
+  }
+  .admin-persona-icon-rose {
+    @apply p-2 rounded-lg bg-rose-900 border border-rose-700;
+  }
+  .admin-persona-icon-slate {
+    @apply p-2 rounded-lg bg-slate-900 border border-slate-700;
+  }
+
+  /* Brain icon color */
+  .admin-persona-brain-emerald {
+    @apply w-6 h-6 text-emerald-400;
+  }
+  .admin-persona-brain-blue {
+    @apply w-6 h-6 text-blue-400;
+  }
+  .admin-persona-brain-purple {
+    @apply w-6 h-6 text-purple-400;
+  }
+  .admin-persona-brain-rose {
+    @apply w-6 h-6 text-rose-400;
+  }
+  .admin-persona-brain-slate {
+    @apply w-6 h-6 text-slate-400;
+  }
+
+  /* Persona delete button */
+  .admin-persona-delete-btn {
+    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/50;
+  }
+
+  /* ========================================
+   * LLM MODEL CARD STATES
+   * ======================================== */
+  .admin-model-card-selected {
+    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
+           shadow-lg shadow-emerald-900/20;
+  }
+  .admin-model-card-active {
+    @apply admin-card cursor-pointer border-slate-700 bg-slate-900/50
+           hover:border-slate-600 hover:bg-slate-900/70;
+  }
+  .admin-model-card-inactive {
+    @apply admin-card cursor-pointer border-slate-800 bg-slate-950/50 opacity-60;
+  }
+
+  /* Model inactive badge */
+  .admin-model-badge-inactive {
+    @apply px-2 py-0.5 text-xs bg-red-900/50 fi-text-error rounded-full;
+  }
+
+  /* Model action buttons */
+  .admin-model-toggle-on {
+    @apply text-yellow-400 hover:bg-yellow-900/30;
+  }
+  .admin-model-toggle-off {
+    @apply fi-text-green hover:bg-green-900/30;
+  }
+  .admin-model-test-btn {
+    @apply fi-text-purple hover:text-purple-300 hover:bg-purple-900/30;
+  }
+  .admin-model-delete-btn {
+    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/30;
+  }
+
+  /* Cost tier text colors */
+  .admin-cost-green {
+    @apply text-sm font-medium text-green-400;
+  }
+  .admin-cost-yellow {
+    @apply text-sm font-medium text-yellow-400;
+  }
+  .admin-cost-red {
+    @apply text-sm font-medium text-red-400;
+  }
+  .admin-cost-slate {
+    @apply text-sm font-medium text-slate-400;
+  }
+
+  /* ========================================
+   * USER MANAGEMENT
+   * ======================================== */
+  .admin-user-wrapper-page {
+    @apply min-h-screen bg-slate-950;
+  }
+  .admin-user-wrapper-modal {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4;
+  }
+  .admin-user-container-page {
+    @apply bg-slate-900 min-h-screen flex flex-col;
+  }
+  .admin-user-container-modal {
+    @apply bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col;
+  }
+  .admin-user-card {
+    @apply bg-slate-900/50 border border-slate-700 rounded-lg p-4
+           hover:border-slate-600 transition-colors;
+  }
+  .admin-user-card-blocked {
+    @apply bg-slate-900/50 border border-red-900/50 rounded-lg p-4
+           hover:border-slate-600 transition-colors opacity-60;
+  }
+  .admin-user-badge-blocked {
+    @apply px-2 py-0.5 bg-red-900/30 border border-red-700
+           fi-text-error text-xs rounded;
+  }
+  .admin-user-badge-clinic {
+    @apply px-2 py-1 bg-blue-900/30 border border-blue-700/50
+           text-blue-300 text-xs rounded flex items-center gap-1;
+  }
+  .admin-user-remove-btn {
+    @apply fi-text-error hover:text-red-300;
+  }
+
+  /* ========================================
+   * LICENSE GENERATOR
+   * ======================================== */
+  .admin-license-result {
+    @apply mb-8 p-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl;
+  }
+  .admin-license-key-display {
+    @apply flex-1 p-4 bg-slate-900 border border-slate-700 rounded-lg
+           text-sm font-mono text-slate-200 break-all max-h-32 overflow-y-auto;
+  }
+  .admin-license-error {
+    @apply mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg;
+  }
+  .admin-license-section {
+    @apply p-6 bg-slate-800/50 border border-slate-700 rounded-xl;
+  }
+  .admin-license-input {
+    @apply w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg
+           text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none;
+  }
+  .admin-license-toggle {
+    @apply flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+           transition-colors bg-slate-900 border-slate-700 hover:border-slate-600;
+  }
+  .admin-license-toggle-active {
+    @apply flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+           transition-colors bg-blue-500/20 border-blue-500/50;
+  }
+  .admin-license-radio {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
+           transition-colors bg-slate-900 border-slate-700 hover:border-slate-600;
+  }
+  .admin-license-radio-active {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
+           transition-colors bg-cyan-500/20 border-cyan-500/50;
+  }
+
+  /* ========================================
+   * MODEL CATALOG DRAWER
+   * ======================================== */
+  .admin-catalog-drawer {
+    @apply fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900
+           border-l border-slate-700 shadow-2xl z-50 flex flex-col
+           transform transition-transform duration-300 ease-out;
+  }
+  .admin-catalog-sync-btn {
+    @apply text-emerald-300 border-emerald-700/50 hover:bg-emerald-700/50;
+  }
+
+  /* ========================================
+   * DOCUMENT CARD ACTIONS
+   * ======================================== */
+  .admin-doc-action {
+    @apply p-1.5 sm:p-2 rounded-lg transition-all
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .admin-doc-action-default {
+    @apply admin-doc-action text-slate-400 hover:text-slate-200 hover:bg-slate-700/50;
+  }
+  .admin-doc-action-danger {
+    @apply admin-doc-action text-slate-400 hover:text-red-400 hover:bg-red-900/30;
+  }
+  .admin-doc-action-success {
+    @apply admin-doc-action text-slate-400 hover:text-emerald-300 hover:bg-emerald-900/30;
+  }
+
+  /* ========================================
+   * AUDIT TABLE
+   * ======================================== */
+  .admin-audit-row {
+    @apply hover:bg-slate-700/50 fi-interactive;
+  }
+
+  .admin-audit-row-selected {
+    @apply hover:bg-slate-700/50 fi-interactive bg-slate-700/70;
+  }
+
+  .admin-audit-row-mobile {
+    @apply p-4 hover:bg-slate-700/50 fi-interactive;
+  }
+
+  .admin-audit-row-mobile-selected {
+    @apply p-4 hover:bg-slate-700/50 fi-interactive bg-slate-700/70;
+  }
+
+  /* ========================================
+   * DOCUMENT EDIT MODAL
+   * ======================================== */
+  .admin-doc-persona-toggle {
+    @apply flex items-center gap-2 p-3 rounded-lg border transition-colors text-left
+           bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600;
+  }
+
+  .admin-doc-persona-toggle-active {
+    @apply flex items-center gap-2 p-3 rounded-lg border transition-colors text-left
+           bg-blue-600/20 border-blue-500 text-blue-300;
+  }
+
+  .admin-doc-persona-check {
+    @apply w-4 h-4 rounded border-2 flex items-center justify-center border-slate-600;
+  }
+
+  .admin-doc-persona-check-active {
+    @apply w-4 h-4 rounded border-2 flex items-center justify-center
+           bg-blue-500 border-blue-500;
+  }
 }

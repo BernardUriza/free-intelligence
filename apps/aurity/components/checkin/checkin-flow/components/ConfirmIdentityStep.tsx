@@ -20,7 +20,7 @@ export function ConfirmIdentityStep({ patientData, onConfirm }: ConfirmIdentityS
     <div className="fi-stack-xl">
       {/* Header */}
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-600/20 to-green-600/20 flex items-center justify-center">
+        <div className="checkin-confirm-icon">
           <CheckCircle className="w-8 h-8 fi-text-success" />
         </div>
         <h2 className="fi-title-2xl mb-2">¿Eres tú?</h2>
@@ -30,7 +30,7 @@ export function ConfirmIdentityStep({ patientData, onConfirm }: ConfirmIdentityS
       {/* Patient Info Card */}
       <div className="fi-card-section space-y-4">
         <div className="fi-flex-gap-lg">
-          <div className="w-12 h-12 rounded-full bg-indigo-600/20 flex items-center justify-center">
+          <div className="checkin-avatar-indigo">
             <User className="w-6 h-6 text-indigo-400" />
           </div>
           <div>
