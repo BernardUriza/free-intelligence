@@ -19,7 +19,6 @@ export { useAppointments } from './useAppointments';
 export { useFIConversation } from './useFIConversation';
 export { useChatScroll } from './useChatScroll';
 export { useChatKeyboardNav } from './useChatKeyboardNav';
-export { useChatUpload } from './useChatUpload';
 export { useChatVoiceRecorder } from './useChatVoiceRecorder';
 export { useMessageGroups } from './useMessageGroups';
 export { useOptimisticMessages } from './useOptimisticMessages';
@@ -41,7 +40,6 @@ export { useWorkflowProgress } from './useWorkflowProgress';
 export { useWorkflowSession } from './useWorkflowSession';
 
 // Check-in & Medical
-export { useCheckinConversation } from './useCheckinConversation';
 export { useCheckpointManager } from './useCheckpointManager';
 export { useDiarizationPolling } from './useDiarizationPolling';
 export { useEmotionalContext } from './useEmotionalContext';
@@ -65,4 +63,3 @@ export { useServiceWorker } from './useServiceWorker';
 export { useDemoMode } from './useDemoMode';
 export { useH5DebugTools } from './useH5DebugTools';
 export { useLicense } from './useLicense';
-export { usePersonas } from './usePersonas';

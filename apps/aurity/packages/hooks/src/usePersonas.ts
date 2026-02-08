@@ -6,7 +6,7 @@
  *
  * Architecture:
  * - Backend: /backend/config/personas/*.yaml
- * - API: GET /api/admin/personas
+ * - API: GET ROUTES.adminPersonas (see lib/api/routes.ts)
  * - Frontend: This hook (cached)
  *
  * @example

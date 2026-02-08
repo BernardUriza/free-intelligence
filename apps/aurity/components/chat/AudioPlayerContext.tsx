@@ -229,7 +229,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line no-console
         console.debug('[AudioPlayer] TTS request payload:', payload);
 
-        const response = await fetch(`${BACKEND_URL}${ROUTES.tts}/synthesize`, {
+        const response = await api.raw(`${ROUTES.tts}/synthesize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

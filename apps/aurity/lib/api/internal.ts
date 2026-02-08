@@ -29,7 +29,7 @@ function assertDevInternalAllowed(): void {
 export const diarizationClient = {
   /**
    * Upload audio for diarization
-   * POST /internal/diarization/upload
+   * POST ROUTES.internalDiarization/upload
    */
   upload: async (audio: File, sessionId: string) => {
     // Guard: only allowed in non-production environments
@@ -50,7 +50,7 @@ export const diarizationClient = {
 
   /**
    * Get job status
-   * GET /internal/diarization/jobs/{jobId}
+   * GET ROUTES.internalDiarization/jobs/{jobId}
    */
   getJobStatus: (jobId: string) => {
     assertDevInternalAllowed();
@@ -64,7 +64,7 @@ export const diarizationClient = {
 export const transcribeClient = {
   /**
    * Transcribe audio
-   * POST /internal/transcribe
+   * POST ROUTES.internalTranscribe
    */
   transcribe: async (audio: File, sessionId: string) => {
     assertDevInternalAllowed();

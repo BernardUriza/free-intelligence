@@ -208,7 +208,7 @@ export class ErrorReporter {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
-        `${this.backendUrl}/api/observability/audio/events`,
+        `${this.backendUrl}${ROUTES.observability}/audio/events`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

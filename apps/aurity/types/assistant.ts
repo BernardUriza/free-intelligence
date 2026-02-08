@@ -156,7 +156,7 @@ export interface EmotionalAnalysis {
 }
 
 /**
- * Request payload for /api/assistant/chat
+ * Request payload for ROUTES.assistant/chat (see lib/api/routes.ts)
  */
 export interface FIChatRequest {
   /** User message */
@@ -173,7 +173,7 @@ export interface FIChatRequest {
 }
 
 /**
- * Response from /api/aurity/assistant/chat or /introduction
+ * Response from ROUTES.assistant/chat or /introduction (see lib/api/routes.ts)
  * (Backend schema - adapted to match existing implementation)
  */
 export interface FIChatResponse {

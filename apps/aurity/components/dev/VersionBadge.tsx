@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getBackendUrl } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 import { getTarget, isDesktop, getBackendPort } from '@/lib/config/deployment';
 import { Button } from '@/components/ui/button';
@@ -46,21 +46,15 @@ export function VersionBadge() {
         }
 
         // Fetch backend info (environment, build_timestamp, etc.)
-        const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}${ROUTES.version}`, {
-          headers: { 'Accept': 'application/json' },
+        const data = await api.get<VersionData>(ROUTES.version);
+        // Get port from deployment config (handles dynamic Tauri port)
+        const backendPort = getBackendPort() ?? undefined;
+        setVersion({
+          ...data,
+          // releases.json version takes priority over backend version
+          version: releaseVersion || data.version,
+          backend_port: backendPort,
         });
-        if (res.ok) {
-          const data = await res.json();
-          // Get port from deployment config (handles dynamic Tauri port)
-          const backendPort = getBackendPort() ?? undefined;
-          setVersion({
-            ...data,
-            // releases.json version takes priority over backend version
-            version: releaseVersion || data.version,
-            backend_port: backendPort,
-          });
-        }
       } catch (err) {
         // Silently fail - version badge is non-critical
         console.debug('VersionBadge: Could not fetch version', err);

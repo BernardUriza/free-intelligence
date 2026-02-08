@@ -27,8 +27,7 @@ import type { Appointment } from '@/components/bryntum/utils/appointment-transfo
 
 // Modular imports
 import { MedicalWorkflowSteps } from './WorkflowSteps';
-import { usePatientManagement } from './usePatientManagement';
-import { useSessionManagement } from './useSessionManagement';
+import { usePatientManagement, useSessionManagement } from '@aurity-standalone/medical';
 import { useCurrentDoctor } from '@/hooks/useCurrentDoctor';
 import { useDoctorAppointments } from './hooks/useDoctorAppointments';
 import { useClinicDoctors } from './hooks/useClinicDoctors';

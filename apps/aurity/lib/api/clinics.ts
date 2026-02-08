@@ -3,7 +3,7 @@
  *
  * CRUD operations for clinic and doctor management.
  *
- * File: apps/aurity/lib/api/aurity/clinic/clinics.ts
+ * File: apps/aurity/lib/api/clinics.ts
  * Card: FI-CHECKIN-002
  * Created: 2025-11-22
  */

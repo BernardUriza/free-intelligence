@@ -225,6 +225,35 @@ export async function apiUpload<T>(
   );
 }
 
+/**
+ * Raw fetch with auth + timeout — returns Response without parsing JSON.
+ * Use for binary responses (blob), SSE streams, or custom response handling.
+ */
+export async function apiRawRequest(
+  endpoint: string,
+  options: RequestOptions = {}
+): Promise<Response> {
+  const url = `${BACKEND_URL}${endpoint}`;
+
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+    ...(options.customHeaders || {}),
+  };
+
+  const authToken = getAuthToken();
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
+  try {
+    return await fetchWithTimeout(url, { ...options, headers });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown';
+    console.error(`[apiRawRequest] Network error fetching ${url}: ${errMsg}`);
+    throw new Error(`Network error fetching ${url}: ${errMsg}`);
+  }
+}
+
 export const api = {
   get: <T>(endpoint: string, options?: RequestOptions) =>
     apiRequest<T>(endpoint, { ...options, method: 'GET' }),
@@ -255,4 +284,29 @@ export const api = {
 
   upload: <T>(endpoint: string, formData: FormData, options?: RequestOptions) =>
     apiUpload<T>(endpoint, formData, options),
+
+  /** POST that returns a Blob (for TTS audio, file downloads, etc.) */
+  blob: async (endpoint: string, body?: unknown, options?: RequestOptions): Promise<Blob> => {
+    const response = await apiRawRequest(endpoint, {
+      ...options,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(options?.headers as Record<string, string>) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText);
+      throw new APIError(
+        response.status,
+        response.statusText,
+        errorText || `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+
+    return response.blob();
+  },
+
+  /** Raw fetch returning Response — for SSE streams or custom response handling */
+  raw: (endpoint: string, options?: RequestOptions): Promise<Response> =>
+    apiRawRequest(endpoint, options),
 };

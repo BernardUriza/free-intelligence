@@ -23,7 +23,7 @@ import { Play, Pause, X, Volume2, ChevronDown, User, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
-import { getBackendUrl } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 
 type VoiceChangeHandler = (voice: string) => void;
@@ -405,8 +405,6 @@ export function useAudioPlayer() {
   const [currentVoice, setCurrentVoice] = useState('nova');
   const [currentText, setCurrentText] = useState('');
 
-  const BACKEND_URL = getBackendUrl();
-
   // Helper to extract display name from voice ID
   const getVoiceDisplayName = useCallback((voiceId: string): string => {
     // Check in VOICE_GROUPS first
@@ -431,17 +429,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}${ROUTES.tts}/synthesize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceValue, speed: 1.0 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await api.blob(`${ROUTES.tts}/synthesize`, { text, voice: voiceValue, speed: 1.0 });
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
     } catch (error) {
@@ -450,7 +438,7 @@ export function useAudioPlayer() {
     } finally {
       setIsLoading(false);
     }
-  }, [BACKEND_URL, getVoiceDisplayName]);
+  }, [getVoiceDisplayName]);
 
   // Handle voice change for user messages - regenerate audio with new voice
   const changeVoice = useCallback(async (newVoiceValue: string) => {
@@ -467,17 +455,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}${ROUTES.tts}/synthesize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: currentText, voice: newVoiceValue, speed: 1.0 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await api.blob(`${ROUTES.tts}/synthesize`, { text: currentText, voice: newVoiceValue, speed: 1.0 });
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
     } catch (error) {
@@ -485,7 +463,7 @@ export function useAudioPlayer() {
     } finally {
       setIsLoading(false);
     }
-  }, [BACKEND_URL, currentText, audioUrl, getVoiceDisplayName]);
+  }, [currentText, audioUrl, getVoiceDisplayName]);
 
   const close = useCallback(() => {
     setIsOpen(false);

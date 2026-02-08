@@ -3,7 +3,7 @@
  *
  * Card: FI-CHECKIN-005
  * Connects to the OpenAI-compatible assistant chat endpoint:
- * - POST /api/aurity/assistant/chat
+ * - POST ROUTES.assistant/chat (see lib/api/routes.ts)
  *
  * Uses OpenAI Chat Completions format with AURITY extensions:
  * - messages: Array of {role, content}
@@ -15,6 +15,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
 import { ROUTES } from '@/lib/api/routes';
+import { api } from '@/lib/api/client';
 
 // =============================================================================
 // TYPES
@@ -80,7 +81,6 @@ export interface UseCheckinConversationReturn {
 // API CLIENT - OpenAI Compatible
 // =============================================================================
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -145,17 +145,7 @@ interface ChatCompletionStreamResponse {
 async function apiChatCompletion(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
-  const response = await fetch(`${API_BASE}${ROUTES.assistant}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Assistant chat failed: ${response.statusText}`);
-  }
-
-  return response.json();
+  return api.post<ChatCompletionResponse>(`${ROUTES.assistant}/chat`, request);
 }
 
 async function* apiChatCompletionStreaming(
@@ -165,7 +155,7 @@ async function* apiChatCompletionStreaming(
   // Add stream: true to request
   const streamRequest = { ...request, stream: true };
 
-  const response = await fetch(`${API_BASE}${ROUTES.assistant}/chat/stream`, {
+  const response = await api.raw(`${ROUTES.assistant}/chat/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(streamRequest),

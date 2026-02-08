@@ -58,6 +58,7 @@ export const assistantHandlers = [
   }),
 
   // WebSocket handlers for both ws:// (dev) and wss:// (prod)
+  // Matches ROUTES.assistant/ws — ws.link requires literal glob patterns, not JS constants
   ws.link('ws://*/api/aurity/assistant/ws', {
     onConnect(_, client) {
       client.send({ type: 'connected', timestamp: Date.now() });
@@ -74,6 +75,7 @@ export const assistantHandlers = [
       }
     },
   }),
+  // Matches ROUTES.assistant/ws — ws.link requires literal glob patterns, not JS constants
   ws.link('wss://*/api/aurity/assistant/ws', {
     onConnect(_, client) {
       client.send({ type: 'connected', timestamp: Date.now() });

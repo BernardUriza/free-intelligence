@@ -4,7 +4,7 @@
  * Type definitions for waiting room TV content management API.
  * Used by MediaUploader, SlideManager, and waiting-room-host components.
  *
- * API Base: /api/aurity/clinic/clinic-media/*
+ * API Base: ROUTES.clinicMedia (see lib/api/routes.ts)
  * Card: FI-UI-FEAT-TVD-001
  */
 
@@ -50,7 +50,7 @@ export interface UploadedMedia {
 // =============================================================================
 
 /**
- * Response from POST /api/aurity/clinic/clinic-media/upload
+ * Response from POST ROUTES.clinicMedia/upload
  */
 export interface MediaUploadResponse {
   media_id: string;
@@ -65,7 +65,7 @@ export interface MediaUploadResponse {
 }
 
 /**
- * Response from GET /api/aurity/clinic/clinic-media/list
+ * Response from GET ROUTES.clinicMedia/list
  */
 export interface MediaListResponse {
   media: MediaItem[];
@@ -73,7 +73,7 @@ export interface MediaListResponse {
 }
 
 /**
- * Request body for PUT /api/aurity/clinic/clinic-media/:id
+ * Request body for PUT ROUTES.clinicMedia/:id
  */
 export interface MediaUpdateRequest {
   title?: string;
@@ -84,12 +84,12 @@ export interface MediaUpdateRequest {
 }
 
 /**
- * Response from PUT /api/aurity/clinic/clinic-media/:id
+ * Response from PUT ROUTES.clinicMedia/:id
  */
 export interface MediaUpdateResponse extends MediaItem {}
 
 /**
- * Response from DELETE /api/aurity/clinic/clinic-media/:id
+ * Response from DELETE ROUTES.clinicMedia/:id
  */
 export interface MediaDeleteResponse {
   success: boolean;

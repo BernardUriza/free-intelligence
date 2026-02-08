@@ -47,7 +47,7 @@ export interface ConsultStatusResponse {
 
 /**
  * Start end-to-end consultation workflow
- * POST /api/aurity/consult
+ * POST ROUTES.consult
  */
 export async function startConsultWorkflow(
   audio: File,
@@ -65,7 +65,7 @@ export async function startConsultWorkflow(
 
 /**
  * Get consultation workflow status
- * GET /api/aurity/consult/{jobId}
+ * GET ROUTES.consult/{jobId}
  */
 export async function getConsultStatus(jobId: string): Promise<ConsultStatusResponse> {
   return api.get<ConsultStatusResponse>(`${ROUTES.consult}/${jobId}`);
