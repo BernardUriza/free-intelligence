@@ -1623,4 +1623,212 @@
   .diar-mode-idle {
     @apply text-slate-400 bg-slate-500/10;
   }
+
+  /* ========================================
+   * MEDICATION LIST (MedicationList.tsx)
+   * Prefix: rx-list-
+   * ======================================== */
+
+  /* Empty state */
+  .rx-list-empty {
+    @apply text-center py-8 text-slate-500 dark:text-slate-400;
+  }
+
+  .rx-list-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-30;
+  }
+
+  /* Card */
+  .rx-list-card {
+    @apply group relative flex items-start gap-3 p-4 bg-white dark:bg-slate-800
+           rounded-lg border border-slate-200 dark:border-slate-700
+           hover:border-slate-300 dark:hover:border-slate-600 transition-colors;
+  }
+
+  .rx-list-drag-handle {
+    @apply absolute left-1 top-1/2 -translate-y-1/2
+           opacity-0 group-hover:opacity-50 cursor-grab;
+  }
+
+  .rx-list-index-badge {
+    @apply flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30
+           flex items-center justify-center;
+  }
+
+  .rx-list-index-text {
+    @apply text-sm font-semibold text-blue-600 dark:text-blue-400;
+  }
+
+  /* Medication info area */
+  .rx-list-info {
+    @apply flex-1 min-w-0;
+  }
+
+  .rx-list-header {
+    @apply flex items-center gap-2 mb-1;
+  }
+
+  .rx-list-name {
+    @apply font-medium text-slate-900 dark:text-white truncate;
+  }
+
+  .rx-list-dosage {
+    @apply text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  .rx-list-form-badge {
+    @apply text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700
+           text-slate-600 dark:text-slate-300;
+  }
+
+  .rx-list-details {
+    @apply flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400;
+  }
+
+  .rx-list-separator {
+    @apply text-slate-300 dark:text-slate-600;
+  }
+
+  .rx-list-quantity {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  .rx-list-instructions {
+    @apply mt-2 text-sm text-slate-500 dark:text-slate-400 italic;
+  }
+
+  .rx-list-warning {
+    @apply mt-1 text-xs text-amber-600 dark:text-amber-400
+           flex items-center gap-1;
+  }
+
+  /* Action buttons */
+  .rx-list-actions {
+    @apply flex-shrink-0 flex gap-1 opacity-0
+           group-hover:opacity-100 transition-opacity;
+  }
+
+  .rx-list-action-btn {
+    @apply h-8 w-8 p-0;
+  }
+
+  .rx-list-edit-icon {
+    @apply w-4 h-4 text-slate-500 hover:text-blue-500;
+  }
+
+  .rx-list-delete-icon {
+    @apply w-4 h-4 text-slate-500 hover:text-red-500;
+  }
+
+  /* ========================================
+   * ALERT CARDS (AllergyAlert.tsx, InteractionAlert.tsx)
+   * Prefix: rx-alert-
+   * Shared structure for allergy + interaction alerts
+   * ======================================== */
+
+  /* Root */
+  .rx-alert-card {
+    @apply rounded-lg border-l-4 p-3;
+  }
+
+  /* Header */
+  .rx-alert-header {
+    @apply flex items-start justify-between cursor-pointer;
+  }
+
+  .rx-alert-header-left {
+    @apply flex items-start gap-2;
+  }
+
+  .rx-alert-icon {
+    @apply w-5 h-5 mt-0.5 flex-shrink-0;
+  }
+
+  .rx-alert-title-row {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+
+  .rx-alert-drug-name {
+    @apply font-semibold text-slate-800;
+  }
+
+  .rx-alert-severity-badge {
+    @apply text-xs font-medium px-1.5 py-0.5 rounded;
+  }
+
+  .rx-alert-effect {
+    @apply text-sm text-slate-600 mt-0.5;
+  }
+
+  /* Chevron toggle */
+  .rx-alert-toggle {
+    @apply p-1 hover:bg-white/50 rounded transition-colors;
+  }
+
+  /* Expanded content */
+  .rx-alert-body {
+    @apply mt-3 pt-3 border-t border-slate-200/50 space-y-3;
+  }
+
+  .rx-alert-detail-row {
+    @apply flex items-start gap-2;
+  }
+
+  .rx-alert-detail-icon {
+    @apply w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0;
+  }
+
+  .rx-alert-detail-label {
+    @apply text-xs font-medium text-slate-500 uppercase;
+  }
+
+  .rx-alert-detail-value {
+    @apply text-sm text-slate-700;
+  }
+
+  /* Patient allergy info (AllergyAlert specific) */
+  .rx-alert-patient-row {
+    @apply flex items-center gap-1 mt-0.5 text-sm text-slate-600;
+  }
+
+  .rx-alert-patient-value {
+    @apply font-medium text-slate-700;
+  }
+
+  /* Allergen type */
+  .rx-alert-allergen-row {
+    @apply flex items-center gap-2 text-sm;
+  }
+
+  .rx-alert-allergen-label {
+    @apply text-slate-500;
+  }
+
+  .rx-alert-allergen-value {
+    @apply font-medium text-slate-700 capitalize;
+  }
+
+  /* Override section */
+  .rx-alert-override-link {
+    @apply text-xs text-slate-500 hover:text-slate-700 underline;
+  }
+
+  .rx-alert-override-textarea {
+    @apply w-full text-sm p-2 border border-slate-300 rounded resize-none
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+
+  .rx-alert-override-confirm {
+    @apply text-xs px-3 py-1 bg-orange-500 text-white rounded
+           hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .rx-alert-override-cancel {
+    @apply text-xs px-3 py-1 text-slate-600 hover:text-slate-800;
+  }
+
+  /* Non-overridable warning */
+  .rx-alert-no-override {
+    @apply flex items-center gap-1.5 text-xs text-red-600 font-medium;
+  }
 }

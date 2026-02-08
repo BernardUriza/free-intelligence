@@ -62,20 +62,20 @@ export function InstallPrompt() {
   // iOS: Manual instructions
   if (isIOS) {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom duration-300">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
-          <div className="flex items-start gap-3">
+      <div className="pwa-toast-wrapper">
+        <div className="pwa-toast-card">
+          <div className="pwa-toast-row">
             <IconBadge />
             <div className="flex-1 min-w-0">
               <Title />
               <p className="text-slate-400 text-sm mt-1">
                 Agrega esta app a tu pantalla de inicio
               </p>
-              <div className="mt-3 flex items-center gap-2 text-slate-300 text-sm">
+              <div className="pwa-ios-steps">
                 <span>Toca</span>
                 <Share className="w-4 h-4 text-blue-400" />
                 <span>y luego</span>
-                <span className="inline-flex items-center gap-1 bg-slate-700 px-2 py-0.5 rounded">
+                <span className="pwa-ios-badge">
                   <Plus className="w-3 h-3" />
                   <span>Agregar</span>
                 </span>
@@ -90,25 +90,25 @@ export function InstallPrompt() {
 
   // Android/Chrome/Desktop
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom duration-300">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
-        <div className="flex items-start gap-3">
+    <div className="pwa-toast-wrapper">
+      <div className="pwa-toast-card">
+        <div className="pwa-toast-row">
           <IconBadge />
           <div className="flex-1 min-w-0">
             <Title />
             <p className="text-slate-400 text-sm mt-1">
               Instala la app para acceso rapido y uso offline
             </p>
-            <div className="mt-3 flex gap-2">
+            <div className="pwa-btn-row">
               <button
                 onClick={handleInstall}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                className="pwa-btn-install"
               >
                 Instalar
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-4 py-2 text-slate-400 hover:text-slate-300 text-sm font-medium transition-colors"
+                className="pwa-btn-dismiss"
               >
                 Ahora no
               </button>
@@ -124,21 +124,21 @@ export function InstallPrompt() {
 // Sub-components (Single Responsibility)
 function IconBadge() {
   return (
-    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+    <div className="pwa-icon-badge">
       <Download className="w-6 h-6 text-white" />
     </div>
   );
 }
 
 function Title() {
-  return <h3 className="text-white font-semibold text-base">Instalar AURITY</h3>;
+  return <h3 className="pwa-title">Instalar AURITY</h3>;
 }
 
 function CloseButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex-shrink-0 p-1 text-slate-500 hover:text-slate-300 transition-colors"
+      className="pwa-btn-close"
       aria-label="Cerrar"
     >
       <X className="w-5 h-5" />

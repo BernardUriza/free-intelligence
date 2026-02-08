@@ -48,13 +48,13 @@ export function WeeklyScheduleTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg">
-        <div className="p-2 bg-indigo-500/20 rounded-lg">
-          <Calendar className="w-5 h-5 text-indigo-400" />
+      <div className="avail-tab-header">
+        <div className="avail-icon-wrap-indigo">
+          <Calendar className="avail-icon-indigo" />
         </div>
         <div>
-          <h3 className="font-medium text-white">Horario Semanal</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="avail-tab-header-title">Horario Semanal</h3>
+          <p className="avail-tab-header-desc">
             Define tu horario recurrente para cada día de la semana. Puedes
             agregar múltiples bloques horarios por día (ej: mañana y tarde).
           </p>
@@ -62,7 +62,7 @@ export function WeeklyScheduleTab({
       </div>
 
       {/* Summary */}
-      <div className="flex gap-4 text-sm">
+      <div className="avail-summary-row">
         <div className="flex items-center gap-2">
           <span className="text-slate-500">Días activos:</span>
           <span className="text-white font-medium">{workingDays}</span>
@@ -101,11 +101,11 @@ export function WeeklyScheduleTab({
 
       {/* Gaps warning */}
       {gaps.length > 0 && (
-        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-sm text-yellow-400">
+        <div className="avail-gaps-warning">
+          <p className="avail-gaps-title">
             <strong>Nota:</strong> Se detectaron espacios entre horarios:
           </p>
-          <ul className="mt-1 text-xs text-yellow-400/80 list-disc list-inside">
+          <ul className="avail-gaps-list">
             {gaps.map((gap, i) => (
               <li key={i}>
                 {DAYS_OF_WEEK.find((d) => d.value === gap.day)?.label}: {gap.gap}{' '}
@@ -118,8 +118,8 @@ export function WeeklyScheduleTab({
 
       {/* Empty state */}
       {workingDays === 0 && (
-        <div className="text-center py-8 text-slate-500">
-          <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <div className="avail-empty">
+          <Calendar className="avail-empty-icon" />
           <p>No hay días de trabajo configurados.</p>
           <p className="text-sm mt-1">
             Activa al menos un día para definir tu horario.

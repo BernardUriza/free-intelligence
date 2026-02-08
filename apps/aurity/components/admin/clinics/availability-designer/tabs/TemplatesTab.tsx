@@ -53,13 +53,13 @@ export function TemplatesTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg">
-        <div className="p-2 bg-emerald-500/20 rounded-lg">
-          <Zap className="w-5 h-5 text-emerald-400" />
+      <div className="avail-tab-header">
+        <div className="avail-icon-wrap-emerald">
+          <Zap className="avail-icon-emerald" />
         </div>
         <div>
-          <h3 className="font-medium text-white">Plantillas Rápidas</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="avail-tab-header-title">Plantillas Rápidas</h3>
+          <p className="avail-tab-header-desc">
             Aplica un horario predefinido para empezar rápidamente. Puedes
             modificarlo después.
           </p>
@@ -68,9 +68,9 @@ export function TemplatesTab({
 
       {/* Confirmation dialog */}
       {confirmTemplate && (
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+        <div className="avail-confirm-dialog">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="avail-confirm-icon" />
             <div className="flex-1">
               <p className="text-sm text-yellow-300">
                 <strong>¿Reemplazar horario actual?</strong>
@@ -112,15 +112,15 @@ export function TemplatesTab({
           return (
             <div
               key={template.id}
-              className="p-4 rounded-lg border border-slate-700 bg-slate-800/20 hover:border-slate-600 transition-colors"
+              className="avail-section-card-hover"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="font-medium text-white">{template.name}</h4>
-                  <p className="text-sm text-slate-400 mt-1">
+                  <h4 className="avail-tab-header-title">{template.name}</h4>
+                  <p className="avail-tab-header-desc">
                     {template.description}
                   </p>
-                  <div className="flex gap-4 mt-2 text-xs text-slate-500">
+                  <div className="avail-template-meta">
                     <span>Días: {days}</span>
                     <span>{hours}h/semana</span>
                   </div>
@@ -144,8 +144,8 @@ export function TemplatesTab({
 
       {/* Current schedule summary */}
       {hasExistingSchedule && (
-        <div className="p-3 bg-slate-800/30 rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+        <div className="avail-info-box">
+          <div className="avail-schedule-summary">
             <Check className="w-4 h-4 text-green-400" />
             <span>
               Horario actual: {formatWorkingDays(currentAvailability)} (
@@ -156,7 +156,7 @@ export function TemplatesTab({
       )}
 
       {/* Info */}
-      <div className="p-3 bg-slate-800/30 rounded-lg text-xs text-slate-400">
+      <div className="avail-info-box">
         <p>
           <strong className="text-slate-300">Tip:</strong> Las plantillas solo
           configuran el horario semanal. Las excepciones y reglas se mantienen.

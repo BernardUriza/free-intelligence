@@ -30,13 +30,13 @@ export function RulesTab({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg">
-        <div className="p-2 bg-purple-500/20 rounded-lg">
-          <Settings className="w-5 h-5 text-purple-400" />
+      <div className="avail-tab-header">
+        <div className="avail-icon-wrap-purple">
+          <Settings className="avail-icon-purple" />
         </div>
         <div>
-          <h3 className="font-medium text-white">Reglas de Agenda</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="avail-tab-header-title">Reglas de Agenda</h3>
+          <p className="avail-tab-header-desc">
             Configura descansos automáticos, capacidad y restricciones de
             duración para tus citas.
           </p>
@@ -44,13 +44,13 @@ export function RulesTab({
       </div>
 
       {/* Break section */}
-      <div className="p-4 rounded-lg border border-slate-700 bg-slate-800/20">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-amber-500/20 rounded-lg">
-            <Coffee className="w-4 h-4 text-amber-400" />
+      <div className="avail-section-card">
+        <div className="avail-section-row">
+          <div className="avail-icon-wrap-amber">
+            <Coffee className="avail-icon-amber" />
           </div>
           <div className="flex-1">
-            <h4 className="font-medium text-white">Descanso Diario</h4>
+            <h4 className="avail-tab-header-title">Descanso Diario</h4>
             <p className="text-xs text-slate-400">
               Bloquea automáticamente un período para almuerzo o descanso
             </p>
@@ -89,22 +89,22 @@ export function RulesTab({
       </div>
 
       {/* Capacity section */}
-      <div className="p-4 rounded-lg border border-slate-700 bg-slate-800/20">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-500/20 rounded-lg">
-            <Users className="w-4 h-4 text-blue-400" />
+      <div className="avail-section-card">
+        <div className="avail-section-row">
+          <div className="avail-icon-wrap-blue">
+            <Users className="avail-icon-blue" />
           </div>
           <div>
-            <h4 className="font-medium text-white">Capacidad</h4>
+            <h4 className="avail-tab-header-title">Capacidad</h4>
             <p className="text-xs text-slate-400">
               Limita el número de citas simultáneas
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 pl-11">
+        <div className="avail-capacity-grid">
           <div>
-            <label className="block text-xs text-slate-500 mb-1">
+            <label className="avail-label">
               Máx. pacientes/hora
             </label>
             <Input
@@ -125,7 +125,7 @@ export function RulesTab({
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">
+            <label className="avail-label">
               Buffer entre citas (min)
             </label>
             <Input
@@ -150,13 +150,13 @@ export function RulesTab({
       </div>
 
       {/* Duration section */}
-      <div className="p-4 rounded-lg border border-slate-700 bg-slate-800/20">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-green-500/20 rounded-lg">
-            <Clock className="w-4 h-4 text-green-400" />
+      <div className="avail-section-card">
+        <div className="avail-section-row">
+          <div className="avail-icon-wrap-green">
+            <Clock className="avail-icon-green" />
           </div>
           <div>
-            <h4 className="font-medium text-white">Duración de Citas</h4>
+            <h4 className="avail-tab-header-title">Duración de Citas</h4>
             <p className="text-xs text-slate-400">
               Restricciones de tiempo para las citas
             </p>
@@ -165,7 +165,7 @@ export function RulesTab({
 
         <div className="pl-11">
           <div>
-            <label className="block text-xs text-slate-500 mb-1">
+            <label className="avail-label">
               Duración mínima (minutos)
             </label>
             <div className="flex gap-2">
@@ -175,10 +175,10 @@ export function RulesTab({
                   type="button"
                   onClick={() => onUpdateRules({ minSlotDuration: duration })}
                   disabled={disabled}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  className={`avail-duration-chip ${
                     rules.minSlotDuration === duration
-                      ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'
+                      ? 'avail-chip-active'
+                      : 'avail-chip-inactive'
                   }`}
                 >
                   {duration}
@@ -211,7 +211,7 @@ export function RulesTab({
       </div>
 
       {/* Info box */}
-      <div className="p-3 bg-slate-800/30 rounded-lg text-xs text-slate-400">
+      <div className="avail-info-box">
         <p>
           <strong className="text-slate-300">Nota:</strong> Estas reglas son
           sugerencias y pueden ser sobrescritas al crear citas manualmente.

@@ -65,22 +65,22 @@ export function OfflineModeDialog({
   const limitations = getOfflineModeLimitations();
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="offline-overlay">
       <div
-        className="bg-slate-900 border border-amber-500/40 rounded-xl p-6 max-w-md w-full shadow-2xl"
+        className="offline-dialog"
         role="dialog"
         aria-labelledby="offline-dialog-title"
         aria-describedby="offline-dialog-description"
       >
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-amber-500/20 rounded-lg">
+        <div className="offline-header">
+          <div className="offline-header-icon">
             <WifiOff className="w-6 h-6 text-amber-400" />
           </div>
           <div>
             <h2
               id="offline-dialog-title"
-              className="text-xl font-semibold text-white"
+              className="offline-title"
             >
               Modo Offline
             </h2>
@@ -101,16 +101,16 @@ export function OfflineModeDialog({
           </p>
 
           {/* Limitations warning */}
-          <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4">
-            <div className="flex items-start gap-3">
+          <div className="offline-warning-card">
+            <div className="offline-warning-row">
               <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-amber-200 mb-2">Limitaciones:</p>
+                <p className="offline-warning-title">Limitaciones:</p>
                 <ul className="space-y-1.5">
                   {limitations.map((limitation, index) => (
                     <li
                       key={index}
-                      className="text-sm text-amber-100/80 flex items-start gap-2"
+                      className="offline-limitation-item"
                     >
                       <span className="text-amber-400 mt-1">•</span>
                       {limitation}
@@ -122,40 +122,35 @@ export function OfflineModeDialog({
           </div>
 
           {/* Expiration notice */}
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="offline-notice">
             <Clock className="w-4 h-4" />
             <span>El modo offline expira en 24 horas</span>
           </div>
 
           {/* Security notice */}
-          <div className="flex items-center gap-2 text-sm text-emerald-400">
+          <div className="offline-notice-secure">
             <Shield className="w-4 h-4" />
             <span>Tus datos locales permanecen seguros y encriptados</span>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 mt-6">
+        <div className="offline-actions">
           <button
             onClick={onCancel}
             disabled={isConfirming}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300
-                       hover:bg-slate-800 hover:border-slate-500 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
+            className="offline-btn-cancel"
           >
             {reason === 'auth_unavailable' ? 'Reintentar' : 'Cancelar'}
           </button>
           <button
             onClick={handleConfirm}
             disabled={isConfirming}
-            className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium
-                       hover:bg-amber-500 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       flex items-center justify-center gap-2"
+            className="offline-btn-confirm"
           >
             {isConfirming ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="offline-spinner" />
                 Activando...
               </>
             ) : (

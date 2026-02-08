@@ -837,4 +837,247 @@
   .dov-edit-btn {
     @apply px-3 py-1.5 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 text-xs font-medium rounded-lg transition-colors;
   }
+
+  /* ========================================
+   * AVAILABILITY DESIGNER TABS (avail-*)
+   * ======================================== */
+
+  /* --- Shared: Tab Header Block --- */
+  .avail-tab-header {
+    @apply flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg;
+  }
+
+  .avail-tab-header-title {
+    @apply font-medium text-white;
+  }
+
+  .avail-tab-header-desc {
+    @apply text-sm text-slate-400 mt-1;
+  }
+
+  /* --- Shared: Icon wrappers (colored) --- */
+  .avail-icon-wrap-purple {
+    @apply p-2 bg-purple-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-amber {
+    @apply p-2 bg-amber-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-blue {
+    @apply p-2 bg-blue-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-green {
+    @apply p-2 bg-green-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-orange {
+    @apply p-2 bg-orange-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-emerald {
+    @apply p-2 bg-emerald-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-cyan {
+    @apply p-2 bg-cyan-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-indigo {
+    @apply p-2 bg-indigo-500/20 rounded-lg;
+  }
+
+  /* --- Shared: Colored icons --- */
+  .avail-icon-purple {
+    @apply w-5 h-5 text-purple-400;
+  }
+
+  .avail-icon-amber {
+    @apply w-4 h-4 text-amber-400;
+  }
+
+  .avail-icon-blue {
+    @apply w-4 h-4 text-blue-400;
+  }
+
+  .avail-icon-green {
+    @apply w-4 h-4 text-green-400;
+  }
+
+  .avail-icon-orange {
+    @apply w-5 h-5 text-orange-400;
+  }
+
+  .avail-icon-emerald {
+    @apply w-5 h-5 text-emerald-400;
+  }
+
+  .avail-icon-cyan {
+    @apply w-5 h-5 text-cyan-400;
+  }
+
+  .avail-icon-indigo {
+    @apply w-5 h-5 text-indigo-400;
+  }
+
+  /* --- Shared: Section card --- */
+  .avail-section-card {
+    @apply p-4 rounded-lg border border-slate-700 bg-slate-800/20;
+  }
+
+  .avail-section-card-hover {
+    @apply p-4 rounded-lg border border-slate-700 bg-slate-800/20 hover:border-slate-600 transition-colors;
+  }
+
+  .avail-section-row {
+    @apply flex items-center gap-3 mb-4;
+  }
+
+  /* --- Shared: Info box --- */
+  .avail-info-box {
+    @apply p-3 bg-slate-800/30 rounded-lg text-xs text-slate-400;
+  }
+
+  /* --- Shared: Field label --- */
+  .avail-label {
+    @apply block text-xs text-slate-500 mb-1;
+  }
+
+  .avail-label-sm {
+    @apply block text-sm text-slate-400 mb-1;
+  }
+
+  /* --- Shared: Empty state --- */
+  .avail-empty {
+    @apply text-center py-8 text-slate-500;
+  }
+
+  .avail-empty-bordered {
+    @apply text-center py-8 text-slate-500 border border-dashed border-slate-700 rounded-lg;
+  }
+
+  .avail-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-50;
+  }
+
+  /* --- Shared: Chip/tag button (active/inactive) --- */
+  .avail-chip-active {
+    @apply bg-indigo-500/30 text-indigo-300 border border-indigo-500/50;
+  }
+
+  .avail-chip-inactive {
+    @apply bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600;
+  }
+
+  /* --- Shared: Warning box --- */
+  .avail-warning-box {
+    @apply p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  /* --- Shared: Summary row --- */
+  .avail-summary-row {
+    @apply flex gap-4 text-sm;
+  }
+
+  /* --- RulesTab specific --- */
+  .avail-capacity-grid {
+    @apply grid grid-cols-2 gap-4 pl-11;
+  }
+
+  .avail-duration-chip {
+    @apply px-3 py-1.5 text-sm rounded-md transition-colors;
+  }
+
+  /* --- ExceptionsTab specific --- */
+  .avail-add-form {
+    @apply p-4 bg-slate-800/50 rounded-lg border border-slate-700 space-y-3;
+  }
+
+  .avail-override-error {
+    @apply border-red-500/50 bg-red-500/5;
+  }
+
+  .avail-override-past {
+    @apply border-slate-800 bg-slate-900/50 opacity-60;
+  }
+
+  .avail-override-normal {
+    @apply border-slate-700 bg-slate-800/30;
+  }
+
+  .avail-override-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .avail-override-delete-btn {
+    @apply text-slate-500 hover:text-red-400 hover:bg-red-500/10 p-1 h-8 w-8;
+  }
+
+  .avail-override-toggle-row {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .avail-override-error-msg {
+    @apply mt-2 flex items-center gap-1 text-xs text-red-400;
+  }
+
+  .avail-reason-chip {
+    @apply px-2 py-1 text-xs rounded-md transition-colors;
+  }
+
+  /* --- TemplatesTab specific --- */
+  .avail-confirm-dialog {
+    @apply p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  .avail-confirm-icon {
+    @apply w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5;
+  }
+
+  .avail-template-meta {
+    @apply flex gap-4 mt-2 text-xs text-slate-500;
+  }
+
+  .avail-schedule-summary {
+    @apply flex items-center gap-2 text-sm text-slate-400;
+  }
+
+  /* --- PreviewTab specific --- */
+  .avail-nav-btn {
+    @apply text-slate-400 hover:text-white;
+  }
+
+  .avail-calendar-wrap {
+    @apply rounded-lg overflow-hidden border border-slate-700;
+  }
+
+  .avail-legend {
+    @apply flex justify-between items-center p-3 bg-slate-800/30 rounded-lg;
+  }
+
+  .avail-legend-swatch-indigo {
+    @apply w-3 h-3 bg-indigo-500/50 rounded border border-indigo-500/60;
+  }
+
+  .avail-legend-swatch-orange {
+    @apply w-3 h-3 bg-orange-500/50 rounded border border-orange-500/60;
+  }
+
+  .avail-legend-swatch-slate {
+    @apply w-3 h-3 bg-slate-600/30 rounded border border-slate-600/50;
+  }
+
+  /* --- WeeklyScheduleTab specific --- */
+  .avail-gaps-warning {
+    @apply p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  .avail-gaps-title {
+    @apply text-sm text-yellow-400;
+  }
+
+  .avail-gaps-list {
+    @apply mt-1 text-xs text-yellow-400/80 list-disc list-inside;
+  }
 }

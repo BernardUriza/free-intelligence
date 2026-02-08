@@ -153,39 +153,39 @@ export const timelineEventConfig: TimelineConfig = {
         : event.type;
       const severityLabel = errorSeverity ? `[${errorSeverity.toUpperCase()}]` : '';
       statusBadge = (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 fi-text-error border border-red-500/30">
+        <span className="mem-status-error">
           {errorLabel} {severityLabel}
         </span>
       );
     } else if (hasTranscript && hasDuration) {
       statusBadge = (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-500/20 fi-text-green border border-green-500/30">
+        <span className="mem-status-valid">
           Valid
         </span>
       );
     } else if (hasDuration) {
       statusBadge = (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+        <span className="mem-status-empty">
           Empty
         </span>
       );
     } else if (event.type.toLowerCase() === 'transcription') {
       statusBadge = (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-500/20 fi-text-error border border-red-500/30">
+        <span className="mem-status-error">
           Invalid
         </span>
       );
     }
 
     return (
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="mem-header-row">
+        <div className="mem-badges-wrap">
           {/* Event Number */}
-          <div className="text-slate-500 font-mono text-sm">#{eventNumber}</div>
+          <div className="mem-event-number">#{eventNumber}</div>
 
           {/* Event Type Badge */}
-          <div className={`px-3 py-1 rounded-md ${colors.bg} border ${colors.border}`}>
-            <span className={`text-sm font-semibold ${colors.text}`}>
+          <div className={`mem-type-badge ${colors.bg} ${colors.border}`}>
+            <span className={`mem-type-text ${colors.text}`}>
               {event.type}
             </span>
           </div>
@@ -194,18 +194,18 @@ export const timelineEventConfig: TimelineConfig = {
           {statusBadge}
 
           {/* Timestamp */}
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/50 border border-slate-700 rounded-md">
+          <div className="mem-pill-timestamp">
             <Clock className="h-3 w-3 text-slate-400" />
-            <span className="text-xs font-mono text-slate-400">
+            <span className="mem-pill-text">
               {timelineEventConfig.formatTimestamp!(event.timestamp)}
             </span>
           </div>
 
           {/* STT Provider (if available) */}
           {sttProvider && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-950/30 border border-blue-800 rounded-md">
+            <div className="mem-pill-stt">
               <Radio className="h-3 w-3 fi-text-primary" />
-              <span className="text-xs font-mono text-blue-300">
+              <span className="mem-pill-text-stt">
                 {sttProvider === 'deepgram' ? 'Deepgram' :
                  sttProvider === 'azure_whisper' ? 'Azure (deprecated)' : sttProvider}
               </span>
@@ -214,9 +214,9 @@ export const timelineEventConfig: TimelineConfig = {
 
           {/* Duration (if available) */}
           {duration && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md">
+            <div className="mem-pill-duration">
               <FileAudio className="h-3 w-3 text-slate-400" />
-              <span className="text-xs font-mono text-slate-400">
+              <span className="mem-pill-text">
                 {duration.toFixed(1)}s
               </span>
             </div>
@@ -224,21 +224,21 @@ export const timelineEventConfig: TimelineConfig = {
 
           {/* Confidence (if available) */}
           {confidence !== undefined && (
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${
-              confidence > 0.8 ? 'bg-emerald-950/30 border-emerald-800' :
-              confidence > 0.6 ? 'bg-amber-950/30 border-amber-800' :
-              'bg-red-950/30 border-red-800'
+            <div className={`mem-pill ${
+              confidence > 0.8 ? 'mem-confidence-high' :
+              confidence > 0.6 ? 'mem-confidence-mid' :
+              'mem-confidence-low'
             }`}>
               <Zap className={`h-3 w-3 ${
                 confidence > 0.8 ? 'fi-text-success' :
                 confidence > 0.6 ? 'fi-text-warning' :
                 'fi-text-error'
               }`} />
-              <span className={`text-xs font-mono ${
-                confidence > 0.8 ? 'text-emerald-300' :
-                confidence > 0.6 ? 'text-amber-300' :
-                'text-red-300'
-              }`}>
+              <span className={
+                confidence > 0.8 ? 'mem-confidence-text-high' :
+                confidence > 0.6 ? 'mem-confidence-text-mid' :
+                'mem-confidence-text-low'
+              }>
                 {(confidence * 100).toFixed(0)}%
               </span>
             </div>
@@ -246,10 +246,10 @@ export const timelineEventConfig: TimelineConfig = {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="mem-actions-wrap">
           {/* Play/Pause Button (if audio available) */}
           {event.metadata?.audio_hash && actions?.onPlay && (
-            <Button onClick={() => actions.onPlay!(event)} className={`p-1.5 rounded-lg transition-all ${isPlaying ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50' : 'bg-slate-700 fi-text hover:bg-slate-600'}`} aria-label={isPlaying ? 'Pausar audio' : 'Reproducir audio'} variant={isPlaying ? 'primary' : 'ghost'} size="sm" type="button">
+            <Button onClick={() => actions.onPlay!(event)} className={isPlaying ? 'mem-btn-play-active' : 'mem-btn-play'} aria-label={isPlaying ? 'Pausar audio' : 'Reproducir audio'} variant={isPlaying ? 'primary' : 'ghost'} size="sm" type="button">
               {isPlaying ? (
                 <Pause className="h-4 w-4" />
               ) : (
@@ -259,7 +259,7 @@ export const timelineEventConfig: TimelineConfig = {
           )}
 
           {/* Expand/Collapse Button */}
-          <Button onClick={toggleExpanded} className="p-1 hover:bg-slate-700/50 rounded transition-colors" aria-label={isExpanded ? 'Contraer' : 'Expandir'} variant="ghost" size="sm" type="button">
+          <Button onClick={toggleExpanded} className="mem-btn-expand" aria-label={isExpanded ? 'Contraer' : 'Expandir'} variant="ghost" size="sm" type="button">
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-slate-400" />
             ) : (
@@ -286,40 +286,40 @@ export const timelineEventConfig: TimelineConfig = {
     return (
       <div className="space-y-2">
         {/* Main text (always visible) */}
-        <p className="text-white font-medium leading-relaxed">
+        <p className="mem-content-text">
           {isExpanded ? event.content : preview}
           {!isExpanded && hasMore && '...'}
         </p>
 
         {/* Technical Details (when expanded and available) */}
         {isExpanded && hasAudioData && (
-          <div className="pt-3 mt-3 fi-border-top/50 space-y-2">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          <div className="mem-tech-section">
+            <h4 className="mem-tech-heading">
               Technical Details
             </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="mem-tech-grid">
               {language && (
-                <div className="flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded">
+                <div className="mem-tech-row">
                   <span className="text-slate-500">Language:</span>
                   <span className="fi-text font-mono">{language}</span>
                 </div>
               )}
               {latencyMs !== undefined && (
-                <div className="flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded">
+                <div className="mem-tech-row">
                   <span className="text-slate-500">Latency:</span>
                   <span className="fi-text font-mono">{latencyMs}ms</span>
                 </div>
               )}
               {audioQuality && (
-                <div className="flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded">
+                <div className="mem-tech-row">
                   <span className="text-slate-500">Quality:</span>
                   <span className="fi-text font-mono">{audioQuality}</span>
                 </div>
               )}
               {audioHash && (
-                <div className="flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded col-span-2">
+                <div className="mem-tech-row-wide">
                   <span className="text-slate-500">Hash:</span>
-                  <span className="fi-text font-mono text-[10px]">
+                  <span className="mem-tech-hash">
                     {audioHash.substring(0, 16)}...
                   </span>
                 </div>
@@ -337,15 +337,15 @@ export const timelineEventConfig: TimelineConfig = {
     const tags = event.metadata?.tags || [];
 
     return (
-      <div className="mt-3 pt-3 fi-border-top/50 flex items-center gap-2 flex-wrap">
+      <div className="mem-footer">
         <span className="text-xs text-slate-500">by</span>
-        <span className="px-2 py-0.5 bg-slate-700/30 rounded fi-text-xs font-mono">
+        <span className="mem-footer-who">
           {who}
         </span>
         {tags.map((tag: string) => (
           <span
             key={tag}
-            className="px-2 py-0.5 bg-slate-700/30 rounded fi-text-xs"
+            className="mem-footer-tag"
           >
             {tag}
           </span>
@@ -443,10 +443,10 @@ export const memoryConfig: TimelineConfig = {
       const persona = event.metadata?.persona;
 
       return (
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="mem-header-row">
+          <div className="mem-badges-wrap">
             {/* Role Icon */}
-            <div className={`p-2 rounded-full ${colors.bg} border ${colors.border}`}>
+            <div className={`mem-role-icon ${colors.bg} ${colors.border}`}>
               {isUser ? (
                 <User className={`h-4 w-4 ${colors.text}`} />
               ) : (
@@ -455,15 +455,15 @@ export const memoryConfig: TimelineConfig = {
             </div>
 
             {/* Role Badge */}
-            <div className={`px-3 py-1 rounded-md ${colors.bg} border ${colors.border}`}>
-              <span className={`text-sm font-semibold ${colors.text}`}>
+            <div className={`mem-type-badge ${colors.bg} ${colors.border}`}>
+              <span className={`mem-type-text ${colors.text}`}>
                 {isUser ? 'Tú' : 'Asistente'}
               </span>
             </div>
 
             {/* Persona Badge (if assistant) */}
             {!isUser && persona && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-950/30 border border-violet-800 rounded-md">
+              <div className="mem-pill-persona">
                 <Sparkles className="h-3 w-3 text-violet-400" />
                 <span className="text-xs text-violet-300">
                   {getPersonaDisplayName(persona)}
@@ -472,22 +472,22 @@ export const memoryConfig: TimelineConfig = {
             )}
 
             {/* Timestamp */}
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/50 border border-slate-700 rounded-md">
+            <div className="mem-pill-timestamp">
               <Clock className="h-3 w-3 text-slate-400" />
-              <span className="text-xs font-mono text-slate-400">
+              <span className="mem-pill-text">
                 {memoryConfig.formatTimestamp!(event.timestamp)}
               </span>
             </div>
 
             {/* Chat indicator */}
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md">
+            <div className="mem-pill-chat">
               <MessageCircle className="h-3 w-3 text-slate-400" />
               <span className="fi-text-xs">chat</span>
             </div>
           </div>
 
           {/* Expand/Collapse */}
-          <Button onClick={toggleExpanded} className="p-1 hover:bg-slate-700/50 rounded transition-colors" aria-label={isExpanded ? 'Contraer' : 'Expandir'} variant="ghost" size="sm" type="button">
+          <Button onClick={toggleExpanded} className="mem-btn-expand" aria-label={isExpanded ? 'Contraer' : 'Expandir'} variant="ghost" size="sm" type="button">
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-slate-400" />
             ) : (
@@ -513,14 +513,14 @@ export const memoryConfig: TimelineConfig = {
 
       return (
         <div className="space-y-2">
-          <p className="text-white leading-relaxed whitespace-pre-wrap">
+          <p className="mem-chat-text">
             {isExpanded ? event.content : preview}
             {!isExpanded && hasMore && '...'}
           </p>
 
           {/* Session info when expanded */}
           {isExpanded && event.metadata?.session_id && (
-            <div className="pt-3 mt-3 fi-border-top/50">
+            <div className="mem-session-divider">
               <div className="text-xs text-slate-500">
                 <span className="font-mono">session: {event.metadata.session_id.substring(0, 16)}...</span>
               </div>

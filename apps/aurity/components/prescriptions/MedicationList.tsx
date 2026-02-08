@@ -32,8 +32,8 @@ export function MedicationList({
 }: MedicationListProps) {
   if (medications.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-        <Pill className="w-12 h-12 mx-auto mb-3 opacity-30" />
+      <div className="rx-list-empty">
+        <Pill className="rx-list-empty-icon" />
         <p className="text-sm">No hay medicamentos agregados</p>
         <p className="text-xs mt-1">
           Use el formulario para agregar medicamentos a la receta
@@ -83,51 +83,51 @@ function MedicationCard({
   const durationLabel = medication.duration_text
     ? medication.duration_text
     : medication.duration_days
-    ? `${medication.duration_days} días`
-    : "Según indicación";
+    ? `${medication.duration_days} dias`
+    : "Segun indicacion";
 
   return (
-    <div className="group relative flex items-start gap-3 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+    <div className="rx-list-card">
       {/* Drag Handle (for future drag-drop) */}
       {!readonly && (
-        <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-50 cursor-grab">
+        <div className="rx-list-drag-handle">
           <GripVertical className="w-4 h-4 text-slate-400" />
         </div>
       )}
 
       {/* Index Badge */}
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+      <div className="rx-list-index-badge">
+        <span className="rx-list-index-text">
           {index + 1}
         </span>
       </div>
 
       {/* Medication Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-medium text-slate-900 dark:text-white truncate">
+      <div className="rx-list-info">
+        <div className="rx-list-header">
+          <h4 className="rx-list-name">
             {medication.name}
           </h4>
-          <span className="text-sm text-slate-500 dark:text-slate-400">
+          <span className="rx-list-dosage">
             {medication.dosage}
           </span>
           {medication.dosage_form && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            <span className="rx-list-form-badge">
               {medication.dosage_form}
             </span>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
+        <div className="rx-list-details">
           <span>{routeLabel}</span>
-          <span className="text-slate-300 dark:text-slate-600">•</span>
+          <span className="rx-list-separator">&bull;</span>
           <span>{frequencyLabel}</span>
-          <span className="text-slate-300 dark:text-slate-600">•</span>
+          <span className="rx-list-separator">&bull;</span>
           <span>{durationLabel}</span>
           {medication.quantity && (
             <>
-              <span className="text-slate-300 dark:text-slate-600">•</span>
-              <span className="text-blue-600 dark:text-blue-400">
+              <span className="rx-list-separator">&bull;</span>
+              <span className="rx-list-quantity">
                 {medication.quantity}
               </span>
             </>
@@ -135,13 +135,13 @@ function MedicationCard({
         </div>
 
         {medication.instructions && (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 italic">
+          <p className="rx-list-instructions">
             &quot;{medication.instructions}&quot;
           </p>
         )}
 
         {medication.warnings && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+          <p className="rx-list-warning">
             <AlertTriangle className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
             {medication.warnings}
           </p>
@@ -150,16 +150,16 @@ function MedicationCard({
 
       {/* Action Buttons */}
       {!readonly && (
-        <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="rx-list-actions">
           {onEdit && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onEdit(index)}
-              className="h-8 w-8 p-0"
+              className="rx-list-action-btn"
               title="Editar medicamento"
             >
-              <Edit2 className="w-4 h-4 text-slate-500 hover:text-blue-500" />
+              <Edit2 className="rx-list-edit-icon" />
             </Button>
           )}
           {onRemove && (
@@ -167,10 +167,10 @@ function MedicationCard({
               variant="ghost"
               size="sm"
               onClick={() => onRemove(index)}
-              className="h-8 w-8 p-0"
+              className="rx-list-action-btn"
               title="Eliminar medicamento"
             >
-              <Trash2 className="w-4 h-4 text-slate-500 hover:text-red-500" />
+              <Trash2 className="rx-list-delete-icon" />
             </Button>
           )}
         </div>

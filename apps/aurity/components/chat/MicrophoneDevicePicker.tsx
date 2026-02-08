@@ -141,22 +141,16 @@ export function MicrophoneDevicePicker({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.95 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="
-                absolute bottom-full right-0 mb-2 z-50
-                w-64
-                bg-slate-800/98 backdrop-blur-md border border-slate-700/80
-                rounded-lg shadow-2xl
-                overflow-hidden
-              "
+              className="chat-mic-dropdown"
               role="listbox"
               aria-label="Seleccionar micrófono"
             >
               {/* Header */}
-              <div className="px-3 py-2 bg-slate-900/50 fi-border-bottom/50">
+              <div className="chat-mic-header fi-border-bottom/50">
                 <div className="fi-flex-between">
                   <div className="fi-flex-gap">
                     <Mic className="w-3.5 h-3.5 fi-text-purple" />
-                    <span className="text-xs font-semibold text-white">Micrófono</span>
+                    <span className="chat-mic-header-label">Micrófono</span>
                   </div>
                   <button
                     onClick={(e) => {
@@ -173,10 +167,10 @@ export function MicrophoneDevicePicker({
               </div>
 
               {/* Content */}
-              <div className="max-h-48 overflow-y-auto py-1">
+              <div className="chat-mic-content">
                 {/* Loading State */}
                 {isLoading && (
-                  <div className="flex items-center justify-center gap-2 py-4 text-slate-400">
+                  <div className="chat-mic-loading">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span className="text-xs">Buscando dispositivos...</span>
                   </div>
@@ -184,16 +178,16 @@ export function MicrophoneDevicePicker({
 
                 {/* Error State */}
                 {!isLoading && error && (
-                  <div className="px-3 py-3 text-center">
-                    <AlertCircle className="w-5 h-5 fi-text-error mx-auto mb-2" />
-                    <p className="text-xs text-red-300 mb-2">{error}</p>
+                  <div className="chat-mic-state-center">
+                    <AlertCircle className="chat-mic-state-icon fi-text-error" />
+                    <p className="chat-mic-error-text">{error}</p>
                     {permissionState === 'denied' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onRequestPermission();
                         }}
-                        className="text-xs fi-text-purple hover:text-purple-300 underline"
+                        className="chat-mic-perm-link"
                       >
                         Solicitar permiso
                       </button>
@@ -203,8 +197,8 @@ export function MicrophoneDevicePicker({
 
                 {/* Permission Prompt State */}
                 {!isLoading && !error && permissionState === 'prompt' && devices.length === 0 && (
-                  <div className="px-3 py-3 text-center">
-                    <Mic className="w-5 h-5 text-slate-400 mx-auto mb-2" />
+                  <div className="chat-mic-state-center">
+                    <Mic className="chat-mic-state-icon text-slate-400" />
                     <p className="fi-text-xs mb-2">
                       Permite acceso al micrófono para ver dispositivos
                     </p>
@@ -213,11 +207,7 @@ export function MicrophoneDevicePicker({
                         e.stopPropagation();
                         onRequestPermission();
                       }}
-                      className="
-                        px-3 py-1.5 rounded-md text-xs
-                        bg-purple-600 hover:bg-purple-500 text-white
-                        transition-colors
-                      "
+                      className="chat-mic-perm-btn"
                     >
                       Permitir acceso
                     </button>
@@ -226,12 +216,12 @@ export function MicrophoneDevicePicker({
 
                 {/* Empty State */}
                 {!isLoading && !error && permissionState !== 'prompt' && devices.length === 0 && (
-                  <div className="px-3 py-4 text-center">
-                    <AlertCircle className="w-5 h-5 fi-text-warning mx-auto mb-2" />
+                  <div className="chat-mic-empty-state">
+                    <AlertCircle className="chat-mic-state-icon fi-text-warning" />
                     <p className="fi-text-xs">
                       No se detectaron micrófonos
                     </p>
-                    <p className="text-[10px] text-slate-500 mt-1">
+                    <p className="chat-mic-empty-hint">
                       Conecta un micrófono y actualiza
                     </p>
                   </div>
@@ -247,7 +237,7 @@ export function MicrophoneDevicePicker({
                       role="option"
                       aria-selected={selectedDeviceId === null}
                     >
-                      <div className="w-4 h-4 flex items-center justify-center">
+                      <div className="chat-mic-check-box">
                         {selectedDeviceId === null && (
                           <Check className="w-3.5 h-3.5 fi-text-purple" />
                         )}
@@ -256,7 +246,7 @@ export function MicrophoneDevicePicker({
                     </button>
 
                     {/* Separator */}
-                    <div className="h-px bg-slate-700/50 my-1" />
+                    <div className="chat-mic-separator" />
 
                     {/* Device Options */}
                     {devices.map((device) => (
@@ -267,14 +257,14 @@ export function MicrophoneDevicePicker({
                         role="option"
                         aria-selected={selectedDeviceId === device.deviceId}
                       >
-                        <div className="w-4 h-4 flex items-center justify-center">
+                        <div className="chat-mic-check-box">
                           {selectedDeviceId === device.deviceId && (
                             <Check className="w-3.5 h-3.5 fi-text-purple" />
                           )}
                         </div>
                         <span className="flex-1 truncate">{device.label}</span>
                         {device.isDefault && (
-                          <span className="text-[10px] text-slate-500 px-1.5 py-0.5 bg-slate-700/50 rounded">
+                          <span className="chat-mic-default-badge">
                             Default
                           </span>
                         )}

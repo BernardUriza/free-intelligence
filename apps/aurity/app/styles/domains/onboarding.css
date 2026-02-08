@@ -4,6 +4,9 @@
  *
  * Naming convention: onb-{component}[-variant]
  * Covers: /components/onboarding/DesktopSetupWizard.tsx
+ *         /components/onboarding/CompletionCelebration.tsx
+ *         /components/auth/OfflineModeDialog.tsx
+ *         /components/pwa/InstallPrompt.tsx
  */
 
 /* ==========================================
@@ -397,5 +400,217 @@
 
   .auth-unauth-actions {
     @apply flex flex-col gap-3;
+  }
+}
+
+/* ==========================================
+ * COMPLETION CELEBRATION
+ * Covers: /components/onboarding/CompletionCelebration.tsx
+ * Naming: celeb-{component}[-variant]
+ * ========================================== */
+
+@utility celeb-badge-title {
+  @apply text-xl font-bold text-emerald-300;
+}
+
+@utility celeb-badge-name {
+  @apply text-sm font-semibold text-slate-200;
+}
+
+@utility celeb-feature-title {
+  @apply text-sm font-medium text-slate-200;
+}
+
+@layer components {
+  .celeb-wrapper {
+    @apply min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950
+           flex items-center justify-center p-6;
+  }
+
+  .celeb-container {
+    @apply max-w-2xl w-full space-y-8;
+  }
+
+  .celeb-hero {
+    @apply text-center space-y-6;
+  }
+
+  .celeb-party-icon {
+    @apply mb-6 animate-bounce flex justify-center;
+  }
+
+  .celeb-title {
+    @apply text-3xl md:text-4xl font-bold text-emerald-400 mb-4;
+  }
+
+  .celeb-subtitle {
+    @apply text-lg text-slate-300 max-w-lg mx-auto;
+  }
+
+  .celeb-badge-row {
+    @apply flex justify-center animate-fade-in-up;
+  }
+
+  .celeb-badge-card {
+    @apply relative p-6 bg-gradient-to-br from-emerald-950/50 to-cyan-950/50
+           border-2 border-emerald-500/50 rounded-2xl shadow-2xl max-w-sm;
+  }
+
+  .celeb-badge-glow {
+    @apply absolute inset-0 bg-emerald-400/10 blur-xl rounded-2xl;
+  }
+
+  .celeb-badge-body {
+    @apply relative text-center space-y-3;
+  }
+
+  .celeb-badge-label {
+    @apply p-3 bg-slate-900/60 rounded-xl border border-emerald-700/30;
+  }
+
+  .celeb-features-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up;
+  }
+
+  .celeb-feature-card {
+    @apply p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center;
+  }
+
+  .celeb-cta-btn {
+    @apply bg-gradient-to-r from-emerald-600 to-cyan-600
+           hover:from-emerald-500 hover:to-cyan-500
+           shadow-lg hover:shadow-emerald-500/30
+           hover:scale-105 transition-all duration-200 px-10;
+  }
+}
+
+/* ==========================================
+ * OFFLINE MODE DIALOG
+ * Covers: /components/auth/OfflineModeDialog.tsx
+ * Naming: offline-{component}[-variant]
+ * ========================================== */
+
+@utility offline-warning-title {
+  @apply font-medium text-amber-200 mb-2;
+}
+
+@layer components {
+  .offline-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm
+           flex items-center justify-center z-50 p-4;
+  }
+
+  .offline-dialog {
+    @apply bg-slate-900 border border-amber-500/40 rounded-xl
+           p-6 max-w-md w-full shadow-2xl;
+  }
+
+  .offline-header {
+    @apply flex items-center gap-3 mb-4;
+  }
+
+  .offline-header-icon {
+    @apply p-2 bg-amber-500/20 rounded-lg;
+  }
+
+  .offline-title {
+    @apply text-xl font-semibold text-white;
+  }
+
+  .offline-warning-card {
+    @apply bg-amber-900/20 border border-amber-500/30 rounded-lg p-4;
+  }
+
+  .offline-warning-row {
+    @apply flex items-start gap-3;
+  }
+
+  .offline-limitation-item {
+    @apply text-sm text-amber-100/80 flex items-start gap-2;
+  }
+
+  .offline-notice {
+    @apply flex items-center gap-2 text-sm text-slate-400;
+  }
+
+  .offline-notice-secure {
+    @apply flex items-center gap-2 text-sm text-emerald-400;
+  }
+
+  .offline-actions {
+    @apply flex gap-3 mt-6;
+  }
+
+  .offline-btn-cancel {
+    @apply flex-1 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300
+           hover:bg-slate-800 hover:border-slate-500 transition-colors
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .offline-btn-confirm {
+    @apply flex-1 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium
+           hover:bg-amber-500 transition-colors
+           disabled:opacity-50 disabled:cursor-not-allowed
+           flex items-center justify-center gap-2;
+  }
+
+  .offline-spinner {
+    @apply w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin;
+  }
+}
+
+/* ==========================================
+ * PWA INSTALL PROMPT
+ * Covers: /components/pwa/InstallPrompt.tsx
+ * Naming: pwa-{component}[-variant]
+ * ========================================== */
+
+@utility pwa-title {
+  @apply text-white font-semibold text-base;
+}
+
+@layer components {
+  .pwa-toast-wrapper {
+    @apply fixed bottom-4 left-4 right-4 z-50
+           animate-in slide-in-from-bottom duration-300;
+  }
+
+  .pwa-toast-card {
+    @apply bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl;
+  }
+
+  .pwa-toast-row {
+    @apply flex items-start gap-3;
+  }
+
+  .pwa-ios-steps {
+    @apply mt-3 flex items-center gap-2 text-slate-300 text-sm;
+  }
+
+  .pwa-ios-badge {
+    @apply inline-flex items-center gap-1 bg-slate-700 px-2 py-0.5 rounded;
+  }
+
+  .pwa-btn-row {
+    @apply mt-3 flex gap-2;
+  }
+
+  .pwa-btn-install {
+    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm
+           font-medium rounded-lg transition-colors;
+  }
+
+  .pwa-btn-dismiss {
+    @apply px-4 py-2 text-slate-400 hover:text-slate-300 text-sm
+           font-medium transition-colors;
+  }
+
+  .pwa-icon-badge {
+    @apply flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600
+           rounded-xl flex items-center justify-center;
+  }
+
+  .pwa-btn-close {
+    @apply flex-shrink-0 p-1 text-slate-500 hover:text-slate-300 transition-colors;
   }
 }
