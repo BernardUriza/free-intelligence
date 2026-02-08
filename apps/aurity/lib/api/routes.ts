@@ -34,7 +34,6 @@ export const ROUTES = {
   timeline: `${API_AURITY}/timeline`,
   sessions: `${API}/sessions`,
   auritySessions: `${API_AURITY}/sessions`,
-  memory: `${API_AURITY}/memory`,
   consult: `${API_AURITY}/consult`,
   prescriptions: `${API_AURITY}/prescriptions`,
   knowledgeBase: `${API_AURITY}/knowledge-base/documents`,
