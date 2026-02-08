@@ -14,6 +14,12 @@ import type { FIMessage, FITone, OnboardingPhase } from '@aurity-standalone/type
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
 import { ROUTES } from '@/lib/api/routes';
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('fi_access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
  * Interface for backend sync operations.
  *
@@ -80,7 +86,8 @@ export class BackendSyncStrategy implements IBackendSync {
         `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=0&` +
-        `limit=${limit}`
+        `limit=${limit}`,
+        { headers: getAuthHeaders() }
       );
 
       if (!response.ok) {
@@ -140,7 +147,8 @@ export class BackendSyncStrategy implements IBackendSync {
         `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=${offset}&` +
-        `limit=${limit}`
+        `limit=${limit}`,
+        { headers: getAuthHeaders() }
       );
 
       if (!response.ok) {
