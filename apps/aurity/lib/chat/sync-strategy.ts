@@ -91,8 +91,9 @@ export class BackendSyncStrategy implements IBackendSync {
       );
 
       if (!response.ok) {
-        // 404 means no history yet (new user), which is fine
-        if (response.status === 404) {
+        // 404 = no history yet, 500 = doctor has no HDF5 file (e.g. superadmin)
+        // Both are non-critical — return empty and let circuit breaker stay healthy
+        if (response.status === 404 || response.status === 500) {
           return [];
         }
         throw new Error(`Backend sync failed: ${response.statusText}`);
