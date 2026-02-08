@@ -22,10 +22,6 @@ function resolveClinicTimeZone(): string {
   const envZone = process.env.CLINIC_TZ || process.env.NEXT_PUBLIC_CLINIC_TZ;
 
   if (!envZone) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CLINIC_TZ is required in production. Set a valid IANA time zone.');
-    }
-    console.warn(`[temporal] CLINIC_TZ missing; using default ${DEFAULT_TZ} for dev/demo.`);
     return DEFAULT_TZ;
   }
 
