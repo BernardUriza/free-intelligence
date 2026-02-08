@@ -28,7 +28,7 @@ def transcribe_chunk_worker(
     Args:
         session_id: Session identifier
         chunk_number: Chunk index
-        stt_provider: Provider name (deepgram - primary, azure_whisper deprecated). If None, uses adaptive selection.
+        stt_provider: Provider name (azure_whisper). If None, uses adaptive selection.
 
     Returns:
         WorkerResult with transcript, duration, language, confidence
@@ -121,7 +121,7 @@ def transcribe_chunk_worker(
 
         # Estimate time remaining based on provider
         remaining_chunks = total - processed
-        avg_time_per_chunk = 2.0 if stt_provider == "deepgram" else 15.0  # Deepgram: 2s, Azure: 15s
+        avg_time_per_chunk = 15.0  # Azure Whisper: ~15s per chunk
         estimated_seconds_remaining = int(remaining_chunks * avg_time_per_chunk)
 
         task_repo.save_task_metadata(
@@ -193,9 +193,9 @@ def _transcribe_audio(audio_bytes: bytes, provider_name: str) -> dict[str, Any]:
     """Transcribe audio bytes using STT provider with fallback.
 
     Strategy:
-    1. Try primary provider (Deepgram)
-    2. If transcript is empty (0 chars), try fallback provider (Azure Whisper)
-    3. If both return empty, it's confirmed silence
+    1. Try primary provider (Azure Whisper)
+    2. If transcript is empty (0 chars), try fallback provider if configured
+    3. If fallback also returns empty, it's confirmed silence
 
     Args:
         audio_bytes: Audio data

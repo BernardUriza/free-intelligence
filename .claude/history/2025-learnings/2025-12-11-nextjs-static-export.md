@@ -1,7 +1,7 @@
 # Next.js Static Export Learnings
 
 **Date**: 2025-12-11
-**Context**: CI/CD deployment to DigitalOcean
+**Context**: CI/CD deployment (migrated to Azure)
 **Card**: FI-UI-FEAT-205
 
 ## Problem

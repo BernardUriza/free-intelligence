@@ -30,8 +30,14 @@ from pydantic import ValidationError
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    # from backend.utils.coder.storage.database import init_db  # Removed: storage simplified
     from backend.utils.coder.observability.logger import get_logger
+    from backend.infrastructure.common.repository_singletons import (
+        init_repositories,
+        shutdown_repositories,
+    )
+
+    # P0: Initialize repository singletons (explicit lifecycle management)
+    init_repositories()
 
     # P1: Validate all Pydantic configs FIRST (fail-fast on invalid config)
     validate_all_configs()
@@ -97,8 +103,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown (if needed in the future)
-    # Add cleanup code here
+    # Shutdown: cleanup repository singletons (release HDF5 file handles, etc.)
+    shutdown_repositories()
 
 
 def validate_all_configs() -> None:
@@ -175,8 +181,6 @@ def validate_critical_env_vars() -> None:
 
     # Critical env vars that MUST be present in production
     CRITICAL_ENV_VARS = {
-        "CLAUDE_API_KEY": "AI assistant won't work without Claude API",
-        "DEEPGRAM_API_KEY": "Audio transcription won't work without Deepgram",
         "DATABASE_URL": "PostgreSQL connection required for patients/providers",
         "ALLOWED_ORIGINS": "CORS will block frontend without allowed origins",
     }
@@ -212,7 +216,7 @@ Process natural language commands to update medical records using Claude AI.
 
 ### 🔑 **Key Features:**
 - **AI Assistant** - Natural language processing with Claude
-- **Audio Transcription** - Deepgram speech-to-text (Azure Whisper endpoint removed)
+- **Audio Transcription** - Azure Whisper speech-to-text
 - **SOAP Notes** - Structured medical documentation
 - **HDF5 Storage** - Append-only data persistence
 
@@ -247,8 +251,8 @@ POST /api/workflows/aurity/sessions/{session_id}/finalize
 
 ### 🔐 **Configuration**
 Requires environment variables:
-- `CLAUDE_API_KEY` - Anthropic Claude API
-- `DEEPGRAM_API_KEY` - Deepgram transcription (required)
+- `DATABASE_URL` - PostgreSQL connection string
+- `ALLOWED_ORIGINS` - CORS allowed origins
 
 ### 📖 **Quick Start**
 1. Check health: `GET /health`
@@ -272,7 +276,7 @@ Requires environment variables:
         },
         {
             "name": "Transcription",
-            "description": "Audio to text transcription using Deepgram",
+            "description": "Audio to text transcription using Azure Whisper",
         },
         {
             "name": "Sessions",
@@ -331,13 +335,6 @@ Requires environment variables:
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
-
-    # Add explicit OPTIONS handler for CORS preflight requests
-    # This ensures OPTIONS requests don't return 405 Method Not Allowed
-    @app.options("/{full_path:path}", include_in_schema=False)
-    async def options_handler(full_path: str):
-        """Handle CORS preflight OPTIONS requests for all paths."""
-        return {}
 
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")

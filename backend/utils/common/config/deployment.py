@@ -60,7 +60,7 @@ class OllamaHost(TypedDict):
 class DeploymentTarget(Enum):
     """Deployment target environments."""
 
-    CLOUD = "cloud"  # Production on Digital Ocean (app.aurity.io)
+    CLOUD = "cloud"  # Production on Azure (app.aurity.io)
     DESKTOP = "desktop"  # Local installable app (FI-Edge)
 
 

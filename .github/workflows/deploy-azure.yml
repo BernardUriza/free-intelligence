@@ -70,7 +70,7 @@ jobs:
           echo "Building image: $FULL_IMAGE"
 
           docker build \
-            -f docker/Dockerfile.digitalocean \
+            -f docker/Dockerfile.azure \
             -t "$FULL_IMAGE" \
             -t "$LATEST_IMAGE" \
             .
@@ -209,9 +209,9 @@ jobs:
           STATIC_EXPORT: 'true'
           NEXT_PUBLIC_DEPLOYMENT_TARGET: cloud
           NEXT_PUBLIC_BASE_URL: https://app.aurity.io
-          NEXT_PUBLIC_BACKEND_URL: https://api.aurity.io
-          NEXT_PUBLIC_API_BASE: https://api.aurity.io
-          NEXT_PUBLIC_API_URL: https://api.aurity.io
+          NEXT_PUBLIC_BACKEND_URL: https://ca-aurity-backend.bluewater-34157992.eastus.azurecontainerapps.io
+          NEXT_PUBLIC_API_BASE: https://ca-aurity-backend.bluewater-34157992.eastus.azurecontainerapps.io
+          NEXT_PUBLIC_API_URL: https://ca-aurity-backend.bluewater-34157992.eastus.azurecontainerapps.io
           NEXT_PUBLIC_SUPERADMIN_EMAILS: ${{ secrets.SUPERADMIN_EMAILS }}
         run: pnpm --filter aurity build
 

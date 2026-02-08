@@ -273,7 +273,7 @@ class PolicyLoader(IPolicyLoader):
         Get configuration for specific diarization provider.
 
         Args:
-            provider_name: Provider name (e.g., "pyannote", "deepgram")
+            provider_name: Provider name (e.g., "pyannote", "azure_gpt4")
 
         Returns:
             Dict with provider configuration
@@ -316,7 +316,7 @@ class PolicyLoader(IPolicyLoader):
         Get configuration for specific STT provider.
 
         Args:
-            provider_name: Provider name (e.g., "deepgram" - primary, "azure_whisper" deprecated)
+            provider_name: Provider name (e.g., "azure_whisper")
 
         Returns:
             Dict with provider configuration

@@ -17,7 +17,7 @@
 
 | Environment | GPU | Implementation | Library |
 |------------|-----|----------------|---------|
-| Backend (DO) | NO | cpu/vector_utils.py | NumPy |
+| Backend (Azure) | NO | cpu/vector_utils.py | NumPy |
 | Fi Monitor (Windows) | YES | apps/fi-monitor/rag_service/main.py | PyTorch inline |
 | Development (Mac) | YES (MPS) | cpu/vector_utils.py | NumPy |
 
@@ -77,7 +77,7 @@ backend/utils/math/
 
 ### Why No GPU Module?
 
-- Backend (Digital Ocean) has NO GPU hardware
+- Backend (Azure Container Apps) has NO GPU hardware
 - Fi Monitor already has PyTorch inline implementation
 - No code sharing needed (different deployment targets)
 - Eliminates confusion about when to use GPU

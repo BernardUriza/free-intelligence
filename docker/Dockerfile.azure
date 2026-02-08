@@ -1,7 +1,7 @@
-# DigitalOcean Optimized Dockerfile
+# Azure Container Apps Dockerfile
 # Smaller image = Faster deploys = Lower costs
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Install only essential system dependencies
 RUN apt-get update && apt-get install -y \
@@ -11,11 +11,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy requirements and install Python deps (production - no ML dependencies)
-COPY requirements-prod.txt .
-RUN pip install --no-cache-dir -r requirements-prod.txt
+# Install Python deps from pyproject.toml [cloud] extras
+# 1. Copy pyproject.toml + create dummy package for setuptools
+# 2. pip installs all deps (cached unless pyproject.toml changes)
+# 3. Real code overwrites dummy on COPY
+COPY pyproject.toml .
+RUN mkdir -p backend && touch backend/__init__.py && \
+    pip install --no-cache-dir '.[cloud]'
 
-# Copy application code
+# Copy application code (overwrites dummy __init__.py)
 COPY backend/ ./backend/
 
 # Create necessary directories

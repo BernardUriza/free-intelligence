@@ -55,39 +55,19 @@ AZURE_OPENAI_WHISPER_API_VERSION=2024-02-01
 
 ## 🚀 Configuration for Free-Intelligence (Aurity)
 
-### DigitalOcean Droplet Configuration
+### Azure Container Apps Configuration
 
-Since Aurity is deployed on DigitalOcean, configure via environment variables:
+Aurity backend runs on Azure Container Apps. Secrets are managed via Azure Key Vault (`aurity-secrets`), accessed through Managed Identity.
 
 ```bash
-# SSH into DigitalOcean droplet
-ssh root@app.aurity.io
+# Secrets are stored in Azure Key Vault, NOT environment variables
+# To update a secret:
+az keyvault secret set --vault-name aurity-secrets \
+  --name "AZURE-OPENAI-API-KEY" \
+  --value "<key>"
 
-# Create/update .env file
-cat > /path/to/aurity/.env << 'EOF'
-# Azure OpenAI - Shared Resource
-AZURE_OPENAI_ENDPOINT=https://eastus.api.cognitive.microsoft.com/
-AZURE_OPENAI_API_KEY=4NwU6IBHTPAsi7dBkPG8akXjb730fglZOq4ks2AQlxJ0mmmX4lyGJQQJ99CAACYeBjFXJ3w3AAABACOG0Jd3
-
-# GPT-5 mini deployment
-AZURE_OPENAI_GPT_DEPLOYMENT=gpt-5-mini
-AZURE_OPENAI_GPT_API_VERSION=2024-12-01-preview
-
-# TTS deployment
-AZURE_OPENAI_TTS_DEPLOYMENT=tts-hd
-AZURE_OPENAI_TTS_API_VERSION=2025-03-01-preview
-
-# Whisper deployment
-AZURE_OPENAI_WHISPER_DEPLOYMENT=whisper
-AZURE_OPENAI_WHISPER_API_VERSION=2024-02-01
-EOF
-
-# Restart application
-systemctl restart aurity-backend
-# or
-docker-compose restart
-# or
-pm2 restart aurity
+# Container Apps reads secrets via Managed Identity at startup
+# No SSH, no manual .env files needed
 ```
 
 ---

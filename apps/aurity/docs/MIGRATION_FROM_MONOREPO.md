@@ -264,15 +264,12 @@ NEXT_PUBLIC_MOCK_BACKEND=true
 vercel
 ```
 
-### DigitalOcean App Platform
+### Azure Static Web Apps
 
 ```bash
-# Push to GitHub
+# Push to GitHub triggers CI/CD deployment
 git push origin main
-
-# Connect to DigitalOcean App Platform via UI
-# Build command: pnpm build
-# Output directory: .next
+# Deploys via GitHub Actions → Azure Static Web Apps
 ```
 
 ### Docker

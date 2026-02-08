@@ -265,7 +265,6 @@ if environment == "production":
     # CRITICAL: Strict whitelist for production
     allowed_origins = [
         "https://app.aurity.io",
-        "https://fi-aurity.duckdns.org",  # Legacy (deprecated)
     ]
 else:
     # Development: localhost only

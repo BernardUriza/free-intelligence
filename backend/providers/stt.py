@@ -1,12 +1,11 @@
 """Free Intelligence - STT Provider Abstraction
 
 Provides a unified interface for speech-to-text (STT) services, supporting:
-- Deepgram (cloud, very fast, requires API key) - PRIMARY
-- Azure Whisper (cloud, DEPRECATED - endpoint removed by Microsoft)
+- Azure Whisper (cloud, Azure OpenAI Whisper deployment)
 
 Philosophy: Provider-agnostic design, same pattern as LLM providers.
 Note: faster-whisper removed (CTranslate2 compilation issues with Python 3.14)
-Note: Azure Whisper endpoint removed - AzureWhisperProvider kept for compatibility but not used
+Note: Deepgram removed for PHI/HIPAA compliance (no BAA)
 """
 
 from __future__ import annotations
@@ -27,7 +26,6 @@ class STTProviderType(Enum):
     """Supported STT providers"""
 
     AZURE_WHISPER = "azure_whisper"
-    DEEPGRAM = "deepgram"
 
 
 class STTResponse:
@@ -352,156 +350,12 @@ class AzureWhisperProvider(STTProvider):
         return "azure_whisper"
 
 
-class DeepgramProvider(STTProvider):
-    """Deepgram STT provider (cloud-based, very fast)"""
-
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
-        super().__init__(config)
-        self.api_key = get_secret("DEEPGRAM_API_KEY")
-
-        if not self.api_key:
-            raise ValueError("DEEPGRAM_API_KEY environment variable not set")
-
-        self.timeout: int = int(self.config.get("timeout_seconds") or 30)
-
-        self.logger.info("DEEPGRAM_PROVIDER_INITIALIZED")
-
-    def transcribe(self, audio_path: str | Path, language: str | None = None) -> STTResponse:
-        """Transcribe using Deepgram API"""
-        import time
-
-        audio_path = Path(audio_path)
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
-        start_time = time.time()
-
-        try:
-            import requests
-
-            self.logger.info(
-                "DEEPGRAM_TRANSCRIPTION_START",
-                audio_path=str(audio_path),
-                language=language,
-            )
-
-            # Read audio
-            with open(audio_path, "rb") as f:
-                audio_bytes = f.read()
-
-            # Detect MIME type from file extension
-            extension = audio_path.suffix.lower()
-            mime_types = {
-                ".mp3": "audio/mpeg",
-                ".webm": "audio/webm",
-                ".wav": "audio/wav",
-                ".m4a": "audio/mp4",
-                ".ogg": "audio/ogg",
-                ".flac": "audio/flac",
-            }
-            content_type = mime_types.get(extension, "audio/webm")
-
-            # Call Deepgram API
-            headers = {
-                "Authorization": f"Token {self.api_key}",
-                "Content-Type": content_type,
-            }
-
-            url = "https://api.deepgram.com/v1/listen"
-            params = {
-                "model": "nova-2",
-                "language": language or "es",
-            }
-
-            response = requests.post(
-                url,
-                headers=headers,
-                params=params,
-                data=audio_bytes,
-                timeout=self.timeout,
-            )
-
-            if response.status_code != 200:
-                raise Exception(f"Deepgram API error {response.status_code}: {response.text}")
-
-            api_response = response.json()
-
-            # Log raw response for debugging
-            self.logger.debug(
-                "DEEPGRAM_RAW_RESPONSE",
-                response_keys=list(api_response.keys()),
-                results=api_response.get("results", {}),
-            )
-
-            # Parse Deepgram response
-            transcript = (
-                api_response.get("results", {})
-                .get("channels", [{}])[0]
-                .get("alternatives", [{}])[0]
-                .get("transcript", "")
-            )
-            duration = api_response.get("metadata", {}).get("duration", 0.0)
-
-            # Extract segments
-            segments = []
-            for alt in (
-                api_response.get("results", {}).get("channels", [{}])[0].get("alternatives", [])
-            ):
-                for word_obj in alt.get("words", []):
-                    segments.append(
-                        {
-                            "start": word_obj.get("start", 0.0),
-                            "end": word_obj.get("end", 0.0),
-                            "text": word_obj.get("punctuated_word", word_obj.get("word", "")),
-                        }
-                    )
-
-            # Confidence from Deepgram
-            confidence = (
-                api_response.get("results", {})
-                .get("channels", [{}])[0]
-                .get("alternatives", [{}])[0]
-                .get("confidence", 0.9)
-            )
-
-            latency_ms = (time.time() - start_time) * 1000
-
-            self.logger.info(
-                "DEEPGRAM_TRANSCRIPTION_COMPLETE",
-                audio_path=str(audio_path),
-                text_length=len(transcript),
-                duration=duration,
-                latency_ms=round(latency_ms, 2),
-            )
-
-            return STTResponse(
-                text=transcript,
-                segments=segments,
-                language=language or "es",
-                duration=duration,
-                confidence=confidence,
-                provider="deepgram",
-                latency_ms=latency_ms,
-            )
-
-        except Exception as e:
-            self.logger.error(
-                "DEEPGRAM_TRANSCRIPTION_FAILED",
-                audio_path=str(audio_path),
-                error=str(e),
-            )
-            raise
-
-    def get_provider_name(self) -> str:
-        return "deepgram"
-
-
 def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -> STTProvider:
     """
     Factory function to get STT provider instance.
 
     Args:
-        provider_name: "deepgram" (recommended) or "azure_whisper" (deprecated - endpoint removed)
+        provider_name: "azure_whisper"
         config: Provider-specific configuration
 
     Returns:
@@ -509,24 +363,12 @@ def get_stt_provider(provider_name: str, config: dict[str, Any] | None = None) -
 
     Raises:
         ValueError: If provider not supported
-        ValueError: If azure_whisper is requested (endpoint no longer available)
     """
-    provider_name_lower = provider_name.lower()
-
-    # Warn if trying to use deprecated Azure Whisper
-    if provider_name_lower == "azure_whisper":
-        logger.warning(
-            "AZURE_WHISPER_DEPRECATED",
-            message="Azure Whisper endpoint has been removed by Microsoft. Use 'deepgram' instead.",
-        )
-        # Still allow it for backward compatibility, but it will fail at runtime
-
     provider_map = {
-        "azure_whisper": AzureWhisperProvider,  # Deprecated - kept for compatibility
-        "deepgram": DeepgramProvider,
+        "azure_whisper": AzureWhisperProvider,
     }
 
-    provider_class = provider_map.get(provider_name_lower)
+    provider_class = provider_map.get(provider_name.lower())
     if not provider_class:
         raise ValueError(
             f"Unknown STT provider: {provider_name}. Supported: {list(provider_map.keys())}"

@@ -13,7 +13,6 @@ diarization:
   # Fallback providers in order (local → cloud)
   fallback_providers:
     - azure_gpt4
-    - deepgram
     - aws_transcribe
     - google_speech
 
@@ -38,13 +37,6 @@ diarization:
       timeout_seconds: 120
       # No credentials needed - uses HuggingFace models
 
-    # Deepgram - Cloud speaker diarization (fast, low cost)
-    deepgram:
-      model: "nova-2"
-      timeout_seconds: 30
-      # Credentials from environment:
-      # - DEEPGRAM_API_KEY: your-api-key
-
     # AWS Transcribe - Cloud speaker diarization (high accuracy)
     aws_transcribe:
       region: "us-east-1"
@@ -67,9 +59,8 @@ stt:
   # Primary provider for transcription
   primary_provider: azure_whisper  # Azure OpenAI Whisper (preferred)
 
-  # Fallback providers in order (cloud only)
-  fallback_providers:
-    - deepgram
+  # No fallback providers (Deepgram removed for PHI/HIPAA compliance)
+  fallback_providers: []
 
   # Provider-specific configurations
   providers:
@@ -85,37 +76,19 @@ stt:
       # - AZURE_OPENAI_ENDPOINT: https://resource.openai.azure.com/
       # - AZURE_OPENAI_KEY: your-api-key
 
-    # Deepgram - Cloud-based STT (very fast, nova-2 model)
-    deepgram:
-      model: nova-2
-      timeout_seconds: 30
-      language_default: es
-      # Retry on empty transcript (no fallback to Azure - endpoint removed)
-      retry_on_empty: true
-      # Credentials from environment:
-      # - DEEPGRAM_API_KEY: your-api-key
-
 # ===== LLM Provider Configuration =====
 llm:
   # Primary provider for production workloads
   primary_provider: ollama  # Ollama local for testing with Qwen3
 
   # Fallback provider if primary fails
-  fallback_provider: claude
+  fallback_provider: azure
 
   # Offline-first mode (prefer local inference)
   enable_offline: false  # Set to true when NAS deployment is ready
 
   # Provider-specific configurations
   providers:
-    # Anthropic Claude - Production LLM (cloud)
-    claude:
-      model: claude-sonnet-4-5-20250929  # Claude Sonnet 4.5 (latest official version)
-      timeout_seconds: 60  # API timeout
-      max_tokens: 8192  # Max output tokens
-      temperature: 0.3  # Balanced between deterministic and creative
-      # API key loaded from environment: CLAUDE_API_KEY
-
     # Ollama - Local inference (offline-first)
     ollama:
       model: qwen3:1.7b  # Qwen3 1.7B - thinking support + M1 optimized

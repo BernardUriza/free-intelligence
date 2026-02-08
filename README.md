@@ -37,8 +37,8 @@ Like modern gaming - **GPU required, no compromises**.
 ```
 FI Cloud (Production Server)
 ═══════════════════════════════
-• Droplet: DigitalOcean 1GB RAM
-• OS: Ubuntu 22.04 LTS
+• Azure Container Apps (serverless)
+• Azure Static Web Apps (frontend)
 • Python: 3.14
 • No GPU needed (backend only)
 
@@ -155,13 +155,7 @@ pnpm dev
 
 ```bash
 # Automated deployment (via GitHub Actions)
-git push origin main  # Triggers CI/CD pipeline
-
-# Manual deployment (emergency only)
-ssh root@104.131.175.65
-cd /opt/free-intelligence
-git pull
-./scripts/deploy.sh
+git push origin main  # Triggers CI/CD pipeline → Azure Container Apps + Static Web Apps
 ```
 
 **Live URL**: https://app.aurity.io
@@ -281,11 +275,10 @@ PR to main:
   4. ⏭️ Lint warnings (non-blocking)
 
 Merge to main:
-  1. 🚀 Deploy frontend (rsync → DigitalOcean)
-  2. 🚀 Deploy backend (pip install + restart uvicorn)
-  3. 🚀 Reload nginx
-  4. ✅ Health check (curl https://app.aurity.io)
-  5. 🏷️ Create git tag (deploy-YYYYMMDD-HHMMSS)
+  1. 🚀 Build Docker image → Azure Container Registry
+  2. 🚀 Deploy backend → Azure Container Apps
+  3. 🚀 Deploy frontend → Azure Static Web Apps
+  4. ✅ Health check + E2E validation
 ```
 
 ---
@@ -382,9 +375,10 @@ async def list_documents(
 - Cloudflare Tunnel - Secure exposure
 
 **Infrastructure:**
-- DigitalOcean (app.aurity.io)
-- Nginx (reverse proxy + SSL)
-- Let's Encrypt (SSL certs)
+- Azure Container Apps (backend)
+- Azure Static Web Apps (frontend)
+- Azure Container Registry (Docker images)
+- Azure Key Vault (secrets)
 - GitHub Actions (CI/CD)
 
 ---

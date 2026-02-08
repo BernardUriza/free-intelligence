@@ -13,10 +13,10 @@ Architecture:
 
 Selection Strategy:
   1. Forced provider (if specified) → highest priority
-  2. File size threshold (>5MB → Deepgram) → policy-driven
-  3. Duration threshold (>300s → Deepgram) → policy-driven
+  2. File size threshold (>5MB) → policy-driven
+  3. Duration threshold (>300s) → policy-driven
   4. Adaptive selection (based on performance) → data-driven
-  5. Primary provider → policy default (Deepgram)
+  5. Primary provider → policy default (azure_whisper)
 
 Performance Tracking:
   - Rolling window: Last 5 chunks per provider
@@ -147,8 +147,8 @@ class STTLoadBalancer:
 
             if size_mb > threshold_mb:
                 provider = routing_rules.get(
-                    "large_file_provider", "deepgram"
-                )  # Default changed from azure_whisper
+                    "large_file_provider", "azure_whisper"
+                )
                 reason = f"file_size_{size_mb:.1f}MB_exceeds_{threshold_mb}MB"
 
                 logger.info(
@@ -166,8 +166,8 @@ class STTLoadBalancer:
 
             if duration_seconds > threshold_seconds:
                 provider = routing_rules.get(
-                    "long_duration_provider", "deepgram"
-                )  # Default changed from azure_whisper
+                    "long_duration_provider", "azure_whisper"
+                )
                 reason = f"duration_{duration_seconds}s_exceeds_{threshold_seconds}s"
 
                 logger.info(
@@ -192,7 +192,7 @@ class STTLoadBalancer:
                 return adaptive_provider, "adaptive_performance"
 
         # 5. Fallback to primary provider from policy
-        primary = stt_config.get("primary_provider", "deepgram")
+        primary = stt_config.get("primary_provider", "azure_whisper")
 
         logger.info(
             "STANDARD_ROUTING",

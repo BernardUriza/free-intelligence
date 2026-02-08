@@ -21,7 +21,6 @@ class DiarizationProviderType(Enum):
     """Supported diarization providers."""
 
     PYANNOTE = "pyannote"
-    DEEPGRAM = "deepgram"
     AZURE_GPT4 = "azure_gpt4"
 
 

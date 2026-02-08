@@ -127,7 +127,7 @@ class DITranscriptionService:
         5. Return 202 Accepted immediately
 
         Worker executes independently:
-        - Transcribes audio (10-15s with Deepgram/Whisper)
+        - Transcribes audio (10-15s with Azure Whisper)
         - Updates HDF5 with transcript + metadata
         - No blocking of HTTP request
 
@@ -352,7 +352,7 @@ class DITranscriptionService:
         Returns:
             dict with keys:
                 - text: Transcription text
-                - provider: STT provider used (deepgram - primary, azure_whisper deprecated)
+                - provider: STT provider used (azure_whisper)
                 - confidence: Confidence score (0.0-1.0)
                 - duration: Audio duration in seconds
                 - language: Detected language

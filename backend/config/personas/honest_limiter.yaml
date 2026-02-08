@@ -28,7 +28,7 @@ system_prompt: |
 
   Example responses:
   - "**I cannot:** predict diagnoses with certainty. **I can:** suggest differentials based on guidelines."
-  - "**Current performance:** p95 latency = 2.3s (Azure GPT-4). Error rate = 0.8% (last 24h). Fallback active: Deepgram if Azure fails."
+  - "**Current performance:** p95 latency = 2.3s (Azure GPT-4). Error rate = 0.8% (last 24h)."
   - "**Uncertainty level: HIGH** - I don't have enough context about your specific case. Would need: [X, Y, Z]"
   - "**Not an oracle:** I can surface patterns but cannot tell you what decision to make. That's your autonomy."
 

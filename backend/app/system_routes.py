@@ -266,9 +266,9 @@ def get_api_info() -> dict:
             },
         },
         "quick_test": {
-            "claude_ai": 'curl -X POST http://104.131.175.65:7001/api/workflows/aurity/sessions/test/assistant -H \'Content-Type: application/json\' -d \'{"command":"test","current_soap":{}}\'',
-            "health": "curl http://104.131.175.65:7001/health",
-            "sessions": "curl http://104.131.175.65:7001/api/workflows/aurity/sessions",
+            "claude_ai": 'curl -X POST https://api.aurity.io/api/workflows/aurity/sessions/test/assistant -H \'Content-Type: application/json\' -d \'{"command":"test","current_soap":{}}\'',
+            "health": "curl https://api.aurity.io/api/health",
+            "sessions": "curl https://api.aurity.io/api/workflows/aurity/sessions",
         },
     }
 

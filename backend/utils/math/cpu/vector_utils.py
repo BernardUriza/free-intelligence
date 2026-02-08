@@ -1,7 +1,7 @@
 """CPU-based vector math utilities.
 
 Production-ready NumPy implementation for backend deployment.
-NO GPU dependencies - optimized for Digital Ocean CPU execution.
+NO GPU dependencies - optimized for Azure Container Apps CPU execution.
 
 Performance Profile:
     100 vectors:   ~1ms
@@ -9,7 +9,7 @@ Performance Profile:
     10000 vectors: ~100ms (consider offloading to Fi Monitor GPU)
 
 Deployment Target:
-    Backend (Digital Ocean) - NO GPU available
+    Backend (Azure Container Apps) - NO GPU available
     Use Fi Monitor for GPU-accelerated workloads (10000+ vectors)
 
 Author: Bernard Uriza Orozco + Claude Sonnet 4.5

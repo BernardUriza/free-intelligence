@@ -2,7 +2,6 @@
 
 Provides unified interface for speaker identification (who speaks when):
 - Pyannote (local, offline, free)
-- Deepgram (cloud, fast, low cost)
 - Azure GPT-4 (text-based LLM diarization)
 
 Usage:
@@ -37,7 +36,6 @@ from backend.providers.diarization.models import (
 )
 from backend.providers.diarization.providers import (
     AzureGPT4Provider,
-    DeepgramProvider,
     PyannoteProvider,
 )
 
@@ -52,7 +50,6 @@ __all__ = [
     "TextBasedDiarizationProvider",
     # Providers
     "AzureGPT4Provider",
-    "DeepgramProvider",
     "PyannoteProvider",
     # Factory
     "get_diarization_provider",
