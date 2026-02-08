@@ -30,8 +30,14 @@ from pydantic import ValidationError
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
-    # from backend.utils.coder.storage.database import init_db  # Removed: storage simplified
     from backend.utils.coder.observability.logger import get_logger
+    from backend.infrastructure.common.repository_singletons import (
+        init_repositories,
+        shutdown_repositories,
+    )
+
+    # P0: Initialize repository singletons (explicit lifecycle management)
+    init_repositories()
 
     # P1: Validate all Pydantic configs FIRST (fail-fast on invalid config)
     validate_all_configs()
@@ -97,8 +103,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown (if needed in the future)
-    # Add cleanup code here
+    # Shutdown: cleanup repository singletons (release HDF5 file handles, etc.)
+    shutdown_repositories()
 
 
 def validate_all_configs() -> None:
@@ -329,13 +335,6 @@ Requires environment variables:
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
-
-    # Add explicit OPTIONS handler for CORS preflight requests
-    # This ensures OPTIONS requests don't return 405 Method Not Allowed
-    @app.options("/{full_path:path}", include_in_schema=False)
-    async def options_handler(full_path: str):
-        """Handle CORS preflight OPTIONS requests for all paths."""
-        return {}
 
     # Sub-app: Public API (orchestrators, CORS enabled)
     public_app = FastAPI(title="Public API")
