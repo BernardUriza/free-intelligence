@@ -7,9 +7,27 @@
 // 4. Start/stop the backend via WSL
 // 5. Check backend health through WSL
 
+#[cfg(target_os = "windows")]
+use log::info;
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "windows")]
 use std::process::Command;
+#[cfg(target_os = "windows")]
 use std::time::Duration;
+
+/// WSL errors for Tauri commands
+#[derive(Debug, thiserror::Error, Serialize)]
+#[allow(dead_code)] // Variants used only on Windows
+pub enum WslError {
+    #[error("WSL not available: {0}")]
+    NotAvailable(String),
+    #[error("Command failed: {0}")]
+    CommandFailed(String),
+    #[error("Setup error: {0}")]
+    SetupError(String),
+    #[error("Network error: {0}")]
+    Network(String),
+}
 
 /// WSL installation status
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +41,7 @@ pub struct WslStatus {
 
 /// Check if WSL is installed and get status
 #[tauri::command]
-pub fn check_wsl_status() -> Result<WslStatus, String> {
+pub fn check_wsl_status() -> Result<WslStatus, WslError> {
     #[cfg(target_os = "windows")]
     {
         // Check if wsl.exe exists and is functional
@@ -85,7 +103,7 @@ pub fn check_wsl_status() -> Result<WslStatus, String> {
     #[cfg(not(target_os = "windows"))]
     {
         // On non-Windows, WSL is not applicable
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
@@ -130,12 +148,9 @@ fn check_backend_installed() -> bool {
     let output = Command::new("wsl")
         .args([
             "--",
-            "test",
-            "-d",
-            "/opt/aurity-backend",
-            "&&",
-            "echo",
-            "yes",
+            "bash",
+            "-c",
+            "test -d /opt/aurity-backend && echo yes",
         ])
         .output();
 
@@ -176,7 +191,7 @@ fn check_backend_running() -> bool {
 /// Install WSL with Ubuntu (requires elevation)
 /// This will trigger Windows to download and install WSL
 #[tauri::command]
-pub fn install_wsl() -> Result<String, String> {
+pub fn install_wsl() -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
         // Use PowerShell to run wsl --install with elevation
@@ -192,25 +207,25 @@ pub fn install_wsl() -> Result<String, String> {
                 "-Wait",
             ])
             .output()
-            .map_err(|e| format!("Failed to start WSL installation: {}", e))?;
+            .map_err(|e| WslError::CommandFailed(format!("Failed to start WSL installation: {}", e)))?;
 
         if output.status.success() {
             Ok("WSL installation initiated. A restart may be required.".to_string())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("WSL installation failed: {}", stderr))
+            Err(WslError::CommandFailed(format!("WSL installation failed: {}", stderr)))
         }
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL installation is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL installation is only available on Windows".into()))
     }
 }
 
 /// Enable WSL feature (pre-Windows 11 method)
 #[tauri::command]
-pub fn enable_wsl_feature() -> Result<String, String> {
+pub fn enable_wsl_feature() -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
         // Enable WSL feature via DISM
@@ -239,7 +254,7 @@ pub fn enable_wsl_feature() -> Result<String, String> {
         let output = Command::new("powershell")
             .args(["-ExecutionPolicy", "Bypass", "-Command", script])
             .output()
-            .map_err(|e| format!("Failed to enable WSL feature: {}", e))?;
+            .map_err(|e| WslError::CommandFailed(format!("Failed to enable WSL feature: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(stdout.to_string())
@@ -247,21 +262,21 @@ pub fn enable_wsl_feature() -> Result<String, String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
 /// Setup Aurity backend in WSL
 /// This installs Python, dependencies, and the backend code
 #[tauri::command]
-pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> {
+pub async fn setup_wsl_backend(_app: tauri::AppHandle) -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
         use tauri::Emitter;
 
         let emit_progress = |msg: &str| {
-            let _ = app.emit("wsl-setup-progress", msg);
-            println!("[WSL Setup] {}", msg);
+            let _ = _app.emit("wsl-setup-progress", msg);
+            info!("{}", msg);
         };
 
         emit_progress("Verificando WSL...");
@@ -269,7 +284,7 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
         // Check WSL is available
         let status = check_wsl_status()?;
         if !status.installed {
-            return Err("WSL no está instalado. Instálalo primero.".to_string());
+            return Err(WslError::NotAvailable("WSL no está instalado. Instálalo primero.".into()));
         }
 
         emit_progress("Actualizando paquetes...");
@@ -278,7 +293,7 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
         let update = Command::new("wsl")
             .args(["--", "sudo", "apt-get", "update", "-y"])
             .output()
-            .map_err(|e| format!("Failed to update apt: {}", e))?;
+            .map_err(|e| WslError::SetupError(format!("Failed to update apt: {}", e)))?;
 
         if !update.status.success() {
             let stderr = String::from_utf8_lossy(&update.stderr);
@@ -301,7 +316,7 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
                 "curl",
             ])
             .output()
-            .map_err(|e| format!("Failed to install Python: {}", e))?;
+            .map_err(|e| WslError::SetupError(format!("Failed to install Python: {}", e)))?;
 
         if !python.status.success() {
             // Try with software-properties-common for deadsnakes PPA
@@ -344,10 +359,10 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
                     "python3-pip",
                 ])
                 .output()
-                .map_err(|e| format!("Failed to install Python (retry): {}", e))?;
+                .map_err(|e| WslError::SetupError(format!("Failed to install Python (retry): {}", e)))?;
 
             if !retry.status.success() {
-                return Err("No se pudo instalar Python 3.12".to_string());
+                return Err(WslError::SetupError("No se pudo instalar Python 3.12".into()));
             }
         }
 
@@ -361,11 +376,9 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
         let _ = Command::new("wsl")
             .args([
                 "--",
-                "sudo",
-                "chown",
-                "-R",
-                "$USER:$USER",
-                "/opt/aurity-backend",
+                "bash",
+                "-c",
+                "sudo chown -R $USER:$USER /opt/aurity-backend",
             ])
             .output();
 
@@ -381,11 +394,11 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
                 "/opt/aurity-backend/.venv",
             ])
             .output()
-            .map_err(|e| format!("Failed to create venv: {}", e))?;
+            .map_err(|e| WslError::SetupError(format!("Failed to create venv: {}", e)))?;
 
         if !venv.status.success() {
             let stderr = String::from_utf8_lossy(&venv.stderr);
-            return Err(format!("Failed to create virtual environment: {}", stderr));
+            return Err(WslError::SetupError(format!("Failed to create virtual environment: {}", stderr)));
         }
 
         emit_progress("Instalando dependencias...");
@@ -405,7 +418,7 @@ pub async fn setup_wsl_backend(app: tauri::AppHandle) -> Result<String, String> 
                 "python-dotenv",
             ])
             .output()
-            .map_err(|e| format!("Failed to install dependencies: {}", e))?;
+            .map_err(|e| WslError::SetupError(format!("Failed to install dependencies: {}", e)))?;
 
         if !pip_install.status.success() {
             let stderr = String::from_utf8_lossy(&pip_install.stderr);
@@ -459,7 +472,7 @@ exec python backend_minimal.py
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
@@ -499,18 +512,24 @@ fn get_windows_backend_path() -> Option<String> {
 #[cfg(target_os = "windows")]
 fn windows_to_wsl_path(win_path: &str) -> String {
     // C:\Users\... -> /mnt/c/Users/...
-    let path = win_path.replace("\\", "/");
-    if path.len() >= 2 && path.chars().nth(1) == Some(':') {
-        let drive = path.chars().next().unwrap().to_lowercase().next().unwrap();
-        format!("/mnt/{}{}", drive, &path[2..])
-    } else {
-        path
+    let path = win_path.replace('\\', "/");
+    match path.as_bytes() {
+        [drive_letter, b':', b'/', rest @ ..] if drive_letter.is_ascii_alphabetic() => {
+            let drive = (*drive_letter as char).to_ascii_lowercase();
+            format!("/mnt/{}/{}", drive, std::str::from_utf8(rest).unwrap_or(""))
+        }
+        [drive_letter, b':', rest @ ..] if drive_letter.is_ascii_alphabetic() => {
+            let drive = (*drive_letter as char).to_ascii_lowercase();
+            let remainder = std::str::from_utf8(rest).unwrap_or("");
+            format!("/mnt/{}/{}", drive, remainder.trim_start_matches('/'))
+        }
+        _ => path,
     }
 }
 
 /// Start the backend in WSL
 #[tauri::command]
-pub fn start_wsl_backend() -> Result<String, String> {
+pub fn start_wsl_backend() -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
         // Start backend in background via WSL
@@ -522,7 +541,7 @@ pub fn start_wsl_backend() -> Result<String, String> {
                 "nohup /opt/aurity-backend/start.sh > /opt/aurity-backend/backend.log 2>&1 &",
             ])
             .output()
-            .map_err(|e| format!("Failed to start backend: {}", e))?;
+            .map_err(|e| WslError::CommandFailed(format!("Failed to start backend: {}", e)))?;
 
         if output.status.success() {
             // Wait a moment for startup
@@ -536,45 +555,45 @@ pub fn start_wsl_backend() -> Result<String, String> {
             }
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("Failed to start backend: {}", stderr))
+            Err(WslError::CommandFailed(format!("Failed to start backend: {}", stderr)))
         }
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
 /// Stop the backend in WSL
 #[tauri::command]
-pub fn stop_wsl_backend() -> Result<String, String> {
+pub fn stop_wsl_backend() -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
         let output = Command::new("wsl")
             .args(["--", "pkill", "-f", "uvicorn.*backend"])
             .output()
-            .map_err(|e| format!("Failed to stop backend: {}", e))?;
+            .map_err(|e| WslError::CommandFailed(format!("Failed to stop backend: {}", e)))?;
 
         Ok("Backend stopped".to_string())
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
 /// Check backend health via WSL
 #[tauri::command]
-pub async fn check_wsl_backend_health() -> Result<bool, String> {
+pub async fn check_wsl_backend_health() -> Result<bool, WslError> {
     #[cfg(target_os = "windows")]
     {
         // Try to reach the backend directly (WSL shares localhost with Windows)
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
             .build()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| WslError::Network(e.to_string()))?;
 
         match client.get("http://127.0.0.1:7001/api/health").send().await {
             Ok(response) => Ok(response.status().is_success()),
@@ -584,16 +603,16 @@ pub async fn check_wsl_backend_health() -> Result<bool, String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
 
 /// Get WSL backend logs
 #[tauri::command]
-pub fn get_wsl_backend_logs(lines: Option<u32>) -> Result<String, String> {
+pub fn get_wsl_backend_logs(_lines: Option<u32>) -> Result<String, WslError> {
     #[cfg(target_os = "windows")]
     {
-        let n = lines.unwrap_or(50);
+        let n = _lines.unwrap_or(50);
         let output = Command::new("wsl")
             .args([
                 "--",
@@ -603,13 +622,13 @@ pub fn get_wsl_backend_logs(lines: Option<u32>) -> Result<String, String> {
                 "/opt/aurity-backend/backend.log",
             ])
             .output()
-            .map_err(|e| format!("Failed to get logs: {}", e))?;
+            .map_err(|e| WslError::CommandFailed(format!("Failed to get logs: {}", e)))?;
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("WSL is only available on Windows".to_string())
+        Err(WslError::NotAvailable("WSL is only available on Windows".into()))
     }
 }
