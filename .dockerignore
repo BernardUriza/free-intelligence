@@ -1,7 +1,18 @@
+# =============================================================================
+# Docker Ignore - Backend Only Image
+# =============================================================================
+# This keeps the Docker build context small (~100MB instead of 13GB)
+# =============================================================================
+
 # Git
 .git
 .gitignore
 .github
+.claude
+
+# Frontend apps (NOT needed for backend image)
+apps/
+packages/
 
 # Python
 __pycache__
@@ -48,6 +59,7 @@ ENV
 *.sqlite
 *.db
 *.h5
+/data/
 storage/*.mp3
 storage/*.wav
 storage/corpus.h5
@@ -72,10 +84,14 @@ terraform-do
 cdk
 scripts
 
-# Node (if any)
+# Node (HUGE - always exclude)
 node_modules
 .npm
 .yarn
+.pnpm-store
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
 
 # Notebooks
 *.ipynb
@@ -91,4 +107,13 @@ temp
 # Docker
 Dockerfile*
 docker-compose*.yml
-!Dockerfile.optimized
+docker/
+
+# Tauri/Desktop (NOT needed for backend)
+src-tauri
+
+# Other large dirs
+.next
+out
+coverage
+playwright-report
