@@ -60,12 +60,15 @@ export const ROUTES = {
   internalDiarization: `${API_INTERNAL}/diarization`,
   internalTranscribe: `${API_INTERNAL}/transcribe`,
 
-  // Standalone
-  patients: `${API}/patients`,
-  audit: `${API}/audit`,
-  exports: `${API}/exports`,
-  checkin: `${API}/checkin`,
+  // Aurity domain
+  patients: `${API_AURITY}/patients`,
+  checkin: `${API_AURITY}/checkin`,
+
+  // Internal
+  audit: `${API_INTERNAL}/audit`,
+  exports: `${API_INTERNAL}/exports`,
   version: `${API}/version`,
   policy: `${API}/policy`,
   auth: `${API}/auth`,
+  observability: `${API}/observability`,
 } as const;
