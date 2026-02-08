@@ -108,7 +108,7 @@ def validate_curp(
 # =============================================================================
 
 
-@router.post("/", response_model=PatientResponse, status_code=201)
+@router.post("", response_model=PatientResponse, status_code=201)
 def create_patient(
     patient: PatientCreate,
     db: Session = Depends(get_db_dependency),
@@ -157,7 +157,7 @@ def create_patient(
         raise HTTPException(status_code=500, detail="Failed to create patient")
 
 
-@router.get("/", response_model=list[PatientResponse])
+@router.get("", response_model=list[PatientResponse])
 def list_patients(
     search: str | None = Query(None, description="Search by nombre or apellido"),
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),

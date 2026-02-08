@@ -35,7 +35,7 @@ router = APIRouter(prefix="/providers", tags=["Providers"])
 # ============================================================================
 
 
-@router.post("/", response_model=ProviderResponse, status_code=201)
+@router.post("", response_model=ProviderResponse, status_code=201)
 def create_provider(
     provider: ProviderCreate,
     db: Session = Depends(get_db_dependency),
@@ -101,7 +101,7 @@ def create_provider(
         raise HTTPException(status_code=500, detail="Failed to create provider")
 
 
-@router.get("/", response_model=list[ProviderResponse])
+@router.get("", response_model=list[ProviderResponse])
 def list_providers(
     search: str | None = Query(None, description="Search by nombre or especialidad"),
     limit: int = Query(50, ge=1, le=100, description="Maximum results"),
