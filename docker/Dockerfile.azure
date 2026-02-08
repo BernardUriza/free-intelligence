@@ -29,6 +29,8 @@ RUN mkdir -p /app/storage /app/logs
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=7001
+# Azure Container Apps internal proxy CIDR (Envoy ingress)
+ENV FORWARDED_ALLOW_IPS="10.0.0.0/8,169.254.0.0/16,172.16.0.0/12"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
@@ -38,4 +40,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 7001
 
 # Run with uvicorn
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7001", "--workers", "1"]
+# Shell form to expand $FORWARDED_ALLOW_IPS at runtime
+CMD uvicorn backend.app.main:app --host 0.0.0.0 --port 7001 --workers 1 --proxy-headers --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"
