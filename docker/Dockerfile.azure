@@ -38,7 +38,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 7001
 
 # Run with uvicorn
-# --proxy-headers + --forwarded-allow-ips '*': Azure Container Apps terminates TLS
-# at the Envoy ingress. Traffic ONLY reaches the container through this ingress,
-# so trusting all forwarded headers is safe (no direct external access possible).
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7001", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Run with uvicorn
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7001", "--workers", "1"]

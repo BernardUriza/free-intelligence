@@ -177,7 +177,7 @@ async def upload_document(
         )
 
 
-@router.get("/", response_model=DocumentListResponse)
+@router.get("", response_model=DocumentListResponse)
 def list_documents(
     doc_status: str | None = None,
     skip: int = 0,
