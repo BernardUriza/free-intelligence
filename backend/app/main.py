@@ -31,13 +31,6 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup/shutdown events."""
     # Startup
     from backend.utils.coder.observability.logger import get_logger
-    from backend.infrastructure.common.repository_singletons import (
-        init_repositories,
-        shutdown_repositories,
-    )
-
-    # P0: Initialize repository singletons (explicit lifecycle management)
-    init_repositories()
 
     # P1: Validate all Pydantic configs FIRST (fail-fast on invalid config)
     validate_all_configs()
@@ -103,8 +96,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown: cleanup repository singletons (release HDF5 file handles, etc.)
-    shutdown_repositories()
+    # Shutdown (if needed in the future)
+    # Add cleanup code here
 
 
 def validate_all_configs() -> None:
