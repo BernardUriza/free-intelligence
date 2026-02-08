@@ -330,7 +330,7 @@ Requires environment variables:
         )
 
     # Sub-app: Public API (orchestrators, CORS enabled)
-    public_app = FastAPI(title="Public API", redirect_slashes=False)
+    public_app = FastAPI(title="Public API")
 
     # CORS configuration: more restrictive in production
     environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
@@ -391,7 +391,7 @@ Requires environment variables:
     )
 
     # Sub-app: Internal API (atomic resources, CORS for dev, localhost-only)
-    internal_app = FastAPI(title="Internal API", redirect_slashes=False)
+    internal_app = FastAPI(title="Internal API")
 
     # Middleware stack (same order as public_app):
     # 1. CORS - Fail fast on origin mismatch
