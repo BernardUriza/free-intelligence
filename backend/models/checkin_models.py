@@ -165,6 +165,8 @@ class Clinic(Base):
     # Subscription
     subscription_plan = Column(String(50), default="starter")
     subscription_valid_until = Column(DateTime(timezone=True), nullable=True)
+    plan_id = Column(UUID(as_uuid=False), ForeignKey("subscription_plans.plan_id"), nullable=True)
+    max_doctors_override = Column(Integer, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -174,6 +176,7 @@ class Clinic(Base):
     # Relationships
     doctors = relationship("Doctor", back_populates="clinic")
     appointments = relationship("Appointment", back_populates="clinic")
+    subscription = relationship("SubscriptionPlan", foreign_keys=[plan_id])
 
     def __repr__(self) -> str:
         """Return string representation of Clinic."""
