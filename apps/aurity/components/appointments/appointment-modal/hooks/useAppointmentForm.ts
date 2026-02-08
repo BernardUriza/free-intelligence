@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { getClinicTimeZone, TemporalAPI } from '@/lib/temporal';
 import type { AppointmentDraft, AppointmentId } from '../types';
 
 interface UseAppointmentFormProps {
@@ -119,7 +120,12 @@ export function useAppointmentForm({
         throw new Error('No se pueden crear citas en el pasado');
       }
 
-      const scheduled_at = `${form.scheduled_date}T${form.scheduled_time}:00Z`;
+      // Convert clinic-local time to UTC instant via Temporal API
+      const tz = getClinicTimeZone();
+      const zdt = TemporalAPI.PlainDateTime.from(
+        `${form.scheduled_date}T${form.scheduled_time}:00`
+      ).toZonedDateTime(tz);
+      const scheduled_at = zdt.toInstant().toString();
       const typeMap: Record<AppointmentDraft['appointment_type'], string> = {
         FIRST_TIME: 'first_visit',
         FOLLOW_UP: 'follow_up',
