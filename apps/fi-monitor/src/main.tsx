@@ -3,15 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { invoke, isTauriContext } from './lib/tauri-adapter'
 import App from './App'
 import { SetupWizard } from './SetupWizard'
+import type { SetupState } from './types/monitor'
 import './styles.css'
-
-interface SetupState {
-  completed: boolean;
-  ollamaInstalled: boolean;
-  pythonInstalled: boolean;
-  lastCheck: string | null;
-  skipped: boolean;
-}
 
 function Root() {
   const [setupState, setSetupState] = useState<SetupState | null>(null);

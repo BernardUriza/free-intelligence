@@ -1,6 +1,9 @@
 // React hook for setup wizard state management (Ollama + Python 3.14)
 import { useState, useEffect } from 'react';
 import { invoke, listen } from './lib/tauri-adapter';
+import type { SetupState } from './types/monitor';
+
+export type { SetupState };
 
 export type SetupScreen =
   | 'CHECKING'
@@ -9,14 +12,6 @@ export type SetupScreen =
   | 'READY'
   | 'ERROR'
   | 'SKIPPED';
-
-export interface SetupState {
-  completed: boolean;
-  ollamaInstalled: boolean;
-  pythonInstalled: boolean;
-  lastCheck: string | null;
-  skipped: boolean;
-}
 
 export interface OllamaInstallStatus {
   installed: boolean;

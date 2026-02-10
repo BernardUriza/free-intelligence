@@ -12,44 +12,7 @@ import {
   BarChart,
   Bar
 } from 'recharts'
-
-interface RagBenchmark {
-  single_query_ms: number
-  batch_10_ms: number
-  batch_32_ms: number
-  batch_100_ms: number
-  throughput_qps: number
-  gpu_memory_mb: number
-  device: string
-  gpu_name: string | null
-  model: string
-}
-
-interface OllamaBenchmark {
-  single_query_ms: number
-  batch_5_avg_ms: number
-  tokens_per_sec: number
-  model: string
-  eval_duration_ms: number
-  eval_count: number
-}
-
-interface GatewayBenchmark {
-  health_check_ms: number
-  routing_overhead_ms: number
-}
-
-interface BenchmarkSuite {
-  timestamp: string
-  rag_service: RagBenchmark | null
-  ollama: OllamaBenchmark | null
-  gateway: GatewayBenchmark | null
-  total_duration_ms: number
-}
-
-interface BenchmarkHistory {
-  results: BenchmarkSuite[]
-}
+import type { BenchmarkHistory } from '../types/monitor'
 
 type TimeRange = '24h' | '7d' | '30d' | 'all'
 
