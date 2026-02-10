@@ -1,0 +1,398 @@
+/**
+ * LLM Models Admin Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: mdl-{component}[-variant]
+ * Covers: /app/admin/models/page.tsx
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility mdl-label {
+  @apply block fi-subtitle mb-1;
+}
+
+@utility mdl-processor-badge {
+  @apply px-2 py-0.5 text-xs rounded;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * SYSTEM RESOURCES DASHBOARD
+   * ======================================== */
+  .mdl-resources-panel {
+    @apply mb-6 p-4 bg-slate-800/50 border border-slate-700 rounded-xl;
+  }
+
+  .mdl-resources-loading {
+    @apply flex items-center gap-2 text-slate-400;
+  }
+
+  .mdl-resources-loading-icon {
+    @apply w-4 h-4 animate-spin;
+  }
+
+  .mdl-resources-loading-text {
+    @apply text-sm;
+  }
+
+  .mdl-resources-body {
+    @apply space-y-4;
+  }
+
+  .mdl-icon-sm {
+    @apply w-4 h-4 text-slate-400;
+  }
+
+  .mdl-icon-md {
+    @apply w-5 h-5;
+  }
+
+  .mdl-resources-title-row {
+    @apply fi-flex-between mb-4;
+  }
+
+  .mdl-ram-header {
+    @apply fi-flex-between mb-2;
+  }
+
+  .mdl-ollama-header {
+    @apply fi-flex-between mb-2;
+  }
+
+  .mdl-running-total {
+    @apply fi-text-xs-muted text-right;
+  }
+
+  .mdl-filter-select {
+    @apply w-48;
+  }
+
+  .mdl-modal-title-row {
+    @apply fi-flex-between mb-6;
+  }
+
+  .mdl-form-hint {
+    @apply fi-text-xs-muted mt-1;
+  }
+
+  .mdl-ram-label {
+    @apply text-sm fi-text;
+  }
+
+  .mdl-ram-value {
+    @apply text-sm font-mono text-slate-400;
+  }
+
+  /* ========================================
+   * PROGRESS BAR (RAM)
+   * ======================================== */
+  .mdl-progress-track {
+    @apply h-3 bg-slate-700 rounded-full overflow-hidden;
+  }
+
+  .mdl-progress-bar {
+    @apply h-full transition-all duration-500;
+  }
+
+  .mdl-progress-ok {
+    @apply bg-emerald-500;
+  }
+
+  .mdl-progress-warn {
+    @apply bg-yellow-500;
+  }
+
+  .mdl-progress-danger {
+    @apply bg-orange-500;
+  }
+
+  .mdl-progress-critical {
+    @apply bg-red-500;
+  }
+
+  .mdl-progress-labels {
+    @apply flex justify-between mt-1 fi-text-xs-muted;
+  }
+
+  /* ========================================
+   * CPU & PLATFORM
+   * ======================================== */
+  .mdl-cpu-row {
+    @apply flex items-center gap-6 text-sm;
+  }
+
+  .mdl-text-muted {
+    @apply text-slate-500;
+  }
+
+  /* ========================================
+   * RUNNING MODELS (OLLAMA)
+   * ======================================== */
+  .mdl-running-section {
+    @apply pt-3 fi-border-top;
+  }
+
+  .mdl-ollama-label {
+    @apply text-sm fi-text;
+  }
+
+  .mdl-ollama-active {
+    @apply text-xs fi-text-success flex items-center gap-1;
+  }
+
+  .mdl-status-dot {
+    @apply w-2 h-2 bg-emerald-400 rounded-full animate-pulse;
+  }
+
+  .mdl-ollama-inactive {
+    @apply text-xs fi-text-error;
+  }
+
+  .mdl-no-models {
+    @apply text-sm text-slate-500 italic;
+  }
+
+  .mdl-running-card {
+    @apply flex items-center justify-between p-2 bg-slate-900/50 rounded-lg;
+  }
+
+  .mdl-processor-gpu {
+    @apply mdl-processor-badge bg-purple-900/50 text-purple-300;
+  }
+
+  .mdl-processor-partial {
+    @apply mdl-processor-badge bg-amber-900/50 text-amber-300;
+  }
+
+  .mdl-processor-cpu {
+    @apply mdl-processor-badge bg-slate-700 fi-text;
+  }
+
+  .mdl-model-name {
+    @apply text-sm text-white font-medium;
+  }
+
+  .mdl-unload-btn {
+    @apply text-slate-500 hover:fi-text-error;
+  }
+
+  .mdl-spin-svg {
+    & > svg {
+      @apply animate-spin;
+    }
+  }
+
+  /* ========================================
+   * FILTERS
+   * ======================================== */
+  .mdl-filters-row {
+    @apply flex flex-wrap gap-4 mb-6;
+  }
+
+  .mdl-checkbox-label {
+    @apply flex items-center gap-2 fi-subtitle cursor-pointer;
+  }
+
+  .mdl-checkbox {
+    @apply w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500;
+  }
+
+  /* ========================================
+   * LOADING / ERROR / EMPTY STATES
+   * ======================================== */
+  .mdl-loading-icon {
+    @apply w-12 h-12 fi-text-success animate-spin mb-4;
+  }
+
+  .mdl-loading-text {
+    @apply text-slate-400;
+  }
+
+  .mdl-error-panel {
+    @apply p-6 bg-red-950/20 border border-red-800 rounded-lg max-w-md;
+  }
+
+  .mdl-error-header {
+    @apply flex items-center gap-3 mb-2;
+  }
+
+  .mdl-error-icon {
+    @apply w-6 h-6 fi-text-error;
+  }
+
+  .mdl-error-title {
+    @apply text-lg font-semibold text-red-300;
+  }
+
+  .mdl-error-text {
+    @apply text-red-200 text-sm;
+  }
+
+  .mdl-retry-gap {
+    @apply mt-4;
+  }
+
+  .mdl-no-resources {
+    @apply text-sm text-slate-500;
+  }
+
+  /* ========================================
+   * MODELS GRID
+   * ======================================== */
+  .mdl-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8;
+  }
+
+  /* ========================================
+   * EMPTY STATE
+   * ======================================== */
+  .mdl-empty-icon {
+    @apply w-16 h-16 text-slate-600 mb-4;
+  }
+
+  .mdl-empty-title {
+    @apply text-xl font-semibold text-slate-400 mb-2;
+  }
+
+  .mdl-empty-desc {
+    @apply text-slate-500 text-center max-w-md mb-6;
+  }
+
+  .mdl-add-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  /* ========================================
+   * MODAL (Create/Edit)
+   * ======================================== */
+  .mdl-modal-overlay {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4;
+  }
+
+  .mdl-modal-panel {
+    @apply bg-slate-900 rounded-lg border border-slate-700 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto;
+  }
+
+  .mdl-close-icon {
+    @apply w-5 h-5;
+  }
+
+  .mdl-form {
+    @apply space-y-4;
+  }
+
+  .mdl-input-mono {
+    @apply font-mono;
+  }
+
+  .mdl-form-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .mdl-textarea {
+    @apply w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-emerald-500 focus:outline-none;
+  }
+
+  .mdl-active-checkbox {
+    @apply w-4 h-4 text-emerald-500;
+  }
+
+  .mdl-form-error {
+    @apply p-3 bg-red-950/20 border border-red-800 rounded-lg text-red-300 text-sm;
+  }
+
+  .mdl-form-actions {
+    @apply flex gap-3 pt-4;
+  }
+
+  /* ========================================
+   * SWEETALERT HTML CLASSES
+   * ======================================== */
+  .mdl-swal-body {
+    @apply text-left space-y-4;
+  }
+
+  .mdl-swal-prompt {
+    @apply p-3 bg-slate-700/50 rounded-lg;
+  }
+
+  .mdl-swal-label {
+    @apply fi-text-xs mb-1 uppercase tracking-wide;
+  }
+
+  .mdl-swal-text {
+    @apply text-sm text-slate-200;
+  }
+
+  .mdl-swal-response-text {
+    @apply text-sm text-slate-200 whitespace-pre-wrap;
+  }
+
+  .mdl-swal-success-box {
+    @apply p-3 bg-emerald-900/30 border border-emerald-800 rounded-lg;
+  }
+
+  .mdl-swal-success-label {
+    @apply text-xs fi-text-success mb-1 uppercase tracking-wide;
+  }
+
+  .mdl-swal-error-box {
+    @apply p-3 bg-red-900/30 border border-red-800 rounded-lg;
+  }
+
+  .mdl-swal-error-label {
+    @apply text-xs fi-text-error mb-1 uppercase tracking-wide;
+  }
+
+  .mdl-swal-error-text {
+    @apply text-sm text-red-200;
+  }
+
+  /* ========================================
+   * MODEL ROW SKELETON
+   * ======================================== */
+  .mdl-skel-row {
+    @apply relative flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 overflow-hidden;
+  }
+
+  .mdl-skel-icon {
+    @apply flex-shrink-0 w-8 h-8 bg-slate-700 rounded-lg animate-pulse;
+  }
+
+  .mdl-skel-content {
+    @apply flex-1 min-w-0 space-y-2;
+  }
+
+  .mdl-skel-name {
+    @apply h-4 w-32 bg-slate-700 rounded animate-pulse;
+  }
+
+  .mdl-skel-version {
+    @apply h-4 w-12 bg-slate-700/50 rounded animate-pulse;
+  }
+
+  .mdl-skel-detail-a {
+    @apply h-3 w-16 bg-slate-700/70 rounded animate-pulse;
+  }
+
+  .mdl-skel-detail-b {
+    @apply h-3 w-14 bg-slate-700/70 rounded animate-pulse;
+  }
+
+  .mdl-skel-detail-c {
+    @apply h-3 w-10 bg-slate-700/70 rounded animate-pulse;
+  }
+
+  .mdl-skel-action {
+    @apply flex-shrink-0 w-20 h-8 bg-slate-700 rounded-lg animate-pulse;
+  }
+}

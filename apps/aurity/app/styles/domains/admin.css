@@ -47,6 +47,16 @@
   @apply p-5 rounded-xl border-2 transition-all;
 }
 
+@utility admin-doc-action {
+  @apply p-1.5 sm:p-2 rounded-lg transition-all
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@utility admin-modal-std {
+  @apply relative bg-slate-900 rounded-2xl shadow-2xl w-full
+         border border-slate-700 max-h-[90vh];
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -411,5 +421,654 @@
 
   .admin-installed-badge-icon {
     @apply w-3 h-3;
+  }
+
+  /* ========================================
+   * PERSONA CARDS (per-color variants)
+   * ======================================== */
+
+  /* Default state */
+  .admin-persona-emerald {
+    @apply admin-card cursor-pointer border-emerald-700/30 bg-emerald-950/10
+           hover:border-emerald-600 hover:bg-emerald-950/20;
+  }
+  .admin-persona-blue {
+    @apply admin-card cursor-pointer border-blue-700/30 bg-blue-950/10
+           hover:border-blue-600 hover:bg-blue-950/20;
+  }
+  .admin-persona-purple {
+    @apply admin-card cursor-pointer border-purple-700/30 bg-purple-950/10
+           hover:border-purple-600 hover:bg-purple-950/20;
+  }
+  .admin-persona-rose {
+    @apply admin-card cursor-pointer border-rose-700/30 bg-rose-950/10
+           hover:border-rose-600 hover:bg-rose-950/20;
+  }
+  .admin-persona-slate {
+    @apply admin-card cursor-pointer border-slate-700/30 bg-slate-950/10
+           hover:border-slate-600 hover:bg-slate-950/20;
+  }
+
+  /* Selected state */
+  .admin-persona-emerald-selected {
+    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
+           shadow-lg shadow-emerald-900/20;
+  }
+  .admin-persona-blue-selected {
+    @apply admin-card cursor-pointer border-blue-500 bg-blue-950/30
+           shadow-lg shadow-blue-900/20;
+  }
+  .admin-persona-purple-selected {
+    @apply admin-card cursor-pointer border-purple-500 bg-purple-950/30
+           shadow-lg shadow-purple-900/20;
+  }
+  .admin-persona-rose-selected {
+    @apply admin-card cursor-pointer border-rose-500 bg-rose-950/30
+           shadow-lg shadow-rose-900/20;
+  }
+  .admin-persona-slate-selected {
+    @apply admin-card cursor-pointer border-slate-500 bg-slate-950/30
+           shadow-lg shadow-slate-900/20;
+  }
+
+  /* Icon wrapper */
+  .admin-persona-icon-emerald {
+    @apply p-2 rounded-lg bg-emerald-900 border border-emerald-700;
+  }
+  .admin-persona-icon-blue {
+    @apply p-2 rounded-lg bg-blue-900 border border-blue-700;
+  }
+  .admin-persona-icon-purple {
+    @apply p-2 rounded-lg bg-purple-900 border border-purple-700;
+  }
+  .admin-persona-icon-rose {
+    @apply p-2 rounded-lg bg-rose-900 border border-rose-700;
+  }
+  .admin-persona-icon-slate {
+    @apply p-2 rounded-lg bg-slate-900 border border-slate-700;
+  }
+
+  /* Brain icon color */
+  .admin-persona-brain-emerald {
+    @apply w-6 h-6 text-emerald-400;
+  }
+  .admin-persona-brain-blue {
+    @apply w-6 h-6 text-blue-400;
+  }
+  .admin-persona-brain-purple {
+    @apply w-6 h-6 text-purple-400;
+  }
+  .admin-persona-brain-rose {
+    @apply w-6 h-6 text-rose-400;
+  }
+  .admin-persona-brain-slate {
+    @apply w-6 h-6 text-slate-400;
+  }
+
+  /* Persona delete button */
+  .admin-persona-delete-btn {
+    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/50;
+  }
+
+  /* ========================================
+   * LLM MODEL CARD STATES
+   * ======================================== */
+  .admin-model-card-selected {
+    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
+           shadow-lg shadow-emerald-900/20;
+  }
+  .admin-model-card-active {
+    @apply admin-card cursor-pointer border-slate-700 bg-slate-900/50
+           hover:border-slate-600 hover:bg-slate-900/70;
+  }
+  .admin-model-card-inactive {
+    @apply admin-card cursor-pointer border-slate-800 bg-slate-950/50 opacity-60;
+  }
+
+  /* Model inactive badge */
+  .admin-model-badge-inactive {
+    @apply px-2 py-0.5 text-xs bg-red-900/50 fi-text-error rounded-full;
+  }
+
+  /* Model action buttons */
+  .admin-model-toggle-on {
+    @apply text-yellow-400 hover:bg-yellow-900/30;
+  }
+  .admin-model-toggle-off {
+    @apply fi-text-green hover:bg-green-900/30;
+  }
+  .admin-model-test-btn {
+    @apply fi-text-purple hover:text-purple-300 hover:bg-purple-900/30;
+  }
+  .admin-model-delete-btn {
+    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/30;
+  }
+
+  /* Cost tier text colors */
+  .admin-cost-green {
+    @apply text-sm font-medium text-green-400;
+  }
+  .admin-cost-yellow {
+    @apply text-sm font-medium text-yellow-400;
+  }
+  .admin-cost-red {
+    @apply text-sm font-medium text-red-400;
+  }
+  .admin-cost-slate {
+    @apply text-sm font-medium text-slate-400;
+  }
+
+  /* ========================================
+   * USER MANAGEMENT
+   * ======================================== */
+  .admin-user-wrapper-page {
+    @apply min-h-screen bg-slate-950;
+  }
+  .admin-user-wrapper-modal {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4;
+  }
+  .admin-user-container-page {
+    @apply bg-slate-900 min-h-screen flex flex-col;
+  }
+  .admin-user-container-modal {
+    @apply bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col;
+  }
+  .admin-user-card {
+    @apply bg-slate-900/50 border border-slate-700 rounded-lg p-4
+           hover:border-slate-600 transition-colors;
+  }
+  .admin-user-card-blocked {
+    @apply bg-slate-900/50 border border-red-900/50 rounded-lg p-4
+           hover:border-slate-600 transition-colors opacity-60;
+  }
+  .admin-user-badge-blocked {
+    @apply px-2 py-0.5 bg-red-900/30 border border-red-700
+           fi-text-error text-xs rounded;
+  }
+  .admin-user-badge-clinic {
+    @apply px-2 py-1 bg-blue-900/30 border border-blue-700/50
+           text-blue-300 text-xs rounded flex items-center gap-1;
+  }
+  .admin-user-remove-btn {
+    @apply fi-text-error hover:text-red-300;
+  }
+
+  /* --- User Management: Search & Filter Bar --- */
+  .admin-user-search-bar {
+    @apply mt-4 flex gap-3;
+  }
+
+  .admin-user-search-icon {
+    @apply absolute right-3 top-2.5;
+  }
+
+  /* --- User Management: List Area --- */
+  .admin-user-list {
+    @apply flex-1 overflow-y-auto p-6;
+  }
+
+  .admin-user-loading {
+    @apply flex items-center justify-center h-64;
+  }
+
+  .admin-user-spinner {
+    @apply animate-spin h-12 w-12 border-4 border-blue-400 border-t-transparent rounded-full;
+  }
+
+  .admin-user-empty {
+    @apply text-center text-slate-500 py-12;
+  }
+
+  /* --- User Management: Card Layout --- */
+  .admin-user-card-row {
+    @apply flex items-start gap-4;
+  }
+
+  .admin-user-avatar {
+    @apply w-12 h-12 rounded-full;
+  }
+
+  .admin-user-card-header {
+    @apply flex items-start justify-between mb-2;
+  }
+
+  .admin-user-name {
+    @apply text-white font-medium flex items-center gap-2;
+  }
+
+  .admin-user-clinic-row {
+    @apply flex items-center gap-2 mb-3;
+  }
+
+  .admin-user-meta {
+    @apply flex gap-4 mb-3;
+  }
+
+  .admin-user-role-row {
+    @apply flex items-center gap-2;
+  }
+
+  /* --- User Management: Footer --- */
+  .admin-user-footer {
+    @apply p-4 bg-slate-900/50;
+  }
+
+  .admin-user-footer-inner {
+    @apply flex items-center justify-between;
+  }
+
+  /* --- Invite Modal --- */
+  .admin-invite-role-label {
+    @apply flex items-center gap-2 cursor-pointer;
+  }
+
+  .admin-invite-radio {
+    @apply w-4 h-4 border-slate-700 bg-slate-900;
+  }
+
+  .admin-invite-actions {
+    @apply flex gap-2 pt-4;
+  }
+
+  /* ========================================
+   * LICENSE GENERATOR
+   * ======================================== */
+  .admin-license-result {
+    @apply mb-8 p-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl;
+  }
+  .admin-license-key-display {
+    @apply flex-1 p-4 bg-slate-900 border border-slate-700 rounded-lg
+           text-sm font-mono text-slate-200 break-all max-h-32 overflow-y-auto;
+  }
+  .admin-license-error {
+    @apply mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg;
+  }
+  .admin-license-section {
+    @apply p-6 bg-slate-800/50 border border-slate-700 rounded-xl;
+  }
+  .admin-license-input {
+    @apply w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg
+           text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none;
+  }
+  .admin-license-toggle {
+    @apply flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+           transition-colors bg-slate-900 border-slate-700 hover:border-slate-600;
+  }
+  .admin-license-toggle-active {
+    @apply flex items-center gap-3 p-3 rounded-lg border cursor-pointer
+           transition-colors bg-blue-500/20 border-blue-500/50;
+  }
+  .admin-license-radio {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
+           transition-colors bg-slate-900 border-slate-700 hover:border-slate-600;
+  }
+  .admin-license-radio-active {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
+           transition-colors bg-cyan-500/20 border-cyan-500/50;
+  }
+
+  /* ========================================
+   * MODEL CATALOG DRAWER
+   * ======================================== */
+  .admin-catalog-drawer {
+    @apply fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900
+           border-l border-slate-700 shadow-2xl z-50 flex flex-col
+           transform transition-transform duration-300 ease-out;
+  }
+  .admin-catalog-sync-btn {
+    @apply text-emerald-300 border-emerald-700/50 hover:bg-emerald-700/50;
+  }
+
+  /* ========================================
+   * DOCUMENT CARD ACTIONS
+   * ======================================== */
+  .admin-doc-action-default {
+    @apply admin-doc-action text-slate-400 hover:text-slate-200 hover:bg-slate-700/50;
+  }
+  .admin-doc-action-danger {
+    @apply admin-doc-action text-slate-400 hover:text-red-400 hover:bg-red-900/30;
+  }
+  .admin-doc-action-success {
+    @apply admin-doc-action text-slate-400 hover:text-emerald-300 hover:bg-emerald-900/30;
+  }
+
+  /* ========================================
+   * AUDIT TABLE
+   * ======================================== */
+  .admin-audit-row {
+    @apply hover:bg-slate-700/50 fi-interactive;
+  }
+
+  .admin-audit-row-selected {
+    @apply hover:bg-slate-700/50 fi-interactive bg-slate-700/70;
+  }
+
+  .admin-audit-row-mobile {
+    @apply p-4 hover:bg-slate-700/50 fi-interactive;
+  }
+
+  .admin-audit-row-mobile-selected {
+    @apply p-4 hover:bg-slate-700/50 fi-interactive bg-slate-700/70;
+  }
+
+  /* ========================================
+   * DOCUMENT EDIT MODAL
+   * ======================================== */
+  .admin-doc-persona-toggle {
+    @apply flex items-center gap-2 p-3 rounded-lg border transition-colors text-left
+           bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600;
+  }
+
+  .admin-doc-persona-toggle-active {
+    @apply flex items-center gap-2 p-3 rounded-lg border transition-colors text-left
+           bg-blue-600/20 border-blue-500 text-blue-300;
+  }
+
+  .admin-doc-persona-check {
+    @apply w-4 h-4 rounded border-2 flex items-center justify-center border-slate-600;
+  }
+
+  .admin-doc-persona-check-active {
+    @apply w-4 h-4 rounded border-2 flex items-center justify-center
+           bg-blue-500 border-blue-500;
+  }
+
+  /* ========================================
+   * ROLE BADGES (used across admin UIs)
+   * Compose: size class + color class
+   * Example: className={`admin-role-badge-sm ${getRoleBadgeColor(role)}`}
+   * ======================================== */
+  .admin-role-badge-sm {
+    @apply px-2 py-0.5 text-white text-xs rounded;
+  }
+
+  .admin-role-badge-md {
+    @apply px-2 py-1 text-white text-xs font-medium rounded;
+  }
+
+  .admin-role-badge-lg {
+    @apply px-3 py-1 text-white text-xs font-medium rounded;
+  }
+
+  /* Role color classes (returned by getRoleBadgeColor) */
+  .admin-role-superadmin {
+    @apply bg-purple-600;
+  }
+
+  .admin-role-clinician {
+    @apply bg-emerald-600;
+  }
+
+  .admin-role-default {
+    @apply bg-gray-600;
+  }
+
+  /* ========================================
+   * USER DISPLAY (UserDisplay.tsx)
+   * Naming: usr-{component}[-variant]
+   * ======================================== */
+
+  /* --- Loading State --- */
+  .usr-loading-container {
+    @apply flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-lg border border-slate-700;
+  }
+
+  .usr-loading-avatar {
+    @apply w-8 h-8 rounded-full bg-slate-700 animate-pulse;
+  }
+
+  .usr-loading-info {
+    @apply flex flex-col gap-1;
+  }
+
+  .usr-loading-name {
+    @apply w-24 h-3 bg-slate-700 rounded animate-pulse;
+  }
+
+  .usr-loading-role {
+    @apply w-16 h-2 bg-slate-700 rounded animate-pulse;
+  }
+
+  /* --- Role Badge Colors (for getRoleBadgeColor) --- */
+  .usr-role-medico {
+    @apply bg-green-500/20;
+  }
+
+  .usr-role-enfermera {
+    @apply bg-blue-500/20;
+  }
+
+  .usr-role-admin {
+    @apply bg-purple-500/20;
+  }
+
+  .usr-role-default {
+    @apply bg-gray-500/20 text-gray-400;
+  }
+
+  /* --- Dropdown Portal --- */
+  .usr-dropdown-backdrop {
+    @apply fixed inset-0 z-[9998];
+  }
+
+  .usr-dropdown-panel {
+    @apply fixed w-64 bg-slate-800 rounded-lg shadow-2xl border border-slate-700 z-[10000] overflow-hidden;
+  }
+
+  /* --- Dropdown Header --- */
+  .usr-dropdown-header {
+    @apply px-4 py-3 bg-slate-900/50;
+  }
+
+  .usr-dropdown-header-label {
+    @apply uppercase tracking-wider font-semibold mb-1;
+  }
+
+  .usr-dropdown-header-email {
+    @apply truncate;
+  }
+
+  .usr-verified-badge {
+    @apply flex items-center gap-1 mt-1;
+  }
+
+  .usr-verified-icon {
+    @apply w-3 h-3 text-green-500;
+  }
+
+  .usr-verified-text {
+    @apply text-xs;
+  }
+
+  /* --- Menu Section --- */
+  .usr-menu-section {
+    @apply py-2;
+  }
+
+  .usr-menu-item {
+    @apply w-full px-4 py-2 text-left text-sm hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2;
+  }
+
+  .usr-menu-icon {
+    @apply w-4 h-4;
+  }
+
+  .usr-menu-star {
+    @apply w-3 h-3 ml-auto fill-purple-400;
+  }
+
+  .usr-menu-divider {
+    @apply py-2;
+  }
+
+  .usr-menu-item-danger {
+    @apply w-full px-4 py-2 text-left text-sm hover:bg-red-900/20 hover:text-red-300 transition-colors flex items-center gap-2;
+  }
+
+  /* --- Main Trigger Button --- */
+  .usr-trigger {
+    @apply flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/60 hover:bg-slate-700/60 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-all;
+  }
+
+  .usr-avatar-wrapper {
+    @apply relative;
+  }
+
+  .usr-avatar-img {
+    @apply w-7 h-7 rounded-full ring-1 ring-slate-600/50;
+  }
+
+  .usr-avatar-fallback {
+    @apply w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs ring-1 ring-slate-600/50;
+  }
+
+  .usr-online-indicator {
+    @apply absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-slate-800;
+  }
+
+  /* --- Compact Info Row --- */
+  .usr-info-row {
+    @apply flex items-center gap-1.5;
+  }
+
+  .usr-name {
+    @apply text-white/90 truncate max-w-[100px];
+  }
+
+  .usr-role-badge {
+    @apply px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase;
+  }
+
+  .usr-chevron {
+    @apply w-3 h-3 text-slate-400 transition-transform;
+  }
+
+  .usr-chevron-open {
+    @apply w-3 h-3 text-slate-400 transition-transform rotate-180;
+  }
+
+  /* ========================================
+   * PERSONA EXAMPLES TAB (ExamplesTab.tsx)
+   * Naming: pex-{component}[-variant]
+   * ======================================== */
+
+  /* Root container */
+  .pex-root {
+    @apply space-y-4 max-w-4xl;
+  }
+
+  /* Header row with title + add button */
+  .pex-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  /* Empty state icon */
+  .pex-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-50;
+  }
+
+  /* Empty state hint text */
+  .pex-empty-hint {
+    @apply text-sm mt-1;
+  }
+
+  /* Example card header row */
+  .pex-card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  /* Delete button on example card */
+  .pex-delete-btn {
+    @apply fi-text-error hover:bg-slate-700;
+  }
+
+  /* Fields container inside example card */
+  .pex-fields {
+    @apply space-y-3;
+  }
+
+  /* Field label */
+  .pex-field-label {
+    @apply block fi-text-xs mb-1;
+  }
+
+  /* Textarea for input/output */
+  .pex-textarea {
+    @apply w-full p-2 bg-slate-900 border border-slate-600 rounded
+           text-white text-sm font-mono focus:border-purple-500 focus:outline-none;
+  }
+
+  /* ========================================
+   * MODAL CONTAINERS (shared pattern)
+   * ======================================== */
+  .admin-modal-upload {
+    @apply admin-modal-std max-w-xl overflow-y-auto z-10;
+  }
+
+  .admin-modal-persona {
+    @apply admin-modal-std max-w-2xl flex flex-col;
+  }
+
+  .admin-modal-doc-edit {
+    @apply admin-modal-std max-w-2xl shadow-xl overflow-hidden;
+  }
+
+  .admin-error-banner {
+    @apply flex items-center gap-2 p-3 bg-red-900/30
+           border border-red-700 rounded-lg text-red-300;
+  }
+
+  /* ========================================
+   * PERSONA EDITOR (ConfigTab, PromptTab, PersonaTestTab)
+   * ======================================== */
+  .admin-config-textarea {
+    @apply w-full p-3 fi-panel text-white font-mono
+           focus:border-purple-500 focus:outline-none;
+  }
+
+  .admin-prompt-textarea {
+    @apply w-full p-4 fi-panel text-white font-mono text-sm
+           focus:border-purple-500 focus:outline-none;
+  }
+
+  .admin-range-input {
+    @apply w-full h-2 bg-slate-700 rounded-lg appearance-none
+           cursor-pointer accent-purple-600;
+  }
+
+  .admin-code-preview {
+    @apply text-sm fi-text whitespace-pre-wrap font-mono
+           bg-slate-900 p-4 rounded overflow-x-auto;
+  }
+
+  /* ========================================
+   * MODEL CATALOG (ModelRow)
+   * ======================================== */
+  .admin-model-active-badge {
+    @apply flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
+           text-xs bg-emerald-700/50 text-emerald-300 rounded;
+  }
+
+  .admin-model-delete-btn {
+    @apply text-slate-500 hover:fi-text-error hover:bg-red-950/30
+           opacity-0 group-hover:opacity-100;
+  }
+
+  .admin-model-chevron {
+    @apply w-4 h-4 text-slate-600 flex-shrink-0
+           opacity-0 group-hover:opacity-100 transition-opacity;
+  }
+
+  /* ========================================
+   * AVAILABILITY DESIGNER (DayRow, SlotEditor)
+   * ======================================== */
+  .admin-slot-number {
+    @apply w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center
+           text-xs text-slate-400 flex-shrink-0;
+  }
+
+  .admin-add-slot-btn {
+    @apply w-full border border-dashed border-slate-700 text-slate-500
+           hover:text-slate-300 hover:border-slate-600 hover:bg-slate-800/30;
   }
 }

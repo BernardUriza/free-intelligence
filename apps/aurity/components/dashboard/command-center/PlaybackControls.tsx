@@ -42,7 +42,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   setSidePanelTab,
 }) => (
   <div className="flex-shrink-0 mt-3">
-    <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl">
+    <div className="cc-controls-bar">
       <div className="fi-flex-gap">
         <button
           onClick={() => {
@@ -93,7 +93,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         {firstWaitingPatient && !calledPatient && (
           <button
             onClick={() => handleCallNext(firstWaitingPatient.ticketNumber)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors"
+            className="cc-call-btn"
           >
             <Bell className="w-4 h-4" />
             <span className="hidden sm:inline">Llamar</span>
@@ -102,14 +102,14 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         )}
         <button
           onClick={() => { setShowSidePanel(true); setSidePanelTab('content'); }}
-          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+          className="cc-action-btn"
           title="Gestionar contenido"
         >
           <Layers className="w-5 h-5" />
         </button>
         <button
           onClick={() => { setShowSidePanel(true); setSidePanelTab('message'); }}
-          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+          className="cc-action-btn"
           title="Enviar mensaje"
         >
           <MessageSquare className="w-5 h-5" />

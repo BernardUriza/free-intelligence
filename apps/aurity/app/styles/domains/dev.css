@@ -1,0 +1,365 @@
+/**
+ * Dev Tools Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: evt-{component}[-variant]
+ * Covers: /components/dev/EventDevTools.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility evt-icon-sm {
+  @apply w-4 h-4;
+}
+
+@utility evt-icon-xs {
+  @apply w-3 h-3;
+}
+
+@utility evt-text-tiny {
+  @apply text-[10px];
+}
+
+@layer components {
+  /* ========================================
+   * POSITION VARIANTS
+   * ======================================== */
+  .evt-pos-bottom-right {
+    @apply bottom-4 right-4;
+  }
+
+  .evt-pos-bottom-left {
+    @apply bottom-4 left-4;
+  }
+
+  .evt-pos-top-right {
+    @apply top-4 right-4;
+  }
+
+  .evt-pos-top-left {
+    @apply top-4 left-4;
+  }
+
+  /* ========================================
+   * CONTAINER
+   * ======================================== */
+  .evt-container {
+    @apply fixed z-50 font-mono text-xs;
+  }
+
+  /* ========================================
+   * COLLAPSED BUTTON
+   * ======================================== */
+  .evt-collapsed-btn {
+    @apply flex items-center gap-2 px-3 py-2 bg-gray-900 text-gray-100
+           rounded-lg shadow-lg hover:bg-gray-800 transition-colors;
+  }
+
+  .evt-connected-dot {
+    @apply w-2 h-2 bg-green-500 rounded-full animate-pulse;
+  }
+
+  /* ========================================
+   * EXPANDED PANEL
+   * ======================================== */
+  .evt-panel {
+    @apply bg-gray-900 text-gray-100 rounded-lg shadow-2xl overflow-hidden border border-gray-700;
+  }
+
+  /* ========================================
+   * HEADER
+   * ======================================== */
+  .evt-header {
+    @apply flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700;
+  }
+
+  .evt-title {
+    @apply font-semibold;
+  }
+
+  .evt-wifi-on {
+    @apply text-green-500;
+  }
+
+  .evt-wifi-off {
+    @apply text-red-500;
+  }
+
+  .evt-heartbeat {
+    @apply text-gray-500 flex items-center gap-1;
+  }
+
+  .evt-header-btn {
+    @apply p-1 hover:bg-gray-700 rounded;
+  }
+
+  /* ========================================
+   * TABS
+   * ======================================== */
+  .evt-tabs-row {
+    @apply flex border-b border-gray-700;
+  }
+
+  .evt-tab {
+    @apply px-4 py-2 capitalize;
+  }
+
+  .evt-tab-active {
+    @apply bg-gray-800 fi-text-primary border-b-2 border-blue-400;
+  }
+
+  .evt-tab-inactive {
+    @apply text-gray-400 hover:text-gray-200;
+  }
+
+  /* ========================================
+   * CONTENT AREA
+   * ======================================== */
+  .evt-content {
+    @apply h-64 overflow-hidden;
+  }
+
+  /* ========================================
+   * EVENTS TAB
+   * ======================================== */
+  .evt-events-col {
+    @apply h-full flex flex-col;
+  }
+
+  .evt-filter-row {
+    @apply flex items-center gap-2 p-2 border-b border-gray-700;
+  }
+
+  .evt-filter-icon {
+    @apply text-gray-400;
+  }
+
+  .evt-filter-input {
+    @apply flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-500;
+  }
+
+  .evt-replay-btn {
+    @apply flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500
+           rounded text-white;
+  }
+
+  .evt-event-list {
+    @apply flex-1 overflow-y-auto p-2 space-y-1;
+  }
+
+  .evt-empty-msg {
+    @apply text-gray-500 text-center py-8;
+  }
+
+  .evt-event-row {
+    @apply flex items-start gap-2 p-2 bg-gray-800 rounded hover:bg-gray-700;
+  }
+
+  /* Event color dots */
+  .evt-dot {
+    @apply w-2 h-2 mt-1 rounded-full;
+  }
+
+  .evt-dot-green {
+    @apply bg-green-500;
+  }
+
+  .evt-dot-green-dark {
+    @apply bg-green-600;
+  }
+
+  .evt-dot-blue {
+    @apply bg-blue-500;
+  }
+
+  .evt-dot-red {
+    @apply bg-red-500;
+  }
+
+  .evt-dot-purple {
+    @apply bg-purple-500;
+  }
+
+  .evt-dot-purple-dark {
+    @apply bg-purple-600;
+  }
+
+  .evt-dot-yellow {
+    @apply bg-yellow-500;
+  }
+
+  .evt-dot-gray {
+    @apply bg-gray-400;
+  }
+
+  .evt-dot-default {
+    @apply bg-gray-500;
+  }
+
+  .evt-event-body {
+    @apply flex-1 min-w-0;
+  }
+
+  .evt-event-type {
+    @apply fi-text-primary truncate;
+  }
+
+  .evt-event-time {
+    @apply text-gray-500 evt-text-tiny;
+  }
+
+  .evt-event-id {
+    @apply text-gray-400 truncate evt-text-tiny;
+  }
+
+  .evt-event-payload {
+    @apply mt-1 evt-text-tiny text-gray-500 overflow-x-auto;
+  }
+
+  /* ========================================
+   * METRICS TAB
+   * ======================================== */
+  .evt-metrics-body {
+    @apply p-3 space-y-3 overflow-y-auto h-full;
+  }
+
+  .evt-metrics-grid {
+    @apply grid grid-cols-3 gap-2;
+  }
+
+  .evt-metric-card {
+    @apply bg-gray-800 p-2 rounded;
+  }
+
+  .evt-metric-label {
+    @apply text-gray-400;
+  }
+
+  .evt-metric-value-lg {
+    @apply text-lg;
+  }
+
+  .evt-by-type-title {
+    @apply text-gray-400 mb-2;
+  }
+
+  .evt-by-type-list {
+    @apply space-y-1;
+  }
+
+  .evt-by-type-row {
+    @apply flex justify-between;
+  }
+
+  .evt-by-type-name {
+    @apply text-gray-300;
+  }
+
+  .evt-uptime {
+    @apply text-gray-500 text-center;
+  }
+
+  /* ========================================
+   * PROJECTIONS TAB
+   * ======================================== */
+  .evt-projections-body {
+    @apply p-3 space-y-2 overflow-y-auto h-full;
+  }
+
+  .evt-proj-card {
+    @apply bg-gray-800 p-2 rounded;
+  }
+
+  .evt-proj-status {
+    @apply px-2 py-0.5 rounded evt-text-tiny;
+  }
+
+  .evt-proj-running {
+    @apply bg-green-900 fi-text-green;
+  }
+
+  .evt-proj-error {
+    @apply bg-red-900 fi-text-error;
+  }
+
+  .evt-proj-idle {
+    @apply bg-gray-700 text-gray-400;
+  }
+
+  .evt-proj-details {
+    @apply flex justify-between text-gray-400 mt-1;
+  }
+
+  .evt-proj-timestamp {
+    @apply text-gray-500 evt-text-tiny mt-1;
+  }
+
+  /* ========================================
+   * FOOTER
+   * ======================================== */
+  .evt-error-bar {
+    @apply px-3 py-1 bg-red-900/50 fi-text-error evt-text-tiny;
+  }
+
+  /* ========================================
+   * H5 DEBUG MODAL
+   * ======================================== */
+  .h5-modal {
+    @apply bg-slate-900 rounded-2xl border border-yellow-500/50
+           max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col
+           animate-fade-in;
+  }
+
+  .h5-header {
+    @apply px-6 py-4 border-b border-yellow-500/50
+           flex items-center justify-between
+           bg-gradient-to-r from-yellow-900/20 to-slate-900;
+  }
+
+  .h5-dev-badge {
+    @apply px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs
+           font-bold rounded border border-yellow-500/50;
+  }
+
+  .h5-footer {
+    @apply px-6 py-4 border-t border-yellow-500/50
+           flex items-center justify-between bg-slate-800/50;
+  }
+
+  /* ========================================
+   * VERSION BADGE
+   * ======================================== */
+  .ver-wrapper {
+    @apply fixed bottom-4 left-4 z-50;
+  }
+
+  .ver-badge-btn {
+    @apply flex items-center gap-2 px-3 py-1.5 text-xs font-mono
+           bg-slate-800/90 text-slate-300 rounded-full border border-slate-700
+           hover:bg-slate-700 transition-colors shadow-lg backdrop-blur-sm;
+  }
+
+  .ver-pulse-dot {
+    @apply w-2 h-2 rounded-full bg-emerald-500 animate-pulse;
+  }
+
+  .ver-details-panel {
+    @apply absolute bottom-full left-0 mb-2 p-3 bg-slate-800/95
+           border border-slate-700 rounded-lg shadow-xl
+           backdrop-blur-sm min-w-[280px];
+  }
+
+  .ver-details-body {
+    @apply text-xs font-mono text-slate-300 space-y-1;
+  }
+
+  .ver-detail-row {
+    @apply flex justify-between;
+  }
+
+  .ver-detail-footer {
+    @apply pt-2 border-t border-slate-700 mt-2;
+  }
+}

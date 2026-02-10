@@ -19,7 +19,7 @@ import {
 import { PrescriptionStatusBadge } from "./PrescriptionStatusBadge";
 // Simple Separator component (inline)
 const Separator = ({ className = "" }: { className?: string }) => (
-  <hr className={`border-slate-200 dark:border-slate-700 ${className}`} />
+  <hr className={`rx-prev-separator ${className}`} />
 );
 
 interface PrescriptionPreviewProps {
@@ -49,98 +49,98 @@ export const PrescriptionPreview = forwardRef<
   return (
     <div
       ref={ref}
-      className={`bg-white text-black p-8 max-w-[210mm] mx-auto font-serif ${className}`}
+      className={`rx-prev-page ${className}`}
       style={{ minHeight: "297mm" }}
     >
       {/* Header / Membrete */}
       {showHeader && (
-        <header className="text-center mb-6">
+        <header className="rx-prev-header">
           {physician.institution && (
-            <h1 className="text-lg font-bold uppercase tracking-wide">
+            <h1 className="rx-prev-institution">
               {physician.institution}
             </h1>
           )}
-          <h2 className="text-base font-semibold mt-1">
+          <h2 className="rx-prev-physician-name">
             Dr(a). {physician.name}
           </h2>
           {physician.specialty && (
-            <p className="text-sm text-gray-600">{physician.specialty}</p>
+            <p className="rx-prev-specialty">{physician.specialty}</p>
           )}
-          <p className="text-sm mt-1">
+          <p className="rx-prev-license">
             Cédula Profesional: {physician.professional_license}
           </p>
           {physician.specialty_license && (
-            <p className="text-sm">
+            <p className="rx-prev-license-secondary">
               Cédula de Especialidad: {physician.specialty_license}
             </p>
           )}
           {physician.address && (
-            <p className="text-xs text-gray-500 mt-2">{physician.address}</p>
+            <p className="rx-prev-address">{physician.address}</p>
           )}
           {physician.phone && (
-            <p className="text-xs text-gray-500">Tel: {physician.phone}</p>
+            <p className="rx-prev-phone">Tel: {physician.phone}</p>
           )}
         </header>
       )}
 
-      <Separator className="my-4 bg-black" />
+      <Separator className="rx-prev-divider" />
 
       {/* Title */}
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold tracking-widest">RECETA MÉDICA</h2>
-        <div className="flex justify-center mt-2">
+      <div className="rx-prev-title-section">
+        <h2 className="rx-prev-title">RECETA MÉDICA</h2>
+        <div className="rx-prev-status-row">
           <PrescriptionStatusBadge status={prescription.status} size="sm" />
         </div>
       </div>
 
       {/* Patient Info */}
-      <section className="mb-6 grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+      <section className="rx-prev-patient-grid">
         <div>
-          <span className="font-semibold">Paciente:</span> {patient.name}
+          <span className="rx-prev-field-label">Paciente:</span> {patient.name}
         </div>
         <div>
-          <span className="font-semibold">Fecha:</span>{" "}
+          <span className="rx-prev-field-label">Fecha:</span>{" "}
           {formatDate(prescription.created_at)}
         </div>
         {patient.age && (
           <div>
-            <span className="font-semibold">Edad:</span> {patient.age}
+            <span className="rx-prev-field-label">Edad:</span> {patient.age}
           </div>
         )}
         {patient.weight_kg && (
           <div>
-            <span className="font-semibold">Peso:</span> {patient.weight_kg} kg
+            <span className="rx-prev-field-label">Peso:</span> {patient.weight_kg} kg
           </div>
         )}
         {patient.allergies.length > 0 && (
-          <div className="col-span-2 text-red-600">
-            <span className="font-semibold">Alergias:</span>{" "}
+          <div className="rx-prev-allergies">
+            <span className="rx-prev-field-label">Alergias:</span>{" "}
             {patient.allergies.join(", ")}
           </div>
         )}
       </section>
 
       {/* Diagnosis */}
-      <section className="mb-6">
-        <h3 className="font-bold text-sm uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
+      <section className="rx-prev-section">
+        <h3 className="rx-prev-section-heading">
           Diagnóstico
         </h3>
-        <p className="text-sm">{diagnosis}</p>
+        <p className="rx-prev-section-text">{diagnosis}</p>
         {prescription.diagnosis_code && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="rx-prev-diagnosis-code">
             CIE-10: {prescription.diagnosis_code}
           </p>
         )}
       </section>
 
-      <Separator className="my-4 border-dashed" />
+      <Separator className="rx-prev-divider-dashed" />
 
       {/* Medications */}
-      <section className="mb-6">
-        <h3 className="font-bold text-sm uppercase tracking-wide border-b border-gray-300 pb-1 mb-4">
+      <section className="rx-prev-section">
+        <h3 className="rx-prev-section-heading-meds">
           Medicamentos
         </h3>
-        <div className="space-y-4">
+        <div className="rx-prev-med-stack">
           {medications.map((med, index) => {
             const frequencyLabel =
               med.frequency === "custom" && med.frequency_custom
@@ -154,31 +154,31 @@ export const PrescriptionPreview = forwardRef<
               : "Según indicación";
 
             return (
-              <div key={index} className="text-sm pl-4 border-l-2 border-blue-500">
-                <p className="font-semibold">
+              <div key={index} className="rx-prev-med-item">
+                <p className="rx-prev-med-name">
                   {index + 1}. Rx: {med.name}
                   {med.active_ingredient &&
                     med.active_ingredient !== med.name &&
                     ` (${med.active_ingredient})`}
                 </p>
-                <p className="ml-4">
+                <p className="rx-prev-med-detail">
                   {med.dosage} - {med.dosage_form}
                 </p>
-                <p className="ml-4">
+                <p className="rx-prev-med-detail">
                   {routeLabel}, {frequencyLabel}
                 </p>
-                <p className="ml-4">Duración: {durationLabel}</p>
+                <p className="rx-prev-med-detail">Duración: {durationLabel}</p>
                 {med.quantity && (
-                  <p className="ml-4 font-medium">Cantidad: {med.quantity}</p>
+                  <p className="rx-prev-med-quantity">Cantidad: {med.quantity}</p>
                 )}
                 {med.instructions && (
-                  <p className="ml-4 italic text-gray-600">
+                  <p className="rx-prev-med-instructions">
                     Indicaciones: {med.instructions}
                   </p>
                 )}
                 {med.warnings && (
-                  <p className="ml-4 text-amber-700 text-xs flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />
+                  <p className="rx-prev-med-warning">
+                    <AlertTriangle className="rx-prev-med-warning-icon" strokeWidth={1.5} aria-hidden="true" />
                     {med.warnings}
                   </p>
                 )}
@@ -190,11 +190,11 @@ export const PrescriptionPreview = forwardRef<
 
       {/* General Instructions */}
       {prescription.general_instructions && (
-        <section className="mb-6">
-          <h3 className="font-bold text-sm uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
+        <section className="rx-prev-section">
+          <h3 className="rx-prev-section-heading">
             Indicaciones Generales
           </h3>
-          <p className="text-sm whitespace-pre-line">
+          <p className="rx-prev-section-text-pre">
             {prescription.general_instructions}
           </p>
         </section>
@@ -202,9 +202,9 @@ export const PrescriptionPreview = forwardRef<
 
       {/* Next Appointment */}
       {prescription.next_appointment && (
-        <section className="mb-6">
-          <p className="text-sm">
-            <span className="font-semibold">Próxima cita:</span>{" "}
+        <section className="rx-prev-section">
+          <p className="rx-prev-appointment">
+            <span className="rx-prev-field-label">Próxima cita:</span>{" "}
             {prescription.next_appointment}
           </p>
         </section>
@@ -212,11 +212,11 @@ export const PrescriptionPreview = forwardRef<
 
       {/* Footer */}
       {showFooter && (
-        <footer className="mt-auto pt-12">
-          <Separator className="mb-6" />
+        <footer className="rx-prev-footer">
+          <Separator className="rx-prev-footer-separator" />
 
-          <div className="flex justify-between items-end">
-            <div className="text-xs text-gray-500">
+          <div className="rx-prev-footer-layout">
+            <div className="rx-prev-footer-meta">
               {prescription.signature_hash && (
                 <p>Verificación: {prescription.signature_hash.slice(0, 16)}...</p>
               )}
@@ -226,14 +226,14 @@ export const PrescriptionPreview = forwardRef<
               </p>
             </div>
 
-            <div className="text-center">
-              <div className="w-48 border-t border-black pt-2">
-                <p className="text-sm font-medium">Firma del Médico</p>
+            <div className="rx-prev-footer-signature">
+              <div className="rx-prev-footer-signature-line">
+                <p className="rx-prev-footer-signature-label">Firma del Médico</p>
               </div>
             </div>
           </div>
 
-          <p className="text-xs text-gray-400 text-center mt-8">
+          <p className="rx-prev-footer-disclaimer">
             Esta receta es válida únicamente con firma y sello del médico.
           </p>
         </footer>

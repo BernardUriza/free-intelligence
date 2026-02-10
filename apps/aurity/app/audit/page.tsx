@@ -83,20 +83,20 @@ export default function AuditPage() {
   })
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="aud-page">
       <PageHeader {...headerConfig} />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <div className="aud-content">
 
         {/* Filters */}
-        <div className="bg-slate-800 rounded-lg p-4 mb-6 flex flex-col sm:flex-row gap-4">
+        <div className="aud-filters">
           {/* Operation Filter */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium fi-text mb-2">
+          <div className="aud-filter-col">
+            <label className="aud-filter-label">
               Operation Type
             </label>
             <Select value={selectedOperation} onValueChange={handleOperationFilter}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="aud-filter-select">
                 <SelectValue placeholder="All Operations" />
               </SelectTrigger>
               <SelectContent>
@@ -111,12 +111,12 @@ export default function AuditPage() {
           </div>
 
           {/* Date Range Filter */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium fi-text mb-2">
+          <div className="aud-filter-col">
+            <label className="aud-filter-label">
               Date Range
             </label>
             <Select value={dateRange} onValueChange={handleDateRangeFilter}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="aud-filter-select">
                 <SelectValue placeholder="Last 24 hours" />
               </SelectTrigger>
               <SelectContent>
@@ -131,15 +131,15 @@ export default function AuditPage() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-900/20 border border-red-700 fi-text-error px-4 py-3 rounded mb-4">
+          <div className="aud-error">
             {error}
           </div>
         )}
 
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <div className="aud-loading">
+            <div className="aud-loading-spinner"></div>
           </div>
         )}
 
@@ -154,9 +154,9 @@ export default function AuditPage() {
 
         {/* Empty State */}
         {!loading && logs.length === 0 && (
-          <div className="bg-slate-800 rounded-lg p-12 text-center">
-            <p className="text-slate-400 text-lg">No audit logs found</p>
-            <p className="text-slate-500 text-sm mt-2">
+          <div className="aud-empty">
+            <p className="aud-empty-title">No audit logs found</p>
+            <p className="aud-empty-subtitle">
               Try adjusting your filters or check back later
             </p>
           </div>
@@ -165,74 +165,74 @@ export default function AuditPage() {
         {/* Detail Modal */}
         {selectedLog && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            className="aud-modal-overlay"
             onClick={handleCloseDetail}
           >
             <div
-              className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+              className="aud-modal"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold text-slate-50">Event Detail</h2>
+              <div className="aud-modal-header">
+                <h2 className="aud-modal-title">Event Detail</h2>
                 <button
                   onClick={handleCloseDetail}
-                  className="text-slate-400 hover:text-slate-200"
+                  className="aud-modal-close"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="aud-modal-body">
                 <div>
                   <div className="fi-subtitle">Audit ID</div>
-                  <div className="text-slate-100 font-mono text-sm">{selectedLog.audit_id}</div>
+                  <div className="aud-detail-value-mono">{selectedLog.audit_id}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Timestamp</div>
-                  <div className="text-slate-100">{new Date(selectedLog.timestamp).toLocaleString()}</div>
+                  <div className="aud-detail-value">{new Date(selectedLog.timestamp).toLocaleString()}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Operation</div>
-                  <div className="text-slate-100">{selectedLog.operation}</div>
+                  <div className="aud-detail-value">{selectedLog.operation}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">User</div>
-                  <div className="text-slate-100">{selectedLog.user_id}</div>
+                  <div className="aud-detail-value">{selectedLog.user_id}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Endpoint</div>
-                  <div className="text-slate-100 font-mono text-sm">{selectedLog.endpoint}</div>
+                  <div className="aud-detail-value-mono">{selectedLog.endpoint}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Status</div>
-                  <div className={`inline-block px-2 py-1 rounded text-sm ${
-                    selectedLog.status === "SUCCESS" ? "bg-green-900/30 fi-text-green" :
-                    selectedLog.status === "FAILED" ? "bg-red-900/30 fi-text-error" :
-                    "bg-yellow-900/30 text-yellow-400"
-                  }`}>
+                  <div className={
+                    selectedLog.status === "SUCCESS" ? "aud-status-success" :
+                    selectedLog.status === "FAILED" ? "aud-status-failed" :
+                    "aud-status-warning"
+                  }>
                     {selectedLog.status}
                   </div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Payload Hash</div>
-                  <div className="text-slate-100 font-mono text-xs break-all">{selectedLog.payload_hash}</div>
+                  <div className="aud-detail-value-hash">{selectedLog.payload_hash}</div>
                 </div>
 
                 <div>
                   <div className="fi-subtitle">Result Hash</div>
-                  <div className="text-slate-100 font-mono text-xs break-all">{selectedLog.result_hash}</div>
+                  <div className="aud-detail-value-hash">{selectedLog.result_hash}</div>
                 </div>
 
                 {selectedLog.metadata && selectedLog.metadata !== "{}" && (
                   <div>
-                    <div className="fi-subtitle mb-2">Metadata</div>
-                    <pre className="bg-slate-900 fi-text p-3 rounded text-xs overflow-x-auto">
+                    <div className="aud-metadata-label">Metadata</div>
+                    <pre className="aud-metadata-pre">
                       {JSON.stringify(JSON.parse(selectedLog.metadata), null, 2)}
                     </pre>
                   </div>

@@ -7,8 +7,9 @@
 
 import type { LLMModel, LLMModelCreate, LLMModelUpdate, LLMProvider } from '@aurity-standalone/types/llm';
 import { api } from './client';
+import { ROUTES } from './routes';
 
-const API_BASE = '/api/admin/llm-models';
+const API_BASE = ROUTES.adminLlmModels;
 
 /**
  * Fetch all LLM models

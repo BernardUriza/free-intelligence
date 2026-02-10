@@ -44,43 +44,43 @@ export function GlobalPolicyBanner() {
 
   return (
     <div
-      className={`border-b backdrop-blur-sm bg-emerald-900/20 border-emerald-800/50 transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
+      className={`pol-banner-root ${
+        isVisible ? 'pol-banner-visible' : 'pol-banner-hidden'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+      <div className="pol-banner-container">
         <div className="fi-flex-between">
           {/* Data Sovereignty Principles */}
-          <div className="flex items-center gap-6">
+          <div className="pol-banner-principles">
             {/* Local-First */}
             <div className="fi-flex-gap">
-              <Shield className="h-4 w-4 fi-text-success" />
-              <span className="text-sm font-medium text-emerald-200">
+              <Shield className="pol-banner-icon fi-text-success" />
+              <span className="pol-banner-label">
                 100% Local
               </span>
-              <span className="text-xs text-emerald-300/60">
+              <span className="pol-banner-desc">
                 No cloud dependencies
               </span>
             </div>
 
             {/* HIPAA Ready */}
             <div className="fi-flex-gap">
-              <Lock className="h-4 w-4 fi-text-success" />
-              <span className="text-sm font-medium text-emerald-200">
+              <Lock className="pol-banner-icon fi-text-success" />
+              <span className="pol-banner-label">
                 HIPAA Ready
               </span>
-              <span className="text-xs text-emerald-300/60">
+              <span className="pol-banner-desc">
                 AES-GCM-256
               </span>
             </div>
 
             {/* Immutable Storage */}
             <div className="fi-flex-gap">
-              <Database className="h-4 w-4 fi-text-success" />
-              <span className="text-sm font-medium text-emerald-200">
+              <Database className="pol-banner-icon fi-text-success" />
+              <span className="pol-banner-label">
                 Append-Only
               </span>
-              <span className="text-xs text-emerald-300/60">
+              <span className="pol-banner-desc">
                 HDF5 immutable
               </span>
             </div>
@@ -92,7 +92,7 @@ export function GlobalPolicyBanner() {
             variant="ghost"
             size="sm"
             icon={X}
-            className="text-emerald-300 hover:bg-emerald-800/30"
+            className="pol-banner-dismiss"
             title="Dismiss"
             aria-label="Dismiss banner"
           />

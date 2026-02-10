@@ -23,7 +23,7 @@ export function AppointmentFormFields({ form, doctors, onFieldChange, hideDoctor
       {/* Doctor Selection - hidden when doctor is implicit (e.g., MedicalAI) */}
       {!hideDoctorField && (
         <div>
-          <label className="flex items-center gap-2 fi-label">
+          <label className="apt-field-label">
             <Stethoscope className="fi-icon-sm" />
             Doctor
           </label>
@@ -45,7 +45,7 @@ export function AppointmentFormFields({ form, doctors, onFieldChange, hideDoctor
       {/* Date and Time */}
       <div className="fi-grid-2">
         <div>
-          <label className="flex items-center gap-2 fi-label">
+          <label className="apt-field-label">
             <Calendar className="fi-icon-sm" />
             Fecha
           </label>
@@ -58,7 +58,7 @@ export function AppointmentFormFields({ form, doctors, onFieldChange, hideDoctor
           />
         </div>
         <div>
-          <label className="flex items-center gap-2 fi-label">
+          <label className="apt-field-label">
             <Clock className="fi-icon-sm" />
             Hora
           </label>
@@ -116,7 +116,7 @@ export function AppointmentFormFields({ form, doctors, onFieldChange, hideDoctor
 
       {/* Reason */}
       <div>
-        <label className="flex items-center gap-2 fi-label">
+        <label className="apt-field-label">
           <FileText className="fi-icon-sm" />
           Motivo de Consulta
         </label>

@@ -33,31 +33,31 @@ export type RecordingStateType =
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export interface ButtonSizeConfig {
-  button: string;    // Tailwind classes for button size
-  icon: string;      // Tailwind classes for icon size
-  ring?: string;     // Tailwind classes for ring/pulse size
+  button: string;    // Domain class for button size
+  icon: string;      // Domain class for icon size
+  ring?: string;     // Domain class for ring/pulse size
 }
 
 export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeConfig> = {
   sm: {
-    button: 'w-10 h-10',
-    icon: 'h-5 w-5',
-    ring: 'ring-2',
+    button: 'rec-btn-sm',
+    icon: 'rec-icon-sm',
+    ring: 'rec-ring-sm',
   },
   md: {
-    button: 'w-12 h-12',
-    icon: 'h-6 w-6',
-    ring: 'ring-2',
+    button: 'rec-btn-md',
+    icon: 'rec-icon-md',
+    ring: 'rec-ring-md',
   },
   lg: {
-    button: 'w-16 h-16',
-    icon: 'h-8 w-8',
-    ring: 'ring-3',
+    button: 'rec-btn-lg',
+    icon: 'rec-icon-lg',
+    ring: 'rec-ring-lg',
   },
   xl: {
-    button: 'w-24 h-24',
-    icon: 'h-10 w-10',
-    ring: 'ring-4',
+    button: 'rec-btn-xl',
+    icon: 'rec-icon-xl',
+    ring: 'rec-ring-xl',
   },
 };
 
@@ -81,37 +81,37 @@ export interface StateColors {
 
 export const COLOR_THEMES: Record<ColorTheme, StateColors> = {
   medical: {
-    idle: 'bg-emerald-500 hover:bg-emerald-600',
-    starting: 'bg-cyan-500',
-    recording: 'bg-yellow-500 hover:bg-yellow-600',
-    pausing: 'bg-cyan-500',
-    paused: 'bg-blue-500 hover:bg-blue-600',
-    resuming: 'bg-cyan-500',
-    processing: 'bg-slate-500',
-    stopping: 'bg-cyan-500',
-    finalized: 'bg-slate-600',
+    idle: 'rec-theme-medical-idle',
+    starting: 'rec-theme-medical-starting',
+    recording: 'rec-theme-medical-recording',
+    pausing: 'rec-theme-medical-pausing',
+    paused: 'rec-theme-medical-paused',
+    resuming: 'rec-theme-medical-resuming',
+    processing: 'rec-theme-medical-processing',
+    stopping: 'rec-theme-medical-stopping',
+    finalized: 'rec-theme-medical-finalized',
   },
   chat: {
-    idle: 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600',
-    starting: 'bg-blue-500',
-    recording: 'bg-red-500 hover:bg-red-600',
-    pausing: 'bg-blue-500',
-    paused: 'bg-yellow-500 hover:bg-yellow-600',
-    resuming: 'bg-blue-500',
-    processing: 'bg-blue-500',
-    stopping: 'bg-blue-500',
-    finalized: 'bg-gray-400',
+    idle: 'rec-theme-chat-idle',
+    starting: 'rec-theme-chat-starting',
+    recording: 'rec-theme-chat-recording',
+    pausing: 'rec-theme-chat-pausing',
+    paused: 'rec-theme-chat-paused',
+    resuming: 'rec-theme-chat-resuming',
+    processing: 'rec-theme-chat-processing',
+    stopping: 'rec-theme-chat-stopping',
+    finalized: 'rec-theme-chat-finalized',
   },
   minimal: {
-    idle: 'bg-slate-700 hover:bg-slate-600',
-    starting: 'bg-slate-600',
-    recording: 'bg-red-600 hover:bg-red-500',
-    pausing: 'bg-slate-600',
-    paused: 'bg-slate-600 hover:bg-slate-500',
-    resuming: 'bg-slate-600',
-    processing: 'bg-slate-600',
-    stopping: 'bg-slate-600',
-    finalized: 'bg-slate-800',
+    idle: 'rec-theme-minimal-idle',
+    starting: 'rec-theme-minimal-starting',
+    recording: 'rec-theme-minimal-recording',
+    pausing: 'rec-theme-minimal-pausing',
+    paused: 'rec-theme-minimal-paused',
+    resuming: 'rec-theme-minimal-resuming',
+    processing: 'rec-theme-minimal-processing',
+    stopping: 'rec-theme-minimal-stopping',
+    finalized: 'rec-theme-minimal-finalized',
   },
 };
 
@@ -139,7 +139,7 @@ export type PulseStyle = 'none' | 'ping' | 'rings' | 'vad';
 
 export interface PulseConfig {
   style: PulseStyle;
-  color?: string;           // Tailwind color class
+  color?: string;           // Color name (e.g. 'yellow-500')
   audioLevel?: number;      // 0-255 for VAD style
   isSilent?: boolean;       // For VAD color switching
 }

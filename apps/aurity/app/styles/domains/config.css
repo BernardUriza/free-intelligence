@@ -1,0 +1,426 @@
+/**
+ * Config Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: cfg-{component}[-variant]
+ * Covers: /app/config/page.tsx (SUPERADMIN system configuration)
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility cfg-info-card {
+  @apply rounded-lg p-4 border;
+}
+
+@utility cfg-info-title {
+  @apply text-sm font-semibold mb-2;
+}
+
+@utility cfg-code-block {
+  @apply bg-slate-950/50 rounded p-2;
+}
+
+@utility cfg-toggle-track {
+  @apply w-12 h-6 rounded-full relative cursor-pointer;
+}
+
+@utility cfg-toggle-knob {
+  @apply absolute top-1 w-4 h-4 bg-white rounded-full;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .cfg-page-container {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .cfg-sections {
+    @apply space-y-6;
+  }
+
+  /* ========================================
+   * LOADING
+   * ======================================== */
+  .cfg-loading-spinner {
+    @apply animate-spin h-12 w-12 border-4 border-purple-400 border-t-transparent rounded-full;
+  }
+
+  /* ========================================
+   * SUPERADMIN BANNER
+   * ======================================== */
+  .cfg-superadmin-banner {
+    @apply mb-6 bg-purple-900/20 border border-purple-500/30 rounded-lg p-4;
+  }
+
+  .cfg-superadmin-star {
+    @apply w-5 h-5 fi-text-purple fill-purple-400;
+  }
+
+  .cfg-superadmin-label {
+    @apply text-purple-300 font-medium;
+  }
+
+  .cfg-superadmin-dot {
+    @apply text-purple-400/60 text-sm;
+  }
+
+  .cfg-superadmin-email {
+    @apply text-purple-400/80 text-sm;
+  }
+
+  .cfg-superadmin-tag {
+    @apply px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded;
+  }
+
+  /* ========================================
+   * SECTION CARDS (System, Features, Security, Users)
+   * ======================================== */
+  .cfg-section-card {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden;
+  }
+
+  .cfg-section-header {
+    @apply px-6 py-4 bg-slate-900/50 fi-border-bottom;
+  }
+
+  .cfg-section-body {
+    @apply p-6 space-y-4;
+  }
+
+  .cfg-section-body-lg {
+    @apply p-6 space-y-6;
+  }
+
+  .cfg-setting-label {
+    @apply text-white font-medium;
+  }
+
+  .cfg-reset-btn-override {
+    @apply bg-orange-600 hover:bg-orange-700;
+  }
+
+  /* ========================================
+   * TOGGLE SWITCHES
+   * ======================================== */
+  .cfg-toggle-on {
+    @apply cfg-toggle-track bg-green-600;
+  }
+
+  .cfg-toggle-off {
+    @apply cfg-toggle-track bg-slate-600;
+  }
+
+  .cfg-toggle-knob-right {
+    @apply cfg-toggle-knob right-1;
+  }
+
+  .cfg-toggle-knob-left {
+    @apply cfg-toggle-knob left-1;
+  }
+
+  .cfg-toggle-label-active {
+    @apply fi-text-green text-sm font-medium;
+  }
+
+  .cfg-toggle-label-inactive {
+    @apply text-slate-400 text-sm font-medium;
+  }
+
+  /* ========================================
+   * CURRENT USER CARD
+   * ======================================== */
+  .cfg-user-card {
+    @apply bg-slate-900/50 border border-slate-600 rounded-lg p-4;
+  }
+
+  .cfg-user-email {
+    @apply text-white font-mono;
+  }
+
+  .cfg-user-id {
+    @apply text-slate-500 font-mono text-xs truncate max-w-xs;
+  }
+
+  .cfg-user-info-row {
+    @apply text-sm;
+  }
+
+  .cfg-user-label {
+    @apply text-slate-400;
+  }
+
+  .cfg-user-roles-row {
+    @apply flex items-start justify-between text-sm pt-2 fi-border-top;
+  }
+
+  .cfg-user-roles-wrap {
+    @apply flex flex-wrap gap-1 justify-end max-w-xs;
+  }
+
+  .cfg-user-no-roles {
+    @apply text-slate-500 text-xs;
+  }
+
+  /* ========================================
+   * ROLES LIST
+   * ======================================== */
+  .cfg-roles-list {
+    @apply space-y-2;
+  }
+
+  .cfg-role-code {
+    @apply text-slate-400 text-sm font-mono;
+  }
+
+  .cfg-role-code-modal {
+    @apply text-slate-400 font-mono;
+  }
+
+  .cfg-role-muted {
+    @apply text-slate-500;
+  }
+
+  /* ========================================
+   * PERMISSION TABLE
+   * ======================================== */
+  .cfg-perm-table-wrap {
+    @apply bg-slate-900/30 border border-slate-700 rounded-lg p-4 overflow-x-auto;
+  }
+
+  .cfg-perm-table {
+    @apply w-full text-xs;
+  }
+
+  .cfg-perm-th-left {
+    @apply text-left py-2 px-2 text-slate-400 font-medium;
+  }
+
+  .cfg-perm-th-purple {
+    @apply text-center py-2 px-2 fi-text-purple font-medium;
+  }
+
+  .cfg-perm-th-green {
+    @apply text-center py-2 px-2 fi-text-success font-medium;
+  }
+
+  .cfg-perm-row {
+    @apply border-b border-slate-800;
+  }
+
+  .cfg-perm-td {
+    @apply py-2 px-2 fi-text;
+  }
+
+  .cfg-perm-center {
+    @apply text-center;
+  }
+
+  .cfg-perm-na {
+    @apply text-center text-slate-600;
+  }
+
+  /* ========================================
+   * INFO CARDS (colored)
+   * ======================================== */
+  .cfg-info-card-purple {
+    @apply cfg-info-card bg-purple-900/20 border-purple-700/30;
+  }
+
+  .cfg-info-card-blue {
+    @apply cfg-info-card bg-blue-900/20 border-blue-700/30;
+  }
+
+  .cfg-info-card-emerald {
+    @apply cfg-info-card bg-emerald-900/20 border-emerald-700/30;
+  }
+
+  .cfg-info-card-yellow {
+    @apply cfg-info-card bg-yellow-900/20 border-yellow-700/30;
+  }
+
+  .cfg-info-title-purple {
+    @apply cfg-info-title text-purple-300;
+  }
+
+  .cfg-info-title-purple-flex {
+    @apply cfg-info-title text-purple-300 fi-flex-gap;
+  }
+
+  .cfg-info-title-blue {
+    @apply cfg-info-title text-blue-300;
+  }
+
+  .cfg-info-title-emerald {
+    @apply cfg-info-title text-emerald-300;
+  }
+
+  .cfg-info-title-yellow {
+    @apply cfg-info-title text-yellow-300;
+  }
+
+  .cfg-info-text-purple {
+    @apply text-xs text-purple-400/80 mb-3;
+  }
+
+  .cfg-info-text-blue {
+    @apply text-xs text-blue-400/80 mb-2;
+  }
+
+  .cfg-info-text-yellow {
+    @apply text-xs text-yellow-400/80 mb-2;
+  }
+
+  .cfg-info-text-blue-body {
+    @apply text-xs text-blue-400/80;
+  }
+
+  .cfg-info-text-body {
+    @apply text-xs fi-text mb-3;
+  }
+
+  .cfg-info-text-body-sm {
+    @apply text-xs fi-text mb-2;
+  }
+
+  /* ========================================
+   * CODE BLOCKS
+   * ======================================== */
+  .cfg-code-inline-purple {
+    @apply bg-purple-950/50 px-1 py-0.5 rounded;
+  }
+
+  .cfg-code-block-purple {
+    @apply cfg-code-block border border-purple-800/30 p-3;
+  }
+
+  .cfg-code-block-blue {
+    @apply block cfg-code-block border border-blue-800/30 text-xs text-blue-300 font-mono;
+  }
+
+  .cfg-code-text-purple {
+    @apply text-xs text-purple-300 font-mono;
+  }
+
+  .cfg-code-text-success {
+    @apply text-[10px] fi-text-success;
+  }
+
+  .cfg-code-text-primary {
+    @apply text-[10px] fi-text-primary;
+  }
+
+  .cfg-code-wrap {
+    @apply mt-3 bg-slate-950/50 p-2 rounded;
+  }
+
+  .cfg-code-wrap-plain {
+    @apply bg-slate-950/50 p-2 rounded;
+  }
+
+  .cfg-pre-wrap {
+    @apply bg-slate-950/50 p-3 rounded;
+  }
+
+  .cfg-pre-text {
+    @apply text-[10px] text-slate-400 overflow-x-auto;
+  }
+
+  .cfg-code-mini {
+    @apply ml-5 mt-2 bg-slate-950/50 p-2 rounded text-[10px] font-mono text-slate-400;
+  }
+
+  /* ========================================
+   * MODALS (Config-specific)
+   * ======================================== */
+  .cfg-modal-lg {
+    @apply bg-slate-800 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto;
+  }
+
+  .cfg-modal-md {
+    @apply bg-slate-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto;
+  }
+
+  .cfg-modal-header {
+    @apply p-6 fi-border-bottom;
+  }
+
+  .cfg-modal-body {
+    @apply p-6 space-y-4;
+  }
+
+  .cfg-modal-footer {
+    @apply p-4 fi-border-top flex justify-end gap-2;
+  }
+
+  .cfg-modal-footer-single {
+    @apply p-4 fi-border-top flex justify-end;
+  }
+
+  /* ========================================
+   * LISTS (Ordered/Unordered)
+   * ======================================== */
+  .cfg-list-ordered {
+    @apply text-xs fi-text space-y-3 list-decimal list-inside;
+  }
+
+  .cfg-list-bullets {
+    @apply fi-text-xs space-y-2 list-disc list-inside;
+  }
+
+  .cfg-list-bullets-tight {
+    @apply fi-text-xs space-y-1 list-disc list-inside;
+  }
+
+  .cfg-indent-text {
+    @apply text-slate-400 ml-5 mt-1;
+  }
+
+  .cfg-strong-white {
+    @apply text-white;
+  }
+
+  /* ========================================
+   * ROLE ROW (Modal context)
+   * ======================================== */
+  .cfg-role-row-modal {
+    @apply fi-flex-between text-xs p-2 bg-slate-800/50 rounded;
+  }
+
+  .cfg-section-inner {
+    @apply bg-slate-900/50 border border-slate-700 rounded-lg p-4;
+  }
+
+  /* ========================================
+   * MISC
+   * ======================================== */
+  .cfg-star-sm {
+    @apply w-4 h-4 fill-current;
+  }
+
+  /* Spacing variants for fi-* classes (zero raw Tailwind) */
+  .cfg-title-gap {
+    @apply fi-title-sm mb-3;
+  }
+
+  .cfg-subtitle-gap {
+    @apply fi-subtitle mt-1;
+  }
+
+  .cfg-note-gap {
+    @apply fi-text-xs-muted mt-2;
+  }
+
+  .cfg-header-gap {
+    @apply fi-flex-between mb-3;
+  }
+}

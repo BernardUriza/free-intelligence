@@ -32,6 +32,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { api, getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // Types
 interface EventData {
@@ -74,14 +75,14 @@ interface EventDevToolsProps {
 // Constants
 const API_BASE = getBackendUrl();
 const EVENT_COLORS: Record<string, string> = {
-  TRANSCRIPTION_STARTED: "bg-green-500",
-  TRANSCRIPTION_CHUNK_RECEIVED: "bg-blue-500",
-  TRANSCRIPTION_ENDED: "bg-green-600",
-  TRANSCRIPTION_FAILED: "bg-red-500",
-  SOAP_GENERATION_STARTED: "bg-purple-500",
-  SOAP_GENERATION_COMPLETED: "bg-purple-600",
-  SESSION_FINALIZED: "bg-yellow-500",
-  heartbeat: "bg-gray-400",
+  TRANSCRIPTION_STARTED: "evt-dot-green",
+  TRANSCRIPTION_CHUNK_RECEIVED: "evt-dot-blue",
+  TRANSCRIPTION_ENDED: "evt-dot-green-dark",
+  TRANSCRIPTION_FAILED: "evt-dot-red",
+  SOAP_GENERATION_STARTED: "evt-dot-purple",
+  SOAP_GENERATION_COMPLETED: "evt-dot-purple-dark",
+  SESSION_FINALIZED: "evt-dot-yellow",
+  heartbeat: "evt-dot-gray",
 };
 
 export function EventDevTools({
@@ -119,7 +120,7 @@ export function EventDevTools({
       eventSourceRef.current.close();
     }
 
-    const url = `${API_BASE}/api/workflows/events/sse/${sessionId}`;
+    const url = `${API_BASE}${ROUTES.workflowEvents}/sse/${sessionId}`;
     const eventSource = new EventSource(url);
 
     eventSource.onopen = () => {
@@ -174,7 +175,7 @@ export function EventDevTools({
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
     try {
-      const data = await api.get<MetricsSummary>('/api/workflows/events/metrics/summary');
+      const data = await api.get<MetricsSummary>(`${ROUTES.workflowEvents}/metrics/summary`);
       setMetrics(data);
     } catch (err) {
       console.error("Failed to fetch metrics:", err);
@@ -184,7 +185,7 @@ export function EventDevTools({
   // Fetch projections
   const fetchProjections = useCallback(async () => {
     try {
-      const data = await api.get<ProjectionInfo[]>('/api/workflows/events/projections');
+      const data = await api.get<ProjectionInfo[]>(`${ROUTES.workflowEvents}/projections`);
       setProjections(data);
     } catch (err) {
       console.error("Failed to fetch projections:", err);
@@ -197,7 +198,7 @@ export function EventDevTools({
 
     try {
       const data = await api.get<{ event_count: number; replay_duration_ms: number }>(
-        `/api/workflows/events/replay/${sessionId}`
+        `${ROUTES.workflowEvents}/replay/${sessionId}`
       );
       alert(`Replay completed: ${data.event_count} events, ${data.replay_duration_ms}ms`);
     } catch (err) {
@@ -240,71 +241,71 @@ export function EventDevTools({
 
   // Position classes
   const positionClasses = {
-    "bottom-right": "bottom-4 right-4",
-    "bottom-left": "bottom-4 left-4",
-    "top-right": "top-4 right-4",
-    "top-left": "top-4 left-4",
+    "bottom-right": "evt-pos-bottom-right",
+    "bottom-left": "evt-pos-bottom-left",
+    "top-right": "evt-pos-top-right",
+    "top-left": "evt-pos-top-left",
   };
 
   return (
     <div
-      className={`fixed ${positionClasses[position]} z-50 font-mono text-xs`}
+      className={`evt-container ${positionClasses[position]}`}
       style={{ maxWidth: isExpanded ? "480px" : "auto" }}
     >
       {/* Collapsed button */}
       {!isExpanded && (
         <Button
           onClick={() => setIsExpanded(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-gray-100 rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
+          className="evt-collapsed-btn"
           title="Open Event DevTools"
           variant="ghost"
           size="sm"
           type="button"
         >
-          <Activity className="w-4 h-4" />
+          <Activity className="evt-icon-sm" />
           <span>Events</span>
-          {isConnected && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
+          {isConnected && <span className="evt-connected-dot" />}
         </Button>
       )}
 
       {/* Expanded panel */}
       {isExpanded && (
-        <div className="bg-gray-900 text-gray-100 rounded-lg shadow-2xl overflow-hidden border border-gray-700">
+        <div className="evt-panel">
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700">
+          <div className="evt-header">
             <div className="fi-flex-gap">
-              <Activity className="w-4 h-4 fi-text-primary" />
-              <span className="font-semibold">Event DevTools</span>
+              <Activity className="evt-icon-sm fi-text-primary" />
+              <span className="evt-title">Event DevTools</span>
               {isConnected ? (
-                <Wifi className="fi-icon-xs text-green-500" />
+                <Wifi className="fi-icon-xs evt-wifi-on" />
               ) : (
-                <WifiOff className="fi-icon-xs text-red-500" />
+                <WifiOff className="fi-icon-xs evt-wifi-off" />
               )}
             </div>
             <div className="fi-flex-gap-sm">
-              <span className="text-gray-500 flex items-center gap-1"><Heart className="w-3 h-3" strokeWidth={1.5} aria-hidden="true" />{heartbeats}</span>
-              <Button onClick={() => setIsPaused(!isPaused)} className="p-1 hover:bg-gray-700 rounded" title={isPaused ? "Resume" : "Pause"} variant="ghost" size="sm" type="button">
+              <span className="evt-heartbeat"><Heart className="evt-icon-xs" strokeWidth={1.5} aria-hidden="true" />{heartbeats}</span>
+              <Button onClick={() => setIsPaused(!isPaused)} className="evt-header-btn" title={isPaused ? "Resume" : "Pause"} variant="ghost" size="sm" type="button">
                 {isPaused ? <Play className="fi-icon-xs" /> : <Pause className="fi-icon-xs" />}
               </Button>
-              <Button onClick={() => setEvents([])} className="p-1 hover:bg-gray-700 rounded" title="Clear events" variant="ghost" size="sm" type="button">
+              <Button onClick={() => setEvents([])} className="evt-header-btn" title="Clear events" variant="ghost" size="sm" type="button">
                 <Trash2 className="fi-icon-xs" />
               </Button>
-              <Button onClick={() => setIsExpanded(false)} className="p-1 hover:bg-gray-700 rounded" title="Close" variant="ghost" size="sm" type="button">
+              <Button onClick={() => setIsExpanded(false)} className="evt-header-btn" title="Close" variant="ghost" size="sm" type="button">
                 <X className="fi-icon-xs" />
               </Button>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-700">
+          <div className="evt-tabs-row">
             {(["events", "metrics", "projections"] as const).map((tab) => (
               <Button
                 key={tab}
                 onClick={() => setSelectedTab(tab)}
-                className={`px-4 py-2 capitalize ${
+                className={`evt-tab ${
                   selectedTab === tab
-                    ? "bg-gray-800 fi-text-primary border-b-2 border-blue-400"
-                    : "text-gray-400 hover:text-gray-200"
+                    ? "evt-tab-active"
+                    : "evt-tab-inactive"
                 }`}
                 variant="ghost"
                 size="sm"
@@ -317,24 +318,24 @@ export function EventDevTools({
           </div>
 
           {/* Content */}
-          <div className="h-64 overflow-hidden">
+          <div className="evt-content">
             {/* Events Tab */}
             {selectedTab === "events" && (
-              <div className="h-full flex flex-col">
+              <div className="evt-events-col">
                 {/* Filter */}
-                <div className="flex items-center gap-2 p-2 border-b border-gray-700">
-                  <Filter className="fi-icon-xs text-gray-400" />
+                <div className="evt-filter-row">
+                  <Filter className="fi-icon-xs evt-filter-icon" />
                   <input
                     type="text"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     placeholder="Filter events..."
-                    className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-500"
+                    className="evt-filter-input"
                   />
                   {sessionId && (
                     <Button
                       onClick={triggerReplay}
-                      className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white"
+                      className="evt-replay-btn"
                       variant="ghost"
                       size="sm"
                       type="button"
@@ -346,34 +347,34 @@ export function EventDevTools({
                 </div>
 
                 {/* Event list */}
-                <div ref={eventsContainerRef} className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div ref={eventsContainerRef} className="evt-event-list">
                   {filteredEvents.length === 0 ? (
-                    <div className="text-gray-500 text-center py-8">
+                    <div className="evt-empty-msg">
                       {sessionId ? "Waiting for events..." : "No session ID provided"}
                     </div>
                   ) : (
                     filteredEvents.map((event) => (
                       <div
                         key={event.event_id}
-                        className="flex items-start gap-2 p-2 bg-gray-800 rounded hover:bg-gray-750"
+                        className="evt-event-row"
                       >
                         <span
-                          className={`w-2 h-2 mt-1 rounded-full ${
-                            EVENT_COLORS[event.event_type] || "bg-gray-500"
+                          className={`evt-dot ${
+                            EVENT_COLORS[event.event_type] || "evt-dot-default"
                           }`}
                         />
-                        <div className="flex-1 min-w-0">
+                        <div className="evt-event-body">
                           <div className="fi-flex-between">
-                            <span className="fi-text-primary truncate">{event.event_type}</span>
-                            <span className="text-gray-500 text-[10px]">
+                            <span className="evt-event-type">{event.event_type}</span>
+                            <span className="evt-event-time">
                               {new Date(event.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
-                          <div className="text-gray-400 truncate text-[10px]">
+                          <div className="evt-event-id">
                             {event.event_id.substring(0, 16)}...
                           </div>
                           {Object.keys(event.payload).length > 0 && (
-                            <pre className="mt-1 text-[10px] text-gray-500 overflow-x-auto">
+                            <pre className="evt-event-payload">
                               {JSON.stringify(event.payload, null, 1)}
                             </pre>
                           )}
@@ -387,81 +388,81 @@ export function EventDevTools({
 
             {/* Metrics Tab */}
             {selectedTab === "metrics" && (
-              <div className="p-3 space-y-3 overflow-y-auto h-full">
+              <div className="evt-metrics-body">
                 {metrics ? (
                   <>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-gray-800 p-2 rounded">
-                        <div className="text-gray-400">Published</div>
-                        <div className="text-lg fi-text-green">
+                    <div className="evt-metrics-grid">
+                      <div className="evt-metric-card">
+                        <div className="evt-metric-label">Published</div>
+                        <div className="evt-metric-value-lg fi-text-green">
                           {metrics.total_events_published}
                         </div>
                       </div>
-                      <div className="bg-gray-800 p-2 rounded">
-                        <div className="text-gray-400">Persisted</div>
-                        <div className="text-lg fi-text-primary">
+                      <div className="evt-metric-card">
+                        <div className="evt-metric-label">Persisted</div>
+                        <div className="evt-metric-value-lg fi-text-primary">
                           {metrics.total_events_persisted}
                         </div>
                       </div>
-                      <div className="bg-gray-800 p-2 rounded">
-                        <div className="text-gray-400">Failed</div>
-                        <div className="text-lg fi-text-error">{metrics.total_events_failed}</div>
+                      <div className="evt-metric-card">
+                        <div className="evt-metric-label">Failed</div>
+                        <div className="evt-metric-value-lg fi-text-error">{metrics.total_events_failed}</div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-800 p-2 rounded">
-                      <div className="text-gray-400 mb-2">Events by Type</div>
-                      <div className="space-y-1">
+                    <div className="evt-metric-card">
+                      <div className="evt-by-type-title">Events by Type</div>
+                      <div className="evt-by-type-list">
                         {Object.entries(metrics.events_by_type).map(([type, count]) => (
-                          <div key={type} className="flex justify-between">
-                            <span className="text-gray-300">{type}</span>
+                          <div key={type} className="evt-by-type-row">
+                            <span className="evt-by-type-name">{type}</span>
                             <span className="fi-text-primary">{count}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="text-gray-500 text-center">
+                    <div className="evt-uptime">
                       Uptime: {Math.floor(metrics.uptime_seconds / 60)}m{" "}
                       {Math.floor(metrics.uptime_seconds % 60)}s
                     </div>
                   </>
                 ) : (
-                  <div className="text-gray-500 text-center py-8">Loading metrics...</div>
+                  <div className="evt-empty-msg">Loading metrics...</div>
                 )}
               </div>
             )}
 
             {/* Projections Tab */}
             {selectedTab === "projections" && (
-              <div className="p-3 space-y-2 overflow-y-auto h-full">
+              <div className="evt-projections-body">
                 {projections.length === 0 ? (
-                  <div className="text-gray-500 text-center py-8">No projections registered</div>
+                  <div className="evt-empty-msg">No projections registered</div>
                 ) : (
                   projections.map((proj) => (
-                    <div key={proj.name} className="bg-gray-800 p-2 rounded">
+                    <div key={proj.name} className="evt-proj-card">
                       <div className="fi-flex-between">
                         <span className="fi-text-primary">{proj.name}</span>
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] ${
+                          className={`evt-proj-status ${
                             proj.status === "running"
-                              ? "bg-green-900 fi-text-green"
+                              ? "evt-proj-running"
                               : proj.status === "error"
-                              ? "bg-red-900 fi-text-error"
-                              : "bg-gray-700 text-gray-400"
+                              ? "evt-proj-error"
+                              : "evt-proj-idle"
                           }`}
                         >
                           {proj.status}
                         </span>
                       </div>
-                      <div className="flex justify-between text-gray-400 mt-1">
+                      <div className="evt-proj-details">
                         <span>Events: {proj.events_processed}</span>
                         {proj.error_count > 0 && (
                           <span className="fi-text-error">Errors: {proj.error_count}</span>
                         )}
                       </div>
                       {proj.last_processed_at && (
-                        <div className="text-gray-500 text-[10px] mt-1">
+                        <div className="evt-proj-timestamp">
                           Last: {new Date(proj.last_processed_at).toLocaleTimeString()}
                         </div>
                       )}
@@ -474,7 +475,7 @@ export function EventDevTools({
 
           {/* Footer */}
           {lastError && (
-            <div className="px-3 py-1 bg-red-900/50 fi-text-error text-[10px]">{lastError}</div>
+            <div className="evt-error-bar">{lastError}</div>
           )}
         </div>
       )}

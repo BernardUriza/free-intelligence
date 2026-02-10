@@ -2,7 +2,7 @@
  * Prescriptions API Client
  *
  * Types and API functions for the prescription template engine.
- * Connects to: /api/aurity/prescriptions/*
+ * Connects to: ROUTES.prescriptions (see lib/api/routes.ts)
  *
  * @author Bernard Uriza Orozco
  * @created 2025-12-28
@@ -10,6 +10,7 @@
  */
 
 import { api } from "./client";
+import { ROUTES } from "./routes";
 
 // ============================================================================
 // Enums
@@ -348,7 +349,7 @@ export interface ExportResponse {
 // API Client Functions
 // ============================================================================
 
-const API_BASE = "/api/aurity/prescriptions";
+const API_BASE = ROUTES.prescriptions;
 
 /**
  * List available prescription templates

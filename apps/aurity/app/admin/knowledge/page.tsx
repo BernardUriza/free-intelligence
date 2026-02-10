@@ -158,42 +158,42 @@ export default function KnowledgeBasePage() {
       showWatermark={true}
       showGeometricBg={true}
     >
-      <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+      <div className="kno-page-container">
 
         {/* Stats Grid - Responsive 2x2 on mobile, 4x1 on desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="kno-stats-grid">
           <StatCard
             label="Total Documents"
             value={stats.total}
-            icon={<FileText className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<FileText className="kno-stat-icon" />}
             color="blue"
           />
           <StatCard
             label="Indexed"
             value={stats.indexed}
-            icon={<Search className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<Search className="kno-stat-icon" />}
             color="emerald"
           />
           <StatCard
             label="Processing"
             value={stats.processing}
-            icon={<RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${stats.processing > 0 ? 'animate-spin' : ''}`} />}
+            icon={<RefreshCw className={stats.processing > 0 ? 'kno-stat-icon-spin' : 'kno-stat-icon'} />}
             color="yellow"
           />
           <StatCard
             label="Errors"
             value={stats.errors}
-            icon={<AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
+            icon={<AlertCircle className="kno-stat-icon" />}
             color="red"
           />
         </div>
 
         {/* Actions Bar - Stack on mobile, row on desktop */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="kno-actions-bar">
           {/* Search & Filter Row */}
-          <div className="flex flex-col sm:flex-row gap-3 flex-1 lg:max-w-2xl">
+          <div className="kno-search-filter-row">
             {/* Search Input */}
-            <div className="flex-1 min-w-0">
+            <div className="kno-search-wrap">
               <Input
                 type="text"
                 value={searchQuery}
@@ -201,17 +201,17 @@ export default function KnowledgeBasePage() {
                 placeholder="Search documents..."
                 variant="default"
                 icon={Search}
-                className="w-full bg-slate-900"
+                className="kno-input-dark"
               />
             </div>
 
             {/* Status Filter Dropdown */}
-            <div className="w-full sm:w-40">
+            <div className="kno-filter-wrap">
               <Select
                 value={statusFilter}
                 onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'all')}
               >
-                <SelectTrigger className="w-full bg-slate-900">
+                <SelectTrigger className="kno-input-dark">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,32 +226,24 @@ export default function KnowledgeBasePage() {
           </div>
 
           {/* View Toggle & Actions Row */}
-          <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end">
+          <div className="kno-actions-right">
             {/* View Mode Toggle */}
-            <div className="flex bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+            <div className="kno-view-toggle">
               <button
                 onClick={() => setViewMode('grid')}
                 aria-label="Grid view"
                 aria-pressed={viewMode === 'grid'}
-                className={`p-2 sm:p-2.5 transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-slate-700 text-slate-100'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
+                className={viewMode === 'grid' ? 'kno-view-btn-active' : 'kno-view-btn-inactive'}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="kno-view-icon" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 aria-label="List view"
                 aria-pressed={viewMode === 'list'}
-                className={`p-2 sm:p-2.5 transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-slate-700 text-slate-100'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
+                className={viewMode === 'list' ? 'kno-view-btn-active' : 'kno-view-btn-inactive'}
               >
-                <List className="w-4 h-4" />
+                <List className="kno-view-icon" />
               </button>
             </div>
 
@@ -262,9 +254,9 @@ export default function KnowledgeBasePage() {
               onClick={loadDocuments}
               disabled={loading}
               aria-label="Refresh documents"
-              className="p-2 sm:p-2.5"
+              className="kno-refresh-btn"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={loading ? 'kno-refresh-icon-spin' : 'kno-refresh-icon'} />
             </Button>
 
             {/* Upload Button */}
@@ -273,40 +265,40 @@ export default function KnowledgeBasePage() {
               size="md"
               icon={Plus}
               onClick={() => setShowUploadModal(true)}
-              className="whitespace-nowrap"
+              className="kno-upload-btn"
             >
-              <span className="hidden sm:inline">Upload Document</span>
-              <span className="sm:hidden">Upload</span>
+              <span className="kno-upload-label-desktop">Upload Document</span>
+              <span className="kno-upload-label-mobile">Upload</span>
             </Button>
           </div>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="flex items-start sm:items-center gap-3 p-3 sm:p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 sm:mt-0" />
-            <p className="flex-1 text-sm sm:text-base">{error}</p>
+          <div className="kno-error-alert">
+            <AlertCircle className="kno-error-alert-icon" />
+            <p className="kno-error-alert-text">{error}</p>
             <button
               onClick={() => setError(null)}
-              className="p-1 fi-text-error hover:text-red-200 transition-colors"
+              className="kno-error-dismiss"
               aria-label="Dismiss error"
             >
-              <X className="w-4 h-4" />
+              <X className="kno-dismiss-icon" />
             </button>
           </div>
         )}
 
         {/* Documents Grid/List */}
         {loading && documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400">
-            <RefreshCw className="w-8 h-8 animate-spin mb-4" />
+          <div className="kno-page-state">
+            <RefreshCw className="kno-page-spinner" />
             <p>Loading documents...</p>
           </div>
         ) : filteredDocuments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400">
-            <FileText className="w-10 h-10 sm:w-12 sm:h-12 mb-4 opacity-50" />
-            <p className="text-base sm:text-lg font-medium mb-2">No documents found</p>
-            <p className="text-sm text-center px-4">
+          <div className="kno-page-state">
+            <FileText className="kno-page-empty-icon" />
+            <p className="kno-page-empty-title">No documents found</p>
+            <p className="kno-page-empty-hint">
               {searchQuery
                 ? 'Try a different search term'
                 : 'Upload your first document to get started'}
@@ -316,8 +308,8 @@ export default function KnowledgeBasePage() {
           <div
             className={
               viewMode === 'grid'
-                ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4'
-                : 'flex flex-col gap-3'
+                ? 'kno-docs-grid'
+                : 'kno-docs-list'
             }
           >
             {filteredDocuments.map((doc) => (
@@ -372,33 +364,24 @@ interface StatCardProps {
 }
 
 const STAT_COLORS = {
-  blue: 'bg-blue-900/30 border-blue-700/50 fi-text-primary',
-  emerald: 'bg-emerald-900/30 border-emerald-700/50 fi-text-success',
-  yellow: 'bg-yellow-900/30 border-yellow-700/50 text-yellow-400',
-  red: 'bg-red-900/30 border-red-700/50 fi-text-error',
+  blue: 'kno-stat-color-blue',
+  emerald: 'kno-stat-color-emerald',
+  yellow: 'kno-stat-color-yellow',
+  red: 'kno-stat-color-red',
 } as const;
 
 function StatCard({ label, value, icon, color }: StatCardProps) {
   return (
-    <div
-      className={`
-        p-3 sm:p-4
-        rounded-lg sm:rounded-xl
-        border
-        ${STAT_COLORS[color]}
-        transition-all duration-200
-        hover:brightness-110
-      `}
-    >
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-slate-900/50 flex-shrink-0">
+    <div className={`kno-stat-card ${STAT_COLORS[color]}`}>
+      <div className="kno-stat-inner">
+        <div className="kno-stat-icon-box">
           {icon}
         </div>
-        <div className="min-w-0">
-          <p className="text-xl sm:text-2xl font-bold text-slate-100 tabular-nums">
+        <div className="kno-stat-text-wrap">
+          <p className="kno-stat-value">
             {value}
           </p>
-          <p className="text-[10px] sm:text-xs opacity-80 truncate">
+          <p className="kno-stat-label">
             {label}
           </p>
         </div>

@@ -28,9 +28,9 @@ export function OrderChatbot({
   onClose,
 }: OrderChatbotProps) {
   return (
-    <div className="fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl border border-emerald-500 shadow-2xl z-50 flex flex-col h-[600px]">
+    <div className="med-chatbot-shell-orders">
       {/* Header */}
-      <div className="fi-gradient-header-emerald-cyan p-4 rounded-t-xl flex justify-between items-center">
+      <div className="med-chatbot-header">
         <div className="fi-flex-gap">
           <Zap className="h-5 w-5 text-white" />
           <h3 className="text-white font-bold">Asistente IA - Órdenes</h3>
@@ -92,7 +92,7 @@ export function OrderChatbot({
             onChange={(e) => onInputChange(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && onSend()}
             placeholder="Escribe un comando..."
-            className="flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-500 focus:outline-none"
+            className="med-chatbot-input"
             disabled={loading}
           />
           <Button

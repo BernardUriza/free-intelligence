@@ -8,8 +8,9 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
-const API_BASE = '/api/aurity/clinic/widget-config';
+const API_BASE = ROUTES.widgetConfig;
 
 // ============================================================================
 // Type Definitions

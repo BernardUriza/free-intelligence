@@ -16,8 +16,9 @@ import type {
   PersonaTestResponse,
 } from '@/components/admin/persona/types';
 import { api, APIError } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
-const BASE_PATH = '/api/admin/personas';
+const BASE_PATH = ROUTES.adminPersonas;
 
 /**
  * Error thrown by persona service operations

@@ -6,7 +6,9 @@
 import { contentCache } from './content-cache';
 import type { ContentItem } from '../types';
 import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
-import { api, getBackendUrl } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
+import { buildMediaFileUrl } from '@/lib/api/clinic-media';
+import { ROUTES } from '@/lib/api/routes';
 
 /**
  * Fetch FI content seeds from backend API
@@ -15,7 +17,7 @@ import { api, getBackendUrl } from '@/lib/api/client';
 export async function fetchContentSeeds(): Promise<ContentItem[]> {
   try {
     const data = await api.get<{ content: Record<string, unknown>[] }>(
-      '/api/aurity/clinic/tv-content/list?active_only=true'
+      `${ROUTES.tvContent}/list?active_only=true`
     );
 
     // Convert TVContentSeed[] to ContentItem[]
@@ -136,5 +138,5 @@ export async function fetchDynamicTrivia(): Promise<TriviaData> {
  * Build media URL from file path
  */
 export function buildMediaUrl(filePath: string): string {
-  return `${getBackendUrl()}/api/aurity/clinic/clinic-media/file/${filePath}`;
+  return buildMediaFileUrl(filePath);
 }

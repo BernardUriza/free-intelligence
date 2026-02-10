@@ -141,7 +141,7 @@ export function MedicationForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700"
+      className="rx-form-container"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Medication Name */}
@@ -313,7 +313,7 @@ export function MedicationForm({
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField("instructions", e.target.value)}
           placeholder="Ej: Tomar con alimentos para evitar molestias gástricas"
           rows={2}
-          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="rx-form-input"
         />
       </div>
 

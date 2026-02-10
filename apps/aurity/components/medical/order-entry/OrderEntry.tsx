@@ -66,7 +66,7 @@ export function OrderEntry({
     <div className={`space-y-8 ${className} max-w-5xl mx-auto`}>
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center justify-center w-16 h-16 fi-gradient-emerald-cyan-soft rounded-2xl mb-4 backdrop-blur-sm border border-emerald-500/20">
+        <div className="med-order-icon-box">
           <ClipboardList className="h-8 w-8 fi-text-success" />
         </div>
         <div className="flex items-center justify-center gap-4">
@@ -105,7 +105,7 @@ export function OrderEntry({
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500 rounded-xl p-5 flex items-start gap-3 animate-shake">
+        <div className="med-order-error">
           <AlertCircle className="h-6 w-6 fi-text-error flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="fi-text-error font-semibold mb-1">Error al cargar órdenes</p>
@@ -129,7 +129,7 @@ export function OrderEntry({
       {!loading && (
         <>
           {/* Add New Order Form */}
-          <div className="fi-gradient-slate-card-solid backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 shadow-2xl">
+          <div className="med-order-form-card">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-emerald-500/10 rounded-lg">
                 <Plus className="h-5 w-5 fi-text-success" />
@@ -157,7 +157,7 @@ export function OrderEntry({
                   value={newOrderDescription}
                   onChange={(e) => setNewOrderDescription(e.target.value)}
                   placeholder={getPlaceholderForType(newOrderType)}
-                  className="w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2 border-slate-700/50 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  className="med-order-input"
                 />
               </div>
 
@@ -170,7 +170,7 @@ export function OrderEntry({
                   onChange={(e) => setNewOrderDetails(e.target.value)}
                   placeholder="Instrucciones especiales, horarios, precauciones..."
                   rows={3}
-                  className="w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2 border-slate-700/50 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                  className="med-order-textarea"
                 />
               </div>
 
@@ -193,7 +193,7 @@ export function OrderEntry({
           <OrdersList groupedOrders={groupedOrders} onRemove={handleRemoveOrder} />
 
           {/* Summary */}
-          <div className="fi-gradient-emerald-cyan-subtle backdrop-blur-sm rounded-2xl p-6 border border-emerald-500/20">
+          <div className="med-order-summary-card">
             <div className="fi-flex-between">
               <div className="fi-flex-gap-md">
                 <div className="p-3 bg-emerald-500/20 rounded-xl">

@@ -79,6 +79,54 @@
   @apply flex items-center gap-1;
 }
 
+@utility chat-char-counter {
+  @apply absolute bottom-2 right-2 text-xs font-mono transition-colors;
+}
+
+@utility chat-loading-inline {
+  @apply flex items-center gap-2 text-slate-400 text-sm py-2;
+}
+
+@utility chat-spinner-sm {
+  @apply w-4 h-4 animate-spin;
+}
+
+@utility chat-error-icon {
+  @apply w-5 h-5 fi-text-error flex-shrink-0 mt-0.5;
+}
+
+@utility chat-error-title {
+  @apply text-red-300 font-medium mb-1;
+}
+
+@utility chat-skeleton-row {
+  @apply flex items-start gap-3 animate-pulse;
+}
+
+@utility chat-skeleton-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+@utility chat-skeleton-bar-wide {
+  @apply h-3 w-32 bg-slate-700/50 rounded;
+}
+
+@utility chat-skeleton-bar-narrow {
+  @apply h-3 w-4 bg-slate-700/50 rounded;
+}
+
+@utility chat-skeleton-line-full {
+  @apply h-3 w-full bg-slate-700/30 rounded;
+}
+
+@utility chat-skeleton-line-5of6 {
+  @apply h-3 w-5/6 bg-slate-700/30 rounded;
+}
+
+@utility chat-skeleton-line-4of6 {
+  @apply h-3 w-4/6 bg-slate-700/30 rounded;
+}
+
 /* ========================================
  * COMPONENT VARIANTS
  * ======================================== */
@@ -322,6 +370,31 @@
 
   .chat-instructions-confirm { @apply px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors; }
 
+  /* UNREAD COUNT BADGE */
+  .chat-unread-badge {
+    @apply absolute -top-1 -right-1 w-5 h-5 rounded-full
+           bg-red-500 text-white text-xs font-bold
+           flex items-center justify-center;
+  }
+
+  /* CHARACTER COUNTER */
+  .chat-char-counter-ok {
+    @apply chat-char-counter text-slate-500;
+  }
+
+  .chat-char-counter-warning {
+    @apply chat-char-counter text-yellow-400;
+  }
+
+  .chat-char-counter-error {
+    @apply chat-char-counter fi-text-error;
+  }
+
+  /* EMPTY STATE (ChatUtilities) */
+  .chat-empty-title-lg { @apply text-lg font-medium fi-text mb-2; }
+  .chat-empty-desc { @apply text-sm text-slate-500 mb-6 max-w-sm; }
+  .chat-empty-cta-gradient { @apply bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700; }
+
   /* SCROLL TO BOTTOM FAB */
   .chat-scroll-fab { @apply sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full z-40 bg-slate-900/80 backdrop-blur-2xl backdrop-saturate-150 hover:bg-slate-800/80 border border-white/[0.08] hover:border-white/[0.15] text-slate-300/90 hover:text-white/95 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-purple-500/10 ring-1 ring-white/5 transition-all duration-300 ease-out flex items-center justify-center; }
   .chat-scroll-fab-badge { @apply absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-purple-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse; }
@@ -384,6 +457,438 @@
 
   .chat-persona-edit-link { @apply flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors; }
 
+  /* ========================================
+   * AUDIO PLAYER (aplay-*)
+   * ======================================== */
+
+  /* Main floating bar */
+  .aplay-bar {
+    @apply fixed top-0 left-0 right-0 z-50
+           bg-gradient-to-r from-emerald-600 to-cyan-600
+           backdrop-blur-xl
+           border-b border-white/20
+           shadow-lg shadow-purple-900/30
+           animate-slide-down;
+  }
+
+  /* Loading state row */
+  .aplay-loading-row {
+    @apply flex items-center gap-4 px-4 py-3;
+  }
+
+  /* Loading icon circle */
+  .aplay-loading-icon {
+    @apply w-8 h-8 bg-white/20 rounded-full flex items-center justify-center;
+  }
+
+  /* Loading text label */
+  .aplay-loading-text {
+    @apply text-white text-sm font-medium;
+  }
+
+  /* Loading voice name */
+  .aplay-loading-voice {
+    @apply text-purple-200 text-xs;
+  }
+
+  /* Spacer (flex-1) */
+  .aplay-spacer {
+    @apply flex-1;
+  }
+
+  /* Close/Cancel button (ghost style on glass) */
+  .aplay-btn-close {
+    @apply p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors;
+  }
+
+  /* Close icon sizes */
+  .aplay-icon-sm {
+    @apply w-4 h-4;
+  }
+
+  .aplay-icon-md {
+    @apply w-5 h-5;
+  }
+
+  /* Controls row */
+  .aplay-controls {
+    @apply flex items-center gap-3 px-4 py-2;
+  }
+
+  /* Left voice indicator group */
+  .aplay-voice-group {
+    @apply flex items-center gap-2 min-w-0;
+  }
+
+  /* Voice indicator circle - AI variant */
+  .aplay-voice-indicator {
+    @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-white/20;
+  }
+
+  /* Voice indicator circle - User variant */
+  .aplay-voice-indicator-user {
+    @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-amber-500/30;
+  }
+
+  /* Icons inside voice indicator */
+  .aplay-voice-icon-user {
+    @apply w-4 h-4 text-amber-200;
+  }
+
+  .aplay-voice-icon-ai {
+    @apply w-4 h-4 text-white;
+  }
+
+  /* Voice name text (next to indicator) */
+  .aplay-voice-name {
+    @apply text-purple-200 truncate hidden sm:block;
+  }
+
+  /* Skip button (-10s / +10s) */
+  .aplay-btn-skip {
+    @apply flex items-center gap-1 px-2 py-1 rounded
+           text-white/70 hover:text-white hover:bg-white/10
+           text-xs font-semibold transition-colors
+           disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+
+  /* Skip button icon */
+  .aplay-skip-icon {
+    @apply w-3.5 h-3.5;
+  }
+
+  /* Play/Pause button */
+  .aplay-btn-play {
+    @apply bg-white/20 hover:bg-white/30 rounded-full w-10 h-10
+           flex items-center justify-center text-white transition-colors
+           hover:scale-105 active:scale-95;
+  }
+
+  /* Play icon offset */
+  .aplay-play-offset {
+    @apply ml-0.5;
+  }
+
+  /* Time display (current time) */
+  .aplay-time {
+    @apply text-white/80 text-xs font-mono tabular-nums;
+  }
+
+  /* Duration display */
+  .aplay-duration {
+    @apply text-white/50 text-xs font-mono tabular-nums;
+  }
+
+  /* Seek bar container */
+  .aplay-seek {
+    @apply flex-1 relative h-1 cursor-pointer min-w-[80px];
+  }
+
+  /* Seek bar track */
+  .aplay-seek-track {
+    @apply absolute inset-0 bg-white/30 rounded-full overflow-hidden;
+  }
+
+  /* Seek bar progress fill */
+  .aplay-seek-fill {
+    @apply h-full bg-white rounded-full transition-all duration-75;
+  }
+
+  /* Seek bar hidden input */
+  .aplay-seek-input {
+    @apply absolute inset-0 w-full h-full opacity-0 cursor-pointer;
+  }
+
+  /* Seek bar thumb (appears on hover) */
+  .aplay-seek-thumb {
+    @apply absolute top-1/2 -translate-y-1/2
+           w-3 h-3 rounded-full
+           bg-white shadow-md
+           pointer-events-none
+           opacity-0 group-hover:opacity-100
+           transition-opacity;
+  }
+
+  /* PulsingDot container */
+  .aplay-pulsing-dots {
+    @apply flex items-center justify-center gap-1;
+  }
+
+  /* PulsingDot individual dots with staggered animation */
+  .aplay-pulsing-dot-1 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot;
+  }
+
+  .aplay-pulsing-dot-2 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-1;
+  }
+
+  .aplay-pulsing-dot-3 {
+    @apply w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-2;
+  }
+
+  /* VoiceSelector wrapper */
+  .aplay-voice-selector {
+    @apply relative;
+  }
+
+  /* VoiceSelector hidden label */
+  .aplay-voice-label {
+    @apply hidden sm:inline;
+  }
+
+  /* VoiceSelector voice name highlight */
+  .aplay-voice-highlight {
+    @apply text-purple-200;
+  }
+
+  /* VoiceSelector chevron icon */
+  .aplay-chevron {
+    @apply w-3 h-3 transition-transform;
+  }
+
+  /* VoiceSelector chevron rotated */
+  .aplay-chevron-open {
+    @apply w-3 h-3 transition-transform rotate-180;
+  }
+
+  /* VoiceSelector backdrop */
+  .aplay-dropdown-backdrop {
+    @apply fixed inset-0 z-40;
+  }
+
+  /* VoiceSelector option button - default */
+  .aplay-voice-option {
+    @apply w-full px-3 py-2 text-left text-sm flex items-center justify-between text-white;
+  }
+
+  /* VoiceSelector option button - active/selected */
+  .aplay-voice-option-active {
+    @apply w-full px-3 py-2 text-left text-sm flex items-center justify-between bg-purple-500/20 text-purple-200;
+  }
+
+  /* VoiceSelector check icon */
+  .aplay-check-icon {
+    @apply w-3 h-3;
+  }
+
+  /* ========================================
+   * MICROPHONE DEVICE PICKER (chat-mic-*)
+   * ======================================== */
+
+  .chat-mic-dropdown {
+    @apply absolute bottom-full right-0 mb-2 z-50
+           w-64
+           bg-slate-800/98 backdrop-blur-md border border-slate-700/80
+           rounded-lg shadow-2xl
+           overflow-hidden;
+  }
+
+  .chat-mic-header {
+    @apply px-3 py-2 bg-slate-900/50;
+  }
+
+  .chat-mic-header-label {
+    @apply text-xs font-semibold text-white;
+  }
+
+  .chat-mic-content {
+    @apply max-h-48 overflow-y-auto py-1;
+  }
+
+  .chat-mic-loading {
+    @apply flex items-center justify-center gap-2 py-4 text-slate-400;
+  }
+
+  .chat-mic-state-center {
+    @apply px-3 py-3 text-center;
+  }
+
+  .chat-mic-error-text {
+    @apply text-xs text-red-300 mb-2;
+  }
+
+  .chat-mic-perm-link {
+    @apply text-xs fi-text-purple hover:text-purple-300 underline;
+  }
+
+  .chat-mic-empty-state {
+    @apply px-3 py-4 text-center;
+  }
+
+  .chat-mic-empty-hint {
+    @apply text-[10px] text-slate-500 mt-1;
+  }
+
+  .chat-mic-perm-btn {
+    @apply px-3 py-1.5 rounded-md text-xs
+           bg-purple-600 hover:bg-purple-500 text-white
+           transition-colors;
+  }
+
+  .chat-mic-check-box {
+    @apply w-4 h-4 flex items-center justify-center;
+  }
+
+  .chat-mic-separator {
+    @apply h-px bg-slate-700/50 my-1;
+  }
+
+  .chat-mic-default-badge {
+    @apply text-[10px] text-slate-500 px-1.5 py-0.5 bg-slate-700/50 rounded;
+  }
+
+  .chat-mic-state-icon {
+    @apply w-5 h-5 mx-auto mb-2;
+  }
+
+  /* ========================================
+   * REASONING BLOCK (chat-think-*)
+   * ======================================== */
+
+  .chat-think-compact-btn {
+    @apply inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full
+           bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300
+           hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors
+           border border-violet-200 dark:border-violet-800;
+  }
+
+  .chat-think-container {
+    @apply w-full rounded-xl overflow-hidden transition-all duration-300
+           border border-violet-200/60 dark:border-violet-800/50
+           border-l-4 border-l-violet-400 dark:border-l-violet-500
+           bg-gradient-to-br from-violet-50/90 via-slate-50 to-fuchsia-50/60
+           dark:from-violet-950/50 dark:via-slate-900/80 dark:to-fuchsia-950/40
+           shadow-sm hover:shadow-md;
+  }
+
+  .chat-think-container-streaming {
+    @apply ring-2 ring-violet-400/40 dark:ring-violet-500/30 shadow-violet-500/10 shadow-lg;
+  }
+
+  .chat-think-header-btn {
+    @apply w-full flex items-center justify-between gap-3 px-4 py-3.5
+           bg-gradient-to-r from-violet-100/60 via-transparent to-fuchsia-100/40
+           dark:from-violet-900/40 dark:via-transparent dark:to-fuchsia-900/30
+           hover:from-violet-100 hover:to-fuchsia-100/60
+           dark:hover:from-violet-900/60 dark:hover:to-fuchsia-900/40
+           transition-all duration-200
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-inset;
+  }
+
+  .chat-think-header-left {
+    @apply flex items-center gap-3 min-w-0;
+  }
+
+  .chat-think-avatar {
+    @apply flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center
+           bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20
+           border border-violet-400/40 dark:border-violet-500/40;
+  }
+
+  .chat-think-avatar-icon {
+    @apply w-4 h-4 text-violet-600 dark:text-violet-400;
+  }
+
+  .chat-think-name-group {
+    @apply flex items-center gap-2 min-w-0;
+  }
+
+  .chat-think-persona-name {
+    @apply font-semibold text-sm text-violet-800 dark:text-violet-200;
+  }
+
+  .chat-think-status-badge {
+    @apply fi-text-xs-medium px-2 py-0.5 rounded-full
+           bg-violet-200/60 dark:bg-violet-800/40
+           text-violet-700 dark:text-violet-300;
+  }
+
+  .chat-think-live-badge {
+    @apply flex items-center gap-1.5 fi-text-xs-medium
+           text-violet-600 dark:text-violet-400
+           bg-violet-200/50 dark:bg-violet-800/30
+           px-2 py-0.5 rounded-full;
+  }
+
+  .chat-think-live-dot {
+    @apply w-2 h-2 rounded-full bg-violet-500 animate-ping;
+  }
+
+  .chat-think-wordcount {
+    @apply fi-text-xs-medium text-violet-600/80 dark:text-violet-400/80
+           tabular-nums bg-violet-100/60 dark:bg-violet-900/40
+           px-2 py-0.5 rounded;
+  }
+
+  .chat-think-preview {
+    @apply px-4 pb-3 -mt-1;
+  }
+
+  .chat-think-preview-text {
+    @apply text-xs text-violet-700/60 dark:text-violet-300/50 line-clamp-1 italic;
+  }
+
+  .chat-think-expand-transition {
+    @apply overflow-hidden transition-all duration-300 ease-in-out;
+  }
+
+  .chat-think-divider {
+    @apply border-t border-violet-200/40 dark:border-violet-800/30;
+  }
+
+  .chat-think-content-scroll {
+    @apply px-4 py-4 overflow-y-auto max-h-80 relative;
+  }
+
+  .chat-think-content-text {
+    @apply text-[13px] leading-[1.7] whitespace-pre-wrap
+           font-[ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace]
+           text-violet-900/85 dark:text-violet-100/85
+           selection:bg-violet-200 dark:selection:bg-violet-700
+           [&]:space-y-2;
+  }
+
+  .chat-think-cursor {
+    @apply inline-block w-2 h-4 ml-1 bg-violet-500 animate-pulse rounded-sm align-middle;
+  }
+
+  .chat-think-fade {
+    @apply absolute bottom-0 left-0 right-0 h-8
+           bg-gradient-to-t from-violet-50/90 dark:from-slate-900/90 to-transparent
+           pointer-events-none;
+  }
+
+  .chat-think-footer {
+    @apply flex items-center justify-end gap-2 px-4 py-2
+           border-t border-violet-200/40 dark:border-violet-800/30
+           bg-violet-50/50 dark:bg-violet-950/30;
+  }
+
+  .chat-think-copy-btn {
+    @apply text-violet-700 dark:text-violet-300
+           hover:bg-violet-200/60 dark:hover:bg-violet-800/40;
+  }
+
+  .chat-think-copy-btn-copied {
+    @apply text-green-500;
+  }
+
+  .chat-think-indicator {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl
+           bg-gradient-to-r from-violet-100 to-fuchsia-100
+           dark:from-violet-900/40 dark:to-fuchsia-900/40
+           border border-violet-200/50 dark:border-violet-700/50;
+  }
+
+  .chat-think-indicator-label {
+    @apply text-sm text-violet-800 dark:text-violet-200;
+  }
+
+  .chat-think-bounce-dot {
+    @apply w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce;
+  }
+
   /* REASONING BLOCK SCROLLBAR */
   .reasoning-scrollbar {
     scrollbar-width: thin;
@@ -416,5 +921,19 @@
     .reasoning-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(167, 139, 250, 0.8);
     }
+  }
+
+  /* ========================================
+   * PERSONA SELECTOR
+   * ======================================== */
+  .chat-persona-trigger {
+    @apply bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/50
+           transition-colors min-w-0 px-2 py-1.5;
+  }
+
+  .chat-playback-btn {
+    @apply flex items-center gap-1.5 px-2 py-1 bg-slate-900/50
+           hover:bg-slate-900 border border-slate-700 rounded-md
+           transition-colors;
   }
 }

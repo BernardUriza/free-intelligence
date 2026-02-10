@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Brain, Monitor, Cloud } from 'lucide-react';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface LLMStatusResponse {
   status: 'online' | 'offline' | 'checking';
@@ -28,7 +29,7 @@ export function SystemStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const data = await api.get<LLMStatusResponse>('/api/aurity/system/llm-status');
+        const data = await api.get<LLMStatusResponse>(`${ROUTES.system}/llm-status`);
         setStatus(data);
       } catch {
         setStatus({
@@ -105,8 +106,8 @@ export function SystemStatus() {
         {currentStatus === 'online' && (
           <>
             <span className="absolute w-1 h-1 bg-green-400 rounded-full animate-ping top-0 right-0.5" />
-            <span className="absolute w-0.5 h-0.5 bg-green-300 rounded-full animate-ping top-1 left-0 animation-delay-200" />
-            <span className="absolute w-0.5 h-0.5 bg-green-300 rounded-full animate-ping bottom-0.5 right-1 animation-delay-500" />
+            <span className="ui-status-sparkle top-1 left-0 animation-delay-200" />
+            <span className="ui-status-sparkle bottom-0.5 right-1 animation-delay-500" />
           </>
         )}
         {/* Glow ring effect */}
@@ -115,11 +116,11 @@ export function SystemStatus() {
 
       {/* Expandable Panel */}
       {isOpen && status && (
-        <div className="absolute right-0 top-full mt-2 w-72 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="ui-status-panel">
           {/* Header */}
-          <div className={`px-3 py-2 ${status.status === 'online' ? 'bg-green-900/30' : 'bg-red-900/30'} border-b border-slate-700`}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-200">
+          <div className={`ui-status-header-inner ${status.status === 'online' ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+            <div className="ui-status-header">
+              <span className="ui-status-label-sm">
                 LLM Status
               </span>
               <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -133,14 +134,14 @@ export function SystemStatus() {
           </div>
 
           {/* Content */}
-          <div className="p-3 space-y-3 text-xs">
+          <div className="ui-status-content">
             {/* URL & Priority */}
             <div>
-              <div className="text-slate-400 mb-1">Conexión</div>
-              <div className="bg-slate-900/50 rounded px-2 py-1.5 font-mono text-slate-300 break-all">
+              <div className="ui-status-section-label">Conexión</div>
+              <div className="ui-status-code-box">
                 {status.url}
               </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="ui-status-badge-row">
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
                   status.is_tunnel
                     ? 'bg-blue-500/20 text-blue-400'
@@ -161,17 +162,17 @@ export function SystemStatus() {
             {/* Tunnel Info (if available) */}
             {status.tunnel_info && (
               <div>
-                <div className="text-slate-400 mb-1">Tunnel Info</div>
-                <div className="bg-slate-900/50 rounded px-2 py-1.5 space-y-1">
+                <div className="ui-status-section-label">Tunnel Info</div>
+                <div className="ui-status-info-box">
                   {status.tunnel_info.hostname && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Host:</span>
+                    <div className="ui-status-info-row">
+                      <span className="ui-status-info-label">Host:</span>
                       <span className="text-slate-300">{status.tunnel_info.hostname}</span>
                     </div>
                   )}
                   {status.tunnel_info.updated_at && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Actualizado:</span>
+                    <div className="ui-status-info-row">
+                      <span className="ui-status-info-label">Actualizado:</span>
                       <span className="text-slate-300">{formatDate(status.tunnel_info.updated_at)}</span>
                     </div>
                   )}
@@ -182,12 +183,12 @@ export function SystemStatus() {
             {/* Models */}
             {status.models.length > 0 && (
               <div>
-                <div className="text-slate-400 mb-1">Modelos ({status.models.length})</div>
+                <div className="ui-status-section-label">Modelos ({status.models.length})</div>
                 <div className="flex flex-wrap gap-1">
                   {status.models.map((model) => (
                     <span
                       key={model}
-                      className="px-1.5 py-0.5 bg-violet-500/20 text-violet-300 rounded text-[10px]"
+                      className="ui-status-model-tag"
                     >
                       {model}
                     </span>
@@ -197,11 +198,11 @@ export function SystemStatus() {
             )}
 
             {/* Metrics */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+            <div className="ui-status-metrics-row">
               <div className="flex items-center gap-3">
                 {status.latency_ms !== null && (
                   <div className="flex items-center gap-1">
-                    <span className="text-slate-500">Latencia:</span>
+                    <span className="ui-status-info-label">Latencia:</span>
                     <span className={`font-mono ${
                       status.latency_ms < 100 ? 'text-green-400' :
                       status.latency_ms < 500 ? 'text-yellow-400' : 'text-red-400'
@@ -211,7 +212,7 @@ export function SystemStatus() {
                   </div>
                 )}
               </div>
-              <div className="text-slate-500">
+              <div className="ui-status-info-label">
                 {formatDate(status.last_check)}
               </div>
             </div>

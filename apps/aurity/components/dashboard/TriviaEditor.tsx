@@ -137,12 +137,12 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
 
   return (
     <div className="fi-modal-backdrop">
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-emerald-600/40 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="triv-modal">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-emerald-900/90 to-cyan-900/90 backdrop-blur-sm border-b border-emerald-600/40 p-6">
+        <div className="triv-header">
           <div className="fi-flex-between">
             <div className="fi-flex-gap-md">
-              <Brain className="w-8 h-8 text-emerald-400" strokeWidth={1.5} aria-hidden="true" />
+              <Brain className="triv-header-icon" strokeWidth={1.5} aria-hidden="true" />
               <h2 className="fi-title-2xl">
                 {question ? 'Editar Trivia' : 'Nueva Trivia'}
               </h2>
@@ -158,18 +158,18 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-6">
+        <div className="triv-form">
           {/* Error Banner */}
           {errors.general && (
-            <div className="p-4 bg-red-900/20 border border-red-600/40 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 fi-text-error" />
-              <p className="text-sm text-red-300">{errors.general}</p>
+            <div className="triv-error-banner">
+              <AlertCircle className="triv-error-icon fi-text-error" />
+              <p className="triv-error-text">{errors.general}</p>
             </div>
           )}
 
           {/* Question */}
           <div>
-            <label className="block text-sm font-medium text-emerald-300 mb-2">
+            <label className="triv-label">
               Pregunta *
             </label>
             <textarea
@@ -180,14 +180,14 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
               placeholder="¿Cuántos vasos de agua se recomienda beber al día?"
             />
             {errors.question && (
-              <p className="mt-1 text-xs fi-text-error">{errors.question}</p>
+              <p className="triv-field-error fi-text-error">{errors.question}</p>
             )}
           </div>
 
           {/* Options */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-emerald-300">
+            <div className="triv-options-header">
+              <label className="triv-options-label">
                 Opciones * (mínimo 2, máximo 6)
               </label>
               <Button
@@ -196,20 +196,20 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
                 variant="outline"
                 size="sm"
                 icon={Plus}
-                className="text-emerald-300 border-emerald-600/40 hover:bg-emerald-600/20"
+                className="triv-add-option-btn"
               >
                 Agregar opción
               </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="triv-options-list">
               {formData.options.map((option, index) => (
                 <div key={index} className="fi-flex-gap">
                   <input
                     type="radio"
                     checked={formData.correct === index}
                     onChange={() => setFormData({ ...formData, correct: index })}
-                    className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                    className="triv-radio"
                   />
                   <input
                     type="text"
@@ -224,7 +224,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
                       variant="ghost"
                       size="sm"
                       icon={Trash2}
-                      className="fi-text-error hover:bg-red-900/30"
+                      className="fi-text-error triv-remove-option"
                       aria-label="Eliminar opción"
                     />
                   )}
@@ -232,13 +232,13 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
               ))}
             </div>
             {errors.options && (
-              <p className="mt-1 text-xs fi-text-error">{errors.options}</p>
+              <p className="triv-field-error fi-text-error">{errors.options}</p>
             )}
           </div>
 
           {/* Explanation */}
           <div>
-            <label className="block text-sm font-medium text-emerald-300 mb-2">
+            <label className="triv-label">
               Explicación de la Respuesta Correcta *
             </label>
             <textarea
@@ -249,15 +249,15 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
               placeholder="Se recomienda beber entre 8 y 10 vasos al día..."
             />
             {errors.explanation && (
-              <p className="mt-1 text-xs fi-text-error">{errors.explanation}</p>
+              <p className="triv-field-error fi-text-error">{errors.explanation}</p>
             )}
           </div>
 
           {/* Metadata Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="triv-metadata-grid">
             {/* Difficulty */}
             <div>
-              <label className="block text-sm font-medium text-emerald-300 mb-2">
+              <label className="triv-label">
                 Dificultad
               </label>
               <Select value={formData.difficulty} onValueChange={(val) => setFormData({ ...formData, difficulty: val as TriviaQuestion['difficulty'] })}>
@@ -274,7 +274,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-emerald-300 mb-2">
+              <label className="triv-label">
                 Categoría *
               </label>
               <input
@@ -285,16 +285,16 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
                 placeholder="hydration, exercise..."
               />
               {errors.category && (
-                <p className="mt-1 text-xs fi-text-error">{errors.category}</p>
+                <p className="triv-field-error fi-text-error">{errors.category}</p>
               )}
             </div>
 
             {/* Tags */}
             <div>
-              <label className="block text-sm font-medium text-emerald-300 mb-2">
+              <label className="triv-label">
                 Tags
               </label>
-              <div className="flex gap-2">
+              <div className="triv-tags-input-row">
                 <input
                   type="text"
                   value={tagInput}
@@ -308,7 +308,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
                   variant="ghost"
                   size="sm"
                   icon={Plus}
-                  className="text-emerald-300 hover:bg-emerald-600/30"
+                  className="triv-add-tag-btn"
                   aria-label="Agregar tag"
                 />
               </div>
@@ -317,11 +317,11 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
 
           {/* Tags Display */}
           {formData.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="triv-tags-display">
               {formData.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-900/30 border border-emerald-600/40 rounded-full text-sm text-emerald-300"
+                  className="triv-tag"
                 >
                   {tag}
                   <Button
@@ -329,7 +329,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
                     variant="ghost"
                     size="sm"
                     icon={X}
-                    className="p-0 h-auto hover:fi-text-error"
+                    className="triv-remove-tag hover:fi-text-error"
                     aria-label="Eliminar tag"
                   />
                 </span>
@@ -339,7 +339,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gradient-to-r from-slate-900/90 to-slate-800/90 backdrop-blur-sm fi-border-top p-6 flex items-center justify-end gap-3">
+        <div className="triv-footer fi-border-top">
           <Button variant="secondary" onClick={onCancel}>
             Cancelar
           </Button>

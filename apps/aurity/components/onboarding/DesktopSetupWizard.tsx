@@ -208,17 +208,17 @@ export function DesktopSetupWizard() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 my-4">
+    <div className="onb-overlay">
+      <div className="onb-modal">
 
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center">
-            <Shield className="w-8 h-8 text-white" />
+        <div className="onb-header">
+          <div className="onb-header-icon">
+            <Shield className="onb-icon-lg onb-icon-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Bienvenido a Aurity Desktop</h1>
-          <p className="text-cyan-400 text-sm font-mono">v{appVersion || '1.0.2'}</p>
-          <p className="text-slate-400 text-sm">
+          <h1 className="onb-text-title">Bienvenido a Aurity Desktop</h1>
+          <p className="onb-text-version">v{appVersion || '1.0.2'}</p>
+          <p className="onb-text-muted">
             Configuremos tu asistente médico 100% offline
           </p>
         </div>
@@ -238,12 +238,12 @@ export function DesktopSetupWizard() {
 // CHECKING - Verifying FI Monitor
 function CheckingScreen() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-center gap-3 p-4 bg-slate-800 rounded-lg">
-        <Loader2 className="w-6 h-6 text-cyan-500 animate-spin" />
+    <div className="onb-stack-lg">
+      <div className="onb-checking-box">
+        <Loader2 className="onb-icon-md onb-icon-cyan onb-icon-spin" />
         <div>
-          <p className="text-white font-medium">Verificando FI Monitor...</p>
-          <p className="text-slate-400 text-sm">Un momento por favor</p>
+          <p className="onb-text-label">Verificando FI Monitor...</p>
+          <p className="onb-text-muted">Un momento por favor</p>
         </div>
       </div>
     </div>
@@ -257,19 +257,19 @@ interface NotInstalledScreenProps {
 
 function NotInstalledScreen({ onInstall }: NotInstalledScreenProps) {
   return (
-    <div className="space-y-4">
-      <div className="p-4 bg-cyan-900/20 rounded-lg border border-cyan-700">
-        <div className="flex items-center gap-3 mb-3">
-          <Cloud className="w-6 h-6 text-cyan-500" />
+    <div className="onb-stack-lg">
+      <div className="onb-info-card">
+        <div className="onb-row-mb">
+          <Cloud className="onb-icon-md onb-icon-cyan" />
           <div>
-            <p className="text-white font-medium">FI Monitor Requerido</p>
-            <p className="text-slate-300 text-sm">Conectividad remota a tu IA local</p>
+            <p className="onb-text-label">FI Monitor Requerido</p>
+            <p className="onb-text-body">Conectividad remota a tu IA local</p>
           </div>
         </div>
 
-        <div className="space-y-2 text-sm text-slate-300">
+        <div className="onb-info-body">
           <p>FI Monitor gestiona:</p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
+          <ul className="onb-list">
             <li>Instalación automática de Python 3.14</li>
             <li>Instalación automática de Ollama</li>
             <li>Túnel seguro para acceso remoto</li>
@@ -277,17 +277,17 @@ function NotInstalledScreen({ onInstall }: NotInstalledScreenProps) {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="onb-btn-row">
         <Button
           onClick={onInstall}
-          className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white"
+          className="onb-btn-primary"
         >
-          <Download className="w-4 h-4 mr-2" />
+          <Download className="onb-icon-sm onb-icon-mr" />
           Instalar Ahora
         </Button>
       </div>
 
-      <p className="text-xs text-slate-500 text-center">
+      <p className="onb-text-center-fine">
         FI Monitor es necesario para el funcionamiento de Aurity
       </p>
     </div>
@@ -303,34 +303,34 @@ function InstallingScreen({ progress }: InstallingScreenProps) {
   const progressPercent = Math.min(100, (progress.length / 5) * 100);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <Loader2 className="w-6 h-6 text-cyan-500 animate-spin" />
+    <div className="onb-stack-lg">
+      <div className="onb-stack-md">
+        <div className="onb-row">
+          <Loader2 className="onb-icon-md onb-icon-cyan onb-icon-spin" />
           <div>
-            <p className="text-white font-medium">Instalando FI Monitor...</p>
-            <p className="text-slate-400 text-sm">Por favor espera (1-2 minutos)</p>
+            <p className="onb-text-label">Instalando FI Monitor...</p>
+            <p className="onb-text-muted">Por favor espera (1-2 minutos)</p>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="onb-progress-track">
           <div
-            className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 transition-all duration-300"
+            className="onb-progress-fill"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
         {/* Progress log */}
-        <div className="max-h-48 overflow-y-auto p-3 bg-slate-800 rounded-lg border border-slate-700">
+        <div className="onb-progress-log">
           {progress.map((msg, i) => (
             <div
               key={i}
-              className={`text-xs font-mono mb-1 ${
+              className={
                 msg.includes('[OK]') || msg.includes('correctamente')
-                  ? 'text-emerald-400'
-                  : 'text-slate-300'
-              }`}
+                  ? 'onb-log-line-success'
+                  : 'onb-log-line'
+              }
             >
               {msg}
             </div>
@@ -344,29 +344,29 @@ function InstallingScreen({ progress }: InstallingScreenProps) {
 // READY - FI Monitor installed successfully
 function ReadyScreen() {
   return (
-    <div className="space-y-4 text-center">
-      <div className="w-16 h-16 mx-auto bg-emerald-500/20 rounded-full flex items-center justify-center">
-        <CheckCircle className="w-10 h-10 text-emerald-500" />
+    <div className="onb-ready-wrapper">
+      <div className="onb-ready-icon">
+        <CheckCircle className="onb-icon-xl onb-icon-emerald" />
       </div>
 
       <div>
-        <h2 className="text-xl font-bold text-white mb-2">¡Todo Listo!</h2>
-        <p className="text-slate-300 text-sm">
+        <h2 className="onb-ready-title">¡Todo Listo!</h2>
+        <p className="onb-text-body">
           FI Monitor instalado correctamente
         </p>
       </div>
 
-      <div className="p-4 bg-cyan-900/20 rounded-lg border border-cyan-700">
-        <p className="text-sm text-cyan-300 flex items-center gap-2">
-          <Rocket className="w-4 h-4" />
+      <div className="onb-info-card">
+        <p className="onb-ready-info">
+          <Rocket className="onb-icon-sm" />
           Abriendo FI Monitor...
         </p>
-        <p className="text-xs text-slate-400 mt-2">
+        <p className="onb-ready-subtext">
           FI Monitor configurará Python y Ollama automáticamente
         </p>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="onb-text-fine">
         Cerrando wizard en 2 segundos...
       </p>
     </div>
@@ -381,21 +381,21 @@ interface ErrorScreenProps {
 
 function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
   return (
-    <div className="space-y-4">
-      <div className="p-4 bg-red-900/20 rounded-lg border border-red-700">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
+    <div className="onb-stack-lg">
+      <div className="onb-error-card">
+        <div className="onb-row-mb">
+          <div className="onb-error-icon">
+            <AlertTriangle className="onb-icon-sm onb-icon-red" />
           </div>
           <div>
-            <p className="text-white font-medium">Error de Instalación</p>
-            <p className="text-red-300 text-sm mt-1">{error || 'Error desconocido'}</p>
+            <p className="onb-text-label">Error de Instalación</p>
+            <p className="onb-error-detail">{error || 'Error desconocido'}</p>
           </div>
         </div>
 
-        <div className="space-y-2 text-sm text-slate-300">
-          <p className="font-medium">Posibles causas:</p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
+        <div className="onb-info-body">
+          <p className="onb-font-medium">Posibles causas:</p>
+          <ul className="onb-list">
             <li>Permisos insuficientes</li>
             <li>Antivirus bloqueando instalación</li>
             <li>Sin conexión a internet</li>
@@ -403,24 +403,24 @@ function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="onb-btn-row">
         <Button
           onClick={onRetry}
-          className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white"
+          className="onb-btn-primary"
         >
           Reintentar
         </Button>
       </div>
 
-      <div className="p-3 bg-slate-800 rounded-lg">
-        <p className="text-xs text-slate-400 flex items-start gap-2">
-          <Lightbulb className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-          <span><span className="font-medium">Instalación manual:</span> Descarga FI Monitor desde{' '}
+      <div className="onb-hint-box">
+        <p className="onb-hint-text">
+          <Lightbulb className="onb-hint-icon" />
+          <span><span className="onb-font-medium">Instalación manual:</span> Descarga FI Monitor desde{' '}
           <a
             href="https://github.com/BernardUriza/free-intelligence/releases"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-cyan-400 hover:underline"
+            className="onb-link"
           >
             GitHub Releases
           </a></span>

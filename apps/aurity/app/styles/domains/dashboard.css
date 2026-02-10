@@ -98,6 +98,26 @@
     @apply text-sm text-slate-400 mt-1;
   }
 
+  .dash-kpi-card-header {
+    @apply flex flex-row items-center justify-between space-y-0 pb-2;
+  }
+
+  .dash-kpi-card-title {
+    @apply text-sm font-medium text-slate-600 dark:fi-text;
+  }
+
+  .dash-kpi-value-row {
+    @apply flex items-baseline gap-2;
+  }
+
+  .dash-kpi-description {
+    @apply fi-text-xs-muted dark:text-slate-400 mt-2;
+  }
+
+  .dash-kpi-target {
+    @apply fi-text-xs dark:text-slate-500 mt-1;
+  }
+
   .dash-kpi-trend-up {
     @apply dash-kpi-trend text-emerald-400;
   }
@@ -245,5 +265,1043 @@
 
   .dash-action-label {
     @apply text-sm text-slate-300;
+  }
+
+  /* ========================================
+   * ACCESS TILES (Index Hub navigation)
+   * ======================================== */
+  .dash-access-tile {
+    @apply relative flex flex-col gap-3 p-6
+           bg-slate-800/60 border border-white/10
+           hover:border-emerald-500/40 hover:bg-slate-800/80
+           backdrop-blur-md rounded-xl transition-all duration-300 ease-out
+           focus:outline-none focus:ring-2 focus:ring-emerald-500/50
+           focus:ring-offset-2 focus:ring-offset-slate-900
+           shadow-sm shadow-black/5 hover:shadow-md hover:shadow-emerald-500/10;
+  }
+
+  .dash-access-tile-shortcut {
+    @apply px-2 py-1 text-xs font-semibold text-slate-400
+           bg-slate-700/50 rounded border border-slate-600;
+  }
+
+  .dash-access-tile-icon {
+    @apply flex items-center justify-center w-12 h-12 rounded-lg
+           bg-blue-500/10 fi-text-primary
+           group-hover:bg-blue-500/20 group-hover:text-blue-300 transition-colors;
+  }
+
+  .dash-access-tile-title {
+    @apply text-lg font-semibold text-slate-50
+           group-hover:text-blue-300 transition-colors;
+  }
+
+  .dash-access-tile-badge {
+    @apply inline-flex items-center px-2 py-1 fi-text-xs-medium
+           text-blue-300 bg-blue-500/10 rounded;
+  }
+
+  /* ========================================
+   * TODAY'S APPOINTMENTS (Doctor dashboard)
+   * ======================================== */
+  .dash-today-error {
+    @apply p-4 bg-red-950/20 border border-red-700/30 rounded-lg;
+  }
+
+  .dash-today-apt-row {
+    @apply w-full flex items-center gap-3 p-3
+           bg-slate-900/50 hover:bg-slate-800
+           border border-slate-700/50 hover:border-slate-600
+           rounded-lg transition-all text-left;
+  }
+
+  /* Status badge colors (session + appointment) */
+  .dash-status-active {
+    @apply bg-green-900/30 fi-text-green;
+  }
+  .dash-status-complete {
+    @apply bg-blue-900/30 fi-text-primary;
+  }
+  .dash-status-default {
+    @apply bg-slate-700/30 text-slate-400;
+  }
+
+  /* ========================================
+   * HEADER (Command Center)
+   * ======================================== */
+  .dash-live-badge {
+    @apply hidden sm:fi-flex-gap px-3 py-1.5
+           bg-emerald-500/10 border border-emerald-500/30 rounded-full;
+  }
+
+  .dash-stat-btn {
+    @apply fi-flex-gap px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80
+           border border-slate-700 rounded-lg transition-colors;
+  }
+
+  .dash-tv-mode-btn {
+    @apply flex items-center gap-2 px-3 py-2 bg-purple-600
+           hover:bg-purple-500 text-white text-sm font-medium
+           rounded-lg transition-colors;
+  }
+
+  /* ========================================
+   * PROMO CARDS (SlimIndexHub)
+   * ======================================== */
+  /* ========================================
+   * KPI STATUS COLORS
+   * ======================================== */
+  .dash-kpi-status-success {
+    @apply text-emerald-600 dark:fi-text-success;
+  }
+
+  .dash-kpi-status-warning {
+    @apply text-amber-600 dark:fi-text-warning;
+  }
+
+  .dash-kpi-status-error {
+    @apply text-red-600 dark:fi-text-error;
+  }
+
+  .dash-kpi-status-neutral {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+
+  .dash-promo-card-emerald {
+    @apply mb-8 p-6 bg-emerald-950/30 backdrop-blur-md border border-white/10
+           hover:border-emerald-500/40 rounded-2xl shadow-lg hover:shadow-xl
+           transition-all relative;
+  }
+
+  /* ========================================
+   * INFO BAR (page.tsx - TV bottom bar)
+   * ======================================== */
+  .dash-infobar-wrap {
+    @apply bg-slate-900/90 backdrop-blur-sm;
+  }
+
+  .dash-infobar-inner {
+    @apply w-full px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3;
+  }
+
+  .dash-infobar-row {
+    @apply flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4;
+  }
+
+  .dash-infobar-time-group {
+    @apply flex items-center gap-3 sm:gap-4 md:gap-6;
+  }
+
+  .dash-infobar-clock {
+    @apply font-bold text-white font-mono;
+  }
+
+  .dash-infobar-date {
+    @apply text-slate-400 capitalize hidden sm:block;
+  }
+
+  .dash-infobar-branding {
+    @apply hidden md:flex items-center gap-2 sm:gap-3;
+  }
+
+  .dash-infobar-logo {
+    @apply opacity-80;
+  }
+
+  .dash-infobar-separator {
+    @apply text-slate-500 hidden lg:inline;
+  }
+
+  .dash-infobar-clinic-name {
+    @apply text-slate-400 hidden lg:inline;
+  }
+
+  .dash-infobar-status-group {
+    @apply flex items-center gap-2 sm:gap-3 md:gap-4;
+  }
+
+  .dash-infobar-status-inner {
+    @apply flex items-center gap-1 sm:gap-2;
+  }
+
+  .dash-infobar-status-dot {
+    @apply bg-emerald-500 rounded-full animate-pulse;
+  }
+
+  /* ========================================
+   * TV MODE LAYOUT (page.tsx)
+   * ======================================== */
+  .dash-tv-shell {
+    @apply h-dvh bg-linear-to-br from-slate-950 via-slate-900 to-slate-950
+           flex flex-col overflow-hidden;
+  }
+
+  .dash-tv-shrink {
+    @apply flex-shrink-0;
+  }
+
+  .dash-tv-main {
+    @apply flex-1 w-full px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3
+           overflow-hidden flex flex-col;
+  }
+
+  .dash-tv-grid {
+    @apply flex-1 min-h-0 grid gap-2 sm:gap-3 md:gap-4;
+  }
+
+  .dash-tv-columns {
+    @apply contents lg:grid lg:grid-cols-[3fr_1fr] xl:grid-cols-[4fr_1fr] lg:gap-4;
+  }
+
+  .dash-tv-media-col {
+    @apply overflow-hidden flex flex-col min-h-0 order-1;
+  }
+
+  .dash-tv-media-card {
+    @apply flex-1 overflow-hidden flex flex-col min-h-0
+           bg-linear-to-br from-slate-800/40 to-slate-900/40
+           border border-slate-700/30 rounded-xl sm:rounded-2xl;
+  }
+
+  .dash-tv-media-inner {
+    @apply flex-1 overflow-hidden flex flex-col min-h-0
+           p-2 sm:p-3 md:p-4 lg:p-5;
+  }
+
+  .dash-tv-sidebar {
+    @apply flex flex-row lg:flex-col gap-2 sm:gap-3 order-2
+           overflow-hidden min-h-0;
+  }
+
+  .dash-tv-qr-section {
+    @apply flex-3 lg:flex-3 overflow-hidden min-h-0;
+  }
+
+  .dash-tv-instructions {
+    @apply hidden md:flex flex-1 lg:flex-1
+           bg-linear-to-br from-slate-800/40 to-slate-900/40
+           border border-slate-700/30 rounded-xl p-3 sm:p-4
+           flex-col justify-center overflow-hidden min-h-0;
+  }
+
+  .dash-tv-instructions-header {
+    @apply flex items-center gap-2 mb-3;
+  }
+
+  .dash-tv-instructions-icon {
+    @apply flex-shrink-0;
+  }
+
+  .dash-tv-instructions-title {
+    @apply font-semibold text-slate-200;
+  }
+
+  .dash-tv-step {
+    @apply flex items-center gap-2;
+  }
+
+  .dash-tv-step-number {
+    @apply rounded-full bg-emerald-500/20 flex items-center justify-center
+           font-bold flex-shrink-0;
+  }
+
+  /* ========================================
+   * RECEPCION MODE (page.tsx)
+   * ======================================== */
+  .dash-recep-shell {
+    @apply h-dvh bg-slate-950 flex flex-col;
+  }
+
+  .dash-recep-header {
+    @apply flex-shrink-0 px-4 py-3 border-b border-slate-800;
+  }
+
+  .dash-recep-header-inner {
+    @apply flex items-center justify-between max-w-7xl mx-auto;
+  }
+
+  .dash-recep-header-left {
+    @apply flex items-center gap-4;
+  }
+
+  .dash-recep-back-link {
+    @apply text-slate-400 hover:text-white transition-colors;
+  }
+
+  .dash-recep-back-icon {
+    @apply w-5 h-5;
+  }
+
+  .dash-recep-fullscreen-btn {
+    @apply flex items-center gap-2 px-4 py-2 bg-purple-600
+           hover:bg-purple-500 text-white font-medium rounded-lg
+           transition-colors;
+  }
+
+  .dash-recep-fullscreen-icon {
+    @apply w-4 h-4;
+  }
+
+  .dash-recep-main {
+    @apply flex-1 p-4 overflow-hidden;
+  }
+
+  .dash-recep-container {
+    @apply max-w-6xl mx-auto h-full;
+  }
+
+  .dash-recep-preview-frame {
+    @apply h-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden;
+  }
+
+  /* ========================================
+   * LOADING / SUSPENSE FALLBACK (page.tsx)
+   * ======================================== */
+  .dash-loading-wrapper {
+    @apply min-h-screen bg-slate-950 flex items-center justify-center;
+  }
+
+  .dash-loading-center {
+    @apply text-center;
+  }
+
+  .dash-loading-spinner {
+    @apply w-8 h-8 animate-spin mx-auto mb-3;
+  }
+
+  .dash-loading-text {
+    @apply text-slate-400 text-sm;
+  }
+
+  /* ========================================
+   * DOCTOR CONTROL PANEL (DoctorControlPanel.tsx)
+   * Prefix: dcp-
+   * ======================================== */
+  .dcp-shell {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden;
+  }
+
+  .dcp-tabs-wrap {
+    @apply w-full;
+  }
+
+  .dcp-tab-content {
+    @apply mt-0;
+  }
+
+  .dcp-header {
+    @apply px-6 py-4 bg-slate-900/50;
+  }
+
+  .dcp-header-row {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  .dcp-live-dot {
+    @apply w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-lg shadow-purple-500/50;
+  }
+
+  .dcp-live-label {
+    @apply tracking-wide;
+  }
+
+  .dcp-tabs-list {
+    @apply bg-slate-900/80 p-1 w-full grid grid-cols-4 gap-1;
+  }
+
+  .dcp-tab-trigger {
+    @apply data-[state=active]:bg-purple-600 data-[state=active]:text-white
+           data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white
+           rounded-md transition-all;
+  }
+
+  .dcp-tab-trigger-alt {
+    @apply data-[state=active]:bg-indigo-600 data-[state=active]:text-white
+           data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white
+           rounded-md transition-all;
+  }
+
+  .dcp-tab-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  .dcp-current-msg {
+    @apply px-6 py-4 bg-purple-950/20 border-b border-purple-700/30;
+  }
+
+  .dcp-current-msg-row {
+    @apply flex items-start justify-between gap-4;
+  }
+
+  .dcp-current-msg-body {
+    @apply flex-1;
+  }
+
+  .dcp-current-msg-label {
+    @apply text-xs text-purple-300 font-medium mb-1;
+  }
+
+  .dcp-current-msg-text {
+    @apply text-sm text-white;
+  }
+
+  .dcp-composer {
+    @apply p-6 space-y-4;
+  }
+
+  .dcp-textarea {
+    @apply flex-1 px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg
+           text-white placeholder-slate-500 focus:outline-none focus:ring-2
+           focus:ring-purple-500/50 focus:border-purple-500 text-sm resize-none;
+  }
+
+  .dcp-input-row {
+    @apply flex gap-2;
+  }
+
+  .dcp-char-row {
+    @apply flex items-center justify-between mt-2;
+  }
+
+  .dcp-char-count {
+    @apply text-xs;
+  }
+
+  .dcp-char-count-ok {
+    @apply text-xs text-slate-500;
+  }
+
+  .dcp-quick-grid {
+    @apply grid grid-cols-1 gap-2;
+  }
+
+  .dcp-quick-btn {
+    @apply px-4 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-600
+           hover:border-purple-500/50 disabled:bg-slate-900 disabled:cursor-not-allowed
+           text-left text-sm hover:text-white rounded-lg transition-all
+           flex items-center gap-2;
+
+    &:hover .dcp-quick-icon {
+      @apply text-purple-300;
+    }
+
+    &:hover .dcp-quick-text {
+      @apply text-purple-300;
+    }
+  }
+
+  .dcp-quick-icon {
+    @apply text-purple-400;
+  }
+
+  .dcp-quick-icon-inner {
+    @apply w-4 h-4;
+  }
+
+  .dcp-quick-text {
+    /* inherits base text color, purple on hover via parent */
+  }
+
+  .dcp-info-box {
+    @apply pt-4;
+  }
+
+  .dcp-info-inner {
+    @apply flex items-start gap-3 p-3 bg-blue-950/20 border border-blue-700/30 rounded-lg;
+  }
+
+  .dcp-info-icon {
+    @apply flex-shrink-0 mt-0.5;
+  }
+
+  .dcp-info-body {
+    @apply flex-1;
+  }
+
+  .dcp-info-title {
+    @apply text-sm font-medium text-blue-300 mb-1;
+  }
+
+  .dcp-info-desc {
+    @apply text-xs leading-relaxed;
+  }
+
+  .dcp-tab-body {
+    @apply p-6;
+  }
+
+  .dcp-chat-wrap {
+    @apply h-[500px] flex flex-col;
+  }
+
+  .dcp-chat-header {
+    @apply px-4 py-3 bg-indigo-950/30 border-b border-indigo-700/30;
+  }
+
+  .dcp-chat-dot {
+    @apply w-2 h-2 bg-green-500 rounded-full animate-pulse;
+  }
+
+  .dcp-chat-label {
+    @apply text-indigo-300;
+  }
+
+  .dcp-chat-body {
+    @apply flex-1 overflow-hidden;
+  }
+
+  /* ========================================
+   * QUEUE COMPONENTS (QueueComponents.tsx)
+   * Prefix: que-
+   * ======================================== */
+  .que-turno-active {
+    @apply flex items-center gap-3 sm:gap-4 md:gap-5
+           px-4 sm:px-5 md:px-6 lg:px-8 py-2 sm:py-3 md:py-4
+           bg-emerald-500/20 border-2 border-emerald-500/50
+           rounded-xl sm:rounded-2xl shadow-lg shadow-emerald-500/20 animate-pulse;
+  }
+
+  .que-turno-icon {
+    @apply flex-shrink-0;
+  }
+
+  .que-turno-label-active {
+    @apply font-bold tracking-widest;
+  }
+
+  .que-turno-number-active {
+    @apply font-black text-emerald-300 tracking-wider leading-none;
+  }
+
+  .que-turno-idle {
+    @apply flex items-center gap-3 sm:gap-4
+           px-4 sm:px-5 md:px-6 py-2 sm:py-3 md:py-4
+           bg-slate-800/60 border-2 border-slate-700 rounded-xl sm:rounded-2xl;
+  }
+
+  .que-turno-icon-idle {
+    @apply text-slate-500 flex-shrink-0;
+  }
+
+  .que-turno-label-idle {
+    @apply text-slate-500 font-bold tracking-widest;
+  }
+
+  .que-turno-text-idle {
+    @apply font-medium text-slate-400;
+  }
+
+  .que-stats-row {
+    @apply flex items-center justify-center gap-4 sm:gap-6 md:gap-8 lg:gap-10;
+  }
+
+  .que-stat-cell {
+    @apply text-center;
+  }
+
+  .que-stat-icon-row {
+    @apply flex items-center justify-center gap-1 sm:gap-2 mb-1;
+  }
+
+  .que-stat-value-blue {
+    @apply font-bold text-blue-300;
+  }
+
+  .que-stat-value-purple {
+    @apply font-bold text-purple-300;
+  }
+
+  .que-stat-value-amber {
+    @apply font-bold text-amber-300;
+  }
+
+  .que-stat-divider {
+    @apply bg-slate-700;
+  }
+
+  .que-next-row {
+    @apply hidden md:flex items-center gap-2 sm:gap-3;
+  }
+
+  .que-next-label {
+    @apply text-slate-500;
+  }
+
+  .que-next-badges {
+    @apply flex items-center gap-1 sm:gap-2;
+  }
+
+  .que-next-badge-first {
+    @apply font-mono font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30;
+  }
+
+  .que-next-badge {
+    @apply font-mono font-medium bg-slate-800 text-slate-400 border border-slate-700;
+  }
+
+  .que-next-more {
+    @apply text-slate-500;
+  }
+
+  .que-stat-suffix {
+    @apply ml-1;
+  }
+
+  .que-statusbar-wrap {
+    @apply bg-slate-900/90 backdrop-blur-sm;
+  }
+
+  .que-statusbar-inner {
+    @apply w-full px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 md:py-4;
+  }
+
+  .que-statusbar-row {
+    @apply flex flex-col xl:flex-row items-center justify-between gap-3 sm:gap-4 md:gap-6;
+  }
+
+  .que-statusbar-turno {
+    @apply flex justify-center sm:justify-start;
+  }
+
+  .que-statusbar-right {
+    @apply w-full xl:w-auto flex items-stretch gap-3 sm:gap-4;
+  }
+
+  .que-stat-card {
+    @apply bg-slate-800/50 border border-slate-700 rounded-xl p-4
+           transition-all duration-200;
+  }
+
+  .que-stat-card-clickable {
+    @apply cursor-pointer hover:scale-[1.02] hover:bg-slate-800/70
+           hover:border-slate-600 active:scale-[0.98];
+  }
+
+  .que-stat-card-highlight {
+    @apply ring-2 ring-emerald-500/50;
+  }
+
+  .que-stat-header {
+    @apply flex items-center gap-2 mb-2;
+  }
+
+  .que-stat-icon {
+    @apply w-4 h-4;
+  }
+
+  .que-avail-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .que-avail-dot-online {
+    @apply bg-emerald-500;
+  }
+
+  .que-avail-dot-offline {
+    @apply bg-slate-500;
+  }
+
+  .que-doctor-list {
+    @apply flex-1 xl:flex-none min-w-60 bg-slate-800/50 border border-slate-700
+           rounded-xl px-3 py-2;
+  }
+
+  .que-doctor-list-label {
+    @apply mb-1;
+  }
+
+  .que-doctor-list-items {
+    @apply space-y-1;
+  }
+
+  .que-doctor-item {
+    @apply flex items-center gap-2 text-sm;
+  }
+
+  .que-doctor-name {
+    @apply text-slate-200;
+  }
+
+  .que-doctor-name-off {
+    @apply text-slate-200 opacity-60;
+  }
+
+  .que-doctor-spec {
+    @apply text-slate-500 text-xs truncate;
+  }
+
+  .que-clinic-card {
+    @apply flex-1 xl:flex-none min-w-[220px] bg-slate-800/50 border border-slate-700
+           rounded-xl px-3 py-2;
+  }
+
+  .que-clinic-name {
+    @apply text-sm text-white font-semibold;
+  }
+
+  .que-clinic-label {
+    @apply mb-1;
+  }
+
+  .que-clinic-phone {
+    @apply mt-1;
+  }
+
+  /* ========================================
+   * CONTENT MANAGEMENT (ContentManagement.tsx)
+   * Prefix: cmgt-
+   * ======================================== */
+  .cmgt-wrap {
+    @apply space-y-6;
+  }
+
+  .cmgt-tabs-row {
+    @apply flex gap-2 overflow-x-auto pb-2;
+  }
+
+  .cmgt-tab-icon {
+    @apply w-5 h-5;
+  }
+
+  .cmgt-tab-count-active {
+    @apply bg-white/20;
+  }
+
+  .cmgt-tab-count {
+    @apply bg-slate-700/50;
+  }
+
+  .cmgt-content-area {
+    @apply bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700
+           rounded-xl p-6 backdrop-blur-sm min-h-[400px];
+  }
+
+  .cmgt-empty-icon {
+    @apply w-16 h-16 mx-auto mb-4;
+  }
+
+  .cmgt-empty-title {
+    @apply mb-2;
+  }
+
+  .cmgt-empty-desc {
+    @apply text-slate-400 mb-6;
+  }
+
+  .cmgt-trivia-header {
+    @apply flex items-center justify-between mb-6;
+  }
+
+  .cmgt-trivia-title {
+    @apply text-lg font-bold text-white;
+  }
+
+  .cmgt-spinner {
+    @apply inline-block w-8 h-8 border-4 border-slate-600 border-t-emerald-500
+           rounded-full animate-spin;
+  }
+
+  .cmgt-spinner-text {
+    @apply mt-4 text-slate-400;
+  }
+
+  .cmgt-empty-text {
+    @apply text-slate-400;
+  }
+
+  .cmgt-empty-hint {
+    @apply text-sm text-slate-500 mt-2;
+  }
+
+  .cmgt-trivia-card {
+    @apply bg-gradient-to-br from-slate-800/50 to-slate-700/50 border border-slate-600
+           rounded-xl p-4 hover:border-emerald-600/50 transition-all;
+  }
+
+  .cmgt-trivia-row {
+    @apply flex items-start gap-4;
+  }
+
+  .cmgt-trivia-badge {
+    @apply flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-600/30
+           to-teal-600/30 border border-emerald-500/50 flex items-center justify-center;
+  }
+
+  .cmgt-trivia-badge-text {
+    @apply text-lg font-bold text-emerald-200;
+  }
+
+  .cmgt-trivia-body {
+    @apply flex-1 min-w-0;
+  }
+
+  .cmgt-trivia-title-row {
+    @apply flex items-start justify-between mb-2;
+  }
+
+  .cmgt-trivia-question {
+    @apply text-base font-semibold text-white truncate pr-4;
+  }
+
+  .cmgt-category-badge {
+    @apply px-2 py-0.5 rounded-full whitespace-nowrap;
+  }
+
+  .cmgt-options-grid {
+    @apply grid grid-cols-2 gap-2 mb-2;
+  }
+
+  .cmgt-tags-row {
+    @apply flex flex-wrap gap-1;
+  }
+
+  .cmgt-tag {
+    @apply px-2 py-0.5 bg-slate-700/30 text-slate-400 text-xs rounded;
+  }
+
+  .cmgt-edit-btn {
+    @apply p-2 rounded-lg bg-blue-900/20 hover:bg-blue-900/30 transition-colors;
+  }
+
+  .cmgt-delete-btn {
+    @apply p-2 rounded-lg bg-red-900/20 hover:bg-red-900/30 transition-colors
+           opacity-50 cursor-not-allowed;
+  }
+
+  .cmgt-btn-icon {
+    @apply w-4 h-4;
+  }
+
+  /* ========================================
+   * TRIVIA EDITOR (TriviaEditor.tsx)
+   * Prefix: triv-
+   * ======================================== */
+  .triv-modal {
+    @apply bg-gradient-to-br from-slate-900 to-slate-800 border border-emerald-600/40
+           rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  .triv-header {
+    @apply sticky top-0 bg-gradient-to-r from-emerald-900/90 to-cyan-900/90
+           backdrop-blur-sm border-b border-emerald-600/40 p-6;
+  }
+
+  .triv-header-icon {
+    @apply w-8 h-8 text-emerald-400;
+  }
+
+  .triv-form {
+    @apply p-6 space-y-6;
+  }
+
+  .triv-error-banner {
+    @apply p-4 bg-red-900/20 border border-red-600/40 rounded-lg flex items-center gap-3;
+  }
+
+  .triv-error-icon {
+    @apply w-5 h-5;
+  }
+
+  .triv-error-text {
+    @apply text-sm text-red-300;
+  }
+
+  .triv-label {
+    @apply block text-sm font-medium text-emerald-300 mb-2;
+  }
+
+  .triv-field-error {
+    @apply mt-1 text-xs;
+  }
+
+  .triv-options-header {
+    @apply flex items-center justify-between mb-2;
+  }
+
+  .triv-options-label {
+    @apply text-sm font-medium text-emerald-300;
+  }
+
+  .triv-add-option-btn {
+    @apply text-emerald-300 border-emerald-600/40 hover:bg-emerald-600/20;
+  }
+
+  .triv-options-list {
+    @apply space-y-2;
+  }
+
+  .triv-radio {
+    @apply w-4 h-4 text-emerald-600 focus:ring-emerald-500;
+  }
+
+  .triv-option-input {
+    @apply flex-1;
+  }
+
+  .triv-remove-option {
+    @apply hover:bg-red-900/30;
+  }
+
+  .triv-metadata-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+  }
+
+  .triv-tags-input-row {
+    @apply flex gap-2;
+  }
+
+  .triv-tags-input {
+    @apply flex-1;
+  }
+
+  .triv-add-tag-btn {
+    @apply text-emerald-300 hover:bg-emerald-600/30;
+  }
+
+  .triv-tags-display {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .triv-tag {
+    @apply inline-flex items-center gap-2 px-3 py-1 bg-emerald-900/30
+           border border-emerald-600/40 rounded-full text-sm text-emerald-300;
+  }
+
+  .triv-remove-tag {
+    @apply p-0 h-auto;
+  }
+
+  .triv-footer {
+    @apply sticky bottom-0 bg-gradient-to-r from-slate-900/90 to-slate-800/90
+           backdrop-blur-sm p-6 flex items-center justify-end gap-3;
+  }
+
+  /* ========================================
+   * COMMAND CENTER (command-center/*.tsx)
+   * Prefix: cc-
+   * ======================================== */
+  .cc-preview {
+    @apply flex-1 relative rounded-2xl overflow-hidden
+           border border-slate-700/50 bg-slate-900/50;
+  }
+
+  .cc-paused-badge {
+    @apply px-2 py-1 bg-amber-500/20 border border-amber-500/30
+           rounded-lg flex items-center gap-1;
+  }
+
+  .cc-turno-overlay {
+    @apply absolute top-4 right-4 px-4 py-2 bg-emerald-500/20
+           backdrop-blur-sm border border-emerald-500/50 rounded-xl animate-pulse;
+  }
+
+  .cc-shortcuts-panel {
+    @apply absolute top-16 right-4 z-50 p-4 bg-slate-800/95
+           backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl w-80;
+  }
+
+  .cc-controls-bar {
+    @apply flex items-center justify-between px-4 py-3
+           bg-slate-800/50 border border-slate-700/50 rounded-xl;
+  }
+
+  .cc-call-btn {
+    @apply flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500
+           text-white font-medium rounded-lg transition-colors;
+  }
+
+  .cc-action-btn {
+    @apply p-2 text-slate-400 hover:text-white hover:bg-slate-700
+           rounded-lg transition-colors;
+  }
+
+  .cc-side-panel {
+    @apply w-96 flex-shrink-0 flex flex-col bg-slate-800/95
+           backdrop-blur-sm border border-slate-700 rounded-2xl overflow-hidden;
+  }
+
+  .cc-patient-progress {
+    @apply px-3 py-2 rounded-lg text-sm font-mono font-medium
+           bg-purple-500/20 text-purple-300 border border-purple-500/30
+           flex items-center gap-2;
+  }
+
+  /* ========================================
+   * SLIDE MANAGER (SlideManager.tsx)
+   * Prefix: slide-
+   * ======================================== */
+  .slide-refresh-btn {
+    @apply px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs
+           rounded-lg transition-colors flex items-center gap-1.5;
+  }
+
+  .slide-thumb-icon {
+    @apply w-12 h-12 rounded-lg bg-slate-700/50
+           flex items-center justify-center text-slate-300;
+  }
+
+  .slide-fi-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+           bg-slate-700/50 border border-slate-600/50 backdrop-blur-sm;
+  }
+
+  .slide-system-badge {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md
+           bg-emerald-900/20 border border-emerald-700/30 text-emerald-300;
+  }
+
+  .slide-btn-disabled {
+    @apply p-2.5 rounded-lg bg-gradient-to-br from-slate-800/50 to-slate-700/50
+           border border-slate-600/50 text-slate-400 cursor-not-allowed backdrop-blur-sm;
+  }
+
+  .slide-btn-delete-disabled {
+    @apply p-2.5 rounded-lg bg-gradient-to-br from-red-900/30 to-red-800/30
+           border border-red-700/40 text-red-400/50 cursor-not-allowed backdrop-blur-sm;
+  }
+
+  /* ========================================
+   * MEDIA UPLOADER (MediaUploader.tsx)
+   * Prefix: mu-
+   * ======================================== */
+  .mu-dropzone {
+    @apply w-full px-6 py-8 border-2 border-dashed border-slate-600 rounded-lg
+           hover:border-cyan-500 hover:bg-slate-900/30 transition-colors fi-disabled;
+  }
+
+  .mu-file-row {
+    @apply flex items-center justify-between p-4 bg-slate-900/50
+           border border-slate-700 rounded-lg hover:border-purple-500/50
+           transition-colors;
+  }
+
+  /* ========================================
+   * AI CONTENT GENERATOR (AIContentGenerator.tsx)
+   * Prefix: aig-
+   * ======================================== */
+  .aig-result-box {
+    @apply p-4 bg-gradient-to-br from-purple-950/40 to-slate-950/40
+           border border-purple-600/30 rounded-lg;
+  }
+
+  .aig-info-footer {
+    @apply flex items-start gap-3 p-3 bg-slate-900/30
+           border border-slate-700/50 rounded-lg;
+  }
+
+  /* ========================================
+   * WAITING ROOM HOST (waiting-room-host/*.tsx)
+   * Prefix: wrh-
+   * ======================================== */
+  .wrh-avatar {
+    @apply w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full
+           bg-gradient-to-br from-purple-600/20 to-purple-800/20
+           border-2 border-purple-500/40 flex items-center justify-center
+           shadow-lg shadow-purple-500/20;
+  }
+
+  .wrh-hint-box {
+    @apply inline-flex items-center gap-2 px-3 sm:px-4 py-2
+           bg-purple-900/30 border border-purple-500/30 rounded-lg;
   }
 }

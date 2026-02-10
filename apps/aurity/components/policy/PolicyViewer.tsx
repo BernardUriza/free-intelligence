@@ -94,17 +94,17 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
       {/* Header */}
       <div className="fi-flex-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-50 flex items-center space-x-3">
-            <ShieldCheck className="h-8 w-8 fi-text-primary" />
+          <h1 className="pol-page-title">
+            <ShieldCheck className="pol-header-icon fi-text-primary" />
             <span>Policy Snapshot</span>
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="pol-page-subtitle">
             Effective configuration from <code className="fi-text-primary">{metadata?.source || 'fi.policy.yaml'}</code>
           </p>
         </div>
 
         {metadata && (
-          <div className="fi-subtitle space-y-1">
+          <div className="fi-subtitle pol-metadata">
             <div>Version: <span className="fi-text">{metadata.version}</span></div>
             <div>Updated: <span className="fi-text">{new Date(metadata.timestamp || '').toLocaleString()}</span></div>
           </div>
@@ -112,39 +112,39 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
       </div>
 
       {/* Policy Sections - Accordion */}
-      <Accordion type="multiple" className="space-y-4">
+      <Accordion type="multiple" className="pol-accordion-list">
         {/* Egress Policy */}
         <AccordionItem value="egress" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <CloudUpload className="h-5 w-5 fi-text-primary" />
-              <span className="text-lg font-semibold text-slate-50">Egress Policy</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <CloudUpload className="pol-section-icon fi-text-primary" />
+              <span className="pol-section-title">Egress Policy</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-2">
               <div>
-                <label className="text-sm font-medium text-slate-400">Default</label>
+                <label className="pol-label">Default</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.sovereignty?.egress?.default || 'N/A'}</code>
+                  <code className="pol-code-value">{policy.sovereignty?.egress?.default || 'N/A'}</code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Allow</label>
+                <label className="pol-label">Allow</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.sovereignty?.egress?.default === 'allow' ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.sovereignty?.egress?.default === 'allow' ? 'true' : 'false'}</code>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-400">Destinations Allowlist</label>
-              <div className="mt-1 space-y-2">
+              <label className="pol-label">Destinations Allowlist</label>
+              <div className="pol-list">
                 {policy.sovereignty?.egress?.allowlist?.map((dest, i) => (
-                  <div key={i} className="px-3 py-2 bg-slate-900 rounded border border-slate-700 font-mono text-sm text-slate-200">
+                  <div key={i} className="pol-code-item">
                     {dest}
                   </div>
-                )) || <div className="text-slate-500 italic">No destinations configured</div>}
+                )) || <div className="pol-empty">No destinations configured</div>}
               </div>
             </div>
           </AccordionContent>
@@ -152,34 +152,34 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
 
         {/* PHI Redaction */}
         <AccordionItem value="phi" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <EyeOff className="h-5 w-5 fi-text-purple" />
-              <span className="text-lg font-semibold text-slate-50">PHI Redaction</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <EyeOff className="pol-section-icon fi-text-purple" />
+              <span className="pol-section-title">PHI Redaction</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-2">
               <div>
-                <label className="text-sm font-medium text-slate-400">PHI Enabled</label>
+                <label className="pol-label">PHI Enabled</label>
                 <div className="fi-input-display">
-                  <code className={`${policy.privacy?.phi?.enabled ? 'text-yellow-400' : 'fi-text-green'}`}>
+                  <code className={`${policy.privacy?.phi?.enabled ? 'pol-code-warning' : 'fi-text-green'}`}>
                     {policy.privacy?.phi?.enabled ? 'true' : 'false'}
                   </code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Spoilers Redaction</label>
+                <label className="pol-label">Spoilers Redaction</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.privacy?.redaction?.spoilers ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.privacy?.redaction?.spoilers ? 'true' : 'false'}</code>
                 </div>
               </div>
             </div>
 
             {policy.privacy?.redaction?.style_file && (
               <div>
-                <label className="text-sm font-medium text-slate-400">Style File</label>
-                <div className="fi-input-display font-mono text-sm text-slate-200">
+                <label className="pol-label">Style File</label>
+                <div className="fi-input-display pol-input-mono">
                   {policy.privacy.redaction.style_file}
                 </div>
               </div>
@@ -189,36 +189,36 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
 
         {/* Timeline Auto-export */}
         <AccordionItem value="timeline" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <FileText className="h-5 w-5 fi-text-green" />
-              <span className="text-lg font-semibold text-slate-50">Timeline Auto-export</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <FileText className="pol-section-icon fi-text-green" />
+              <span className="pol-section-title">Timeline Auto-export</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-2">
               <div>
-                <label className="text-sm font-medium text-slate-400">Auto Enabled</label>
+                <label className="pol-label">Auto Enabled</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.timeline?.auto?.enabled ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.timeline?.auto?.enabled ? 'true' : 'false'}</code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Auto Archive Days</label>
+                <label className="pol-label">Auto Archive Days</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.timeline?.auto_archive_days || 'N/A'}</code>
+                  <code className="pol-code-value">{policy.timeline?.auto_archive_days || 'N/A'}</code>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-400">Export Formats</label>
-              <div className="mt-1 space-y-2">
+              <label className="pol-label">Export Formats</label>
+              <div className="pol-list">
                 {policy.export?.formats?.map((format, i) => (
-                  <div key={i} className="px-3 py-2 bg-slate-900 rounded border border-slate-700 font-mono text-sm text-slate-200 inline-block mr-2">
+                  <div key={i} className="pol-code-item-inline">
                     {format}
                   </div>
-                )) || <div className="text-slate-500 italic">No formats configured</div>}
+                )) || <div className="pol-empty">No formats configured</div>}
               </div>
             </div>
           </AccordionContent>
@@ -226,26 +226,26 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
 
         {/* Mutation Rules */}
         <AccordionItem value="mutation" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <Lock className="h-5 w-5 text-orange-400" />
-              <span className="text-lg font-semibold text-slate-50">Mutation Rules</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <Lock className="pol-section-icon pol-icon-orange" />
+              <span className="pol-section-title">Mutation Rules</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-2">
               <div>
-                <label className="text-sm font-medium text-slate-400">Append Only</label>
+                <label className="pol-label">Append Only</label>
                 <div className="fi-input-display">
-                  <code className={`${policy.mutation?.append_only ? 'fi-text-green' : 'text-yellow-400'}`}>
+                  <code className={`${policy.mutation?.append_only ? 'fi-text-green' : 'pol-code-warning'}`}>
                     {policy.mutation?.append_only ? 'true' : 'false'}
                   </code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Event Required</label>
+                <label className="pol-label">Event Required</label>
                 <div className="fi-input-display">
-                  <code className={`${policy.mutation?.event_required ? 'fi-text-green' : 'text-yellow-400'}`}>
+                  <code className={`${policy.mutation?.event_required ? 'fi-text-green' : 'pol-code-warning'}`}>
                     {policy.mutation?.event_required ? 'true' : 'false'}
                   </code>
                 </div>
@@ -256,47 +256,47 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
 
         {/* Security & LLM */}
         <AccordionItem value="security" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <ShieldCheck className="h-5 w-5 fi-text-error" />
-              <span className="text-lg font-semibold text-slate-50">Security & LLM</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <ShieldCheck className="pol-section-icon fi-text-error" />
+              <span className="pol-section-title">Security & LLM</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-3">
               <div>
-                <label className="text-sm font-medium text-slate-400">LAN Only</label>
+                <label className="pol-label">LAN Only</label>
                 <div className="fi-input-display">
-                  <code className={`${policy.security?.lan_only ? 'fi-text-green' : 'text-yellow-400'}`}>
+                  <code className={`${policy.security?.lan_only ? 'fi-text-green' : 'pol-code-warning'}`}>
                     {policy.security?.lan_only ? 'true' : 'false'}
                   </code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Auth Required</label>
+                <label className="pol-label">Auth Required</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.security?.auth_required ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.security?.auth_required ? 'true' : 'false'}</code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">LLM Audit</label>
+                <label className="pol-label">LLM Audit</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.llm?.audit?.required ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.llm?.audit?.required ? 'true' : 'false'}</code>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-400">LLM Providers</label>
-              <div className="mt-1 space-y-2">
+              <label className="pol-label">LLM Providers</label>
+              <div className="pol-list">
                 {policy.llm?.providers && Object.keys(policy.llm.providers).length > 0 ? (
                   Object.keys(policy.llm.providers).map((providerName) => (
-                    <div key={providerName} className="px-3 py-2 bg-slate-900 rounded border border-slate-700 font-mono text-sm text-slate-200 inline-block mr-2">
+                    <div key={providerName} className="pol-code-item-inline">
                       {providerName}
                     </div>
                   ))
                 ) : (
-                  <div className="text-slate-500 italic">No providers configured</div>
+                  <div className="pol-empty">No providers configured</div>
                 )}
               </div>
             </div>
@@ -305,30 +305,30 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
 
         {/* Retention & Observability */}
         <AccordionItem value="retention" className="fi-panel">
-          <AccordionTrigger className="px-6 py-4 hover:bg-slate-700/50">
-            <div className="flex items-center space-x-3">
-              <Clock className="h-5 w-5 fi-text-info" />
-              <span className="text-lg font-semibold text-slate-50">Retention & Observability</span>
+          <AccordionTrigger className="pol-accordion-trigger">
+            <div className="pol-trigger-inner">
+              <Clock className="pol-section-icon fi-text-info" />
+              <span className="pol-section-title">Retention & Observability</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4 space-y-3">
+          <AccordionContent className="pol-accordion-body">
             <div className="fi-grid-3">
               <div>
-                <label className="text-sm font-medium text-slate-400">Audit Logs (days)</label>
+                <label className="pol-label">Audit Logs (days)</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.retention?.audit_logs_days || 'N/A'}</code>
+                  <code className="pol-code-value">{policy.retention?.audit_logs_days || 'N/A'}</code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Session Min (days)</label>
+                <label className="pol-label">Session Min (days)</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.retention?.session_min_days || 'N/A'}</code>
+                  <code className="pol-code-value">{policy.retention?.session_min_days || 'N/A'}</code>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-400">Chaos Drills</label>
+                <label className="pol-label">Chaos Drills</label>
                 <div className="fi-input-display">
-                  <code className="text-slate-200">{policy.observability?.chaos_drills_enabled ? 'true' : 'false'}</code>
+                  <code className="pol-code-value">{policy.observability?.chaos_drills_enabled ? 'true' : 'false'}</code>
                 </div>
               </div>
             </div>
@@ -337,9 +337,9 @@ export function PolicyViewer({ policy, metadata }: PolicyViewerProps) {
       </Accordion>
 
       {/* Footer Notice */}
-      <div className="fi-panel p-4">
+      <div className="fi-panel pol-footer">
         <p className="fi-subtitle">
-          <strong className="text-slate-50">Note:</strong> This view is read-only. To modify policy settings, edit{' '}
+          <strong className="pol-note-strong">Note:</strong> This view is read-only. To modify policy settings, edit{' '}
           <code className="fi-text-primary">config/fi.policy.yaml</code> and restart the backend service.
         </p>
       </div>

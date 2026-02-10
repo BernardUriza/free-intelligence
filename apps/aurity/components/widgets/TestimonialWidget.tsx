@@ -14,9 +14,9 @@ export function TestimonialWidget({
   rating = 5,
 }: TestimonialWidgetProps) {
   return (
-    <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-950/50 to-orange-950/50 border border-amber-600/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8 text-center relative overflow-hidden">
+    <div className="wgt-testimonial-card">
       <div
-        className="absolute top-2 sm:top-4 left-4 sm:left-8 text-amber-500/20 font-serif"
+        className="wgt-quote-open"
         style={{ fontSize: 'clamp(6rem, 15vw, 15rem)' }}
       >
         &quot;
@@ -57,7 +57,7 @@ export function TestimonialWidget({
       </div>
 
       <div
-        className="absolute bottom-2 sm:bottom-4 right-4 sm:right-8 text-amber-500/20 font-serif rotate-180"
+        className="wgt-quote-close"
         style={{ fontSize: 'clamp(6rem, 15vw, 15rem)' }}
       >
         &quot;

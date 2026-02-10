@@ -78,7 +78,7 @@ const ReceptionistEmptyState = ({ onQuickAction, patientName, loading }: EmptySt
       {receptionistEmptyStateConfig.features.map((feature, idx) => (
         <div
           key={idx}
-          className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-lg"
+          className="checkin-feature-item"
         >
           <span className="text-indigo-400" aria-hidden="true">
             <Check className="w-4 h-4" strokeWidth={2} />
@@ -99,7 +99,7 @@ const ReceptionistEmptyState = ({ onQuickAction, patientName, loading }: EmptySt
               key={action.id}
               onClick={() => onQuickAction(action.message)}
               disabled={loading}
-              className="flex flex-col items-center gap-2 px-4 py-4 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-600/30 hover:border-indigo-600/50 rounded-xl transition-all disabled:opacity-50"
+              className="checkin-quick-action"
               variant="ghost"
               size="lg"
               type="button"
@@ -126,7 +126,7 @@ const ReceptionistQuickReplies = ({ quickReplies, onQuickReply, loading }: Quick
         key={idx}
         onClick={() => onQuickReply(reply)}
         disabled={loading}
-        className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 text-sm rounded-full transition-all disabled:opacity-50"
+        className="checkin-quick-reply"
         variant="ghost"
         size="sm"
         type="button"

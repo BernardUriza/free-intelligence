@@ -37,7 +37,7 @@ export function SlotEditor({
       }`}
     >
       {/* Slot number indicator */}
-      <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-400 flex-shrink-0">
+      <div className="admin-slot-number">
         {index + 1}
       </div>
 

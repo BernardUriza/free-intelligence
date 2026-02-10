@@ -12,6 +12,7 @@ gha-creds-*.json
 !*.key.pub
 .tauri/
 .npmrc
+.claude/settings.local.json
 
 # =============================================================================
 # OS & Editor

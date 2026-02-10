@@ -12,6 +12,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 function assertDevInternalAllowed(): void {
   const isProd = process.env.NODE_ENV === 'production';
@@ -28,7 +29,7 @@ function assertDevInternalAllowed(): void {
 export const diarizationClient = {
   /**
    * Upload audio for diarization
-   * POST /internal/diarization/upload
+   * POST ROUTES.internalDiarization/upload
    */
   upload: async (audio: File, sessionId: string) => {
     // Guard: only allowed in non-production environments
@@ -38,7 +39,7 @@ export const diarizationClient = {
     formData.append('audio', audio);
 
     // Use centralized api.upload which attaches auth token
-    return api.upload('/internal/diarization/upload', formData, {
+    return api.upload(`${ROUTES.internalDiarization}/upload`, formData, {
       headers: {
         'X-Session-ID': sessionId,
       },
@@ -49,11 +50,11 @@ export const diarizationClient = {
 
   /**
    * Get job status
-   * GET /internal/diarization/jobs/{jobId}
+   * GET ROUTES.internalDiarization/jobs/{jobId}
    */
   getJobStatus: (jobId: string) => {
     assertDevInternalAllowed();
-    return api.get(`/internal/diarization/jobs/${jobId}`);
+    return api.get(`${ROUTES.internalDiarization}/jobs/${jobId}`);
   },
 };
 
@@ -63,7 +64,7 @@ export const diarizationClient = {
 export const transcribeClient = {
   /**
    * Transcribe audio
-   * POST /internal/transcribe
+   * POST ROUTES.internalTranscribe
    */
   transcribe: async (audio: File, sessionId: string) => {
     assertDevInternalAllowed();
@@ -71,7 +72,7 @@ export const transcribeClient = {
     const formData = new FormData();
     formData.append('audio', audio);
 
-    return api.upload('/internal/transcribe', formData, {
+    return api.upload(ROUTES.internalTranscribe, formData, {
       headers: {
         'X-Session-ID': sessionId,
       },

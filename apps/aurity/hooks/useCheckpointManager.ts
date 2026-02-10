@@ -16,6 +16,7 @@
 import { useState, useCallback } from 'react';
 import { medicalWorkflowApi, type CheckpointResponse } from '@aurity-standalone/api-client/medical-workflow';
 import { getBackendUrl } from '@/lib/config/deployment';
+import { ROUTES } from '@/lib/api/routes';
 
 export interface CheckpointInfo {
   timestamp: string;
@@ -46,7 +47,7 @@ export function useCheckpointManager(): CheckpointManagerState {
   // Get preview URL
   const getPreviewUrl = useCallback((sessionId: string): string => {
     const backendUrl = getBackendUrl();
-    return `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/audio`;
+    return `${backendUrl}${ROUTES.medicalAi}/sessions/${sessionId}/audio`;
   }, []);
 
   // Create checkpoint

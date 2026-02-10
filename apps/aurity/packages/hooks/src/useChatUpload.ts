@@ -14,6 +14,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { uploadDocument, updateDocument } from '@/lib/api/knowledge';
+import { ROUTES } from '@/lib/api/routes';
 import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 
 export type UploadStatus =
@@ -239,7 +240,7 @@ export function useChatUpload(options: UseChatUploadOptions) {
     const poll = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}/api/aurity/knowledge-base/documents/${docId}`
+          `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001'}${ROUTES.knowledgeBase}/${docId}`
         );
         const doc = await response.json();
 

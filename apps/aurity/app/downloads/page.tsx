@@ -144,20 +144,20 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="border-b border-slate-700 last:border-b-0">
+    <div className="dl-faq-item">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-4 sm:py-5 flex items-center justify-between text-left hover:text-emerald-400 transition-colors"
+        className="dl-faq-btn"
       >
-        <span className="text-base sm:text-lg font-medium text-white pr-4">{question}</span>
+        <span className="dl-faq-question">{question}</span>
         {isOpen ? (
-          <ChevronUp className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <ChevronUp className="dl-faq-chevron-open" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          <ChevronDown className="dl-faq-chevron-closed" />
         )}
       </button>
       {isOpen && (
-        <div className="pb-4 sm:pb-5 text-slate-300 text-sm sm:text-base leading-relaxed">
+        <div className="dl-faq-answer">
           {answer}
         </div>
       )}
@@ -253,96 +253,73 @@ function MedicalAIDemo() {
   }, []);
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl">
+    <div className="dl-demo-card">
       {/* Header */}
-      <div className="text-center mb-6 sm:mb-8">
-        <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
+      <div className="dl-demo-header">
+        <h3 className="dl-demo-title">
           Así funciona Aurity
         </h3>
-        <p className="text-slate-400 text-sm sm:text-base">
+        <p className="dl-demo-subtitle">
           De tu voz a una nota SOAP en segundos
         </p>
       </div>
 
       {/* Timeline */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-0">
+      <div className="dl-demo-timeline">
         {demoSteps.map((step, index) => {
           const Icon = step.icon;
           const isActive = index === activeStep;
           const isPast = index < activeStep || isComplete;
 
           return (
-            <div key={step.id} className="flex items-center">
+            <div key={step.id} className="dl-step-wrapper">
               {/* Step */}
-              <div className={`
-                flex flex-col items-center transition-all duration-500
-                ${isActive ? 'scale-110' : 'scale-100'}
-              `}>
+              <div className={isActive ? 'dl-demo-step-active' : 'dl-demo-step'}>
                 {/* Icon Circle */}
-                <div className={`
-                  w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center
-                  transition-all duration-500 relative
-                  ${isActive
-                    ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50'
-                    : isPast
-                      ? 'bg-emerald-600/80'
-                      : 'bg-slate-700'
-                  }
-                `}>
-                  <Icon className={`
-                    w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-300
-                    ${isActive || isPast ? 'text-white' : 'text-slate-400'}
-                  `} />
+                <div className={isActive
+                  ? 'dl-demo-circle-active'
+                  : isPast
+                    ? 'dl-demo-circle-past'
+                    : 'dl-demo-circle-default'}>
+                  <Icon className={isActive || isPast ? 'dl-demo-icon-active' : 'dl-demo-icon-default'} />
 
                   {/* Pulse animation for active step */}
                   {isActive && (
-                    <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30" />
+                    <div className="dl-demo-pulse" />
                   )}
                 </div>
 
                 {/* Label */}
-                <span className={`
-                  mt-2 text-xs sm:text-sm font-medium transition-colors duration-300
-                  ${isActive ? 'text-emerald-400' : isPast ? 'text-emerald-500/70' : 'text-slate-500'}
-                `}>
+                <span className={isActive
+                  ? 'dl-demo-label-active'
+                  : isPast
+                    ? 'dl-demo-label-past'
+                    : 'dl-demo-label-default'}>
                   {step.label}
                 </span>
 
                 {/* Duration badge */}
-                <span className={`
-                  mt-1 text-[10px] sm:text-xs px-2 py-0.5 rounded-full transition-all duration-300
-                  ${isActive
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : isPast
-                      ? 'bg-slate-700/50 text-slate-400'
-                      : 'bg-slate-800 text-slate-600'
-                  }
-                `}>
+                <span className={isActive
+                  ? 'dl-demo-badge-active'
+                  : isPast
+                    ? 'dl-demo-badge-past'
+                    : 'dl-demo-badge-default'}>
                   {step.duration}
                 </span>
               </div>
 
               {/* Arrow connector (not after last item) */}
               {index < demoSteps.length - 1 && (
-                <div className="hidden sm:flex items-center mx-2 sm:mx-4">
-                  <div className={`
-                    w-8 sm:w-12 h-0.5 transition-all duration-500
-                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
-                  `} />
-                  <ArrowRight className={`
-                    w-4 h-4 -ml-1 transition-colors duration-300
-                    ${isPast ? 'text-emerald-500' : 'text-slate-700'}
-                  `} />
+                <div className="dl-demo-connector">
+                  <div className={isPast ? 'dl-demo-hline-past' : 'dl-demo-hline-default'} />
+                  <ArrowRight className={isPast ? 'dl-demo-arrow-past' : 'dl-demo-arrow-default'} />
                 </div>
               )}
 
               {/* Mobile arrow (vertical) */}
               {index < demoSteps.length - 1 && (
-                <div className="flex sm:hidden items-center justify-center my-1">
-                  <div className={`
-                    w-0.5 h-4 transition-all duration-500
-                    ${isPast ? 'bg-emerald-500' : 'bg-slate-700'}
-                  `} />
+                <div className="dl-demo-connector-mobile">
+                  <div className={isPast ? 'dl-demo-vline-past' : 'dl-demo-vline-default'} />
                 </div>
               )}
             </div>
@@ -351,22 +328,15 @@ function MedicalAIDemo() {
       </div>
 
       {/* Current step description */}
-      <div className="mt-6 sm:mt-8 text-center">
-        <div className={`
-          inline-flex items-center gap-2 px-4 py-2 rounded-full
-          transition-all duration-500
-          ${isComplete
-            ? 'bg-emerald-500/20 text-emerald-300'
-            : 'bg-slate-700/50 text-slate-300'
-          }
-        `}>
+      <div className="dl-demo-footer">
+        <div className={isComplete ? 'dl-demo-status-complete' : 'dl-demo-status-progress'}>
           {isComplete ? (
             <>
-              <CheckCircle2 className="w-4 h-4" />
-              <span className="text-sm">Nota SOAP lista para revisión</span>
+              <CheckCircle2 className="dl-icon-sm" />
+              <span className="dl-demo-status-text">Nota SOAP lista para revisión</span>
             </>
           ) : (
-            <span className="text-sm">{demoSteps[activeStep]?.description}</span>
+            <span className="dl-demo-status-text">{demoSteps[activeStep]?.description}</span>
           )}
         </div>
       </div>
@@ -422,13 +392,13 @@ export default function DownloadsPage() {
   if (isTauri) {
     return (
       <AppTemplate backgroundGradient="none" maxWidth="none">
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
-          <div className="text-center p-8 max-w-md">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+        <div className="dl-tauri-screen">
+          <div className="dl-tauri-card">
+            <CheckCircle2 className="dl-tauri-check" />
+            <h1 className="dl-tauri-title">
               Ya tienes Aurity Desktop
             </h1>
-            <p className="text-slate-600 dark:text-slate-300 mb-6">
+            <p className="dl-tauri-text">
               Estás corriendo la aplicación de escritorio.
               No necesitas descargar nada más.
             </p>
@@ -452,10 +422,10 @@ export default function DownloadsPage() {
         showWatermark={true}
       >
         {/* Fixed Navbar Logo */}
-        <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
+        <nav className="dl-nav">
           <Link
             href="/"
-            className="inline-block transition-opacity hover:opacity-100"
+            className="dl-nav-link"
             aria-label="Volver al hub de AURITY"
           >
             <Image
@@ -463,7 +433,7 @@ export default function DownloadsPage() {
               alt="AURITY"
               width={96}
               height={26}
-              className="opacity-90 sm:w-24 sm:h-[26px] w-20 h-[21px]"
+              className="dl-nav-logo"
               priority
             />
           </Link>
@@ -472,70 +442,70 @@ export default function DownloadsPage() {
         {/* Neural network background animation */}
         <NeuralNetworkCanvas opacity={0.25} />
 
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+        <div className="dl-page">
           {/* ============================================
               HERO SECTION (Above the Fold)
               ============================================ */}
-          <section className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:py-16 md:py-20">
-            <div className="text-center max-w-4xl mx-auto w-full">
+          <section className="dl-hero">
+            <div className="dl-hero-content">
               {/* Hero Wordmark */}
-              <div className="mb-8">
+              <div className="dl-hero-wordmark">
                 <Image
                   src="/logos/aurity-logo-light.png"
                   alt="AURITY"
                   width={140}
                   height={37}
-                  className="mx-auto opacity-60 sm:w-[140px] sm:h-[37px] w-[110px] h-[29px]"
+                  className="dl-hero-logo"
                 />
               </div>
 
               {/* Headline principal - beneficio claro */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+              <h1 className="dl-hero-title">
                 El Copiloto Médico que Vive en Tu Computadora
               </h1>
 
               {/* Subheadline con propuesta de valor */}
-              <p className="text-lg sm:text-xl md:text-2xl text-slate-300 mb-6 sm:mb-8 px-2 max-w-3xl mx-auto">
+              <p className="dl-hero-subtitle">
                 Genera notas SOAP en segundos. 100% offline.
-                <br className="hidden sm:block" />
-                <span className="text-emerald-400 font-medium">
+                <br className="dl-responsive-br" />
+                <span className="dl-hero-accent">
                   Ningún paciente en la nube. Ninguna suscripción mensual.
                 </span>
               </p>
 
               {/* Trust badges (checkmarks) */}
-              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-8 sm:mb-10 text-sm sm:text-base">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <WifiOff className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+              <div className="dl-trust-badges">
+                <div className="dl-trust-badge">
+                  <WifiOff className="dl-trust-icon" />
                   <span>Funciona sin internet</span>
                 </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                <div className="dl-trust-badge">
+                  <Lock className="dl-trust-icon" />
                   <span>Tus datos nunca salen de tu PC</span>
                 </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                <div className="dl-trust-badge">
+                  <Gift className="dl-trust-icon" />
                   <span>Licencias piloto gratuitas</span>
                 </div>
               </div>
 
               {/* CTA Principal - UN SOLO BOTÓN */}
               {loading ? (
-                <div className="flex justify-center py-6 sm:py-8">
-                  <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-500" />
+                <div className="dl-loading">
+                  <RefreshCw className="dl-loading-icon" />
                 </div>
               ) : error ? (
-                <div className="flex flex-col items-center py-6 sm:py-8">
-                  <p className="text-red-400 mb-4 text-sm sm:text-base">{error}</p>
-                  <Button onClick={fetchLatestRelease} variant="outline" className="border-slate-600 text-slate-300">
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                <div className="dl-error">
+                  <p className="dl-error-text">{error}</p>
+                  <Button onClick={fetchLatestRelease} variant="outline" className="dl-retry-btn">
+                    <RefreshCw className="dl-icon-refresh" />
                     Reintentar
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3 sm:space-y-4 px-2">
+                <div className="dl-cta-container">
                   <a
-                    className="glass-hero-cta w-full sm:w-auto h-14 sm:h-16 md:h-20 px-8 sm:px-10 md:px-14 text-lg sm:text-xl md:text-2xl text-white rounded-xl flex items-center justify-center gap-2 sm:gap-3 cursor-pointer"
+                    className="dl-cta-primary"
                     href={(() => {
                       // Detect OS and return appropriate download URL
                       if (typeof navigator === 'undefined') return '#';
@@ -551,11 +521,11 @@ export default function DownloadsPage() {
                     })()}
                     download
                   >
-                    <Download className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                    <Download className="dl-icon-cta" />
                     Descargar Gratis
                   </a>
                   {latestRelease && (
-                    <p className="text-slate-400 text-xs sm:text-sm">
+                    <p className="dl-version-text">
                       Versión {latestRelease.version} · macOS, Windows y Linux
                     </p>
                   )}
@@ -567,8 +537,8 @@ export default function DownloadsPage() {
           {/* ============================================
               DEMO VISUAL SECTION - Animated Timeline
               ============================================ */}
-          <section className="px-4 pb-12 sm:pb-16">
-            <div className="max-w-4xl mx-auto">
+          <section className="dl-demo-section">
+            <div className="dl-section-container">
               <MedicalAIDemo />
             </div>
           </section>
@@ -576,70 +546,70 @@ export default function DownloadsPage() {
           {/* ============================================
               FREE INTELLIGENCE PHILOSOPHY SECTION
               ============================================ */}
-          <section className="bg-gradient-to-b from-slate-800/50 to-slate-900/50 py-12 sm:py-16 md:py-20 px-4">
-            <div className="max-w-4xl mx-auto">
+          <section className="dl-philosophy-section">
+            <div className="dl-section-container">
               {/* Section Header */}
-              <div className="text-center mb-10 sm:mb-14">
-                <div className="inline-flex items-center gap-2 bg-emerald-500/10 backdrop-blur-sm text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium mb-4 border border-emerald-400/20">
-                  <Heart className="w-4 h-4" />
+              <div className="dl-section-header">
+                <div className="dl-section-badge">
+                  <Heart className="dl-icon-sm" />
                   Nuestra Filosofía
                 </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+                <h2 className="dl-section-title">
                   Free Intelligence
                 </h2>
-                <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+                <p className="dl-section-subtitle">
                   Creemos que la inteligencia artificial médica debe ser libre, privada y accesible para todos.
                 </p>
               </div>
 
               {/* Philosophy Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+              <div className="dl-philosophy-grid">
                 {/* Soberanía de Datos */}
-                <div className="glass-card-feature p-6">
-                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
-                    <Lock className="w-6 h-6 text-emerald-400" />
+                <div className="dl-feature-card">
+                  <div className="dl-feature-icon-box">
+                    <Lock className="dl-feature-icon" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
+                  <h3 className="dl-feature-title">
                     Soberanía de Datos
                   </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">
+                  <p className="dl-feature-text">
                     Tus datos clínicos son tuyos. No los vendemos, no los analizamos, no los compartimos.
-                    Corren en <strong className="text-slate-300">tu hardware</strong>, bajo <strong className="text-slate-300">tu control</strong>.
+                    Corren en <strong className="dl-feature-emphasis">tu hardware</strong>, bajo <strong className="dl-feature-emphasis">tu control</strong>.
                   </p>
                 </div>
 
                 {/* IA para Todos */}
-                <div className="glass-card-feature p-6">
-                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
-                    <Users className="w-6 h-6 text-emerald-400" />
+                <div className="dl-feature-card">
+                  <div className="dl-feature-icon-box">
+                    <Users className="dl-feature-icon" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
+                  <h3 className="dl-feature-title">
                     IA para Todos
                   </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">
+                  <p className="dl-feature-text">
                     La tecnología médica avanzada no debería ser exclusiva de grandes hospitales.
-                    Cualquier consultorio merece herramientas de <strong className="text-slate-300">clase mundial</strong>.
+                    Cualquier consultorio merece herramientas de <strong className="dl-feature-emphasis">clase mundial</strong>.
                   </p>
                 </div>
 
                 {/* Sin Dependencias */}
-                <div className="glass-card-feature p-6">
-                  <div className="w-12 h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4 border border-emerald-400/10">
-                    <Globe className="w-6 h-6 text-emerald-400" />
+                <div className="dl-feature-card">
+                  <div className="dl-feature-icon-box">
+                    <Globe className="dl-feature-icon" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
+                  <h3 className="dl-feature-title">
                     Sin Dependencias
                   </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">
+                  <p className="dl-feature-text">
                     Sin internet, sin servidores externos, sin suscripciones mensuales.
-                    Aurity funciona donde tú trabajes, <strong className="text-slate-300">siempre disponible</strong>.
+                    Aurity funciona donde tú trabajes, <strong className="dl-feature-emphasis">siempre disponible</strong>.
                   </p>
                 </div>
               </div>
 
               {/* Bottom Statement */}
-              <div className="mt-10 sm:mt-14 text-center">
-                <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto italic">
+              <div className="dl-philosophy-footer">
+                <p className="dl-philosophy-quote">
                   &ldquo;La privacidad del paciente no es una feature premium. Es un derecho fundamental.&rdquo;
                 </p>
               </div>
@@ -649,29 +619,29 @@ export default function DownloadsPage() {
           {/* ============================================
               BENEFITS SECTION (3 cards)
               ============================================ */}
-          <section className="bg-slate-800/50 py-12 sm:py-16 md:py-20 px-4">
-            <div className="max-w-5xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
+          <section className="dl-benefits-section">
+            <div className="dl-section-container-wide">
+              <h2 className="dl-section-title-center">
                 Por qué los médicos eligen Aurity
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+              <div className="dl-benefits-grid">
                 {benefits.map((benefit) => (
                   <div
                     key={benefit.title}
-                    className="glass-card-feature p-5 sm:p-6"
+                    className="dl-benefit-card"
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-400/10">
-                        <benefit.icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+                    <div className="dl-benefit-header">
+                      <div className="dl-benefit-icon-box">
+                        <benefit.icon className="dl-benefit-icon" />
                       </div>
-                      <span className="text-emerald-400 text-xs sm:text-sm font-medium">
+                      <span className="dl-benefit-stat">
                         {benefit.stat}
                       </span>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
+                    <h3 className="dl-benefit-title">
                       {benefit.title}
                     </h3>
-                    <p className="text-slate-400 text-sm sm:text-base">
+                    <p className="dl-benefit-text">
                       {benefit.description}
                     </p>
                   </div>
@@ -683,95 +653,95 @@ export default function DownloadsPage() {
           {/* ============================================
               DOWNLOAD CARDS SECTION
               ============================================ */}
-          <section className="py-12 sm:py-16 px-4">
-            <div className="max-w-5xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-3">
+          <section className="dl-platforms-section">
+            <div className="dl-section-container-wide">
+              <h2 className="dl-platforms-title">
                 Disponible para tu plataforma
               </h2>
-              <p className="text-slate-400 text-center mb-8 sm:mb-12">
+              <p className="dl-platforms-subtitle">
                 Instalación simple, sin configuración complicada
               </p>
 
               {!loading && !error && latestRelease && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="dl-platforms-grid">
                   {/* macOS */}
-                  <div className="glass-card-feature p-5 sm:p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
-                        <Apple className="w-7 h-7 text-slate-300" />
+                  <div className="dl-platform-card">
+                    <div className="dl-platform-header">
+                      <div className="dl-platform-icon-box">
+                        <Apple className="dl-platform-icon" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">macOS</h3>
-                        <p className="text-slate-500 text-sm">Apple Silicon e Intel</p>
+                        <h3 className="dl-platform-name">macOS</h3>
+                        <p className="dl-platform-desc">Apple Silicon e Intel</p>
                       </div>
                     </div>
                     {latestRelease.platforms.macos ? (
                       <a
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        className="dl-download-btn"
                         href={latestRelease.platforms.macos.url !== '#coming-soon' ? latestRelease.platforms.macos.url : undefined}
                         download
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="dl-icon-sm" />
                         {latestRelease.platforms.macos.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar DMG`}
                       </a>
                     ) : (
-                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                      <p className="dl-platform-desc">Aún no disponible</p>
                     )}
                   </div>
 
                   {/* Windows */}
-                  <div className="glass-card-feature p-5 sm:p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
-                        <Monitor className="w-7 h-7 text-slate-300" />
+                  <div className="dl-platform-card">
+                    <div className="dl-platform-header">
+                      <div className="dl-platform-icon-box">
+                        <Monitor className="dl-platform-icon" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Windows</h3>
-                        <p className="text-slate-500 text-sm">Windows 10/11 (64-bit)</p>
+                        <h3 className="dl-platform-name">Windows</h3>
+                        <p className="dl-platform-desc">Windows 10/11 (64-bit)</p>
                       </div>
                     </div>
                     {latestRelease.platforms.windows ? (
                       <a
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        className="dl-download-btn"
                         href={latestRelease.platforms.windows.url !== '#coming-soon' ? latestRelease.platforms.windows.url : undefined}
                         download
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="dl-icon-sm" />
                         {latestRelease.platforms.windows.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar EXE`}
                       </a>
                     ) : (
-                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                      <p className="dl-platform-desc">Aún no disponible</p>
                     )}
                   </div>
 
                   {/* Linux */}
-                  <div className="glass-card-feature p-5 sm:p-6 sm:col-span-2 lg:col-span-1">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/5">
-                        <Monitor className="w-7 h-7 text-slate-300" />
+                  <div className="dl-platform-card-wide">
+                    <div className="dl-platform-header">
+                      <div className="dl-platform-icon-box">
+                        <Monitor className="dl-platform-icon" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Linux</h3>
-                        <p className="text-slate-500 text-sm">AppImage (x86_64)</p>
+                        <h3 className="dl-platform-name">Linux</h3>
+                        <p className="dl-platform-desc">AppImage (x86_64)</p>
                       </div>
                     </div>
                     {latestRelease.platforms.linux ? (
                       <a
-                        className="glass-button-interactive w-full h-11 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                        className="dl-download-btn"
                         href={latestRelease.platforms.linux.url !== '#coming-soon' ? latestRelease.platforms.linux.url : undefined}
                         download
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="dl-icon-sm" />
                         {latestRelease.platforms.linux.url === '#coming-soon'
                           ? 'Próximamente'
                           : `Descargar AppImage`}
                       </a>
                     ) : (
-                      <p className="text-slate-500 text-sm">Aún no disponible</p>
+                      <p className="dl-platform-desc">Aún no disponible</p>
                     )}
                   </div>
                 </div>
@@ -782,12 +752,12 @@ export default function DownloadsPage() {
           {/* ============================================
               FAQ SECTION
               ============================================ */}
-          <section className="bg-slate-800/30 py-12 sm:py-16 md:py-20 px-4">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">
+          <section className="dl-faq-section">
+            <div className="dl-section-container-narrow">
+              <h2 className="dl-section-title-center">
                 Preguntas Frecuentes
               </h2>
-              <div className="glass-background px-4 sm:px-6">
+              <div className="dl-faq-container">
                 {faqs.map((faq, index) => (
                   <FAQItem key={index} question={faq.question} answer={faq.answer} />
                 ))}
@@ -798,26 +768,26 @@ export default function DownloadsPage() {
           {/* ============================================
               FINAL CTA SECTION (Urgencia/Escasez)
               ============================================ */}
-          <section className="py-12 sm:py-16 md:py-20 px-4">
-            <div className="max-w-3xl mx-auto text-center">
+          <section className="dl-final-cta-section">
+            <div className="dl-final-cta-content">
               {/* Badge de urgencia */}
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 backdrop-blur-sm text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-emerald-400/20">
-                <Gift className="w-4 h-4" />
+              <div className="dl-section-badge-lg">
+                <Gift className="dl-icon-sm" />
                 Licencias Piloto Limitadas
               </div>
 
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="dl-section-title">
                 Sé parte de los primeros en usarlo
               </h2>
-              <p className="text-slate-300 text-base sm:text-lg mb-8 max-w-2xl mx-auto">
+              <p className="dl-final-cta-subtitle">
                 Estamos aceptando médicos para el programa piloto.
-                <br className="hidden sm:block" />
+                <br className="dl-responsive-br" />
                 Acceso gratuito a cambio de tu feedback.
               </p>
 
               {!loading && !error && (
                 <a
-                  className="glass-hero-cta h-14 sm:h-16 px-8 sm:px-12 text-lg sm:text-xl text-white rounded-xl inline-flex items-center justify-center gap-2 sm:gap-3 cursor-pointer"
+                  className="dl-cta-secondary"
                   href={(() => {
                     if (typeof navigator === 'undefined') return '#';
                     const ua = navigator.userAgent.toLowerCase();
@@ -832,25 +802,25 @@ export default function DownloadsPage() {
                   })()}
                   download
                 >
-                  <Download className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <Download className="dl-icon-cta-sm" />
                   Obtener Mi Licencia Piloto
                 </a>
               )}
 
               {/* Ollama requirement note */}
-              <div className="mt-8 p-4 bg-slate-800/50 rounded-lg border border-slate-700 text-left max-w-xl mx-auto">
-                <p className="text-slate-400 text-sm">
-                  <strong className="text-white">Requisito:</strong> Aurity Desktop usa{' '}
+              <div className="dl-requirement-box">
+                <p className="dl-requirement-text">
+                  <strong className="dl-strong-white">Requisito:</strong> Aurity Desktop usa{' '}
                   <a
                     href="https://ollama.ai"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-400 hover:underline inline-flex items-center gap-1"
+                    className="dl-requirement-link"
                   >
-                    Ollama <ExternalLink className="w-3 h-3" />
+                    Ollama <ExternalLink className="dl-icon-xs" />
                   </a>{' '}
                   para IA local. Instálalo primero, luego ejecuta{' '}
-                  <code className="bg-slate-700 px-1.5 py-0.5 rounded text-xs text-emerald-300">
+                  <code className="dl-requirement-code">
                     ollama pull qwen3:8b
                   </code>
                 </p>
@@ -859,8 +829,8 @@ export default function DownloadsPage() {
           </section>
 
           {/* Footer minimal */}
-          <footer className="border-t border-slate-800 py-6 px-4">
-            <p className="text-center text-slate-500 text-sm">
+          <footer className="dl-footer">
+            <p className="dl-footer-text">
               Aurity Desktop · Privacidad primero, siempre.
             </p>
           </footer>

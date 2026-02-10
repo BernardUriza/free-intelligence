@@ -127,7 +127,7 @@ export function CheckinQRDisplay({
 
   if (compact) {
     return (
-      <div className="bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-600/40 rounded-xl p-4 backdrop-blur-sm">
+      <div className="checkin-qr-container-compact">
         <div className="fi-flex-gap-lg">
           {/* QR Code */}
           <div className="flex-shrink-0">
@@ -163,11 +163,11 @@ export function CheckinQRDisplay({
   // FI-TV-007: TV Mode with 16:9 aspect ratio optimization
   // Full-height layout that fills the side panel properly
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-600/30 rounded-xl backdrop-blur-sm p-3 sm:p-4 lg:p-6">
+    <div className="checkin-qr-container-full">
       {/* Header - Compact for TV */}
       <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
         <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-900/30 border border-indigo-500/30 rounded-full mb-2 sm:mb-3"
+          className="checkin-qr-header-badge"
         >
           <Smartphone
             className="text-indigo-400"
@@ -198,14 +198,14 @@ export function CheckinQRDisplay({
       <div className="flex-1 flex items-center justify-center min-h-0 mb-3 sm:mb-4">
         <div className="relative w-full max-w-[90%] aspect-square flex items-center justify-center">
           {isLoading ? (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex items-center justify-center">
+            <div className="checkin-qr-placeholder">
               <RefreshCw
                 className="text-indigo-400 animate-spin"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
               />
             </div>
           ) : error ? (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex flex-col items-center justify-center p-4">
+            <div className="checkin-qr-error-box">
               <QrCode
                 className="text-slate-600 mb-2"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
@@ -228,7 +228,7 @@ export function CheckinQRDisplay({
             </div>
           ) : qrData?.qrDataUrl ? (
             <div
-              className="bg-white rounded-xl sm:rounded-2xl shadow-2xl shadow-indigo-500/20 p-2 sm:p-3 lg:p-4"
+              className="checkin-qr-code-wrapper"
               style={{ maxWidth: 'min(100%, 250px)', maxHeight: 'min(100%, 250px)' }}
             >
               <img
@@ -242,7 +242,7 @@ export function CheckinQRDisplay({
               />
             </div>
           ) : (
-            <div className="w-full h-full max-w-[200px] max-h-[200px] bg-slate-800/50 rounded-2xl flex items-center justify-center">
+            <div className="checkin-qr-placeholder">
               <QrCode
                 className="text-slate-600"
                 style={{ width: 'clamp(2rem, 5vw, 4rem)', height: 'clamp(2rem, 5vw, 4rem)' }}
@@ -253,7 +253,7 @@ export function CheckinQRDisplay({
           {/* Timer badge */}
           {!isLoading && !error && timeLeft > 0 && (
             <div
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 border border-slate-700 rounded-full"
+              className="checkin-qr-timer-badge"
             >
               <span
                 className="text-slate-400"
@@ -275,10 +275,10 @@ export function CheckinQRDisplay({
         ].map(step => (
           <div
             key={step.num}
-            className="flex items-center gap-2 p-2 bg-slate-900/50 rounded-lg"
+            className="checkin-qr-step"
           >
             <div
-              className="rounded-full bg-indigo-600/20 flex items-center justify-center flex-shrink-0"
+              className="checkin-qr-step-number"
               style={{
                 width: 'clamp(1.25rem, 2vw, 1.75rem)',
                 height: 'clamp(1.25rem, 2vw, 1.75rem)',

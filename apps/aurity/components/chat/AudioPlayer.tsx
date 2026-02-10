@@ -23,7 +23,8 @@ import { Play, Pause, X, Volume2, ChevronDown, User, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 import { reportAudioError } from '@/lib/audio/ErrorPolicy';
-import { getBackendUrl } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 type VoiceChangeHandler = (voice: string) => void;
 
@@ -42,10 +43,10 @@ export interface AudioPlayerProps {
  */
 function PulsingDot() {
   return (
-    <div className="flex items-center justify-center gap-1">
-      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot" />
-      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-1" />
-      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot-delay-2" />
+    <div className="aplay-pulsing-dots">
+      <span className="aplay-pulsing-dot-1" />
+      <span className="aplay-pulsing-dot-2" />
+      <span className="aplay-pulsing-dot-3" />
     </div>
   );
 }
@@ -81,18 +82,18 @@ function VoiceSelector({
   };
 
   return (
-    <div className="relative">
+    <div className="aplay-voice-selector">
       <Button onClick={() => setIsOpen(!isOpen)} className="fi-dropdown-trigger" title="Cambiar voz" variant="ghost" size="sm" type="button">
-        <span className="hidden sm:inline">Voz:</span>
-        <span className="text-purple-200">{getVoiceDisplayName(currentVoice)}</span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="aplay-voice-label">Voz:</span>
+        <span className="aplay-voice-highlight">{getVoiceDisplayName(currentVoice)}</span>
+        <ChevronDown className={isOpen ? 'aplay-chevron-open' : 'aplay-chevron'} />
       </Button>
 
       {isOpen && (
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40"
+            className="aplay-dropdown-backdrop"
             onClick={() => setIsOpen(false)}
           />
 
@@ -110,14 +111,14 @@ function VoiceSelector({
                       onSelect(voiceOption.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${voiceOption.value === currentVoice ? 'bg-purple-500/20 text-purple-200' : 'text-white'}`}
+                    className={voiceOption.value === currentVoice ? 'aplay-voice-option-active' : 'aplay-voice-option'}
                     variant="ghost"
                     size="sm"
                     type="button"
                   >
                     <span>{voiceOption.label}</span>
                     {voiceOption.value === currentVoice && (
-                      <Check className="w-3 h-3 fi-text-purple" strokeWidth={2} aria-hidden="true" />
+                      <Check className="aplay-check-icon fi-text-purple" strokeWidth={2} aria-hidden="true" />
                     )}
                   </Button>
                 ))}
@@ -224,47 +225,40 @@ export function AudioPlayer({
     <>
       {/* Full-width top bar - matches app header gradient */}
       <div
-        className="
-          fixed top-0 left-0 right-0 z-50
-          ${gradients.primaryStrong}
-          backdrop-blur-xl
-          border-b border-white/20
-          shadow-lg shadow-purple-900/30
-          animate-slide-down
-        "
+        className="aplay-bar"
       >
         {/* Loading state - horizontal bar */}
         {isLoading && (
-          <div className="flex items-center gap-4 px-4 py-3">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+          <div className="aplay-loading-row">
+            <div className="aplay-loading-icon">
               <PulsingDot />
             </div>
-            <span className="text-white text-sm font-medium">Generando audio...</span>
-            <span className="text-purple-200 text-xs">Voz: {voiceName}</span>
-            <div className="flex-1" />
+            <span className="aplay-loading-text">Generando audio...</span>
+            <span className="aplay-loading-voice">Voz: {voiceName}</span>
+            <div className="aplay-spacer" />
             <Button
               onClick={handleClose}
-              className="p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              className="aplay-btn-close"
               aria-label="Cancelar"
               variant="ghost"
               size="sm"
               type="button"
             >
-              <X className="w-4 h-4" />
+              <X className="aplay-icon-sm" />
             </Button>
           </div>
         )}
 
         {/* Player controls - horizontal bar layout */}
         {!isLoading && audioUrl && (
-          <div className="flex items-center gap-3 px-4 py-2">
+          <div className="aplay-controls">
             {/* Left: Voice indicator - matches header icon style */}
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUserMessage ? 'bg-amber-500/30' : 'bg-white/20'}`}>
+            <div className="aplay-voice-group">
+              <div className={isUserMessage ? 'aplay-voice-indicator-user' : 'aplay-voice-indicator'}>
                 {isUserMessage ? (
-                  <User className="w-4 h-4 text-amber-200" />
+                  <User className="aplay-voice-icon-user" />
                 ) : (
-                  <Volume2 className="w-4 h-4 text-white" />
+                  <Volume2 className="aplay-voice-icon-ai" />
                 )}
               </div>
               {/* For user messages: show voice selector dropdown */}
@@ -274,7 +268,7 @@ export function AudioPlayer({
                   onSelect={onChangeVoice}
                 />
               ) : (
-                <span className="text-purple-200 fi-text-xs-medium truncate hidden sm:block">{voiceName}</span>
+                <span className="aplay-voice-name fi-text-xs-medium">{voiceName}</span>
               )}
             </div>
 
@@ -282,13 +276,13 @@ export function AudioPlayer({
             <Button
               onClick={skipBackward}
               disabled={currentTime === 0}
-              className="flex items-center gap-1 px-2 py-1 rounded text-white/70 hover:text-white hover:bg-white/10 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="aplay-btn-skip"
               title="Retroceder 10s"
               variant="ghost"
               size="sm"
               type="button"
             >
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="aplay-skip-icon" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
               </svg>
               <span>10s</span>
@@ -297,7 +291,7 @@ export function AudioPlayer({
             {/* Play/Pause - white/20 like header icons */}
             <Button
               onClick={togglePlay}
-              className="bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-white transition-colors hover:scale-105 active:scale-95"
+              className="aplay-btn-play"
               aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
               variant="ghost"
               size="lg"
@@ -306,7 +300,7 @@ export function AudioPlayer({
               {isPlaying ? (
                 <Pause className="fi-icon-md" strokeWidth={2.5} />
               ) : (
-                <Play className="fi-icon-md ml-0.5" strokeWidth={2.5} />
+                <Play className="fi-icon-md aplay-play-offset" strokeWidth={2.5} />
               )}
             </Button>
 
@@ -314,30 +308,30 @@ export function AudioPlayer({
             <Button
               onClick={skipForward}
               disabled={currentTime >= duration}
-              className="flex items-center gap-1 px-2 py-1 rounded text-white/70 hover:text-white hover:bg-white/10 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="aplay-btn-skip"
               title="Adelantar 10s"
               variant="ghost"
               size="sm"
               type="button"
             >
               <span>10s</span>
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="aplay-skip-icon" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
               </svg>
             </Button>
 
             {/* Time display */}
-            <span className="text-white/80 text-xs font-mono tabular-nums">
+            <span className="aplay-time">
               {formatTime(currentTime)}
             </span>
 
             {/* Seek bar - takes remaining space */}
-            <div className="flex-1 relative h-1 group cursor-pointer min-w-[80px]">
+            <div className="group aplay-seek">
               {/* Track background */}
-              <div className="absolute inset-0 bg-white/30 rounded-full overflow-hidden">
+              <div className="aplay-seek-track">
                 {/* Progress fill - white for consistency */}
                 <div
-                  className="h-full bg-white rounded-full transition-all duration-75"
+                  className="aplay-seek-fill"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -352,38 +346,31 @@ export function AudioPlayer({
                 onMouseUp={() => setIsDragging(false)}
                 onTouchStart={() => setIsDragging(true)}
                 onTouchEnd={() => setIsDragging(false)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                className="aplay-seek-input"
               />
               {/* Thumb - appears on hover */}
               <div
-                className="
-                  absolute top-1/2 -translate-y-1/2
-                  w-3 h-3 rounded-full
-                  bg-white shadow-md
-                  pointer-events-none
-                  opacity-0 group-hover:opacity-100
-                  transition-opacity
-                "
+                className="aplay-seek-thumb"
                 style={{ left: `calc(${progressPercent}% - 6px)` }}
               />
             </div>
 
             {/* Duration */}
-            <span className="text-white/50 text-xs font-mono tabular-nums">
+            <span className="aplay-duration">
               {formatTime(duration)}
             </span>
 
             {/* Close button - matches header button style */}
             <Button
               onClick={handleClose}
-              className="p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              className="aplay-btn-close"
               aria-label="Cerrar"
               title="Cerrar"
               variant="ghost"
               size="sm"
               type="button"
             >
-              <X className="w-5 h-5" />
+              <X className="aplay-icon-md" />
             </Button>
           </div>
         )}
@@ -403,8 +390,6 @@ export function useAudioPlayer() {
   const [isUserMessage, setIsUserMessage] = useState(false);
   const [currentVoice, setCurrentVoice] = useState('nova');
   const [currentText, setCurrentText] = useState('');
-
-  const BACKEND_URL = getBackendUrl();
 
   // Helper to extract display name from voice ID
   const getVoiceDisplayName = useCallback((voiceId: string): string => {
@@ -430,17 +415,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceValue, speed: 1.0 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await api.blob(`${ROUTES.tts}/synthesize`, { text, voice: voiceValue, speed: 1.0 });
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
     } catch (error) {
@@ -449,7 +424,7 @@ export function useAudioPlayer() {
     } finally {
       setIsLoading(false);
     }
-  }, [BACKEND_URL, getVoiceDisplayName]);
+  }, [getVoiceDisplayName]);
 
   // Handle voice change for user messages - regenerate audio with new voice
   const changeVoice = useCallback(async (newVoiceValue: string) => {
@@ -466,17 +441,7 @@ export function useAudioPlayer() {
     setAudioUrl(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: currentText, voice: newVoiceValue, speed: 1.0 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await api.blob(`${ROUTES.tts}/synthesize`, { text: currentText, voice: newVoiceValue, speed: 1.0 });
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
     } catch (error) {
@@ -484,7 +449,7 @@ export function useAudioPlayer() {
     } finally {
       setIsLoading(false);
     }
-  }, [BACKEND_URL, currentText, audioUrl, getVoiceDisplayName]);
+  }, [currentText, audioUrl, getVoiceDisplayName]);
 
   const close = useCallback(() => {
     setIsOpen(false);

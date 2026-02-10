@@ -2,49 +2,47 @@
  * Typography - Titles, text styles, labels
  */
 
-@layer components {
-  /* ========================================
-   * TITLES
-   * ======================================== */
-  .fi-title { @apply text-lg font-semibold text-white; }
-  .fi-title-sm { @apply text-sm font-semibold text-white; }
-  .fi-title-sm-medium { @apply text-sm font-medium text-white; }
-  .fi-title-xl { @apply text-xl font-semibold text-white; }
-  .fi-title-2xl { @apply text-2xl font-bold text-white; }
-  .fi-section-title { @apply text-lg font-semibold text-slate-200 mb-2; }
-  .fi-section-title-block { @apply block text-lg font-semibold text-slate-200; }
+/* ========================================
+ * TITLES
+ * ======================================== */
+@utility fi-title { @apply text-lg font-semibold text-white; }
+@utility fi-title-sm { @apply text-sm font-semibold text-white; }
+@utility fi-title-sm-medium { @apply text-sm font-medium text-white; }
+@utility fi-title-xl { @apply text-xl font-semibold text-white; }
+@utility fi-title-2xl { @apply text-2xl font-bold text-white; }
+@utility fi-section-title { @apply text-lg font-semibold text-slate-200 mb-2; }
+@utility fi-section-title-block { @apply block text-lg font-semibold text-slate-200; }
 
-  /* ========================================
-   * TEXT VARIANTS
-   * ======================================== */
-  .fi-subtitle { @apply text-sm text-slate-400; }
-  .fi-text-muted { @apply text-sm text-slate-500; }
-  .fi-text-success { @apply text-emerald-400; }
-  .fi-text-warning { @apply text-amber-400; }
-  .fi-text-error { @apply text-red-400; }
-  .fi-text-info { @apply text-cyan-400; }
-  .fi-text-purple { @apply text-purple-400; }
-  .fi-text-primary { @apply text-blue-400; }
-  .fi-text-green { @apply text-green-400; }
-  .fi-text-xs { @apply text-xs text-slate-400; }
-  .fi-text-xs-muted { @apply text-xs text-slate-500; }
-  .fi-text-xs-medium { @apply text-xs font-medium; }
-  .fi-text { @apply text-slate-300; }
-  .fi-text-pre { @apply text-slate-300 whitespace-pre-wrap; }
+/* ========================================
+ * TEXT VARIANTS
+ * ======================================== */
+@utility fi-subtitle { @apply text-sm text-slate-400; }
+/* fi-text-muted defined in base.css */
+@utility fi-text-success { @apply text-emerald-400; }
+@utility fi-text-warning { @apply text-amber-400; }
+@utility fi-text-error { @apply text-red-400; }
+@utility fi-text-info { @apply text-cyan-400; }
+@utility fi-text-purple { @apply text-purple-400; }
+@utility fi-text-primary { @apply text-blue-400; }
+@utility fi-text-green { @apply text-green-400; }
+@utility fi-text-xs { @apply text-xs text-slate-400; }
+@utility fi-text-xs-muted { @apply text-xs text-slate-500; }
+@utility fi-text-xs-medium { @apply text-xs font-medium; }
+@utility fi-text { @apply text-slate-300; }
+@utility fi-text-pre { @apply text-slate-300 whitespace-pre-wrap; }
 
-  /* ========================================
-   * MONOSPACE LABELS
-   * ======================================== */
-  .fi-label-mono-green { @apply fi-label-mono text-green-400; }
-  .fi-label-mono-cyan { @apply fi-label-mono text-cyan-400; }
-  .fi-label-mono-slate { @apply fi-label-mono text-slate-400; }
+/* ========================================
+ * MONOSPACE LABELS
+ * ======================================== */
+@utility fi-label-mono-green { @apply fi-label-mono text-green-400; }
+@utility fi-label-mono-cyan { @apply fi-label-mono text-cyan-400; }
+@utility fi-label-mono-slate { @apply fi-label-mono text-slate-400; }
 
-  /* ========================================
-   * KEYBOARD SHORTCUTS
-   * ======================================== */
-  .fi-kbd {
-    @apply px-1.5 py-0.5 text-[10px] font-mono
-           bg-slate-800 text-slate-500 rounded
-           border border-slate-700;
-  }
+/* ========================================
+ * KEYBOARD SHORTCUTS
+ * ======================================== */
+@utility fi-kbd {
+  @apply px-1.5 py-0.5 text-[10px] font-mono
+         bg-slate-800 text-slate-500 rounded
+         border border-slate-700;
 }

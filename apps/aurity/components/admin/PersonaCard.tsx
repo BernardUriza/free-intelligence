@@ -14,6 +14,15 @@ import { PERSONA_COLORS } from '@aurity-standalone/types/persona';
 // Protected personas that cannot be deleted
 const PROTECTED_PERSONAS = new Set(['general_assistant', 'soap_editor']);
 
+// Static class map — avoids dynamic Tailwind interpolation (breaks purge)
+const PERSONA_CARD_CLASSES: Record<string, { default: string; selected: string; icon: string; brain: string }> = {
+  emerald: { default: 'admin-persona-emerald', selected: 'admin-persona-emerald-selected', icon: 'admin-persona-icon-emerald', brain: 'admin-persona-brain-emerald' },
+  blue:    { default: 'admin-persona-blue',    selected: 'admin-persona-blue-selected',    icon: 'admin-persona-icon-blue',    brain: 'admin-persona-brain-blue' },
+  purple:  { default: 'admin-persona-purple',  selected: 'admin-persona-purple-selected',  icon: 'admin-persona-icon-purple',  brain: 'admin-persona-brain-purple' },
+  rose:    { default: 'admin-persona-rose',    selected: 'admin-persona-rose-selected',    icon: 'admin-persona-icon-rose',    brain: 'admin-persona-brain-rose' },
+  slate:   { default: 'admin-persona-slate',   selected: 'admin-persona-slate-selected',   icon: 'admin-persona-icon-slate',   brain: 'admin-persona-brain-slate' },
+};
+
 interface PersonaCardProps {
   persona: Persona;
   isSelected: boolean;
@@ -25,6 +34,7 @@ interface PersonaCardProps {
 
 export function PersonaCard({ persona, isSelected, onClick, onEdit, onDelete }: PersonaCardProps) {
   const color = PERSONA_COLORS[persona.id as keyof typeof PERSONA_COLORS] || 'slate';
+  const classes = PERSONA_CARD_CLASSES[color] || PERSONA_CARD_CLASSES.slate;
   const isProtected = PROTECTED_PERSONAS.has(persona.id);
 
   // Format last updated date
@@ -43,18 +53,14 @@ export function PersonaCard({ persona, isSelected, onClick, onEdit, onDelete }: 
 
   return (
     <div
-      className={`p-6 rounded-xl border-2 cursor-pointer transition-all ${
-        isSelected
-          ? `border-${color}-500 bg-${color}-950/30 shadow-lg shadow-${color}-900/20`
-          : `border-${color}-700/30 bg-${color}-950/10 hover:border-${color}-600 hover:bg-${color}-950/20`
-      }`}
+      className={isSelected ? classes.selected : classes.default}
       onClick={onClick}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="fi-flex-gap-md">
-          <div className={`p-2 rounded-lg bg-${color}-900 border border-${color}-700`}>
-            <Brain className={`w-6 h-6 text-${color}-400`} />
+          <div className={classes.icon}>
+            <Brain className={classes.brain} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">{persona.name}</h3>
@@ -84,7 +90,7 @@ export function PersonaCard({ persona, isSelected, onClick, onEdit, onDelete }: 
               icon={Trash2}
               aria-label="Eliminar persona"
               title="Eliminar persona"
-              className="text-slate-400 hover:fi-text-error hover:bg-red-900/50"
+              className="admin-persona-delete-btn"
             />
           )}
         </div>

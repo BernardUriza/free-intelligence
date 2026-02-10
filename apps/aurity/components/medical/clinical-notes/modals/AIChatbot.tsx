@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SOAPData, ChatMessage } from '../types';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface AIChatbotProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export function AIChatbot({
       const result = await api.post<{
         updates: Record<string, string>;
         explanation: string;
-      }>(`/api/aurity/medical-ai/sessions/${sessionId}/assistant`, {
+      }>(`${ROUTES.medicalAi}/sessions/${sessionId}/assistant`, {
         command: message,
         current_soap: soapData,
       });
@@ -108,11 +109,11 @@ export function AIChatbot({
 
   return (
     <div
-      className="fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl border border-emerald-500 shadow-2xl z-40 flex flex-col max-h-[600px]"
+      className="med-chatbot-shell"
       role="dialog"
       aria-label="Asistente IA"
     >
-      <div className="bg-gradient-to-r from-emerald-600 to-cyan-600 p-4 rounded-t-xl flex justify-between items-center">
+      <div className="med-chatbot-header">
         <div className="fi-flex-gap">
           <Zap className="h-5 w-5 text-white" aria-hidden="true" />
           <h3 className="text-white font-bold">Asistente IA</h3>

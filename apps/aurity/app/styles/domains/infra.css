@@ -1,0 +1,278 @@
+/**
+ * Infra Domain Styles (NAS Installer)
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: nas-{component}[-variant]
+ * Covers: /app/infra/nas-installer/page.tsx
+ *
+ * @utility defines base classes that can be composed with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility nas-icon-5 {
+  @apply w-5 h-5;
+}
+
+@utility nas-icon-4 {
+  @apply w-4 h-4;
+}
+
+@utility nas-tag-base {
+  @apply px-2 py-1 text-xs rounded;
+}
+
+@utility nas-cell-base {
+  @apply px-4 py-3;
+}
+
+@utility nas-nav-btn-base {
+  @apply w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .nas-page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  /* ========================================
+   * COMPARISON CARD
+   * ======================================== */
+  .nas-compare-card {
+    @apply mb-8 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-700/50;
+  }
+
+  .nas-compare-title {
+    @apply text-slate-50;
+  }
+
+  .nas-compare-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+  }
+
+  /* ========================================
+   * CLOUD / CORE SECTIONS
+   * ======================================== */
+  .nas-cloud-card {
+    @apply p-6 rounded-lg bg-slate-900/50 border border-slate-700;
+  }
+
+  .nas-core-card {
+    @apply p-6 rounded-lg bg-slate-900/50 border border-emerald-700/50;
+  }
+
+  .nas-card-header {
+    @apply flex items-center gap-3 mb-4;
+  }
+
+  .nas-cloud-icon {
+    @apply nas-icon-5 fi-text-primary;
+  }
+
+  .nas-core-icon {
+    @apply nas-icon-5 fi-text-success;
+  }
+
+  .nas-cloud-title {
+    @apply text-lg font-semibold fi-text-primary;
+  }
+
+  .nas-core-title {
+    @apply text-lg font-semibold fi-text-success;
+  }
+
+  .nas-feature-list {
+    @apply space-y-2 mb-4;
+  }
+
+  .nas-feature-item {
+    @apply flex items-start gap-2 text-sm fi-text;
+  }
+
+  .nas-check-icon {
+    @apply nas-icon-4 fi-text-success mt-0.5 flex-shrink-0;
+  }
+
+  .nas-strong {
+    @apply text-slate-200;
+  }
+
+  .nas-ideal-section {
+    @apply pt-4 fi-border-top;
+  }
+
+  .nas-ideal-label {
+    @apply fi-text-xs mb-2;
+  }
+
+  .nas-tag-list {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .nas-tag-blue {
+    @apply nas-tag-base bg-blue-500/10 text-blue-300;
+  }
+
+  .nas-tag-emerald {
+    @apply nas-tag-base bg-emerald-500/10 text-emerald-300;
+  }
+
+  .nas-cta-margin {
+    @apply mt-4;
+  }
+
+  /* ========================================
+   * COMPARISON TABLE
+   * ======================================== */
+  .nas-table-wrap {
+    @apply mt-6 overflow-hidden rounded-lg border border-slate-700;
+  }
+
+  .nas-table {
+    @apply w-full text-sm;
+  }
+
+  .nas-table-head {
+    @apply bg-slate-800;
+  }
+
+  .nas-th-left {
+    @apply nas-cell-base text-left fi-text font-medium;
+  }
+
+  .nas-th-blue {
+    @apply nas-cell-base text-center text-blue-300 font-medium;
+  }
+
+  .nas-th-emerald {
+    @apply nas-cell-base text-center text-emerald-300 font-medium;
+  }
+
+  .nas-table-body {
+    @apply divide-y divide-slate-700;
+  }
+
+  .nas-row-dark {
+    @apply bg-slate-900/50;
+  }
+
+  .nas-row-light {
+    @apply bg-slate-900/30;
+  }
+
+  .nas-td {
+    @apply nas-cell-base fi-text;
+  }
+
+  .nas-td-center {
+    @apply nas-cell-base text-center text-slate-400;
+  }
+
+  /* ========================================
+   * INSTALLATION CARD
+   * ======================================== */
+  .nas-install-card {
+    @apply mb-8 bg-slate-800/50 border-slate-700;
+  }
+
+  .nas-install-title {
+    @apply text-slate-50;
+  }
+
+  .nas-install-desc {
+    @apply text-slate-400;
+  }
+
+  /* ========================================
+   * SERVICES GRID
+   * ======================================== */
+  .nas-services-grid {
+    @apply grid grid-cols-1 sm:grid-cols-3 gap-4;
+  }
+
+  .nas-service-card {
+    @apply flex items-center justify-between p-3 rounded-lg bg-slate-900 border border-slate-700;
+  }
+
+  .nas-service-name {
+    @apply text-sm font-medium fi-text;
+  }
+
+  .nas-service-right {
+    @apply text-right;
+  }
+
+  .nas-service-port {
+    @apply text-sm font-mono fi-text-success;
+  }
+
+  /* ========================================
+   * TABS LAYOUT
+   * ======================================== */
+  .nas-layout-grid {
+    @apply grid grid-cols-1 lg:grid-cols-12 gap-6;
+  }
+
+  .nas-sidebar {
+    @apply lg:col-span-3;
+  }
+
+  .nas-content {
+    @apply lg:col-span-9;
+  }
+
+  .nas-sidebar-card {
+    @apply bg-slate-800/50 border-slate-700 sticky top-24;
+  }
+
+  .nas-sidebar-title {
+    @apply text-sm text-slate-50;
+  }
+
+  .nas-nav-list {
+    @apply space-y-2;
+  }
+
+  /* ========================================
+   * NAV BUTTONS (active / inactive)
+   * ======================================== */
+  .nas-nav-btn-active {
+    @apply nas-nav-btn-base bg-emerald-500/20 fi-text-success font-medium;
+  }
+
+  .nas-nav-btn-inactive {
+    @apply nas-nav-btn-base text-slate-400 hover:text-slate-200 hover:bg-slate-700/50;
+  }
+
+  .nas-nav-icon {
+    @apply h-4 w-4;
+  }
+
+  /* ========================================
+   * TABS HEADER
+   * ======================================== */
+  .nas-tabs-list {
+    @apply grid w-full grid-cols-3 bg-slate-800 border border-slate-700;
+  }
+
+  .nas-tab-trigger {
+    @apply data-[state=active]:bg-emerald-500/20 data-[state=active]:fi-text-success;
+  }
+
+  .nas-tab-icon {
+    @apply h-4 w-4 mr-2;
+  }
+
+  .nas-tab-content {
+    @apply mt-6;
+  }
+}

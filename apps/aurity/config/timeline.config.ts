@@ -9,24 +9,6 @@
  */
 
 // ============================================================================
-// API Configuration
-// ============================================================================
-
-export const MEMORY_API = {
-  /** Backend base URL */
-  BASE_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001',
-
-  /** Longitudinal memory endpoint */
-  ENDPOINT: '/api/aurity/timeline/memory',
-
-  /** Stats endpoint */
-  STATS_ENDPOINT: '/api/aurity/timeline/memory/stats',
-
-  /** Request timeout in milliseconds */
-  TIMEOUT_MS: 10000,
-} as const;
-
-// ============================================================================
 // Pagination Configuration
 // ============================================================================
 

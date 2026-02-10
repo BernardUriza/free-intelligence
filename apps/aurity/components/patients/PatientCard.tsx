@@ -58,7 +58,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({
       }}
       className={`fi-card-interactive-emerald ${className}`}
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-all -z-10" />
+      <div className="pat-card-glow" />
 
       {/* Patient Header */}
       <div className="flex items-start justify-between mb-3">
@@ -75,7 +75,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({
             {sessionCount > 0 && (
               <>
                 <span className="fi-text-xs-muted">•</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded">
+                <div className="med-session-badge">
                   <FileText className="h-3 w-3 fi-text-info" />
                   <span className="fi-text-xs-medium text-cyan-300">{sessionCount} consulta{sessionCount > 1 ? 's' : ''}</span>
                 </div>
@@ -90,12 +90,12 @@ export const PatientCard: React.FC<PatientCardProps> = ({
               variant="ghost"
               size="sm"
               icon={Edit2}
-              className="opacity-0 group-hover:opacity-100 bg-slate-700/50 hover:bg-blue-500/20 border border-slate-600/50 hover:border-blue-500/50 text-slate-400 hover:fi-text-primary"
+              className="med-patient-edit-btn"
               title="Editar paciente"
               aria-label="Editar paciente"
             />
           )}
-          <ChevronRight className="h-5 w-5 text-slate-500 group-hover:fi-text-success group-hover:translate-x-1 transition-all" />
+          <ChevronRight className="pat-card-chevron" />
         </div>
       </div>
 

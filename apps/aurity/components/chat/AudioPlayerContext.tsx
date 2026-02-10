@@ -33,6 +33,7 @@ import { getProviderByVoice } from '@/lib/audio/ProviderRegistry';
 import { initErrorReporter, reportAudioError } from '@/lib/audio/ErrorPolicy';
 import { getVoiceDisplayName } from '@/lib/voiceAliases';
 import { api, getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // Small helper to escape HTML for safe inline rendering in modals
 function escapeHtml(input: string): string {
@@ -99,7 +100,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // Fetch configured providers so frontend can avoid calling unavailable ones
     (async () => {
       try {
-        const body = await api.get<{ providers: Record<string, boolean> }>('/api/tts/providers');
+        const body = await api.get<{ providers: Record<string, boolean> }>(`${ROUTES.tts}/providers`);
         setAvailableProviders(body.providers || null);
       } catch {
         setAvailableProviders(null);
@@ -228,7 +229,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line no-console
         console.debug('[AudioPlayer] TTS request payload:', payload);
 
-        const response = await fetch(`${BACKEND_URL}/api/tts/synthesize`, {
+        const response = await api.raw(`${ROUTES.tts}/synthesize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -265,7 +266,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
             // Build a curl command template for reproducing the request locally
             const jsonPayload = JSON.stringify(payload, null, 2).replace(/'/g, "'\"'\"");
             const curlTemplate = `# Voice: ${friendlyVoice}\n` +
-              `curl -v -X POST '${BACKEND_URL}/api/tts/synthesize' \n+  -H 'Content-Type: application/json' \
+              `curl -v -X POST '${BACKEND_URL}${ROUTES.tts}/synthesize' \n+  -H 'Content-Type: application/json' \
   --data-raw '${jsonPayload}'`;
             const result = await swal.fire({
               title: `TTS backend error (${response.status})`,

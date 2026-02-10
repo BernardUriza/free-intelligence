@@ -8,13 +8,11 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Generator
 from datetime import UTC
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
+import h5py
 import pytest
 from pathlib import Path
-
-if TYPE_CHECKING:
-    from backend.infrastructure.common.container import DIContainer
 
 
 @pytest.fixture
@@ -27,6 +25,12 @@ def temp_h5_file() -> Generator[Path]:
     with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
         temp_path = Path(f.name)
 
+    # Initialize HDF5 with minimal schema for tests
+    with h5py.File(temp_path, "w") as f:
+        f.create_group("sessions")
+        f.create_group("audit_log")
+        f.create_group("corpus")
+
     yield temp_path
 
     # Cleanup
@@ -35,69 +39,16 @@ def temp_h5_file() -> Generator[Path]:
 
 
 @pytest.fixture
-def di_container(temp_h5_file: Path) -> Generator[DIContainer]:
-    """Create DI container with temporary HDF5 database.
-
-    Args:
-        temp_h5_file: Temporary HDF5 file path from fixture
+def audit_service(temp_h5_file: Path):
+    """Get AuditService with direct instantiation.
 
     Returns:
-        DIContainer instance with isolated test database
+        AuditService instance with AuditRepository
     """
-    # Initialize HDF5 with minimal schema
-    import h5py
-    from backend.infrastructure.common.container import DIContainer
+    from backend.repositories.audit_repository import AuditRepository
+    from backend.services.audit.services.audit_service import AuditService
 
-    with h5py.File(temp_h5_file, "w") as f:
-        # Create minimal groups for testing
-        f.create_group("sessions")
-        f.create_group("audit_log")
-        f.create_group("corpus")
-
-    container = DIContainer(h5_file_path=temp_h5_file)
-    yield container
-
-    # Cleanup
-    container.reset()
-
-
-@pytest.fixture
-def audit_service(di_container: DIContainer):
-    """Get AuditService from DI container.
-
-    Args:
-        di_container: DI container fixture
-
-    Returns:
-        AuditService instance
-    """
-    return di_container.get_audit_service()
-
-
-@pytest.fixture
-def corpus_service(di_container: DIContainer):
-    """Get CorpusService from DI container.
-
-    Args:
-        di_container: DI container fixture
-
-    Returns:
-        CorpusService instance
-    """
-    return di_container.get_corpus_service()
-
-
-@pytest.fixture
-def export_service(di_container: DIContainer):
-    """Get ExportService from DI container.
-
-    Args:
-        di_container: DI container fixture
-
-    Returns:
-        ExportService instance
-    """
-    return di_container.get_export_service()
+    return AuditService(repository=AuditRepository(temp_h5_file))
 
 
 # Factory fixtures for test data
@@ -214,10 +165,12 @@ def app():
 def client(app):
     """FastAPI TestClient for making HTTP requests.
 
+    Uses context manager to activate lifespan (required for repository init).
+
     Args:
         app: FastAPI app fixture
 
-    Returns:
+    Yields:
         TestClient instance
 
     Example:
@@ -227,7 +180,8 @@ def client(app):
     """
     from fastapi.testclient import TestClient
 
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture

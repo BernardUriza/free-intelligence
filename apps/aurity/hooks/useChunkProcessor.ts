@@ -20,6 +20,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { ROUTES } from '@/lib/api/routes';
 
 interface ChunkStatus {
   index: number;
@@ -116,7 +117,7 @@ export function useChunkProcessor(
             transcript?: string;
             error?: string;
             chunks?: BackendChunk[];
-          }>(`/api/aurity/jobs/${jobId}`);
+          }>(`${ROUTES.jobs}/${jobId}`);
 
           if (jobStatus.error) {
             console.error(`[CHUNK ${chunkNumber}] Poll failed: ${jobStatus.error}`);

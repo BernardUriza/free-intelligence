@@ -7,6 +7,8 @@
 import { useState, useEffect } from 'react';
 import { SessionSummary, SessionTaskStatus } from '@aurity-standalone/types/patient';
 import { getSessionSummaries } from '@/lib/api/timeline';
+import { ROUTES } from '@/lib/api/routes';
+import { api } from '@/lib/api/client';
 import { toastError } from '@/lib/swal';
 
 export function useSessionManagement() {
@@ -47,28 +49,14 @@ export function useSessionManagement() {
     await Promise.all(
       sessionIds.map(async (sessionId) => {
         try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7001';
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-          const response = await fetch(
-            `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
-            {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-              signal: controller.signal,
-            }
+          const data = await api.get<{ soap?: { status: string }; diarization?: { status: string } }>(
+            `${ROUTES.medicalAi}/sessions/${sessionId}/monitor`,
+            { timeout: 5000 }
           );
-
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data = await response.json();
-            statusesMap[sessionId] = {
-              soapStatus: data.soap?.status || 'not_started',
-              diarizationStatus: data.diarization?.status || 'not_started',
-            };
-          }
+          statusesMap[sessionId] = {
+            soapStatus: data.soap?.status || 'not_started',
+            diarizationStatus: data.diarization?.status || 'not_started',
+          };
         } catch {
           // Silently fail - status will remain not_started
         }

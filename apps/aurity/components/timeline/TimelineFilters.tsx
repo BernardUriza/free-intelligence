@@ -45,11 +45,7 @@ export function TimelineFilters({
     <div className="fi-flex-gap p-1 bg-slate-800/50 rounded-lg border border-slate-700 w-fit">
       <Button
         onClick={() => onEventTypeChange(EVENT_TYPES.ALL)}
-        className={`fi-flex-gap px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-          eventType === EVENT_TYPES.ALL
-            ? 'bg-emerald-600 text-white'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
+        className={eventType === EVENT_TYPES.ALL ? 'history-filter-btn-emerald' : 'history-filter-btn'}
         variant="ghost"
         size="sm"
         title="Ver Todo"
@@ -60,11 +56,7 @@ export function TimelineFilters({
 
       <Button
         onClick={() => onEventTypeChange(EVENT_TYPES.CHAT)}
-        className={`fi-flex-gap px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-          eventType === EVENT_TYPES.CHAT
-            ? 'bg-sky-600 text-white'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
+        className={eventType === EVENT_TYPES.CHAT ? 'history-filter-btn-sky' : 'history-filter-btn'}
         variant="ghost"
         size="sm"
         title="Ver Chat"
@@ -75,11 +67,7 @@ export function TimelineFilters({
 
       <Button
         onClick={() => onEventTypeChange(EVENT_TYPES.AUDIO)}
-        className={`fi-flex-gap px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-          eventType === EVENT_TYPES.AUDIO
-            ? 'bg-emerald-600 text-white'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700'
-        }`}
+        className={eventType === EVENT_TYPES.AUDIO ? 'history-filter-btn-emerald' : 'history-filter-btn'}
         variant="ghost"
         size="sm"
         title="Ver Audio"

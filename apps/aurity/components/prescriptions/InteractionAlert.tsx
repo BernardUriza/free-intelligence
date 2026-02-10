@@ -92,7 +92,7 @@ export function InteractionAlert({
   return (
     <div
       className={cn(
-        "rounded-lg border-l-4 p-3",
+        "rx-alert-card",
         config.colors,
         config.borderColor,
         className
@@ -100,23 +100,23 @@ export function InteractionAlert({
     >
       {/* Header */}
       <div
-        className="flex items-start justify-between cursor-pointer"
+        className="rx-alert-header"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-start gap-2">
-          <Icon className={cn("w-5 h-5 mt-0.5 flex-shrink-0", config.iconColor)} />
+        <div className="rx-alert-header-left">
+          <Icon className={cn("rx-alert-icon", config.iconColor)} />
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-slate-800">
+            <div className="rx-alert-title-row">
+              <span className="rx-alert-drug-name">
                 {alert.drug_1}
               </span>
               <span className="text-slate-400">+</span>
-              <span className="font-semibold text-slate-800">
+              <span className="rx-alert-drug-name">
                 {alert.drug_2}
               </span>
               <span
                 className={cn(
-                  "text-xs font-medium px-1.5 py-0.5 rounded",
+                  "rx-alert-severity-badge",
                   config.colors,
                   config.iconColor
                 )}
@@ -124,12 +124,12 @@ export function InteractionAlert({
                 {severityLabel}
               </span>
             </div>
-            <p className="text-sm text-slate-600 mt-0.5">{alert.effect}</p>
+            <p className="rx-alert-effect">{alert.effect}</p>
           </div>
         </div>
         <button
           type="button"
-          className="p-1 hover:bg-white/50 rounded transition-colors"
+          className="rx-alert-toggle"
         >
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -141,15 +141,15 @@ export function InteractionAlert({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-3 pt-3 border-t border-slate-200/50 space-y-3">
+        <div className="rx-alert-body">
           {/* Recommendation */}
-          <div className="flex items-start gap-2">
-            <Pill className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+          <div className="rx-alert-detail-row">
+            <Pill className="rx-alert-detail-icon" />
             <div>
-              <span className="text-xs font-medium text-slate-500 uppercase">
-                Recomendación
+              <span className="rx-alert-detail-label">
+                Recomendacion
               </span>
-              <p className="text-sm text-slate-700">{alert.recommendation}</p>
+              <p className="rx-alert-detail-value">{alert.recommendation}</p>
             </div>
           </div>
 
@@ -163,17 +163,17 @@ export function InteractionAlert({
                     e.stopPropagation();
                     setShowOverrideInput(true);
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-700 underline"
+                  className="rx-alert-override-link"
                 >
-                  Anular alerta con justificación
+                  Anular alerta con justificacion
                 </button>
               ) : (
                 <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                   <textarea
                     value={justification}
                     onChange={(e) => setJustification(e.target.value)}
-                    placeholder="Justificación clínica para anular esta alerta (mín. 10 caracteres)..."
-                    className="w-full text-sm p-2 border border-slate-300 rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Justificacion clinica para anular esta alerta (min. 10 caracteres)..."
+                    className="rx-alert-override-textarea"
                     rows={2}
                   />
                   <div className="flex gap-2">
@@ -181,9 +181,9 @@ export function InteractionAlert({
                       type="button"
                       onClick={handleOverride}
                       disabled={justification.trim().length < 10}
-                      className="text-xs px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rx-alert-override-confirm"
                     >
-                      Confirmar Anulación
+                      Confirmar Anulacion
                     </button>
                     <button
                       type="button"
@@ -191,7 +191,7 @@ export function InteractionAlert({
                         setShowOverrideInput(false);
                         setJustification("");
                       }}
-                      className="text-xs px-3 py-1 text-slate-600 hover:text-slate-800"
+                      className="rx-alert-override-cancel"
                     >
                       Cancelar
                     </button>
@@ -203,7 +203,7 @@ export function InteractionAlert({
 
           {/* Non-overridable warning */}
           {!alert.can_override && (
-            <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+            <div className="rx-alert-no-override">
               <XCircle className="w-3.5 h-3.5" />
               Esta alerta no puede ser anulada
             </div>

@@ -10,7 +10,7 @@
   50%, 100% { opacity: 0; }
 }
 
-.animate-blink {
+@utility animate-blink {
   animation: blink 1s step-end infinite;
 }
 
@@ -22,15 +22,15 @@
   50% { transform: scale(1.2); opacity: 1; }
 }
 
-.animate-pulse-dot {
+@utility animate-pulse-dot {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
-.animate-pulse-dot-delay-1 {
+@utility animate-pulse-dot-delay-1 {
   animation: pulse-dot 1.4s ease-in-out infinite 0.2s;
 }
 
-.animate-pulse-dot-delay-2 {
+@utility animate-pulse-dot-delay-2 {
   animation: pulse-dot 1.4s ease-in-out infinite 0.4s;
 }
 
@@ -42,7 +42,7 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-slide-down {
+@utility animate-slide-down {
   animation: slide-down-bar 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -54,6 +54,26 @@
   50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.4); }
 }
 
-.animate-glow-pulse {
+@utility animate-glow-pulse {
   animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+ * SHAKE ANIMATION
+ * ======================================== */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@utility animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* ========================================
+ * SHIMMER ANIMATION
+ * ======================================== */
+@utility animate-shimmer {
+  animation: shimmer 2s infinite;
 }

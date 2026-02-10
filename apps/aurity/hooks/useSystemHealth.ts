@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ROUTES } from '@/lib/api/routes';
 
 type ServiceStatus = 'online' | 'offline' | 'checking';
 
@@ -22,7 +23,7 @@ export function useSystemHealth() {
   const checkHealth = useCallback(async () => {
     const results = await Promise.allSettled([
       fetch('http://localhost:11434/api/tags'),
-      fetch('/api/health'),
+      fetch(ROUTES.healthRoot),
     ]);
 
     const ollama: ServiceStatus = results[0].status === 'fulfilled' && results[0].value.ok ? 'online' : 'offline';

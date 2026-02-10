@@ -1,9 +1,10 @@
 // @ts-nocheck - MSW handler types are development-only
 import { http, HttpResponse, ws } from 'msw';
 import { checkinSession, waitingRoomState } from '@/mocks/fixtures/checkin';
+import { ROUTES } from '@/lib/api/routes';
 
 export const checkinHandlers = [
-  http.post('/api/checkin/qr/generate', async ({ request }) => {
+  http.post(`${ROUTES.checkin}/qr/generate`, async ({ request }) => {
     const body = await request.json();
     return HttpResponse.json({
       qr_url: `https://qr.mock/${body?.clinic_id ?? 'clinic-1'}`,
@@ -11,27 +12,27 @@ export const checkinHandlers = [
     });
   }),
 
-  http.post('/api/checkin/session/start', () => HttpResponse.json(checkinSession)),
-  http.get('/api/checkin/session/:sessionId', () => HttpResponse.json(checkinSession)),
+  http.post(`${ROUTES.checkin}/session/start`, () => HttpResponse.json(checkinSession)),
+  http.get(`${ROUTES.checkin}/session/:sessionId`, () => HttpResponse.json(checkinSession)),
 
-  http.post('/api/checkin/identify/code', () =>
+  http.post(`${ROUTES.checkin}/identify/code`, () =>
     HttpResponse.json({ patient_id: 'patient-1', name: 'Paciente Demo' })
   ),
-  http.post('/api/checkin/identify/curp', () =>
+  http.post(`${ROUTES.checkin}/identify/curp`, () =>
     HttpResponse.json({ patient_id: 'patient-1', name: 'Paciente Demo' })
   ),
-  http.post('/api/checkin/identify/name', () =>
+  http.post(`${ROUTES.checkin}/identify/name`, () =>
     HttpResponse.json({ patient_id: 'patient-1', name: 'Paciente Demo' })
   ),
 
-  http.get('/api/checkin/actions/:appointmentId', () =>
+  http.get(`${ROUTES.checkin}/actions/:appointmentId`, () =>
     HttpResponse.json([{ id: 'action-1', label: 'Confirmar datos', status: 'pending' }])
   ),
-  http.post('/api/checkin/actions/:actionId/complete', () => HttpResponse.json({ success: true })),
-  http.post('/api/checkin/actions/:actionId/skip', () => HttpResponse.json({ success: true })),
+  http.post(`${ROUTES.checkin}/actions/:actionId/complete`, () => HttpResponse.json({ success: true })),
+  http.post(`${ROUTES.checkin}/actions/:actionId/skip`, () => HttpResponse.json({ success: true })),
 
-  http.post('/api/checkin/complete', () => HttpResponse.json({ status: 'completed' })),
-  http.get('/api/checkin/waiting-room/:clinicId', () => HttpResponse.json(waitingRoomState)),
+  http.post(`${ROUTES.checkin}/complete`, () => HttpResponse.json({ status: 'completed' })),
+  http.get(`${ROUTES.checkin}/waiting-room/:clinicId`, () => HttpResponse.json(waitingRoomState)),
 
   // WebSocket handlers for both ws:// (dev) and wss:// (prod)
   ws.link('ws://*/api/checkin/waiting-room/:clinicId/ws', {

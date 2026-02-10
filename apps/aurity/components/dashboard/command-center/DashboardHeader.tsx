@@ -30,7 +30,7 @@ export const DashboardHeader = ({
         <Link href="/" className="fi-flex-gap">
           <Image src="/logos/aurity-logo-light.png" alt="Aurity" width={100} height={28} loading="eager" className="h-7 w-auto opacity-90" style={{ height: 'auto' }} />
         </Link>
-        <div className="hidden sm:fi-flex-gap px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+        <div className="dash-live-badge">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
           <span className="fi-text-xs-medium fi-text-success">EN VIVO</span>
         </div>
@@ -38,7 +38,7 @@ export const DashboardHeader = ({
       <div className="hidden md:fi-flex-gap">
         <button
           onClick={() => { setShowSidePanel(true); setSidePanelTab('queue'); }}
-          className="fi-flex-gap px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg transition-colors"
+          className="dash-stat-btn"
         >
           <Users className="w-4 h-4 fi-text-primary" />
           <span className="fi-title-sm-medium">{waitingCount}</span>
@@ -73,7 +73,7 @@ export const DashboardHeader = ({
         <Link
           href="/dashboard?mode=tv"
           target="_blank"
-          className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors"
+          className="dash-tv-mode-btn"
         >
           <Tv className="w-4 h-4" />
           <span className="hidden sm:inline">Abrir TV</span>

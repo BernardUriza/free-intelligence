@@ -6,6 +6,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 export interface KPIMetrics {
   window: string
@@ -56,12 +57,12 @@ export interface KPIChipsResponse {
  * Fetch KPI metrics (summary view)
  */
 export async function getKPIMetrics(window: string = "5m"): Promise<KPIMetrics> {
-  return api.get<KPIMetrics>(`/api/aurity/kpis?window=${window}&view=summary`);
+  return api.get<KPIMetrics>(`${ROUTES.kpis}?window=${window}&view=summary`);
 }
 
 /**
  * Fetch KPI chips (UI-ready format)
  */
 export async function getKPIChips(window: string = "5m"): Promise<KPIChipsResponse> {
-  return api.get<KPIChipsResponse>(`/api/aurity/kpis?window=${window}&view=chips`);
+  return api.get<KPIChipsResponse>(`${ROUTES.kpis}?window=${window}&view=chips`);
 }

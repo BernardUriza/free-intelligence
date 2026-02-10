@@ -163,7 +163,7 @@ export function AdvancedMetrics({
           {activityLogs.length > 0 && (
             <div>
               <div className="text-sm font-medium fi-text mb-3">Registro de Actividad</div>
-              <div className="bg-slate-900/50 rounded-lg border border-slate-700 p-3 font-mono text-xs max-h-48 overflow-y-auto">
+              <div className="med-code-block">
                 {activityLogs.map((log, idx) => (
                   <div key={idx} className="text-slate-400 py-1 border-b border-slate-800 last:border-0">
                     {log}

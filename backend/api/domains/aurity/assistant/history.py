@@ -58,6 +58,12 @@ async def search_history(
         )
 
         memory = get_memory_manager(request.doctor_id)
+        if memory is None:
+            return HistorySearchResponse(
+                results=[],
+                total_interactions=0,
+                query=request.query,
+            )
 
         context = memory.get_context(
             current_message=request.query,
@@ -133,6 +139,12 @@ async def get_timeline(
         logger.info("HISTORY_TIMELINE_START", doctor_id=doctor_id)
 
         memory = get_memory_manager(doctor_id)
+        if memory is None:
+            return TimelineResponse(
+                sessions=[],
+                total_sessions=0,
+                total_interactions=0,
+            )
         stats = memory.get_stats()
 
         if stats["total_interactions"] == 0:
@@ -191,6 +203,13 @@ async def get_history_stats(
 
     try:
         memory = get_memory_manager(doctor_id)
+        if memory is None:
+            return {
+                "total_interactions": 0,
+                "unique_sessions": 0,
+                "memory_index_exists": False,
+                "doctor_id": doctor_id,
+            }
         stats = memory.get_stats()
 
         stats_log = {k: v for k, v in stats.items() if k != "doctor_id"}
@@ -252,6 +271,14 @@ async def get_paginated_history(
         )
 
         memory = get_memory_manager(doctor_id)
+        if memory is None:
+            return {
+                "interactions": [],
+                "total": 0,
+                "has_more": False,
+                "offset": offset,
+                "limit": limit,
+            }
         result = memory.get_paginated_history(
             offset=offset,
             limit=limit,

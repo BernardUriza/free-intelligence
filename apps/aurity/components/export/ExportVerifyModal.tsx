@@ -220,10 +220,10 @@ export function ExportVerifyModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl"
+        className="export-dialog"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 fi-border-bottom">
+        <div className="export-header fi-border-bottom">
           <h2 id="modal-title" className="fi-title">
             Export & Verify Session
           </h2>
@@ -279,11 +279,9 @@ export function ExportVerifyModal({
                 <div className="flex gap-3">
                   <Button
                     onClick={() => toggleFormat('md')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
-                      selectedFormats.has('md')
-                        ? 'bg-emerald-900/30 border-emerald-500 fi-text-success'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
+                    className={selectedFormats.has('md')
+                      ? 'export-format-btn-selected'
+                      : 'export-format-btn-default'}
                     variant="ghost"
                     size="sm"
                     type="button"
@@ -294,11 +292,9 @@ export function ExportVerifyModal({
                   </Button>
                   <Button
                     onClick={() => toggleFormat('json')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
-                      selectedFormats.has('json')
-                        ? 'bg-emerald-900/30 border-emerald-500 fi-text-success'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
+                    className={selectedFormats.has('json')
+                      ? 'export-format-btn-selected'
+                      : 'export-format-btn-default'}
                     variant="ghost"
                     size="sm"
                     type="button"
@@ -313,9 +309,9 @@ export function ExportVerifyModal({
               {/* Progress bar */}
               {exportState.isLoading && (
                 <div className="fi-stack-sm">
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="export-progress-track">
                     <div
-                      className="h-full bg-emerald-500 transition-all duration-300"
+                      className="export-progress-fill"
                       style={{ width: `${exportState.progress}%` }}
                     />
                   </div>
@@ -327,16 +323,16 @@ export function ExportVerifyModal({
 
               {/* Error */}
               {exportState.error && (
-                <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-700/30 rounded-lg">
-                  <XCircle className="h-4 w-4 fi-text-error flex-shrink-0" />
+                <div className="export-alert-error">
+                  <XCircle className="export-alert-icon fi-text-error" />
                   <p className="text-sm text-red-300">{exportState.error}</p>
                 </div>
               )}
 
               {/* Success */}
               {exportState.result && !exportState.isLoading && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
-                  <CheckCircle className="h-4 w-4 fi-text-success flex-shrink-0" />
+                <div className="export-alert-success">
+                  <CheckCircle className="export-alert-icon fi-text-success" />
                   <p className="text-sm text-emerald-300">
                     Export complete! {exportState.result.artifacts.length} files
                     downloaded.
@@ -368,24 +364,22 @@ export function ExportVerifyModal({
               {/* Verify result */}
               {verifyState.result && (
                 <div
-                  className={`p-4 rounded-lg border ${
-                    verifyState.result.ok
-                      ? 'bg-emerald-900/20 border-emerald-700/30'
-                      : 'bg-red-900/20 border-red-700/30'
-                  }`}
+                  className={verifyState.result.ok
+                    ? 'export-verify-result-ok'
+                    : 'export-verify-result-fail'}
                 >
                   <div className="fi-flex-between">
                     <div className="fi-flex-gap">
                       {verifyState.result.ok ? (
                         <>
-                          <CheckCircle className="h-5 w-5 fi-text-success" />
+                          <CheckCircle className="export-result-icon fi-text-success" />
                           <span className="text-emerald-300 font-medium">
                             Verification Passed
                           </span>
                         </>
                       ) : (
                         <>
-                          <XCircle className="h-5 w-5 fi-text-error" />
+                          <XCircle className="export-result-icon fi-text-error" />
                           <span className="text-red-300 font-medium">
                             Verification Failed
                           </span>
@@ -408,11 +402,11 @@ export function ExportVerifyModal({
 
                   {/* Details */}
                   {verifyState.expanded && (
-                    <div className="mt-3 pt-3 fi-border-top space-y-2">
+                    <div className="export-verify-details fi-border-top">
                       {verifyState.result.results.map((r, i) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between text-sm"
+                          className="export-verify-row"
                         >
                           <span className="text-slate-400">{r.target}</span>
                           <span
@@ -432,8 +426,8 @@ export function ExportVerifyModal({
 
               {/* Error */}
               {verifyState.error && (
-                <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-700/30 rounded-lg">
-                  <XCircle className="h-4 w-4 fi-text-error flex-shrink-0" />
+                <div className="export-alert-error">
+                  <XCircle className="export-alert-icon fi-text-error" />
                   <p className="text-sm text-red-300">{verifyState.error}</p>
                 </div>
               )}
@@ -460,7 +454,7 @@ export function ExportVerifyModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 fi-border-top bg-slate-800/50 rounded-b-xl">
+        <div className="export-footer fi-border-top">
           <p className="fi-text-xs-muted text-center">
             Session ID: {sessionId}
           </p>

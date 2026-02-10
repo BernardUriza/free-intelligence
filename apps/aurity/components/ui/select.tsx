@@ -477,7 +477,7 @@ export function SelectItem({
           {metadata && Object.entries(metadata).map(([key, val]) => (
             <span
               key={key}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] text-slate-400 bg-slate-600/30 rounded-md"
+              className="ui-select-meta-chip"
             >
               {key}: {val}
             </span>

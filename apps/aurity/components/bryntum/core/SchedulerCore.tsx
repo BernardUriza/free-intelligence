@@ -213,7 +213,7 @@ export function SchedulerCore({
       console.warn('[SchedulerCore] Failed to apply updated data/config:', e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeWindowStartTs, timeWindowEndTs, isReady, instance]);
+  }, [timeWindowStartTs, timeWindowEndTs, isReady, instance, getConfig]);
 
   // ============================================================================
   // WORKAROUND: Fix blocked time event positions (CSS/JS version mismatch)
@@ -351,7 +351,7 @@ export function SchedulerCore({
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className="ui-btn-danger"
             >
               Reintentar
             </button>

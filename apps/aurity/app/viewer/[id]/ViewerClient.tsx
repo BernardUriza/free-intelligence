@@ -17,6 +17,7 @@ import { SplitView } from '@/components/layout/SplitView';
 import { MetadataPanel } from '@/components/dashboard/MetadataPanel';
 import type { Interaction } from '@/components/types/interaction';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 export default function ViewerClient() {
   const params = useParams();
@@ -79,7 +80,7 @@ export default function ViewerClient() {
       try {
         // Try to fetch from sessions API
         const data = await api.get<SessionResponse>(
-          `/api/aurity/medical-ai/sessions/${id}`
+          `${ROUTES.medicalAi}/sessions/${id}`
         );
 
         // Get interaction by index
@@ -111,7 +112,7 @@ export default function ViewerClient() {
         // Fallback: try to load from timeline/memory endpoint
         try {
           const memData = await api.get<MemoryResponse>(
-            `/api/aurity/timeline/memory?session_id=${id}&limit=100`
+            `${ROUTES.timeline}/memory?session_id=${id}&limit=100`
           );
 
           const events = memData.events || [];
@@ -292,7 +293,7 @@ export default function ViewerClient() {
               {/* Export Button */}
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                className="ui-btn-emerald"
               >
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline text-sm">Export</span>
@@ -314,7 +315,7 @@ export default function ViewerClient() {
 
         {/* Copy success indicators */}
         {(copiedPrompt || copiedResponse) && (
-          <div className="fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-lg">
+          <div className="ui-toast-success">
             <CheckCircle className="h-4 w-4" />
             Copied to clipboard!
           </div>

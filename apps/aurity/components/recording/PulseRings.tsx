@@ -2,7 +2,7 @@
  * PulseRings - Animated Ring Effects for Recording
  *
  * Provides visual feedback during recording with multiple animation styles:
- * - ping: Simple Tailwind ping animation
+ * - ping: Simple CSS ping animation
  * - rings: Multiple concentric rings with staggered timing
  * - vad: Voice Activity Detection responsive rings
  *
@@ -17,7 +17,7 @@ import type { PulseStyle } from './types';
 export interface PulseRingsProps {
   /** Animation style */
   style: PulseStyle;
-  /** Ring color (Tailwind class like 'yellow-500') */
+  /** Ring color name (e.g. 'yellow-500') */
   color?: string;
   /** Audio level 0-255 for VAD style */
   audioLevel?: number;
@@ -28,16 +28,17 @@ export interface PulseRingsProps {
 }
 
 /**
- * Simple CSS ping animation (Tailwind)
+ * Simple CSS ping animation
  */
 function PingRings({ color = 'yellow-500' }: { color?: string }) {
+  const bgClass = `rec-pulse-bg-${color}`;
   return (
     <>
       <div
-        className={`absolute inset-0 rounded-full bg-${color} animate-ping opacity-30 pointer-events-none`}
+        className={`rec-pulse-ping-primary ${bgClass}`}
       />
       <div
-        className={`absolute inset-0 rounded-full bg-${color} opacity-20 pointer-events-none`}
+        className={`rec-pulse-ping-secondary ${bgClass}`}
         style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}
       />
     </>
@@ -48,6 +49,7 @@ function PingRings({ color = 'yellow-500' }: { color?: string }) {
  * Multiple concentric rings with staggered timing
  */
 function ConcentricRings({ color = 'yellow-500' }: { color?: string }) {
+  const borderClass = `rec-pulse-border-${color}`;
   const rings = [
     { scale: 1.3, opacity: 0.4, delay: 0 },
     { scale: 1.5, opacity: 0.3, delay: 0.2 },
@@ -59,7 +61,7 @@ function ConcentricRings({ color = 'yellow-500' }: { color?: string }) {
       {rings.map((ring, i) => (
         <motion.div
           key={i}
-          className={`absolute inset-0 rounded-full border-2 border-${color} pointer-events-none`}
+          className={`rec-pulse-concentric ${borderClass}`}
           initial={{ scale: 1, opacity: ring.opacity }}
           animate={{
             scale: [1, ring.scale, 1],
@@ -115,7 +117,7 @@ function VADRings({
       {rings.map((ring, i) => (
         <motion.div
           key={i}
-          className="absolute inset-0 rounded-full border-2 pointer-events-none"
+          className="rec-pulse-vad"
           style={{ borderColor: ringColor }}
           animate={{
             scale: audioScale * ring.baseScale,
@@ -141,7 +143,7 @@ export function PulseRings({
   if (style === 'none') return null;
 
   return (
-    <div className={`absolute inset-0 ${className}`}>
+    <div className={`rec-pulse-container ${className}`}>
       {style === 'ping' && <PingRings color={color} />}
       {style === 'rings' && <ConcentricRings color={color} />}
       {style === 'vad' && <VADRings audioLevel={audioLevel} isSilent={isSilent} />}

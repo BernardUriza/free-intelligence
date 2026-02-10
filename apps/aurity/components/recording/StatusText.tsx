@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 export interface StatusTextProps {
   /** Status message to display */
   text: string;
-  /** Text color (Tailwind class) */
+  /** Text color (domain class) */
   color?: string;
   /** Show loading spinner */
   showLoader?: boolean;
@@ -25,15 +25,15 @@ export interface StatusTextProps {
 
 export function StatusText({
   text,
-  color = 'text-slate-400',
+  color = 'rec-status-color-default',
   showLoader = false,
   animate = false,
   className = '',
 }: StatusTextProps) {
   const content = (
-    <div className={`flex items-center justify-center gap-2 ${color} ${className}`}>
-      {showLoader && <Loader2 className="h-5 w-5 animate-spin" />}
-      <p className="font-medium">{text}</p>
+    <div className={`rec-status-wrap ${color} ${className}`}>
+      {showLoader && <Loader2 className="rec-status-loader" />}
+      <p className="rec-status-text">{text}</p>
     </div>
   );
 

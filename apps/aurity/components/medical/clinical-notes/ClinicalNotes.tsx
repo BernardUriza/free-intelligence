@@ -241,16 +241,16 @@ export function ClinicalNotes({
   }
 
   return (
-    <div className={`grid grid-cols-12 gap-6 ${className}`}>
+    <div className={`cnotes-layout ${className}`}>
       {/* Main Content */}
-      <div className="col-span-9 space-y-6">
+      <div className="cnotes-main">
         {/* Toolbar */}
-        <div className="fi-flex-between bg-slate-800 p-4 rounded-lg border border-slate-700">
+        <div className="cnotes-toolbar">
           <div>
             <h2 className="fi-title-2xl">Notas Clínicas SOAP</h2>
             <p className="fi-subtitle">Inputs estructurados con asistencia de IA</p>
           </div>
-          <div className="flex gap-2">
+          <div className="cnotes-toolbar-actions">
             <Button onClick={() => setShowPreviewModal(true)} variant="secondary" icon={Eye}>Vista Previa</Button>
             <Button onClick={() => setSectionOrder((prev) => (prev === 'SOAP' ? 'APSO' : 'SOAP'))} variant="secondary" icon={ArrowUpDown}>{sectionOrder}</Button>
             <Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} icon={Zap}>Asistente IA</Button>
@@ -261,18 +261,18 @@ export function ClinicalNotes({
         {/* Subjective Section */}
         <section className="fi-card-xl" aria-labelledby="subjective-heading">
           <SectionHeader icon={MessageSquare} title="Subjetivo" iconColor="text-blue-400" />
-          <h4 id="subjective-heading" className="sr-only">Sección Subjetivo</h4>
+          <h4 id="subjective-heading" className="cnotes-sr-only">Sección Subjetivo</h4>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <label htmlFor="chief-complaint" className="fi-label">Motivo de Consulta *</label>
-            <div className="flex gap-2">
+            <div className="cnotes-input-row">
               <Input
                 id="chief-complaint"
                 type="text"
                 value={soapData.chiefComplaint}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => updateField('chiefComplaint', e.target.value)}
                 placeholder="Ej: Dolor de garganta por 3 días"
-                className="flex-1"
+                className="cnotes-input-flex"
               />
               <Button
                 onClick={() => setVoiceActive((prev) => (prev === 'chief' ? null : 'chief'))}
@@ -283,7 +283,7 @@ export function ClinicalNotes({
             </div>
           </div>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <label htmlFor="hpi" className="fi-label">Historia de Enfermedad Actual</label>
             <textarea
               id="hpi"
@@ -295,17 +295,17 @@ export function ClinicalNotes({
             />
           </div>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <label className="fi-label">Alergias</label>
             <TagList items={soapData.allergies} onRemove={removeAllergy} />
-            <div className="flex gap-2">
+            <div className="cnotes-input-row">
               <Input
                 type="text"
                 value={newAllergy}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNewAllergy(e.target.value)}
                 onKeyPress={(e: KeyboardEvent<HTMLInputElement>) => handleKeyPress(e, addAllergy)}
                 placeholder="Agregar alergia..."
-                className="flex-1"
+                className="cnotes-input-flex"
               />
               <Button onClick={addAllergy} variant="primary" icon={Plus} />
             </div>
@@ -314,12 +314,12 @@ export function ClinicalNotes({
           <div>
             <label className="fi-label">Medicamentos Actuales</label>
             {soapData.currentMedications.length > 0 && (
-              <div className="space-y-2 mb-2">
+              <div className="cnotes-med-list">
                 {soapData.currentMedications.map((med, idx) => (
-                  <div key={`current-med-${idx}`} className="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-600">
-                    <Pill className="h-4 w-4 fi-text-primary" aria-hidden="true" />
-                    <span className="text-white flex-1">{med}</span>
-                    <Button variant="ghost" size="sm" icon={X} className="text-slate-400 hover:text-red-400" aria-label={`Eliminar ${med}`} />
+                  <div key={`current-med-${idx}`} className="cnotes-med-item">
+                    <Pill className="cnotes-med-icon fi-text-primary" aria-hidden="true" />
+                    <span className="cnotes-med-name">{med}</span>
+                    <Button variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${med}`} />
                   </div>
                 ))}
               </div>
@@ -330,17 +330,17 @@ export function ClinicalNotes({
         {/* Objective Section */}
         <section className="fi-card-xl" aria-labelledby="objective-heading">
           <SectionHeader icon={BarChart3} title="Objetivo" iconColor="text-cyan-400" />
-          <h4 id="objective-heading" className="sr-only">Sección Objetivo</h4>
+          <h4 id="objective-heading" className="cnotes-sr-only">Sección Objetivo</h4>
 
-          <div className="mb-4">
-            <div className="fi-flex-between mb-3">
-              <span className="text-sm font-medium fi-text">Signos Vitales</span>
-              <Button onClick={fillNormalVitals} variant="ghost" size="sm" icon={CheckCircle2} className="bg-emerald-600/20 hover:bg-emerald-600/30 fi-text-success">
+          <div className="cnotes-field-group">
+            <div className="cnotes-vitals-header">
+              <span className="cnotes-vitals-label fi-text">Signos Vitales</span>
+              <Button onClick={fillNormalVitals} variant="ghost" size="sm" icon={CheckCircle2} className="cnotes-fill-normal-btn fi-text-success">
                 Llenar valores normales
               </Button>
             </div>
 
-            <div className="grid grid-cols-5 gap-3">
+            <div className="cnotes-vitals-grid">
               <VitalSignInput icon={Thermometer} iconColor="text-red-400" label="Temp." value={soapData.vitalSigns.temperature} onChange={(v) => updateVitalSign('temperature', v)} placeholder="36.5" unit="°C" step="0.1" />
               <VitalSignInput icon={Heart} iconColor="text-red-400" label="FC" value={soapData.vitalSigns.heartRate} onChange={(v) => updateVitalSign('heartRate', v)} placeholder="72" unit="bpm" inputWidth="w-12" />
               <VitalSignInput icon={Activity} iconColor="fi-text-primary" label="PA" value={soapData.vitalSigns.bloodPressure} onChange={(v) => updateVitalSign('bloodPressure', v)} placeholder="120/80" type="text" inputWidth="w-16" />
@@ -350,8 +350,8 @@ export function ClinicalNotes({
           </div>
 
           <div>
-            <label htmlFor="physical-exam" className="block fi-label flex items-center gap-2">
-              <Edit3 className="h-4 w-4 text-cyan-400" aria-hidden="true" />
+            <label htmlFor="physical-exam" className="cnotes-exam-label fi-label">
+              <Edit3 className="cnotes-exam-icon" aria-hidden="true" />
               Examen Físico
             </label>
             <textarea id="physical-exam" value={soapData.physicalExam} onChange={(e) => updateField('physicalExam', e.target.value)} rows={3} placeholder="Descripción del examen físico..." className="fi-textarea-cyan" />
@@ -361,11 +361,11 @@ export function ClinicalNotes({
         {/* Assessment Section */}
         <section className="fi-card-xl" aria-labelledby="assessment-heading">
           <SectionHeader icon={Search} title="Evaluación" iconColor="text-purple-400" />
-          <h4 id="assessment-heading" className="sr-only">Sección Evaluación</h4>
+          <h4 id="assessment-heading" className="cnotes-sr-only">Sección Evaluación</h4>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <label htmlFor="icd10-search" className="fi-label">Diagnóstico Principal</label>
-            <div className="relative">
+            <div className="cnotes-relative">
               <Input
                 id="icd10-search"
                 type="text"
@@ -379,13 +379,13 @@ export function ClinicalNotes({
               {showICD10Dropdown && filteredICD10.length > 0 && (
                 <div className="fi-dropdown" role="listbox">
                   {filteredICD10.map((diagnosis) => (
-                    <button key={diagnosis.code} type="button" onClick={() => selectDiagnosis(diagnosis)} className="w-full p-3 hover:bg-slate-800 text-left fi-border-bottom last:border-none" role="option" aria-selected={false}>
+                    <button key={diagnosis.code} type="button" onClick={() => selectDiagnosis(diagnosis)} className="cnotes-dropdown-item cnotes-dropdown-item-border" role="option" aria-selected={false}>
                       <div className="fi-flex-between">
                         <div>
-                          <span className="text-white font-medium">{diagnosis.code}</span>
-                          <span className="text-slate-400 text-sm ml-2">{diagnosis.description}</span>
+                          <span className="cnotes-dropdown-code">{diagnosis.code}</span>
+                          <span className="cnotes-dropdown-desc">{diagnosis.description}</span>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded ${getSeverityStyles(diagnosis.severity)}`}>{diagnosis.severity}</span>
+                        <span className={`cnotes-severity-badge ${getSeverityStyles(diagnosis.severity)}`}>{diagnosis.severity}</span>
                       </div>
                     </button>
                   ))}
@@ -394,30 +394,30 @@ export function ClinicalNotes({
             </div>
 
             {soapData.primaryDiagnosis && (
-              <div className="mt-3 bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+              <div className="cnotes-primary-dx">
                 <div className="fi-flex-between">
                   <div>
-                    <span className="fi-text-purple font-semibold">{soapData.primaryDiagnosis.code}</span>
-                    <span className="text-white ml-2">{soapData.primaryDiagnosis.description}</span>
+                    <span className="fi-text-purple cnotes-dx-code">{soapData.primaryDiagnosis.code}</span>
+                    <span className="cnotes-dx-desc">{soapData.primaryDiagnosis.description}</span>
                   </div>
-                  <Button onClick={clearPrimaryDiagnosis} variant="ghost" size="sm" icon={X} className="text-slate-400 hover:text-red-400" aria-label="Eliminar diagnóstico principal" />
+                  <Button onClick={clearPrimaryDiagnosis} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label="Eliminar diagnóstico principal" />
                 </div>
               </div>
             )}
           </div>
 
           {soapData.differentialDiagnoses.length > 0 && (
-            <div className="mt-4">
+            <div className="cnotes-diff-section">
               <span className="fi-label">Diagnósticos Diferenciales</span>
-              <div className="space-y-2">
+              <div className="cnotes-diff-list">
                 {soapData.differentialDiagnoses.map((diff, idx) => (
-                  <div key={`diff-${idx}`} className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-3">
+                  <div key={`diff-${idx}`} className="cnotes-diff-item">
                     <div className="fi-flex-between">
                       <div>
-                        {diff.code && <span className="fi-text-purple font-semibold mr-2">{diff.code}</span>}
-                        <span className="text-white">{diff.description}</span>
+                        {diff.code && <span className="fi-text-purple cnotes-diff-code">{diff.code}</span>}
+                        <span className="cnotes-diff-desc">{diff.description}</span>
                       </div>
-                      <Button onClick={() => removeDifferentialDiagnosis(idx)} variant="ghost" size="sm" icon={X} className="text-slate-400 hover:text-red-400" aria-label={`Eliminar ${diff.description}`} />
+                      <Button onClick={() => removeDifferentialDiagnosis(idx)} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${diff.description}`} />
                     </div>
                   </div>
                 ))}
@@ -429,12 +429,12 @@ export function ClinicalNotes({
         {/* Plan Section */}
         <section className="fi-card-xl" aria-labelledby="plan-heading">
           <SectionHeader icon={ClipboardList} title="Plan" iconColor="text-emerald-400" action={<Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} size="sm" icon={Zap}>Asistente IA</Button>} />
-          <h4 id="plan-heading" className="sr-only">Sección Plan</h4>
+          <h4 id="plan-heading" className="cnotes-sr-only">Sección Plan</h4>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <span className="fi-label">Tratamiento Farmacológico</span>
             <MedicationList medications={soapData.medications} onRemove={removeMedication} />
-            <div className="grid grid-cols-3 gap-3 mb-2">
+            <div className="cnotes-med-form-grid">
               <Input type="text" value={newMedication.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, name: e.target.value }))} placeholder="Medicamento" />
               <Input type="text" value={newMedication.dose} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, dose: e.target.value }))} placeholder="Dosis" />
               <Input type="text" value={newMedication.frequency} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, frequency: e.target.value }))} placeholder="Frecuencia" />
@@ -442,26 +442,26 @@ export function ClinicalNotes({
             <Button onClick={addMedication} variant="primary" icon={Plus} size="sm">Agregar medicamento</Button>
           </div>
 
-          <div className="mb-4">
+          <div className="cnotes-field-group">
             <span className="fi-label">Estudios de Laboratorio / Gabinete</span>
-            <div className="space-y-2">
+            <div className="cnotes-test-list">
               {COMMON_DIAGNOSTIC_TESTS.map((test) => (
-                <label key={test} className="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-600 cursor-pointer hover:bg-slate-800">
-                  <input type="checkbox" checked={soapData.diagnosticTests.includes(test)} onChange={() => toggleDiagnosticTest(test)} className="rounded" />
-                  <span className="text-white">{test}</span>
+                <label key={test} className="cnotes-test-item">
+                  <input type="checkbox" checked={soapData.diagnosticTests.includes(test)} onChange={() => toggleDiagnosticTest(test)} className="cnotes-test-checkbox" />
+                  <span className="cnotes-test-label">{test}</span>
                 </label>
               ))}
             </div>
 
             {soapData.diagnosticTests.length > 0 && (
-              <div className="mt-4">
-                <span className="text-sm font-medium text-slate-400 mb-2 block">Órdenes Seleccionadas:</span>
-                <div className="space-y-2">
+              <div className="cnotes-orders-section">
+                <span className="cnotes-orders-label">Órdenes Seleccionadas:</span>
+                <div className="cnotes-orders-list">
                   {soapData.diagnosticTests.map((test, idx) => (
-                    <div key={`selected-test-${idx}`} className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                    <div key={`selected-test-${idx}`} className="cnotes-order-item">
                       <div className="fi-flex-between">
-                        <span className="text-white">{test}</span>
-                        <Button onClick={() => removeDiagnosticTest(idx)} variant="ghost" size="sm" icon={X} className="text-slate-400 hover:text-red-400" aria-label={`Eliminar ${test}`} />
+                        <span className="cnotes-order-name">{test}</span>
+                        <Button onClick={() => removeDiagnosticTest(idx)} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${test}`} />
                       </div>
                     </div>
                   ))}
@@ -477,46 +477,46 @@ export function ClinicalNotes({
         </section>
 
         {/* Action Buttons */}
-        <div className="flex gap-4">
-          {onPrevious && <Button onClick={onPrevious} variant="secondary" size="lg" className="flex-1">Anterior</Button>}
-          <Button onClick={handleSave} disabled={!isComplete || isSaving} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={isSaving ? undefined : isSaved ? CheckCircle2 : Save} loading={isSaving} className="flex-1">
+        <div className="cnotes-actions">
+          {onPrevious && <Button onClick={onPrevious} variant="secondary" size="lg" className="cnotes-input-flex">Anterior</Button>}
+          <Button onClick={handleSave} disabled={!isComplete || isSaving} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={isSaving ? undefined : isSaved ? CheckCircle2 : Save} loading={isSaving} className="cnotes-input-flex">
             {isSaving ? 'Guardando...' : isSaved ? 'Guardado' : 'Guardar Notas'}
           </Button>
-          {onNext && <Button onClick={onNext} disabled={!isComplete} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={ChevronRight} className="flex-1">Continuar</Button>}
+          {onNext && <Button onClick={onNext} disabled={!isComplete} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={ChevronRight} className="cnotes-input-flex">Continuar</Button>}
         </div>
 
         {saveMessage && (
-          <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${saveMessage.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-red-500/10 border border-red-500/30'}`} role="alert">
-            {saveMessage.type === 'success' ? <CheckCircle2 className="h-5 w-5 fi-text-success" aria-hidden="true" /> : <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />}
-            <p className={`text-sm ${saveMessage.type === 'success' ? 'fi-text-success' : 'text-red-400'}`}>{saveMessage.text}</p>
+          <div className={`cnotes-save-msg ${saveMessage.type === 'success' ? 'cnotes-save-msg-success' : 'cnotes-save-msg-error'}`} role="alert">
+            {saveMessage.type === 'success' ? <CheckCircle2 className="cnotes-save-icon fi-text-success" aria-hidden="true" /> : <AlertCircle className="cnotes-save-icon-error" aria-hidden="true" />}
+            <p className={saveMessage.type === 'success' ? 'cnotes-save-text fi-text-success' : 'cnotes-save-text-error'}>{saveMessage.text}</p>
           </div>
         )}
       </div>
 
       {/* AI Suggestions Panel */}
       {showAIPanel && (
-        <aside className="col-span-3" aria-label="Panel de sugerencias de IA">
-          <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-4 border border-purple-500/30 sticky top-6">
-            <div className="fi-flex-gap mb-4">
-              <Sparkles className="h-5 w-5 fi-text-purple" aria-hidden="true" />
-              <h3 className="text-lg font-bold text-white">Asistente IA</h3>
+        <aside className="cnotes-ai-sidebar" aria-label="Panel de sugerencias de IA">
+          <div className="cnotes-ai-panel">
+            <div className="cnotes-ai-header">
+              <Sparkles className="cnotes-ai-icon fi-text-purple" aria-hidden="true" />
+              <h3 className="cnotes-ai-title">Asistente IA</h3>
             </div>
 
             {aiSuggestions.length === 0 ? (
-              <p className="text-slate-400 text-sm">Completa los campos para recibir sugerencias...</p>
+              <p className="cnotes-ai-empty">Completa los campos para recibir sugerencias...</p>
             ) : (
-              <div className="space-y-3">
+              <div className="cnotes-ai-suggestions">
                 {aiSuggestions.map((suggestion, idx) => (
                   <AISuggestionCard key={idx} suggestion={suggestion} />
                 ))}
               </div>
             )}
 
-            <div className="mt-4 pt-4 fi-border-top">
-              <p className="fi-text-xs mb-2">Acciones Rápidas</p>
-              <div className="space-y-2">
-                <Button variant="ghost" size="sm" icon={Sparkles} fullWidth className="justify-start bg-slate-800 hover:bg-slate-700">Generar resumen</Button>
-                <Button variant="ghost" size="sm" icon={BookOpen} fullWidth className="justify-start bg-slate-800 hover:bg-slate-700">Buscar guías clínicas</Button>
+            <div className="cnotes-ai-actions-wrap">
+              <p className="cnotes-ai-actions-label">Acciones Rápidas</p>
+              <div className="cnotes-diff-list">
+                <Button variant="ghost" size="sm" icon={Sparkles} fullWidth className="cnotes-ai-quick-btn">Generar resumen</Button>
+                <Button variant="ghost" size="sm" icon={BookOpen} fullWidth className="cnotes-ai-quick-btn">Buscar guías clínicas</Button>
               </div>
             </div>
           </div>

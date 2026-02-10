@@ -14,10 +14,13 @@ import {
   type EventTypeFilter,
 } from '@/config/timeline.config';
 import { api } from './client';
+import { ROUTES } from './routes';
 
-// API endpoint base
-const MEMORY_ENDPOINT = '/api/aurity/memory/longitudinal';
-const MEMORY_STATS_ENDPOINT = '/api/aurity/memory/stats';
+// API endpoint base — uses ROUTES.timeline as single source of truth
+// Backend mounts memory router at /timeline/memory
+const MEMORY_BASE = `${ROUTES.timeline}/memory`;
+const MEMORY_ENDPOINT = MEMORY_BASE;
+const MEMORY_STATS_ENDPOINT = `${MEMORY_BASE}/stats`;
 
 // ============================================================================
 // Types (matching backend schemas)
@@ -172,7 +175,7 @@ export async function searchMemory(
   queryParams.set('limit', limit.toString());
 
   try {
-    return await api.get<LongitudinalMemoryResponse>(`/api/aurity/memory/search?${queryParams}`);
+    return await api.get<LongitudinalMemoryResponse>(`${MEMORY_BASE}/search?${queryParams}`);
   } catch (error) {
     console.error('[searchMemory] Error:', error);
     return createEmptyResponse(offset, limit);

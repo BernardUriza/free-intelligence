@@ -12,9 +12,22 @@
  * BASE UTILITIES (composable with @apply)
  * ======================================== */
 
+@utility safety-spinning {
+  @apply animate-spin;
+}
+
 @utility med-vital-icon {
   @apply w-10 h-10 rounded-full bg-slate-700/50
          flex items-center justify-center;
+}
+
+@utility med-vital-card {
+  @apply bg-slate-900 p-3 rounded-lg border border-slate-600 transition-colors;
+}
+
+@utility med-vital-input-wrap {
+  @apply flex items-center gap-1 bg-slate-800/50 px-2 py-1 rounded
+         border border-slate-700;
 }
 
 @utility med-badge {
@@ -280,5 +293,1691 @@
 
   .med-panel-body {
     @apply p-4;
+  }
+
+  /* ========================================
+   * ORDER ENTRY
+   * ======================================== */
+  .med-order-icon-box {
+    @apply inline-flex items-center justify-center w-16 h-16
+           fi-gradient-emerald-cyan-soft rounded-2xl mb-4
+           backdrop-blur-sm border border-emerald-500/20;
+  }
+
+  .med-order-form-card {
+    @apply fi-gradient-slate-card-solid backdrop-blur-sm rounded-2xl p-8
+           border border-slate-700/50 shadow-2xl;
+  }
+
+  .med-order-input {
+    @apply w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2
+           border-slate-700/50 focus:border-emerald-500 focus:outline-none
+           focus:ring-2 focus:ring-emerald-500/20 transition-all;
+  }
+
+  .med-order-textarea {
+    @apply w-full bg-slate-900/80 text-white px-4 py-3 rounded-xl border-2
+           border-slate-700/50 focus:border-emerald-500 focus:outline-none
+           focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none;
+  }
+
+  .med-order-summary-card {
+    @apply fi-gradient-emerald-cyan-subtle backdrop-blur-sm rounded-2xl p-6
+           border border-emerald-500/20;
+  }
+
+  /* ========================================
+   * MEDICAL AI PAGE
+   * ======================================== */
+  .med-error-banner {
+    @apply mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl
+           flex items-start gap-3;
+  }
+
+  .med-calendar-container {
+    @apply bg-slate-900/50 backdrop-blur-md border border-white/10
+           rounded-2xl p-6 shadow-xl h-[calc(100vh-220px)];
+  }
+
+  .med-calendar-placeholder {
+    @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800/50
+           rounded-2xl p-12 shadow-xl flex items-center justify-center
+           h-[calc(100vh-220px)];
+  }
+
+  .med-delete-backdrop {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-md z-50
+           flex items-center justify-center p-4;
+  }
+
+  .med-delete-modal {
+    @apply bg-slate-800/90 backdrop-blur-lg border border-white/10
+           rounded-2xl p-6 max-w-md w-full shadow-2xl;
+  }
+
+  .med-back-btn {
+    @apply px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm
+           rounded-lg transition-all border border-slate-700
+           hover:border-slate-600 flex items-center gap-2;
+  }
+
+  .med-workflow-step {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-slate-800/50 border border-slate-700/50
+           text-slate-400 hover:bg-slate-800 hover:border-slate-600;
+  }
+
+  .med-workflow-step-active {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-emerald-500/20 border-2 border-emerald-500/50
+           text-emerald-300 shadow-lg;
+  }
+
+  .med-workflow-step-completed {
+    @apply flex items-center gap-2 px-4 py-2 rounded-xl transition-all
+           whitespace-nowrap bg-green-500/10 border border-green-500/30
+           text-green-300 hover:bg-green-500/20;
+  }
+
+  /* ========================================
+   * PREVIEW MODAL
+   * ======================================== */
+  .med-preview-backdrop {
+    @apply fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4;
+  }
+
+  .med-preview-content {
+    @apply bg-slate-900 rounded-xl max-w-3xl w-full max-h-[80vh]
+           overflow-y-auto border border-slate-700;
+  }
+
+  /* ========================================
+   * PATIENT CARD
+   * ======================================== */
+  .med-session-badge {
+    @apply flex items-center gap-1.5 px-2 py-0.5
+           bg-cyan-500/10 border border-cyan-500/20 rounded;
+  }
+
+  .med-patient-edit-btn {
+    @apply opacity-0 group-hover:opacity-100 bg-slate-700/50
+           hover:bg-blue-500/20 border border-slate-600/50
+           hover:border-blue-500/50 text-slate-400 hover:fi-text-primary;
+  }
+
+  /* ========================================
+   * VITAL SIGN INPUT CARDS
+   * ======================================== */
+  .med-vital-card-red {
+    @apply med-vital-card hover:border-red-500;
+  }
+
+  .med-vital-card-cyan {
+    @apply med-vital-card hover:border-cyan-500;
+  }
+
+  .med-vital-card-blue {
+    @apply med-vital-card hover:border-blue-500;
+  }
+
+  .med-vital-card-green {
+    @apply med-vital-card hover:border-emerald-500;
+  }
+
+  .med-vital-input-red {
+    @apply med-vital-input-wrap hover:border-red-500
+           focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500/50;
+  }
+
+  .med-vital-input-cyan {
+    @apply med-vital-input-wrap hover:border-cyan-500
+           focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500/50;
+  }
+
+  .med-vital-input-blue {
+    @apply med-vital-input-wrap hover:border-blue-500
+           focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/50;
+  }
+
+  .med-vital-input-green {
+    @apply med-vital-input-wrap hover:border-emerald-500
+           focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/50;
+  }
+
+  /* ========================================
+   * EXPORT SUCCESS BANNER
+   * ======================================== */
+  .med-export-success {
+    @apply p-4 rounded-lg border bg-green-500/10 border-green-500/30
+           flex items-center gap-3;
+  }
+
+  /* ========================================
+   * PRESCRIPTION FORM (rx-*)
+   * Covers: /components/prescriptions/PrescriptionForm.tsx
+   * ======================================== */
+
+  /* Layout */
+  .rx-form-container {
+    @apply max-w-4xl mx-auto;
+  }
+
+  .rx-tab-grid {
+    @apply grid w-full grid-cols-5 mb-6;
+  }
+
+  /* Tab triggers */
+  .rx-tab-trigger {
+    @apply flex items-center gap-1.5;
+  }
+
+  .rx-tab-icon {
+    @apply w-4 h-4;
+  }
+
+  .rx-tab-label {
+    @apply hidden sm:inline;
+  }
+
+  .rx-tab-count {
+    @apply ml-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900
+           text-blue-600 dark:text-blue-300 rounded-full;
+  }
+
+  /* Section headers */
+  .rx-section-title {
+    @apply flex items-center gap-2;
+  }
+
+  .rx-section-icon {
+    @apply w-5 h-5;
+  }
+
+  /* Form layout */
+  .rx-field-group {
+    @apply space-y-4;
+  }
+
+  .rx-fields-2col {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+
+  .rx-fields-3col {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+  }
+
+  .rx-field {
+    @apply space-y-2;
+  }
+
+  .rx-field-wide {
+    @apply space-y-2 md:col-span-2;
+  }
+
+  .rx-required {
+    @apply text-red-500;
+  }
+
+  /* Allergy input */
+  .rx-allergy-row {
+    @apply flex gap-2;
+  }
+
+  .rx-allergy-tags {
+    @apply flex flex-wrap gap-2 mt-2;
+  }
+
+  .rx-allergy-tag {
+    @apply inline-flex items-center gap-1 px-2 py-1 bg-red-100
+           dark:bg-red-900/30 text-red-700 dark:text-red-300
+           rounded-full text-sm;
+  }
+
+  .rx-allergy-remove {
+    @apply hover:text-red-900 dark:hover:text-red-100;
+  }
+
+  /* Textarea (diagnosis/instructions) */
+  .rx-textarea {
+    @apply w-full px-3 py-2 border border-slate-300 dark:border-slate-600
+           rounded-md bg-white dark:bg-slate-800 text-slate-900
+           dark:text-white focus:ring-2 focus:ring-blue-500
+           focus:border-transparent;
+  }
+
+  /* Medications tab */
+  .rx-med-stack {
+    @apply space-y-6;
+  }
+
+  /* Preview tab */
+  .rx-preview-stack {
+    @apply space-y-4;
+  }
+
+  .rx-preview-toolbar {
+    @apply flex justify-between items-center mb-4;
+  }
+
+  .rx-preview-status {
+    @apply flex items-center gap-2;
+  }
+
+  .rx-preview-status-label {
+    @apply text-sm text-slate-500;
+  }
+
+  .rx-preview-actions {
+    @apply flex gap-2;
+  }
+
+  .rx-btn-icon {
+    @apply w-4 h-4 mr-1.5;
+  }
+
+  .rx-print-hidden {
+    @apply print:hidden;
+  }
+
+  .rx-preview-frame {
+    @apply border rounded-lg overflow-hidden shadow-lg
+           print:shadow-none print:border-0;
+  }
+
+  /* Empty state */
+  .rx-empty-content {
+    @apply py-12 text-center text-slate-500;
+  }
+
+  .rx-empty-icon {
+    @apply w-12 h-12 mx-auto mb-4 opacity-30;
+  }
+
+  .rx-empty-hint {
+    @apply text-sm mt-2;
+  }
+
+  /* ========================================
+   * SAFETY ALERTS (SafetyAlerts.tsx)
+   * Prefix: safety-
+   * ======================================== */
+
+  /* Root container */
+  .safety-panel {
+    @apply rounded-lg border border-slate-200 bg-white;
+  }
+
+  /* Header bar */
+  .safety-header {
+    @apply flex items-center justify-between p-4 border-b border-slate-100;
+  }
+
+  .safety-header-left {
+    @apply flex items-center gap-3;
+  }
+
+  .safety-header-icon {
+    @apply w-5 h-5 text-slate-400;
+  }
+
+  .safety-header-title {
+    @apply font-semibold text-slate-800;
+  }
+
+  .safety-header-summary {
+    @apply text-sm text-slate-500;
+  }
+
+  .safety-header-right {
+    @apply flex items-center gap-2;
+  }
+
+  /* Refresh/run check button */
+  .safety-refresh-btn {
+    @apply p-2 rounded-lg transition-colors;
+  }
+
+  .safety-refresh-btn-disabled {
+    @apply p-2 rounded-lg transition-colors bg-slate-100 text-slate-400 cursor-not-allowed;
+  }
+
+  .safety-refresh-btn-enabled {
+    @apply p-2 rounded-lg transition-colors hover:bg-slate-100 text-slate-600;
+  }
+
+  .safety-refresh-icon {
+    @apply w-4 h-4;
+  }
+
+  /* Content area */
+  .safety-content {
+    @apply p-4 space-y-4;
+  }
+
+  /* Loading state */
+  .safety-loading {
+    @apply flex items-center justify-center py-8 text-slate-500;
+  }
+
+  .safety-loading-icon {
+    @apply w-5 h-5 animate-spin mr-2;
+  }
+
+  /* Error state */
+  .safety-error {
+    @apply flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700;
+  }
+
+  .safety-error-icon {
+    @apply w-5 h-5 flex-shrink-0 mt-0.5;
+  }
+
+  .safety-error-title {
+    @apply font-medium;
+  }
+
+  .safety-error-message {
+    @apply text-sm;
+  }
+
+  /* Unchecked state */
+  .safety-unchecked {
+    @apply text-center py-6;
+  }
+
+  .safety-unchecked-icon {
+    @apply w-12 h-12 text-slate-300 mx-auto mb-2;
+  }
+
+  .safety-unchecked-text {
+    @apply text-slate-500 mb-3;
+  }
+
+  .safety-unchecked-btn {
+    @apply px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors;
+  }
+
+  /* No alerts / all clear */
+  .safety-clear {
+    @apply text-center py-6 text-green-600;
+  }
+
+  .safety-clear-icon {
+    @apply w-12 h-12 mx-auto mb-2;
+  }
+
+  .safety-clear-title {
+    @apply font-medium;
+  }
+
+  .safety-clear-subtitle {
+    @apply text-sm text-slate-500;
+  }
+
+  /* Section toggler (interactions / allergies) */
+  .safety-section-stack {
+    @apply space-y-2;
+  }
+
+  .safety-section-toggle {
+    @apply flex items-center justify-between w-full p-2 rounded-lg hover:bg-slate-50 transition-colors;
+  }
+
+  .safety-section-label-row {
+    @apply flex items-center gap-2;
+  }
+
+  .safety-section-label {
+    @apply font-medium text-slate-700;
+  }
+
+  .safety-section-count-interaction {
+    @apply text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full;
+  }
+
+  .safety-section-count-allergy {
+    @apply text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full;
+  }
+
+  .safety-chevron {
+    @apply w-4 h-4 text-slate-400;
+  }
+
+  .safety-section-body {
+    @apply space-y-2 pl-2;
+  }
+
+  /* Action guidance banners */
+  .safety-banner-blocked {
+    @apply mt-4 p-3 bg-red-50 border border-red-200 rounded-lg;
+  }
+
+  .safety-banner-blocked-title {
+    @apply text-sm text-red-700 font-medium flex items-center gap-1;
+  }
+
+  .safety-banner-blocked-desc {
+    @apply text-xs text-red-600 mt-1;
+  }
+
+  .safety-banner-caution {
+    @apply mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg;
+  }
+
+  .safety-banner-caution-title {
+    @apply text-sm text-yellow-700 font-medium flex items-center gap-1;
+  }
+
+  .safety-banner-caution-desc {
+    @apply text-xs text-yellow-600 mt-1;
+  }
+
+  .safety-banner-icon {
+    @apply w-4 h-4;
+  }
+
+  /* ========================================
+   * PRESCRIPTION PREVIEW (PrescriptionPreview.tsx)
+   * Prefix: rx-prev-
+   * ======================================== */
+
+  /* Separator */
+  .rx-prev-separator {
+    @apply border-slate-200 dark:border-slate-700;
+  }
+
+  /* Root container */
+  .rx-prev-page {
+    @apply bg-white text-black p-8 max-w-[210mm] mx-auto font-serif;
+  }
+
+  /* Header / Letterhead */
+  .rx-prev-header {
+    @apply text-center mb-6;
+  }
+
+  .rx-prev-institution {
+    @apply text-lg font-bold uppercase tracking-wide;
+  }
+
+  .rx-prev-physician-name {
+    @apply text-base font-semibold mt-1;
+  }
+
+  .rx-prev-specialty {
+    @apply text-sm text-gray-600;
+  }
+
+  .rx-prev-license {
+    @apply text-sm mt-1;
+  }
+
+  .rx-prev-license-secondary {
+    @apply text-sm;
+  }
+
+  .rx-prev-address {
+    @apply text-xs text-gray-500 mt-2;
+  }
+
+  .rx-prev-phone {
+    @apply text-xs text-gray-500;
+  }
+
+  /* Separator variants */
+  .rx-prev-divider {
+    @apply my-4 bg-black;
+  }
+
+  .rx-prev-divider-dashed {
+    @apply my-4 border-dashed;
+  }
+
+  /* Title section */
+  .rx-prev-title-section {
+    @apply text-center mb-6;
+  }
+
+  .rx-prev-title {
+    @apply text-xl font-bold tracking-widest;
+  }
+
+  .rx-prev-status-row {
+    @apply flex justify-center mt-2;
+  }
+
+  /* Patient info grid */
+  .rx-prev-patient-grid {
+    @apply mb-6 grid grid-cols-2 gap-x-8 gap-y-2 text-sm;
+  }
+
+  .rx-prev-field-label {
+    @apply font-semibold;
+  }
+
+  .rx-prev-allergies {
+    @apply col-span-2 text-red-600;
+  }
+
+  /* Section layout */
+  .rx-prev-section {
+    @apply mb-6;
+  }
+
+  .rx-prev-section-heading {
+    @apply font-bold text-sm uppercase tracking-wide border-b border-gray-300 pb-1 mb-2;
+  }
+
+  .rx-prev-section-heading-meds {
+    @apply font-bold text-sm uppercase tracking-wide border-b border-gray-300 pb-1 mb-4;
+  }
+
+  .rx-prev-section-text {
+    @apply text-sm;
+  }
+
+  .rx-prev-section-text-pre {
+    @apply text-sm whitespace-pre-line;
+  }
+
+  .rx-prev-diagnosis-code {
+    @apply text-xs text-gray-500 mt-1;
+  }
+
+  /* Medications list */
+  .rx-prev-med-stack {
+    @apply space-y-4;
+  }
+
+  .rx-prev-med-item {
+    @apply text-sm pl-4 border-l-2 border-blue-500;
+  }
+
+  .rx-prev-med-name {
+    @apply font-semibold;
+  }
+
+  .rx-prev-med-detail {
+    @apply ml-4;
+  }
+
+  .rx-prev-med-quantity {
+    @apply ml-4 font-medium;
+  }
+
+  .rx-prev-med-instructions {
+    @apply ml-4 italic text-gray-600;
+  }
+
+  .rx-prev-med-warning {
+    @apply ml-4 text-amber-700 text-xs flex items-center gap-1;
+  }
+
+  .rx-prev-med-warning-icon {
+    @apply w-3 h-3;
+  }
+
+  /* Next appointment */
+  .rx-prev-appointment {
+    @apply text-sm;
+  }
+
+  /* Footer */
+  .rx-prev-footer {
+    @apply mt-auto pt-12;
+  }
+
+  .rx-prev-footer-separator {
+    @apply mb-6;
+  }
+
+  .rx-prev-footer-layout {
+    @apply flex justify-between items-end;
+  }
+
+  .rx-prev-footer-meta {
+    @apply text-xs text-gray-500;
+  }
+
+  .rx-prev-footer-signature {
+    @apply text-center;
+  }
+
+  .rx-prev-footer-signature-line {
+    @apply w-48 border-t border-black pt-2;
+  }
+
+  .rx-prev-footer-signature-label {
+    @apply text-sm font-medium;
+  }
+
+  .rx-prev-footer-disclaimer {
+    @apply text-xs text-gray-400 text-center mt-8;
+  }
+
+  /* ========================================
+   * CLINICAL NOTES (ClinicalNotes.tsx)
+   * Prefix: cnotes-
+   * ======================================== */
+
+  /* Layout */
+  .cnotes-layout {
+    @apply grid grid-cols-12 gap-6;
+  }
+
+  .cnotes-main {
+    @apply col-span-9 space-y-6;
+  }
+
+  .cnotes-toolbar {
+    @apply fi-flex-between bg-slate-800 p-4 rounded-lg border border-slate-700;
+  }
+
+  .cnotes-toolbar-actions {
+    @apply flex gap-2;
+  }
+
+  /* Form sections */
+  .cnotes-field-group {
+    @apply mb-4;
+  }
+
+  .cnotes-input-row {
+    @apply flex gap-2;
+  }
+
+  .cnotes-input-flex {
+    @apply flex-1;
+  }
+
+  .cnotes-relative {
+    @apply relative;
+  }
+
+  /* Current medications list */
+  .cnotes-med-list {
+    @apply space-y-2 mb-2;
+  }
+
+  .cnotes-med-item {
+    @apply flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-600;
+  }
+
+  .cnotes-med-icon {
+    @apply h-4 w-4;
+  }
+
+  .cnotes-med-name {
+    @apply text-white flex-1;
+  }
+
+  .cnotes-remove-btn {
+    @apply text-slate-400 hover:text-red-400;
+  }
+
+  /* Vital signs */
+  .cnotes-vitals-label {
+    @apply text-sm font-medium;
+  }
+
+  .cnotes-fill-normal-btn {
+    @apply bg-emerald-600/20 hover:bg-emerald-600/30;
+  }
+
+  .cnotes-vitals-grid {
+    @apply grid grid-cols-5 gap-3;
+  }
+
+  /* Physical exam label */
+  .cnotes-exam-label {
+    @apply block flex items-center gap-2;
+  }
+
+  .cnotes-exam-icon {
+    @apply h-4 w-4 text-cyan-400;
+  }
+
+  /* Diagnosis dropdown */
+  .cnotes-dropdown-item {
+    @apply w-full p-3 hover:bg-slate-800 text-left;
+  }
+
+  .cnotes-dropdown-code {
+    @apply text-white font-medium;
+  }
+
+  .cnotes-dropdown-desc {
+    @apply text-slate-400 text-sm ml-2;
+  }
+
+  .cnotes-severity-badge {
+    @apply text-xs px-2 py-1 rounded;
+  }
+
+  /* Primary diagnosis card */
+  .cnotes-primary-dx {
+    @apply mt-3 bg-purple-500/10 border border-purple-500/30 rounded-lg p-3;
+  }
+
+  .cnotes-dx-code {
+    @apply font-semibold;
+  }
+
+  .cnotes-dx-desc {
+    @apply text-white ml-2;
+  }
+
+  /* Differential diagnoses */
+  .cnotes-diff-section {
+    @apply mt-4;
+  }
+
+  .cnotes-diff-list {
+    @apply space-y-2;
+  }
+
+  .cnotes-diff-item {
+    @apply bg-purple-500/5 border border-purple-500/20 rounded-lg p-3;
+  }
+
+  .cnotes-diff-code {
+    @apply font-semibold mr-2;
+  }
+
+  .cnotes-diff-desc {
+    @apply text-white;
+  }
+
+  /* Medications form */
+  .cnotes-med-form-grid {
+    @apply grid grid-cols-3 gap-3 mb-2;
+  }
+
+  /* Diagnostic tests */
+  .cnotes-test-list {
+    @apply space-y-2;
+  }
+
+  .cnotes-test-item {
+    @apply flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-600
+           cursor-pointer hover:bg-slate-800;
+  }
+
+  .cnotes-test-checkbox {
+    @apply rounded;
+  }
+
+  .cnotes-test-label {
+    @apply text-white;
+  }
+
+  .cnotes-orders-section {
+    @apply mt-4;
+  }
+
+  .cnotes-orders-label {
+    @apply text-sm font-medium text-slate-400 mb-2 block;
+  }
+
+  .cnotes-orders-list {
+    @apply space-y-2;
+  }
+
+  .cnotes-order-item {
+    @apply bg-amber-500/10 border border-amber-500/30 rounded-lg p-3;
+  }
+
+  .cnotes-order-name {
+    @apply text-white;
+  }
+
+  /* Action buttons */
+  .cnotes-actions {
+    @apply flex gap-4;
+  }
+
+  /* Save message */
+  .cnotes-save-msg {
+    @apply mt-4 p-4 rounded-lg flex items-center gap-3;
+  }
+
+  .cnotes-save-msg-success {
+    @apply bg-emerald-500/10 border border-emerald-500/30;
+  }
+
+  .cnotes-save-msg-error {
+    @apply bg-red-500/10 border border-red-500/30;
+  }
+
+  .cnotes-save-icon {
+    @apply h-5 w-5;
+  }
+
+  .cnotes-save-icon-error {
+    @apply h-5 w-5 text-red-400;
+  }
+
+  .cnotes-save-text {
+    @apply text-sm;
+  }
+
+  .cnotes-save-text-error {
+    @apply text-sm text-red-400;
+  }
+
+  /* AI Suggestions Panel */
+  .cnotes-ai-sidebar {
+    @apply col-span-3;
+  }
+
+  .cnotes-ai-panel {
+    @apply bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-4
+           border border-purple-500/30 sticky top-6;
+  }
+
+  .cnotes-ai-icon {
+    @apply h-5 w-5;
+  }
+
+  .cnotes-ai-title {
+    @apply text-lg font-bold text-white;
+  }
+
+  .cnotes-ai-empty {
+    @apply text-slate-400 text-sm;
+  }
+
+  .cnotes-ai-suggestions {
+    @apply space-y-3;
+  }
+
+  .cnotes-ai-quick-btn {
+    @apply justify-start bg-slate-800 hover:bg-slate-700;
+  }
+
+  /* Screen reader only (accessibility) */
+  .cnotes-sr-only {
+    @apply sr-only;
+  }
+
+  /* Mixed fi-* helpers with spacing */
+  .cnotes-vitals-header {
+    @apply fi-flex-between mb-3;
+  }
+
+  .cnotes-dropdown-item-border {
+    @apply fi-border-bottom last:border-none;
+  }
+
+  .cnotes-ai-header {
+    @apply fi-flex-gap mb-4;
+  }
+
+  .cnotes-ai-actions-wrap {
+    @apply mt-4 pt-4 fi-border-top;
+  }
+
+  .cnotes-ai-actions-label {
+    @apply fi-text-xs mb-2;
+  }
+
+  /* Severity styles (from utils.ts) */
+  .cnotes-severity-leve {
+    @apply bg-yellow-500/20 text-yellow-400;
+  }
+
+  .cnotes-severity-moderada {
+    @apply bg-orange-500/20 text-orange-400;
+  }
+
+  .cnotes-severity-default {
+    @apply bg-red-500/20 text-red-400;
+  }
+
+  /* ========================================
+   * EVIDENCE PACK VIEWER (EvidencePackViewer.tsx)
+   * Prefix: evpack-
+   * ======================================== */
+
+  /* Layout */
+  .evpack-container {
+    @apply max-w-5xl mx-auto;
+  }
+
+  .evpack-container-spaced {
+    @apply max-w-5xl mx-auto space-y-6;
+  }
+
+  /* Loading state */
+  .evpack-loading-icon {
+    @apply h-8 w-8 text-cyan-500 animate-spin;
+  }
+
+  .evpack-loading-text {
+    @apply text-slate-400;
+  }
+
+  /* Error/warning banner */
+  .evpack-warning-banner {
+    @apply bg-amber-500/10 border border-amber-500/30 rounded-lg p-4
+           flex items-start gap-3;
+  }
+
+  .evpack-warning-icon {
+    @apply h-4 w-4 mt-0.5 flex-shrink-0;
+  }
+
+  .evpack-warning-text {
+    @apply text-amber-300 text-sm;
+  }
+
+  /* Error navigation */
+  .evpack-error-nav {
+    @apply flex items-center justify-between mt-6;
+  }
+
+  /* Header card */
+  .evpack-header-row {
+    @apply flex items-start justify-between;
+  }
+
+  .evpack-header-icon-box {
+    @apply w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center;
+  }
+
+  .evpack-header-shield {
+    @apply h-6 w-6;
+  }
+
+  .evpack-header-meta {
+    @apply flex flex-col items-end gap-2;
+  }
+
+  /* Consulta text */
+  .evpack-consulta-text {
+    @apply text-base leading-relaxed;
+  }
+
+  /* Response prose */
+  .evpack-response-prose {
+    @apply max-w-none;
+  }
+
+  .evpack-response-pre {
+    @apply whitespace-pre-wrap text-sm leading-relaxed font-sans bg-slate-800/50 p-4 rounded-lg;
+  }
+
+  /* Sources list */
+  .evpack-sources-list {
+    @apply space-y-4;
+  }
+
+  .evpack-source-card {
+    @apply p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl;
+  }
+
+  .evpack-source-header {
+    @apply flex items-start justify-between mb-3;
+  }
+
+  .evpack-source-title {
+    @apply text-white font-semibold;
+  }
+
+  .evpack-source-finding {
+    @apply mb-3;
+  }
+
+  .evpack-source-finding-text {
+    @apply text-sm;
+  }
+
+  .evpack-source-hash-row {
+    @apply text-xs;
+  }
+
+  .evpack-source-hash-icon {
+    @apply h-3 w-3 text-slate-500;
+  }
+
+  .evpack-source-hash-code {
+    @apply text-slate-400 font-mono text-xs;
+  }
+
+  /* Document type icons */
+  .evpack-docicon-cyan {
+    @apply w-4 h-4 text-cyan-500;
+  }
+
+  .evpack-docicon-blue {
+    @apply w-4 h-4 text-blue-500;
+  }
+
+  .evpack-docicon-green {
+    @apply w-4 h-4 text-green-500;
+  }
+
+  .evpack-docicon-purple {
+    @apply w-4 h-4 text-purple-500;
+  }
+
+  .evpack-docicon-amber {
+    @apply w-4 h-4 text-amber-500;
+  }
+
+  .evpack-docicon-default {
+    @apply w-4 h-4 text-slate-400;
+  }
+
+  /* Severity badge */
+  .evpack-severity-wrap {
+    @apply inline-flex items-center px-2 py-1 rounded-md border;
+  }
+
+  .evpack-severity-leve {
+    @apply bg-green-500/10 fi-text-green border-green-500/30;
+  }
+
+  .evpack-severity-moderada {
+    @apply bg-amber-500/10 fi-text-warning border-amber-500/30;
+  }
+
+  .evpack-severity-grave {
+    @apply bg-red-500/10 fi-text-error border-red-500/30;
+  }
+
+  .evpack-severity-default {
+    @apply bg-slate-500/10 text-slate-400 border-slate-500/30;
+  }
+
+  /* Card styles */
+  .evpack-card {
+    @apply bg-slate-900/50 border-slate-800/50;
+  }
+
+  .evpack-card-header {
+    @apply bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-500/30;
+  }
+
+  .evpack-card-content-loading {
+    @apply py-12;
+  }
+
+  .evpack-card-content-error {
+    @apply py-8;
+  }
+
+  .evpack-empty-state {
+    @apply fi-empty-state gap-4;
+  }
+
+  /* Card titles */
+  .evpack-card-title {
+    @apply text-white;
+  }
+
+  .evpack-card-title-section {
+    @apply text-lg text-white fi-flex-gap;
+  }
+
+  .evpack-subtitle {
+    @apply fi-subtitle mt-1;
+  }
+
+  /* Badge */
+  .evpack-badge-sources {
+    @apply bg-emerald-500/10 fi-text-success border border-emerald-500/30;
+  }
+
+  .evpack-badge-icon {
+    @apply h-3 w-3 mr-1;
+  }
+
+  .evpack-date-row {
+    @apply fi-flex-gap fi-text-xs;
+  }
+
+  .evpack-date-icon {
+    @apply h-3 w-3;
+  }
+
+  /* Section icons */
+  .evpack-section-icon {
+    @apply h-5 w-5;
+  }
+
+  /* Next button shadow */
+  .evpack-next-btn {
+    @apply shadow-lg shadow-cyan-500/20;
+  }
+
+  /* ========================================
+   * DIARIZATION PROCESSING MODAL (DiarizationProcessingModal.tsx)
+   * Prefix: diar-
+   * ======================================== */
+
+  /* Modal backdrop */
+  .diar-backdrop {
+    @apply fi-modal-backdrop bg-black/80;
+  }
+
+  /* Modal container */
+  .diar-modal {
+    @apply w-full max-w-md rounded-xl bg-slate-800 border border-slate-700
+           p-8 shadow-2xl fi-animate-slide-up;
+  }
+
+  /* Progress circle area */
+  .diar-circle-wrap {
+    @apply flex justify-center mb-6;
+  }
+
+  .diar-circle-container {
+    @apply relative w-20 h-20;
+  }
+
+  .diar-circle-svg {
+    @apply w-20 h-20 transform -rotate-90;
+  }
+
+  .diar-circle-bg {
+    @apply text-slate-700;
+  }
+
+  .diar-circle-complete {
+    @apply text-green-500;
+  }
+
+  .diar-circle-progress {
+    @apply text-emerald-500 transition-all duration-500 ease-out;
+  }
+
+  .diar-circle-center {
+    @apply absolute inset-0 flex items-center justify-center;
+  }
+
+  .diar-circle-pct {
+    @apply text-xl font-bold;
+  }
+
+  /* Failed state icon */
+  .diar-fail-icon-wrap {
+    @apply w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center;
+  }
+
+  .diar-fail-icon {
+    @apply h-8 w-8;
+  }
+
+  /* Title */
+  .diar-title {
+    @apply text-xl font-semibold text-white text-center mb-2;
+  }
+
+  /* Description */
+  .diar-description {
+    @apply text-slate-400 text-center mb-6;
+  }
+
+  /* Progress bar */
+  .diar-progress-track {
+    @apply w-full bg-slate-700 rounded-full h-2 overflow-hidden;
+  }
+
+  .diar-progress-label {
+    @apply text-sm text-slate-500 text-center;
+  }
+
+  /* Polling metrics panel */
+  .diar-metrics-panel {
+    @apply mt-4 p-3 bg-slate-900/50 rounded-lg border border-yellow-500/50;
+  }
+
+  .diar-metrics-header {
+    @apply flex items-center justify-between mb-2;
+  }
+
+  .diar-metrics-mode-badge {
+    @apply text-xs px-2 py-0.5 rounded-full font-medium;
+  }
+
+  .diar-metrics-grid {
+    @apply grid grid-cols-2 gap-3 text-xs;
+  }
+
+  .diar-metrics-col {
+    @apply flex flex-col;
+  }
+
+  .diar-metrics-label {
+    @apply text-slate-500 mb-1;
+  }
+
+  .diar-metrics-value {
+    @apply text-white font-mono font-medium;
+  }
+
+  .diar-metrics-adaptive {
+    @apply inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse;
+  }
+
+  /* Info boxes */
+  .diar-info-box {
+    @apply mt-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700;
+  }
+
+  .diar-info-text {
+    @apply text-center flex items-center justify-center gap-2;
+  }
+
+  .diar-info-icon {
+    @apply w-4 h-4 flex-shrink-0;
+  }
+
+  .diar-info-icon-yellow {
+    @apply w-4 h-4 flex-shrink-0 text-yellow-400;
+  }
+
+  /* Error details */
+  .diar-error-box {
+    @apply mt-4 p-3 bg-red-900/20 rounded-lg border border-red-700/30;
+  }
+
+  .diar-error-text {
+    @apply text-xs font-mono;
+  }
+
+  /* Note */
+  .diar-note {
+    @apply text-center mt-6;
+  }
+
+  /* Progress bar inner */
+  .diar-progress-fill {
+    @apply fi-progress-bar duration-500 ease-out;
+  }
+
+  /* Metrics adaptive divider */
+  .diar-metrics-divider {
+    @apply mt-2 pt-2 border-t border-slate-700/50;
+  }
+
+  .diar-metrics-adaptive-text {
+    @apply fi-text-xs-muted flex items-center gap-1;
+  }
+
+  /* Cancel button */
+  .diar-cancel-btn {
+    @apply mt-4;
+  }
+
+  /* Polling mode variants */
+  .diar-mode-fast {
+    @apply fi-text-success bg-emerald-500/10;
+  }
+
+  .diar-mode-adaptive {
+    @apply fi-text-info bg-cyan-500/10;
+  }
+
+  .diar-mode-idle {
+    @apply text-slate-400 bg-slate-500/10;
+  }
+
+  /* ========================================
+   * MEDICATION LIST (MedicationList.tsx)
+   * Prefix: rx-list-
+   * ======================================== */
+
+  /* Empty state */
+  .rx-list-empty {
+    @apply text-center py-8 text-slate-500 dark:text-slate-400;
+  }
+
+  .rx-list-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-30;
+  }
+
+  /* Card */
+  .rx-list-card {
+    @apply relative flex items-start gap-3 p-4 bg-white dark:bg-slate-800
+           rounded-lg border border-slate-200 dark:border-slate-700
+           hover:border-slate-300 dark:hover:border-slate-600 transition-colors;
+  }
+
+  .rx-list-drag-handle {
+    @apply absolute left-1 top-1/2 -translate-y-1/2
+           opacity-0 group-hover:opacity-50 cursor-grab;
+  }
+
+  .rx-list-index-badge {
+    @apply flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30
+           flex items-center justify-center;
+  }
+
+  .rx-list-index-text {
+    @apply text-sm font-semibold text-blue-600 dark:text-blue-400;
+  }
+
+  /* Medication info area */
+  .rx-list-info {
+    @apply flex-1 min-w-0;
+  }
+
+  .rx-list-header {
+    @apply flex items-center gap-2 mb-1;
+  }
+
+  .rx-list-name {
+    @apply font-medium text-slate-900 dark:text-white truncate;
+  }
+
+  .rx-list-dosage {
+    @apply text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  .rx-list-form-badge {
+    @apply text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700
+           text-slate-600 dark:text-slate-300;
+  }
+
+  .rx-list-details {
+    @apply flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400;
+  }
+
+  .rx-list-separator {
+    @apply text-slate-300 dark:text-slate-600;
+  }
+
+  .rx-list-quantity {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+
+  .rx-list-instructions {
+    @apply mt-2 text-sm text-slate-500 dark:text-slate-400 italic;
+  }
+
+  .rx-list-warning {
+    @apply mt-1 text-xs text-amber-600 dark:text-amber-400
+           flex items-center gap-1;
+  }
+
+  /* Action buttons */
+  .rx-list-actions {
+    @apply flex-shrink-0 flex gap-1 opacity-0
+           group-hover:opacity-100 transition-opacity;
+  }
+
+  .rx-list-action-btn {
+    @apply h-8 w-8 p-0;
+  }
+
+  .rx-list-edit-icon {
+    @apply w-4 h-4 text-slate-500 hover:text-blue-500;
+  }
+
+  .rx-list-delete-icon {
+    @apply w-4 h-4 text-slate-500 hover:text-red-500;
+  }
+
+  /* ========================================
+   * ALERT CARDS (AllergyAlert.tsx, InteractionAlert.tsx)
+   * Prefix: rx-alert-
+   * Shared structure for allergy + interaction alerts
+   * ======================================== */
+
+  /* Root */
+  .rx-alert-card {
+    @apply rounded-lg border-l-4 p-3;
+  }
+
+  /* Header */
+  .rx-alert-header {
+    @apply flex items-start justify-between cursor-pointer;
+  }
+
+  .rx-alert-header-left {
+    @apply flex items-start gap-2;
+  }
+
+  .rx-alert-icon {
+    @apply w-5 h-5 mt-0.5 flex-shrink-0;
+  }
+
+  .rx-alert-title-row {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+
+  .rx-alert-drug-name {
+    @apply font-semibold text-slate-800;
+  }
+
+  .rx-alert-severity-badge {
+    @apply text-xs font-medium px-1.5 py-0.5 rounded;
+  }
+
+  .rx-alert-effect {
+    @apply text-sm text-slate-600 mt-0.5;
+  }
+
+  /* Chevron toggle */
+  .rx-alert-toggle {
+    @apply p-1 hover:bg-white/50 rounded transition-colors;
+  }
+
+  /* Expanded content */
+  .rx-alert-body {
+    @apply mt-3 pt-3 border-t border-slate-200/50 space-y-3;
+  }
+
+  .rx-alert-detail-row {
+    @apply flex items-start gap-2;
+  }
+
+  .rx-alert-detail-icon {
+    @apply w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0;
+  }
+
+  .rx-alert-detail-label {
+    @apply text-xs font-medium text-slate-500 uppercase;
+  }
+
+  .rx-alert-detail-value {
+    @apply text-sm text-slate-700;
+  }
+
+  /* Patient allergy info (AllergyAlert specific) */
+  .rx-alert-patient-row {
+    @apply flex items-center gap-1 mt-0.5 text-sm text-slate-600;
+  }
+
+  .rx-alert-patient-value {
+    @apply font-medium text-slate-700;
+  }
+
+  /* Allergen type */
+  .rx-alert-allergen-row {
+    @apply flex items-center gap-2 text-sm;
+  }
+
+  .rx-alert-allergen-label {
+    @apply text-slate-500;
+  }
+
+  .rx-alert-allergen-value {
+    @apply font-medium text-slate-700 capitalize;
+  }
+
+  /* Override section */
+  .rx-alert-override-link {
+    @apply text-xs text-slate-500 hover:text-slate-700 underline;
+  }
+
+  .rx-alert-override-textarea {
+    @apply w-full text-sm p-2 border border-slate-300 rounded resize-none
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+
+  .rx-alert-override-confirm {
+    @apply text-xs px-3 py-1 bg-orange-500 text-white rounded
+           hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .rx-alert-override-cancel {
+    @apply text-xs px-3 py-1 text-slate-600 hover:text-slate-800;
+  }
+
+  /* Non-overridable warning */
+  .rx-alert-no-override {
+    @apply flex items-center gap-1.5 text-xs text-red-600 font-medium;
+  }
+
+  /* ========================================
+   * AI CHATBOT (AIChatbot.tsx + OrderChatbot.tsx)
+   * Prefix: med-chatbot-
+   * ======================================== */
+  .med-chatbot-shell {
+    @apply fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl
+           border border-emerald-500 shadow-2xl z-40 flex flex-col max-h-[600px];
+  }
+
+  .med-chatbot-shell-orders {
+    @apply fixed bottom-6 right-6 w-96 bg-slate-900 rounded-xl
+           border border-emerald-500 shadow-2xl z-50 flex flex-col h-[600px];
+  }
+
+  .med-chatbot-header {
+    @apply bg-gradient-to-r from-emerald-600 to-cyan-600 p-4
+           rounded-t-xl flex justify-between items-center;
+  }
+
+  .med-chatbot-input {
+    @apply flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg
+           border border-slate-700 focus:border-emerald-500 focus:outline-none;
+  }
+
+  /* ========================================
+   * DEMO CONSULTATION MODAL
+   * ======================================== */
+  .med-demo-modal {
+    @apply bg-slate-900 border border-slate-700 rounded-xl shadow-2xl
+           w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col;
+  }
+
+  .med-btn-gradient-cp {
+    @apply bg-gradient-to-r from-cyan-500 to-purple-500
+           hover:from-cyan-600 hover:to-purple-600;
+  }
+
+  /* ========================================
+   * SLIM INDEX HUB (SlimIndexHub.tsx)
+   * ======================================== */
+  .med-onboarding-banner {
+    @apply mb-8 p-6 bg-blue-950/30 backdrop-blur-md border border-white/10
+           rounded-2xl shadow-lg hover:shadow-xl transition-shadow;
+  }
+
+  .med-lock-badge {
+    @apply absolute top-3 right-3 px-3 py-1.5 bg-slate-800/80 backdrop-blur-sm
+           border border-slate-600/50 rounded-lg text-xs fi-text font-medium
+           shadow-md flex items-center gap-1.5;
+  }
+
+  /* ========================================
+   * ORDER ENTRY (OrderEntry + OrdersList)
+   * ======================================== */
+  .med-order-error {
+    @apply bg-red-500/10 border border-red-500 rounded-xl p-5
+           flex items-start gap-3 animate-shake;
+  }
+
+  .med-order-empty {
+    @apply fi-gradient-slate-card-muted backdrop-blur-sm rounded-2xl p-12
+           border border-dashed border-slate-700/50 text-center;
+  }
+
+  .med-order-empty-icon {
+    @apply inline-flex items-center justify-center w-16 h-16
+           bg-slate-800/50 rounded-2xl mb-4;
+  }
+
+  .med-order-group {
+    @apply fi-gradient-slate-card backdrop-blur-sm rounded-2xl p-6
+           border border-slate-700/50 shadow-xl;
+  }
+
+  .med-order-item {
+    @apply flex items-start justify-between p-4 bg-slate-900/80 rounded-xl
+           border border-slate-700/50 hover:border-slate-600/50 transition-all;
+  }
+
+  .med-order-auto-badge {
+    @apply inline-flex items-center gap-1 mt-2 px-2 py-1
+           bg-cyan-500/10 fi-text-info text-xs rounded-md;
+  }
+
+  .med-order-remove-btn {
+    @apply opacity-0 group-hover:opacity-100 fi-text-error
+           hover:text-red-300 hover:bg-red-500/10 ml-4;
+  }
+
+  /* ========================================
+   * SESSION / DIALOGUE (SessionBadges, DialogueFlow)
+   * ======================================== */
+  .med-session-badge {
+    @apply bg-slate-800/90 backdrop-blur-sm border border-slate-700
+           rounded-lg px-3 py-1.5 shadow-lg;
+  }
+
+  .med-tag-blue {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-blue-500/10 border border-blue-500/30 rounded-md;
+  }
+
+  .med-tag-green {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-emerald-500/10 border border-emerald-500/30 rounded-md;
+  }
+
+  /* ========================================
+   * WORKFLOW & PREVIEW
+   * ======================================== */
+  .med-progress-bar {
+    @apply h-3 rounded-full transition-all duration-500 ease-out
+           bg-gradient-to-r from-emerald-500 to-cyan-500;
+  }
+
+  .med-code-block {
+    @apply bg-slate-900/50 rounded-lg border border-slate-700
+           p-3 font-mono text-xs max-h-48 overflow-y-auto;
+  }
+
+  .med-preview-sticky-header {
+    @apply sticky top-0 bg-slate-900 fi-border-bottom p-6
+           flex justify-between items-center;
+  }
+
+  /* ========================================
+   * PRESCRIPTION FORM (MedicationForm)
+   * ======================================== */
+  .rx-form-container {
+    @apply space-y-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg
+           border border-slate-200 dark:border-slate-700;
+  }
+
+  .rx-form-input {
+    @apply w-full px-3 py-2 border border-slate-300 dark:border-slate-600
+           rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+
+  .med-danger-icon-box {
+    @apply w-12 h-12 bg-red-500/20 rounded-xl flex items-center
+           justify-center flex-shrink-0;
+  }
+
+  .med-progress-gradient {
+    @apply bg-gradient-to-r from-emerald-500 to-cyan-500 h-2
+           rounded-full transition-all duration-500 shadow-lg;
   }
 }

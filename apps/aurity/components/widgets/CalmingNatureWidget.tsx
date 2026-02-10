@@ -38,12 +38,12 @@ export function CalmingNatureWidget() {
   const scene = scenes[currentScene];
 
   return (
-    <div className={`h-full flex flex-col items-center justify-center bg-gradient-to-br ${scene.color} border border-slate-700/50 rounded-xl backdrop-blur-sm text-center transition-all duration-1000 p-4 sm:p-6 lg:p-8`}>
-      <div className="animate-pulse mb-4 sm:mb-6 lg:mb-8 text-white/80">
+    <div className={`wgt-calming-card bg-gradient-to-br ${scene.color}`}>
+      <div className="wgt-calming-icon">
         <scene.icon style={{ width: 'clamp(6rem, 20vw, 16rem)', height: 'clamp(6rem, 20vw, 16rem)' }} strokeWidth={1} />
       </div>
 
-      <h3 className="font-semibold text-white mb-2 sm:mb-3" style={{ fontSize: 'clamp(1.5rem, 4vw, 4rem)' }}>
+      <h3 className="wgt-calming-title" style={{ fontSize: 'clamp(1.5rem, 4vw, 4rem)' }}>
         {scene.label}
       </h3>
 
@@ -51,14 +51,14 @@ export function CalmingNatureWidget() {
         {scene.subtitle}
       </p>
 
-      <div className="flex items-center gap-3 text-slate-400 mt-auto">
-        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-white/30 rounded-full animate-ping" />
+      <div className="wgt-calming-hint">
+        <div className="wgt-calming-ping" />
         <span style={{ fontSize: 'clamp(0.75rem, 1.5vw, 1.25rem)' }}>
           Respira profundo y relájate
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-4 sm:mt-6">
+      <div className="wgt-calming-dots">
         {scenes.map((_, index) => (
           <div
             key={index}

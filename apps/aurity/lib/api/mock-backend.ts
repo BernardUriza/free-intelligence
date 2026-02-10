@@ -198,8 +198,8 @@ function sleep(ms: number): Promise<void> {
  *     return mockBackend.getSessions();
  *   }
  *   
- *   // Real API call
- *   return api.get('/api/aurity/medical-ai/sessions');
+ *   // Real API call (use ROUTES.medicalAi from lib/api/routes.ts)
+ *   return api.get(`${ROUTES.medicalAi}/sessions`);
  * }
  * ```
  */

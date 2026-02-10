@@ -141,14 +141,7 @@ export default function OnboardingPage() {
       <button
         type="button"
         onClick={onboardingHook.skipOnboarding}
-        className="
-          absolute top-4 right-4 z-50
-          px-3 py-1.5 text-xs font-medium
-          text-slate-500 hover:text-slate-300
-          bg-slate-800/50 hover:bg-slate-700/50
-          border border-slate-700/50 hover:border-slate-600/50
-          rounded-full transition-all duration-200
-        "
+        className="layout-skip-btn"
       >
         Omitir
       </button>
@@ -160,16 +153,7 @@ export default function OnboardingPage() {
             type="button"
             onClick={handleAuthenticate}
             disabled={authLoading}
-            className="
-              px-8 py-3 text-base font-semibold
-              bg-gradient-to-r from-emerald-600 to-cyan-600
-              hover:from-emerald-500 hover:to-cyan-500
-              text-white rounded-xl
-              shadow-lg hover:shadow-emerald-500/30
-              transform hover:scale-105
-              transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
+            className="layout-cta-btn"
           >
             {authLoading ? "Cargando..." : "Crear cuenta y continuar"}
           </button>

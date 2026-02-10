@@ -313,7 +313,7 @@ export function PersonaCreateModal({
                   step="0.1"
                   value={formData.temperature}
                   onChange={(e) => setFormData((prev) => ({ ...prev, temperature: parseFloat(e.target.value) }))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  className="admin-range-input"
                 />
                 <div className="fi-flex-between fi-text-xs-muted mt-1">
                   <span>Preciso</span>

@@ -12,6 +12,13 @@
 
 import type { FIMessage, FITone, OnboardingPhase } from '@aurity-standalone/types/assistant';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
+import { ROUTES } from '@/lib/api/routes';
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('fi_access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 /**
  * Interface for backend sync operations.
@@ -76,15 +83,17 @@ export class BackendSyncStrategy implements IBackendSync {
 
     try {
       const response = await fetch(
-        `${this.backendUrl}/api/aurity/assistant/history/paginated?` +
+        `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=0&` +
-        `limit=${limit}`
+        `limit=${limit}`,
+        { headers: getAuthHeaders() }
       );
 
       if (!response.ok) {
-        // 404 means no history yet (new user), which is fine
-        if (response.status === 404) {
+        // 404 = no history yet, 500 = doctor has no HDF5 file (e.g. superadmin)
+        // Both are non-critical — return empty and let circuit breaker stay healthy
+        if (response.status === 404 || response.status === 500) {
           return [];
         }
         throw new Error(`Backend sync failed: ${response.statusText}`);
@@ -136,10 +145,11 @@ export class BackendSyncStrategy implements IBackendSync {
   ): Promise<{ messages: FIMessage[]; hasMore: boolean }> {
     try {
       const response = await fetch(
-        `${this.backendUrl}/api/aurity/assistant/history/paginated?` +
+        `${this.backendUrl}${ROUTES.assistantHistory}/paginated?` +
         `doctor_id=${encodeURIComponent(doctorId)}&` +
         `offset=${offset}&` +
-        `limit=${limit}`
+        `limit=${limit}`,
+        { headers: getAuthHeaders() }
       );
 
       if (!response.ok) {
@@ -265,7 +275,7 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
       const wsUrl = this.backendUrl.replace(/^https?/, wsProtocol);
 
       this.ws = new WebSocket(
-        `${wsUrl}/api/aurity/assistant/ws?doctor_id=${encodeURIComponent(doctorId)}`
+        `${wsUrl}${ROUTES.assistant}/ws?doctor_id=${encodeURIComponent(doctorId)}`
       );
 
       this.ws.onopen = () => {

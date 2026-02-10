@@ -74,15 +74,15 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
             <label className="fi-label">Rol</label>
             <div className="fi-stack-sm">
               {Object.values(ROLES).filter(r => r !== ROLES.SUPERADMIN).map(role => (
-                <label key={role} className="flex items-center gap-2 cursor-pointer">
+                <label key={role} className="admin-invite-role-label">
                   <input
                     type="radio"
                     name="user-role"
                     checked={selectedRole === role}
                     onChange={() => setSelectedRole(role)}
-                    className="w-4 h-4 border-slate-700 bg-slate-900"
+                    className="admin-invite-radio"
                   />
-                  <span className={`px-2 py-0.5 ${getRoleBadgeColor(role)} text-white text-xs rounded`}>
+                  <span className={`admin-role-badge-sm ${getRoleBadgeColor(role)}`}>
                     {getRoleName(role)}
                   </span>
                 </label>
@@ -90,7 +90,7 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="admin-invite-actions">
             <Button type="button" onClick={onClose} variant="secondary" fullWidth>
               Cancelar
             </Button>

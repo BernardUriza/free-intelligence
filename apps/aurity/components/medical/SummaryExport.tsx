@@ -141,9 +141,7 @@ export function SummaryExport({
             size="sm"
             type="button"
           >
-            <Database className={`h-6 w-6 ${
-              exportFormat === 'corpus' ? 'fi-text-success' : 'text-slate-400'
-            }`} />
+            <Database className={`h-6 w-6 ${exportFormat === 'corpus' ? 'fi-text-success' : 'text-slate-400'}`} />
             <div className="flex-1">
               <div className="font-medium text-white">Corpus HDF5</div>
               <div className="fi-subtitle">
@@ -163,9 +161,7 @@ export function SummaryExport({
             size="sm"
             type="button"
           >
-            <FileText className={`h-6 w-6 ${
-              exportFormat === 'pdf' ? 'fi-text-success' : 'text-slate-400'
-            }`} />
+            <FileText className={`h-6 w-6 ${exportFormat === 'pdf' ? 'fi-text-success' : 'text-slate-400'}`} />
             <div className="flex-1">
               <div className="font-medium text-white">PDF</div>
               <div className="fi-subtitle">
@@ -185,9 +181,7 @@ export function SummaryExport({
             size="sm"
             type="button"
           >
-            <Archive className={`h-6 w-6 ${
-              exportFormat === 'markdown' ? 'fi-text-success' : 'text-slate-400'
-            }`} />
+            <Archive className={`h-6 w-6 ${exportFormat === 'markdown' ? 'fi-text-success' : 'text-slate-400'}`} />
             <div className="flex-1">
               <div className="font-medium text-white">Markdown</div>
               <div className="fi-subtitle">
@@ -203,7 +197,7 @@ export function SummaryExport({
 
       {/* Export Success */}
       {exportComplete && (
-        <div className="p-4 rounded-lg border bg-green-500/10 border-green-500/30 flex items-center gap-3">
+        <div className="med-export-success">
           <Check className="h-5 w-5 fi-text-green" />
           <span className="fi-text-green font-medium">
             Consulta exportada exitosamente al corpus FI

@@ -45,7 +45,7 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
 
   const renderValue = (value: any, depth: number = 0): React.ReactNode => {
     if (value === null || value === undefined) {
-      return <span className="text-slate-500 italic">null</span>;
+      return <span className="pol-value-null">null</span>;
     }
 
     if (typeof value === 'boolean') {
@@ -57,18 +57,18 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
     }
 
     if (typeof value === 'string') {
-      return <span className="text-amber-300">&quot;{value}&quot;</span>;
+      return <span className="pol-value-string">&quot;{value}&quot;</span>;
     }
 
     if (Array.isArray(value)) {
       if (value.length === 0) {
-        return <span className="text-slate-500">[]</span>;
+        return <span className="pol-value-empty-arr">[]</span>;
       }
       return (
-        <div className="ml-4 space-y-1">
+        <div className="pol-value-arr-wrap">
           {value.map((item, idx) => (
-            <div key={idx} className="flex items-start gap-2">
-              <span className="text-slate-600">-</span>
+            <div key={idx} className="pol-value-arr-item">
+              <span className="pol-value-arr-dash">-</span>
               {renderValue(item, depth + 1)}
             </div>
           ))}
@@ -78,10 +78,10 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
 
     if (typeof value === 'object') {
       return (
-        <div className="ml-4 space-y-2">
+        <div className="pol-value-obj-wrap">
           {Object.entries(value).map(([k, v]) => (
-            <div key={k} className="flex items-start gap-2">
-              <span className="fi-text-purple font-mono">{k}:</span>
+            <div key={k} className="pol-value-obj-entry">
+              <span className="fi-text-purple pol-value-obj-key">{k}:</span>
               {renderValue(v, depth + 1)}
             </div>
           ))}
@@ -89,28 +89,28 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
       );
     }
 
-    return <span className="text-slate-400">{String(value)}</span>;
+    return <span className="pol-value-fallback">{String(value)}</span>;
   };
 
   const sections = Object.entries(policy).filter(([key]) => key !== 'metadata');
 
   return (
-    <div className="space-y-6">
+    <div className="pol-viewer-root">
       {/* Metadata Header */}
       {metadata && (
         <div className="fi-card-compact">
-          <div className="fi-grid-3 text-sm">
+          <div className="fi-grid-3 pol-viewer-meta-grid">
             <div>
-              <span className="text-slate-500">Version:</span>
-              <span className="ml-2 fi-text font-mono">{metadata.version}</span>
+              <span className="pol-viewer-meta-label">Version:</span>
+              <span className="pol-viewer-meta-value fi-text">{metadata.version}</span>
             </div>
             <div>
-              <span className="text-slate-500">Updated:</span>
-              <span className="ml-2 fi-text">{metadata.timestamp}</span>
+              <span className="pol-viewer-meta-label">Updated:</span>
+              <span className="pol-viewer-meta-date fi-text">{metadata.timestamp}</span>
             </div>
             <div>
-              <span className="text-slate-500">Source:</span>
-              <span className="ml-2 text-slate-400 font-mono text-xs">{metadata.source?.split('/').pop()}</span>
+              <span className="pol-viewer-meta-label">Source:</span>
+              <span className="pol-viewer-meta-source">{metadata.source?.split('/').pop()}</span>
             </div>
           </div>
         </div>
@@ -125,24 +125,24 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
           return (
             <div
               key={key}
-              className="fi-panel overflow-hidden"
+              className="pol-viewer-panel"
             >
               {/* Section Header */}
               <div
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                className="pol-viewer-section-header"
                 onClick={() => toggleSection(key)}
               >
                 <div className="fi-flex-gap-md">
                   {isExpanded ? (
-                    <ChevronDown className="h-5 w-5 text-slate-400" />
+                    <ChevronDown className="pol-viewer-chevron" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                    <ChevronRight className="pol-viewer-chevron" />
                   )}
-                  <h3 className="text-lg font-semibold text-slate-50 capitalize">
+                  <h3 className="pol-viewer-section-title">
                     {key.replace(/_/g, ' ')}
                   </h3>
                   {typeof value === 'object' && !Array.isArray(value) && (
-                    <span className="px-2 py-0.5 bg-slate-700 text-slate-400 text-xs rounded">
+                    <span className="pol-viewer-field-badge">
                       {Object.keys(value).length} fields
                     </span>
                   )}
@@ -153,24 +153,24 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
                     e.stopPropagation();
                     copySection(key, value);
                   }}
-                  className="p-2 hover:bg-slate-600 rounded transition-colors"
+                  className="pol-viewer-copy-btn"
                   title="Copy section"
                   variant="ghost"
                   size="sm"
                   type="button"
                 >
                   {isCopied ? (
-                    <Check className="h-4 w-4 fi-text-green" />
+                    <Check className="pol-viewer-icon-sm fi-text-green" />
                   ) : (
-                    <Copy className="h-4 w-4 text-slate-400" />
+                    <Copy className="pol-viewer-icon-copy" />
                   )}
                 </Button>
               </div>
 
               {/* Section Content */}
               {isExpanded && (
-                <div className="px-4 pb-4 fi-border-top">
-                  <div className="mt-4 font-mono text-sm">
+                <div className="pol-viewer-section-content fi-border-top">
+                  <div className="pol-viewer-content-inner">
                     {renderValue(value)}
                   </div>
                 </div>
@@ -182,9 +182,9 @@ export function GenericPolicyViewer({ policy, metadata }: GenericPolicyViewerPro
 
       {/* Policy Metadata Section (if exists) */}
       {policy.metadata && (
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-slate-400 mb-3">Policy Metadata</h4>
-          <div className="font-mono text-sm">
+        <div className="pol-viewer-meta-section">
+          <h4 className="pol-viewer-meta-title">Policy Metadata</h4>
+          <div className="pol-viewer-meta-body">
             {renderValue(policy.metadata)}
           </div>
         </div>

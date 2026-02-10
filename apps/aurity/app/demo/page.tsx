@@ -130,8 +130,7 @@ const DEEP_LINKS = [
     label: 'Dashboard',
     description: 'Panel de control principal',
     color: 'fi-text-success',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
+    cardClass: 'demo-link-emerald',
   },
   {
     href: '/sessions',
@@ -139,8 +138,7 @@ const DEEP_LINKS = [
     label: 'Sessions',
     description: 'Lista de sesiones activas',
     color: 'fi-text-primary',
-    bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/30',
+    cardClass: 'demo-link-blue',
   },
   {
     href: '/timeline',
@@ -148,8 +146,7 @@ const DEEP_LINKS = [
     label: 'Timeline',
     description: 'Línea de tiempo de eventos',
     color: 'fi-text-purple',
-    bgColor: 'bg-purple-500/10',
-    borderColor: 'border-purple-500/30',
+    cardClass: 'demo-link-purple',
   },
   {
     href: '/audit',
@@ -157,8 +154,7 @@ const DEEP_LINKS = [
     label: 'Audit',
     description: 'Registro de auditoría',
     color: 'fi-text-warning',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
+    cardClass: 'demo-link-amber',
   },
 ];
 
@@ -240,13 +236,13 @@ export default function DemoPage() {
   const getTypeColor = (type: DemoSession['type']) => {
     switch (type) {
       case 'medical':
-        return 'bg-red-500/20 text-red-300 border-red-500/30';
+        return 'demo-badge-medical';
       case 'legal':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+        return 'demo-badge-legal';
       case 'code':
-        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+        return 'demo-badge-code';
       default:
-        return 'bg-slate-500/20 fi-text border-slate-500/30';
+        return 'demo-badge-default';
     }
   };
 
@@ -264,16 +260,16 @@ export default function DemoPage() {
       showWatermark={true}
       showGeometricBg={true}
     >
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
+      <div className="demo-page">
         {/* Info Banner */}
-        <div className="mb-8 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 fi-text-purple flex-shrink-0 mt-0.5" />
+        <div className="demo-info-banner">
+          <div className="demo-info-banner-row">
+            <Info className="demo-info-banner-icon" />
             <div>
-              <p className="text-sm font-medium text-purple-300">
+              <p className="demo-info-banner-title">
                 Demo Mode
               </p>
-              <p className="text-sm fi-text-purple/80 mt-1">
+              <p className="demo-info-banner-text">
                 Load a sample dataset to explore the application without affecting production data.
                 Demo data includes 3 sessions (medical, legal, code) with 8-12 events each.
               </p>
@@ -284,25 +280,23 @@ export default function DemoPage() {
         {/* Status Message */}
         {message && (
           <div
-            className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-              message.type === 'success'
-                ? 'bg-emerald-500/10 border border-emerald-500/30'
-                : 'bg-red-500/10 border border-red-500/30'
-            }`}
+            className={message.type === 'success'
+              ? 'demo-status-msg-success'
+              : 'demo-status-msg-error'}
           >
             {message.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 fi-text-success flex-shrink-0" />
+              <CheckCircle className="demo-status-icon fi-text-success" />
             ) : (
-              <AlertCircle className="w-5 h-5 fi-text-error flex-shrink-0" />
+              <AlertCircle className="demo-status-icon fi-text-error" />
             )}
-            <p className={`text-sm ${message.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+            <p className={message.type === 'success' ? 'demo-status-text-success' : 'demo-status-text-error'}>
               {message.text}
             </p>
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="mb-8 flex flex-wrap gap-4">
+        <div className="demo-actions">
           {!isLoaded ? (
             <Button
               onClick={() => setShowConfirm('load')}
@@ -341,13 +335,13 @@ export default function DemoPage() {
 
         {/* Confirmation Dialog */}
         {showConfirm && (
-          <div className="mb-8 p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
-            <p className="text-sm fi-text mb-4">
+          <div className="demo-confirm">
+            <p className="demo-confirm-text">
               {showConfirm === 'load'
                 ? 'This will load 3 demo sessions with sample events. Continue?'
                 : 'This will remove all demo data. Continue?'}
             </p>
-            <div className="flex gap-3">
+            <div className="demo-confirm-actions">
               <Button
                 onClick={showConfirm === 'load' ? handleLoadDemo : handleResetDemo}
                 disabled={isLoading}
@@ -369,35 +363,35 @@ export default function DemoPage() {
 
         {/* Demo Sessions List */}
         {isLoaded && sessions.length > 0 && (
-          <section className="mb-8">
-            <h2 className="fi-title mb-4 flex items-center gap-2">
-              <Database className="w-5 h-5 fi-text-purple" />
+          <section className="demo-sessions">
+            <h2 className="demo-sessions-title">
+              <Database className="demo-icon-sm fi-text-purple" />
               Loaded Sessions ({sessions.length})
             </h2>
-            <div className="space-y-4">
+            <div className="demo-sessions-list">
               {sessions.map((session) => (
                 <div
                   key={session.id}
-                  className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-slate-600 transition-colors"
+                  className="demo-session-card"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                  <div className="demo-session-row">
+                    <div className="demo-session-body">
+                      <div className="demo-session-header">
                         <span
-                          className={`px-2 py-0.5 fi-text-xs-medium rounded border ${getTypeColor(
+                          className={`demo-session-badge ${getTypeColor(
                             session.type
                           )}`}
                         >
                           {session.type.toUpperCase()}
                         </span>
-                        <h3 className="text-base font-medium text-white">
+                        <h3 className="demo-session-name">
                           {session.title}
                         </h3>
                       </div>
-                      <p className="fi-subtitle mb-2">
+                      <p className="demo-session-desc">
                         {session.description}
                       </p>
-                      <div className="flex items-center gap-4 fi-text-xs-muted">
+                      <div className="demo-session-meta">
                         <span>{session.eventCount} events</span>
                         <span>ID: {session.id}</span>
                         <span>Created: {new Date(session.created_at).toLocaleString()}</span>
@@ -405,10 +399,10 @@ export default function DemoPage() {
                     </div>
                     <Link
                       href={`/viewer/${session.id}?index=0`}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm fi-text-purple hover:text-purple-300 transition-colors"
+                      className="demo-session-view-link"
                     >
                       View
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="demo-icon-xs" />
                     </Link>
                   </div>
                 </div>
@@ -419,28 +413,28 @@ export default function DemoPage() {
 
         {/* Deep Links */}
         <section>
-          <h2 className="fi-title mb-4 flex items-center gap-2">
-            <Play className="w-5 h-5 fi-text-success" />
+          <h2 className="demo-features-title">
+            <Play className="demo-icon-sm fi-text-success" />
             Explore Features
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="demo-features-grid">
             {DEEP_LINKS.map((link) => {
               const Icon = link.icon;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`p-4 ${link.bgColor} border ${link.borderColor} rounded-xl hover:scale-[1.02] transition-transform`}
+                  className={`demo-feature-card ${link.cardClass}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${link.bgColor}`}>
-                      <Icon className={`w-5 h-5 ${link.color}`} />
+                  <div className="demo-feature-row">
+                    <div className={`demo-feature-icon-wrap ${link.cardClass}`}>
+                      <Icon className={`demo-icon-sm ${link.color}`} />
                     </div>
                     <div>
-                      <h3 className={`font-medium ${link.color}`}>{link.label}</h3>
+                      <h3 className={`demo-feature-label ${link.color}`}>{link.label}</h3>
                       <p className="fi-subtitle">{link.description}</p>
                     </div>
-                    <ArrowRight className={`w-5 h-5 ${link.color} ml-auto`} />
+                    <ArrowRight className={`demo-feature-arrow ${link.color}`} />
                   </div>
                 </Link>
               );
@@ -449,29 +443,29 @@ export default function DemoPage() {
         </section>
 
         {/* Quick Start Guide */}
-        <section className="mt-8 p-6 bg-slate-800/30 border border-slate-700 rounded-xl">
-          <h2 className="fi-title mb-4">Quick Start Guide</h2>
-          <ol className="space-y-3 fi-subtitle">
-            <li className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-6 h-6 bg-purple-500/20 fi-text-purple rounded-full text-xs font-bold flex-shrink-0">
+        <section className="demo-guide">
+          <h2 className="demo-guide-title">Quick Start Guide</h2>
+          <ol className="demo-guide-steps">
+            <li className="demo-guide-step">
+              <span className="demo-step-number">
                 1
               </span>
               <span>Click &quot;Load Demo Dataset&quot; to populate the application with sample data</span>
             </li>
-            <li className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-6 h-6 bg-purple-500/20 fi-text-purple rounded-full text-xs font-bold flex-shrink-0">
+            <li className="demo-guide-step">
+              <span className="demo-step-number">
                 2
               </span>
               <span>Explore sessions using the deep links above (Dashboard, Sessions, Timeline, Audit)</span>
             </li>
-            <li className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-6 h-6 bg-purple-500/20 fi-text-purple rounded-full text-xs font-bold flex-shrink-0">
+            <li className="demo-guide-step">
+              <span className="demo-step-number">
                 3
               </span>
               <span>Click on any session to view its interactions in the Viewer</span>
             </li>
-            <li className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-6 h-6 bg-purple-500/20 fi-text-purple rounded-full text-xs font-bold flex-shrink-0">
+            <li className="demo-guide-step">
+              <span className="demo-step-number">
                 4
               </span>
               <span>Use &quot;Reset Demo&quot; when done to clear all sample data</span>

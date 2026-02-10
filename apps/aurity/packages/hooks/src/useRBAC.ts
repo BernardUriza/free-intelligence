@@ -254,8 +254,8 @@ export function getRoleName(role: Role): string {
  */
 export function getRoleBadgeColor(role: Role): string {
   const colors: Record<Role, string> = {
-    [ROLES.SUPERADMIN]: 'bg-purple-600',
-    [ROLES.CLINICIAN]: 'bg-emerald-600',
+    [ROLES.SUPERADMIN]: 'admin-role-superadmin',
+    [ROLES.CLINICIAN]: 'admin-role-clinician',
   };
-  return colors[role] || 'bg-gray-600';
+  return colors[role] || 'admin-role-default';
 }

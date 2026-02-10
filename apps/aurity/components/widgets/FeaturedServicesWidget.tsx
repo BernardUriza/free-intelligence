@@ -26,7 +26,7 @@ export function FeaturedServicesWidget({
   clinicName = 'Nuestra Clínica',
 }: FeaturedServicesWidgetProps) {
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-slate-700/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8">
+    <div className="wgt-services-card">
       <div className="text-center mb-4 sm:mb-6 lg:mb-8 flex-shrink-0">
         <h2 className="font-bold text-white mb-2" style={{ fontSize: 'clamp(1.5rem, 3.5vw, 3.5rem)' }}>
           Nuestros Servicios
@@ -40,7 +40,7 @@ export function FeaturedServicesWidget({
         {services.slice(0, 4).map((service, index) => (
           <div
             key={index}
-            className="flex flex-col items-center justify-center bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 sm:p-6 lg:p-8 transition-transform hover:scale-105"
+            className="wgt-service-item"
           >
             <div className="mb-2 sm:mb-4 text-emerald-400">
               <service.icon style={{ width: 'clamp(3rem, 8vw, 6rem)', height: 'clamp(3rem, 8vw, 6rem)' }} strokeWidth={1.5} />

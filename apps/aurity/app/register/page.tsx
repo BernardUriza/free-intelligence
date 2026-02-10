@@ -39,14 +39,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-white text-center mb-1">AURITY</h1>
-        <p className="text-slate-400 text-center text-sm mb-8">Crea tu cuenta</p>
+    <div className="auth-register-wrapper">
+      <div className="auth-register-card">
+        <h1 className="auth-register-title">AURITY</h1>
+        <p className="auth-register-subtitle">Crea tu cuenta</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="auth-register-form">
           <div>
-            <label htmlFor="name" className="block text-sm text-slate-300 mb-1">
+            <label htmlFor="name" className="auth-register-label">
               Nombre
             </label>
             <input
@@ -56,13 +56,13 @@ export default function RegisterPage() {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="layout-auth-input"
               placeholder="Dr. Juan Perez"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm text-slate-300 mb-1">
+            <label htmlFor="email" className="auth-register-label">
               Email
             </label>
             <input
@@ -72,13 +72,13 @@ export default function RegisterPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="layout-auth-input"
               placeholder="tu@correo.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm text-slate-300 mb-1">
+            <label htmlFor="password" className="auth-register-label">
               Password
             </label>
             <input
@@ -89,28 +89,28 @@ export default function RegisterPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="layout-auth-input"
               placeholder="Minimo 8 caracteres"
             />
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+            <p className="auth-register-error">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors flex items-center justify-center gap-2"
+            className="layout-auth-submit"
           >
-            {loading && <Loader2 className="animate-spin h-4 w-4" />}
+            {loading && <Loader2 className="auth-register-icon-spin" />}
             {loading ? 'Registrando...' : 'Crear cuenta'}
           </button>
         </form>
 
-        <p className="text-slate-500 text-sm text-center mt-6">
+        <p className="auth-register-footer">
           Ya tienes cuenta?{' '}
-          <Link href="/login" className="text-emerald-400 hover:text-emerald-300">
+          <Link href="/login" className="auth-register-link">
             Inicia sesion
           </Link>
         </p>

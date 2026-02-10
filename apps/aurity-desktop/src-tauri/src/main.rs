@@ -25,9 +25,37 @@ use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{Emitter, Listener, Manager};
+use log::{error, info, warn};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
+
+/// Application errors for Tauri commands
+#[derive(Debug, thiserror::Error, Serialize)]
+pub enum AppError {
+    #[error("{0}")]
+    Io(String),
+    #[error("{0}")]
+    Json(String),
+    #[error("{0}")]
+    Network(String),
+    #[error("{0}")]
+    Config(String),
+    #[error("{0}")]
+    Script(String),
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        AppError::Io(e.to_string())
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(e: serde_json::Error) -> Self {
+        AppError::Json(e.to_string())
+    }
+}
 
 /// Global state for backend
 struct BackendState {
@@ -54,18 +82,15 @@ fn find_available_port() -> Option<u16> {
     None
 }
 
-/// Check if the backend is responding to health checks
-async fn check_backend_health(port: u16) -> bool {
+/// Check if the backend is responding to health checks.
+/// Accepts a pre-built client to avoid recreating it on each call (used in retry loops).
+async fn check_backend_health(client: &reqwest::Client, port: u16) -> bool {
     let url = format!("http://127.0.0.1:{}/api/health", port);
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .build()
-        .unwrap();
-
-    match client.get(&url).send().await {
-        Ok(response) => response.status().is_success(),
-        Err(_) => false,
-    }
+    client
+        .get(&url)
+        .send()
+        .await
+        .is_ok_and(|r| r.status().is_success())
 }
 
 /// Emit loading status to splashscreen
@@ -88,11 +113,11 @@ fn get_backend_status(state: tauri::State<'_, Arc<BackendState>>) -> bool {
 
 /// Check if Ollama is running locally
 #[tauri::command]
-async fn check_ollama_status() -> Result<bool, String> {
+async fn check_ollama_status() -> Result<bool, AppError> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::Network(e.to_string()))?;
 
     match client.get("http://localhost:11434/api/tags").send().await {
         Ok(response) => Ok(response.status().is_success()),
@@ -104,12 +129,12 @@ async fn check_ollama_status() -> Result<bool, String> {
 /// On Windows: runs ollama-tunnel.ps1 start
 /// On macOS/Linux: runs ollama-tunnel.sh start
 #[tauri::command]
-async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, String> {
+async fn ensure_edge_infrastructure(_app: tauri::AppHandle) -> Result<String, AppError> {
     // First check if Ollama is already running
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::Network(e.to_string()))?;
 
     let ollama_running = client
         .get("http://localhost:11434/api/tags")
@@ -123,7 +148,7 @@ async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, Str
     }
 
     // Ollama not running - execute the tunnel script
-    println!("[Aurity] Ollama not running, starting edge infrastructure...");
+    info!("Ollama not running, starting edge infrastructure...");
 
     // Find the scripts directory (relative to app or project root)
     let scripts_dir = find_scripts_dir();
@@ -134,7 +159,7 @@ async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, Str
 
         let script_path = scripts_dir.join("ollama-tunnel.ps1");
         if !script_path.exists() {
-            return Err(format!("Script not found: {:?}", script_path));
+            return Err(AppError::Script(format!("Script not found: {:?}", script_path)));
         }
 
         let output = Command::new("powershell")
@@ -147,13 +172,13 @@ async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, Str
             ])
             .current_dir(&scripts_dir)
             .output()
-            .map_err(|e| format!("Failed to execute script: {}", e))?;
+            .map_err(|e| AppError::Script(format!("Failed to execute script: {}", e)))?;
 
         if output.status.success() {
             Ok("Edge infrastructure started (Windows)".to_string())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("Script failed: {}", stderr))
+            Err(AppError::Script(format!("Script failed: {}", stderr)))
         }
     }
 
@@ -163,20 +188,20 @@ async fn ensure_edge_infrastructure(app: tauri::AppHandle) -> Result<String, Str
 
         let script_path = scripts_dir.join("ollama-tunnel.sh");
         if !script_path.exists() {
-            return Err(format!("Script not found: {:?}", script_path));
+            return Err(AppError::Script(format!("Script not found: {:?}", script_path)));
         }
 
         let output = Command::new("bash")
             .args([&script_path.to_string_lossy().to_string(), "start"])
             .current_dir(&scripts_dir)
             .output()
-            .map_err(|e| format!("Failed to execute script: {}", e))?;
+            .map_err(|e| AppError::Script(format!("Failed to execute script: {}", e)))?;
 
         if output.status.success() {
             Ok("Edge infrastructure started (Unix)".to_string())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("Script failed: {}", stderr))
+            Err(AppError::Script(format!("Script failed: {}", stderr)))
         }
     }
 }
@@ -208,14 +233,15 @@ fn find_scripts_dir() -> PathBuf {
 // WINDOWS AUTOSTART
 // =============================================================================
 
+#[cfg(target_os = "windows")]
 const AUTOSTART_KEY: &str = "AurityDesktop";
 
 /// Internal function to setup Windows autostart
 #[cfg(target_os = "windows")]
-fn setup_windows_autostart_internal() -> Result<bool, String> {
+fn setup_windows_autostart_internal() -> Result<bool, AppError> {
     use std::process::Command;
 
-    let exe_path = std::env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+    let exe_path = std::env::current_exe().map_err(|e| AppError::Io(format!("Failed to get exe path: {}", e)))?;
 
     // Add to HKCU\Software\Microsoft\Windows\CurrentVersion\Run
     let output = Command::new("reg")
@@ -231,24 +257,24 @@ fn setup_windows_autostart_internal() -> Result<bool, String> {
             "/f", // Force overwrite
         ])
         .output()
-        .map_err(|e| format!("Failed to execute reg: {}", e))?;
+        .map_err(|e| AppError::Script(format!("Failed to execute reg: {}", e)))?;
 
     if output.status.success() {
         Ok(true)
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Failed to add registry key: {}", stderr))
+        Err(AppError::Script(format!("Failed to add registry key: {}", stderr)))
     }
 }
 
 /// Setup Windows autostart (adds to registry Run key)
 #[tauri::command]
-fn setup_windows_autostart() -> Result<bool, String> {
+fn setup_windows_autostart() -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
         let result = setup_windows_autostart_internal();
         if result.is_ok() {
-            println!("[Aurity] Windows autostart enabled");
+            info!("Windows autostart enabled");
         }
         result
     }
@@ -261,7 +287,7 @@ fn setup_windows_autostart() -> Result<bool, String> {
 
 /// Remove Windows autostart
 #[tauri::command]
-fn remove_windows_autostart() -> Result<bool, String> {
+fn remove_windows_autostart() -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
@@ -275,10 +301,10 @@ fn remove_windows_autostart() -> Result<bool, String> {
                 "/f",
             ])
             .output()
-            .map_err(|e| format!("Failed to execute reg: {}", e))?;
+            .map_err(|e| AppError::Script(format!("Failed to execute reg: {}", e)))?;
 
         if output.status.success() {
-            println!("[Aurity] Windows autostart disabled");
+            info!("Windows autostart disabled");
             Ok(true)
         } else {
             // Key might not exist, that's ok
@@ -294,7 +320,7 @@ fn remove_windows_autostart() -> Result<bool, String> {
 
 /// Check if Windows autostart is enabled
 #[tauri::command]
-fn check_windows_autostart() -> Result<bool, String> {
+fn check_windows_autostart() -> Result<bool, AppError> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
@@ -307,7 +333,7 @@ fn check_windows_autostart() -> Result<bool, String> {
                 AUTOSTART_KEY,
             ])
             .output()
-            .map_err(|e| format!("Failed to execute reg: {}", e))?;
+            .map_err(|e| AppError::Script(format!("Failed to execute reg: {}", e)))?;
 
         Ok(output.status.success())
     }
@@ -329,7 +355,7 @@ struct PythonStatus {
 
 /// Check Python 3.14+ installation and dependencies
 #[tauri::command]
-async fn check_python_installation() -> Result<PythonStatus, String> {
+async fn check_python_installation() -> Result<PythonStatus, AppError> {
     use std::process::Command;
 
     // Check python --version
@@ -385,7 +411,7 @@ struct FirstRunStatus {
 
 /// Check first-run status (for frontend wizard)
 #[tauri::command]
-async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus, String> {
+async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus, AppError> {
     let data_dir = get_data_dir(&app)?;
     let config_exists = data_dir.join("config/fi.policy.yaml").exists();
 
@@ -393,7 +419,7 @@ async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus,
     let ollama_ok = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| AppError::Network(e.to_string()))?
         .get("http://localhost:11434/api/tags")
         .send()
         .await
@@ -421,14 +447,14 @@ pub struct WizardState {
 }
 
 /// Get the path to wizard state file
-fn get_wizard_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn get_wizard_state_path(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     let data_dir = get_data_dir(app)?;
     Ok(data_dir.join("config").join("wizard-state.json"))
 }
 
 /// Get wizard state from filesystem
 #[tauri::command]
-fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, String> {
+fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, AppError> {
     let state_path = get_wizard_state_path(&app)?;
 
     if !state_path.exists() {
@@ -438,14 +464,11 @@ fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, String> {
 
     // Verify it's a regular file, not a symlink (security check)
     if state_path.is_symlink() {
-        return Err("Security: wizard state file is a symlink, refusing to read".to_string());
+        return Err(AppError::Config("Security: wizard state file is a symlink, refusing to read".into()));
     }
 
-    let content = fs::read_to_string(&state_path)
-        .map_err(|e| format!("Failed to read wizard state: {}", e))?;
-
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse wizard state: {}", e))
+    let content = fs::read_to_string(&state_path)?;
+    Ok(serde_json::from_str(&content)?)
 }
 
 /// Mark desktop setup as complete
@@ -453,13 +476,12 @@ fn get_wizard_state(app: tauri::AppHandle) -> Result<WizardState, String> {
 fn mark_desktop_setup_complete(
     app: tauri::AppHandle,
     fi_monitor_installed: bool,
-) -> Result<WizardState, String> {
+) -> Result<WizardState, AppError> {
     let state_path = get_wizard_state_path(&app)?;
 
     // Ensure parent directory exists
     if let Some(parent) = state_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+        fs::create_dir_all(parent)?;
     }
 
     // Create new state
@@ -471,14 +493,13 @@ fn mark_desktop_setup_complete(
     };
 
     // Serialize to JSON
-    let content = serde_json::to_string_pretty(&state)
-        .map_err(|e| format!("Failed to serialize wizard state: {}", e))?;
+    let content = serde_json::to_string_pretty(&state)?;
 
     // Write atomically
     atomic_write(&state_path, content.as_bytes())?;
 
-    println!(
-        "[Aurity] Wizard state saved: desktop_setup_completed=true, fi_monitor_installed={}",
+    info!(
+        "Wizard state saved: desktop_setup_completed=true, fi_monitor_installed={}",
         fi_monitor_installed
     );
 
@@ -487,40 +508,39 @@ fn mark_desktop_setup_complete(
 
 /// Reset wizard state (for development/testing)
 #[tauri::command]
-fn reset_wizard_state(app: tauri::AppHandle) -> Result<bool, String> {
+fn reset_wizard_state(app: tauri::AppHandle) -> Result<bool, AppError> {
     let state_path = get_wizard_state_path(&app)?;
 
     if state_path.exists() {
-        fs::remove_file(&state_path)
-            .map_err(|e| format!("Failed to delete wizard state: {}", e))?;
-        println!("[Aurity] Wizard state reset (file deleted)");
+        fs::remove_file(&state_path)?;
+        info!("Wizard state reset (file deleted)");
         Ok(true)
     } else {
-        println!("[Aurity] Wizard state reset (file didn't exist)");
+        info!("Wizard state reset (file didn't exist)");
         Ok(false)
     }
 }
 
 /// Get the user data directory for Aurity
-fn get_data_dir(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn get_data_dir(_app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     // Use ~/.aurity for consistency with backend expectations
     // Note: _app parameter kept for potential future use with tauri::PathResolver
-    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    let home = dirs::home_dir().ok_or(AppError::Config("Could not find home directory".into()))?;
     Ok(home.join(".aurity"))
 }
 
 /// Atomically write a file: write to .tmp, then rename
 /// This prevents partial writes and is safer against TOCTOU attacks
-fn atomic_write(path: &PathBuf, content: &[u8]) -> Result<(), String> {
+fn atomic_write(path: &PathBuf, content: &[u8]) -> Result<(), AppError> {
     let tmp_path = path.with_extension("tmp");
 
     // Write to temporary file
     fs::write(&tmp_path, content)
-        .map_err(|e| format!("Failed to write temp file {:?}: {}", tmp_path, e))?;
+        .map_err(|e| AppError::Io(format!("Failed to write temp file {:?}: {}", tmp_path, e)))?;
 
     // Atomically rename to final path
     fs::rename(&tmp_path, path)
-        .map_err(|e| format!("Failed to rename {:?} to {:?}: {}", tmp_path, path, e))?;
+        .map_err(|e| AppError::Io(format!("Failed to rename {:?} to {:?}: {}", tmp_path, path, e)))?;
 
     Ok(())
 }
@@ -537,7 +557,7 @@ fn is_safe_filename(filename: &str) -> bool {
 /// - Atomic writes (write to .tmp, then rename) to prevent partial state
 /// - Filename validation to prevent path traversal
 /// - Symlink detection to prevent symlink attacks
-fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
+fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, AppError> {
     let data_dir = get_data_dir(app)?;
     let config_dir = data_dir.join("config");
     let personas_dir = config_dir.join("personas");
@@ -548,36 +568,35 @@ fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
     if policy_path.exists() {
         // Additional safety: verify it's a regular file, not a symlink
         if policy_path.is_symlink() {
-            return Err("Security: config file is a symlink, refusing to proceed".to_string());
+            return Err(AppError::Config("Security: config file is a symlink, refusing to proceed".into()));
         }
-        println!("[Aurity] Config already initialized at {:?}", config_dir);
+        info!("Config already initialized at {:?}", config_dir);
         return Ok(false); // Not first run
     }
 
-    println!(
-        "[Aurity] First run detected - bootstrapping config to {:?}",
+    info!(
+        "First run detected - bootstrapping config to {:?}",
         data_dir
     );
 
     // Create directories (these are idempotent operations)
-    fs::create_dir_all(&config_dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
-    fs::create_dir_all(&personas_dir)
-        .map_err(|e| format!("Failed to create personas dir: {}", e))?;
-    fs::create_dir_all(&storage_dir).map_err(|e| format!("Failed to create storage dir: {}", e))?;
+    fs::create_dir_all(&config_dir)?;
+    fs::create_dir_all(&personas_dir)?;
+    fs::create_dir_all(&storage_dir)?;
 
     // Verify directories are not symlinks (security check)
     if config_dir.is_symlink() || personas_dir.is_symlink() || storage_dir.is_symlink() {
-        return Err("Security: one or more config directories are symlinks".to_string());
+        return Err(AppError::Config("Security: one or more config directories are symlinks".into()));
     }
 
     // Write all persona templates first (so policy is written last as completion marker)
     for (filename, content) in templates::PERSONAS {
         // Validate filename to prevent path traversal
         if !is_safe_filename(filename) {
-            return Err(format!(
+            return Err(AppError::Config(format!(
                 "Security: invalid filename in templates: {}",
                 filename
-            ));
+            )));
         }
         let persona_path = personas_dir.join(filename);
         atomic_write(&persona_path, content.as_bytes())?;
@@ -586,14 +605,264 @@ fn bootstrap_config(app: &tauri::AppHandle) -> Result<bool, String> {
     // Write policy template LAST (serves as "initialization complete" marker)
     atomic_write(&policy_path, templates::POLICY.as_bytes())?;
 
-    println!("[Aurity] Config bootstrapped successfully!");
-    println!("[Aurity]   - Policy: {:?}", policy_path);
-    println!("[Aurity]   - Personas: {} files", templates::PERSONAS.len());
+    info!("Config bootstrapped successfully!");
+    info!("  - Policy: {:?}", policy_path);
+    info!("  - Personas: {} files", templates::PERSONAS.len());
 
     Ok(true) // First run completed
 }
 
+/// Register deep link handlers for OAuth callbacks.
+/// On macOS: uses the native on_open_url handler.
+/// On Linux/Windows: checks CLI args for deep link URLs passed at first launch.
+fn register_deep_links(app: &tauri::App) {
+    let app_handle = app.handle().clone();
+
+    #[cfg(target_os = "macos")]
+    {
+        let dl_handle = app_handle.clone();
+        app.deep_link().on_open_url(move |event| {
+            for url in event.urls() {
+                let url_str = url.to_string();
+                if url_str.starts_with("aurity://") {
+                    info!("Deep link received: {}", url_str);
+                    let _ = dl_handle.emit("deep-link-received", url_str);
+                }
+            }
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        for arg in std::env::args() {
+            if arg.starts_with("aurity://") {
+                info!("Deep link from args: {}", arg);
+                let _ = app_handle.emit("deep-link-received", arg);
+            }
+        }
+    }
+}
+
+/// Manage the splash → main window transition.
+/// Waits for the "frontend-ready" event, enforcing a minimum 15s splash for branding,
+/// with a 20s fallback timeout.
+fn setup_window_transition(app_handle: &tauri::AppHandle, port: u16) {
+    let Some(main_window) = app_handle.get_webview_window("main") else {
+        return;
+    };
+
+    // Inject backend URL into main window
+    let js = format!(
+        "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+        port
+    );
+    let _ = main_window.eval(&js);
+
+    // Wait for frontend ready signal before showing main window
+    // Minimum 15 seconds splash for branding animation
+    let splash_start = std::time::Instant::now();
+    let ready_handle = app_handle.clone();
+    main_window.listen("frontend-ready", move |_| {
+        let elapsed = splash_start.elapsed();
+        let min_splash_duration = Duration::from_secs(15);
+
+        if elapsed < min_splash_duration {
+            let remaining = min_splash_duration - elapsed;
+            info!("Frontend ready - waiting {:.1}s more for splash animation", remaining.as_secs_f32());
+            let handle = ready_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(remaining).await;
+                info!("Splash animation complete - showing main window");
+                if let Some(main) = handle.get_webview_window("main") {
+                    let _ = main.show();
+                    let _ = main.set_focus();
+                }
+                if let Some(splash) = handle.get_webview_window("splashscreen") {
+                    let _ = splash.close();
+                    let _ = handle.emit("splash-closed", ());
+                }
+            });
+        } else {
+            info!("Frontend ready - showing main window and closing splash");
+            if let Some(main) = ready_handle.get_webview_window("main") {
+                let _ = main.show();
+                let _ = main.set_focus();
+            }
+            if let Some(splash) = ready_handle.get_webview_window("splashscreen") {
+                let _ = splash.close();
+                let _ = ready_handle.emit("splash-closed", ());
+            }
+        }
+    });
+
+    // Fallback: show main and close splash after 20s if frontend doesn't respond
+    let fallback_handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(20)).await;
+        if let Some(main) = fallback_handle.get_webview_window("main") {
+            if !main.is_visible().unwrap_or(true) {
+                info!("Fallback: showing main window after timeout");
+                let _ = main.show();
+                let _ = main.set_focus();
+            }
+        }
+        if let Some(splash) = fallback_handle.get_webview_window("splashscreen") {
+            info!("Fallback: closing splash after timeout");
+            let _ = splash.close();
+            let _ = fallback_handle.emit("splash-closed", ());
+        }
+    });
+}
+
+/// Run the health check loop, polling the backend until it responds or times out.
+async fn run_health_checks(app_handle: &tauri::AppHandle, state: &Arc<BackendState>, port: u16) {
+    emit_status(app_handle, "Verificando backend...");
+
+    let mut attempts = 0;
+    let max_attempts = 60; // 30 seconds total (500ms * 60)
+    let health_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .unwrap_or_default();
+
+    while attempts < max_attempts {
+        if check_backend_health(&health_client, port).await {
+            state.is_ready.store(true, Ordering::SeqCst);
+            info!("Backend is healthy on port {}", port);
+
+            let _ = app_handle.emit(
+                "backend-ready",
+                serde_json::json!({ "port": port }),
+            );
+            return;
+        }
+
+        attempts += 1;
+        sleep(Duration::from_millis(500)).await;
+
+        if attempts % 4 == 0 {
+            emit_status(
+                app_handle,
+                &format!("Iniciando backend... {}s", attempts / 2),
+            );
+        }
+    }
+
+    emit_status(app_handle, "Error: Backend no responde");
+    error!("Backend failed to respond after {} attempts", max_attempts);
+    let _ = app_handle.emit("backend-error", "Backend failed to start");
+}
+
+/// Spawn the backend sidecar and manage startup lifecycle:
+/// 1. Find available port
+/// 2. Spawn sidecar process with logging
+/// 3. Setup window transition (splash → main)
+/// 4. Run health checks
+async fn spawn_backend(app_handle: tauri::AppHandle, state: Arc<BackendState>) {
+    // Step 1: Find available port
+    emit_status(&app_handle, "Buscando puerto disponible...");
+
+    let port = match find_available_port() {
+        Some(p) => {
+            info!("Selected port {} for backend", p);
+            p
+        }
+        None => {
+            error!("No available ports in range 7001-7999");
+            emit_status(&app_handle, "Error: No hay puertos disponibles");
+            return;
+        }
+    };
+
+    state.port.store(port, Ordering::SeqCst);
+
+    // Step 2: Start the sidecar with the selected port
+    emit_status(&app_handle, "Iniciando backend de IA...");
+
+    let shell = app_handle.shell();
+    let sidecar_cmd = match shell.sidecar("aurity-backend") {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            error!("Failed to create sidecar command: {}", e);
+            emit_status(&app_handle, &format!("Error: sidecar no disponible ({})", e));
+            return;
+        }
+    };
+    let sidecar_result = sidecar_cmd
+        .args(["--port", &port.to_string()])
+        .spawn();
+
+    match sidecar_result {
+        Ok((mut rx, _child)) => {
+            info!("Backend sidecar started");
+
+            // Log sidecar output in background
+            let status_handle = app_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                            let line_str = String::from_utf8_lossy(&line);
+                            info!(target: "sidecar", "{}", line_str);
+
+                            if line_str.contains("Uvicorn running")
+                                || line_str.contains("Application startup complete")
+                            {
+                                emit_status(&status_handle, "Backend iniciado!");
+                            }
+                        }
+                        tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                            error!(target: "sidecar", "{}", String::from_utf8_lossy(&line));
+                        }
+                        tauri_plugin_shell::process::CommandEvent::Terminated(status) => {
+                            info!("Backend terminated: {:?}", status);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            });
+
+            // Step 3: Setup splash → main window transition
+            info!("Showing main window (backend starting in background)");
+            setup_window_transition(&app_handle, port);
+
+            // Step 4: Health check in background (non-blocking)
+            run_health_checks(&app_handle, &state, port).await;
+        }
+        Err(e) => {
+            error!("Failed to spawn sidecar: {}", e);
+            emit_status(&app_handle, &format!("Error: {}", e));
+
+            // In dev mode, continue anyway without backend
+            #[cfg(debug_assertions)]
+            {
+                info!("DEV MODE: Continuing without backend sidecar");
+                sleep(Duration::from_secs(2)).await;
+                emit_status(&app_handle, "Modo desarrollo (sin backend)");
+
+                if let Some(main_window) = app_handle.get_webview_window("main") {
+                    let js = format!(
+                        "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
+                        port
+                    );
+                    let _ = main_window.eval(&js);
+                    let _ = main_window.eval("window.__AURITY_DEV_MODE__ = true;");
+                    let _ = main_window.show();
+                    let _ = main_window.set_focus();
+                }
+
+                if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                    let _ = splash.close();
+                }
+            }
+        }
+    }
+}
+
 fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let backend_state = Arc::new(BackendState {
         port: AtomicU16::new(0),
         is_ready: AtomicBool::new(false),
@@ -606,8 +875,6 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        // Note: single-instance plugin removed due to Tauri 2.x config issues
-        // Deep links on macOS handled via on_open_url() below, Windows/Linux can add back later
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(backend_state.clone())
@@ -616,280 +883,23 @@ fn main() {
             let app_handle = app.handle().clone();
             let state = backend_state.clone();
 
-            // Register deep link handler for OAuth callbacks (macOS)
-            #[cfg(target_os = "macos")]
-            {
-                let dl_handle = app_handle.clone();
-                app.deep_link().on_open_url(move |event| {
-                    for url in event.urls() {
-                        let url_str = url.to_string();
-                        if url_str.starts_with("aurity://") {
-                            println!("[Aurity] Deep link received: {}", url_str);
-                            let _ = dl_handle.emit("deep-link-received", url_str);
-                        }
-                    }
-                });
-            }
+            register_deep_links(app);
 
-            // On Linux/Windows, check CLI args for deep link (first launch)
-            #[cfg(not(target_os = "macos"))]
-            {
-                for arg in std::env::args() {
-                    if arg.starts_with("aurity://") {
-                        println!("[Aurity] Deep link from args: {}", arg);
-                        let _ = app_handle.emit("deep-link-received", arg);
-                    }
-                }
-            }
-
-            // Step 0: Bootstrap config on first run (BEFORE spawning backend)
             emit_status(&app_handle, "Verificando configuración...");
             match bootstrap_config(&app_handle) {
                 Ok(true) => {
-                    println!("[Aurity] First run - config bootstrapped");
+                    info!("First run - config bootstrapped");
                     let _ = app_handle.emit("first-run-detected", ());
-
-                    // DISABLED: Only FI-monitor should autostart, not Aurity Desktop
-                    // User can manually enable autostart from settings if needed
-                    // #[cfg(target_os = "windows")]
-                    // {
-                    //     emit_status(&app_handle, "Configurando inicio automático...");
-                    //     match setup_windows_autostart_internal() {
-                    //         Ok(true) => println!("[Aurity] Windows autostart configured"),
-                    //         Ok(false) => println!("[Aurity] Windows autostart skipped"),
-                    //         Err(e) => eprintln!("[Aurity] WARNING: Failed to setup autostart: {}", e),
-                    //     }
-                    // }
                 }
                 Ok(false) => {
-                    println!("[Aurity] Config already exists");
+                    info!("Config already exists");
                 }
                 Err(e) => {
-                    eprintln!("[Aurity] WARNING: Failed to bootstrap config: {}", e);
-                    // Continue anyway - backend might still work
+                    warn!("Failed to bootstrap config: {}", e);
                 }
             }
 
-            // Spawn async task to start backend
-            tauri::async_runtime::spawn(async move {
-                // Step 1: Find available port
-                emit_status(&app_handle, "Buscando puerto disponible...");
-
-                let port = match find_available_port() {
-                    Some(p) => {
-                        println!("[Aurity] Selected port {} for backend", p);
-                        p
-                    }
-                    None => {
-                        eprintln!("[Aurity] ERROR: No available ports in range 7001-7999");
-                        emit_status(&app_handle, "Error: No hay puertos disponibles");
-                        return;
-                    }
-                };
-
-                state.port.store(port, Ordering::SeqCst);
-
-                // Step 2: Start the sidecar with the selected port
-                emit_status(&app_handle, "Iniciando backend de IA...");
-
-                let shell = app_handle.shell();
-                let sidecar_result = shell
-                    .sidecar("aurity-backend")
-                    .expect("Failed to create sidecar command")
-                    .args(["--port", &port.to_string()])
-                    .spawn();
-
-                match sidecar_result {
-                    Ok((mut rx, _child)) => {
-                        println!("[Aurity] Backend sidecar started");
-
-                        // The tauri-plugin-process automatically handles cleanup on app exit
-
-                        // Log sidecar output in background
-                        let status_handle = app_handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            while let Some(event) = rx.recv().await {
-                                match event {
-                                    tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                                        let line_str = String::from_utf8_lossy(&line);
-                                        println!("[backend] {}", line_str);
-
-                                        // Detect when uvicorn is ready
-                                        if line_str.contains("Uvicorn running")
-                                            || line_str.contains("Application startup complete")
-                                        {
-                                            emit_status(&status_handle, "Backend iniciado!");
-                                        }
-                                    }
-                                    tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                                        eprintln!(
-                                            "[backend-err] {}",
-                                            String::from_utf8_lossy(&line)
-                                        );
-                                    }
-                                    tauri_plugin_shell::process::CommandEvent::Terminated(
-                                        status,
-                                    ) => {
-                                        println!("[Aurity] Backend terminated: {:?}", status);
-                                        break;
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        });
-
-                        // Step 3: Show main window IMMEDIATELY (don't wait for health checks)
-                        // Frontend will show loading/setup wizard while backend starts
-                        println!("[Aurity] Showing main window (backend starting in background)");
-
-                        // Inject backend URL into main window
-                        if let Some(main_window) = app_handle.get_webview_window("main") {
-                            let js = format!(
-                                "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-                                port
-                            );
-                            let _ = main_window.eval(&js);
-
-                            // DON'T show main window yet - wait for frontend-ready signal
-                            // This prevents the flash of empty/loading content
-
-                            // Wait for frontend ready signal before showing main window
-                            // Minimum 15 seconds splash for branding animation
-                            let splash_start = std::time::Instant::now();
-                            let ready_handle = app_handle.clone();
-                            main_window.listen("frontend-ready", move |_| {
-                                let elapsed = splash_start.elapsed();
-                                let min_splash_duration = Duration::from_secs(15);
-
-                                if elapsed < min_splash_duration {
-                                    // Wait remaining time before showing main window
-                                    let remaining = min_splash_duration - elapsed;
-                                    println!("[Aurity] Frontend ready - waiting {:.1}s more for splash animation", remaining.as_secs_f32());
-                                    let handle = ready_handle.clone();
-                                    tauri::async_runtime::spawn(async move {
-                                        tokio::time::sleep(remaining).await;
-                                        println!("[Aurity] Splash animation complete - showing main window");
-                                        if let Some(main) = handle.get_webview_window("main") {
-                                            let _ = main.show();
-                                            let _ = main.set_focus();
-                                        }
-                                        if let Some(splash) = handle.get_webview_window("splashscreen") {
-                                            let _ = splash.close();
-                                            // Notify React to hide its overlay
-                                            let _ = handle.emit("splash-closed", ());
-                                        }
-                                    });
-                                } else {
-                                    // Already waited enough, show immediately
-                                    println!("[Aurity] Frontend ready - showing main window and closing splash");
-                                    if let Some(main) = ready_handle.get_webview_window("main") {
-                                        let _ = main.show();
-                                        let _ = main.set_focus();
-                                    }
-                                    if let Some(splash) = ready_handle.get_webview_window("splashscreen") {
-                                        let _ = splash.close();
-                                        // Notify React to hide its overlay
-                                        let _ = ready_handle.emit("splash-closed", ());
-                                    }
-                                }
-                            });
-
-                            // Fallback: show main and close splash after 20s if frontend doesn't respond
-                            // (must be > 15s minimum splash duration)
-                            let fallback_handle = app_handle.clone();
-                            tauri::async_runtime::spawn(async move {
-                                tokio::time::sleep(Duration::from_secs(20)).await;
-                                // Check if main window is still hidden (frontend-ready didn't fire)
-                                if let Some(main) = fallback_handle.get_webview_window("main") {
-                                    if !main.is_visible().unwrap_or(true) {
-                                        println!("[Aurity] Fallback: showing main window after timeout");
-                                        let _ = main.show();
-                                        let _ = main.set_focus();
-                                    }
-                                }
-                                if let Some(splash) = fallback_handle.get_webview_window("splashscreen") {
-                                    println!("[Aurity] Fallback: closing splash after timeout");
-                                    let _ = splash.close();
-                                    // Notify React to hide its overlay
-                                    let _ = fallback_handle.emit("splash-closed", ());
-                                }
-                            });
-                        }
-
-                        // Step 4: Health check in BACKGROUND (non-blocking)
-                        emit_status(&app_handle, "Verificando backend...");
-
-                        let mut attempts = 0;
-                        let max_attempts = 60; // 30 seconds total (500ms * 60)
-
-                        while attempts < max_attempts {
-                            if check_backend_health(port).await {
-                                state.is_ready.store(true, Ordering::SeqCst);
-                                println!("[Aurity] Backend is healthy on port {}", port);
-
-                                // Emit ready event (frontend can use this to hide loading states)
-                                let _ = app_handle.emit(
-                                    "backend-ready",
-                                    serde_json::json!({
-                                        "port": port
-                                    }),
-                                );
-                                break;
-                            }
-
-                            attempts += 1;
-                            sleep(Duration::from_millis(500)).await;
-
-                            // Update status every 2 seconds
-                            if attempts % 4 == 0 {
-                                emit_status(
-                                    &app_handle,
-                                    &format!("Iniciando backend... {}s", attempts / 2),
-                                );
-                            }
-                        }
-
-                        // Report error if health check failed (but main window is already visible)
-                        if !state.is_ready.load(Ordering::SeqCst) {
-                            emit_status(&app_handle, "Error: Backend no responde");
-                            eprintln!(
-                                "[Aurity] ERROR: Backend failed to respond after {} attempts",
-                                max_attempts
-                            );
-                            let _ = app_handle.emit("backend-error", "Backend failed to start");
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("[Aurity] Failed to spawn sidecar: {}", e);
-                        emit_status(&app_handle, &format!("Error: {}", e));
-
-                        // In dev mode, continue anyway without backend
-                        #[cfg(debug_assertions)]
-                        {
-                            println!("[Aurity] DEV MODE: Continuing without backend sidecar");
-                            sleep(Duration::from_secs(2)).await;
-                            emit_status(&app_handle, "Modo desarrollo (sin backend)");
-
-                            // Show main window anyway
-                            if let Some(main_window) = app_handle.get_webview_window("main") {
-                                let js = format!(
-                                    "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-                                    port
-                                );
-                                let _ = main_window.eval(&js);
-                                let _ = main_window.eval("window.__AURITY_DEV_MODE__ = true;");
-                                let _ = main_window.show();
-                                let _ = main_window.set_focus();
-                            }
-
-                            // Close splashscreen
-                            if let Some(splash) = app_handle.get_webview_window("splashscreen") {
-                                let _ = splash.close();
-                            }
-                        }
-                    }
-                }
-            });
+            tauri::async_runtime::spawn(spawn_backend(app_handle, state));
 
             Ok(())
         })

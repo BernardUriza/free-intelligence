@@ -15,6 +15,8 @@
  * @see /apps/aurity/docs/audio/RUNBOOK.md
  */
 
+import { ROUTES } from '@/lib/api/routes';
+
 export interface CapabilityReport {
   backendReachable: boolean;
   audioApiSupported: boolean;
@@ -45,14 +47,10 @@ export async function probeCapabilities(
     probeTimestamp: Date.now(),
   };
 
-  // 1. Probe backend TTS endpoint
+  // 1. Probe backend TTS endpoint (GET /providers is lightweight and always available)
   try {
-    const response = await fetch(`${backendUrl}/api/tts/synthesize`, {
-      method: 'OPTIONS', // Preflight request
-    });
-    // 200 OK or 405 Method Not Allowed are both acceptable
-    // (405 means endpoint exists but doesn't support OPTIONS)
-    report.backendReachable = response.ok || response.status === 405;
+    const response = await fetch(`${backendUrl}${ROUTES.tts}/providers`);
+    report.backendReachable = response.ok;
   } catch (error) {
     report.errors.push(`Backend unreachable: ${error}`);
   }

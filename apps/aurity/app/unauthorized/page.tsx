@@ -17,33 +17,33 @@ export default function UnauthorizedPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
-      <div className="max-w-md w-full bg-red-900/20 border border-red-500/50 rounded-lg p-8">
+    <div className="auth-unauth-wrapper">
+      <div className="auth-unauth-card">
         {/* Error Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center">
-<AlertTriangle className="w-12 h-12 text-red-500" />
+        <div className="auth-unauth-icon-row">
+          <div className="auth-unauth-icon-circle">
+<AlertTriangle className="auth-unauth-icon-alert" />
           </div>
         </div>
 
         {/* Error Message */}
-        <h1 className="fi-title-2xl text-center mb-3">
+        <h1 className="fi-title-2xl auth-unauth-title-mb">
           Acceso No Autorizado
         </h1>
-        <p className="text-red-200 text-center mb-6">
+        <p className="auth-unauth-message">
           Tu rol actual <strong>({user?.email})</strong> no tiene permisos para acceder a esta página.
         </p>
 
         {/* Help Text */}
-        <div className="bg-slate-800/50 rounded-lg p-4 mb-6">
-          <h2 className="fi-title-sm mb-2">¿Necesitas acceso?</h2>
-          <p className="text-sm fi-text">
+        <div className="auth-unauth-help-box">
+          <h2 className="fi-title-sm auth-unauth-help-label-mb">¿Necesitas acceso?</h2>
+          <p className="auth-unauth-help-text fi-text">
             Contacta al administrador del sistema para solicitar permisos adicionales.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-3">
+        <div className="auth-unauth-actions">
           <Button
             onClick={() => router.push('/')}
             variant="primary"

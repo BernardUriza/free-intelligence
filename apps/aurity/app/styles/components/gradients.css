@@ -2,76 +2,74 @@
  * Gradients - All gradient utilities
  */
 
-@layer components {
-  /* ========================================
-   * SUBTLE COLOR GRADIENTS
-   * ======================================== */
-  .fi-gradient-emerald-subtle {
-    @apply bg-gradient-to-br from-emerald-500/20 to-emerald-600/10;
-  }
+/* ========================================
+ * SUBTLE COLOR GRADIENTS
+ * ======================================== */
+@utility fi-gradient-emerald-subtle {
+  @apply bg-gradient-to-br from-emerald-500/20 to-emerald-600/10;
+}
 
-  .fi-gradient-cyan-subtle {
-    @apply bg-gradient-to-br from-cyan-500/20 to-cyan-600/10;
-  }
+@utility fi-gradient-cyan-subtle {
+  @apply bg-gradient-to-br from-cyan-500/20 to-cyan-600/10;
+}
 
-  .fi-gradient-purple-subtle {
-    @apply bg-gradient-to-br from-purple-500/20 to-purple-600/10;
-  }
+@utility fi-gradient-purple-subtle {
+  @apply bg-gradient-to-br from-purple-500/20 to-purple-600/10;
+}
 
-  .fi-gradient-amber-subtle {
-    @apply bg-gradient-to-br from-amber-500/20 to-amber-600/10;
-  }
+@utility fi-gradient-amber-subtle {
+  @apply bg-gradient-to-br from-amber-500/20 to-amber-600/10;
+}
 
-  .fi-gradient-blue-subtle {
-    @apply bg-gradient-to-br from-blue-500/20 to-blue-600/10;
-  }
+@utility fi-gradient-blue-subtle {
+  @apply bg-gradient-to-br from-blue-500/20 to-blue-600/10;
+}
 
-  .fi-gradient-indigo-subtle {
-    @apply bg-gradient-to-br from-indigo-600/20 to-purple-600/20;
-  }
+@utility fi-gradient-indigo-subtle {
+  @apply bg-gradient-to-br from-indigo-600/20 to-purple-600/20;
+}
 
-  /* ========================================
-   * CONTAINER GRADIENTS
-   * ======================================== */
-  .fi-gradient-slate-card {
-    @apply bg-gradient-to-br from-slate-800/60 to-slate-900/60;
-  }
+/* ========================================
+ * CONTAINER GRADIENTS
+ * ======================================== */
+@utility fi-gradient-slate-card {
+  @apply bg-gradient-to-br from-slate-800/60 to-slate-900/60;
+}
 
-  .fi-gradient-slate-card-muted {
-    @apply bg-gradient-to-br from-slate-800/40 to-slate-900/40;
-  }
+@utility fi-gradient-slate-card-muted {
+  @apply bg-gradient-to-br from-slate-800/40 to-slate-900/40;
+}
 
-  .fi-gradient-slate-card-solid {
-    @apply bg-gradient-to-br from-slate-800/80 to-slate-900/80;
-  }
+@utility fi-gradient-slate-card-solid {
+  @apply bg-gradient-to-br from-slate-800/80 to-slate-900/80;
+}
 
-  /* ========================================
-   * ACCENT GRADIENTS
-   * ======================================== */
-  .fi-gradient-emerald-cyan-subtle {
-    @apply bg-gradient-to-r from-emerald-500/10 to-cyan-500/10;
-  }
+/* ========================================
+ * ACCENT GRADIENTS
+ * ======================================== */
+@utility fi-gradient-emerald-cyan-subtle {
+  @apply bg-gradient-to-r from-emerald-500/10 to-cyan-500/10;
+}
 
-  .fi-gradient-emerald-cyan-soft {
-    @apply bg-gradient-to-br from-emerald-500/20 to-cyan-500/20;
-  }
+@utility fi-gradient-emerald-cyan-soft {
+  @apply bg-gradient-to-br from-emerald-500/20 to-cyan-500/20;
+}
 
-  /* ========================================
-   * BUTTON GRADIENTS
-   * ======================================== */
-  .fi-gradient-btn-emerald {
-    @apply bg-gradient-to-r from-emerald-500 to-emerald-600
-           hover:from-emerald-600 hover:to-emerald-700;
-  }
+/* ========================================
+ * BUTTON GRADIENTS
+ * ======================================== */
+@utility fi-gradient-btn-emerald {
+  @apply bg-gradient-to-r from-emerald-500 to-emerald-600
+         hover:from-emerald-600 hover:to-emerald-700;
+}
 
-  .fi-gradient-btn-emerald-cyan {
-    @apply bg-gradient-to-r from-emerald-600 to-cyan-600;
-  }
+@utility fi-gradient-btn-emerald-cyan {
+  @apply bg-gradient-to-r from-emerald-600 to-cyan-600;
+}
 
-  /* ========================================
-   * HEADER/BANNER GRADIENTS
-   * ======================================== */
-  .fi-gradient-header-emerald-cyan {
-    @apply bg-gradient-to-r from-emerald-600 to-cyan-600;
-  }
+/* ========================================
+ * HEADER/BANNER GRADIENTS
+ * ======================================== */
+@utility fi-gradient-header-emerald-cyan {
+  @apply bg-gradient-to-r from-emerald-600 to-cyan-600;
 }

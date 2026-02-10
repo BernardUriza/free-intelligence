@@ -9,6 +9,7 @@
  */
 
 import { api } from './client';
+import { ROUTES } from './routes';
 
 // ============================================================================
 // TYPES
@@ -65,14 +66,14 @@ export interface VerifyResponse {
 export async function createExport(
   request: ExportRequest
 ): Promise<ExportResponse> {
-  return api.post<ExportResponse>('/api/exports', request);
+  return api.post<ExportResponse>(ROUTES.exports, request);
 }
 
 /**
  * Get export status
  */
 export async function getExport(exportId: string): Promise<ExportResponse> {
-  return api.get<ExportResponse>(`/api/exports/${exportId}`);
+  return api.get<ExportResponse>(`${ROUTES.exports}/${exportId}`);
 }
 
 /**
@@ -82,7 +83,7 @@ export async function verifyExport(
   exportId: string,
   request: VerifyRequest = { targets: ['md', 'json', 'manifest'] }
 ): Promise<VerifyResponse> {
-  return api.post<VerifyResponse>(`/api/exports/${exportId}/verify`, request);
+  return api.post<VerifyResponse>(`${ROUTES.exports}/${exportId}/verify`, request);
 }
 
 /**

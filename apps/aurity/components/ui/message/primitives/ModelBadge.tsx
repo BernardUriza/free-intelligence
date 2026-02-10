@@ -68,7 +68,7 @@ export function ModelBadge({ model, className = '', voice = null }: ModelBadgePr
           Powered by <span className="fi-text-success/90">{displayName}</span>
         </span>
         {showVoice && (
-          <span className="fi-text-xs/80 px-2 py-0.5 rounded-full bg-slate-700/30 border border-slate-700/30">
+          <span className="ui-model-voice-badge">
             Voice of <span className="text-emerald-300 font-mono">{voiceLabel}</span>
           </span>
         )}

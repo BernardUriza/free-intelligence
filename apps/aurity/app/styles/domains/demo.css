@@ -1,0 +1,242 @@
+/**
+ * Demo Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: demo-{component}[-variant]
+ * Covers: /app/demo/page.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility demo-icon-sm {
+  @apply w-5 h-5;
+}
+
+@utility demo-icon-xs {
+  @apply w-4 h-4;
+}
+
+@utility demo-step-number {
+  @apply flex items-center justify-center w-6 h-6 bg-purple-500/20 fi-text-purple
+         rounded-full text-xs font-bold flex-shrink-0;
+}
+
+@utility demo-status-msg {
+  @apply mb-6 p-4 rounded-xl flex items-center gap-3;
+}
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .demo-page {
+    @apply px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  /* ========================================
+   * INFO BANNER
+   * ======================================== */
+  .demo-info-banner {
+    @apply mb-8 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl;
+  }
+
+  .demo-info-banner-row {
+    @apply flex items-start gap-3;
+  }
+
+  .demo-info-banner-icon {
+    @apply demo-icon-sm fi-text-purple flex-shrink-0 mt-0.5;
+  }
+
+  .demo-info-banner-title {
+    @apply text-sm font-medium text-purple-300;
+  }
+
+  .demo-info-banner-text {
+    @apply text-sm text-purple-400/80 mt-1;
+  }
+
+  /* ========================================
+   * STATUS MESSAGE
+   * ======================================== */
+  .demo-status-msg-success {
+    @apply demo-status-msg bg-emerald-500/10 border border-emerald-500/30;
+  }
+
+  .demo-status-msg-error {
+    @apply demo-status-msg bg-red-500/10 border border-red-500/30;
+  }
+
+  .demo-status-icon {
+    @apply demo-icon-sm flex-shrink-0;
+  }
+
+  .demo-status-text-success {
+    @apply text-sm text-emerald-300;
+  }
+
+  .demo-status-text-error {
+    @apply text-sm text-red-300;
+  }
+
+  /* ========================================
+   * ACTION BUTTONS
+   * ======================================== */
+  .demo-actions {
+    @apply mb-8 flex flex-wrap gap-4;
+  }
+
+  /* ========================================
+   * CONFIRMATION DIALOG
+   * ======================================== */
+  .demo-confirm {
+    @apply mb-8 p-4 bg-slate-800/50 border border-slate-700 rounded-xl;
+  }
+
+  .demo-confirm-text {
+    @apply text-sm fi-text mb-4;
+  }
+
+  .demo-confirm-actions {
+    @apply flex gap-3;
+  }
+
+  /* ========================================
+   * SESSIONS LIST
+   * ======================================== */
+  .demo-sessions {
+    @apply mb-8;
+  }
+
+  .demo-sessions-title {
+    @apply fi-title mb-4 flex items-center gap-2;
+  }
+
+  .demo-sessions-list {
+    @apply space-y-4;
+  }
+
+  .demo-session-card {
+    @apply p-4 bg-slate-800/50 border border-slate-700 rounded-xl
+           hover:border-slate-600 transition-colors;
+  }
+
+  .demo-session-row {
+    @apply flex items-start justify-between;
+  }
+
+  .demo-session-body {
+    @apply flex-1;
+  }
+
+  .demo-session-header {
+    @apply flex items-center gap-3 mb-2;
+  }
+
+  .demo-session-badge {
+    @apply px-2 py-0.5 fi-text-xs-medium rounded border;
+  }
+
+  .demo-session-name {
+    @apply text-base font-medium text-white;
+  }
+
+  .demo-session-desc {
+    @apply fi-subtitle mb-2;
+  }
+
+  .demo-session-meta {
+    @apply flex items-center gap-4 fi-text-xs-muted;
+  }
+
+  .demo-session-view-link {
+    @apply flex items-center gap-1 px-3 py-1.5 text-sm fi-text-purple
+           hover:text-purple-300 transition-colors;
+  }
+
+  /* Session type badge variants */
+  .demo-badge-medical {
+    @apply bg-red-500/20 text-red-300 border-red-500/30;
+  }
+
+  .demo-badge-legal {
+    @apply bg-blue-500/20 text-blue-300 border-blue-500/30;
+  }
+
+  .demo-badge-code {
+    @apply bg-emerald-500/20 text-emerald-300 border-emerald-500/30;
+  }
+
+  .demo-badge-default {
+    @apply bg-slate-500/20 fi-text border-slate-500/30;
+  }
+
+  /* ========================================
+   * DEEP LINKS
+   * ======================================== */
+  .demo-features-title {
+    @apply fi-title mb-4 flex items-center gap-2;
+  }
+
+  .demo-features-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+
+  .demo-feature-card {
+    @apply p-4 border rounded-xl hover:scale-[1.02] transition-transform;
+  }
+
+  .demo-feature-row {
+    @apply flex items-center gap-3;
+  }
+
+  .demo-feature-icon-wrap {
+    @apply p-2 rounded-lg;
+  }
+
+  .demo-feature-label {
+    @apply font-medium;
+  }
+
+  .demo-feature-arrow {
+    @apply demo-icon-sm ml-auto;
+  }
+
+  /* Deep link color variants */
+  .demo-link-emerald {
+    @apply bg-emerald-500/10 border-emerald-500/30;
+  }
+
+  .demo-link-blue {
+    @apply bg-blue-500/10 border-blue-500/30;
+  }
+
+  .demo-link-purple {
+    @apply bg-purple-500/10 border-purple-500/30;
+  }
+
+  .demo-link-amber {
+    @apply bg-amber-500/10 border-amber-500/30;
+  }
+
+  /* ========================================
+   * QUICK START GUIDE
+   * ======================================== */
+  .demo-guide {
+    @apply mt-8 p-6 bg-slate-800/30 border border-slate-700 rounded-xl;
+  }
+
+  .demo-guide-title {
+    @apply fi-title mb-4;
+  }
+
+  .demo-guide-steps {
+    @apply space-y-3 fi-subtitle;
+  }
+
+  .demo-guide-step {
+    @apply flex items-start gap-3;
+  }
+}

@@ -14,6 +14,7 @@
  */
 
 import { api, getBackendUrl } from './client';
+import { ROUTES } from './routes';
 
 // ============================================================================
 // Types
@@ -225,7 +226,7 @@ export const medicalWorkflowApi = {
     }
 
     return api.upload<StreamChunkResponse>(
-      '/api/aurity/stream',
+      ROUTES.stream,
       formData
     );
   },
@@ -238,7 +239,7 @@ export const medicalWorkflowApi = {
     lastChunkIdx?: number
   ): Promise<CheckpointResponse> => {
     return api.post<CheckpointResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/checkpoint`,
+      `${ROUTES.medicalAi}/sessions/${sessionId}/checkpoint`,
       lastChunkIdx !== undefined ? { last_chunk_idx: lastChunkIdx } : undefined
     );
   },
@@ -261,7 +262,7 @@ export const medicalWorkflowApi = {
     }
 
     return api.upload<EndSessionResponse>(
-      '/api/aurity/end-session',
+      ROUTES.endSession,
       formData
     );
   },
@@ -271,7 +272,7 @@ export const medicalWorkflowApi = {
    */
   startDiarization: async (sessionId: string): Promise<DiarizationJobResponse> => {
     return api.post<DiarizationJobResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/diarization`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/diarization`
     );
   },
 
@@ -280,7 +281,7 @@ export const medicalWorkflowApi = {
    */
   getDiarizationStatus: async (jobId: string): Promise<DiarizationStatusResponse> => {
     return api.get<DiarizationStatusResponse>(
-      `/api/aurity/medical-ai/diarization/jobs/${jobId}`
+      `${ROUTES.medicalAi}/diarization/jobs/${jobId}`
     );
   },
 
@@ -289,7 +290,7 @@ export const medicalWorkflowApi = {
    */
   startSOAPGeneration: async (sessionId: string): Promise<SOAPGenerationResponse> => {
     return api.post<SOAPGenerationResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/soap`
     );
   },
 
@@ -299,7 +300,7 @@ export const medicalWorkflowApi = {
    */
   getSOAPNote: async (sessionId: string): Promise<SOAPNoteResponse> => {
     return api.get<SOAPNoteResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/soap`
     );
   },
 
@@ -308,7 +309,7 @@ export const medicalWorkflowApi = {
    */
   getDiarizationSegments: async (sessionId: string): Promise<DiarizationSegmentsResponse> => {
     return api.get<DiarizationSegmentsResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/diarization/segments`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/diarization/segments`
     );
   },
 
@@ -320,7 +321,7 @@ export const medicalWorkflowApi = {
   getSessionMonitor: async (sessionId: string): Promise<string> => {
     const backendUrl = getBackendUrl();
     const response = await fetch(
-      `${backendUrl}/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
+      `${backendUrl}${ROUTES.medicalAi}/sessions/${sessionId}/monitor`,
       {
         method: 'GET',
         headers: { 'Accept': 'text/plain' },
@@ -343,7 +344,7 @@ export const medicalWorkflowApi = {
     newText: string
   ): Promise<DiarizationSegment> => {
     const response = await api.patch<{ segment: DiarizationSegment }>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/diarization/segments/${segmentIndex}`,
+      `${ROUTES.medicalAi}/sessions/${sessionId}/diarization/segments/${segmentIndex}`,
       { text: newText }
     );
     return response.segment;
@@ -358,7 +359,7 @@ export const medicalWorkflowApi = {
    */
   getSOAP: async (sessionId: string): Promise<SOAPNote> => {
     const response = await api.get<SOAPResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/soap`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/soap`
     );
     return response.soap;
   },
@@ -368,7 +369,7 @@ export const medicalWorkflowApi = {
    */
   updateSOAP: async (sessionId: string, soap: SOAPNote): Promise<{ orders_created: number }> => {
     return api.put<{ success: boolean; orders_created: number }>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/soap`,
+      `${ROUTES.medicalAi}/sessions/${sessionId}/soap`,
       { soap }
     );
   },
@@ -382,7 +383,7 @@ export const medicalWorkflowApi = {
    */
   getOrders: async (sessionId: string): Promise<MedicalOrder[]> => {
     const response = await api.get<OrdersResponse>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/orders`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/orders`
     );
     return response.orders;
   },
@@ -399,7 +400,7 @@ export const medicalWorkflowApi = {
     }
   ): Promise<string> => {
     const response = await api.post<{ success: boolean; order_id: string }>(
-      `/api/aurity/medical-ai/sessions/${sessionId}/orders`,
+      `${ROUTES.medicalAi}/sessions/${sessionId}/orders`,
       order
     );
     return response.order_id;
@@ -418,7 +419,7 @@ export const medicalWorkflowApi = {
     }
   ): Promise<void> => {
     await api.put(
-      `/api/aurity/medical-ai/sessions/${sessionId}/orders/${orderId}`,
+      `${ROUTES.medicalAi}/sessions/${sessionId}/orders/${orderId}`,
       order
     );
   },
@@ -428,7 +429,7 @@ export const medicalWorkflowApi = {
    */
   deleteOrder: async (sessionId: string, orderId: string): Promise<void> => {
     await api.delete(
-      `/api/aurity/medical-ai/sessions/${sessionId}/orders/${orderId}`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/orders/${orderId}`
     );
   },
 
@@ -448,7 +449,7 @@ export const medicalWorkflowApi = {
     total_chunks: number;
   }> => {
     return api.get(
-      `/api/aurity/medical-ai/sessions/${sessionId}/chunks`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/chunks`
     );
   },
 
@@ -472,7 +473,7 @@ export const medicalWorkflowApi = {
     full_transcription: string;
   }> => {
     return api.get(
-      `/api/aurity/medical-ai/sessions/${sessionId}/transcription-sources`
+      `${ROUTES.medicalAi}/sessions/${sessionId}/transcription-sources`
     );
   },
 };

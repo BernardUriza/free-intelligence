@@ -5,6 +5,7 @@
 // silently when FI Monitor detects Ollama is not available.
 
 use serde::Serialize;
+#[cfg(target_os = "windows")]
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -82,31 +83,27 @@ fn find_ollama_path() -> Option<String> {
 }
 
 /// Get path to bundled Ollama installer (Windows only)
+#[cfg(target_os = "windows")]
 fn get_bundled_installer_path() -> Option<PathBuf> {
-    #[cfg(target_os = "windows")]
-    {
-        // When bundled, OllamaSetup.exe is in the same directory as FI Monitor.exe
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let installer_path = exe_dir.join("OllamaSetup.exe");
-                if installer_path.exists() {
-                    return Some(installer_path);
-                }
+    // When bundled, OllamaSetup.exe is in the same directory as FI Monitor.exe
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let installer_path = exe_dir.join("OllamaSetup.exe");
+            if installer_path.exists() {
+                return Some(installer_path);
             }
         }
     }
-
     None
 }
 
 /// Install Ollama silently from bundled installer (Windows only)
 #[tauri::command]
-pub async fn install_ollama_silent(app: tauri::AppHandle) -> Result<bool, String> {
-    use tauri::Emitter;
-
+pub async fn install_ollama_silent(_app: tauri::AppHandle) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let _ = app.emit("ollama-install-status", "Buscando instalador bundleado...");
+        use tauri::Emitter;
+        let _ = _app.emit("ollama-install-status", "Buscando instalador bundleado...");
 
         let installer_path = get_bundled_installer_path()
             .ok_or("Ollama installer not found in bundle".to_string())?;
@@ -115,7 +112,7 @@ pub async fn install_ollama_silent(app: tauri::AppHandle) -> Result<bool, String
             "[FI Monitor] Found bundled Ollama installer: {:?}",
             installer_path
         );
-        let _ = app.emit("ollama-install-status", "Instalando Ollama...");
+        let _ = _app.emit("ollama-install-status", "Instalando Ollama...");
 
         // Run Ollama installer silently
         // Ollama uses Inno Setup, which supports /SILENT flag
@@ -126,7 +123,7 @@ pub async fn install_ollama_silent(app: tauri::AppHandle) -> Result<bool, String
 
         if output.status.success() {
             println!("[FI Monitor] Ollama installed successfully");
-            let _ = app.emit("ollama-install-status", "Ollama instalado ✓");
+            let _ = _app.emit("ollama-install-status", "Ollama instalado ✓");
 
             // Wait a moment for installation to complete
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -152,12 +149,11 @@ pub async fn install_ollama_silent(app: tauri::AppHandle) -> Result<bool, String
 
 /// Download and install Ollama from ollama.com (fallback if not bundled)
 #[tauri::command]
-pub async fn download_and_install_ollama(app: tauri::AppHandle) -> Result<bool, String> {
-    use tauri::Emitter;
-
+pub async fn download_and_install_ollama(_app: tauri::AppHandle) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
-        let _ = app.emit("ollama-install-status", "Descargando Ollama...");
+        use tauri::Emitter;
+        let _ = _app.emit("ollama-install-status", "Descargando Ollama...");
 
         let download_url = "https://ollama.com/download/OllamaSetup.exe";
         let temp_dir = std::env::temp_dir();
@@ -189,7 +185,7 @@ pub async fn download_and_install_ollama(app: tauri::AppHandle) -> Result<bool, 
             .map_err(|e| format!("Failed to save installer: {}", e))?;
 
         println!("[FI Monitor] Downloaded to: {:?}", installer_path);
-        let _ = app.emit("ollama-install-status", "Instalando Ollama...");
+        let _ = _app.emit("ollama-install-status", "Instalando Ollama...");
 
         // Run installer silently
         let output = Command::new(&installer_path)
@@ -198,11 +194,13 @@ pub async fn download_and_install_ollama(app: tauri::AppHandle) -> Result<bool, 
             .map_err(|e| format!("Failed to run installer: {}", e))?;
 
         // Cleanup temp file
-        let _ = std::fs::remove_file(&installer_path);
+        if let Err(e) = std::fs::remove_file(&installer_path) {
+            eprintln!("[FI Monitor] Failed to cleanup temp installer {:?}: {}", installer_path, e);
+        }
 
         if output.status.success() {
             println!("[FI Monitor] Ollama installed successfully");
-            let _ = app.emit("ollama-install-status", "Ollama instalado ✓");
+            let _ = _app.emit("ollama-install-status", "Ollama instalado ✓");
 
             // Wait for installation to complete
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;

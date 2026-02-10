@@ -15,13 +15,13 @@ export function PreviewModal({ isOpen, onClose, soapData }: PreviewModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="med-preview-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="preview-title"
     >
-      <div className="bg-slate-900 rounded-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto border border-slate-700">
-        <div className="sticky top-0 bg-slate-900 fi-border-bottom p-6 flex justify-between items-center">
+      <div className="med-preview-content">
+        <div className="med-preview-sticky-header">
           <div>
             <h3 id="preview-title" className="fi-title-xl">
               Vista Previa - Notas SOAP

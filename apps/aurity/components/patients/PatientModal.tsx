@@ -108,7 +108,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
 
         {/* Error Alert */}
         {error && (
-          <div className="mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+          <div className="pat-error-alert">
             <AlertCircle className="h-5 w-5 fi-text-error flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-red-300">Error</p>

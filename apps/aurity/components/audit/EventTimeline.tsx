@@ -271,7 +271,7 @@ export function EventTimeline({
                 placeholder="Buscar eventos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 fi-panel text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
+                className="audit-search-input"
               />
             </div>
           )}
@@ -336,7 +336,7 @@ export function EventTimeline({
                         )}
 
                         {/* Timestamp */}
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/50 border border-slate-700 rounded-md">
+                        <div className="audit-timestamp-chip">
                           <span className="text-xs font-mono text-slate-400">
                             {formatTimestamp(event.timestamp)}
                           </span>

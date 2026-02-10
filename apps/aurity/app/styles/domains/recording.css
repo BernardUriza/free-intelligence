@@ -1,0 +1,283 @@
+/**
+ * Recording Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: rec-{component}[-variant]
+ * Covers: /components/recording/RecordingButton.tsx, RecordingTimer.tsx, PulseRings.tsx, StatusText.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+/* --- RecordingButton --- */
+
+@utility rec-btn-disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+@utility rec-btn-enabled {
+  @apply cursor-pointer;
+}
+
+@utility rec-icon-spin {
+  @apply animate-spin;
+}
+
+/* Button sizes */
+@utility rec-btn-sm {
+  @apply w-10 h-10;
+}
+
+@utility rec-btn-md {
+  @apply w-12 h-12;
+}
+
+@utility rec-btn-lg {
+  @apply w-16 h-16;
+}
+
+@utility rec-btn-xl {
+  @apply w-24 h-24;
+}
+
+/* Icon sizes */
+@utility rec-icon-sm {
+  @apply h-5 w-5;
+}
+
+@utility rec-icon-md {
+  @apply h-6 w-6;
+}
+
+@utility rec-icon-lg {
+  @apply h-8 w-8;
+}
+
+@utility rec-icon-xl {
+  @apply h-10 w-10;
+}
+
+/* Ring sizes */
+@utility rec-ring-sm {
+  @apply ring-2;
+}
+
+@utility rec-ring-md {
+  @apply ring-2;
+}
+
+@utility rec-ring-lg {
+  @apply ring-3;
+}
+
+@utility rec-ring-xl {
+  @apply ring-4;
+}
+
+/* --- RecordingTimer --- */
+
+@utility rec-timer-wrap {
+  @apply flex items-center gap-2 font-mono;
+}
+
+@utility rec-timer-sm {
+  @apply text-sm;
+}
+
+@utility rec-timer-md {
+  @apply text-lg;
+}
+
+@utility rec-timer-lg {
+  @apply text-3xl;
+}
+
+@utility rec-timer-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+@utility rec-timer-value {
+  @apply font-semibold;
+}
+
+/* --- PulseRings --- */
+
+@utility rec-pulse-container {
+  @apply absolute inset-0;
+}
+
+@utility rec-pulse-ring-base {
+  @apply absolute inset-0 rounded-full pointer-events-none;
+}
+
+@utility rec-pulse-ping-primary {
+  @apply absolute inset-0 rounded-full animate-ping opacity-30 pointer-events-none;
+}
+
+@utility rec-pulse-ping-secondary {
+  @apply absolute inset-0 rounded-full opacity-20 pointer-events-none;
+}
+
+@utility rec-pulse-concentric {
+  @apply absolute inset-0 rounded-full border-2 pointer-events-none;
+}
+
+@utility rec-pulse-vad {
+  @apply absolute inset-0 rounded-full border-2 pointer-events-none;
+}
+
+/* --- StatusText --- */
+
+@utility rec-status-wrap {
+  @apply flex items-center justify-center gap-2;
+}
+
+@utility rec-status-loader {
+  @apply h-5 w-5 animate-spin;
+}
+
+@utility rec-status-text {
+  @apply font-medium;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS (color themes)
+ * ======================================== */
+
+@layer components {
+  /* --- Medical Theme --- */
+  .rec-theme-medical-idle {
+    @apply bg-emerald-500 hover:bg-emerald-600;
+  }
+  .rec-theme-medical-starting {
+    @apply bg-cyan-500;
+  }
+  .rec-theme-medical-recording {
+    @apply bg-yellow-500 hover:bg-yellow-600;
+  }
+  .rec-theme-medical-pausing {
+    @apply bg-cyan-500;
+  }
+  .rec-theme-medical-paused {
+    @apply bg-blue-500 hover:bg-blue-600;
+  }
+  .rec-theme-medical-resuming {
+    @apply bg-cyan-500;
+  }
+  .rec-theme-medical-processing {
+    @apply bg-slate-500;
+  }
+  .rec-theme-medical-stopping {
+    @apply bg-cyan-500;
+  }
+  .rec-theme-medical-finalized {
+    @apply bg-slate-600;
+  }
+
+  /* --- Chat Theme --- */
+  .rec-theme-chat-idle {
+    @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600;
+  }
+  .rec-theme-chat-starting {
+    @apply bg-blue-500;
+  }
+  .rec-theme-chat-recording {
+    @apply bg-red-500 hover:bg-red-600;
+  }
+  .rec-theme-chat-pausing {
+    @apply bg-blue-500;
+  }
+  .rec-theme-chat-paused {
+    @apply bg-yellow-500 hover:bg-yellow-600;
+  }
+  .rec-theme-chat-resuming {
+    @apply bg-blue-500;
+  }
+  .rec-theme-chat-processing {
+    @apply bg-blue-500;
+  }
+  .rec-theme-chat-stopping {
+    @apply bg-blue-500;
+  }
+  .rec-theme-chat-finalized {
+    @apply bg-gray-400;
+  }
+
+  /* --- Minimal Theme --- */
+  .rec-theme-minimal-idle {
+    @apply bg-slate-700 hover:bg-slate-600;
+  }
+  .rec-theme-minimal-starting {
+    @apply bg-slate-600;
+  }
+  .rec-theme-minimal-recording {
+    @apply bg-red-600 hover:bg-red-500;
+  }
+  .rec-theme-minimal-pausing {
+    @apply bg-slate-600;
+  }
+  .rec-theme-minimal-paused {
+    @apply bg-slate-600 hover:bg-slate-500;
+  }
+  .rec-theme-minimal-resuming {
+    @apply bg-slate-600;
+  }
+  .rec-theme-minimal-processing {
+    @apply bg-slate-600;
+  }
+  .rec-theme-minimal-stopping {
+    @apply bg-slate-600;
+  }
+  .rec-theme-minimal-finalized {
+    @apply bg-slate-800;
+  }
+
+  /* --- Pulse ring color variants (background) --- */
+  .rec-pulse-bg-yellow-500 {
+    @apply bg-yellow-500;
+  }
+  .rec-pulse-bg-red-500 {
+    @apply bg-red-500;
+  }
+  .rec-pulse-bg-green-500 {
+    @apply bg-green-500;
+  }
+  .rec-pulse-bg-blue-500 {
+    @apply bg-blue-500;
+  }
+  .rec-pulse-bg-cyan-500 {
+    @apply bg-cyan-500;
+  }
+
+  /* --- Pulse ring color variants (border) --- */
+  .rec-pulse-border-yellow-500 {
+    @apply border-yellow-500;
+  }
+  .rec-pulse-border-red-500 {
+    @apply border-red-500;
+  }
+  .rec-pulse-border-green-500 {
+    @apply border-green-500;
+  }
+  .rec-pulse-border-blue-500 {
+    @apply border-blue-500;
+  }
+  .rec-pulse-border-cyan-500 {
+    @apply border-cyan-500;
+  }
+
+  /* --- Default prop colors --- */
+  .rec-icon-white {
+    @apply text-white;
+  }
+  .rec-timer-text-white {
+    @apply text-white;
+  }
+  .rec-timer-dot-red {
+    @apply bg-red-500;
+  }
+  .rec-status-color-default {
+    @apply text-slate-400;
+  }
+}

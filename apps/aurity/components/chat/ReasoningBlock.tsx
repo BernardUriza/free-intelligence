@@ -182,10 +182,7 @@ export function ReasoningBlock({
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         className={cn(
-          'inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full',
-          'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300',
-          'hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors',
-          'border border-violet-200 dark:border-violet-800',
+          'chat-think-compact-btn',
           className
         )}
         aria-expanded={isOpen}
@@ -200,13 +197,8 @@ export function ReasoningBlock({
   return (
     <div
       className={cn(
-        'w-full rounded-xl overflow-hidden transition-all duration-300',
-        'border border-violet-200/60 dark:border-violet-800/50',
-        'border-l-4 border-l-violet-400 dark:border-l-violet-500', // Accent border
-        'bg-gradient-to-br from-violet-50/90 via-slate-50 to-fuchsia-50/60',
-        'dark:from-violet-950/50 dark:via-slate-900/80 dark:to-fuchsia-950/40',
-        'shadow-sm hover:shadow-md',
-        isStreaming && 'ring-2 ring-violet-400/40 dark:ring-violet-500/30 shadow-violet-500/10 shadow-lg',
+        'chat-think-container',
+        isStreaming && 'chat-think-container-streaming',
         className
       )}
       role="region"
@@ -216,37 +208,25 @@ export function ReasoningBlock({
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className={cn(
-          'w-full flex items-center justify-between gap-3 px-4 py-3.5',
-          'bg-gradient-to-r from-violet-100/60 via-transparent to-fuchsia-100/40',
-          'dark:from-violet-900/40 dark:via-transparent dark:to-fuchsia-900/30',
-          'hover:from-violet-100 hover:to-fuchsia-100/60',
-          'dark:hover:from-violet-900/60 dark:hover:to-fuchsia-900/40',
-          'transition-all duration-200',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-inset'
-        )}
+        className="chat-think-header-btn"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="chat-think-header-left">
           {/* Persona Avatar - larger and more prominent */}
           <div className={cn(
-            'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center',
-            'bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20',
-            'border border-violet-400/40 dark:border-violet-500/40',
+            'chat-think-avatar',
             isStreaming && 'animate-pulse'
           )}>
-            <PersonaIcon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <PersonaIcon className="chat-think-avatar-icon" />
           </div>
 
           {/* Persona Name + Status */}
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-semibold text-sm text-violet-800 dark:text-violet-200">
+          <div className="chat-think-name-group">
+            <span className="chat-think-persona-name">
               {personaName}
             </span>
             <span className={cn(
-              'fi-text-xs-medium px-2 py-0.5 rounded-full',
-              'bg-violet-200/60 dark:bg-violet-800/40',
-              'text-violet-700 dark:text-violet-300',
+              'chat-think-status-badge',
               isStreaming && 'animate-pulse'
             )}>
               pensando...
@@ -254,15 +234,15 @@ export function ReasoningBlock({
           </div>
 
           {isStreaming && (
-            <span className="flex items-center gap-1.5 fi-text-xs-medium text-violet-600 dark:text-violet-400 bg-violet-200/50 dark:bg-violet-800/30 px-2 py-0.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+            <span className="chat-think-live-badge">
+              <span className="chat-think-live-dot" />
               <span>En vivo</span>
             </span>
           )}
         </div>
 
         <div className="fi-flex-gap-md">
-          <span className="fi-text-xs-medium text-violet-600/80 dark:text-violet-400/80 tabular-nums bg-violet-100/60 dark:bg-violet-900/40 px-2 py-0.5 rounded">
+          <span className="chat-think-wordcount">
             {wordCount} palabras
           </span>
           <ChevronIcon isOpen={isOpen} />
@@ -271,8 +251,8 @@ export function ReasoningBlock({
 
       {/* Collapsed Preview */}
       {!isOpen && thinking.length > 0 && (
-        <div className="px-4 pb-3 -mt-1">
-          <p className="text-xs text-violet-700/60 dark:text-violet-300/50 line-clamp-1 italic">
+        <div className="chat-think-preview">
+          <p className="chat-think-preview-text">
             &quot;{preview}{hasMore && '...'}&quot;
           </p>
         </div>
@@ -281,42 +261,32 @@ export function ReasoningBlock({
       {/* Expanded Content */}
       <div
         className={cn(
-          'overflow-hidden transition-all duration-300 ease-in-out',
+          'chat-think-expand-transition',
           isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <div className="border-t border-violet-200/40 dark:border-violet-800/30" />
+        <div className="chat-think-divider" />
 
         <div
           ref={contentRef}
-          className={cn(
-            'px-4 py-4 overflow-y-auto max-h-80',
-            'relative reasoning-scrollbar'
-          )}
+          className="reasoning-scrollbar chat-think-content-scroll"
         >
           {/* Content with improved typography */}
           <div
-            className={cn(
-              'text-[13px] leading-[1.7] whitespace-pre-wrap',
-              'font-[ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace]',
-              'text-violet-900/85 dark:text-violet-100/85',
-              'selection:bg-violet-200 dark:selection:bg-violet-700',
-              // Paragraph-like spacing for readability
-              '[&]:space-y-2'
-            )}
+            className="chat-think-content-text"
           >
             {thinking}
             {isStreaming && (
-              <span className="inline-block w-2 h-4 ml-1 bg-violet-500 animate-pulse rounded-sm align-middle" />
+              <span className="chat-think-cursor" />
             )}
           </div>
 
           {/* Fade gradient at bottom when content is long */}
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-violet-50/90 dark:from-slate-900/90 to-transparent pointer-events-none" />
+          <div className="chat-think-fade" />
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-t border-violet-200/40 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-950/30">
+        <div className="chat-think-footer">
           <Button
             onClick={handleCopy}
             disabled={isStreaming}
@@ -324,9 +294,8 @@ export function ReasoningBlock({
             size="sm"
             icon={copied ? Check : Copy}
             className={cn(
-              'text-violet-700 dark:text-violet-300',
-              'hover:bg-violet-200/60 dark:hover:bg-violet-800/40',
-              copied && 'text-green-500'
+              'chat-think-copy-btn',
+              copied && 'chat-think-copy-btn-copied'
             )}
           >
             {copied ? 'Copiado' : 'Copiar'}
@@ -352,24 +321,21 @@ export function ThinkingIndicator({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-2 px-3 py-2 rounded-xl',
-        'bg-gradient-to-r from-violet-100 to-fuchsia-100',
-        'dark:from-violet-900/40 dark:to-fuchsia-900/40',
-        'border border-violet-200/50 dark:border-violet-700/50',
+        'chat-think-indicator',
         className
       )}
       role="status"
       aria-live="polite"
     >
       <ThinkingIcon isAnimating />
-      <span className="text-sm text-violet-800 dark:text-violet-200">
+      <span className="chat-think-indicator-label">
         {label}
       </span>
       <span className="flex gap-1" aria-hidden="true">
         {[0, 1, 2].map(i => (
           <span
             key={i}
-            className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce"
+            className="chat-think-bounce-dot"
             style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}

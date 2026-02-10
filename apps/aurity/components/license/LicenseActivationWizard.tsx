@@ -199,46 +199,46 @@ export function LicenseActivationWizard({
   if (success) {
     const licenseHolder = importedPayload?.license_holder || validationResult?.payload?.license_holder || 'Tu licencia';
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
-            <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="lic-wizard-page">
+        <div className="lic-wizard-success-container">
+          <div className="lic-wizard-success-icon-wrapper">
+            <svg className="lic-wizard-success-check" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Licencia Activada</h2>
-          <p className="text-slate-400 mb-4">
+          <h2 className="lic-wizard-success-title">Licencia Activada</h2>
+          <p className="lic-wizard-success-subtitle">
             {licenseHolder} ha sido activada correctamente.
           </p>
-          <p className="text-sm text-slate-500">Iniciando Aurity...</p>
+          <p className="lic-wizard-success-loading">Iniciando Aurity...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <div className="max-w-xl w-full">
+    <div className="lic-wizard-page">
+      <div className="lic-wizard-container">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="lic-wizard-header">
+          <div className="lic-wizard-header-icon">
+            <svg className="lic-wizard-header-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Activar Aurity Desktop</h1>
-          <p className="text-slate-400">
-            Ingresa tu clave de licencia para activar la aplicación
+          <h1 className="lic-wizard-title">Activar Aurity Desktop</h1>
+          <p className="lic-wizard-subtitle">
+            Ingresa tu clave de licencia para activar la aplicacion
           </p>
         </div>
 
         {/* License Key Input */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-6 mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3">
+        <div className="lic-wizard-input-card">
+          <label className="lic-wizard-input-label">
             Clave de Licencia
           </label>
 
-          <div className="relative">
+          <div className="lic-wizard-input-wrapper">
             <input
               type="text"
               value={licenseKey}
@@ -246,34 +246,29 @@ export function LicenseActivationWizard({
               onBlur={handleValidate}
               onPaste={handlePaste}
               placeholder="AURITY-XXXX-XXXX-XXXX-..."
-              className={`
-                w-full px-4 py-3 bg-slate-900/50 border rounded-xl
-                text-white font-mono text-sm
-                placeholder:text-slate-600
-                focus:outline-none focus:ring-2
-                ${error
-                  ? 'border-red-500/50 focus:ring-red-500/30'
+              className={`lic-wizard-input ${
+                error
+                  ? 'lic-wizard-input-error'
                   : validationResult?.is_valid
-                    ? 'border-green-500/50 focus:ring-green-500/30'
-                    : 'border-slate-600 focus:ring-blue-500/30'
-                }
-              `}
+                    ? 'lic-wizard-input-valid'
+                    : 'lic-wizard-input-default'
+              }`}
               disabled={isLoading}
               autoFocus
             />
 
             {/* Status indicator */}
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="lic-wizard-input-status">
               {isValidating && (
-                <div className="w-5 h-5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+                <div className="lic-wizard-spinner" />
               )}
               {!isValidating && validationResult?.is_valid && (
-                <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="lic-wizard-icon-valid" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               )}
               {!isValidating && error && (
-                <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="lic-wizard-icon-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               )}
@@ -282,26 +277,26 @@ export function LicenseActivationWizard({
 
           {/* Error message */}
           {error && (
-            <p className="mt-2 text-sm text-red-400">{error}</p>
+            <p className="lic-wizard-error-msg">{error}</p>
           )}
 
           {/* License info preview */}
           {validationResult?.is_valid && validationResult.payload && (
-            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <div className="flex items-center gap-2 text-green-400 text-sm mb-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="lic-wizard-preview">
+              <div className="lic-wizard-preview-header">
+                <svg className="lic-wizard-preview-header-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Licencia Válida
+                Licencia Valida
               </div>
-              <div className="text-slate-300 text-sm">
-                <p><span className="text-slate-500">Titular:</span> {validationResult.payload.license_holder}</p>
-                <p><span className="text-slate-500">Funciones:</span> {validationResult.payload.features.join(', ')}</p>
+              <div className="lic-wizard-preview-body">
+                <p><span className="lic-wizard-preview-label">Titular:</span> {validationResult.payload.license_holder}</p>
+                <p><span className="lic-wizard-preview-label">Funciones:</span> {validationResult.payload.features.join(', ')}</p>
                 {validationResult.days_remaining !== null && (
                   <p>
-                    <span className="text-slate-500">Vence en:</span>{' '}
-                    <span className={validationResult.days_remaining < 30 ? 'text-amber-400' : ''}>
-                      {validationResult.days_remaining} días
+                    <span className="lic-wizard-preview-label">Vence en:</span>{' '}
+                    <span className={validationResult.days_remaining < 30 ? 'lic-wizard-preview-expiry-warn' : ''}>
+                      {validationResult.days_remaining} dias
                     </span>
                   </p>
                 )}
@@ -311,30 +306,22 @@ export function LicenseActivationWizard({
         </div>
 
         {/* Actions */}
-        <div className="space-y-3">
+        <div className="lic-wizard-actions">
           {/* File import button (Desktop only) */}
           {isTauri && (
             <button
               onClick={handleFileImport}
               disabled={isLoading}
-              className={`
-                w-full py-3 px-4 rounded-xl font-medium
-                transition-all duration-200
-                flex items-center justify-center gap-2
-                ${isLoading
-                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700'
-                }
-              `}
+              className={isLoading ? 'lic-wizard-btn-import-disabled' : 'lic-wizard-btn-import'}
             >
               {isImportingFile ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="lic-wizard-btn-import-spinner" />
                   Importando...
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="lic-wizard-btn-import-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                   Cargar archivo .key
@@ -345,28 +332,21 @@ export function LicenseActivationWizard({
 
           {/* Separator for desktop */}
           {isTauri && (
-            <div className="flex items-center gap-3 text-slate-500 text-sm">
-              <div className="flex-1 h-px bg-slate-700" />
+            <div className="lic-wizard-separator">
+              <div className="lic-wizard-separator-line" />
               <span>o ingresa manualmente</span>
-              <div className="flex-1 h-px bg-slate-700" />
+              <div className="lic-wizard-separator-line" />
             </div>
           )}
 
           <button
             onClick={handleActivate}
             disabled={!canActivate}
-            className={`
-              w-full py-3 px-4 rounded-xl font-medium
-              transition-all duration-200
-              ${canActivate
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
-                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-              }
-            `}
+            className={canActivate ? 'lic-wizard-btn-activate' : 'lic-wizard-btn-activate-disabled'}
           >
             {isActivating ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="lic-wizard-btn-activate-inner">
+                <div className="lic-wizard-btn-activate-spinner" />
                 Activando...
               </span>
             ) : (
@@ -377,7 +357,7 @@ export function LicenseActivationWizard({
           {showSkip && (
             <button
               onClick={onSkip}
-              className="w-full py-3 px-4 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+              className="lic-wizard-btn-skip"
             >
               Continuar sin licencia (modo offline)
             </button>
@@ -385,14 +365,14 @@ export function LicenseActivationWizard({
         </div>
 
         {/* Help text */}
-        <div className="mt-8 text-center">
-          <p className="text-slate-500 text-sm">
-            ¿No tienes licencia?{' '}
+        <div className="lic-wizard-footer">
+          <p className="lic-wizard-footer-text">
+            No tienes licencia?{' '}
             <a
               href="https://aurity.io/pricing"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300"
+              className="lic-wizard-footer-link"
             >
               Solicitar licencia
             </a>

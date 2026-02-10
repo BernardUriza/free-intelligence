@@ -48,13 +48,10 @@ export function ClinicSelector({
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled || loading}
-        className={`
-          flex items-center gap-2 px-4 py-2 rounded-lg border transition-all
-          ${disabled
+        className={`ui-dropdown-trigger ${disabled
             ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed'
             : 'bg-slate-800 border-slate-700 hover:border-cyan-500 text-white cursor-pointer'
-          }
-        `}
+          }`}
       >
         <Building2 className="w-4 h-4 text-cyan-400" />
         <span className="font-medium">{displayName}</span>
@@ -67,16 +64,16 @@ export function ClinicSelector({
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
-          <div className="p-2 border-b border-slate-700">
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">
+        <div className="ui-dropdown-panel">
+          <div className="ui-dropdown-header">
+            <p className="ui-dropdown-header-text">
               Clínicas disponibles
             </p>
           </div>
 
           <div className="max-h-64 overflow-y-auto">
             {clinics.length === 0 ? (
-              <div className="p-4 text-center text-slate-500 text-sm">
+              <div className="ui-dropdown-empty">
                 No hay clínicas disponibles
               </div>
             ) : (
@@ -90,18 +87,12 @@ export function ClinicSelector({
                       onSelectClinic(clinic);
                       setIsOpen(false);
                     }}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
-                      ${isSelected
+                    className={`ui-dropdown-option ${isSelected
                         ? 'bg-cyan-500/20 text-white'
                         : 'hover:bg-slate-700/50 text-slate-300'
-                      }
-                    `}
+                      }`}
                   >
-                    <div className={`
-                      w-8 h-8 rounded-full flex items-center justify-center
-                      ${isSelected ? 'bg-cyan-500/30' : 'bg-slate-700'}
-                    `}>
+                    <div className={`ui-dropdown-avatar ${isSelected ? 'bg-cyan-500/30' : 'bg-slate-700'}`}>
                       <Building2 className="w-4 h-4 text-cyan-400" />
                     </div>
                     <div className="flex-1 min-w-0">

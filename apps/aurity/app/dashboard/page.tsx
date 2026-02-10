@@ -39,7 +39,7 @@ import {
   ChevronLeft,
   Maximize,
 } from "lucide-react"
-import { api } from "@/lib/api/client"
+import { listClinicMedia } from "@/lib/api/clinic-media"
 
 // =============================================================================
 // INFO BAR - Bottom bar with time, date, branding (for TV mode)
@@ -69,43 +69,43 @@ const InfoBar = memo(function InfoBar({ clinicName }: { clinicName: string }) {
   }
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-sm fi-border-top/50">
-      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+    <div className="dash-infobar-wrap fi-border-top/50">
+      <div className="dash-infobar-inner">
+        <div className="dash-infobar-row">
+          <div className="dash-infobar-time-group">
             <time
-              className="font-bold text-white font-mono"
+              className="dash-infobar-clock"
               style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
               dateTime={currentTime.toISOString()}
             >
               {formatTime(currentTime)}
             </time>
             <time
-              className="text-slate-400 capitalize hidden sm:block"
+              className="dash-infobar-date"
               style={{ fontSize: 'clamp(0.75rem, 1.2vw, 1.125rem)' }}
               dateTime={currentTime.toISOString()}
             >
               {formatDate(currentTime)}
             </time>
           </div>
-          <div className="hidden md:flex items-center gap-2 sm:gap-3">
+          <div className="dash-infobar-branding">
             <Image
               src="/logos/aurity-logo-light.png"
               alt={`Logo de ${clinicName}`}
               width={100}
               height={28}
               style={{ height: 'clamp(1.25rem, 2.5vw, 2.5rem)', width: 'auto' }}
-              className="opacity-80"
+              className="dash-infobar-logo"
             />
-            <span className="text-slate-500 hidden lg:inline">·</span>
-            <span className="text-slate-400 hidden lg:inline" style={{ fontSize: 'clamp(0.75rem, 1vw, 1rem)' }}>
+            <span className="dash-infobar-separator">·</span>
+            <span className="dash-infobar-clinic-name" style={{ fontSize: 'clamp(0.75rem, 1vw, 1rem)' }}>
               {clinicName}
             </span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className="flex items-center gap-1 sm:gap-2">
+          <div className="dash-infobar-status-group">
+            <div className="dash-infobar-status-inner">
               <div
-                className="bg-emerald-500 rounded-full animate-pulse"
+                className="dash-infobar-status-dot"
                 style={{ width: 'clamp(0.5rem, 0.8vw, 0.75rem)', height: 'clamp(0.5rem, 0.8vw, 0.75rem)' }}
               />
               <span className="fi-text-success" style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}>
@@ -134,10 +134,8 @@ const TVModeDisplay = memo(function TVModeDisplay() {
   useEffect(() => {
     async function fetchSlides() {
       try {
-        const data = await api.get<{ media: any[] }>(
-          '/api/aurity/clinic/clinic-media/list?active_only=true'
-        )
-        setSlides(data.media || [])
+        const media = await listClinicMedia({ activeOnly: true })
+        setSlides(media)
       } catch (error) {
         console.error("Failed to fetch slides:", error)
       }
@@ -146,33 +144,33 @@ const TVModeDisplay = memo(function TVModeDisplay() {
   }, [])
 
   return (
-    <div className="h-dvh bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
+    <div className="dash-tv-shell">
+      <div className="dash-tv-shrink">
         <QueueStatusBar patients={queuePatients} />
       </div>
-      <main className="flex-1 w-full px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 overflow-hidden flex flex-col">
-        <div className="flex-1 min-h-0 grid gap-2 sm:gap-3 md:gap-4" style={{ gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '1fr auto' }}>
-          <div className="contents lg:grid lg:grid-cols-[3fr_1fr] xl:grid-cols-[4fr_1fr] lg:gap-4">
-            <div className="overflow-hidden flex flex-col min-h-0 order-1">
-              <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-linear-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl sm:rounded-2xl" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-2 sm:p-3 md:p-4 lg:p-5">
+      <main className="dash-tv-main">
+        <div className="dash-tv-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '1fr auto' }}>
+          <div className="dash-tv-columns">
+            <div className="dash-tv-media-col">
+              <div className="dash-tv-media-card" style={{ minHeight: 'clamp(200px, 50vh, 600px)' }}>
+                <div className="dash-tv-media-inner">
                   <WaitingRoomHost mode="broadcast" clinicName="Clínica AURITY" doctorMessage={doctorMessage} clinicSlides={slides} />
                 </div>
               </div>
             </div>
-            <div className="flex flex-row lg:flex-col gap-2 sm:gap-3 order-2 overflow-hidden min-h-0">
-              <div className="flex-3 lg:flex-3 overflow-hidden min-h-0" style={{ minHeight: 'clamp(120px, 25vh, 300px)' }}>
+            <div className="dash-tv-sidebar">
+              <div className="dash-tv-qr-section" style={{ minHeight: 'clamp(120px, 25vh, 300px)' }}>
                 <CheckinQRDisplay clinicId="7f6ef952-d755-43d9-b668-32c3b6879149" clinicName="Clínica AURITY" />
               </div>
-              <div className="hidden md:flex flex-1 lg:flex-1 bg-linear-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl p-3 sm:p-4 flex-col justify-center overflow-hidden min-h-0">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="fi-text-success flex-shrink-0" style={{ width: 'clamp(1rem, 2vw, 1.5rem)', height: 'clamp(1rem, 2vw, 1.5rem)' }} />
-                  <span className="font-semibold text-slate-200" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>¿Ya llegaste?</span>
+              <div className="dash-tv-instructions">
+                <div className="dash-tv-instructions-header">
+                  <CheckCircle2 className="dash-tv-instructions-icon fi-text-success" style={{ width: 'clamp(1rem, 2vw, 1.5rem)', height: 'clamp(1rem, 2vw, 1.5rem)' }} />
+                  <span className="dash-tv-instructions-title" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>¿Ya llegaste?</span>
                 </div>
                 <ol className="fi-stack-sm">
                   {[{ num: 1, text: 'Escanea el QR' }, { num: 2, text: 'Confirma llegada' }, { num: 3, text: 'Te avisamos' }].map(step => (
-                    <li key={step.num} className="flex items-center gap-2">
-                      <span className="rounded-full bg-emerald-500/20 fi-text-success flex items-center justify-center font-bold flex-shrink-0" style={{ width: 'clamp(1.25rem, 2vw, 1.75rem)', height: 'clamp(1.25rem, 2vw, 1.75rem)', fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}>{step.num}</span>
+                    <li key={step.num} className="dash-tv-step">
+                      <span className="dash-tv-step-number fi-text-success" style={{ width: 'clamp(1.25rem, 2vw, 1.75rem)', height: 'clamp(1.25rem, 2vw, 1.75rem)', fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}>{step.num}</span>
                       <span className="fi-text" style={{ fontSize: 'clamp(0.75rem, 1.2vw, 1rem)' }}>{step.text}</span>
                     </li>
                   ))}
@@ -182,7 +180,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
           </div>
         </div>
       </main>
-      <div className="flex-shrink-0">
+      <div className="dash-tv-shrink">
         <InfoBar clinicName="Clínica AURITY" />
       </div>
     </div>
@@ -195,12 +193,12 @@ const TVModeDisplay = memo(function TVModeDisplay() {
 function RecepcionModeDisplay() {
   return (
     <ProtectedRoute>
-      <div className="h-dvh bg-slate-950 flex flex-col">
-        <header className="flex-shrink-0 px-4 py-3 border-b border-slate-800">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
-                <ChevronLeft className="w-5 h-5" />
+      <div className="dash-recep-shell">
+        <header className="dash-recep-header">
+          <div className="dash-recep-header-inner">
+            <div className="dash-recep-header-left">
+              <Link href="/dashboard" className="dash-recep-back-link">
+                <ChevronLeft className="dash-recep-back-icon" />
               </Link>
               <h1 className="fi-title">Vista Recepción</h1>
               <span className="fi-text-xs-muted">Preview de pantalla de pacientes</span>
@@ -208,16 +206,16 @@ function RecepcionModeDisplay() {
             <Link
               href="/dashboard?mode=tv"
               target="_blank"
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors"
+              className="dash-recep-fullscreen-btn"
             >
-              <Maximize className="w-4 h-4" />
+              <Maximize className="dash-recep-fullscreen-icon" />
               Pantalla Completa
             </Link>
           </div>
         </header>
-        <main className="flex-1 p-4 overflow-hidden">
-          <div className="max-w-6xl mx-auto h-full">
-            <div className="h-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+        <main className="dash-recep-main">
+          <div className="dash-recep-container">
+            <div className="dash-recep-preview-frame">
               <TVModeDisplay />
             </div>
           </div>
@@ -243,10 +241,10 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <div className="text-center">
-            <Activity className="w-8 h-8 fi-text-success animate-spin mx-auto mb-3" />
-            <p className="text-slate-400 text-sm">Cargando dashboard...</p>
+        <div className="dash-loading-wrapper">
+          <div className="dash-loading-center">
+            <Activity className="dash-loading-spinner fi-text-success" />
+            <p className="dash-loading-text">Cargando dashboard...</p>
           </div>
         </div>
       }

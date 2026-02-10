@@ -87,13 +87,7 @@ export function ScrollToBottomButton({
 
       {/* Unread count badge */}
       {unreadCount > 0 && (
-        <span className="
-          absolute -top-1 -right-1
-          w-5 h-5 rounded-full
-          bg-red-500 text-white
-          text-xs font-bold
-          flex items-center justify-center
-        ">
+        <span className="chat-unread-badge">
           {unreadCount}
         </span>
       )}
@@ -170,12 +164,7 @@ export function AutoResizeTextarea({
 
       {/* Character counter */}
       {showCounter && maxLength && (
-        <div className={`
-          absolute bottom-2 right-2
-          text-xs font-mono
-          transition-colors
-          ${isOverLimit ? 'fi-text-error' : isNearLimit ? 'text-yellow-400' : 'text-slate-500'}
-        `}>
+        <div className={isOverLimit ? 'chat-char-counter-error' : isNearLimit ? 'chat-char-counter-warning' : 'chat-char-counter-ok'}>
           {charCount}/{maxLength}
         </div>
       )}
@@ -189,8 +178,8 @@ export function AutoResizeTextarea({
 
 export function MessageLoadingState({ text = 'Enviando...' }: { text?: string }) {
   return (
-    <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
-      <Loader2 className="w-4 h-4 animate-spin" />
+    <div className="chat-loading-inline">
+      <Loader2 className="chat-spinner-sm" />
       <span>{text}</span>
     </div>
   );
@@ -209,10 +198,10 @@ export interface MessageErrorStateProps {
 export function MessageErrorState({ error, onRetry, onDismiss }: MessageErrorStateProps) {
   return (
     <div className="fi-alert-error">
-      <AlertCircle className="w-5 h-5 fi-text-error flex-shrink-0 mt-0.5" />
+      <AlertCircle className="chat-error-icon" />
 
       <div className="flex-1">
-        <p className="text-red-300 font-medium mb-1">Error al enviar mensaje</p>
+        <p className="chat-error-title">Error al enviar mensaje</p>
         <p className="fi-text-error/80 text-xs">{error}</p>
       </div>
 
@@ -244,20 +233,20 @@ export function MessageSkeleton({ count = 1 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="flex items-start gap-3 animate-pulse"
+          className="chat-skeleton-row"
         >
           <div className="fi-message-skeleton">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-3 w-32 bg-slate-700/50 rounded" />
-              <div className="h-3 w-4 bg-slate-700/50 rounded" />
+            <div className="chat-skeleton-header">
+              <div className="chat-skeleton-bar-wide" />
+              <div className="chat-skeleton-bar-narrow" />
             </div>
 
             {/* Content lines */}
             <div className="fi-stack-sm">
-              <div className="h-3 w-full bg-slate-700/30 rounded" />
-              <div className="h-3 w-5/6 bg-slate-700/30 rounded" />
-              <div className="h-3 w-4/6 bg-slate-700/30 rounded" />
+              <div className="chat-skeleton-line-full" />
+              <div className="chat-skeleton-line-5of6" />
+              <div className="chat-skeleton-line-4of6" />
             </div>
           </div>
         </div>
@@ -289,12 +278,12 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         </div>
       )}
 
-      <h3 className="text-lg font-medium fi-text mb-2">
+      <h3 className="chat-empty-title-lg">
         {title}
       </h3>
 
       {description && (
-        <p className="text-sm text-slate-500 mb-6 max-w-sm">
+        <p className="chat-empty-desc">
           {description}
         </p>
       )}
@@ -303,7 +292,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         <Button
           onClick={action.onClick}
           variant="primary"
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          className="chat-empty-cta-gradient"
         >
           {action.label}
         </Button>

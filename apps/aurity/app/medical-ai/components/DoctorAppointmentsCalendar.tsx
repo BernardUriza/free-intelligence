@@ -272,8 +272,8 @@ export function DoctorAppointmentsCalendar({
 
       {/* Loading overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-slate-900/50 z-10 flex items-center justify-center rounded-lg">
-          <div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full" />
+        <div className="apt-loading-overlay">
+          <div className="apt-loading-spinner" />
         </div>
       )}
 

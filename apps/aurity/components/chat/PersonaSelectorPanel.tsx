@@ -143,7 +143,7 @@ export function PersonaSelectorPanel({
       {/* Trigger Button */}
       {/* ChatGPT style: icon + model badge only (name is in input placeholder) */}
       <SelectTrigger
-        className="bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/50 transition-colors min-w-0 px-2 py-1.5"
+        className="chat-persona-trigger"
       >
         <SelectValue
           showIcon

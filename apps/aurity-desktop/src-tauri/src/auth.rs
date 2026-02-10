@@ -25,6 +25,21 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
+/// Auth errors for Tauri commands
+#[derive(Debug, thiserror::Error, Serialize)]
+pub enum AuthError {
+    #[error("Not configured: {0}")]
+    NotConfigured(String),
+    #[error("OAuth error: {0}")]
+    OAuthError(String),
+    #[error("Keychain error: {0}")]
+    KeychainError(String),
+    #[error("Network error: {0}")]
+    Network(String),
+    #[error("CSRF validation failed: {0}")]
+    CsrfError(String),
+}
+
 // Constants for Auth0 configuration
 // These are read from environment at runtime via Tauri config
 const KEYRING_SERVICE: &str = "io.aurity.desktop";
@@ -100,7 +115,7 @@ pub fn configure_auth0(
     domain: String,
     client_id: String,
     audience: String,
-) -> Result<(), String> {
+) -> Result<(), AuthError> {
     let config = Auth0Config {
         domain,
         client_id,
@@ -111,7 +126,7 @@ pub fn configure_auth0(
     let mut config_lock = auth_state
         .config
         .lock()
-        .map_err(|e| format!("Failed to acquire config lock: {}", e))?;
+        .map_err(|e| AuthError::OAuthError(format!("Failed to acquire config lock: {}", e)))?;
     *config_lock = Some(config);
 
     Ok(())
@@ -123,16 +138,16 @@ pub fn configure_auth0(
 pub async fn start_auth_flow(
     app: AppHandle,
     auth_state: State<'_, AuthState>,
-) -> Result<String, String> {
+) -> Result<String, AuthError> {
     // Get Auth0 config
     let config = {
         let config_lock = auth_state
             .config
             .lock()
-            .map_err(|e| format!("Failed to acquire config lock: {}", e))?;
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire config lock: {}", e)))?;
         config_lock
             .clone()
-            .ok_or("Auth0 not configured. Call configure_auth0 first.")?
+            .ok_or(AuthError::NotConfigured("Auth0 not configured. Call configure_auth0 first.".into()))?
     };
 
     // Generate PKCE parameters
@@ -144,7 +159,7 @@ pub async fn start_auth_flow(
         let mut pkce_lock = auth_state
             .pkce
             .lock()
-            .map_err(|e| format!("Failed to acquire PKCE lock: {}", e))?;
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire PKCE lock: {}", e)))?;
         *pkce_lock = Some(PkceState {
             verifier,
             state: state.clone(),
@@ -175,7 +190,7 @@ pub async fn start_auth_flow(
     // Open in default browser using tauri-plugin-opener
     app.opener()
         .open_url(&auth_url, None::<&str>)
-        .map_err(|e| format!("Failed to open browser: {}", e))?;
+        .map_err(|e| AuthError::OAuthError(format!("Failed to open browser: {}", e)))?;
 
     Ok(state)
 }
@@ -186,9 +201,9 @@ pub async fn start_auth_flow(
 pub async fn handle_auth_callback(
     auth_state: State<'_, AuthState>,
     callback_url: String,
-) -> Result<AuthTokens, String> {
+) -> Result<AuthTokens, AuthError> {
     // Parse callback URL
-    let parsed = Url::parse(&callback_url).map_err(|e| format!("Invalid callback URL: {}", e))?;
+    let parsed = Url::parse(&callback_url).map_err(|e| AuthError::OAuthError(format!("Invalid callback URL: {}", e)))?;
 
     let params: HashMap<_, _> = parsed.query_pairs().collect();
 
@@ -198,44 +213,47 @@ pub async fn handle_auth_callback(
             .get("error_description")
             .map(|s| s.to_string())
             .unwrap_or_else(|| "Unknown error".to_string());
-        return Err(format!("Auth0 error: {} - {}", error, desc));
+        return Err(AuthError::OAuthError(format!("Auth0 error: {} - {}", error, desc)));
     }
 
     // Validate state parameter (CSRF protection)
     let returned_state = params
         .get("state")
-        .ok_or("Missing state parameter in callback")?;
+        .ok_or(AuthError::CsrfError("Missing state parameter in callback".into()))?;
 
-    let (verifier, config) = {
+    // Acquire locks sequentially (never hold two at once) to prevent deadlock risk
+    let verifier = {
         let pkce_lock = auth_state
             .pkce
             .lock()
-            .map_err(|e| format!("Failed to acquire PKCE lock: {}", e))?;
-        let pkce_state = pkce_lock.as_ref().ok_or("No pending auth flow")?;
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire PKCE lock: {}", e)))?;
+        let pkce_state = pkce_lock.as_ref().ok_or(AuthError::OAuthError("No pending auth flow".into()))?;
 
         if *returned_state != pkce_state.state {
-            return Err("State mismatch - possible CSRF attack".to_string());
+            return Err(AuthError::CsrfError("State mismatch - possible CSRF attack".into()));
         }
 
         // Check if PKCE state is too old (5 minutes max)
         let age = Utc::now() - pkce_state.created_at;
         if age.num_minutes() > 5 {
-            return Err("Auth flow expired. Please try again.".to_string());
+            return Err(AuthError::OAuthError("Auth flow expired. Please try again.".into()));
         }
 
+        pkce_state.verifier.clone()
+    }; // pkce_lock dropped here
+
+    let config = {
         let config_lock = auth_state
             .config
             .lock()
-            .map_err(|e| format!("Failed to acquire config lock: {}", e))?;
-        let config = config_lock.clone().ok_or("Auth0 not configured")?;
-
-        (pkce_state.verifier.clone(), config)
-    };
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire config lock: {}", e)))?;
+        config_lock.clone().ok_or(AuthError::NotConfigured("Auth0 not configured".into()))?
+    }; // config_lock dropped here
 
     // Get authorization code
     let code = params
         .get("code")
-        .ok_or("Missing authorization code in callback")?;
+        .ok_or(AuthError::OAuthError("Missing authorization code in callback".into()))?;
 
     // Exchange code for tokens
     let tokens = exchange_code_for_tokens(&code, &verifier, &config).await?;
@@ -245,7 +263,7 @@ pub async fn handle_auth_callback(
         let mut pkce_lock = auth_state
             .pkce
             .lock()
-            .map_err(|e| format!("Failed to acquire PKCE lock: {}", e))?;
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire PKCE lock: {}", e)))?;
         *pkce_lock = None;
     }
 
@@ -260,7 +278,7 @@ async fn exchange_code_for_tokens(
     code: &str,
     verifier: &str,
     config: &Auth0Config,
-) -> Result<AuthTokens, String> {
+) -> Result<AuthTokens, AuthError> {
     let client = reqwest::Client::new();
     let token_url = format!("https://{}/oauth/token", config.domain);
 
@@ -278,13 +296,13 @@ async fn exchange_code_for_tokens(
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| format!("Token request failed: {}", e))?;
+        .map_err(|e| AuthError::Network(format!("Token request failed: {}", e)))?;
 
     if !response.status().is_success() {
         let status = response.status();
         // Consume body but don't log it (might contain sensitive info)
         let _error_body = response.text().await.unwrap_or_default();
-        return Err(format!("Token exchange failed with status {}", status));
+        return Err(AuthError::OAuthError(format!("Token exchange failed with status {}", status)));
     }
 
     #[derive(Deserialize)]
@@ -299,7 +317,7 @@ async fn exchange_code_for_tokens(
     let token_response: TokenResponse = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse token response: {}", e))?;
+        .map_err(|e| AuthError::OAuthError(format!("Failed to parse token response: {}", e)))?;
 
     let expires_at = Utc::now().timestamp() + token_response.expires_in;
 
@@ -313,54 +331,54 @@ async fn exchange_code_for_tokens(
 }
 
 /// Store tokens securely in OS keychain
-fn store_tokens_in_keychain(tokens: &AuthTokens) -> Result<(), String> {
+fn store_tokens_in_keychain(tokens: &AuthTokens) -> Result<(), AuthError> {
     let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
+        .map_err(|e| AuthError::KeychainError(format!("Failed to create keyring entry: {}", e)))?;
 
     let tokens_json =
-        serde_json::to_string(tokens).map_err(|e| format!("Failed to serialize tokens: {}", e))?;
+        serde_json::to_string(tokens).map_err(|e| AuthError::OAuthError(format!("Failed to serialize tokens: {}", e)))?;
 
     entry
         .set_password(&tokens_json)
-        .map_err(|e| format!("Failed to store tokens in keychain: {}", e))?;
+        .map_err(|e| AuthError::KeychainError(format!("Failed to store tokens in keychain: {}", e)))?;
 
     Ok(())
 }
 
 /// Get stored tokens from keychain
 #[tauri::command]
-pub fn get_stored_tokens() -> Result<Option<AuthTokens>, String> {
+pub fn get_stored_tokens() -> Result<Option<AuthTokens>, AuthError> {
     let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
+        .map_err(|e| AuthError::KeychainError(format!("Failed to create keyring entry: {}", e)))?;
 
     match entry.get_password() {
         Ok(tokens_json) => {
             let tokens: AuthTokens = serde_json::from_str(&tokens_json)
-                .map_err(|e| format!("Failed to parse stored tokens: {}", e))?;
+                .map_err(|e| AuthError::OAuthError(format!("Failed to parse stored tokens: {}", e)))?;
             Ok(Some(tokens))
         }
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Failed to get tokens from keychain: {}", e)),
+        Err(e) => Err(AuthError::KeychainError(format!("Failed to get tokens from keychain: {}", e))),
     }
 }
 
 /// Refresh access token using refresh token
 #[tauri::command]
-pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthTokens, String> {
+pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthTokens, AuthError> {
     // Get current tokens
-    let current_tokens = get_stored_tokens()?.ok_or("No stored tokens to refresh")?;
+    let current_tokens = get_stored_tokens()?.ok_or(AuthError::OAuthError("No stored tokens to refresh".into()))?;
 
     let refresh_token = current_tokens
         .refresh_token
-        .ok_or("No refresh token available")?;
+        .ok_or(AuthError::OAuthError("No refresh token available".into()))?;
 
     // Get Auth0 config
     let config = {
         let config_lock = auth_state
             .config
             .lock()
-            .map_err(|e| format!("Failed to acquire config lock: {}", e))?;
-        config_lock.clone().ok_or("Auth0 not configured")?
+            .map_err(|e| AuthError::OAuthError(format!("Failed to acquire config lock: {}", e)))?;
+        config_lock.clone().ok_or(AuthError::NotConfigured("Auth0 not configured".into()))?
     };
 
     let client = reqwest::Client::new();
@@ -378,12 +396,12 @@ pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthToke
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| format!("Refresh request failed: {}", e))?;
+        .map_err(|e| AuthError::Network(format!("Refresh request failed: {}", e)))?;
 
     if !response.status().is_success() {
         // Refresh token might be revoked - clear stored tokens
         let _ = clear_tokens();
-        return Err("Refresh token revoked - re-authentication required".to_string());
+        return Err(AuthError::OAuthError("Refresh token revoked - re-authentication required".into()));
     }
 
     #[derive(Deserialize)]
@@ -398,7 +416,7 @@ pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthToke
     let token_response: RefreshResponse = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse refresh response: {}", e))?;
+        .map_err(|e| AuthError::OAuthError(format!("Failed to parse refresh response: {}", e)))?;
 
     let expires_at = Utc::now().timestamp() + token_response.expires_in;
 
@@ -419,20 +437,20 @@ pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthToke
 
 /// Clear stored tokens (logout)
 #[tauri::command]
-pub fn clear_tokens() -> Result<(), String> {
+pub fn clear_tokens() -> Result<(), AuthError> {
     let entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
+        .map_err(|e| AuthError::KeychainError(format!("Failed to create keyring entry: {}", e)))?;
 
     match entry.delete_credential() {
         Ok(()) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()), // Already cleared
-        Err(e) => Err(format!("Failed to clear tokens: {}", e)),
+        Err(e) => Err(AuthError::KeychainError(format!("Failed to clear tokens: {}", e))),
     }
 }
 
 /// Check if tokens are expired (with 60s buffer)
 #[tauri::command]
-pub fn is_token_expired() -> Result<bool, String> {
+pub fn is_token_expired() -> Result<bool, AuthError> {
     match get_stored_tokens()? {
         Some(tokens) => {
             let now = Utc::now().timestamp();
@@ -445,7 +463,7 @@ pub fn is_token_expired() -> Result<bool, String> {
 
 /// Get token expiration timestamp
 #[tauri::command]
-pub fn get_token_expiry() -> Result<Option<i64>, String> {
+pub fn get_token_expiry() -> Result<Option<i64>, AuthError> {
     match get_stored_tokens()? {
         Some(tokens) => Ok(Some(tokens.expires_at)),
         None => Ok(None),

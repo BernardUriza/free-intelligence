@@ -18,6 +18,8 @@
  * - Check status: await isOfflineModeEnabled()
  */
 
+import { ROUTES } from '@/lib/api/routes';
+
 export interface OfflineModeConfig {
   enabled: boolean;
   confirmedAt: number | null; // Unix timestamp (ms)
@@ -125,7 +127,7 @@ export async function checkAuthAvailability(): Promise<boolean> {
 
     try {
       const response = await fetch(
-        `${backendUrl}/api/auth/me`,
+        `${backendUrl}${ROUTES.auth}/me`,
         {
           method: 'HEAD',
           signal: controller.signal,

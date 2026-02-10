@@ -12,7 +12,8 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { getBackendUrl } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // ============================================================================
 // Types
@@ -67,7 +68,7 @@ export interface UseChatStreamReturn {
 // Constants
 // ============================================================================
 
-const STREAM_ENDPOINT = '/api/aurity/assistant/chat/stream';
+const STREAM_ENDPOINT = `${ROUTES.assistant}/chat/stream`;
 const DEFAULT_THROTTLE_MS = 50;
 
 // ============================================================================
@@ -164,8 +165,7 @@ export function useChatStream(options: UseChatStreamOptions = {}): UseChatStream
     abortControllerRef.current = new AbortController();
 
     try {
-      const backendUrl = getBackendUrl();
-      const response = await fetch(`${backendUrl}${STREAM_ENDPOINT}`, {
+      const response = await api.raw(STREAM_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -80,14 +80,14 @@ export function AppTemplate({
       {/* Abstract geometric background */}
       {showGeometricBg && (
         <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
-          <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-emerald-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/3 w-[600px] h-[600px] bg-cyan-400 rounded-full blur-3xl" />
+          <div className="layout-geometric-blob-1" />
+          <div className="layout-geometric-blob-2" />
         </div>
       )}
 
       {/* Aurity Logo Watermark */}
       {showWatermark && (
-        <div className="fixed inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+        <div className="layout-watermark">
           <Image
             src="/logos/aurity-logo-light.png"
             alt=""

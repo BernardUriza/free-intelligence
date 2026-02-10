@@ -1,0 +1,399 @@
+/**
+ * History / Timeline Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: history-{component}[-variant]
+ * Examples: history-toolbar, history-filter-btn, history-modal
+ *
+ * Covers: timeline scheduler, event detail modal, audit table,
+ *         keyboard shortcuts bar, filters, memory-config event rendering
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility history-nav-btn {
+  @apply p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200;
+}
+
+@utility history-zoom-btn {
+  @apply p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-slate-200
+         disabled:opacity-30 disabled:cursor-not-allowed;
+}
+
+@utility history-kbd {
+  @apply px-1 py-0.5 bg-slate-800 rounded text-slate-400;
+}
+
+@utility mem-status-badge {
+  @apply px-2 py-1 text-xs font-semibold rounded-full border;
+}
+
+@utility mem-pill {
+  @apply flex items-center gap-1.5 px-2 py-1 rounded-md border;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * TOOLBAR
+   * ======================================== */
+  .history-drawer-toggle {
+    @apply p-2 rounded-lg transition-colors text-slate-400
+           hover:text-white hover:bg-slate-800;
+  }
+  .history-drawer-toggle-active {
+    @apply p-2 rounded-lg transition-colors bg-emerald-600 text-white;
+  }
+
+  .history-view-btn {
+    @apply flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium
+           transition-colors text-slate-400 hover:bg-slate-700 hover:text-slate-200;
+  }
+  .history-view-btn-active {
+    @apply flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium
+           transition-colors bg-emerald-600 text-white shadow-sm;
+  }
+
+  .history-jump-latest-btn {
+    @apply flex items-center gap-1.5 px-2 py-1.5 fi-text-xs-medium fi-text
+           hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors;
+  }
+
+  /* ========================================
+   * FILTERS
+   * ======================================== */
+  .history-filter-btn {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors text-slate-400 hover:text-white hover:bg-slate-700;
+  }
+  .history-filter-btn-emerald {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors bg-emerald-600 text-white;
+  }
+  .history-filter-btn-sky {
+    @apply fi-flex-gap px-4 py-2 rounded-md text-sm font-medium
+           transition-colors bg-sky-600 text-white;
+  }
+
+  /* ========================================
+   * EVENT DETAIL MODAL
+   * ======================================== */
+  .history-modal-container {
+    @apply bg-slate-900 rounded-2xl shadow-2xl border border-slate-700
+           w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden;
+  }
+
+  .history-copy-btn {
+    @apply flex items-center gap-1.5 px-2 py-1 fi-text-xs
+           hover:text-white hover:bg-slate-800 rounded transition-colors;
+  }
+
+  /* ========================================
+   * KEYBOARD SHORTCUTS BAR
+   * ======================================== */
+  .history-shortcuts-bar {
+    @apply px-3 py-2 bg-slate-900/30 border-t border-slate-800
+           fi-text-xs-muted flex items-center gap-4;
+  }
+
+  /* ========================================
+   * TIMELINE PAGE (tl-* prefix)
+   * ======================================== */
+
+  /* --- Loading States --- */
+  .tl-loading-wrapper {
+    @apply flex items-center justify-center h-full;
+  }
+  .tl-loading-spinner-sm {
+    @apply h-8 w-8 animate-spin text-emerald-500;
+  }
+  .tl-page-loading {
+    @apply flex items-center justify-center min-h-screen bg-slate-950;
+  }
+  .tl-page-loading-inner {
+    @apply text-center;
+  }
+  .tl-page-loading-spinner {
+    @apply animate-spin h-12 w-12 text-emerald-500 mx-auto mb-4;
+  }
+  .tl-page-loading-text {
+    @apply text-slate-400 text-[15px] leading-6;
+  }
+  .tl-loading-more {
+    @apply flex items-center justify-center py-8;
+  }
+  .tl-loading-more-spinner {
+    @apply animate-spin h-6 w-6 text-emerald-500 mr-2;
+  }
+
+  /* --- Header Actions --- */
+  .tl-header-actions {
+    @apply flex items-center gap-2;
+  }
+  .tl-view-toggle-group {
+    @apply flex items-center bg-slate-800 rounded-lg p-0.5;
+  }
+  .tl-icon-sm {
+    @apply h-3.5 w-3.5;
+  }
+  .tl-responsive-label {
+    @apply hidden sm:inline;
+  }
+  .tl-responsive-label-inverse {
+    @apply sm:hidden;
+  }
+  .tl-refresh-icon {
+    @apply h-3.5 w-3.5;
+  }
+  .tl-refresh-icon-spinning {
+    @apply h-3.5 w-3.5 animate-spin;
+  }
+
+  /* --- Page Content --- */
+  .tl-content {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8;
+  }
+  .tl-stats-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+  }
+  .tl-stat-inner {
+    @apply flex items-center gap-2;
+  }
+  .tl-stat-icon-sky {
+    @apply h-4 w-4 text-sky-400;
+  }
+  .tl-stat-icon-sm {
+    @apply h-4 w-4;
+  }
+  .tl-stat-value-sky {
+    @apply text-2xl font-bold text-sky-400;
+  }
+  .tl-stat-value-accent {
+    @apply text-2xl font-bold;
+  }
+  .tl-search-full {
+    @apply w-full;
+  }
+
+  /* --- Scheduler Section --- */
+  .tl-scheduler-container {
+    @apply rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm bg-slate-900;
+  }
+  .tl-scheduler-toggle {
+    @apply w-full flex items-center justify-between px-4 py-3
+           bg-slate-800/50 hover:bg-slate-800 transition-colors;
+  }
+  .tl-scheduler-label {
+    @apply flex items-center gap-2;
+  }
+  .tl-scheduler-icon {
+    @apply h-4 w-4 text-emerald-400;
+  }
+  .tl-chevron-icon {
+    @apply h-4 w-4 text-slate-400;
+  }
+  .tl-scheduler-view {
+    @apply h-[400px];
+  }
+
+  /* --- Error State --- */
+  .tl-error {
+    @apply flex items-center gap-3 p-4 bg-red-950/30 border border-red-700/30 rounded-xl;
+  }
+  .tl-error-icon {
+    @apply h-5 w-5 flex-shrink-0;
+  }
+  .tl-error-body {
+    @apply flex-1;
+  }
+  .tl-error-text {
+    @apply text-sm text-red-300;
+  }
+
+  /* --- Empty State --- */
+  .tl-empty-text {
+    @apply text-slate-400 text-sm;
+  }
+  .tl-empty-subtext {
+    @apply text-slate-500 text-xs mt-2;
+  }
+
+  /* --- List Section --- */
+  .tl-list-container {
+    @apply rounded-2xl overflow-hidden ring-1 ring-white/5 shadow-sm;
+  }
+  .tl-list-header {
+    @apply flex items-center gap-2 px-4 py-3 bg-slate-800/50;
+  }
+  .tl-list-icon {
+    @apply h-4 w-4 text-sky-400;
+  }
+  .tl-search-badge {
+    @apply ml-2 text-xs;
+  }
+
+  /* --- Sentinel & End --- */
+  .tl-sentinel {
+    @apply h-1;
+  }
+  .tl-end-indicator {
+    @apply text-center py-8 border-t border-slate-800;
+  }
+
+  /* --- Philosophy Note --- */
+  .tl-philosophy-note {
+    @apply p-4 bg-slate-800/30 border border-slate-700 rounded-xl;
+  }
+  .tl-philosophy-text {
+    @apply italic text-center;
+  }
+
+  /* ========================================
+   * MEMORY CONFIG (mem-* prefix)
+   * Covers: lib/memory-config.tsx
+   * Timeline event rendering for audio + chat + medical events
+   * ======================================== */
+
+  /* --- Layout --- */
+  .mem-header-row {
+    @apply flex items-start justify-between mb-3;
+  }
+  .mem-badges-wrap {
+    @apply flex items-center gap-3 flex-wrap;
+  }
+  .mem-actions-wrap {
+    @apply flex items-center gap-2;
+  }
+
+  /* --- Event Number --- */
+  .mem-event-number {
+    @apply text-slate-500 font-mono text-sm;
+  }
+
+  /* --- Event Type Badge (shell; bg/border/text are dynamic) --- */
+  .mem-type-badge {
+    @apply px-3 py-1 rounded-md border;
+  }
+  .mem-type-text {
+    @apply text-sm font-semibold;
+  }
+
+  /* --- Status Badges --- */
+  .mem-status-error {
+    @apply mem-status-badge bg-red-500/20 fi-text-error border-red-500/30;
+  }
+  .mem-status-valid {
+    @apply mem-status-badge bg-green-500/20 fi-text-green border-green-500/30;
+  }
+  .mem-status-empty {
+    @apply mem-status-badge bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+
+  /* --- Info Pills (timestamp, STT, duration, chat indicator) --- */
+  .mem-pill-timestamp {
+    @apply mem-pill bg-slate-900/50 border-slate-700;
+  }
+  .mem-pill-stt {
+    @apply mem-pill bg-blue-950/30 border-blue-800;
+  }
+  .mem-pill-duration {
+    @apply mem-pill bg-slate-800 border-slate-700;
+  }
+  .mem-pill-chat {
+    @apply mem-pill bg-slate-800 border-slate-700;
+  }
+  .mem-pill-persona {
+    @apply mem-pill bg-violet-950/30 border-violet-800;
+  }
+  .mem-pill-text {
+    @apply text-xs font-mono text-slate-400;
+  }
+  .mem-pill-text-stt {
+    @apply text-xs font-mono text-blue-300;
+  }
+
+  /* --- Confidence Pill (dynamic colors applied inline) --- */
+  .mem-confidence-high {
+    @apply bg-emerald-950/30 border-emerald-800;
+  }
+  .mem-confidence-mid {
+    @apply bg-amber-950/30 border-amber-800;
+  }
+  .mem-confidence-low {
+    @apply bg-red-950/30 border-red-800;
+  }
+  .mem-confidence-text-high {
+    @apply text-xs font-mono text-emerald-300;
+  }
+  .mem-confidence-text-mid {
+    @apply text-xs font-mono text-amber-300;
+  }
+  .mem-confidence-text-low {
+    @apply text-xs font-mono text-red-300;
+  }
+
+  /* --- Action Buttons --- */
+  .mem-btn-play {
+    @apply p-1.5 rounded-lg transition-all bg-slate-700 fi-text hover:bg-slate-600;
+  }
+  .mem-btn-play-active {
+    @apply p-1.5 rounded-lg transition-all bg-blue-500 text-white shadow-lg shadow-blue-500/50;
+  }
+  .mem-btn-expand {
+    @apply p-1 hover:bg-slate-700/50 rounded transition-colors;
+  }
+
+  /* --- Content --- */
+  .mem-content-text {
+    @apply text-white font-medium leading-relaxed;
+  }
+  .mem-chat-text {
+    @apply text-white leading-relaxed whitespace-pre-wrap;
+  }
+
+  /* --- Section Dividers --- */
+  .mem-tech-section {
+    @apply pt-3 mt-3 border-t border-slate-700/50 space-y-2;
+  }
+  .mem-session-divider {
+    @apply pt-3 mt-3 border-t border-slate-700/50;
+  }
+
+  /* --- Technical Details --- */
+  .mem-tech-heading {
+    @apply text-xs font-semibold text-slate-500 uppercase tracking-wide;
+  }
+  .mem-tech-grid {
+    @apply grid grid-cols-2 gap-2 text-xs;
+  }
+  .mem-tech-row {
+    @apply flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded;
+  }
+  .mem-tech-row-wide {
+    @apply flex items-center justify-between px-2 py-1 bg-slate-800/50 rounded col-span-2;
+  }
+  .mem-tech-hash {
+    @apply fi-text font-mono text-[10px];
+  }
+
+  /* --- Footer --- */
+  .mem-footer {
+    @apply mt-3 pt-3 border-t border-slate-700/50 flex items-center gap-2 flex-wrap;
+  }
+  .mem-footer-who {
+    @apply px-2 py-0.5 bg-slate-700/30 rounded fi-text-xs font-mono;
+  }
+  .mem-footer-tag {
+    @apply px-2 py-0.5 bg-slate-700/30 rounded fi-text-xs;
+  }
+
+  /* --- Role Icon (chat header) --- */
+  .mem-role-icon {
+    @apply p-2 rounded-full border;
+  }
+}

@@ -208,14 +208,14 @@ export default function LLMModelsAdminPage() {
           icon: 'success',
           title: `Prueba de ${model.id}`,
           html: `
-            <div class="text-left space-y-4">
-              <div class="p-3 bg-slate-700/50 rounded-lg">
-                <p class="fi-text-xs mb-1 uppercase tracking-wide">Prompt médico</p>
-                <p class="text-sm text-slate-200">${result.prompt}</p>
+            <div class="mdl-swal-body">
+              <div class="mdl-swal-prompt">
+                <p class="mdl-swal-label">Prompt médico</p>
+                <p class="mdl-swal-text">${result.prompt}</p>
               </div>
-              <div class="p-3 bg-emerald-900/30 border border-emerald-800 rounded-lg">
-                <p class="text-xs fi-text-success mb-1 uppercase tracking-wide">Respuesta del modelo</p>
-                <p class="text-sm text-slate-200 whitespace-pre-wrap">${result.response}</p>
+              <div class="mdl-swal-success-box">
+                <p class="mdl-swal-success-label">Respuesta del modelo</p>
+                <p class="mdl-swal-response-text">${result.response}</p>
               </div>
             </div>
           `,
@@ -227,14 +227,14 @@ export default function LLMModelsAdminPage() {
           icon: 'error',
           title: `Error al probar ${model.id}`,
           html: `
-            <div class="text-left space-y-4">
-              <div class="p-3 bg-slate-700/50 rounded-lg">
-                <p class="fi-text-xs mb-1 uppercase tracking-wide">Prompt</p>
-                <p class="text-sm text-slate-200">${result.prompt}</p>
+            <div class="mdl-swal-body">
+              <div class="mdl-swal-prompt">
+                <p class="mdl-swal-label">Prompt</p>
+                <p class="mdl-swal-text">${result.prompt}</p>
               </div>
-              <div class="p-3 bg-red-900/30 border border-red-800 rounded-lg">
-                <p class="text-xs fi-text-error mb-1 uppercase tracking-wide">Error</p>
-                <p class="text-sm text-red-200">${result.error || 'Error desconocido'}</p>
+              <div class="mdl-swal-error-box">
+                <p class="mdl-swal-error-label">Error</p>
+                <p class="mdl-swal-error-text">${result.error || 'Error desconocido'}</p>
               </div>
             </div>
           `,
@@ -278,10 +278,10 @@ export default function LLMModelsAdminPage() {
       showGeometricBg={true}
     >
       {/* System Resources Dashboard */}
-      <div className="mb-6 p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
-        <div className="fi-flex-between mb-4">
+      <div className="mdl-resources-panel">
+        <div className="mdl-resources-title-row">
           <div className="fi-flex-gap">
-            <Activity className="w-5 h-5 fi-text-success" />
+            <Activity className="mdl-icon-md fi-text-success" />
             <h3 className="fi-title">Recursos del Sistema</h3>
           </div>
           <Button
@@ -290,76 +290,76 @@ export default function LLMModelsAdminPage() {
             variant="ghost"
             size="sm"
             icon={RefreshCw}
-            className={resourcesLoading ? '[&>svg]:animate-spin' : ''}
+            className={resourcesLoading ? 'mdl-spin-svg' : ''}
           >
             Actualizar
           </Button>
         </div>
 
         {resourcesLoading && !systemResources ? (
-          <div className="flex items-center gap-2 text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Cargando recursos...</span>
+          <div className="mdl-resources-loading">
+            <Loader2 className="mdl-resources-loading-icon" />
+            <span className="mdl-resources-loading-text">Cargando recursos...</span>
           </div>
         ) : systemResources ? (
-          <div className="space-y-4">
+          <div className="mdl-resources-body">
             {/* RAM Usage Bar */}
             <div>
-              <div className="fi-flex-between mb-2">
+              <div className="mdl-ram-header">
                 <div className="fi-flex-gap">
-                  <HardDrive className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm fi-text">Memoria RAM</span>
+                  <HardDrive className="mdl-icon-sm" />
+                  <span className="mdl-ram-label">Memoria RAM</span>
                 </div>
-                <span className="text-sm font-mono text-slate-400">
+                <span className="mdl-ram-value">
                   {systemResources.memory.used_gb.toFixed(1)}GB / {systemResources.memory.total_gb.toFixed(1)}GB
                 </span>
               </div>
-              <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+              <div className="mdl-progress-track">
                 <div
-                  className={`h-full transition-all duration-500 ${
-                    systemResources.memory.percent_used < 50 ? 'bg-emerald-500' :
-                    systemResources.memory.percent_used < 75 ? 'bg-yellow-500' :
-                    systemResources.memory.percent_used < 90 ? 'bg-orange-500' : 'bg-red-500'
+                  className={`mdl-progress-bar ${
+                    systemResources.memory.percent_used < 50 ? 'mdl-progress-ok' :
+                    systemResources.memory.percent_used < 75 ? 'mdl-progress-warn' :
+                    systemResources.memory.percent_used < 90 ? 'mdl-progress-danger' : 'mdl-progress-critical'
                   }`}
                   style={{ width: `${systemResources.memory.percent_used}%` }}
                 />
               </div>
-              <div className="flex justify-between mt-1 fi-text-xs-muted">
+              <div className="mdl-progress-labels">
                 <span>{systemResources.memory.available_gb.toFixed(1)}GB disponible</span>
                 <span>{systemResources.memory.percent_used.toFixed(0)}% usado</span>
               </div>
             </div>
 
             {/* CPU & Platform Info */}
-            <div className="flex items-center gap-6 text-sm">
+            <div className="mdl-cpu-row">
               <div className="fi-flex-gap">
-                <Cpu className="w-4 h-4 text-slate-400" />
+                <Cpu className="mdl-icon-sm" />
                 <span className="fi-text">CPU: {systemResources.cpu_percent.toFixed(0)}%</span>
-                <span className="text-slate-500">({systemResources.cpu_count} cores)</span>
+                <span className="mdl-text-muted">({systemResources.cpu_count} cores)</span>
               </div>
-              <span className="text-slate-500">{systemResources.platform}</span>
+              <span className="mdl-text-muted">{systemResources.platform}</span>
             </div>
 
             {/* Running Models */}
             {runningModels && (
-              <div className="pt-3 fi-border-top">
-                <div className="fi-flex-between mb-2">
+              <div className="mdl-running-section">
+                <div className="mdl-ollama-header">
                   <div className="fi-flex-gap">
-                    <Zap className="w-4 h-4 fi-text-warning" />
-                    <span className="text-sm fi-text">Modelos en Memoria (Ollama)</span>
+                    <Zap className="mdl-icon-sm fi-text-warning" />
+                    <span className="mdl-ollama-label">Modelos en Memoria (Ollama)</span>
                   </div>
                   {runningModels.ollama_available ? (
-                    <span className="text-xs fi-text-success flex items-center gap-1">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="mdl-ollama-active">
+                      <span className="mdl-status-dot" />
                       Ollama activo
                     </span>
                   ) : (
-                    <span className="text-xs fi-text-error">Ollama no disponible</span>
+                    <span className="mdl-ollama-inactive">Ollama no disponible</span>
                   )}
                 </div>
 
                 {runningModels.models.length === 0 ? (
-                  <p className="text-sm text-slate-500 italic">
+                  <p className="mdl-no-models">
                     Sin modelos cargados • RAM libre para cargar modelos
                   </p>
                 ) : (
@@ -367,17 +367,17 @@ export default function LLMModelsAdminPage() {
                     {runningModels.models.map((model) => (
                       <div
                         key={model.model_id}
-                        className="flex items-center justify-between p-2 bg-slate-900/50 rounded-lg"
+                        className="mdl-running-card"
                       >
                         <div className="fi-flex-gap-md">
-                          <span className={`px-2 py-0.5 text-xs rounded ${
-                            model.processor === 'gpu' ? 'bg-purple-900/50 text-purple-300' :
-                            model.processor === 'partial' ? 'bg-amber-900/50 text-amber-300' :
-                            'bg-slate-700 fi-text'
-                          }`}>
+                          <span className={
+                            model.processor === 'gpu' ? 'mdl-processor-gpu' :
+                            model.processor === 'partial' ? 'mdl-processor-partial' :
+                            'mdl-processor-cpu'
+                          }>
                             {model.processor.toUpperCase()}
                           </span>
-                          <span className="text-sm text-white font-medium">{model.name}</span>
+                          <span className="mdl-model-name">{model.name}</span>
                           <span className="fi-text-xs-muted">{model.size_gb}GB</span>
                         </div>
                         <div className="fi-flex-gap">
@@ -390,12 +390,12 @@ export default function LLMModelsAdminPage() {
                             size="xs"
                             icon={X}
                             title="Descargar de memoria"
-                            className="text-slate-500 hover:fi-text-error"
+                            className="mdl-unload-btn"
                           />
                         </div>
                       </div>
                     ))}
-                    <div className="fi-text-xs-muted text-right">
+                    <div className="mdl-running-total">
                       Total en memoria: {runningModels.total_loaded_gb.toFixed(1)}GB
                     </div>
                   </div>
@@ -404,16 +404,16 @@ export default function LLMModelsAdminPage() {
             )}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No se pudieron cargar los recursos del sistema</p>
+          <p className="mdl-no-resources">No se pudieron cargar los recursos del sistema</p>
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      <div className="mdl-filters-row">
         <div className="fi-flex-gap">
-          <Filter className="w-4 h-4 text-slate-400" />
+          <Filter className="mdl-icon-sm" />
           <Select value={providerFilter} onValueChange={(val) => setProviderFilter(val as LLMProvider | '')}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="mdl-filter-select">
               <SelectValue placeholder="Todos los proveedores" />
             </SelectTrigger>
             <SelectContent>
@@ -426,12 +426,12 @@ export default function LLMModelsAdminPage() {
             </SelectContent>
           </Select>
         </div>
-        <label className="flex items-center gap-2 fi-subtitle cursor-pointer">
+        <label className="mdl-checkbox-label">
           <input
             type="checkbox"
             checked={includeInactive}
             onChange={(e) => setIncludeInactive(e.target.checked)}
-            className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500"
+            className="mdl-checkbox"
           />
           Mostrar inactivos
         </label>
@@ -440,23 +440,23 @@ export default function LLMModelsAdminPage() {
       {/* Loading State */}
       {loading && (
         <div className="fi-empty-state-lg">
-          <Loader2 className="w-12 h-12 fi-text-success animate-spin mb-4" />
-          <p className="text-slate-400">Cargando modelos...</p>
+          <Loader2 className="mdl-loading-icon" />
+          <p className="mdl-loading-text">Cargando modelos...</p>
         </div>
       )}
 
       {/* Error State */}
       {error && !loading && (
         <div className="fi-empty-state-lg">
-          <div className="p-6 bg-red-950/20 border border-red-800 rounded-lg max-w-md">
-            <div className="flex items-center gap-3 mb-2">
-              <AlertCircle className="w-6 h-6 fi-text-error" />
-              <h3 className="text-lg font-semibold text-red-300">
+          <div className="mdl-error-panel">
+            <div className="mdl-error-header">
+              <AlertCircle className="mdl-error-icon" />
+              <h3 className="mdl-error-title">
                 Error al Cargar Modelos
               </h3>
             </div>
-            <p className="text-red-200 text-sm">{error}</p>
-            <Button onClick={loadModels} variant="primary" fullWidth className="mt-4">
+            <p className="mdl-error-text">{error}</p>
+            <Button onClick={loadModels} variant="primary" fullWidth className="mdl-retry-gap">
               Reintentar
             </Button>
           </div>
@@ -465,7 +465,7 @@ export default function LLMModelsAdminPage() {
 
       {/* Models Grid */}
       {!loading && !error && models.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="mdl-grid">
           {models.map((model) => (
             <LLMModelCard
               key={model.id}
@@ -484,15 +484,15 @@ export default function LLMModelsAdminPage() {
       {/* Empty State */}
       {!loading && !error && models.length === 0 && (
         <div className="fi-empty-state-lg">
-          <Brain className="w-16 h-16 text-slate-600 mb-4" />
-          <h3 className="text-xl font-semibold text-slate-400 mb-2">
+          <Brain className="mdl-empty-icon" />
+          <h3 className="mdl-empty-title">
             No hay modelos configurados
           </h3>
-          <p className="text-slate-500 text-center max-w-md mb-6">
+          <p className="mdl-empty-desc">
             Los modelos LLM definen qué servicios de IA están disponibles para asignar a las personas.
           </p>
           <Button onClick={() => setShowCreateModal(true)} variant="primary">
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="mdl-add-icon" />
             Crear Primer Modelo
           </Button>
         </div>
@@ -582,29 +582,29 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="fi-flex-between mb-6">
+    <div className="mdl-modal-overlay">
+      <div className="mdl-modal-panel">
+        <div className="mdl-modal-title-row">
           <h2 className="fi-title-xl">
             {mode === 'create' ? 'Nuevo Modelo LLM' : 'Editar Modelo'}
           </h2>
           <button onClick={onClose} className="fi-btn-close">
-            <X className="w-5 h-5" />
+            <X className="mdl-close-icon" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mdl-form">
           {/* ID (only for create) */}
           {mode === 'create' && (
             <div>
-              <label className="block fi-subtitle mb-1">ID del Modelo *</label>
+              <label className="mdl-label">ID del Modelo *</label>
               <Input
                 value={formData.id}
                 onChange={(e) => setFormData({ ...formData, id: e.target.value.toLowerCase().replace(/\s/g, '-') })}
                 placeholder="gpt-4o-mini"
-                className="font-mono"
+                className="mdl-input-mono"
               />
-              <p className="fi-text-xs-muted mt-1">
+              <p className="mdl-form-hint">
                 Identificador único (sin espacios, minúsculas)
               </p>
             </div>
@@ -612,7 +612,7 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
 
           {/* Label */}
           <div>
-            <label className="block fi-subtitle mb-1">Label (Nombre visible) *</label>
+            <label className="mdl-label">Label (Nombre visible) *</label>
             <Input
               value={formData.label}
               onChange={(e) => setFormData({ ...formData, label: e.target.value })}
@@ -621,9 +621,9 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
           </div>
 
           {/* Provider & Cost Tier */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="mdl-form-grid">
             <div>
-              <label className="block fi-subtitle mb-1">Proveedor</label>
+              <label className="mdl-label">Proveedor</label>
               <Select value={formData.provider} onValueChange={(val) => setFormData({ ...formData, provider: val as LLMProvider })}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Seleccionar proveedor" />
@@ -638,7 +638,7 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
               </Select>
             </div>
             <div>
-              <label className="block fi-subtitle mb-1">Nivel de Costo</label>
+              <label className="mdl-label">Nivel de Costo</label>
               <Select value={formData.cost_tier} onValueChange={(val) => setFormData({ ...formData, cost_tier: val as CostTier })}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Seleccionar nivel" />
@@ -655,9 +655,9 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
           </div>
 
           {/* Max Tokens & Context Window */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="mdl-form-grid">
             <div>
-              <label className="block fi-subtitle mb-1">Max Tokens (output)</label>
+              <label className="mdl-label">Max Tokens (output)</label>
               <Input
                 type="number"
                 value={formData.max_tokens}
@@ -667,7 +667,7 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
               />
             </div>
             <div>
-              <label className="block fi-subtitle mb-1">Ventana de Contexto</label>
+              <label className="mdl-label">Ventana de Contexto</label>
               <Input
                 type="number"
                 value={formData.context_window}
@@ -680,11 +680,11 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
 
           {/* Description */}
           <div>
-            <label className="block fi-subtitle mb-1">Descripción</label>
+            <label className="mdl-label">Descripción</label>
             <textarea
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+              className="mdl-textarea"
               rows={2}
               placeholder="Descripción del modelo y casos de uso..."
             />
@@ -697,7 +697,7 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
               id="is_active"
               checked={formData.is_active}
               onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-4 h-4 text-emerald-500"
+              className="mdl-active-checkbox"
             />
             <label htmlFor="is_active" className="fi-subtitle">
               Modelo activo (disponible para selección)
@@ -705,12 +705,12 @@ function LLMModelModal({ mode, model, onClose, onCreate, onUpdate }: LLMModelMod
           </div>
 
           {error && (
-            <div className="p-3 bg-red-950/20 border border-red-800 rounded-lg text-red-300 text-sm">
+            <div className="mdl-form-error">
               {error}
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="mdl-form-actions">
             <Button type="button" onClick={onClose} variant="secondary" fullWidth>
               Cancelar
             </Button>

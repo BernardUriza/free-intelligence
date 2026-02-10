@@ -61,7 +61,7 @@ export function TabsList({ children, className = '' }: TabsListProps) {
   return (
     <div
       role="tablist"
-      className={`inline-flex items-center justify-center rounded-md ${className}`}
+      className={`fi-tabs-list ${className}`}
     >
       {children}
     </div>
@@ -88,7 +88,7 @@ export function TabsTrigger({ value, children, className = '', disabled = false 
       disabled={disabled}
       data-state={isActive ? 'active' : 'inactive'}
       onClick={() => onValueChange(value)}
-      className={`inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${className}`}
+      className={`fi-tabs-trigger ${className}`}
     >
       {children}
     </button>

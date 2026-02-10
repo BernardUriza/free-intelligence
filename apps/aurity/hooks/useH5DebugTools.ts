@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 interface H5Data {
@@ -47,7 +48,7 @@ export function useH5DebugTools(sessionId: string | null) {
     try {
       console.log(`[H5Debug] Fetching HDF5 data for session: ${sessionId}`);
       const data = await api.get<H5Data>(
-        `/api/aurity/medical-ai/sessions/${sessionId}/h5-data`
+        `${ROUTES.medicalAi}/sessions/${sessionId}/h5-data`
       );
       setH5Data(data);
       setIsOpen(true);

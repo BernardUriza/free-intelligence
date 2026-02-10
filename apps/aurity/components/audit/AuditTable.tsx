@@ -104,9 +104,7 @@ export function AuditTable({ logs, onSelectLog, selectedLog }: AuditTableProps) 
               return (
                 <tr
                   key={log.audit_id}
-                  className={`hover:bg-slate-700/50 fi-interactive ${
-                    isSelected ? "bg-slate-700/70" : ""
-                  }`}
+                  className={isSelected ? "admin-audit-row-selected" : "admin-audit-row"}
                   onClick={() => onSelectLog(log)}
                 >
                   <td className="fi-table-cell">
@@ -170,9 +168,7 @@ export function AuditTable({ logs, onSelectLog, selectedLog }: AuditTableProps) 
           return (
             <div
               key={log.audit_id}
-              className={`p-4 hover:bg-slate-700/50 fi-interactive ${
-                isSelected ? "bg-slate-700/70" : ""
-              }`}
+              className={isSelected ? "admin-audit-row-mobile-selected" : "admin-audit-row-mobile"}
               onClick={() => onSelectLog(log)}
             >
               <div className="flex justify-between items-start mb-2">

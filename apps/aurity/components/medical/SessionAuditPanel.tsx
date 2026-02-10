@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { showWarning, toastError } from '@/lib/swal';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // Types
 interface AuditData {
@@ -127,7 +128,7 @@ export function SessionAuditPanel({
         setLoading(true);
         setError(null);
 
-        const data = await api.get<AuditData>(`/api/sessions/${sessionId}/audit`);
+        const data = await api.get<AuditData>(`${ROUTES.sessions}/${sessionId}/audit`);
         setAuditData(data);
       } catch (err) {
         console.error('Failed to load audit data:', err);
@@ -150,7 +151,7 @@ export function SessionAuditPanel({
     try {
       setSubmitting(true);
 
-      await api.post(`/api/sessions/${sessionId}/feedback`, {
+      await api.post(`${ROUTES.sessions}/${sessionId}/feedback`, {
         rating: feedback.rating,
         comments: feedback.comments,
         corrections: feedback.corrections,

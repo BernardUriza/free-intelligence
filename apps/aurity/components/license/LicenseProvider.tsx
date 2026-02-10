@@ -78,9 +78,9 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="lic-loading-screen">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 border-3 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+          <div className="lic-loading-spinner" />
           <p className="text-slate-400">Verificando licencia...</p>
         </div>
       </div>

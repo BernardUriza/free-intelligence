@@ -80,14 +80,14 @@ export function AppointmentsToolbar({
   const controlsDisabled = !selectedClinic || isLoading;
 
   return (
-    <nav aria-label="Controles del calendario" className="fi-flex-gap-md">
+    <nav aria-label="Controles del calendario" className="apt-toolbar">
       {/* Clinic Selector */}
       <Select
         value={selectedClinic}
         onValueChange={onClinicChange}
         items={Object.fromEntries(clinics.map((c) => [c.clinic_id, { label: c.name }]))}
       >
-        <SelectTrigger className="w-48">
+        <SelectTrigger className="apt-clinic-select">
           <SelectValue placeholder="Seleccionar clínica" />
         </SelectTrigger>
         <SelectContent>
@@ -103,7 +103,7 @@ export function AppointmentsToolbar({
       <div
         role="group"
         aria-label="Vista del calendario"
-        className={`flex items-center bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}
+        className={`apt-view-switcher ${controlsDisabled ? 'apt-control-group-disabled' : ''}`}
       >
         {(Object.keys(APPOINTMENT_VIEW_PRESETS) as AppointmentViewMode[]).map((mode) => {
           const config = APPOINTMENT_VIEW_PRESETS[mode];
@@ -116,11 +116,7 @@ export function AppointmentsToolbar({
               onClick={() => onViewModeChange(mode)}
               disabled={controlsDisabled}
               aria-pressed={isActive}
-              className={`flex items-center gap-1 px-2 py-1 rounded fi-text-xs-medium transition-colors disabled:cursor-not-allowed ${
-                isActive
-                  ? 'bg-cyan-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:hover:bg-transparent'
-              }`}
+              className={isActive ? 'apt-view-btn-active' : 'apt-view-btn-inactive'}
               title={config.label}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -131,7 +127,7 @@ export function AppointmentsToolbar({
       </div>
 
       {/* Date Navigation */}
-      <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
+      <div className={`apt-date-nav ${controlsDisabled ? 'apt-control-group-disabled' : ''}`}>
         <Button
           onClick={() => onNavigateDate('prev')}
           variant="ghost"
@@ -149,7 +145,7 @@ export function AppointmentsToolbar({
         >
           Hoy
         </Button>
-        <time className="px-2 py-1 fi-text-xs-medium min-w-[120px] text-center text-slate-200">
+        <time className="apt-date-display">
           {dateDisplayText}
         </time>
         <Button
@@ -164,7 +160,7 @@ export function AppointmentsToolbar({
 
       {/* Zoom Controls */}
       {(onZoomIn || onZoomOut) && (
-        <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
+        <div className={`apt-zoom-controls ${controlsDisabled ? 'apt-control-group-disabled' : ''}`}>
           <Button
             onClick={onZoomOut}
             variant="ghost"
@@ -173,7 +169,7 @@ export function AppointmentsToolbar({
             disabled={controlsDisabled || zoomLevel === undefined || zoomLevel <= minZoomLevel}
             aria-label="Alejar"
           />
-          <span className="px-2 fi-text-xs-medium text-slate-200 min-w-[40px] text-center" aria-live="polite">
+          <span className="apt-zoom-label" aria-live="polite">
             {zoomLevel !== undefined ? `${zoomLevel}` : '-'}
           </span>
           <Button
@@ -189,7 +185,7 @@ export function AppointmentsToolbar({
 
       {/* Horizontal Scroll Navigation */}
       {(onScrollLeft || onScrollRight) && (
-        <div className={`flex items-center gap-1 bg-slate-800 rounded-lg p-0.5 ${controlsDisabled ? 'opacity-50' : ''}`}>
+        <div className={`apt-scroll-controls ${controlsDisabled ? 'apt-control-group-disabled' : ''}`}>
           <Button
             onClick={onScrollLeft}
             variant="ghost"

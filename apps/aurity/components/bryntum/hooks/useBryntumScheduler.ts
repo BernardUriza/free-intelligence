@@ -108,6 +108,8 @@ export function useBryntumScheduler({
   const readyResolversRef = useRef<((s: SchedulerLike) => void)[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const prevListenersRef = useRef<Record<string, (...a:any[])=>void> | undefined>(undefined);
+  const buildConfigRef = useRef(buildConfig);
+  buildConfigRef.current = buildConfig;
 
   const [status, setStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [error, setError] = useState<unknown | null>(null);
@@ -156,7 +158,7 @@ export function useBryntumScheduler({
         const SchedulerProCtor: any = getBryntumModule();
         if (!SchedulerProCtor) throw new Error('SchedulerPro module not available');
 
-        const config = buildConfig();
+        const config = buildConfigRef.current();
         const instance: SchedulerLike = new SchedulerProCtor({
           ...config,
           appendTo: container,
@@ -196,11 +198,11 @@ export function useBryntumScheduler({
       }
       setStatus('idle');
       setError(null);
-      // DO NOT reset didInitRef - keep it true to prevent StrictMode double-init
-      // didInitRef.current = false;
+      didInitRef.current = false;
     };
-  // buildConfig/listeners should be stable via useMemo/useCallback
-  }, [buildConfig, listeners, loader, onInit, onFailure]);
+  // buildConfig accessed via ref (buildConfigRef) — not a dependency
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listeners, loader, onInit, onFailure]);
 
   // Dynamic listeners diffing
   useEffect(() => {

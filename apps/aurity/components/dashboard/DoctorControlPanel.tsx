@@ -104,13 +104,13 @@ export function DoctorControlPanel({
   }, [onMessageSend]);
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <div className="dcp-shell">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="dcp-tabs-wrap">
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900/50 fi-border-bottom">
-          <div className="flex items-center justify-between mb-4">
+        <div className="dcp-header fi-border-bottom">
+          <div className="dcp-header-row">
             <div>
-              <h2 className="fi-title flex items-center gap-2">
+              <h2 className="fi-title fi-flex-gap">
                 <Video className="fi-icon-md fi-icon-purple" />
                 Control de TV
               </h2>
@@ -119,53 +119,53 @@ export function DoctorControlPanel({
 
             {/* Live indicator */}
             <div className="fi-flex-gap">
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-lg shadow-purple-500/50"></div>
-              <span className="fi-text-xs-medium fi-text-purple tracking-wide">TRANSMITIENDO</span>
+              <div className="dcp-live-dot"></div>
+              <span className="fi-text-xs-medium fi-text-purple dcp-live-label">TRANSMITIENDO</span>
             </div>
           </div>
 
           {/* Tabs Navigation */}
-          <TabsList className="bg-slate-900/80 p-1 w-full grid grid-cols-4 gap-1">
+          <TabsList className="dcp-tabs-list">
             <TabsTrigger
               value="messages"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white rounded-md transition-all"
+              className="dcp-tab-trigger"
             >
-              <MessageSquare className="w-4 h-4 mr-2" />
+              <MessageSquare className="dcp-tab-icon" />
               Mensajes
             </TabsTrigger>
             <TabsTrigger
               value="media"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white rounded-md transition-all"
+              className="dcp-tab-trigger"
             >
-              <Film className="w-4 h-4 mr-2" />
+              <Film className="dcp-tab-icon" />
               Multimedia
             </TabsTrigger>
             <TabsTrigger
               value="ai-content"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white rounded-md transition-all"
+              className="dcp-tab-trigger"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
+              <Sparkles className="dcp-tab-icon" />
               Contenido IA
             </TabsTrigger>
             <TabsTrigger
               value="chat"
-              className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white rounded-md transition-all"
+              className="dcp-tab-trigger-alt"
             >
-              <MessageCircle className="w-4 h-4 mr-2" />
+              <MessageCircle className="dcp-tab-icon" />
               Chat IA
             </TabsTrigger>
           </TabsList>
         </div>
 
         {/* TAB 1: Messages */}
-        <TabsContent value="messages" className="mt-0">
+        <TabsContent value="messages" className="dcp-tab-content">
           {/* Current Message Display */}
           {currentMessage && (
-            <div className="px-6 py-4 bg-purple-950/20 border-b border-purple-700/30">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-xs text-purple-300 font-medium mb-1">MENSAJE ACTUAL EN TV</p>
-                  <p className="text-sm text-white">{currentMessage}</p>
+            <div className="dcp-current-msg">
+              <div className="dcp-current-msg-row">
+                <div className="dcp-current-msg-body">
+                  <p className="dcp-current-msg-label">MENSAJE ACTUAL EN TV</p>
+                  <p className="dcp-current-msg-text">{currentMessage}</p>
                 </div>
                 <Button
                   onClick={handleClearMessage}
@@ -180,25 +180,25 @@ export function DoctorControlPanel({
           )}
 
           {/* Message Composer */}
-          <div className="p-6 space-y-4">
+          <div className="dcp-composer">
         {/* Custom Message Input */}
         <div>
           <label htmlFor="tv-message" className="fi-label">
             Mensaje Personalizado
           </label>
-          <div className="flex gap-2">
+          <div className="dcp-input-row">
             <textarea
               id="tv-message"
               rows={3}
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder="Escribe un mensaje para los pacientes en sala de espera..."
-              className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 text-sm resize-none"
+              className="dcp-textarea"
               disabled={isSending}
             />
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className={`text-xs ${messageInput.length > MAX_MESSAGE_LENGTH ? 'fi-text-error' : 'text-slate-500'}`}>
+          <div className="dcp-char-row">
+            <span className={`dcp-char-count ${messageInput.length > MAX_MESSAGE_LENGTH ? 'fi-text-error' : 'dcp-char-count-ok'}`}>
               {messageInput.length}/{MAX_MESSAGE_LENGTH} caracteres
             </span>
             <Button
@@ -219,7 +219,7 @@ export function DoctorControlPanel({
           <label className="fi-label">
             Mensajes Rápidos
           </label>
-          <div className="grid grid-cols-1 gap-2">
+          <div className="dcp-quick-grid">
             {quickMessages.map((msg) => {
               const MsgIcon = getDynamicIcon(msg.iconKey);
               return (
@@ -228,15 +228,15 @@ export function DoctorControlPanel({
                   type="button"
                   onClick={() => handleQuickMessage(msg.text)}
                   disabled={isSending}
-                  className="px-4 py-2 bg-slate-900/50 hover:bg-slate-800 border border-slate-600 hover:border-purple-500/50 disabled:bg-slate-900 disabled:cursor-not-allowed text-left text-sm fi-text hover:text-white rounded-lg transition-all group flex items-center gap-2"
+                  className="dcp-quick-btn fi-text"
                   aria-label={`Enviar mensaje: ${msg.text}`}
                   variant="ghost"
                   size="sm"
                 >
-                  <span className="text-purple-400 group-hover:text-purple-300" aria-hidden="true">
-                    <MsgIcon className="w-4 h-4" strokeWidth={1.5} />
+                  <span className="dcp-quick-icon" aria-hidden="true">
+                    <MsgIcon className="dcp-quick-icon-inner" strokeWidth={1.5} />
                   </span>
-                  <span className="group-hover:text-purple-300">
+                  <span className="dcp-quick-text">
                     {msg.text}
                   </span>
                 </Button>
@@ -246,12 +246,12 @@ export function DoctorControlPanel({
         </div>
 
             {/* Preview Mode Info */}
-            <div className="pt-4 fi-border-top/50">
-              <div className="flex items-start gap-3 p-3 bg-blue-950/20 border border-blue-700/30 rounded-lg">
-                <Info className="fi-icon-md fi-text-primary flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-300 mb-1">Vista Previa de TV</p>
-                  <p className="text-xs fi-text-primary/80 leading-relaxed">
+            <div className="dcp-info-box fi-border-top/50">
+              <div className="dcp-info-inner">
+                <Info className="fi-icon-md fi-text-primary dcp-info-icon" />
+                <div className="dcp-info-body">
+                  <p className="dcp-info-title">Vista Previa de TV</p>
+                  <p className="dcp-info-desc fi-text-primary/80">
                     Los mensajes se intercalan con tips de salud y filosofía de Free Intelligence.
                     Tus mensajes aparecen cada ~1-2 minutos con duración de 20 segundos.
                   </p>
@@ -262,8 +262,8 @@ export function DoctorControlPanel({
         </TabsContent>
 
         {/* TAB 2: Media Upload */}
-        <TabsContent value="media" className="mt-0">
-          <div className="p-6">
+        <TabsContent value="media" className="dcp-tab-content">
+          <div className="dcp-tab-body">
             <MediaUploader
               onMediaUpload={handleMediaUpload}
               clinicId={clinicId}
@@ -273,8 +273,8 @@ export function DoctorControlPanel({
         </TabsContent>
 
         {/* TAB 3: AI Content Generator - NOW FUNCTIONAL */}
-        <TabsContent value="ai-content" className="mt-0">
-          <div className="p-6">
+        <TabsContent value="ai-content" className="dcp-tab-content">
+          <div className="dcp-tab-body">
             <AIContentGenerator
               onContentGenerated={handleAIContentGenerated}
               clinicId={clinicId}
@@ -283,14 +283,14 @@ export function DoctorControlPanel({
         </TabsContent>
 
         {/* TAB 4: FI Receptionist Chat */}
-        <TabsContent value="chat" className="mt-0">
-          <div className="h-[500px] flex flex-col">
+        <TabsContent value="chat" className="dcp-tab-content">
+          <div className="dcp-chat-wrap">
             {/* Chat Header Info */}
-            <div className="px-4 py-3 bg-indigo-950/30 border-b border-indigo-700/30">
+            <div className="dcp-chat-header">
               <div className="fi-flex-between">
                 <div className="fi-flex-gap">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="fi-text-xs-medium text-indigo-300">FI Receptionist Activo</span>
+                  <div className="dcp-chat-dot"></div>
+                  <span className="fi-text-xs-medium dcp-chat-label">FI Receptionist Activo</span>
                 </div>
                 <span className="fi-text-xs-muted">
                   Prueba el chatbot de check-in
@@ -299,7 +299,7 @@ export function DoctorControlPanel({
             </div>
 
             {/* Embedded Chat Widget */}
-            <div className="flex-1 overflow-hidden">
+            <div className="dcp-chat-body">
               <ReceptionistChatWidget
                 clinicId={clinicId || 'demo-clinic'}
                 clinicName={clinicName}

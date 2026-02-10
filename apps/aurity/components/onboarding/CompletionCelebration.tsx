@@ -85,38 +85,38 @@ export const CompletionCelebration = memo(function CompletionCelebration({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="celeb-wrapper">
+      <div className="celeb-container">
         {/* Main Celebration */}
-        <div className="text-center space-y-6">
-          <div className="mb-6 animate-bounce flex justify-center">
-            <PartyPopper className="w-20 h-20 text-yellow-400" strokeWidth={1.5} />
+        <div className="celeb-hero">
+          <div className="celeb-party-icon">
+            <PartyPopper className="celeb-party-icon-svg" strokeWidth={1.5} />
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-emerald-400 mb-4">
+          <h1 className="celeb-title">
             {userName ? `¡Bienvenido, ${userName}!` : "¡Onboarding Completado!"}
           </h1>
 
-          <p className="text-lg text-slate-300 max-w-lg mx-auto">
+          <p className="celeb-subtitle">
             Ya eres parte de Free-Intelligence. Tu IA médica local está lista para documentar tus consultas.
           </p>
         </div>
 
         {/* Badge Unlock */}
         {showBadge && (
-          <div className="flex justify-center animate-fade-in-up">
-            <div className="relative p-6 bg-gradient-to-br from-emerald-950/50 to-cyan-950/50 border-2 border-emerald-500/50 rounded-2xl shadow-2xl max-w-sm">
+          <div className="celeb-badge-row">
+            <div className="celeb-badge-card">
               {/* Glow effect */}
-              <div className="absolute inset-0 bg-emerald-400/10 blur-xl rounded-2xl" />
+              <div className="celeb-badge-glow" />
 
-              <div className="relative text-center space-y-3">
+              <div className="celeb-badge-body">
                 <div className="flex justify-center">
-                  <Medal className="w-12 h-12 text-yellow-400" strokeWidth={1.5} />
+                  <Medal className="celeb-badge-icon" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-xl font-bold text-emerald-300">Badge Desbloqueado</h3>
-                <div className="p-3 bg-slate-900/60 rounded-xl border border-emerald-700/30">
-                  <p className="text-sm font-semibold text-slate-200">AURITY Pioneer</p>
-                  <p className="text-xs text-slate-400 mt-1">Primer usuario de Free-Intelligence</p>
+                <h3 className="celeb-badge-title">Badge Desbloqueado</h3>
+                <div className="celeb-badge-label">
+                  <p className="celeb-badge-name">AURITY Pioneer</p>
+                  <p className="celeb-badge-desc">Primer usuario de Free-Intelligence</p>
                 </div>
               </div>
             </div>
@@ -125,21 +125,21 @@ export const CompletionCelebration = memo(function CompletionCelebration({
 
         {/* Key Features Reminder */}
         {showMessage && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up">
-            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center">
-              <Database className="w-8 h-8 mx-auto mb-2 text-emerald-400" strokeWidth={1.5} />
-              <p className="text-sm font-medium text-slate-200">100% Local</p>
-              <p className="text-xs text-slate-500 mt-1">Tus datos nunca salen</p>
+          <div className="celeb-features-grid">
+            <div className="celeb-feature-card">
+              <Database className="celeb-feature-icon text-emerald-400" strokeWidth={1.5} />
+              <p className="celeb-feature-title">100% Local</p>
+              <p className="celeb-feature-desc">Tus datos nunca salen</p>
             </div>
-            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center">
-              <Shield className="w-8 h-8 mx-auto mb-2 text-cyan-400" strokeWidth={1.5} />
-              <p className="text-sm font-medium text-slate-200">Encriptado</p>
-              <p className="text-xs text-slate-500 mt-1">AES-256 + HIPAA ready</p>
+            <div className="celeb-feature-card">
+              <Shield className="celeb-feature-icon text-cyan-400" strokeWidth={1.5} />
+              <p className="celeb-feature-title">Encriptado</p>
+              <p className="celeb-feature-desc">AES-256 + HIPAA ready</p>
             </div>
-            <div className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-center">
-              <Bot className="w-8 h-8 mx-auto mb-2 text-purple-400" strokeWidth={1.5} />
-              <p className="text-sm font-medium text-slate-200">Notas SOAP</p>
-              <p className="text-xs text-slate-500 mt-1">Documentación automática</p>
+            <div className="celeb-feature-card">
+              <Bot className="celeb-feature-icon text-purple-400" strokeWidth={1.5} />
+              <p className="celeb-feature-title">Notas SOAP</p>
+              <p className="celeb-feature-desc">Documentación automática</p>
             </div>
           </div>
         )}
@@ -151,11 +151,11 @@ export const CompletionCelebration = memo(function CompletionCelebration({
             variant="primary"
             size="xl"
             icon={ArrowRight}
-            className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 shadow-lg hover:shadow-emerald-500/30 hover:scale-105 transition-all duration-200 px-10"
+            className="celeb-cta-btn"
           >
             Ir al Dashboard
           </Button>
-          <p className="text-xs text-slate-500 mt-4">
+          <p className="celeb-footer-hint">
             Free-Intelligence estará esperándote
           </p>
         </div>

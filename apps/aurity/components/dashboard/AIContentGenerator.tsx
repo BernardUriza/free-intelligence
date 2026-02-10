@@ -261,7 +261,7 @@ export function AIContentGenerator({
           </div>
 
           {generatedContent.type === 'tip' ? (
-            <div className="p-4 bg-gradient-to-br from-purple-950/40 to-slate-950/40 border border-purple-600/30 rounded-lg">
+            <div className="aig-result-box">
               <p className="text-white leading-relaxed">{generatedContent.content}</p>
               <p className="text-xs fi-text-purple mt-3">
                 Categoría: {AI_CONTENT_CATEGORIES.find(c => c.id === generatedContent.metadata?.category)?.label}
@@ -269,7 +269,7 @@ export function AIContentGenerator({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="p-4 bg-gradient-to-br from-purple-950/40 to-slate-950/40 border border-purple-600/30 rounded-lg">
+              <div className="aig-result-box">
                 <p className="text-white font-medium mb-4">{generatedContent.content}</p>
                 <div className="fi-stack-sm">
                   {generatedContent.metadata?.options?.map((option, idx) => (
@@ -325,7 +325,7 @@ export function AIContentGenerator({
       )}
 
       {/* Info Footer */}
-      <div className="flex items-start gap-3 p-3 bg-slate-900/30 border border-slate-700/50 rounded-lg">
+      <div className="aig-info-footer">
         <Info className="fi-icon-md fi-icon-slate flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="fi-text-xs leading-relaxed">

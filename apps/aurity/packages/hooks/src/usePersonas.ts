@@ -6,7 +6,7 @@
  *
  * Architecture:
  * - Backend: /backend/config/personas/*.yaml
- * - API: GET /api/admin/personas
+ * - API: GET ROUTES.adminPersonas (see lib/api/routes.ts)
  * - Frontend: This hook (cached)
  *
  * @example
@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { backendHealth } from '@/lib/api/backend-health';
+import { ROUTES } from '@/lib/api/routes';
 
 export interface PersonaOption {
   id: string;
@@ -156,7 +157,7 @@ export function usePersonas(): UsePersonasReturn {
         }
       }
 
-      const response = await fetch(`${BACKEND_URL}/api/aurity/assistant/personas`, {
+      const response = await fetch(`${BACKEND_URL}${ROUTES.assistant}/personas`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -304,11 +304,11 @@ export function DialogueFlow({
 
           {/* Speaker Legend */}
           <div className="flex gap-2">
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 border border-blue-500/30 rounded-md">
+            <div className="med-tag-blue">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               <span className="text-xs fi-text-primary font-medium">MÉDICO ({stats.medico})</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-md">
+            <div className="med-tag-green">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
               <span className="text-xs fi-text-success font-medium">PACIENTE ({stats.paciente})</span>
             </div>

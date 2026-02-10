@@ -79,13 +79,13 @@ export function ExceptionsTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg">
-        <div className="p-2 bg-orange-500/20 rounded-lg">
-          <CalendarOff className="w-5 h-5 text-orange-400" />
+      <div className="avail-tab-header">
+        <div className="avail-icon-wrap-orange">
+          <CalendarOff className="avail-icon-orange" />
         </div>
         <div>
-          <h3 className="font-medium text-white">Excepciones</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="avail-tab-header-title">Excepciones</h3>
+          <p className="avail-tab-header-desc">
             Agrega fechas específicas donde tu horario difiere de lo normal.
             Vacaciones, días festivos, o eventos especiales.
           </p>
@@ -108,9 +108,9 @@ export function ExceptionsTab({
 
       {/* Add form */}
       {showAddForm && (
-        <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 space-y-3">
+        <div className="avail-add-form">
           <div>
-            <label className="block text-sm text-slate-400 mb-1">
+            <label className="avail-label-sm">
               Fecha
             </label>
             <Input
@@ -164,14 +164,14 @@ export function ExceptionsTab({
               key={override.date}
               className={`p-4 rounded-lg border transition-all ${
                 hasError
-                  ? 'border-red-500/50 bg-red-500/5'
+                  ? 'avail-override-error'
                   : isPast
-                  ? 'border-slate-800 bg-slate-900/50 opacity-60'
-                  : 'border-slate-700 bg-slate-800/30'
+                  ? 'avail-override-past'
+                  : 'avail-override-normal'
               }`}
             >
               {/* Date header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="avail-override-header">
                 <div>
                   <span
                     className={`font-medium ${
@@ -190,7 +190,7 @@ export function ExceptionsTab({
                   size="sm"
                   onClick={() => onRemoveOverride(override.date)}
                   disabled={disabled}
-                  className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 p-1 h-8 w-8"
+                  className="avail-override-delete-btn"
                   aria-label="Eliminar excepción"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -198,7 +198,7 @@ export function ExceptionsTab({
               </div>
 
               {/* Day off toggle */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="avail-override-toggle-row">
                 <span className="text-sm text-slate-400">Día completo libre</span>
                 <Switch
                   checked={override.fullDayClosed}
@@ -216,7 +216,7 @@ export function ExceptionsTab({
               {/* Modified hours */}
               {!override.fullDayClosed && (
                 <div className="mb-3">
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="avail-label">
                     Horario modificado
                   </label>
                   <TimeRangeInput
@@ -237,7 +237,7 @@ export function ExceptionsTab({
 
               {/* Reason */}
               <div>
-                <label className="block text-xs text-slate-500 mb-1">
+                <label className="avail-label">
                   Razón (opcional)
                 </label>
                 <div className="flex gap-2 flex-wrap">
@@ -249,10 +249,10 @@ export function ExceptionsTab({
                         onUpdateOverride(override.date, { reason })
                       }
                       disabled={disabled || isPast}
-                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                      className={`avail-reason-chip ${
                         override.reason === reason
-                          ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'
+                          ? 'avail-chip-active'
+                          : 'avail-chip-inactive'
                       }`}
                     >
                       {reason}
@@ -277,7 +277,7 @@ export function ExceptionsTab({
 
               {/* Errors */}
               {overrideErrors.length > 0 && (
-                <div className="mt-2 flex items-center gap-1 text-xs text-red-400">
+                <div className="avail-override-error-msg">
                   <AlertCircle className="w-3 h-3" />
                   {overrideErrors[0].message}
                 </div>
@@ -289,8 +289,8 @@ export function ExceptionsTab({
 
       {/* Empty state */}
       {overrides.length === 0 && !showAddForm && (
-        <div className="text-center py-8 text-slate-500">
-          <CalendarOff className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <div className="avail-empty">
+          <CalendarOff className="avail-empty-icon" />
           <p>No hay excepciones configuradas.</p>
           <p className="text-sm mt-1">
             Tu horario semanal aplicará sin cambios.

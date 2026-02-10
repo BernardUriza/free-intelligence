@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // =============================================================================
 // TYPES
@@ -138,7 +139,7 @@ export function TodayAppointments({
     try {
       setError(null);
       const today = new Date().toISOString().split('T')[0];
-      let url = `/api/aurity/clinic/clinics/${clinicId}/appointments?date=${today}`;
+      let url = `${ROUTES.clinics}/${clinicId}/appointments?date=${today}`;
       if (doctorId) {
         url += `&doctor_id=${doctorId}`;
       }
@@ -189,7 +190,7 @@ export function TodayAppointments({
 
   if (error) {
     return (
-      <div className="p-4 bg-red-950/20 border border-red-700/30 rounded-lg">
+      <div className="dash-today-error">
         <div className="flex items-center gap-2 fi-text-error">
           <AlertCircle className="w-4 h-4" />
           <span className="text-sm">{error}</span>
@@ -258,7 +259,7 @@ export function TodayAppointments({
               <Button
                 key={apt.appointment_id}
                 onClick={() => onAppointmentClick?.(apt)}
-                className="w-full flex items-center gap-3 p-3 bg-slate-900/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-lg transition-all text-left group"
+                className="group dash-today-apt-row"
                 variant="ghost"
                 size="sm"
                 type="button"

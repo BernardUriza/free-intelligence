@@ -245,33 +245,33 @@ export function PrescriptionForm({
   );
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="rx-form-container">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 mb-6">
-          <TabsTrigger value="patient" className="flex items-center gap-1.5">
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Paciente</span>
+        <TabsList className="rx-tab-grid">
+          <TabsTrigger value="patient" className="rx-tab-trigger">
+            <User className="rx-tab-icon" />
+            <span className="rx-tab-label">Paciente</span>
           </TabsTrigger>
-          <TabsTrigger value="physician" className="flex items-center gap-1.5">
-            <Stethoscope className="w-4 h-4" />
-            <span className="hidden sm:inline">Médico</span>
+          <TabsTrigger value="physician" className="rx-tab-trigger">
+            <Stethoscope className="rx-tab-icon" />
+            <span className="rx-tab-label">Médico</span>
           </TabsTrigger>
-          <TabsTrigger value="diagnosis" className="flex items-center gap-1.5">
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Diagnóstico</span>
+          <TabsTrigger value="diagnosis" className="rx-tab-trigger">
+            <FileText className="rx-tab-icon" />
+            <span className="rx-tab-label">Diagnóstico</span>
           </TabsTrigger>
-          <TabsTrigger value="medications" className="flex items-center gap-1.5">
-            <Pill className="w-4 h-4" />
-            <span className="hidden sm:inline">Medicamentos</span>
+          <TabsTrigger value="medications" className="rx-tab-trigger">
+            <Pill className="rx-tab-icon" />
+            <span className="rx-tab-label">Medicamentos</span>
             {medications.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full">
+              <span className="rx-tab-count">
                 {medications.length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="preview" className="flex items-center gap-1.5">
-            <Eye className="w-4 h-4" />
-            <span className="hidden sm:inline">Vista Previa</span>
+          <TabsTrigger value="preview" className="rx-tab-trigger">
+            <Eye className="rx-tab-icon" />
+            <span className="rx-tab-label">Vista Previa</span>
           </TabsTrigger>
         </TabsList>
 
@@ -279,16 +279,16 @@ export function PrescriptionForm({
         <TabsContent value="patient">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
+              <CardTitle className="rx-section-title">
+                <User className="rx-section-icon" />
                 Información del Paciente
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <CardContent className="rx-field-group">
+              <div className="rx-fields-2col">
+                <div className="rx-field">
                   <Label htmlFor="patient-name">
-                    Nombre Completo <span className="text-red-500">*</span>
+                    Nombre Completo <span className="rx-required">*</span>
                   </Label>
                   <Input
                     id="patient-name"
@@ -299,7 +299,7 @@ export function PrescriptionForm({
                     placeholder="Nombre del paciente"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="patient-age">Edad</Label>
                   <Input
                     id="patient-age"
@@ -310,7 +310,7 @@ export function PrescriptionForm({
                     placeholder="Ej: 45 años"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="patient-weight">Peso (kg)</Label>
                   <Input
                     id="patient-weight"
@@ -327,7 +327,7 @@ export function PrescriptionForm({
                     placeholder="Ej: 70"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="patient-gender">Género</Label>
                   <Input
                     id="patient-gender"
@@ -341,9 +341,9 @@ export function PrescriptionForm({
               </div>
 
               {/* Allergies */}
-              <div className="space-y-2">
+              <div className="rx-field">
                 <Label>Alergias Conocidas</Label>
-                <div className="flex gap-2">
+                <div className="rx-allergy-row">
                   <Input
                     value={allergyInput}
                     onChange={(e) => setAllergyInput(e.target.value)}
@@ -359,17 +359,17 @@ export function PrescriptionForm({
                   </Button>
                 </div>
                 {patient.allergies.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="rx-allergy-tags">
                     {patient.allergies.map((allergy) => (
                       <span
                         key={allergy}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm"
+                        className="rx-allergy-tag"
                       >
                         {allergy}
                         <button
                           type="button"
                           onClick={() => handleRemoveAllergy(allergy)}
-                          className="hover:text-red-900 dark:hover:text-red-100"
+                          className="rx-allergy-remove"
                         >
                           ×
                         </button>
@@ -386,16 +386,16 @@ export function PrescriptionForm({
         <TabsContent value="physician">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Stethoscope className="w-5 h-5" />
+              <CardTitle className="rx-section-title">
+                <Stethoscope className="rx-section-icon" />
                 Información del Médico
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <CardContent className="rx-field-group">
+              <div className="rx-fields-2col">
+                <div className="rx-field">
                   <Label htmlFor="physician-name">
-                    Nombre Completo <span className="text-red-500">*</span>
+                    Nombre Completo <span className="rx-required">*</span>
                   </Label>
                   <Input
                     id="physician-name"
@@ -406,9 +406,9 @@ export function PrescriptionForm({
                     placeholder="Dr(a). Nombre Completo"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="physician-license">
-                    Cédula Profesional <span className="text-red-500">*</span>
+                    Cédula Profesional <span className="rx-required">*</span>
                   </Label>
                   <Input
                     id="physician-license"
@@ -422,7 +422,7 @@ export function PrescriptionForm({
                     placeholder="Número de cédula"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="physician-specialty">Especialidad</Label>
                   <Input
                     id="physician-specialty"
@@ -433,7 +433,7 @@ export function PrescriptionForm({
                     placeholder="Ej: Medicina General"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="physician-specialty-license">
                     Cédula de Especialidad
                   </Label>
@@ -449,7 +449,7 @@ export function PrescriptionForm({
                     placeholder="Número de cédula de especialidad"
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="rx-field-wide">
                   <Label htmlFor="physician-institution">
                     Institución / Consultorio
                   </Label>
@@ -465,7 +465,7 @@ export function PrescriptionForm({
                     placeholder="Nombre del consultorio o institución"
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="rx-field-wide">
                   <Label htmlFor="physician-address">Dirección</Label>
                   <Input
                     id="physician-address"
@@ -476,7 +476,7 @@ export function PrescriptionForm({
                     placeholder="Dirección del consultorio"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="physician-phone">Teléfono</Label>
                   <Input
                     id="physician-phone"
@@ -487,7 +487,7 @@ export function PrescriptionForm({
                     placeholder="Teléfono de contacto"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="physician-email">Email</Label>
                   <Input
                     id="physician-email"
@@ -508,16 +508,16 @@ export function PrescriptionForm({
         <TabsContent value="diagnosis">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
+              <CardTitle className="rx-section-title">
+                <FileText className="rx-section-icon" />
                 Diagnóstico e Indicaciones
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2 md:col-span-2">
+            <CardContent className="rx-field-group">
+              <div className="rx-fields-3col">
+                <div className="rx-field-wide">
                   <Label htmlFor="diagnosis">
-                    Diagnóstico Principal <span className="text-red-500">*</span>
+                    Diagnóstico Principal <span className="rx-required">*</span>
                   </Label>
                   <textarea
                     id="diagnosis"
@@ -525,10 +525,10 @@ export function PrescriptionForm({
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDiagnosis(e.target.value)}
                     placeholder="Ingrese el diagnóstico principal"
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="rx-textarea"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="rx-field">
                   <Label htmlFor="diagnosis-code">Código CIE-10</Label>
                   <Input
                     id="diagnosis-code"
@@ -539,7 +539,7 @@ export function PrescriptionForm({
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="rx-field">
                 <Label htmlFor="general-instructions">
                   Indicaciones Generales
                 </Label>
@@ -549,11 +549,11 @@ export function PrescriptionForm({
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGeneralInstructions(e.target.value)}
                   placeholder="Indicaciones adicionales para el paciente (reposo, dieta, etc.)"
                   rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="rx-textarea"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="rx-field">
                 <Label htmlFor="next-appointment">Próxima Cita</Label>
                 <Input
                   id="next-appointment"
@@ -568,11 +568,11 @@ export function PrescriptionForm({
 
         {/* Medications Tab */}
         <TabsContent value="medications">
-          <div className="space-y-6">
+          <div className="rx-med-stack">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Pill className="w-5 h-5" />
+                <CardTitle className="rx-section-title">
+                  <Pill className="rx-section-icon" />
                   {editingMedIndex !== null
                     ? `Editando Medicamento ${editingMedIndex + 1}`
                     : "Agregar Medicamento"}
@@ -615,24 +615,24 @@ export function PrescriptionForm({
 
         {/* Preview Tab */}
         <TabsContent value="preview">
-          <div className="space-y-4">
+          <div className="rx-preview-stack">
             {previewPrescription ? (
               <>
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">Estado:</span>
+                <div className="rx-preview-toolbar">
+                  <div className="rx-preview-status">
+                    <span className="rx-preview-status-label">Estado:</span>
                     <PrescriptionStatusBadge
                       status={previewPrescription.status}
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="rx-preview-actions">
                     {!createdPrescription && (
                       <Button
                         onClick={handleSubmit}
                         disabled={isSubmitting}
                         variant="primary"
                       >
-                        <Save className="w-4 h-4 mr-1.5" />
+                        <Save className="rx-btn-icon" />
                         Guardar Receta
                       </Button>
                     )}
@@ -643,7 +643,7 @@ export function PrescriptionForm({
                           disabled={isSubmitting}
                           variant="primary"
                         >
-                          <Signature className="w-4 h-4 mr-1.5" />
+                          <Signature className="rx-btn-icon" />
                           Firmar Receta
                         </Button>
                       )}
@@ -651,25 +651,25 @@ export function PrescriptionForm({
                       <Button
                         onClick={handlePrint}
                         variant="outline"
-                        className="print:hidden"
+                        className="rx-print-hidden"
                       >
-                        <Printer className="w-4 h-4 mr-1.5" />
+                        <Printer className="rx-btn-icon" />
                         Imprimir
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden shadow-lg print:shadow-none print:border-0">
+                <div className="rx-preview-frame">
                   <PrescriptionPreview prescription={previewPrescription} />
                 </div>
               </>
             ) : (
               <Card>
-                <CardContent className="py-12 text-center text-slate-500">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <CardContent className="rx-empty-content">
+                  <AlertCircle className="rx-empty-icon" />
                   <p>Complete la información para ver la vista previa</p>
-                  <p className="text-sm mt-2">
+                  <p className="rx-empty-hint">
                     Se requiere: paciente, médico, diagnóstico y al menos un
                     medicamento
                   </p>

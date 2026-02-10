@@ -39,7 +39,7 @@ export function HealthTriviaWidget({
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-emerald-950/60 to-teal-950/40 border border-emerald-600/40 rounded-xl backdrop-blur-sm p-4 sm:p-6 lg:p-8">
+    <div className="wgt-trivia-card">
       <div className="fi-flex-between mb-4 sm:mb-6 flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="bg-emerald-500/10 rounded-full p-3 sm:p-4 flex items-center justify-center">
@@ -62,7 +62,7 @@ export function HealthTriviaWidget({
         </div>
         {!showAnswer && (
           <div className="fi-flex-gap">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+            <div className="wgt-trivia-countdown">
               <span
                 className="font-bold text-emerald-300"
                 style={{ fontSize: 'clamp(1rem, 2vw, 2rem)' }}
@@ -124,7 +124,7 @@ export function HealthTriviaWidget({
       </div>
 
       {showAnswer && (
-        <div className="flex-shrink-0 mt-4 sm:mt-6 p-4 sm:p-6 bg-emerald-900/30 border border-emerald-600/40 rounded-xl animate-fade-in">
+        <div className="wgt-trivia-explanation">
           <p
             className="text-emerald-200 leading-relaxed text-center"
             style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}

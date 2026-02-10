@@ -36,12 +36,13 @@ import type {
 } from '@aurity-standalone/types/checkin';
 
 import { api, getBackendUrl } from './client';
+import { ROUTES } from './routes';
 
 // =============================================================================
 // API BASE
 // =============================================================================
 
-const API_BASE = '/api/checkin';
+const API_BASE = ROUTES.checkin;
 
 // =============================================================================
 // CHECKIN API CLASS

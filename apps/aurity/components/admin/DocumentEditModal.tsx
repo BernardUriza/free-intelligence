@@ -93,7 +93,7 @@ export function DocumentEditModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="admin-modal-doc-edit">
         {/* Header */}
         <div className="flex items-center justify-between p-6 fi-border-bottom">
           <div className="fi-flex-gap-md">
@@ -120,7 +120,7 @@ export function DocumentEditModal({
         <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
+            <div className="admin-error-banner">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
@@ -173,22 +173,14 @@ export function DocumentEditModal({
                     <Button
                       key={persona.id}
                       onClick={() => handlePersonaToggle(persona.id)}
-                      className={`flex items-center gap-2 p-3 rounded-lg border transition-colors text-left ${
-                        isSelected
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
-                      }`}
+                      className={isSelected ? 'admin-doc-persona-toggle-active' : 'admin-doc-persona-toggle'}
                       variant={isSelected ? 'primary' : 'ghost'}
                       size="sm"
                       type="button"
                       aria-pressed={isSelected}
                     >
                       <div
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'border-slate-600'
-                        }`}
+                        className={isSelected ? 'admin-doc-persona-check-active' : 'admin-doc-persona-check'}
                       >
                         {isSelected && (
                           <svg

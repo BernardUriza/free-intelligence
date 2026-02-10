@@ -1,0 +1,34 @@
+/**
+ * Patients Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: pat-{component}[-variant]
+ * Covers: PatientCard, PatientList, PatientModal, SessionCard, SessionList
+ */
+
+@layer components {
+  .pat-list-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-3
+           max-h-[600px] overflow-y-auto pr-2;
+  }
+
+  .pat-card-glow {
+    @apply absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full
+           blur-2xl group-hover:bg-emerald-500/10 transition-all -z-10;
+  }
+
+  .pat-card-chevron {
+    @apply h-5 w-5 text-slate-500 group-hover:fi-text-success
+           group-hover:translate-x-1 transition-all;
+  }
+
+  .pat-error-alert {
+    @apply mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30
+           rounded-xl flex items-start gap-3;
+  }
+
+  .pat-session-delete-btn {
+    @apply opacity-0 group-hover/session:opacity-100
+           hover:bg-red-500/20 text-slate-400 hover:fi-text-error;
+  }
+}

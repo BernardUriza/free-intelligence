@@ -1,0 +1,1083 @@
+/**
+ * Clinics Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: clinic-{component}[-variant]
+ * Examples: clinic-card, clinic-detail, clinic-modal
+ *
+ * @utility defines base classes composable with @apply
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility clinic-loading {
+  @apply flex items-center justify-center py-12;
+}
+
+@utility clinic-loading-icon {
+  @apply w-8 h-8 text-indigo-400 animate-spin;
+}
+
+@utility clinic-limit-compact {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border;
+}
+
+@utility clinic-limit-full {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border;
+}
+
+@utility clinic-member-banner {
+  @apply p-3 rounded-lg fi-flex-between;
+}
+
+@utility clinic-badge {
+  @apply px-2 py-0.5 text-xs rounded-full font-medium;
+}
+
+@utility clinic-doctor-row {
+  @apply p-3 bg-slate-800/50 rounded-lg fi-flex-between;
+}
+
+@utility clinic-apt-status {
+  @apply text-xs;
+}
+
+@utility doc-modal-container {
+  @apply bg-slate-900 rounded-xl shadow-2xl w-full flex flex-col;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .clinic-grid {
+    @apply grid grid-cols-1 lg:grid-cols-3 gap-6;
+  }
+
+  .clinic-sidebar {
+    @apply lg:col-span-1 space-y-4;
+  }
+
+  .clinic-main {
+    @apply lg:col-span-2;
+  }
+
+  /* ========================================
+   * ERROR STATE
+   * ======================================== */
+  .clinic-error {
+    @apply p-4 bg-red-950/20 border border-red-800 rounded-lg;
+  }
+
+  .clinic-error-icon {
+    @apply w-5 h-5 fi-text-error;
+  }
+
+  .clinic-error-text {
+    @apply text-red-300 text-sm;
+  }
+
+  /* ========================================
+   * CLINIC LIST CARDS
+   * ======================================== */
+  .clinic-list-card {
+    @apply p-4 rounded-lg border cursor-pointer transition-all
+           bg-slate-900/50 border-slate-700 hover:border-slate-600;
+  }
+
+  .clinic-list-card-selected {
+    @apply p-4 rounded-lg border cursor-pointer transition-all
+           bg-indigo-950/50 border-indigo-500;
+  }
+
+  .clinic-list-card-inactive {
+    @apply opacity-50;
+  }
+
+  .clinic-list-card-header {
+    @apply flex items-start justify-between;
+  }
+
+  .clinic-list-card-name {
+    @apply font-medium text-white;
+  }
+
+  .clinic-list-card-chevron {
+    @apply w-5 h-5 text-slate-500;
+  }
+
+  .clinic-inactive-label {
+    @apply text-xs fi-text-error mt-2 block;
+  }
+
+  .clinic-feature-icon {
+    @apply w-4 h-4;
+  }
+
+  /* ========================================
+   * DETAIL PANEL
+   * ======================================== */
+  .clinic-detail {
+    @apply bg-slate-900/50 rounded-lg border border-slate-700 p-6;
+  }
+
+  .clinic-detail-header {
+    @apply flex items-start justify-between mb-6;
+  }
+
+  .clinic-detail-specialty {
+    @apply text-slate-400;
+  }
+
+  .clinic-detail-plan {
+    @apply text-sm text-slate-500 mt-1;
+  }
+
+  .clinic-detail-actions {
+    @apply flex gap-2;
+  }
+
+  /* ========================================
+   * INFO GRID
+   * ======================================== */
+  .clinic-info-grid {
+    @apply grid grid-cols-2 gap-4 mb-6 p-4 bg-slate-800/50 rounded-lg;
+  }
+
+  .clinic-info-label {
+    @apply text-sm text-slate-500;
+  }
+
+  .clinic-info-value {
+    @apply text-white;
+  }
+
+  .clinic-info-full {
+    @apply col-span-2;
+  }
+
+  .clinic-color-swatch {
+    @apply w-6 h-6 rounded;
+  }
+
+  /* ========================================
+   * EMPTY / PLACEHOLDER STATE
+   * ======================================== */
+  .clinic-placeholder {
+    @apply flex flex-col items-center justify-center h-full py-24 text-slate-500;
+  }
+
+  .clinic-placeholder-icon {
+    @apply w-16 h-16 mb-4 opacity-50;
+  }
+
+  .clinic-empty-text {
+    @apply text-slate-500 text-sm;
+  }
+
+  /* ========================================
+   * MEMBER BANNERS (superadmin / linked user)
+   * ======================================== */
+  .clinic-member-banner-superadmin {
+    @apply clinic-member-banner bg-yellow-900/30 border border-yellow-500/30;
+  }
+
+  .clinic-member-banner-linked {
+    @apply clinic-member-banner bg-emerald-900/30 border border-emerald-500/30;
+  }
+
+  .clinic-member-name {
+    @apply text-white font-medium;
+  }
+
+  .clinic-badge-superadmin {
+    @apply clinic-badge bg-yellow-500/20 text-yellow-400;
+  }
+
+  .clinic-badge-self {
+    @apply clinic-badge bg-emerald-500/20 fi-text-success;
+  }
+
+  .clinic-member-email-yellow {
+    @apply text-xs text-yellow-400;
+  }
+
+  .clinic-member-email-green {
+    @apply text-xs fi-text-success;
+  }
+
+  /* ========================================
+   * DOCTOR ROW
+   * ======================================== */
+  .clinic-doctor-row-inactive {
+    @apply clinic-doctor-row opacity-50;
+  }
+
+  .clinic-doctor-edit-btn {
+    @apply text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10;
+  }
+
+  .clinic-doctor-add-btn {
+    @apply fi-text-primary border-indigo-400/50 hover:bg-indigo-400/10 disabled:opacity-50;
+  }
+
+  .clinic-doctor-link-btn {
+    @apply fi-text-success border-emerald-400/50 hover:bg-emerald-400/10;
+  }
+
+  /* ========================================
+   * SECTION HEADERS
+   * ======================================== */
+  .clinic-section-header {
+    @apply fi-flex-between mb-3;
+  }
+
+  .clinic-section-title {
+    @apply fi-title fi-flex-gap;
+  }
+
+  .clinic-section-icon {
+    @apply w-5 h-5 text-indigo-400;
+  }
+
+  .clinic-section-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .clinic-section-title-group {
+    @apply flex items-center gap-3;
+  }
+
+  /* ========================================
+   * APPOINTMENTS LIST
+   * ======================================== */
+  .clinic-apt-list {
+    @apply space-y-2 max-h-64 overflow-y-auto;
+  }
+
+  .clinic-apt-row {
+    @apply p-3 bg-slate-800/50 rounded-lg;
+  }
+
+  .clinic-apt-time {
+    @apply text-white text-sm;
+  }
+
+  .clinic-apt-reason {
+    @apply text-slate-400 text-xs;
+  }
+
+  .clinic-apt-code {
+    @apply font-mono text-lg fi-text-green;
+  }
+
+  .clinic-apt-code-icon {
+    @apply w-4 h-4 fi-text-green;
+  }
+
+  /* ========================================
+   * MODALS
+   * ======================================== */
+  .clinic-modal-overlay {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
+  }
+
+  .clinic-modal {
+    @apply bg-slate-900 rounded-lg border border-slate-700 p-6 w-full max-w-md;
+  }
+
+  .clinic-modal-header {
+    @apply fi-flex-between mb-6;
+  }
+
+  .clinic-modal-form {
+    @apply space-y-4;
+  }
+
+  .clinic-modal-row {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .clinic-modal-hint {
+    @apply text-slate-400 text-sm mb-4;
+  }
+
+  .clinic-modal-actions {
+    @apply flex gap-3 pt-4;
+  }
+
+  .clinic-modal-textarea {
+    @apply w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg
+           text-white focus:border-indigo-500 focus:outline-none;
+  }
+
+  .clinic-modal-checkbox-group {
+    @apply fi-flex-gap-md;
+  }
+
+  .clinic-modal-checkbox {
+    @apply w-4 h-4 text-indigo-500;
+  }
+
+  .clinic-modal-error {
+    @apply p-3 bg-red-950/20 border border-red-800 rounded-lg text-red-300 text-sm;
+  }
+
+  .clinic-modal-submit-btn {
+    @apply flex-1 bg-emerald-600 hover:bg-emerald-700;
+  }
+
+  .clinic-modal-submit-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  .clinic-delete-btn {
+    @apply fi-text-error hover:bg-red-950/50;
+  }
+
+  /* ========================================
+   * ROLE ICONS
+   * ======================================== */
+  .clinic-role-icon {
+    @apply w-4 h-4;
+  }
+
+  .clinic-role-icon-lg {
+    @apply w-5 h-5;
+  }
+
+  /* ========================================
+   * INLINE BUTTON ICONS
+   * ======================================== */
+  .clinic-btn-icon {
+    @apply w-4 h-4 mr-2;
+  }
+
+  .clinic-linked-check {
+    @apply w-3 h-3 fi-text-green;
+  }
+
+  /* ========================================
+   * DOCTOR LIST
+   * ======================================== */
+  .clinic-doctor-list {
+    @apply space-y-2;
+  }
+
+  .clinic-doctor-name {
+    @apply text-white font-medium;
+  }
+
+  .clinic-doctor-meta {
+    @apply text-right;
+  }
+
+  /* ========================================
+   * STATUS BADGES (appointment status)
+   * ======================================== */
+  .clinic-apt-status-scheduled {
+    @apply clinic-apt-status text-yellow-400;
+  }
+
+  .clinic-apt-status-confirmed {
+    @apply clinic-apt-status fi-text-primary;
+  }
+
+  .clinic-apt-status-checked-in {
+    @apply clinic-apt-status fi-text-green;
+  }
+
+  .clinic-apt-status-default {
+    @apply clinic-apt-status text-slate-400;
+  }
+
+  /* ========================================
+   * RETRY BUTTON
+   * ======================================== */
+  .clinic-retry-btn {
+    @apply mt-2 fi-text-error hover:text-red-300;
+  }
+
+  /* ========================================
+   * INPUT FIELDS (dark themed)
+   * ======================================== */
+  .clinic-input-dark {
+    @apply bg-slate-800 border-slate-700 text-white;
+  }
+
+  /* ========================================
+   * DOCTOR LIMIT BADGE
+   * ======================================== */
+  .clinic-limit-loading {
+    @apply px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500 animate-pulse;
+  }
+
+  .clinic-limit-compact-ok {
+    @apply clinic-limit-compact bg-slate-700/50 text-slate-400 border-slate-600/30;
+  }
+
+  .clinic-limit-compact-warning {
+    @apply clinic-limit-compact bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+
+  .clinic-limit-compact-critical {
+    @apply clinic-limit-compact bg-red-500/20 text-red-400 border-red-500/30;
+  }
+
+  .clinic-limit-full-ok {
+    @apply clinic-limit-full bg-slate-700/50 text-slate-400 border-slate-600/30;
+  }
+
+  .clinic-limit-full-warning {
+    @apply clinic-limit-full bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+
+  .clinic-limit-full-critical {
+    @apply clinic-limit-full bg-red-500/20 text-red-400 border-red-500/30;
+  }
+
+  /* ========================================
+   * DOCTOR DETAIL MODAL
+   * ======================================== */
+
+  /* --- Overlay & Container --- */
+  .doc-modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4;
+  }
+
+  .doc-modal-container-edit {
+    @apply doc-modal-container max-w-2xl max-h-[90vh];
+  }
+
+  .doc-modal-container-view {
+    @apply doc-modal-container max-w-md;
+  }
+
+  /* --- Header --- */
+  .doc-header {
+    @apply flex items-start justify-between p-4 border-b border-slate-800;
+  }
+
+  .doc-header-info {
+    @apply flex items-center gap-3;
+  }
+
+  .doc-header-icon-wrap {
+    @apply p-2 rounded-lg;
+  }
+
+  .doc-header-icon {
+    @apply w-5 h-5;
+  }
+
+  .doc-header-title {
+    @apply text-lg font-semibold text-white;
+  }
+
+  .doc-header-specialty {
+    @apply text-sm text-slate-400;
+  }
+
+  .doc-header-close {
+    @apply text-slate-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-lg transition-colors;
+  }
+
+  /* --- Content Area --- */
+  .doc-content {
+    @apply flex-1 overflow-hidden;
+  }
+
+  .doc-edit-wrapper {
+    @apply flex flex-col h-full;
+  }
+
+  .doc-tabs-container {
+    @apply flex flex-col h-full;
+  }
+
+  .doc-tabs-nav {
+    @apply px-4 pt-3 border-b border-slate-800;
+  }
+
+  .doc-tabs-list {
+    @apply bg-slate-800/50 p-1 rounded-lg w-full grid grid-cols-5 gap-1;
+  }
+
+  .doc-tab-trigger-weekly {
+    @apply data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-400 rounded-md py-2 text-xs;
+  }
+
+  .doc-tab-trigger-exceptions {
+    @apply data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 rounded-md py-2 text-xs;
+  }
+
+  .doc-tab-trigger-rules {
+    @apply data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400 rounded-md py-2 text-xs;
+  }
+
+  .doc-tab-trigger-templates {
+    @apply data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 rounded-md py-2 text-xs;
+  }
+
+  .doc-tab-trigger-preview {
+    @apply data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 rounded-md py-2 text-xs;
+  }
+
+  .doc-tab-icon {
+    @apply w-3.5 h-3.5 mr-1.5;
+  }
+
+  .doc-tab-scroll-area {
+    @apply flex-1 overflow-y-auto p-4;
+  }
+
+  .doc-tab-content {
+    @apply mt-0;
+  }
+
+  /* --- View Mode --- */
+  .doc-view-body {
+    @apply p-4 space-y-4;
+  }
+
+  .doc-info-card {
+    @apply p-3 bg-slate-800/50 rounded-lg space-y-2;
+  }
+
+  .doc-info-row {
+    @apply text-sm;
+  }
+
+  .doc-info-row-flex {
+    @apply text-sm flex items-center gap-2;
+  }
+
+  .doc-info-label {
+    @apply text-slate-500;
+  }
+
+  .doc-info-value {
+    @apply text-slate-300;
+  }
+
+  .doc-color-swatch {
+    @apply w-4 h-4 rounded;
+  }
+
+  .doc-info-id {
+    @apply text-slate-400 font-mono text-xs;
+  }
+
+  /* --- Schedule Summary (view mode) --- */
+  .doc-schedule-card {
+    @apply p-3 bg-slate-800/50 rounded-lg;
+  }
+
+  .doc-schedule-header {
+    @apply flex items-center gap-2 text-slate-400 text-sm mb-2;
+  }
+
+  .doc-schedule-icon {
+    @apply w-4 h-4;
+  }
+
+  .doc-schedule-days-list {
+    @apply space-y-1;
+  }
+
+  .doc-schedule-days-text {
+    @apply text-sm text-white;
+  }
+
+  .doc-schedule-meta {
+    @apply text-xs text-slate-500;
+  }
+
+  .doc-schedule-legacy {
+    @apply text-sm text-slate-500;
+  }
+
+  /* --- Footer --- */
+  .doc-footer {
+    @apply flex items-center justify-between p-4 border-t border-slate-800;
+  }
+
+  .doc-footer-status {
+    @apply flex items-center gap-2 text-xs;
+  }
+
+  .doc-footer-error {
+    @apply flex items-center gap-1 text-red-400;
+  }
+
+  .doc-footer-error-icon {
+    @apply w-3.5 h-3.5;
+  }
+
+  .doc-footer-dirty {
+    @apply text-amber-400;
+  }
+
+  .doc-footer-actions {
+    @apply flex gap-3;
+  }
+
+  /* ========================================
+   * CREATE DOCTOR MODAL (cdoc-*)
+   * ======================================== */
+
+  /* --- Overlay & Container --- */
+  .cdoc-overlay {
+    @apply fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4;
+  }
+
+  .cdoc-container {
+    @apply bg-slate-800 rounded-xl max-w-lg w-full shadow-2xl border border-slate-700;
+  }
+
+  /* --- Header --- */
+  .cdoc-header {
+    @apply flex items-center justify-between p-4 border-b border-slate-700;
+  }
+
+  .cdoc-header-info {
+    @apply flex items-center gap-3;
+  }
+
+  .cdoc-header-icon-wrap {
+    @apply p-2 bg-indigo-500/20 rounded-lg;
+  }
+
+  .cdoc-header-icon {
+    @apply w-5 h-5 text-indigo-400;
+  }
+
+  .cdoc-title {
+    @apply text-lg font-semibold text-white;
+  }
+
+  .cdoc-subtitle {
+    @apply text-xs text-slate-400;
+  }
+
+  .cdoc-close-btn {
+    @apply p-2 hover:bg-slate-700 rounded-lg transition-colors;
+  }
+
+  .cdoc-close-icon {
+    @apply w-5 h-5 text-slate-400;
+  }
+
+  /* --- Form --- */
+  .cdoc-form {
+    @apply p-4 space-y-4;
+  }
+
+  /* --- Limit Error --- */
+  .cdoc-limit-error {
+    @apply p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-start gap-3;
+  }
+
+  .cdoc-limit-error-icon {
+    @apply w-5 h-5 text-red-400 flex-shrink-0 mt-0.5;
+  }
+
+  .cdoc-limit-error-title {
+    @apply text-sm text-red-300 font-medium;
+  }
+
+  .cdoc-limit-error-detail {
+    @apply text-xs text-red-400 mt-1;
+  }
+
+  /* --- General Error --- */
+  .cdoc-error {
+    @apply p-3 bg-red-500/20 border border-red-500/30 rounded-lg;
+  }
+
+  .cdoc-error-text {
+    @apply text-sm text-red-300;
+  }
+
+  /* --- Form Fields --- */
+  .cdoc-row {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .cdoc-label {
+    @apply block text-xs text-slate-400 mb-1;
+  }
+
+  .cdoc-input {
+    @apply w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none;
+  }
+
+  /* --- Actions --- */
+  .cdoc-actions {
+    @apply flex justify-end gap-3 pt-4 border-t border-slate-700;
+  }
+
+  .cdoc-cancel-btn {
+    @apply px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors;
+  }
+
+  .cdoc-submit-btn {
+    @apply px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2;
+  }
+
+  .cdoc-spinner {
+    @apply w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin;
+  }
+
+  .cdoc-btn-icon {
+    @apply w-4 h-4;
+  }
+
+  /* ========================================
+   * DOCTOR OVERRIDE EDITOR (dov-*)
+   * ======================================== */
+
+  /* --- Container --- */
+  .dov-container {
+    @apply p-4 bg-yellow-900/20 border border-yellow-700/30 rounded-lg;
+  }
+
+  /* --- Header --- */
+  .dov-header {
+    @apply flex items-center gap-2 mb-3;
+  }
+
+  .dov-header-icon {
+    @apply w-4 h-4 text-yellow-400;
+  }
+
+  .dov-header-title {
+    @apply text-sm font-medium text-yellow-300;
+  }
+
+  /* --- Info --- */
+  .dov-info {
+    @apply text-xs text-yellow-400/70 mb-3;
+  }
+
+  /* --- Error --- */
+  .dov-error {
+    @apply p-2 bg-red-500/20 border border-red-500/30 rounded mb-3;
+  }
+
+  .dov-error-text {
+    @apply text-xs text-red-300;
+  }
+
+  /* --- Editor --- */
+  .dov-editor {
+    @apply space-y-3;
+  }
+
+  .dov-label {
+    @apply block text-xs text-yellow-400/70 mb-1;
+  }
+
+  .dov-input {
+    @apply w-full px-3 py-2 bg-slate-900 border border-yellow-700/50 rounded-lg text-white text-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none;
+  }
+
+  .dov-hint {
+    @apply text-xs text-slate-500 mt-1;
+  }
+
+  /* --- Button Row --- */
+  .dov-btn-row {
+    @apply flex items-center gap-2;
+  }
+
+  .dov-save-btn {
+    @apply px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5;
+  }
+
+  .dov-spinner {
+    @apply w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin;
+  }
+
+  .dov-cancel-btn {
+    @apply px-3 py-1.5 text-slate-400 hover:text-white text-xs transition-colors flex items-center gap-1.5;
+  }
+
+  .dov-remove-btn {
+    @apply ml-auto px-3 py-1.5 text-red-400 hover:text-red-300 text-xs transition-colors flex items-center gap-1.5;
+  }
+
+  .dov-btn-icon {
+    @apply w-3 h-3;
+  }
+
+  /* --- Display (non-editing) --- */
+  .dov-display {
+    @apply flex items-center justify-between;
+  }
+
+  .dov-status-text {
+    @apply text-sm text-slate-300;
+  }
+
+  .dov-status-value {
+    @apply text-yellow-300 font-medium;
+  }
+
+  .dov-status-empty {
+    @apply text-slate-500;
+  }
+
+  .dov-edit-btn {
+    @apply px-3 py-1.5 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 text-xs font-medium rounded-lg transition-colors;
+  }
+
+  /* ========================================
+   * AVAILABILITY DESIGNER TABS (avail-*)
+   * ======================================== */
+
+  /* --- Shared: Tab Header Block --- */
+  .avail-tab-header {
+    @apply flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg;
+  }
+
+  .avail-tab-header-title {
+    @apply font-medium text-white;
+  }
+
+  .avail-tab-header-desc {
+    @apply text-sm text-slate-400 mt-1;
+  }
+
+  /* --- Shared: Icon wrappers (colored) --- */
+  .avail-icon-wrap-purple {
+    @apply p-2 bg-purple-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-amber {
+    @apply p-2 bg-amber-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-blue {
+    @apply p-2 bg-blue-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-green {
+    @apply p-2 bg-green-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-orange {
+    @apply p-2 bg-orange-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-emerald {
+    @apply p-2 bg-emerald-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-cyan {
+    @apply p-2 bg-cyan-500/20 rounded-lg;
+  }
+
+  .avail-icon-wrap-indigo {
+    @apply p-2 bg-indigo-500/20 rounded-lg;
+  }
+
+  /* --- Shared: Colored icons --- */
+  .avail-icon-purple {
+    @apply w-5 h-5 text-purple-400;
+  }
+
+  .avail-icon-amber {
+    @apply w-4 h-4 text-amber-400;
+  }
+
+  .avail-icon-blue {
+    @apply w-4 h-4 text-blue-400;
+  }
+
+  .avail-icon-green {
+    @apply w-4 h-4 text-green-400;
+  }
+
+  .avail-icon-orange {
+    @apply w-5 h-5 text-orange-400;
+  }
+
+  .avail-icon-emerald {
+    @apply w-5 h-5 text-emerald-400;
+  }
+
+  .avail-icon-cyan {
+    @apply w-5 h-5 text-cyan-400;
+  }
+
+  .avail-icon-indigo {
+    @apply w-5 h-5 text-indigo-400;
+  }
+
+  /* --- Shared: Section card --- */
+  .avail-section-card {
+    @apply p-4 rounded-lg border border-slate-700 bg-slate-800/20;
+  }
+
+  .avail-section-card-hover {
+    @apply p-4 rounded-lg border border-slate-700 bg-slate-800/20 hover:border-slate-600 transition-colors;
+  }
+
+  .avail-section-row {
+    @apply flex items-center gap-3 mb-4;
+  }
+
+  /* --- Shared: Info box --- */
+  .avail-info-box {
+    @apply p-3 bg-slate-800/30 rounded-lg text-xs text-slate-400;
+  }
+
+  /* --- Shared: Field label --- */
+  .avail-label {
+    @apply block text-xs text-slate-500 mb-1;
+  }
+
+  .avail-label-sm {
+    @apply block text-sm text-slate-400 mb-1;
+  }
+
+  /* --- Shared: Empty state --- */
+  .avail-empty {
+    @apply text-center py-8 text-slate-500;
+  }
+
+  .avail-empty-bordered {
+    @apply text-center py-8 text-slate-500 border border-dashed border-slate-700 rounded-lg;
+  }
+
+  .avail-empty-icon {
+    @apply w-12 h-12 mx-auto mb-3 opacity-50;
+  }
+
+  /* --- Shared: Chip/tag button (active/inactive) --- */
+  .avail-chip-active {
+    @apply bg-indigo-500/30 text-indigo-300 border border-indigo-500/50;
+  }
+
+  .avail-chip-inactive {
+    @apply bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600;
+  }
+
+  /* --- Shared: Warning box --- */
+  .avail-warning-box {
+    @apply p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  /* --- Shared: Summary row --- */
+  .avail-summary-row {
+    @apply flex gap-4 text-sm;
+  }
+
+  /* --- RulesTab specific --- */
+  .avail-capacity-grid {
+    @apply grid grid-cols-2 gap-4 pl-11;
+  }
+
+  .avail-duration-chip {
+    @apply px-3 py-1.5 text-sm rounded-md transition-colors;
+  }
+
+  /* --- ExceptionsTab specific --- */
+  .avail-add-form {
+    @apply p-4 bg-slate-800/50 rounded-lg border border-slate-700 space-y-3;
+  }
+
+  .avail-override-error {
+    @apply border-red-500/50 bg-red-500/5;
+  }
+
+  .avail-override-past {
+    @apply border-slate-800 bg-slate-900/50 opacity-60;
+  }
+
+  .avail-override-normal {
+    @apply border-slate-700 bg-slate-800/30;
+  }
+
+  .avail-override-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .avail-override-delete-btn {
+    @apply text-slate-500 hover:text-red-400 hover:bg-red-500/10 p-1 h-8 w-8;
+  }
+
+  .avail-override-toggle-row {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .avail-override-error-msg {
+    @apply mt-2 flex items-center gap-1 text-xs text-red-400;
+  }
+
+  .avail-reason-chip {
+    @apply px-2 py-1 text-xs rounded-md transition-colors;
+  }
+
+  /* --- TemplatesTab specific --- */
+  .avail-confirm-dialog {
+    @apply p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  .avail-confirm-icon {
+    @apply w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5;
+  }
+
+  .avail-template-meta {
+    @apply flex gap-4 mt-2 text-xs text-slate-500;
+  }
+
+  .avail-schedule-summary {
+    @apply flex items-center gap-2 text-sm text-slate-400;
+  }
+
+  /* --- PreviewTab specific --- */
+  .avail-nav-btn {
+    @apply text-slate-400 hover:text-white;
+  }
+
+  .avail-calendar-wrap {
+    @apply rounded-lg overflow-hidden border border-slate-700;
+  }
+
+  .avail-legend {
+    @apply flex justify-between items-center p-3 bg-slate-800/30 rounded-lg;
+  }
+
+  .avail-legend-swatch-indigo {
+    @apply w-3 h-3 bg-indigo-500/50 rounded border border-indigo-500/60;
+  }
+
+  .avail-legend-swatch-orange {
+    @apply w-3 h-3 bg-orange-500/50 rounded border border-orange-500/60;
+  }
+
+  .avail-legend-swatch-slate {
+    @apply w-3 h-3 bg-slate-600/30 rounded border border-slate-600/50;
+  }
+
+  /* --- WeeklyScheduleTab specific --- */
+  .avail-gaps-warning {
+    @apply p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg;
+  }
+
+  .avail-gaps-title {
+    @apply text-sm text-yellow-400;
+  }
+
+  .avail-gaps-list {
+    @apply mt-1 text-xs text-yellow-400/80 list-disc list-inside;
+  }
+}

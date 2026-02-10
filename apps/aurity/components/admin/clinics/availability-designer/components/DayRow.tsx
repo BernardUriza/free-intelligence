@@ -123,7 +123,7 @@ export function DayRow({
             size="sm"
             onClick={onAddSlot}
             disabled={disabled}
-            className="w-full border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600 hover:bg-slate-800/30"
+            className="admin-add-slot-btn"
           >
             <Plus className="w-4 h-4 mr-1" />
             Agregar horario

@@ -81,9 +81,9 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="cmgt-wrap">
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="cmgt-tabs-row">
         {tabs.map((tab) => (
           <Button
             key={tab.id}
@@ -93,10 +93,10 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
             size="sm"
             type="button"
           >
-            <tab.icon className="w-5 h-5" />
+            <tab.icon className="cmgt-tab-icon" />
             <span>{tab.label}</span>
             <span
-              className={`fi-count-badge ${activeTab === tab.id ? 'bg-white/20' : 'bg-slate-700/50'}`}
+              className={`fi-count-badge ${activeTab === tab.id ? 'cmgt-tab-count-active' : 'cmgt-tab-count'}`}
             >
               {tab.count}
             </span>
@@ -105,13 +105,13 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700 rounded-xl p-6 backdrop-blur-sm min-h-[400px]">
+      <div className="cmgt-content-area">
         {/* Seeds Tab */}
         {activeTab === 'seeds' && (
           <div className="fi-empty-state">
-            <Sparkles className="w-16 h-16 fi-text-purple mx-auto mb-4" />
-            <h3 className="fi-title-xl mb-2">Contenido FI</h3>
-            <p className="text-slate-400 mb-6">
+            <Sparkles className="cmgt-empty-icon fi-text-purple" />
+            <h3 className="fi-title-xl cmgt-empty-title">Contenido FI</h3>
+            <p className="cmgt-empty-desc">
               13 seeds editables (mensajes de bienvenida, filosofía, tips básicos)
             </p>
             <p className="fi-text-muted">
@@ -124,9 +124,9 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
         {activeTab === 'trivias' && (
           <div>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="cmgt-trivia-header">
               <div>
-                <h3 className="text-lg font-bold text-white">Trivias de Salud</h3>
+                <h3 className="cmgt-trivia-title">Trivias de Salud</h3>
                 <p className="fi-subtitle">
                   Preguntas educativas para pacientes en sala de espera
                 </p>
@@ -141,7 +141,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
                 size="sm"
                 type="button"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="cmgt-btn-icon" />
                 Nueva Trivia
               </Button>
             </div>
@@ -149,13 +149,13 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
             {/* Trivias List */}
             {isLoading ? (
               <div className="fi-empty-state">
-                <div className="inline-block w-8 h-8 border-4 border-slate-600 border-t-emerald-500 rounded-full animate-spin"></div>
-                <p className="mt-4 text-slate-400">Cargando trivias...</p>
+                <div className="cmgt-spinner"></div>
+                <p className="cmgt-spinner-text">Cargando trivias...</p>
               </div>
             ) : trivias.length === 0 ? (
               <div className="fi-empty-state">
-                <p className="text-slate-400">No hay trivias configuradas</p>
-                <p className="text-sm text-slate-500 mt-2">
+                <p className="cmgt-empty-text">No hay trivias configuradas</p>
+                <p className="cmgt-empty-hint">
                   Haz click en &quot;Nueva Trivia&quot; para crear una
                 </p>
               </div>
@@ -164,18 +164,18 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
                 {trivias.map((trivia, index) => (
                   <div
                     key={trivia.id}
-                    className="bg-gradient-to-br from-slate-800/50 to-slate-700/50 border border-slate-600 rounded-xl p-4 hover:border-emerald-600/50 transition-all"
+                    className="cmgt-trivia-card"
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="cmgt-trivia-row">
                       {/* Number Badge */}
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-600/30 to-teal-600/30 border border-emerald-500/50 flex items-center justify-center">
-                        <span className="text-lg font-bold text-emerald-200">{index + 1}</span>
+                      <div className="cmgt-trivia-badge">
+                        <span className="cmgt-trivia-badge-text">{index + 1}</span>
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="text-base font-semibold text-white truncate pr-4">
+                      <div className="cmgt-trivia-body">
+                        <div className="cmgt-trivia-title-row">
+                          <h4 className="cmgt-trivia-question">
                             {trivia.question}
                           </h4>
                           <div className="fi-flex-gap">
@@ -191,14 +191,14 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
                             </span>
 
                             {/* Category */}
-                            <span className="px-2 py-0.5 rounded-full fi-text-xs-medium bg-slate-700/50 fi-text whitespace-nowrap">
+                            <span className="cmgt-category-badge fi-text-xs-medium fi-text">
                               {trivia.category}
                             </span>
                           </div>
                         </div>
 
                         {/* Options Preview */}
-                        <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div className="cmgt-options-grid">
                           {trivia.options.slice(0, 4).map((option, i) => (
                             <div
                               key={i}
@@ -211,11 +211,11 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
 
                         {/* Tags */}
                         {trivia.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="cmgt-tags-row">
                             {trivia.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="px-2 py-0.5 bg-slate-700/30 text-slate-400 text-xs rounded"
+                                className="cmgt-tag"
                               >
                                 {tag}
                               </span>
@@ -232,22 +232,22 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
                             setEditingTrivia(trivia);
                             setShowTriviaEditor(true);
                           }}
-                          className="p-2 rounded-lg bg-blue-900/20 hover:bg-blue-900/30 fi-text-primary transition-colors"
+                          className="cmgt-edit-btn fi-text-primary"
                           title="Editar"
                           variant="ghost"
                           size="sm"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="cmgt-btn-icon" />
                         </Button>
                         <Button
                           type="button"
-                          className="p-2 rounded-lg bg-red-900/20 hover:bg-red-900/30 fi-text-error transition-colors opacity-50 cursor-not-allowed"
+                          className="cmgt-delete-btn fi-text-error"
                           title="Eliminar (próximamente)"
                           disabled
                           variant="ghost"
                           size="sm"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="cmgt-btn-icon" />
                         </Button>
                       </div>
                     </div>
@@ -261,9 +261,9 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
         {/* Exercises Tab */}
         {activeTab === 'exercises' && (
           <div className="fi-empty-state">
-            <Activity className="w-16 h-16 fi-text-purple mx-auto mb-4" />
-            <h3 className="fi-title-xl mb-2">Ejercicios de Respiración</h3>
-            <p className="text-slate-400 mb-6">3 ejercicios configurados (Box, 4-7-8, Coherent)</p>
+            <Activity className="cmgt-empty-icon fi-text-purple" />
+            <h3 className="fi-title-xl cmgt-empty-title">Ejercicios de Respiración</h3>
+            <p className="cmgt-empty-desc">3 ejercicios configurados (Box, 4-7-8, Coherent)</p>
             <p className="fi-text-muted">Editor de ejercicios disponible próximamente</p>
           </div>
         )}
@@ -271,9 +271,9 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
         {/* Tips Tab */}
         {activeTab === 'tips' && (
           <div className="fi-empty-state">
-            <Lightbulb className="w-16 h-16 fi-text-purple mx-auto mb-4" />
-            <h3 className="fi-title-xl mb-2">Tips de Salud</h3>
-            <p className="text-slate-400 mb-6">
+            <Lightbulb className="cmgt-empty-icon fi-text-purple" />
+            <h3 className="fi-title-xl cmgt-empty-title">Tips de Salud</h3>
+            <p className="cmgt-empty-desc">
               12 tips en 4 categorías (nutrición, ejercicio, salud mental, prevención)
             </p>
             <p className="fi-text-muted">Editor de tips disponible próximamente</p>

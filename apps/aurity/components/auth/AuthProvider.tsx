@@ -28,6 +28,7 @@ import {
   isTokenExpired,
 } from '@/lib/auth-storage';
 import { getBackendUrl } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ function decodeJwtPayload(token: string): AuthUser | null {
 }
 
 async function authFetch<T>(endpoint: string, body: Record<string, string>): Promise<T> {
-  const url = `${getBackendUrl()}/api/auth${endpoint}`;
+  const url = `${getBackendUrl()}${ROUTES.auth}${endpoint}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

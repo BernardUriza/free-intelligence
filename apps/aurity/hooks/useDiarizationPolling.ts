@@ -15,6 +15,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { POLLING_CONFIG, BACKOFF_MULTIPLIER } from '@/lib/constants/polling';
 import { api } from '@/lib/api/client';
+import { ROUTES } from '@/lib/api/routes';
 
 interface DiarizationStatus {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
@@ -91,7 +92,7 @@ export function useDiarizationPolling(
     try {
       // api.get has built-in timeout handling (30s default)
       const data = await api.get<MonitorResponse>(
-        `/api/aurity/medical-ai/sessions/${sessionId}/monitor`,
+        `${ROUTES.medicalAi}/sessions/${sessionId}/monitor`,
         { timeout: POLLING_CONFIG.REQUEST_TIMEOUT }
       );
 

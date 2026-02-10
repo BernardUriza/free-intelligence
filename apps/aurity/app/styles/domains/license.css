@@ -1,0 +1,444 @@
+/**
+ * License Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: lic-{component}[-variant]
+ * Covers: /components/admin/license-generator/LicenseGenerator.tsx
+ *         /components/license/LicenseActivationWizard.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility lic-icon-sm {
+  @apply w-5 h-5;
+}
+
+@utility lic-icon-xs {
+  @apply w-4 h-4;
+}
+
+@utility lic-icon-md {
+  @apply w-8 h-8;
+}
+
+@utility lic-icon-lg {
+  @apply w-10 h-10;
+}
+
+@utility lic-text-label {
+  @apply text-slate-400;
+}
+
+@utility lic-text-value {
+  @apply ml-2 text-slate-200;
+}
+
+@utility lic-text-value-mono {
+  @apply ml-2 text-slate-200 font-mono;
+}
+
+@utility lic-wizard-btn-base {
+  @apply w-full py-3 px-4 rounded-xl font-medium
+         transition-all duration-200;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * GENERATOR: Container
+   * ======================================== */
+  .lic-gen-container {
+    @apply max-w-4xl mx-auto;
+  }
+
+  /* ========================================
+   * GENERATOR: Result display
+   * ======================================== */
+  .lic-gen-result-header {
+    @apply flex items-center gap-2 mb-4;
+  }
+
+  .lic-gen-result-icon {
+    @apply lic-icon-sm text-emerald-400;
+  }
+
+  .lic-gen-result-title {
+    @apply text-lg font-semibold text-emerald-400;
+  }
+
+  .lic-gen-key-wrapper {
+    @apply mb-4;
+  }
+
+  .lic-gen-key-label {
+    @apply block text-sm text-slate-400 mb-2;
+  }
+
+  .lic-gen-key-row {
+    @apply flex gap-2;
+  }
+
+  .lic-gen-key-actions {
+    @apply flex flex-col gap-2;
+  }
+
+  /* ========================================
+   * GENERATOR: License details grid
+   * ======================================== */
+  .lic-gen-details-grid {
+    @apply grid grid-cols-2 gap-4 text-sm;
+  }
+
+  .lic-gen-details-full {
+    @apply col-span-2;
+  }
+
+  .lic-gen-details-divider {
+    @apply mt-6 pt-4 border-t border-slate-700;
+  }
+
+  /* ========================================
+   * GENERATOR: Form
+   * ======================================== */
+  .lic-gen-form {
+    @apply space-y-6;
+  }
+
+  .lic-gen-section-header {
+    @apply flex items-center gap-2 mb-4;
+  }
+
+  .lic-gen-section-icon-blue {
+    @apply lic-icon-sm text-blue-400;
+  }
+
+  .lic-gen-section-icon-amber {
+    @apply lic-icon-sm text-amber-400;
+  }
+
+  .lic-gen-section-icon-cyan {
+    @apply lic-icon-sm text-cyan-400;
+  }
+
+  .lic-gen-section-title {
+    @apply text-lg font-medium text-slate-200;
+  }
+
+  .lic-gen-field-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .lic-gen-field-label {
+    @apply block text-sm text-slate-400 mb-2;
+  }
+
+  .lic-gen-field-required {
+    @apply text-red-400;
+  }
+
+  .lic-gen-field-hint {
+    @apply mt-1 text-xs text-slate-500;
+  }
+
+  /* ========================================
+   * GENERATOR: Error display
+   * ======================================== */
+  .lic-gen-error-text {
+    @apply text-red-400;
+  }
+
+  /* ========================================
+   * GENERATOR: Features grid
+   * ======================================== */
+  .lic-gen-features-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 gap-3;
+  }
+
+  .lic-gen-feature-checkbox {
+    @apply w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500;
+  }
+
+  .lic-gen-feature-name {
+    @apply text-sm font-medium text-slate-200;
+  }
+
+  .lic-gen-feature-desc {
+    @apply text-xs text-slate-500;
+  }
+
+  /* ========================================
+   * GENERATOR: Expiration
+   * ======================================== */
+  .lic-gen-expiration-row {
+    @apply flex flex-wrap gap-3;
+  }
+
+  .lic-gen-radio-size {
+    @apply w-4 h-4;
+  }
+
+  .lic-gen-radio-label {
+    @apply text-slate-200;
+  }
+
+  .lic-gen-custom-days-row {
+    @apply flex items-center gap-2;
+  }
+
+  .lic-gen-custom-days-input {
+    @apply w-24 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg
+           text-slate-200 focus:border-cyan-500 focus:outline-none;
+  }
+
+  .lic-gen-custom-days-label {
+    @apply text-slate-400;
+  }
+
+  /* ========================================
+   * WIZARD: Full-page layouts
+   * ======================================== */
+  .lic-wizard-page {
+    @apply min-h-screen flex items-center justify-center
+           bg-gradient-to-br from-slate-900 to-slate-800 p-4;
+  }
+
+  /* ========================================
+   * WIZARD: Success screen
+   * ======================================== */
+  .lic-wizard-success-container {
+    @apply max-w-md w-full text-center;
+  }
+
+  .lic-wizard-success-icon-wrapper {
+    @apply w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20
+           flex items-center justify-center;
+  }
+
+  .lic-wizard-success-check {
+    @apply lic-icon-lg text-green-400;
+  }
+
+  .lic-wizard-success-title {
+    @apply text-2xl font-bold text-white mb-2;
+  }
+
+  .lic-wizard-success-subtitle {
+    @apply text-slate-400 mb-4;
+  }
+
+  .lic-wizard-success-loading {
+    @apply text-sm text-slate-500;
+  }
+
+  /* ========================================
+   * WIZARD: Main layout
+   * ======================================== */
+  .lic-wizard-container {
+    @apply max-w-xl w-full;
+  }
+
+  .lic-wizard-header {
+    @apply text-center mb-8;
+  }
+
+  .lic-wizard-header-icon {
+    @apply w-16 h-16 mx-auto mb-4 rounded-2xl
+           bg-gradient-to-br from-blue-500 to-purple-600
+           flex items-center justify-center;
+  }
+
+  .lic-wizard-header-icon-svg {
+    @apply lic-icon-md text-white;
+  }
+
+  .lic-wizard-title {
+    @apply text-3xl font-bold text-white mb-2;
+  }
+
+  .lic-wizard-subtitle {
+    @apply text-slate-400;
+  }
+
+  /* ========================================
+   * WIZARD: License key input card
+   * ======================================== */
+  .lic-wizard-input-card {
+    @apply bg-slate-800/50 backdrop-blur-sm rounded-2xl
+           border border-slate-700 p-6 mb-6;
+  }
+
+  .lic-wizard-input-label {
+    @apply block text-sm font-medium text-slate-300 mb-3;
+  }
+
+  .lic-wizard-input-wrapper {
+    @apply relative;
+  }
+
+  .lic-wizard-input {
+    @apply w-full px-4 py-3 bg-slate-900/50 border rounded-xl
+           text-white font-mono text-sm
+           placeholder:text-slate-600
+           focus:outline-none focus:ring-2;
+  }
+
+  .lic-wizard-input-default {
+    @apply border-slate-600 focus:ring-blue-500/30;
+  }
+
+  .lic-wizard-input-error {
+    @apply border-red-500/50 focus:ring-red-500/30;
+  }
+
+  .lic-wizard-input-valid {
+    @apply border-green-500/50 focus:ring-green-500/30;
+  }
+
+  .lic-wizard-input-status {
+    @apply absolute right-3 top-1/2 -translate-y-1/2;
+  }
+
+  .lic-wizard-spinner {
+    @apply lic-icon-sm border-2 border-blue-400/30 border-t-blue-400
+           rounded-full animate-spin;
+  }
+
+  .lic-wizard-icon-valid {
+    @apply lic-icon-sm text-green-400;
+  }
+
+  .lic-wizard-icon-error {
+    @apply lic-icon-sm text-red-400;
+  }
+
+  /* ========================================
+   * WIZARD: Error message
+   * ======================================== */
+  .lic-wizard-error-msg {
+    @apply mt-2 text-sm text-red-400;
+  }
+
+  /* ========================================
+   * WIZARD: License info preview
+   * ======================================== */
+  .lic-wizard-preview {
+    @apply mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg;
+  }
+
+  .lic-wizard-preview-header {
+    @apply flex items-center gap-2 text-green-400 text-sm mb-2;
+  }
+
+  .lic-wizard-preview-header-icon {
+    @apply lic-icon-xs;
+  }
+
+  .lic-wizard-preview-body {
+    @apply text-slate-300 text-sm;
+  }
+
+  .lic-wizard-preview-label {
+    @apply text-slate-500;
+  }
+
+  .lic-wizard-preview-expiry-warn {
+    @apply text-amber-400;
+  }
+
+  /* ========================================
+   * WIZARD: Actions
+   * ======================================== */
+  .lic-wizard-actions {
+    @apply space-y-3;
+  }
+
+
+  .lic-wizard-btn-import {
+    @apply lic-wizard-btn-base flex items-center justify-center gap-2
+           bg-gradient-to-r from-emerald-500 to-teal-600 text-white
+           hover:from-emerald-600 hover:to-teal-700;
+  }
+
+  .lic-wizard-btn-import-disabled {
+    @apply lic-wizard-btn-base flex items-center justify-center gap-2
+           bg-slate-700 text-slate-500 cursor-not-allowed;
+  }
+
+  .lic-wizard-btn-import-icon {
+    @apply lic-icon-sm;
+  }
+
+  .lic-wizard-btn-import-spinner {
+    @apply lic-icon-sm border-2 border-white/30 border-t-white
+           rounded-full animate-spin;
+  }
+
+  .lic-wizard-btn-activate {
+    @apply lic-wizard-btn-base
+           bg-gradient-to-r from-blue-500 to-purple-600 text-white
+           hover:from-blue-600 hover:to-purple-700;
+  }
+
+  .lic-wizard-btn-activate-disabled {
+    @apply lic-wizard-btn-base
+           bg-slate-700 text-slate-500 cursor-not-allowed;
+  }
+
+  .lic-wizard-btn-activate-inner {
+    @apply flex items-center justify-center gap-2;
+  }
+
+  .lic-wizard-btn-activate-spinner {
+    @apply lic-icon-sm border-2 border-white/30 border-t-white
+           rounded-full animate-spin;
+  }
+
+  .lic-wizard-btn-skip {
+    @apply lic-wizard-btn-base text-slate-400 hover:text-white
+           hover:bg-slate-700/50 transition-colors;
+  }
+
+  /* ========================================
+   * WIZARD: Separator
+   * ======================================== */
+  .lic-wizard-separator {
+    @apply flex items-center gap-3 text-slate-500 text-sm;
+  }
+
+  .lic-wizard-separator-line {
+    @apply flex-1 h-px bg-slate-700;
+  }
+
+  /* ========================================
+   * WIZARD: Help text footer
+   * ======================================== */
+  .lic-wizard-footer {
+    @apply mt-8 text-center;
+  }
+
+  .lic-wizard-footer-text {
+    @apply text-slate-500 text-sm;
+  }
+
+  .lic-wizard-footer-link {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+
+  /* ========================================
+   * LICENSE PROVIDER (loading screen)
+   * ======================================== */
+  .lic-loading-screen {
+    @apply min-h-screen flex items-center justify-center
+           bg-gradient-to-br from-slate-900 to-slate-800;
+  }
+
+  .lic-loading-spinner {
+    @apply w-12 h-12 mx-auto mb-4 border-3 border-blue-400/30
+           border-t-blue-400 rounded-full animate-spin;
+  }
+}

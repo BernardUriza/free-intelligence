@@ -9,6 +9,7 @@ import type {
   AuditOperationsResponse,
 } from "../../types/audit";
 import { api } from "./client";
+import { ROUTES } from "./routes";
 
 export async function getAuditLogs(params?: {
   limit?: number;
@@ -22,13 +23,13 @@ export async function getAuditLogs(params?: {
   if (params?.user) searchParams.append("user", params.user);
 
   const query = searchParams.toString() ? `?${searchParams}` : "";
-  return api.get<AuditLogsResponse>(`/api/audit/logs${query}`);
+  return api.get<AuditLogsResponse>(`${ROUTES.audit}/logs${query}`);
 }
 
 export async function getAuditStats(): Promise<AuditStatsResponse> {
-  return api.get<AuditStatsResponse>("/api/audit/stats");
+  return api.get<AuditStatsResponse>(`${ROUTES.audit}/stats`);
 }
 
 export async function getAuditOperations(): Promise<AuditOperationsResponse> {
-  return api.get<AuditOperationsResponse>("/api/audit/operations");
+  return api.get<AuditOperationsResponse>(`${ROUTES.audit}/operations`);
 }

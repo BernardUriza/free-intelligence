@@ -34,6 +34,7 @@ export interface Doctor {
   work_start_time: string | null; // e.g., "09:00" (24h format)
   work_end_time: string | null;   // e.g., "18:00" (24h format)
   working_hours?: WorkingHour[];
+  is_active: boolean;
 }
 
 /**

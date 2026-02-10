@@ -686,3 +686,38 @@
 @utility fi-focus-border-cyan {
   @apply focus:outline-none focus:border-cyan-500;
 }
+
+/* ========================================
+ * UI PRIMITIVE DEFAULTS (accordion, tabs)
+ * ======================================== */
+
+@utility fi-accordion-item {
+  @apply border-b;
+}
+
+@utility fi-accordion-trigger {
+  @apply flex w-full items-center justify-between py-4 text-left transition-all hover:underline;
+}
+
+@utility fi-accordion-chevron {
+  @apply fi-icon-sm transition-transform duration-200;
+}
+
+@utility fi-accordion-chevron-open {
+  @apply rotate-180;
+}
+
+@utility fi-accordion-content {
+  @apply overflow-hidden pb-4 transition-all;
+}
+
+@utility fi-tabs-list {
+  @apply inline-flex items-center justify-center rounded-md;
+}
+
+@utility fi-tabs-trigger {
+  @apply inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5
+         text-sm font-medium transition-all
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+         disabled:pointer-events-none disabled:opacity-50;
+}

@@ -54,7 +54,7 @@ export function WorkflowProgress({ workflowStatus }: WorkflowProgressProps) {
       <div className="mb-6">
         <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
           <div
-            className="h-3 rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-emerald-500 to-cyan-500"
+            className="med-progress-bar"
             style={{ width: `${workflowStatus.progress_pct}%` }}
           />
         </div>

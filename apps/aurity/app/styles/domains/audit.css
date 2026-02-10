@@ -1,0 +1,167 @@
+/**
+ * Audit Domain Styles
+ * AURITY Design System - Tailwind v4
+ *
+ * Naming convention: aud-{component}[-variant]
+ * Covers: /app/audit/page.tsx
+ */
+
+/* ========================================
+ * BASE UTILITIES (composable with @apply)
+ * ======================================== */
+
+@utility aud-loading {
+  @apply flex justify-center items-center py-12;
+}
+
+@utility aud-loading-spinner {
+  @apply animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500;
+}
+
+@utility aud-status {
+  @apply inline-block px-2 py-1 rounded text-sm;
+}
+
+/* ========================================
+ * COMPONENT VARIANTS
+ * ======================================== */
+
+@layer components {
+  /* ========================================
+   * PAGE LAYOUT
+   * ======================================== */
+  .aud-page {
+    @apply min-h-screen bg-slate-950;
+  }
+
+  .aud-content {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  /* ========================================
+   * FILTER BAR
+   * ======================================== */
+  .aud-filters {
+    @apply bg-slate-800 rounded-lg p-4 mb-6 flex flex-col sm:flex-row gap-4;
+  }
+
+  .aud-filter-col {
+    @apply flex-1;
+  }
+
+  .aud-filter-label {
+    @apply block text-sm font-medium fi-text mb-2;
+  }
+
+  .aud-filter-select {
+    @apply w-full;
+  }
+
+  /* ========================================
+   * ERROR STATE
+   * ======================================== */
+  .aud-error {
+    @apply bg-red-900/20 border border-red-700 fi-text-error px-4 py-3 rounded mb-4;
+  }
+
+  /* ========================================
+   * EMPTY STATE
+   * ======================================== */
+  .aud-empty {
+    @apply bg-slate-800 rounded-lg p-12 text-center;
+  }
+
+  .aud-empty-title {
+    @apply text-slate-400 text-lg;
+  }
+
+  .aud-empty-subtitle {
+    @apply text-slate-500 text-sm mt-2;
+  }
+
+  /* ========================================
+   * DETAIL MODAL
+   * ======================================== */
+  .aud-modal-overlay {
+    @apply fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50;
+  }
+
+  .aud-modal {
+    @apply bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto;
+  }
+
+  .aud-modal-header {
+    @apply flex justify-between items-start mb-4;
+  }
+
+  .aud-modal-title {
+    @apply text-xl font-bold text-slate-50;
+  }
+
+  .aud-modal-close {
+    @apply text-slate-400 hover:text-slate-200;
+  }
+
+  .aud-modal-body {
+    @apply space-y-4;
+  }
+
+  /* ========================================
+   * DETAIL FIELD VALUES
+   * ======================================== */
+  .aud-detail-value {
+    @apply text-slate-100;
+  }
+
+  .aud-detail-value-mono {
+    @apply text-slate-100 font-mono text-sm;
+  }
+
+  .aud-detail-value-hash {
+    @apply text-slate-100 font-mono text-xs break-all;
+  }
+
+  /* ========================================
+   * STATUS BADGES
+   * ======================================== */
+  .aud-status-success {
+    @apply aud-status bg-green-900/30 fi-text-green;
+  }
+
+  .aud-status-failed {
+    @apply aud-status bg-red-900/30 fi-text-error;
+  }
+
+  .aud-status-warning {
+    @apply aud-status bg-yellow-900/30 text-yellow-400;
+  }
+
+  /* ========================================
+   * METADATA BLOCK
+   * ======================================== */
+  .aud-metadata-label {
+    @apply fi-subtitle mb-2;
+  }
+
+  .aud-metadata-pre {
+    @apply bg-slate-900 fi-text p-3 rounded text-xs overflow-x-auto;
+  }
+
+  /* ========================================
+   * EVENT TIMELINE
+   * ======================================== */
+  .audit-search-input {
+    @apply w-full pl-10 pr-4 py-2 fi-panel text-white
+           placeholder-slate-400 focus:border-emerald-500 focus:outline-none;
+  }
+
+  .audit-timestamp-chip {
+    @apply flex items-center gap-1.5 px-2 py-1
+           bg-slate-900/50 border border-slate-700 rounded-md;
+  }
+
+  .audit-close-btn {
+    @apply p-1.5 text-slate-400 hover:text-white hover:bg-slate-800
+           rounded-lg transition-colors;
+  }
+}
