@@ -7,6 +7,20 @@
     "core:default",
     "shell:allow-open",
     "shell:allow-execute",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "fi-backend",
+          "sidecar": true,
+          "args": [
+            { "validator": "(gateway|rag)" },
+            "--port",
+            { "validator": "\\d+" }
+          ]
+        }
+      ]
+    },
     "process:default",
     "notification:default",
     "autostart:allow-enable",

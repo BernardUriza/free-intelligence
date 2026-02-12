@@ -982,7 +982,7 @@ dependencies = [
 
 [[package]]
 name = "fi-monitor"
-version = "1.0.6"
+version = "1.0.14"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
