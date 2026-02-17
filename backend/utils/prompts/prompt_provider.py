@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+
+from backend.utils.common.types import utc_now
 from string import Template
 from typing import Any
 
@@ -230,7 +232,7 @@ Format as patient-friendly instructions with clear, simple language.""",
             "type": prompt_type,
             "template_length": len(template),
             "required_parameters": placeholders,
-            "created_at": datetime.now().isoformat(),
+            "created_at": utc_now().isoformat(),
         }
 
     def register_new_template(self, prompt_type: str, template: str) -> None:

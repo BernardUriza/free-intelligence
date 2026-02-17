@@ -15,6 +15,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from backend.utils.common.types import utc_now
+
 
 class DocumentOrigin(str, Enum):
     """Where the document came from."""
@@ -94,7 +96,7 @@ class Document:
     origin: DocumentOrigin = DocumentOrigin.API_UPLOAD
 
     # Audit trail
-    uploaded_at: datetime = field(default_factory=lambda: datetime.now())
+    uploaded_at: datetime = field(default_factory=utc_now)
     updated_at: datetime | None = None
 
     # Error tracking (if status == ERROR)
@@ -109,7 +111,7 @@ class Document:
         """Mark document as successfully indexed."""
         self.status = DocumentStatus.INDEXED
         self.metadata.num_chunks = num_chunks
-        self.updated_at = datetime.now()
+        self.updated_at = utc_now()
         self.error_message = None
 
     def mark_error(self, error: str) -> None:
@@ -117,7 +119,7 @@ class Document:
         self.status = DocumentStatus.ERROR
         self.error_message = error
         self.retry_count += 1
-        self.updated_at = datetime.now()
+        self.updated_at = utc_now()
 
 
 @dataclass

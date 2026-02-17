@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import threading
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np

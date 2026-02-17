@@ -10,7 +10,7 @@ Card: FI-CHECKIN-002
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import stripe
 from backend.config.secrets import get_secret

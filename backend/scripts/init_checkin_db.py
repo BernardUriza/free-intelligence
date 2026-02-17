@@ -15,7 +15,7 @@ Card: FI-CHECKIN-001
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import sys
 from pathlib import Path

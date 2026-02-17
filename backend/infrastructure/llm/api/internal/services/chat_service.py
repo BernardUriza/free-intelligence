@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error

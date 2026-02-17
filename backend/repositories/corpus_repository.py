@@ -10,7 +10,7 @@ not business logic or API concerns.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Union, cast
 
 import h5py

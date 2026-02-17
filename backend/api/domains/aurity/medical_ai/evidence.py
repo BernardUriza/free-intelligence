@@ -14,7 +14,7 @@ Migrated: 2026-02-03 (Domain Migration)
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 

@@ -32,7 +32,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any
 

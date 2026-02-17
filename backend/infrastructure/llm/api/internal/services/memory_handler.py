@@ -8,7 +8,7 @@ Created: 2026-02-03 (SOLID refactor from chat.py monolith)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from backend.api.domains.aurity.assistant.websocket import broadcast_new_message

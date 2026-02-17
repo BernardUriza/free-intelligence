@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import enum
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 from backend.models.db_models import Base

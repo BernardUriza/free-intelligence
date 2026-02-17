@@ -234,6 +234,18 @@ ignore = [
     "F405",   # May be undefined from star import (legacy code)
     "F841",   # Local variable assigned but never used (sometimes intentional)
 ]
+
+# === HIPAA Compliance: Timezone-aware datetimes ===
+# Enable flake8-datetimez rules to catch naive datetime.now()
+# DTZ005: datetime.now() without tz argument
+extend-select = ["DTZ"]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow datetime.now() only in tests and CLI tools
+"backend/tests/**" = ["DTZ005"]
+"backend/cli/**" = ["DTZ005"]
+"backend/backend_minimal.py" = ["DTZ005"]
+
 typing-modules = ["typing"]
 
 [tool.ruff.lint.isort]

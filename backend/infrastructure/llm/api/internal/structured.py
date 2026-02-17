@@ -14,7 +14,7 @@ import hashlib
 import json
 import re
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
 

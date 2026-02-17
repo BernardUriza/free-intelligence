@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from backend.app.audit.sink import read_audit_events, write_audit_event

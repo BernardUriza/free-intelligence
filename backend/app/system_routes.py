@@ -9,7 +9,7 @@ Created: 2026-01-06
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import httpx
 import os

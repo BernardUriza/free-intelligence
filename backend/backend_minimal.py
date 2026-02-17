@@ -13,6 +13,8 @@ Run with: uvicorn backend_minimal:app --host 0.0.0.0 --port 7001 --reload
 from __future__ import annotations
 
 from datetime import datetime
+
+from backend.utils.common.types import utc_now
 from typing import Any
 
 import os
@@ -55,7 +57,7 @@ async def health_check():
     return {
         "status": "ok",
         "mode": "minimal",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
     }
 
 
@@ -70,7 +72,7 @@ async def deep_health_check():
             "ollama": "unchecked",
             "storage": "minimal",
         },
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
     }
 
 
@@ -151,7 +153,7 @@ async def create_session(data: SessionCreate):
     session_id = str(uuid.uuid4())
     _sessions[session_id] = {
         "id": session_id,
-        "created_at": datetime.now().isoformat(),
+        "created_at": utc_now().isoformat(),
         "patient_name": data.patient_name,
         "metadata": data.metadata,
         "status": "active",
@@ -271,7 +273,7 @@ async def startup_event():
     print("🏥 Aurity Backend (Minimal Mode)")
     print("=" * 60)
     print("  Mode:     MINIMAL (development)")
-    print(f"  Time:     {datetime.now().isoformat()}")
+    print(f"  Time:     {utc_now().isoformat()}")
     print("  Endpoints: /api/health, /api/chat, /api/sessions")
     print("=" * 60)
 

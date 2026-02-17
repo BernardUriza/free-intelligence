@@ -9,7 +9,7 @@ Created: 2026-02-03 (Refactor)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.database import get_db_dependency
 from backend.domain.clinic.services.doctor_limits import get_doctor_limit_info

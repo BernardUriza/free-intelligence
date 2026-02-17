@@ -10,7 +10,7 @@ Created: 2025-11-09
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import os

@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 import jwt

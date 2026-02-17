@@ -7,7 +7,7 @@ Coverage targets: backend/models/checkin_models.py helper functions
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from backend.models.checkin_models import (
     AppointmentStatus,

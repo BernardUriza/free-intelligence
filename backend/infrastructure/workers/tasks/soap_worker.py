@@ -6,7 +6,7 @@ Updated: 2026-02-01 (Phase 2.3 - DI migration, removed service locators)
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from backend.models.task_type import TaskStatus, TaskType

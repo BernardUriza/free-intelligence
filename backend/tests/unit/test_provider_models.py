@@ -11,7 +11,7 @@ Following HIPAA: No real PHI in test data (using fake/demo values).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from backend.providers.models import (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Task repository interface.
 
 Manages task lifecycle for multi-step workflows (transcription, diarization, SOAP).

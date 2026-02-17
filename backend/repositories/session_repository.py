@@ -18,7 +18,7 @@ DRY Principle:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Union
 
 from backend.utils.common.logging.logger import get_logger

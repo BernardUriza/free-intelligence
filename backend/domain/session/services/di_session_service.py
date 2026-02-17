@@ -14,7 +14,7 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.models.task_type import TaskStatus, TaskType
 from backend.infrastructure.interfaces.ievent_bus import IEventBus

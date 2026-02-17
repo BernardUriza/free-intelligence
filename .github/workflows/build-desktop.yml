@@ -355,14 +355,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -488,14 +503,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -637,6 +667,19 @@ jobs:
           $cargoContent = $cargoContent -replace '(?m)^version\s*=\s*"[^"]+"', "version = `"$newVersion`""
           $cargoContent | Set-Content $cargoPath -NoNewline
 
+          # === IMPROVEMENT #3: Sync backend version ===
+          Write-Host "Syncing backend/app/version.py..."
+          $versionPyPath = "backend/app/version.py"
+          $versionPyContent = Get-Content $versionPyPath -Raw
+          $versionPyContent = $versionPyContent -replace '(?m)^__version__\s*=\s*"[^"]+"', "__version__ = `"$newVersion`""
+          $versionPyContent | Set-Content $versionPyPath -NoNewline
+
+          Write-Host "Syncing pyproject.toml..."
+          $pyprojectPath = "pyproject.toml"
+          $pyprojectContent = Get-Content $pyprojectPath -Raw
+          $pyprojectContent = $pyprojectContent -replace '(?m)^version\s*=\s*"[^"]+"', "version = `"$newVersion`""
+          $pyprojectContent | Set-Content $pyprojectPath -NoNewline
+
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -687,14 +730,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -801,8 +859,23 @@ jobs:
           echo "::group::Binary Size Check"
           $size = (Get-Item "aurity-desktop.exe").Length / 1MB
           echo "Binary size: $([Math]::Round($size, 2)) MB"
-          if ($size -gt 100) {
-            echo "⚠️ Warning: Binary > 100MB (expected 30-50MB)"
+          if ($size -gt 150) {
+            Write-Host "::warning::Binary > 150MB (expected 50-100MB). Possible bloat or unoptimized build."
+            # Don't fail build, but warn for investigation
+          }
+          echo "::endgroup::"
+
+          echo "::group::Backend Binary Check"
+          $backendPath = "apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe"
+          if (Test-Path $backendPath) {
+            $backendSize = (Get-Item $backendPath).Length / 1MB
+            echo "Backend binary size: $([Math]::Round($backendSize, 2)) MB"
+            if ($backendSize -gt 100) {
+              Write-Host "::warning::Backend binary > 100MB. Consider optimizing PyInstaller build."
+            }
+          } else {
+            Write-Host "::error::Backend binary not found at $backendPath"
+            exit 1
           }
           echo "::endgroup::"
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Generator
-from datetime import UTC
+from datetime import datetime, timezone
 from typing import Union
 
 import h5py
@@ -121,7 +121,7 @@ def audit_entry_factory():
             "user_id": user_id,
             "resource": resource,
             "result": result,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     return _create_audit_entry

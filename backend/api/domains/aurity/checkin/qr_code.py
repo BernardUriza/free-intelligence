@@ -12,7 +12,7 @@ import base64
 import io
 import os
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import qrcode
 from backend.database import get_db_dependency

@@ -7,7 +7,7 @@ Coverage targets: backend/models/session.py, backend/models/task_type.py
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.models.session import EncryptionMetadata, Session, SessionStatus
 from backend.models.task_type import (
