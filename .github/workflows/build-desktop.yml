@@ -686,8 +686,14 @@ jobs:
 
           # Commit and push (now includes all synchronized files)
           git add .
-          git commit -m "chore: bump version to $newVersion [skip ci]"
-          git push origin ${{ github.ref_name }}
+          # Only commit if there are changes
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: bump version to $newVersion [skip ci]"
+            git push origin ${{ github.ref_name }}
+            Write-Host "✅ Version bumped and pushed: $currentVersion -> $newVersion"
+          else
+            Write-Host "⚠️  No version changes to commit (already at $newVersion)"
+          fi
 
           # Output for later steps
           "version=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
