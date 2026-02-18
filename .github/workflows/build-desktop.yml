@@ -177,6 +177,61 @@ jobs:
 
           Write-Host "✅ Renamed installers with target triple suffix"
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/pyinstaller/requirements.txt', 'apps/fi-monitor/gateway/requirements.txt', 'apps/fi-monitor/rag_service/requirements.txt') }}
+          restore-keys: |
+            pip-fi-monitor-${{ runner.os }}-py3.14-
+            pip-fi-monitor-${{ runner.os }}-
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/fi-monitor/pyinstaller/dist
+            apps/fi-monitor/pyinstaller/build
+          key: pyinstaller-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/gateway/**/*.py', 'apps/fi-monitor/rag_service/**/*.py', 'apps/fi-monitor/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-fi-monitor-${{ runner.os }}-py3.14-
+            pyinstaller-fi-monitor-${{ runner.os }}-
+
+      - name: Install PyInstaller
+        working-directory: apps/fi-monitor/pyinstaller
+        run: pip install -r requirements.txt
+
+      - name: Install fi-backend dependencies
+        run: |
+          pip install -r apps/fi-monitor/gateway/requirements.txt
+          pip install -r apps/fi-monitor/rag_service/requirements.txt
+
+      - name: Build fi-backend with PyInstaller
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd apps/fi-monitor/pyinstaller
+            pyinstaller fi-backend.spec
+          shell: bash
+
+      - name: Copy fi-backend binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path apps/fi-monitor/src-tauri/binaries
+          Copy-Item apps/fi-monitor/pyinstaller/dist/fi-backend-x86_64-pc-windows-msvc.exe `
+                    apps/fi-monitor/src-tauri/binaries/fi-backend-x86_64-pc-windows-msvc.exe
+
       - name: Build FI Monitor
         uses: nick-fields/retry@v3
         with:
@@ -877,7 +932,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Backend Binary Check"
-          $backendPath = "apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe"
+          $backendPath = "$env:GITHUB_WORKSPACE/apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe"
           if (Test-Path $backendPath) {
             $backendSize = (Get-Item $backendPath).Length / 1MB
             echo "Backend binary size: $([Math]::Round($backendSize, 2)) MB"
