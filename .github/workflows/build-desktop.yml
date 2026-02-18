@@ -180,7 +180,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.14'
           cache: 'pip'
 
       - name: Cache pip dependencies
@@ -189,9 +189,9 @@ jobs:
           path: |
             ~/.cache/pip
             C:\Users\runneradmin\AppData\Local\pip\Cache
-          key: pip-fi-monitor-${{ runner.os }}-py3.12-${{ hashFiles('apps/fi-monitor/pyinstaller/requirements.txt', 'apps/fi-monitor/gateway/requirements.txt', 'apps/fi-monitor/rag_service/requirements.txt') }}
+          key: pip-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/pyinstaller/requirements.txt', 'apps/fi-monitor/gateway/requirements.txt', 'apps/fi-monitor/rag_service/requirements.txt') }}
           restore-keys: |
-            pip-fi-monitor-${{ runner.os }}-py3.12-
+            pip-fi-monitor-${{ runner.os }}-py3.14-
             pip-fi-monitor-${{ runner.os }}-
 
       - name: Cache PyInstaller build
@@ -200,9 +200,9 @@ jobs:
           path: |
             apps/fi-monitor/pyinstaller/dist
             apps/fi-monitor/pyinstaller/build
-          key: pyinstaller-fi-monitor-${{ runner.os }}-py3.12-${{ hashFiles('apps/fi-monitor/gateway/**/*.py', 'apps/fi-monitor/rag_service/**/*.py', 'apps/fi-monitor/pyinstaller/*.spec') }}
+          key: pyinstaller-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/gateway/**/*.py', 'apps/fi-monitor/rag_service/**/*.py', 'apps/fi-monitor/pyinstaller/*.spec') }}
           restore-keys: |
-            pyinstaller-fi-monitor-${{ runner.os }}-py3.12-
+            pyinstaller-fi-monitor-${{ runner.os }}-py3.14-
             pyinstaller-fi-monitor-${{ runner.os }}-
 
       - name: Install PyInstaller
