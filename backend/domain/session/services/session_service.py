@@ -68,7 +68,7 @@ class SessionService:
 
         # Extract metadata and add missing fields
         metadata = session_data.get("metadata", {})
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         return {
             "id": session_id,
@@ -177,7 +177,7 @@ class SessionService:
             "session_id": session_id,
             "user_id": user_id,
             "status": "active",
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def update_session(

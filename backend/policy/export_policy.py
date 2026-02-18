@@ -365,7 +365,7 @@ def create_export_manifest(
     export_id = str(uuid.uuid4())
 
     # Generate timestamp
-    timestamp = datetime.now(UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     # Compute data hash
     data_hash = compute_file_hash(export_filepath)

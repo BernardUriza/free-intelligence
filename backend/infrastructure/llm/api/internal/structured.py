@@ -213,7 +213,7 @@ Respond with JSON in this exact format:
             model=model_name,
             prompt_hash=prompt_hash[:12],
             response_hash=response_hash[:12],
-            logged_at=datetime.now(UTC).isoformat(),
+            logged_at=datetime.now(timezone.utc).isoformat(),
         )
 
     except HTTPException:

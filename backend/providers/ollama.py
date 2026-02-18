@@ -136,7 +136,7 @@ class OllamaProvider(LLMProvider):
             json_format_enabled=json_format is not None,
         )
 
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         # Thinking mode control
         force_thinking = os.getenv("LLM_FORCE_THINKING", "false").lower() in {"1", "true", "yes"}
@@ -181,7 +181,7 @@ class OllamaProvider(LLMProvider):
         )
 
         response = result["response"]
-        latency_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
+        latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
         # Parse response
         thinking_text, content = self._parse_response(response, use_generate_with_think)

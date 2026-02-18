@@ -129,7 +129,7 @@ def replace_dataset_with_cipher(
     dset.attrs["enc:iv_b64"] = b64e(iv)
     dset.attrs["enc:plaintext_sha256"] = plaintext_sha256
     dset.attrs["enc:cipher_format"] = "AESGCM(ciphertext||tag)"
-    dset.attrs["enc:ts"] = datetime.now(UTC).isoformat()
+    dset.attrs["enc:ts"] = datetime.now(timezone.utc).isoformat()
 
 
 def write_json_dataset(h5: h5py.File, path: str, data: dict[str, Any]) -> None:

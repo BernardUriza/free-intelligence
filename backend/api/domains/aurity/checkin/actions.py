@@ -76,7 +76,7 @@ def complete_action(
     if action.status == PendingActionStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Action already completed")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # Handle specific action types
     if request.signature_data:
@@ -115,7 +115,7 @@ def skip_action(action_id: str, db: Session = Depends(get_db_dependency)):
         raise HTTPException(status_code=400, detail="Action cannot be skipped in current state")
 
     action.status = PendingActionStatus.SKIPPED
-    action.completed_at = datetime.now(UTC)
+    action.completed_at = datetime.now(timezone.utc)
     action.completed_by = "patient"
 
     db.commit()

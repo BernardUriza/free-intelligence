@@ -57,7 +57,7 @@ class DIAuditService:
         """
         # Create audit record with clinic_id
         audit_record: AuditLogDict = {
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "action": action,
             "user_id": user_id,
             "clinic_id": clinic_id,

@@ -108,7 +108,7 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
                         elif isinstance(value, (list, dict)):
                             dataset.attrs[key] = json.dumps(value)
 
-                dataset.attrs["created_at"] = datetime.now(UTC).isoformat()
+                dataset.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
                 dataset.attrs["version"] = 1
 
             self._log_operation("create", document_id)
@@ -174,7 +174,7 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
                 new_version = current_version + 1
 
                 # Store new version info
-                dataset.attrs["updated_at"] = datetime.now(UTC).isoformat()  # type: ignore[attr-defined]
+                dataset.attrs["updated_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
                 dataset.attrs["version"] = new_version  # type: ignore[attr-defined]
                 dataset.attrs[f"version_{new_version}_content"] = content.encode("utf-8")  # type: ignore[attr-defined]
 
@@ -205,7 +205,7 @@ class CorpusRepository(BaseRepository, ICorpusRepository):
                     return False
 
                 dataset = f[self.DOCUMENTS_GROUP][document_id]  # type: ignore[index]
-                dataset.attrs["deleted_at"] = datetime.now(UTC).isoformat()  # type: ignore[attr-defined]
+                dataset.attrs["deleted_at"] = datetime.now(timezone.utc).isoformat()  # type: ignore[attr-defined]
                 dataset.attrs["is_deleted"] = True  # type: ignore[attr-defined]
 
             self._log_operation("delete", document_id)

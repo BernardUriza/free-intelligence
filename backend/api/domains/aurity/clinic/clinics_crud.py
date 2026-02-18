@@ -142,7 +142,7 @@ def update_clinic(
     for field, value in update_data.items():
         setattr(clinic, field, value)
 
-    clinic.updated_at = datetime.now(UTC)
+    clinic.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(clinic)
 
@@ -171,7 +171,7 @@ def delete_clinic(
         raise HTTPException(status_code=404, detail="Clinic not found")
 
     clinic.is_active = False
-    clinic.updated_at = datetime.now(UTC)
+    clinic.updated_at = datetime.now(timezone.utc)
     db.commit()
 
     audit_service.log_action(

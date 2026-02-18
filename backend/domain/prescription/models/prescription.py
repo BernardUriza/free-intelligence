@@ -10,7 +10,7 @@ Created: 2025-12-28
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -348,7 +348,7 @@ class Prescription(BaseModel):
         """Whether the prescription is still valid (not expired/cancelled)."""
         if self.status in (PrescriptionStatus.CANCELLED, PrescriptionStatus.EXPIRED):
             return False
-        if self.expires_at and datetime.utcnow() > self.expires_at:
+        if self.expires_at and datetime.now(timezone.utc) > self.expires_at:
             return False
         return True
 
@@ -388,7 +388,7 @@ class Prescription(BaseModel):
                 raise ValueError(f"Cannot sign prescription in status: {self.status}")
 
         self.status = PrescriptionStatus.SIGNED
-        self.signed_at = datetime.utcnow()
+        self.signed_at = datetime.now(timezone.utc)
         self.signature_hash = self.calculate_hash()
 
         # Calculate expiration
@@ -415,7 +415,7 @@ class Prescription(BaseModel):
             raise ValueError("Only signed prescriptions can be marked as dispensed")
 
         self.status = PrescriptionStatus.DISPENSED
-        self.dispensed_at = datetime.utcnow()
+        self.dispensed_at = datetime.now(timezone.utc)
 
     def validate_completeness(self) -> list[str]:
         """Validate that prescription has all required fields.

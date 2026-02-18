@@ -140,7 +140,7 @@ class WorkflowTracker(IWorkflowTracker):
             execution = TaskExecution(
                 task_type=task_str,
                 status=TaskStatus.IN_PROGRESS,
-                started_at=datetime.now(UTC).isoformat(),
+                started_at=datetime.now(timezone.utc).isoformat(),
             )
             self._workflows[session_id][task_str] = execution
 
@@ -177,15 +177,15 @@ class WorkflowTracker(IWorkflowTracker):
                 self._workflows[session_id][task_str] = TaskExecution(
                     task_type=task_str,
                     status=TaskStatus.COMPLETED,
-                    started_at=datetime.now(UTC).isoformat(),
-                    completed_at=datetime.now(UTC).isoformat(),
+                    started_at=datetime.now(timezone.utc).isoformat(),
+                    completed_at=datetime.now(timezone.utc).isoformat(),
                     result=result or {},
                 )
                 return
 
             execution = self._workflows[session_id][task_str]
             execution.status = TaskStatus.COMPLETED
-            execution.completed_at = datetime.now(UTC).isoformat()
+            execution.completed_at = datetime.now(timezone.utc).isoformat()
             execution.result = result or {}
 
             # Calculate duration
@@ -224,14 +224,14 @@ class WorkflowTracker(IWorkflowTracker):
                 self._workflows[session_id][task_str] = TaskExecution(
                     task_type=task_str,
                     status=TaskStatus.FAILED,
-                    started_at=datetime.now(UTC).isoformat(),
-                    failed_at=datetime.now(UTC).isoformat(),
+                    started_at=datetime.now(timezone.utc).isoformat(),
+                    failed_at=datetime.now(timezone.utc).isoformat(),
                     error=error,
                 )
             else:
                 execution = self._workflows[session_id][task_str]
                 execution.status = TaskStatus.FAILED
-                execution.failed_at = datetime.now(UTC).isoformat()
+                execution.failed_at = datetime.now(timezone.utc).isoformat()
                 execution.error = error
 
                 # Calculate duration

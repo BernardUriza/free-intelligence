@@ -79,7 +79,7 @@ class UserService:
             return None
 
         # Update last login
-        user.last_login_at = datetime.now(UTC)
+        user.last_login_at = datetime.now(timezone.utc)
         self.db.commit()
 
         logger.info("user_authenticated", user_id=user.id, email=user.email)

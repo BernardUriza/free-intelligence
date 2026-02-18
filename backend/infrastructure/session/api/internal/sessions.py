@@ -238,7 +238,7 @@ async def create_session(
 
         logger.info("SESSION_CREATED", session_id=session["session_id"], user_id=current_user.id)
 
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         return SessionResponse(
             id=session["session_id"],
             created_at=now,

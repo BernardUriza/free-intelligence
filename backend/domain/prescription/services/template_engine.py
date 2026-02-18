@@ -9,7 +9,7 @@ Created: 2025-12-28
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -132,8 +132,8 @@ class TemplateEngine:
         if not template.id or template.id == "default":
             template.id = str(uuid4())
 
-        template.created_at = datetime.utcnow()
-        template.updated_at = datetime.utcnow()
+        template.created_at = datetime.now(timezone.utc)
+        template.updated_at = datetime.now(timezone.utc)
 
         self._templates[template.id] = template
 
@@ -174,7 +174,7 @@ class TemplateEngine:
             if hasattr(template, key) and key not in ("id", "created_at", "owner_type"):
                 setattr(template, key, value)
 
-        template.updated_at = datetime.utcnow()
+        template.updated_at = datetime.now(timezone.utc)
 
         logger.info("TEMPLATE_UPDATED", template_id=template_id)
 
@@ -198,7 +198,7 @@ class TemplateEngine:
             return False
 
         template.is_active = False
-        template.updated_at = datetime.utcnow()
+        template.updated_at = datetime.now(timezone.utc)
 
         logger.info("TEMPLATE_DELETED", template_id=template_id)
 

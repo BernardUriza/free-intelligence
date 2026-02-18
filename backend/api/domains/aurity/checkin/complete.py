@@ -80,7 +80,7 @@ async def complete_checkin(
             error="Debe completar las acciones requeridas antes del check-in",
         )
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # Calculate queue position
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)

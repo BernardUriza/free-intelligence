@@ -9,6 +9,7 @@ Migrated from: backend/api/routers/session/public/sessions_pkg/audit.py
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.domain.session.dependencies import get_corpus_repository, get_task_repository
@@ -211,9 +212,7 @@ async def submit_doctor_feedback(
             "comments": feedback.comments,
             "corrections": [corr.model_dump() for corr in feedback.corrections],
             "decision": feedback.decision,
-            "submitted_at": __import__("datetime")
-            .datetime.now(__import__("datetime").UTC)
-            .isoformat(),
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
             "submitted_by": user_identifier,
             "submitted_by_display": user_display_name,
         }
@@ -224,9 +223,7 @@ async def submit_doctor_feedback(
                 "doctor_feedback": feedback_data,
                 "audit_status": feedback.decision,
                 "audit_rating": feedback.rating,
-                "audited_at": __import__("datetime")
-                .datetime.now(__import__("datetime").UTC)
-                .isoformat(),
+                "audited_at": datetime.now(timezone.utc).isoformat(),
                 "audited_by": user_identifier,
                 "audited_by_display": user_display_name,
             },

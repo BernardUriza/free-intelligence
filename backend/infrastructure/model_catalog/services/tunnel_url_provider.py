@@ -121,7 +121,7 @@ class TunnelURLProvider:
 
                     self._cached_url = tunnel_data["tunnel_url"]
                     self._cached_data = tunnel_data
-                    self._cache_expires_at = datetime.now(UTC) + self._cache_ttl
+                    self._cache_expires_at = datetime.now(timezone.utc) + self._cache_ttl
                     self._reset_circuit_breaker()
 
                     # Optional health check
@@ -168,7 +168,7 @@ class TunnelURLProvider:
         """Check if the cached URL is still valid."""
         if self._cached_url is None or self._cache_expires_at is None:
             return False
-        return datetime.now(UTC) < self._cache_expires_at
+        return datetime.now(timezone.utc) < self._cache_expires_at
 
     def _is_tunnel_fresh(self, tunnel_data: dict[str, Any]) -> bool:
         """Check if the tunnel URL was updated recently enough."""
@@ -179,7 +179,7 @@ class TunnelURLProvider:
         try:
             # Parse ISO 8601 timestamp
             updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
-            age = datetime.now(UTC) - updated_at
+            age = datetime.now(timezone.utc) - updated_at
             return age < self._max_tunnel_age
         except (ValueError, TypeError):
             logger.warning("tunnel_timestamp_parse_error", timestamp=updated_at_str)
@@ -198,7 +198,7 @@ class TunnelURLProvider:
         """Check if the circuit breaker is open (blocking requests)."""
         if self._circuit_open_until is None:
             return False
-        if datetime.now(UTC) >= self._circuit_open_until:
+        if datetime.now(timezone.utc) >= self._circuit_open_until:
             # Reset circuit breaker
             self._circuit_open_until = None
             self._consecutive_failures = 0
@@ -209,7 +209,7 @@ class TunnelURLProvider:
         """Record a failure and potentially open the circuit breaker."""
         self._consecutive_failures += 1
         if self._consecutive_failures >= self._max_failures_before_open:
-            self._circuit_open_until = datetime.now(UTC) + timedelta(
+            self._circuit_open_until = datetime.now(timezone.utc) + timedelta(
                 seconds=self._circuit_reset_seconds
             )
             logger.warning(

@@ -68,7 +68,7 @@ async def version_info() -> dict:
     Returns version info and sample Python code for validation.
     This endpoint is used by CI/CD to verify successful deployment.
     """
-    build_timestamp = datetime.now(UTC).isoformat()
+    build_timestamp = datetime.now(timezone.utc).isoformat()
 
     # Python code that validates the system is working
     python_e2e_code = f'''#!/usr/bin/env python3
@@ -163,7 +163,7 @@ def get_api_info() -> dict:
             "description": "Advanced Universal Reliable Intelligence for Telemedicine Yield",
             "version": __version__,
             "environment": environment,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "status": {
             "operational": True,

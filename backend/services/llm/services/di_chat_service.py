@@ -85,7 +85,7 @@ class ChatProcessingResult:
         self.response_hash = response_hash
         self.voice = voice
         self.thinking = thinking
-        self.logged_at = logged_at or datetime.now(UTC).isoformat()
+        self.logged_at = logged_at or datetime.now(timezone.utc).isoformat()
 
 
 class DIChatService:
@@ -461,7 +461,7 @@ class DIChatService:
                 response_hash=response_hash[:12],
                 voice=persona_config.voice,  # Azure TTS voice for this persona
                 thinking=thinking,
-                logged_at=datetime.now(UTC).isoformat(),
+                logged_at=datetime.now(timezone.utc).isoformat(),
             )
 
         except ValueError as e:
@@ -515,7 +515,7 @@ class DIChatService:
         memory = get_memory_manager(doctor_id)
 
         # Store user message
-        user_timestamp = datetime.now(UTC).isoformat()
+        user_timestamp = datetime.now(timezone.utc).isoformat()
         memory.store_interaction(
             session_id=session_id or "unknown",
             role="user",
@@ -600,7 +600,7 @@ class DIChatService:
             model_name: LLM model that generated response
         """
         memory = get_memory_manager(doctor_id)
-        assistant_timestamp = datetime.now(UTC).isoformat()
+        assistant_timestamp = datetime.now(timezone.utc).isoformat()
         memory.store_interaction(
             session_id=session_id or "unknown",
             role="assistant",

@@ -61,6 +61,6 @@ def _parse_timestamp(value: Any) -> datetime | None:
     try:
         if value is None:
             return None
-        return datetime.fromtimestamp(float(value), tz=UTC)
+        return datetime.fromtimestamp(float(value), tz=timezone.utc)
     except Exception:
         return None

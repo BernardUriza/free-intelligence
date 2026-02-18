@@ -66,7 +66,7 @@ class LicensePayload:
     features: list[str] = field(default_factory=list)
 
     # Validity period
-    issued_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    issued_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     expires_at: str = ""  # ISO 8601 format
 
     # License metadata
@@ -87,7 +87,7 @@ class LicensePayload:
         if not self.expires_at:
             return False  # No expiration = never expires
         expires = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
-        return datetime.now(UTC) > expires
+        return datetime.now(timezone.utc) > expires
 
 
 def generate_keypair(force: bool = False) -> tuple[bytes, bytes]:

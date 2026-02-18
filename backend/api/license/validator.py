@@ -112,7 +112,7 @@ def validate_license(
         if payload.expires_at:
             try:
                 expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
 
                 if now > expires:
                     days_expired = (now - expires).days
@@ -163,7 +163,7 @@ def is_license_expired(license_key: str) -> tuple[bool, int | None]:
             return False, None  # Perpetual license
 
         expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         days = (expires - now).days
 
@@ -193,7 +193,7 @@ def get_license_info(license_key: str) -> dict | None:
         if payload.expires_at:
             try:
                 expires = datetime.fromisoformat(payload.expires_at.replace("Z", "+00:00"))
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
                 days_remaining = (expires - now).days
             except ValueError:
                 pass

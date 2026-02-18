@@ -178,7 +178,7 @@ def list_appointments(
         try:
             filter_date = datetime.fromisoformat(date).date()
             # Use UTC timezone to match database timestamps
-            start_of_day = datetime.combine(filter_date, datetime.min.time(), tzinfo=UTC)
+            start_of_day = datetime.combine(filter_date, datetime.min.time(), tzinfo=timezone.utc)
             end_of_day = start_of_day + timedelta(days=1)
             query = query.filter(
                 Appointment.scheduled_at >= start_of_day,
@@ -271,7 +271,7 @@ def update_appointment(
         try:
             scheduled_at = datetime.fromisoformat(update_data["scheduled_at"])
             if scheduled_at.tzinfo is None:
-                scheduled_at = scheduled_at.replace(tzinfo=UTC)
+                scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
             update_data["scheduled_at"] = scheduled_at
 
             # Regenerate checkin code expiration (2 hours after new scheduled time)
@@ -285,7 +285,7 @@ def update_appointment(
     for field, value in update_data.items():
         setattr(appointment, field, value)
 
-    appointment.updated_at = datetime.now(UTC)
+    appointment.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(appointment)
 
@@ -329,7 +329,7 @@ def delete_appointment(
 
     # Soft delete
     appointment.is_deleted = True
-    appointment.updated_at = datetime.now(UTC)
+    appointment.updated_at = datetime.now(timezone.utc)
     db.commit()
 
     logger.info(

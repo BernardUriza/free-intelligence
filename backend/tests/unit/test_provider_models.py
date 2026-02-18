@@ -257,7 +257,7 @@ class TestSOAPMetadata:
         metadata = SOAPMetadata(
             medico="Dr. Demo",
             especialidad="General",
-            fecha=datetime.now(UTC),
+            fecha=datetime.now(timezone.utc),
             duracion_consulta=30,
             consentimiento_informado=True,
         )
@@ -270,7 +270,7 @@ class TestSOAPMetadata:
         metadata = SOAPMetadata(
             medico="Dr. Demo",
             especialidad="General",
-            fecha=datetime.now(UTC),
+            fecha=datetime.now(timezone.utc),
             duracion_consulta=15,
             consentimiento_informado=True,
         )

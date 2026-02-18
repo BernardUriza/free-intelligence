@@ -82,8 +82,8 @@ class ConversationContext:
     attempts: int = 0
     max_attempts: int = 3
     messages: list[dict] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    last_updated: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def add_message(self, role: str, content: str) -> None:
@@ -92,10 +92,10 @@ class ConversationContext:
             {
                 "role": role,
                 "content": content,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
-        self.last_updated = datetime.now(UTC)
+        self.last_updated = datetime.now(timezone.utc)
 
 
 @dataclass

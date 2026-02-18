@@ -74,7 +74,7 @@ class BaseLogEvent:
     """
 
     # Required fields
-    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     host: str = field(default_factory=lambda: socket.gethostname())
     service: ServiceChannel = field(default=ServiceChannel.SERVER)
     version: str = "0.3.0"

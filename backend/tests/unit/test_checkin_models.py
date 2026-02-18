@@ -101,7 +101,7 @@ class TestGetCheckinCodeExpiry:
 
     def test_expiry_is_future(self):
         """Should be in the future or same second."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expiry = get_checkin_code_expiry()
         
         assert expiry >= now.replace(hour=0, minute=0, second=0)
@@ -112,9 +112,9 @@ class TestGetSessionExpiry:
 
     def test_returns_15_minutes_future(self):
         """Should return time 15 minutes in future."""
-        before = datetime.now(UTC)
+        before = datetime.now(timezone.utc)
         expiry = get_session_expiry()
-        after = datetime.now(UTC)
+        after = datetime.now(timezone.utc)
         
         expected_min = before + timedelta(minutes=15)
         expected_max = after + timedelta(minutes=15)
@@ -133,9 +133,9 @@ class TestGetQrExpiry:
 
     def test_returns_5_minutes_future(self):
         """Should return time 5 minutes in future."""
-        before = datetime.now(UTC)
+        before = datetime.now(timezone.utc)
         expiry = get_qr_expiry()
-        after = datetime.now(UTC)
+        after = datetime.now(timezone.utc)
         
         expected_min = before + timedelta(minutes=5)
         expected_max = after + timedelta(minutes=5)

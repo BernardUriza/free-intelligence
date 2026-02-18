@@ -32,7 +32,7 @@ import time
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import os
@@ -117,7 +117,7 @@ def generate_id():
 
 def run_housekeeping() -> dict:
     """Clean old records from the database."""
-    cutoff = (datetime.utcnow() - timedelta(hours=MAX_AGE_HOURS)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=MAX_AGE_HOURS)).isoformat()
 
     with get_db() as conn:
         # Count before
@@ -316,7 +316,7 @@ def log_call(
 ) -> str:
     """Log an LLM call to the database."""
     call_id = generate_id()
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     prompt_hash = hashlib.sha256(prompt_preview.encode()).hexdigest()[:16] if prompt_preview else ""
     response_hash = (
@@ -356,7 +356,7 @@ def log_call(
 
 def get_stats(hours: int = 24) -> dict:
     """Get aggregated statistics."""
-    since = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
     with get_db() as conn:
         row = conn.execute(

@@ -260,7 +260,7 @@ class WorkflowOrchestrator:
         return {
             "encryption_status": "QUEUED",
             "encryption_task_id": encryption_task_id,
-            "finalized_at": datetime.now(UTC).isoformat(),
+            "finalized_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def dispatch_workflow(self, workflow: str, session_id: str) -> dict[str, Any]:

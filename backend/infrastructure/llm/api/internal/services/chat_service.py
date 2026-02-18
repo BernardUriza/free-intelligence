@@ -228,7 +228,7 @@ class ChatService:
             voice=state.persona_config.voice,
             prompt_hash=state.prompt_hash[:12],
             response_hash=response_hash[:12],
-            logged_at=datetime.now(UTC).isoformat(),
+            logged_at=datetime.now(timezone.utc).isoformat(),
             memory_enabled=state.memory_enabled,
             cost_usd=cost_usd,
         )

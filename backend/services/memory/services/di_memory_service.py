@@ -11,7 +11,7 @@ Card: Backend Refactor Phase 2.4 - Memory Service DI
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from backend.repositories.interfaces.imemory_store import IMemoryStore
@@ -273,7 +273,7 @@ class DIMemoryService:
             doctor_id=doctor_id,
             action="VIEW_TIMELINE",
             event_type=event_type,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         # Parse time range
@@ -382,7 +382,7 @@ class DIMemoryService:
             doctor_id=doctor_id,
             action="SEARCH_TIMELINE",
             query_length=len(query),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         query_lower = query.lower()

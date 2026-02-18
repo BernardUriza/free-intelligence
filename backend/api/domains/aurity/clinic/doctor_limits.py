@@ -74,7 +74,7 @@ def update_doctor_override(
 
     old_override = clinic.max_doctors_override
     clinic.max_doctors_override = request.max_doctors_override
-    clinic.updated_at = datetime.now(UTC)
+    clinic.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(clinic)
 

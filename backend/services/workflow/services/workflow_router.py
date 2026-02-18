@@ -40,7 +40,7 @@ class RoutingCost:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(UTC).isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
 
 
 # Pricing (as of 2025-11-20)

@@ -42,7 +42,7 @@ def generate_qr(request: GenerateQRRequest, db: Session = Depends(get_db_depende
         raise HTTPException(status_code=404, detail=f"Clinic {request.clinic_id} not found")
 
     # Generate QR data
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     expires_at = now.replace(second=0, microsecond=0)
     expires_at = expires_at.replace(minute=expires_at.minute + QR_EXPIRY_MINUTES)
 

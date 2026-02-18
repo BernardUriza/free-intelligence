@@ -152,7 +152,7 @@ def parse_time(value: Any) -> datetime | None:
     if isinstance(value, (int, float)):
         # unix seconds
         try:
-            return datetime.fromtimestamp(float(value), tz=UTC)
+            return datetime.fromtimestamp(float(value), tz=timezone.utc)
         except Exception:
             return None
 
@@ -164,12 +164,12 @@ def parse_time(value: Any) -> datetime | None:
         # unix millis/seconds as string
         if re.fullmatch(r"\d{10}(?:\.\d+)?", v):
             try:
-                return datetime.fromtimestamp(float(v), tz=UTC)
+                return datetime.fromtimestamp(float(v), tz=timezone.utc)
             except Exception:
                 return None
         if re.fullmatch(r"\d{13}", v):
             try:
-                return datetime.fromtimestamp(float(v) / 1000.0, tz=UTC)
+                return datetime.fromtimestamp(float(v) / 1000.0, tz=timezone.utc)
             except Exception:
                 return None
 
@@ -179,8 +179,8 @@ def parse_time(value: Any) -> datetime | None:
                 v = v[:-1] + "+00:00"
             dt = datetime.fromisoformat(v)
             if dt.tzinfo is None:
-                return dt.replace(tzinfo=UTC)
-            return dt.astimezone(UTC)
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
         except Exception:
             return None
 

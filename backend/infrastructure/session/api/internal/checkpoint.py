@@ -147,7 +147,7 @@ async def checkpoint_session(
 
         return CheckpointResponse(
             session_id=session_id,
-            checkpoint_at=datetime.now(UTC).isoformat(),
+            checkpoint_at=datetime.now(timezone.utc).isoformat(),
             chunks_concatenated=result.chunks_concatenated,
             full_audio_size=len(result.audio_bytes),
             message=f"Checkpoint created: {result.chunks_concatenated} chunks concatenated, {len(result.audio_bytes):,} bytes total",
@@ -156,7 +156,7 @@ async def checkpoint_session(
     except NoChunksToProcessError:
         return CheckpointResponse(
             session_id=session_id,
-            checkpoint_at=datetime.now(UTC).isoformat(),
+            checkpoint_at=datetime.now(timezone.utc).isoformat(),
             chunks_concatenated=0,
             full_audio_size=0,
             message="No new chunks to concatenate",

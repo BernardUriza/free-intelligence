@@ -64,7 +64,7 @@ async def create_export(
                     "session_id": request.session_id,
                     "format": fmt,
                     "include": request.include.model_dump(),
-                    "generated_at": datetime.now(UTC).isoformat() + "Z",
+                    "generated_at": datetime.now(timezone.utc).isoformat() + "Z",
                 },
                 indent=2,
             )

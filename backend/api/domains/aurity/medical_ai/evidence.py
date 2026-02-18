@@ -67,7 +67,7 @@ async def _generate_evidence_pack_from_session(
             {
                 "source_id": f"diarization_{session_id[:8]}",
                 "tipo_doc": "transcripcion_audio",
-                "fecha": datetime.now(UTC).isoformat(),
+                "fecha": datetime.now(timezone.utc).isoformat(),
                 "paciente_id": session_id,
                 "hallazgo": f"Conversación médica con {len(segments)} segmentos",
                 "severidad": "informativo",
@@ -88,7 +88,7 @@ Plan: {soap_data.get("plan", {}).get("treatment", "N/A")}
         {
             "source_id": f"soap_{session_id[:8]}",
             "tipo_doc": "clinical_note",
-            "fecha": datetime.now(UTC).isoformat(),
+            "fecha": datetime.now(timezone.utc).isoformat(),
             "paciente_id": session_id,
             "hallazgo": soap_data.get("assessment", {}).get("primary_diagnosis", "N/A"),
             "severidad": "moderada",
@@ -102,8 +102,8 @@ Plan: {soap_data.get("plan", {}).get("treatment", "N/A")}
     ]
 
     pack_data = {
-        "pack_id": f"pack_{int(datetime.now(UTC).timestamp())}_{session_id[:8]}",
-        "created_at": datetime.now(UTC).isoformat(),
+        "pack_id": f"pack_{int(datetime.now(timezone.utc).timestamp())}_{session_id[:8]}",
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "session_id": session_id,
         "sources": sources,
         "source_hashes": source_hashes,

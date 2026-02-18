@@ -117,7 +117,7 @@ def analyze_emotion_worker(
                 "clinical_recommendations": ["Unable to analyze - no patient speech detected"],
                 "metadata": {
                     "session_id": session_id,
-                    "analyzed_at": datetime.now(UTC).isoformat(),
+                    "analyzed_at": datetime.now(timezone.utc).isoformat(),
                     "analysis_limitations": ["No patient segments found in diarization"],
                 },
             }
@@ -128,7 +128,7 @@ def analyze_emotion_worker(
                 TaskType.EMOTION_ANALYSIS.value,
                 {
                     "status": TaskStatus.COMPLETED,
-                    "completed_at": datetime.now(UTC).isoformat(),
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
                     "duration_seconds": round(time.time() - start_time, 2),
                 },
             )
@@ -152,7 +152,7 @@ def analyze_emotion_worker(
             {
                 "status": TaskStatus.IN_PROGRESS,
                 "progress_percent": 30,
-                "started_at": datetime.now(UTC).isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
                 "patient_segments": len(patient_segments),
             },
         )
@@ -244,7 +244,7 @@ def analyze_emotion_worker(
             # Add metadata
             result["metadata"] = {
                 "session_id": session_id,
-                "analyzed_at": datetime.now(UTC).isoformat(),
+                "analyzed_at": datetime.now(timezone.utc).isoformat(),
                 "model_version": preset.version,
                 "provider": preset.provider,
                 "model": preset.model,
@@ -285,7 +285,7 @@ def analyze_emotion_worker(
                 "support_needs": [],
                 "metadata": {
                     "session_id": session_id,
-                    "analyzed_at": datetime.now(UTC).isoformat(),
+                    "analyzed_at": datetime.now(timezone.utc).isoformat(),
                     "model_version": preset.version,
                     "patient_segments_analyzed": len(patient_segments),
                     "error": str(e),
@@ -303,7 +303,7 @@ def analyze_emotion_worker(
             {
                 "status": TaskStatus.COMPLETED,
                 "progress_percent": 100,
-                "completed_at": datetime.now(UTC).isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
                 "duration_seconds": round(time.time() - start_time, 2),
                 "primary_emotion": result["primary_emotion"],
                 "confidence": result["confidence"],
@@ -335,7 +335,7 @@ def analyze_emotion_worker(
                 {
                     "status": TaskStatus.FAILED,
                     "error": str(e),
-                    "failed_at": datetime.now(UTC).isoformat(),
+                    "failed_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
         raise

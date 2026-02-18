@@ -129,7 +129,7 @@ def seed_demo_data() -> None:
         print(f"   ✅ Patients: {len(patients)} created")
 
         # 4. Create demo appointments for today
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         today_10am = now.replace(hour=10, minute=0, second=0, microsecond=0)
         today_11am = now.replace(hour=11, minute=0, second=0, microsecond=0)
         today_12pm = now.replace(hour=12, minute=0, second=0, microsecond=0)

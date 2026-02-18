@@ -119,18 +119,18 @@ def generate_checkin_code() -> str:
 
 def get_checkin_code_expiry() -> datetime:
     """Get expiry time for check-in code (end of today)."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     return now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
 
 def get_session_expiry() -> datetime:
     """Get expiry time for check-in session (15 minutes)."""
-    return datetime.now(UTC) + timedelta(minutes=15)
+    return datetime.now(timezone.utc) + timedelta(minutes=15)
 
 
 def get_qr_expiry() -> datetime:
     """Get expiry time for QR code (5 minutes)."""
-    return datetime.now(UTC) + timedelta(minutes=5)
+    return datetime.now(timezone.utc) + timedelta(minutes=5)
 
 
 # =============================================================================
@@ -519,7 +519,7 @@ class CheckinSession(Base):
     @property
     def is_expired(self) -> bool:
         """Check if session has expired."""
-        return datetime.now(UTC) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     def to_dict(self) -> dict:
         """Convert CheckinSession instance to dictionary representation."""

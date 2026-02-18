@@ -150,7 +150,7 @@ def update_doctor(
     for field, value in update_data.items():
         setattr(doctor, field, value)
 
-    doctor.updated_at = datetime.now(UTC)
+    doctor.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(doctor)
 
@@ -185,7 +185,7 @@ def delete_doctor(
         raise HTTPException(status_code=404, detail="Doctor not found")
 
     doctor.is_active = False
-    doctor.updated_at = datetime.now(UTC)
+    doctor.updated_at = datetime.now(timezone.utc)
     db.commit()
 
     audit_service.log_action(
