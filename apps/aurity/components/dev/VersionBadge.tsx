@@ -3,8 +3,8 @@
 /**
  * VersionBadge - Floating version indicator for E2E testing
  *
- * Displays current version in corner. Version number comes from /releases.json
- * (source of truth for UI), while environment/build info comes from backend /api/version.
+ * Displays current version in corner. Version number comes from /api/downloads/info
+ * (dynamic GitHub releases), while environment/build info comes from backend /api/version.
  * Used by CI/CD to verify frontend-backend connectivity.
  *
  * @example
@@ -33,16 +33,16 @@ export function VersionBadge() {
   useEffect(() => {
     const fetchVersion = async () => {
       try {
-        // Fetch release version from releases.json (source of truth for UI version)
+        // Fetch release version from backend API (dynamic from GitHub releases)
         let releaseVersion: string | null = null;
         try {
-          const releasesRes = await fetch('/releases.json');
+          const releasesRes = await fetch('/api/downloads/info');
           if (releasesRes.ok) {
             const releasesData = await releasesRes.json();
             releaseVersion = releasesData.releases?.[0]?.version || null;
           }
         } catch {
-          console.debug('VersionBadge: Could not fetch releases.json');
+          console.debug('VersionBadge: Could not fetch release info');
         }
 
         // Fetch backend info (environment, build_timestamp, etc.)
@@ -51,7 +51,7 @@ export function VersionBadge() {
         const backendPort = getBackendPort() ?? undefined;
         setVersion({
           ...data,
-          // releases.json version takes priority over backend version
+          // GitHub release version takes priority over backend version
           version: releaseVersion || data.version,
           backend_port: backendPort,
         });
