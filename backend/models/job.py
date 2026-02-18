@@ -130,7 +130,7 @@ class Job:
         Returns:
             Job instance with pending status and current timestamp
         """
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         resolved_job_type = job_type if isinstance(job_type, JobType) else JobType(str(job_type))
         return cls(
             job_id=job_id,
@@ -145,7 +145,7 @@ class Job:
     def start(self) -> None:
         """Mark job as started."""
         self.status = JobStatus(str(JobStatus.IN_PROGRESS))
-        started_at = datetime.now(UTC).isoformat()
+        started_at = datetime.now(timezone.utc).isoformat()
         self.started_at = started_at
         self.updated_at = started_at
 
@@ -156,7 +156,7 @@ class Job:
             result_data: Job-specific result data
         """
         self.status = JobStatus(str(JobStatus.COMPLETED))
-        completed_at = datetime.now(UTC).isoformat()
+        completed_at = datetime.now(timezone.utc).isoformat()
         self.completed_at = completed_at
         self.updated_at = completed_at
         self.progress_percent = 100
@@ -171,7 +171,7 @@ class Job:
         """
         self.status = JobStatus(str(JobStatus.FAILED))
         self.error_message = error_message
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def update_progress(self, percent: int) -> None:
         """Update job progress.
@@ -180,7 +180,7 @@ class Job:
             percent: Progress percentage (0-100)
         """
         self.progress_percent = max(0, min(100, percent))
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""

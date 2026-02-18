@@ -126,7 +126,7 @@ def _build_persona_response(
             avg_cost_usd=metrics["avg_cost_usd"],
         ),
         version=yaml_data.get("version", 1),
-        last_updated=yaml_data.get("updated_at", datetime.now(UTC).isoformat()),
+        last_updated=yaml_data.get("updated_at", datetime.now(timezone.utc).isoformat()),
         updated_by=yaml_data.get("updated_by", "System"),
     )
 
@@ -320,7 +320,7 @@ async def update_persona(
 
     # Increment version
     yaml_data["version"] = yaml_data.get("version", 1) + 1
-    yaml_data["updated_at"] = datetime.now(UTC).isoformat()
+    yaml_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     yaml_data["updated_by"] = current_user.email or current_user.sub
 
     # Save updated YAML
@@ -464,8 +464,8 @@ async def create_persona(
         "max_tokens": create_request.max_tokens,
         "examples": create_request.examples,
         "version": 1,
-        "created_at": datetime.now(UTC).isoformat(),
-        "updated_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "updated_by": current_user.email or current_user.user_id,
     }
 

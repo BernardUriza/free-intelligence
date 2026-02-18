@@ -111,7 +111,7 @@ async def admin_generate_license(
 
     try:
         # Calculate expiration
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expires_at = now + timedelta(days=request.expires_days)
 
         # Create license payload

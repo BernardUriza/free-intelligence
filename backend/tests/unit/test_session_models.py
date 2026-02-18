@@ -135,9 +135,9 @@ class TestSession:
 
     def test_session_create_now(self):
         """Should create active session with current timestamp."""
-        before = datetime.now(UTC)
+        before = datetime.now(timezone.utc)
         session = Session.create_now("new-session-id")
-        after = datetime.now(UTC)
+        after = datetime.now(timezone.utc)
         
         assert session.session_id == "new-session-id"
         assert session.status == SessionStatus.ACTIVE

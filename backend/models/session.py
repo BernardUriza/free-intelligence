@@ -121,7 +121,7 @@ class Session:
         Returns:
             Session instance
         """
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         return cls(
             session_id=session_id,
             status=SessionStatus.ACTIVE,
@@ -137,7 +137,7 @@ class Session:
         """
         self.status = SessionStatus.FINALIZED
         self.encryption_metadata = encryption_metadata
-        finalized_at = datetime.now(UTC).isoformat()
+        finalized_at = datetime.now(timezone.utc).isoformat()
         self.finalized_at = finalized_at
         self.updated_at = finalized_at
 
@@ -149,14 +149,14 @@ class Session:
         """
         self.status = SessionStatus.DIARIZED
         self.diarization_job_id = diarization_job_id
-        diarized_at = datetime.now(UTC).isoformat()
+        diarized_at = datetime.now(timezone.utc).isoformat()
         self.diarized_at = diarized_at
         self.updated_at = diarized_at
 
     def mark_reviewed(self) -> None:
         """Mark session as reviewed (human approved)."""
         self.status = SessionStatus.REVIEWED
-        reviewed_at = datetime.now(UTC).isoformat()
+        reviewed_at = datetime.now(timezone.utc).isoformat()
         self.reviewed_at = reviewed_at
         self.updated_at = reviewed_at
 
@@ -168,7 +168,7 @@ class Session:
         """
         self.status = SessionStatus.COMPLETED
         self.soap_note_path = soap_note_path
-        completed_at = datetime.now(UTC).isoformat()
+        completed_at = datetime.now(timezone.utc).isoformat()
         self.completed_at = completed_at
         self.updated_at = completed_at
 

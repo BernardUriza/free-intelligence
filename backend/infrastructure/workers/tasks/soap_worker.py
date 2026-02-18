@@ -99,7 +99,7 @@ def generate_soap_worker(
                 "provider": soap_provider,
                 "progress_percent": 10,
                 "estimated_duration_seconds": estimated_duration,
-                "started_at": datetime.now(UTC).isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
                 "word_count": word_count,
                 "text_length": len(full_text),
             },
@@ -254,7 +254,7 @@ def generate_soap_worker(
                 "status": TaskStatus.COMPLETED,
                 "provider": soap_provider,
                 "progress_percent": 100,
-                "completed_at": datetime.now(UTC).isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
                 "duration_seconds": round(elapsed_time, 2),
                 "status_message": "SOAP note generated successfully",
                 # Decisional middleware metadata
@@ -294,7 +294,7 @@ def generate_soap_worker(
                     "status": TaskStatus.FAILED,
                     "progress_percent": 0,
                     "error": str(e),
-                    "failed_at": datetime.now(UTC).isoformat(),
+                    "failed_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
         except Exception as meta_error:

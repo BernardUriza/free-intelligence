@@ -68,7 +68,7 @@ async def get_system_health(
             ok=health_data["ok"],
             services=health_data["services"],
             version="v0.3.0",
-            time=datetime.now(UTC).isoformat() + "Z",
+            time=datetime.now(timezone.utc).isoformat() + "Z",
         )
     except Exception as e:
         logger.error(f"SYSTEM_HEALTH_FAILED: {e!s}")
@@ -77,5 +77,5 @@ async def get_system_health(
             ok=False,
             services={"error": str(e)},
             version="v0.3.0",
-            time=datetime.now(UTC).isoformat() + "Z",
+            time=datetime.now(timezone.utc).isoformat() + "Z",
         )

@@ -59,7 +59,7 @@ def _find_appointment_for_patient(
     db: Session, clinic_id: str, patient_id: str
 ) -> Appointment | None:
     """Find today's appointment for patient at clinic."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
 
@@ -136,7 +136,7 @@ def identify_by_code(request: IdentifyByCodeRequest, db: Session = Depends(get_d
     Most secure method - code is sent via SMS/email when booking.
     Code expires at end of appointment day.
     """
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # Find appointment by code
     appointment = (

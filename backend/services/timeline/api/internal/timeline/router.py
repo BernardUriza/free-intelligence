@@ -134,7 +134,7 @@ async def verify_hash(request: Request):
             "summary": {"total": N, "valid": M, "invalid": K, "duration_ms": X}
         }
     """
-    start = datetime.now(UTC)
+    start = datetime.now(timezone.utc)
 
     # Validate payload explicitly so Pydantic validation errors are returned
     try:
@@ -177,10 +177,10 @@ async def verify_hash(request: Request):
                 }
             )
 
-        duration_ms = int((datetime.now(UTC) - start).total_seconds() * 1000)
+        duration_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
 
         return {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "all_valid": False,
             "items": items,
             "summary": {
@@ -274,7 +274,7 @@ async def verify_hash(request: Request):
         logger.error("VERIFY_HASH_H5_ERROR", error=str(e))
         raise HTTPException(status_code=500, detail=f"HDF5 read error: {str(e)[:100]}")
 
-    duration_ms = int((datetime.now(UTC) - start).total_seconds() * 1000)
+    duration_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
 
     # Log audit summary
     logger.info(
@@ -287,7 +287,7 @@ async def verify_hash(request: Request):
     )
 
     return {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "all_valid": valid_count == len(items) and len(items) > 0,
         "items": items,
         "summary": {

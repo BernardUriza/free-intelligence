@@ -69,7 +69,7 @@ def write_audit_event(
     import json
 
     event_id = str(uuid.uuid4())
-    timestamp = datetime.now(UTC)
+    timestamp = datetime.now(timezone.utc)
 
     # Partition by date (YYYY-MM-DD)
     partition_date = timestamp.strftime("%Y-%m-%d")

@@ -75,7 +75,7 @@ class AuditService:
 
         try:
             audit_log: AuditLogDict = {
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(timezone.utc),
                 "action": action,
                 "user_id": user_id,
                 "resource": resource,

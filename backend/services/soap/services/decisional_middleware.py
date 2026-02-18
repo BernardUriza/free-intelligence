@@ -135,7 +135,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
         Returns:
             OrchestrationResult with SOAP note and execution details
         """
-        start_time = datetime.now(UTC)
+        start_time = datetime.now(timezone.utc)
 
         self.logger.info(
             "DECISIONAL_MIDDLEWARE_START",
@@ -165,7 +165,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
         result = self._execute_orchestration(plan, transcript)
 
         # Step 4: Calculate metrics
-        duration = (datetime.now(UTC) - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         result.total_duration_seconds = duration
 
         self.logger.info(
@@ -309,7 +309,7 @@ class DecisionalMiddleware(IDecisionalMiddleware):
                     "step": step_num,
                     "persona": persona_name,
                     "output": output,
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
 

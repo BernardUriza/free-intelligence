@@ -84,7 +84,7 @@ async def broadcast_waiting_room_update(clinic_id: str, state: WaitingRoomState)
 
 def get_waiting_room_state(db: Session, clinic_id: str) -> WaitingRoomState:
     """Build current waiting room state."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Get checked-in patients waiting

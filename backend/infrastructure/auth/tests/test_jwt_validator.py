@@ -39,7 +39,7 @@ async def test_create_and_validate_access_token(token_service):
 @pytest.mark.asyncio
 async def test_validate_expired_token(token_service):
     secret = os.environ["JWT_SECRET"]
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     token = jwt.encode(
         {
@@ -65,7 +65,7 @@ async def test_validate_bad_signature():
             "sub": "user-123",
             "email": "user@example.com",
             "roles": [],
-            "exp": datetime.now(UTC) + timedelta(minutes=5),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
         },
         "wrong-secret-key-that-is-also-32-chars",
         algorithm="HS256",
@@ -81,7 +81,7 @@ def test_create_refresh_token(token_service):
     assert raw != hashed
     assert len(raw) == 64  # hex-encoded 32 bytes
     assert token_service.hash_token(raw) == hashed
-    assert expires_at > datetime.now(UTC)
+    assert expires_at > datetime.now(timezone.utc)
 
 
 def test_hash_token_deterministic(token_service):

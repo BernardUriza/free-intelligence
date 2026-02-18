@@ -52,7 +52,7 @@ class APIResponse[T](BaseModel):
     data: T | None = Field(default=None, description="Response payload")
     message: str | None = Field(default=None, description="Status message")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Response timestamp"
+        default_factory=lambda: datetime.now(timezone.utc), description="Response timestamp"
     )
     request_id: str | None = Field(default=None, description="Request tracking ID")
 
@@ -72,7 +72,7 @@ class ValidationErrorResponse(BaseModel):
     code: int = Field(default=422)
     message: str = Field(description="Validation failed")
     errors: list[ErrorDetail] = Field(description="List of validation errors")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     request_id: str | None = Field(default=None)
 
 
@@ -92,7 +92,7 @@ class PaginatedResponse[T](BaseModel):
     code: int = Field(default=200)
     data: list[T] = Field(description="List of items")
     meta: PaginationMeta = Field(description="Pagination metadata")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     request_id: str | None = Field(default=None)
 
 

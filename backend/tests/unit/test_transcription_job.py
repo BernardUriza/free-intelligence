@@ -36,7 +36,7 @@ class TestTranscriptionJob:
             session_id="session-123",
             job_type=JobType.TRANSCRIPTION,
             status=JobStatus.PENDING,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             total_chunks=3,
         )
         
@@ -52,7 +52,7 @@ class TestTranscriptionJob:
             session_id="session",
             job_type=JobType.TRANSCRIPTION,
             status=JobStatus.PENDING,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             total_chunks=0,
         )
         
@@ -68,7 +68,7 @@ class TestTranscriptionJob:
             session_id="session",
             job_type=JobType.TRANSCRIPTION,
             status=JobStatus.PENDING,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             total_chunks=1,
             chunks=chunks,
         )
@@ -85,7 +85,7 @@ class TestTranscriptionJob:
             session_id="session",
             job_type=JobType.TRANSCRIPTION,
             status=JobStatus.PENDING,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             total_chunks=1,
             audio_file_path="/path/to/audio.webm",
             audio_duration=120.5,

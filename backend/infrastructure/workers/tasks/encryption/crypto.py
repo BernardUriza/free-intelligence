@@ -184,7 +184,7 @@ def encrypt_large_dataset(
         dset.attrs["enc:iv_b64"] = b64e(iv)
         dset.attrs["enc:plaintext_sha256"] = chunk_sha256
         dset.attrs["enc:chunk_index"] = i
-        dset.attrs["enc:ts"] = datetime.now(UTC).isoformat()
+        dset.attrs["enc:ts"] = datetime.now(timezone.utc).isoformat()
 
         manifest_entries.append(
             EncryptionManifestEntry(
@@ -193,7 +193,7 @@ def encrypt_large_dataset(
                 aad=f"{session_id}:{chunk_path}",
                 plaintext_sha256=chunk_sha256,
                 ciphertext_bytes=len(ciphertext),
-                encrypted_at=datetime.now(UTC).isoformat(),
+                encrypted_at=datetime.now(timezone.utc).isoformat(),
             )
         )
 

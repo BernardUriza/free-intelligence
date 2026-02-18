@@ -207,13 +207,13 @@ async def finalize_session(
             {
                 "status": TaskStatus.PENDING,
                 "progress_percent": 0,
-                "queued_at": datetime.now(UTC).isoformat(),
+                "queued_at": datetime.now(timezone.utc).isoformat(),
                 "note": "Encryption will execute after SOAP generation completes",
             },
         )
 
         encryption_key_id = f"pending-{session_id[:8]}"
-        encrypted_at = datetime.now(UTC).isoformat()
+        encrypted_at = datetime.now(timezone.utc).isoformat()
 
         encryption_metadata = EncryptionMetadata(
             algorithm="AES-GCM-256",

@@ -2,7 +2,7 @@
 # LLM Logger - Logs all LLM calls to SQLite
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from ulid import ULID
 
@@ -33,7 +33,7 @@ class LLMLogger:
     def log_call(self, call: LLMCallCreate) -> str:
         """Log an LLM call. Returns the call ID."""
         call_id = str(ULID())
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         data = call.to_dict()
         data["id"] = call_id
@@ -111,7 +111,7 @@ class LLMLogger:
         client_id: str | None = None,
     ) -> CallStats:
         """Get aggregated statistics for the last N hours."""
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         base_filter = "timestamp >= ?"
         params: list = [since.isoformat()]
@@ -202,7 +202,7 @@ class LLMLogger:
         days: int = 30,
     ) -> ClientReport:
         """Generate a detailed report for a specific client."""
-        period_end = datetime.utcnow()
+        period_end = datetime.now(timezone.utc)
         period_start = period_end - timedelta(days=days)
 
         report = ClientReport(

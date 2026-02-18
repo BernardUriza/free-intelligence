@@ -151,7 +151,7 @@ def diarize_session_worker(
                 "provider": diarization_provider,
                 "progress_percent": 10,
                 "estimated_duration_seconds": estimated_duration,
-                "started_at": datetime.now(UTC).isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
                 "word_count": word_count,
             },
         )
@@ -216,7 +216,7 @@ def diarize_session_worker(
                 "provider": diarization_provider,
                 "segment_count": len(result["segments"]),
                 "progress_percent": 100,
-                "completed_at": datetime.now(UTC).isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
                 "duration_seconds": round(elapsed_time, 2),
                 "status_message": f"Completed: {len(result['segments'])} segments identified",
             },
@@ -251,7 +251,7 @@ def diarize_session_worker(
                     "status": TaskStatus.FAILED,
                     "progress_percent": 0,
                     "error": str(e),
-                    "failed_at": datetime.now(UTC).isoformat(),
+                    "failed_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
         except Exception as meta_error:

@@ -206,7 +206,7 @@ async def update_diarization_segment_workflow(
             "segment_index": segment_index,
             "segment": updated_segment,
             "updated_at": str(
-                __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat()
+                datetime.now(timezone.utc).isoformat()
             ),
         }
 
@@ -320,7 +320,7 @@ async def import_external_diarization(
             "segment_count": len(segments_dict),
             "duration_seconds": total_duration,
             "import_source": "external",
-            "imported_at": datetime.now(UTC).isoformat(),
+            "imported_at": datetime.now(timezone.utc).isoformat(),
             **request.metadata,  # Merge user-provided metadata
         }
         task_repo.save_task_metadata(session_id, TaskType.DIARIZATION.name, metadata)

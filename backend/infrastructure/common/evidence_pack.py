@@ -335,7 +335,7 @@ class EvidencePackBuilder:
         # Create pack
         pack = EvidencePack(
             pack_id=pack_id,
-            created_at=datetime.now(UTC).isoformat() + "Z",
+            created_at=datetime.now(timezone.utc).isoformat() + "Z",
             session_id=session_id,
             sources=self.sources,
             source_hashes=source_hashes,

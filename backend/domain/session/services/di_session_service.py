@@ -100,7 +100,7 @@ class SessionService:
         overall_status = self._compute_overall_status(tasks_metadata)
 
         # Use timestamps or defaults
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         created_at = earliest_created.isoformat() if earliest_created else now.isoformat()
         updated_at = latest_updated.isoformat() if latest_updated else now.isoformat()
 

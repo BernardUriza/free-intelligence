@@ -411,7 +411,7 @@ async def handle_payment_succeeded(db: Session, payment_intent: dict) -> None:
 
     # Mark action as completed
     action.status = PendingActionStatus.COMPLETED
-    action.completed_at = datetime.now(UTC)
+    action.completed_at = datetime.now(timezone.utc)
     action.payment_intent_id = payment_intent_id
 
     db.commit()
@@ -515,7 +515,7 @@ async def confirm_payment_action(
 
         if intent.status == "succeeded":
             action.status = PendingActionStatus.COMPLETED
-            action.completed_at = datetime.now(UTC)
+            action.completed_at = datetime.now(timezone.utc)
             action.payment_intent_id = payment_intent_id
             db.commit()
 

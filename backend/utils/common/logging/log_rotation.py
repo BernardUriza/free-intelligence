@@ -76,7 +76,7 @@ class LogRotation:
         Returns:
             Path to current log file
         """
-        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return self.base_path / channel.value / f"{today}.ndjson"
 
     def get_compressed_log_path(self, channel: ServiceChannel, date: str) -> Path:
@@ -114,7 +114,7 @@ class LogRotation:
             return False
 
         # Check if file is from previous day
-        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         file_date = log_path.stem  # YYYY-MM-DD
 
         if file_date != today:
@@ -145,7 +145,7 @@ class LogRotation:
 
         # If already compressed, add timestamp suffix
         if compressed_path.exists():
-            timestamp = datetime.now(UTC).strftime("%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%H%M%S")
             compressed_path = self.base_path / channel.value / f"{file_date}-{timestamp}.ndjson.gz"
 
         # Compress log file
@@ -168,7 +168,7 @@ class LogRotation:
             List of deleted file paths
         """
         retention_days = self.retention_days[channel]
-        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         channel_path = self.base_path / channel.value
         deleted = []
@@ -182,7 +182,7 @@ class LogRotation:
 
             try:
                 file_date = datetime.strptime("-".join(file_date_str), "%Y-%m-%d")
-                file_date = file_date.replace(tzinfo=UTC)
+                file_date = file_date.replace(tzinfo=timezone.utc)
 
                 if file_date < cutoff_date:
                     # WORM lógico para access: no eliminar, solo mover a archive

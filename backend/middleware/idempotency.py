@@ -295,5 +295,5 @@ def generate_idempotency_key(session_id: str, operation: str) -> str:
     Returns:
         SHA-256 hash suitable for Idempotency-Key header
     """
-    data = f"{session_id}:{operation}:{datetime.now(UTC).date().isoformat()}"
+    data = f"{session_id}:{operation}:{datetime.now(timezone.utc).date().isoformat()}"
     return hashlib.sha256(data.encode()).hexdigest()

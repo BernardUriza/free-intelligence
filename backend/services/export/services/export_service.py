@@ -152,7 +152,7 @@ class DIExportService:
         if include_metadata:
             content["metadata.json"] = {
                 "session_id": session_id,
-                "exported_at": datetime.now(UTC).isoformat(),
+                "exported_at": datetime.now(timezone.utc).isoformat(),
                 "git_commit": self.git_commit,
             }
 
@@ -181,7 +181,7 @@ class DIExportService:
         return {
             "export_id": export_id,
             "session_id": session_id,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": self.git_commit,
             "files": file_hashes,
         }

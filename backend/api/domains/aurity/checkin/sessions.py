@@ -42,7 +42,7 @@ def start_session(request: StartSessionRequest, db: Session = Depends(get_db_dep
         raise HTTPException(status_code=404, detail=f"Clinic {request.clinic_id} not found")
 
     # Create session
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     session = CheckinSession(
         clinic_id=request.clinic_id,
         device_type=DeviceType(request.device_type.value),

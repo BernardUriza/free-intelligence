@@ -289,6 +289,6 @@ async def get_llm_status(
         tunnel_info=tunnel_info,
         models=models,
         latency_ms=latency_ms,
-        last_check=datetime.now(UTC).isoformat(),
+        last_check=datetime.now(timezone.utc).isoformat(),
         priority=priority,
     )

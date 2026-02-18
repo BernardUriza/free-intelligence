@@ -297,7 +297,7 @@ def encrypt_session_hdf5(
                     aad=f"{session_id}:{path}",
                     plaintext_sha256=plaintext_sha256,
                     ciphertext_bytes=len(ciphertext),
-                    encrypted_at=datetime.now(UTC).isoformat(),
+                    encrypted_at=datetime.now(timezone.utc).isoformat(),
                 )
             )
             total_bytes += len(ciphertext)
@@ -418,7 +418,7 @@ def encrypt_session_worker(
                     {
                         "status": TaskStatus.IN_PROGRESS,
                         "progress_percent": 10,
-                        "started_at": datetime.now(UTC).isoformat(),
+                        "started_at": datetime.now(timezone.utc).isoformat(),
                     },
                 )
 
@@ -500,7 +500,7 @@ def encrypt_session_worker(
                 algorithm="AES-GCM-256",
                 dek_id=dek_id,
                 idempotency_key=idempotency_key,
-                encrypted_at=datetime.now(UTC).isoformat(),
+                encrypted_at=datetime.now(timezone.utc).isoformat(),
                 encrypted_count=len(result["encrypted_paths"]),
                 total_bytes=result["total_bytes"],
                 schema_version=CRYPTO_SCHEMA_VERSION,
@@ -527,7 +527,7 @@ def encrypt_session_worker(
                     {
                         "status": TaskStatus.COMPLETED,
                         "progress_percent": 100,
-                        "completed_at": datetime.now(UTC).isoformat(),
+                        "completed_at": datetime.now(timezone.utc).isoformat(),
                         "encrypted_paths": result["encrypted_paths"],
                         "total_bytes": result["total_bytes"],
                         "dek_id": dek_id,
@@ -572,7 +572,7 @@ def encrypt_session_worker(
                     {
                         "status": TaskStatus.FAILED,
                         "progress_percent": 0,
-                        "failed_at": datetime.now(UTC).isoformat(),
+                        "failed_at": datetime.now(timezone.utc).isoformat(),
                         "error": error_msg,
                         "duration_seconds": round(duration, 3),
                     },

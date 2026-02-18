@@ -335,7 +335,7 @@ class ConversationMemoryManager:
             )
 
             # Store creation timestamp
-            f.attrs["created_at"] = datetime.now(UTC).isoformat()
+            f.attrs["created_at"] = datetime.now(timezone.utc).isoformat()
             f.attrs["doctor_id"] = self.doctor_id
 
         logger.info(
@@ -376,7 +376,7 @@ class ConversationMemoryManager:
         embeddings = await get_embeddings_from_fi([content])
         embedding = embeddings[0]
 
-        timestamp = int(datetime.now(UTC).timestamp())
+        timestamp = int(datetime.now(timezone.utc).timestamp())
 
         # Append to H5 index
         with _memory_lock, h5py.File(self.memory_path, "a") as f:

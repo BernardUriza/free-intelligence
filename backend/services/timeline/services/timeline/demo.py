@@ -39,7 +39,7 @@ def create_demo_timeline() -> Timeline:
         manual_events_count=10,
     )
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # ========================================================================
     # EVENTO 1: Usuario envía mensaje inicial (dolor de pecho)

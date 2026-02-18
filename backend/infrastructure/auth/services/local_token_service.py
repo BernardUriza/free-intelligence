@@ -49,7 +49,7 @@ class LocalTokenService(ITokenService):
         name: str | None = None,
     ) -> str:
         """Create a short-lived access token."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         payload = {
             "sub": user_id,
             "email": email,
@@ -74,7 +74,7 @@ class LocalTokenService(ITokenService):
         """
         raw = secrets.token_urlsafe(48)
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
-        expires_at = datetime.now(UTC) + timedelta(seconds=self.refresh_ttl)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.refresh_ttl)
         return raw, token_hash, expires_at
 
     @staticmethod
@@ -109,7 +109,7 @@ class LocalTokenService(ITokenService):
             roles=parsed_roles,
             issuer=decoded.get("iss"),
             tenant_id=decoded.get("tenant_id"),
-            expires_at=datetime.fromtimestamp(decoded["exp"], tz=UTC) if "exp" in decoded else None,
-            issued_at=datetime.fromtimestamp(decoded["iat"], tz=UTC) if "iat" in decoded else None,
+            expires_at=datetime.fromtimestamp(decoded["exp"], tz=timezone.utc) if "exp" in decoded else None,
+            issued_at=datetime.fromtimestamp(decoded["iat"], tz=timezone.utc) if "iat" in decoded else None,
             claims=decoded,
         )

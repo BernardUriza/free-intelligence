@@ -180,7 +180,7 @@ async def health_check() -> dict[str, str]:
     return {
         "status": "healthy",
         "service": "llm-middleware",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -237,7 +237,7 @@ async def generate_text(request: LLMGenerateRequest) -> LLMGenerateResponse:
             provider=request.provider,
             model=response.model or request.model or "unknown",
             tokens_used=response.tokens_used,
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
     except Exception as e:

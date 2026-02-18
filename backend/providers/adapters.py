@@ -346,7 +346,7 @@ class ReduxAdapter:
         event = ConsultationEvent(
             event_id=str(uuid4()),
             consultation_id=consultation_id,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.now(timezone.utc),
             event_type=event_type,
             payload=event_payload,
             metadata=EventMetadata(

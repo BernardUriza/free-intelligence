@@ -65,7 +65,7 @@ class ChatMemoryHandler:
         )
 
         if broadcast:
-            timestamp = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             await broadcast_new_message(
                 doctor_id=doctor_id,
                 role="user",
@@ -111,7 +111,7 @@ class ChatMemoryHandler:
         )
 
         if broadcast:
-            timestamp = datetime.now(UTC).isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             await broadcast_new_message(
                 doctor_id=doctor_id,
                 role="assistant",

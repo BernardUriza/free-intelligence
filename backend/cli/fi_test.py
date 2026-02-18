@@ -61,7 +61,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
     4. Return JSON output
 
     """
-    session_id = f"cli_test_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+    session_id = f"cli_test_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     interaction_id = str(uuid.uuid4())
 
     if args.verbose:
@@ -106,7 +106,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
                 response=response.content,
                 model=response.model,
                 tokens=response.tokens_used,
-                timestamp=datetime.now(UTC).isoformat() + "Z",
+                timestamp=datetime.now(timezone.utc).isoformat() + "Z",
             )
             if args.verbose:
                 logger.info("Saved to corpus: %s", saved_id)
@@ -124,7 +124,7 @@ def cmd_prompt(args: argparse.Namespace) -> dict[str, Any]:
         "provider": response.provider,
         "tokens_used": response.tokens_used,
         "latency_ms": response.latency_ms,
-        "timestamp": datetime.now(UTC).isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "dry_run": args.dry_run,
     }
 

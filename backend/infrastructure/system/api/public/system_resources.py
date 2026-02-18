@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 import httpx
@@ -125,7 +125,7 @@ async def get_system_resources(
         cpu_percent=psutil.cpu_percent(interval=0.1),
         cpu_count=psutil.cpu_count() or 1,
         platform=f"{os.uname().sysname} {os.uname().machine}",
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
 

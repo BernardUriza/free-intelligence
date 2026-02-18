@@ -8,7 +8,7 @@ Updated: 2026-02-01 (Phase 2.3 Tierra - Implements ILLMModelService interface)
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import os
 import yaml
@@ -50,11 +50,11 @@ class LLMModelService(ILLMModelService):
     def _parse_datetime(self, value: str | datetime | None) -> datetime:
         """Parse datetime from various formats (robust to YAML serialization quirks)."""
         if value is None:
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
         if isinstance(value, datetime):
             return value
         if not isinstance(value, str):
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
 
         # Normalize: remove trailing Z if there's already a timezone offset
         # e.g., "2025-01-01T00:00:00+00:00Z" -> "2025-01-01T00:00:00+00:00"
@@ -71,7 +71,7 @@ class LLMModelService(ILLMModelService):
             try:
                 return datetime.fromisoformat(value.replace("Z", "+00:00"))
             except ValueError:
-                return datetime.utcnow()
+                return datetime.now(timezone.utc)
 
     def _load_from_yaml(self) -> dict[str, LLMModel]:
         """Load models from YAML file."""
@@ -202,7 +202,7 @@ class LLMModelService(ILLMModelService):
         if data.id in models:
             raise ValueError(f"Model with ID '{data.id}' already exists")
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         model = LLMModel(
             id=data.id,
             label=data.label,
@@ -246,7 +246,7 @@ class LLMModelService(ILLMModelService):
             if value is not None:
                 setattr(model, key, value)
 
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
         models[model_id] = model
 
         self._save_to_yaml(models)
@@ -273,7 +273,7 @@ class LLMModelService(ILLMModelService):
             del models[model_id]
         else:
             models[model_id].is_active = False
-            models[model_id].updated_at = datetime.utcnow()
+            models[model_id].updated_at = datetime.now(timezone.utc)
 
         self._save_to_yaml(models)
         self._invalidate_cache()

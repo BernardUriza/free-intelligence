@@ -5,13 +5,11 @@ Centralizes environment variables and constants.
 
 from __future__ import annotations
 
-from datetime import UTC
-
 import os
 from backend.utils.common.logging.logger import get_logger
 from pathlib import Path
 
-__all__ = ["BASE_DOWNLOAD_URL", "EXPORT_DIR", "UTC", "logger"]
+__all__ = ["BASE_DOWNLOAD_URL", "EXPORT_DIR", "logger"]
 
 # ============================================================================
 # CONFIGURATION

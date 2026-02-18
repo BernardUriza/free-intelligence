@@ -139,7 +139,7 @@ async def refresh(body: RefreshRequest, db: Session = Depends(get_db_dependency)
         .filter(
             DBRefreshToken.token_hash == token_hash,
             DBRefreshToken.revoked == False,  # noqa: E712
-            DBRefreshToken.expires_at > datetime.now(UTC),
+            DBRefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .first()
     )

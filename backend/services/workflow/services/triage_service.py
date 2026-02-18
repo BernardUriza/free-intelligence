@@ -98,7 +98,7 @@ class TriageService:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Prepare intake data
-            received_at = datetime.now(UTC).isoformat() + "Z"
+            received_at = datetime.now(timezone.utc).isoformat() + "Z"
             intake_data = {
                 "bufferId": buffer_id,
                 "receivedAt": received_at,
