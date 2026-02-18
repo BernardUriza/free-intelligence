@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { Button } from '@/components/ui/button';
 import { detectTauri, isBrowser } from '@/lib/environment';
+import { getBackendUrl } from '@/lib/api/client';
 import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
 import {
   Download,
@@ -368,7 +369,8 @@ export default function DownloadsPage() {
 
     try {
       // Fetch releases dynamically from backend API (resolves latest GitHub release)
-      const response = await fetch('/api/downloads/info');
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/api/downloads/info`);
       if (!response.ok) {
         throw new Error(`Error al obtener releases: ${response.status}`);
       }
@@ -376,7 +378,17 @@ export default function DownloadsPage() {
       const data: ReleasesData = await response.json();
 
       if (data.releases && data.releases.length > 0) {
-        setReleases(data.releases);
+        // Prepend backend URL to relative download paths
+        const resolved = data.releases.map(release => ({
+          ...release,
+          platforms: Object.fromEntries(
+            Object.entries(release.platforms).map(([platform, info]) => [
+              platform,
+              info ? { ...info, url: info.url.startsWith('/') ? `${backendUrl}${info.url}` : info.url } : info,
+            ])
+          ),
+        }));
+        setReleases(resolved as Release[]);
       } else {
         setError('No hay releases disponibles');
       }
