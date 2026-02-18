@@ -17,7 +17,7 @@ Created: 2025-12-28
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import structlog
 from backend.infrastructure.auth import User, UserRole, require_roles

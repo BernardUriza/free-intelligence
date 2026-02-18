@@ -14,7 +14,7 @@ Card: Clean Architecture Refactor
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.utils.common.logging.logger import get_logger
 

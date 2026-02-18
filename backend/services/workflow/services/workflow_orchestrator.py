@@ -17,7 +17,7 @@ Card: Backend Refactor Phase 2.3 - Service Refactoring
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from backend.infrastructure.workers.executor_pool import spawn_worker

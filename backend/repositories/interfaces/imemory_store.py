@@ -19,7 +19,12 @@ Card: DI Refactor Phase 2.4 - Memory Service DI
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TypedDict, NotRequired
+from typing import TypedDict
+
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
 
 
 # ============================================================================

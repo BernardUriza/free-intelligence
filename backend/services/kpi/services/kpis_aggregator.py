@@ -20,7 +20,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.services.kpi.interfaces.ikpis_aggregator import IKPIsAggregator
 from backend.utils.common.logging.logger import get_logger

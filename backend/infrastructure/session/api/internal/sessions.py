@@ -24,7 +24,7 @@ From: backend/api/routers/session/internal/sessions/router.py
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import uuid4
 

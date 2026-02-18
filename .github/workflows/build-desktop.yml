@@ -177,6 +177,61 @@ jobs:
 
           Write-Host "✅ Renamed installers with target triple suffix"
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/pyinstaller/requirements.txt', 'apps/fi-monitor/gateway/requirements.txt', 'apps/fi-monitor/rag_service/requirements.txt') }}
+          restore-keys: |
+            pip-fi-monitor-${{ runner.os }}-py3.14-
+            pip-fi-monitor-${{ runner.os }}-
+
+      - name: Cache PyInstaller build
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/fi-monitor/pyinstaller/dist
+            apps/fi-monitor/pyinstaller/build
+          key: pyinstaller-fi-monitor-${{ runner.os }}-py3.14-${{ hashFiles('apps/fi-monitor/gateway/**/*.py', 'apps/fi-monitor/rag_service/**/*.py', 'apps/fi-monitor/pyinstaller/*.spec') }}
+          restore-keys: |
+            pyinstaller-fi-monitor-${{ runner.os }}-py3.14-
+            pyinstaller-fi-monitor-${{ runner.os }}-
+
+      - name: Install PyInstaller
+        working-directory: apps/fi-monitor/pyinstaller
+        run: pip install -r requirements.txt
+
+      - name: Install fi-backend dependencies
+        run: |
+          pip install -r apps/fi-monitor/gateway/requirements.txt
+          pip install -r apps/fi-monitor/rag_service/requirements.txt
+
+      - name: Build fi-backend with PyInstaller
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd apps/fi-monitor/pyinstaller
+            pyinstaller fi-backend.spec
+          shell: bash
+
+      - name: Copy fi-backend binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path apps/fi-monitor/src-tauri/binaries
+          Copy-Item apps/fi-monitor/pyinstaller/dist/fi-backend-x86_64-pc-windows-msvc.exe `
+                    apps/fi-monitor/src-tauri/binaries/fi-backend-x86_64-pc-windows-msvc.exe
+
       - name: Build FI Monitor
         uses: nick-fields/retry@v3
         with:
@@ -355,14 +410,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -488,14 +558,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -587,7 +672,6 @@ jobs:
       needs.detect-changes.outputs.aurity_desktop == 'true' &&
       !cancelled()
     runs-on: windows-latest
-    continue-on-error: true
     env:
       CARGO_INCREMENTAL: "1"
     steps:
@@ -637,18 +721,43 @@ jobs:
           $cargoContent = $cargoContent -replace '(?m)^version\s*=\s*"[^"]+"', "version = `"$newVersion`""
           $cargoContent | Set-Content $cargoPath -NoNewline
 
+          # === IMPROVEMENT #3: Sync backend version ===
+          Write-Host "Syncing backend/app/version.py..."
+          $versionPyPath = "backend/app/version.py"
+          $versionPyContent = Get-Content $versionPyPath -Raw
+          $versionPyContent = $versionPyContent -replace '(?m)^__version__\s*=\s*"[^"]+"', "__version__ = `"$newVersion`""
+          $versionPyContent | Set-Content $versionPyPath -NoNewline
+
+          Write-Host "Syncing pyproject.toml..."
+          $pyprojectPath = "pyproject.toml"
+          $pyprojectContent = Get-Content $pyprojectPath -Raw
+          $pyprojectContent = $pyprojectContent -replace '(?m)^version\s*=\s*"[^"]+"', "version = `"$newVersion`""
+          $pyprojectContent | Set-Content $pyprojectPath -NoNewline
+
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit and push (now includes all synchronized files)
+          # Commit version changes (if any)
           git add .
-          git commit -m "chore: bump version to $newVersion [skip ci]"
-          git push origin ${{ github.ref_name }}
+          $staged = git diff --staged --name-only
+          if ($staged) {
+            git commit -m "chore: bump version to $newVersion [skip ci]"
+            Write-Host "Version committed: $currentVersion -> $newVersion"
+          } else {
+            Write-Host "No version changes to commit (already at $newVersion)"
+          }
 
           # Output for later steps
           "version=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "previous=$currentVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Push version bump
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          git push origin ${{ github.ref_name }}
+          Write-Host "Version bump pushed to ${{ github.ref_name }}"
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
@@ -687,14 +796,29 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
 
+      # === IMPROVEMENT #1: Enhanced PyInstaller Cache ===
+      # Cache pip dependencies + PyInstaller build artifacts
+      # Expected speedup: 15 min → 3-5 min (80% faster)
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            C:\Users\runneradmin\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-py3.14-${{ hashFiles('backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py3.14-
+            pip-${{ runner.os }}-
+
       - name: Cache PyInstaller build
         uses: actions/cache@v4
         with:
           path: |
             apps/aurity-desktop/pyinstaller/dist
             apps/aurity-desktop/pyinstaller/build
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
+          key: pyinstaller-${{ runner.os }}-py3.14-${{ hashFiles('backend/src/**/*.py', 'backend/requirements-prod.txt', 'apps/aurity-desktop/pyinstaller/*.spec') }}
           restore-keys: |
+            pyinstaller-${{ runner.os }}-py3.14-
             pyinstaller-${{ runner.os }}-
 
       - name: Install PyInstaller
@@ -801,8 +925,23 @@ jobs:
           echo "::group::Binary Size Check"
           $size = (Get-Item "aurity-desktop.exe").Length / 1MB
           echo "Binary size: $([Math]::Round($size, 2)) MB"
-          if ($size -gt 100) {
-            echo "⚠️ Warning: Binary > 100MB (expected 30-50MB)"
+          if ($size -gt 150) {
+            Write-Host "::warning::Binary > 150MB (expected 50-100MB). Possible bloat or unoptimized build."
+            # Don't fail build, but warn for investigation
+          }
+          echo "::endgroup::"
+
+          echo "::group::Backend Binary Check"
+          $backendPath = "$env:GITHUB_WORKSPACE/apps/aurity-desktop/src-tauri/binaries/aurity-backend-x86_64-pc-windows-msvc.exe"
+          if (Test-Path $backendPath) {
+            $backendSize = (Get-Item $backendPath).Length / 1MB
+            echo "Backend binary size: $([Math]::Round($backendSize, 2)) MB"
+            if ($backendSize -gt 100) {
+              Write-Host "::warning::Backend binary > 100MB. Consider optimizing PyInstaller build."
+            }
+          } else {
+            Write-Host "::error::Backend binary not found at $backendPath"
+            exit 1
           }
           echo "::endgroup::"
 
@@ -874,177 +1013,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Generate releases.json for /downloads page
-  update-releases-json:
-    if: |
-      github.event_name == 'workflow_dispatch' &&
-      (needs.build-windows.result == 'success' ||
-       needs.build-macos.result == 'success')
-    needs: [build-windows, build-macos]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Pull latest changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin ${{ github.ref_name }} --rebase
-
-      - name: Download Windows artifacts
-        if: needs.build-windows.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: aurity-windows-*
-          path: artifacts/
-
-      - name: Download macOS artifacts
-        if: needs.build-macos.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: aurity-macos-*
-          path: artifacts/
-
-      - name: Download Linux artifacts
-        if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: aurity-linux-*
-          path: artifacts/
-
-      - name: Generate releases.json
-        id: generate
-        run: |
-          # Get version
-          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
-          DATE=$(date -u +"%Y-%m-%d")
-          GENERATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          echo "Version: $VERSION"
-          echo "Date: $DATE"
-
-          # Initialize platforms JSON
-          PLATFORMS_JSON='{'
-          PLATFORM_COUNT=0
-
-          # Windows platform
-          if [ -d "artifacts/aurity-windows-nsis" ]; then
-            echo "✅ Processing Windows artifacts"
-            WINDOWS_FILE=$(find artifacts/aurity-windows-nsis -name "*.exe" -type f | head -1)
-            if [ -n "$WINDOWS_FILE" ]; then
-              WINDOWS_SHA256=$(sha256sum "$WINDOWS_FILE" | cut -d' ' -f1)
-              WINDOWS_SIZE=$(du -h "$WINDOWS_FILE" | cut -f1)
-              echo "  Windows SHA256: $WINDOWS_SHA256"
-              echo "  Windows Size: $WINDOWS_SIZE"
-
-              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
-              PLATFORMS_JSON+="\"windows\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe\", \"size\": \"$WINDOWS_SIZE\", \"sha256\": \"$WINDOWS_SHA256\"}"
-              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
-            fi
-          else
-            echo "⏭️  Skipping Windows (no artifacts)"
-          fi
-
-          # macOS platform
-          if [ -d "artifacts/aurity-macos-dmg" ]; then
-            echo "✅ Processing macOS artifacts"
-            MACOS_FILE=$(find artifacts/aurity-macos-dmg -name "*.dmg" -type f | head -1)
-            if [ -n "$MACOS_FILE" ]; then
-              MACOS_SHA256=$(sha256sum "$MACOS_FILE" | cut -d' ' -f1)
-              MACOS_SIZE=$(du -h "$MACOS_FILE" | cut -f1)
-              echo "  macOS SHA256: $MACOS_SHA256"
-              echo "  macOS Size: $MACOS_SIZE"
-
-              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
-              PLATFORMS_JSON+="\"macos\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_aarch64.dmg\", \"size\": \"$MACOS_SIZE\", \"sha256\": \"$MACOS_SHA256\"}"
-              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
-            fi
-          else
-            echo "⏭️  Skipping macOS (no artifacts)"
-          fi
-
-          # Linux platform
-          if [ -d "artifacts/aurity-linux-appimage" ]; then
-            echo "✅ Processing Linux artifacts"
-            LINUX_FILE=$(find artifacts/aurity-linux-appimage -name "*.AppImage" -type f | head -1)
-            if [ -n "$LINUX_FILE" ]; then
-              LINUX_SHA256=$(sha256sum "$LINUX_FILE" | cut -d' ' -f1)
-              LINUX_SIZE=$(du -h "$LINUX_FILE" | cut -f1)
-              echo "  Linux SHA256: $LINUX_SHA256"
-              echo "  Linux Size: $LINUX_SIZE"
-
-              if [ $PLATFORM_COUNT -gt 0 ]; then PLATFORMS_JSON+=','; fi
-              PLATFORMS_JSON+="\"linux\": {\"url\": \"https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_amd64.AppImage\", \"size\": \"$LINUX_SIZE\", \"sha256\": \"$LINUX_SHA256\"}"
-              PLATFORM_COUNT=$((PLATFORM_COUNT + 1))
-            fi
-          else
-            echo "⏭️  Skipping Linux (no artifacts)"
-          fi
-
-          PLATFORMS_JSON+='}'
-
-          # Generate releases.json
-          cat > apps/aurity/public/releases.json << EOF
-          {
-            "releases": [
-              {
-                "version": "$VERSION",
-                "date": "$DATE",
-                "platforms": $PLATFORMS_JSON,
-                "changelog": [
-                  "Aurity Desktop v$VERSION",
-                  "Self-hosted JWT authentication with refresh tokens",
-                  "Offline AI medical assistant powered by Ollama",
-                  "Local LLM integration (Qwen3, Llama, etc.)",
-                  "Encrypted local storage in ~/.aurity",
-                  "2-role RBAC (FI-superadmin, FI-clinician)"
-                ]
-              }
-            ],
-            "generatedAt": "$GENERATED_AT",
-            "source": "ci-cd",
-            "platforms_built": $PLATFORM_COUNT
-          }
-          EOF
-
-          echo "Generated releases.json with $PLATFORM_COUNT platform(s):"
-          if command -v jq &> /dev/null; then
-            cat apps/aurity/public/releases.json | jq '.'
-          else
-            cat apps/aurity/public/releases.json
-          fi
-
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "platforms_built=$PLATFORM_COUNT" >> $GITHUB_OUTPUT
-
-      - name: Commit and push releases.json
-        run: |
-          git add apps/aurity/public/releases.json
-
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to releases.json"
-          else
-            git commit -m "chore: update releases.json for v${{ steps.generate.outputs.version }} [skip ci]"
-            git push origin ${{ github.ref_name }}
-            echo "Successfully pushed releases.json update"
-          fi
-
   send-build-notification:
     if: |
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
        needs.build-macos.result == 'success')
-    needs: [build-windows, build-macos, update-releases-json]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

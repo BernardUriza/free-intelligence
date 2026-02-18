@@ -11,7 +11,7 @@ Created: 2026-02-03 (Refactor)
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from backend.database import get_db_dependency
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user

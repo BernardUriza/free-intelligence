@@ -21,6 +21,7 @@ from typing import Any
 import h5py
 from backend.append_only_policy import AppendOnlyPolicy
 from backend.utils.common.logging.logger import get_logger
+from backend.utils.common.types import utc_now
 from pathlib import Path
 
 logger = get_logger(__name__)
@@ -78,7 +79,7 @@ class BufferedHDF5Writer:
         # Stats
         self.total_writes = 0
         self.total_flushes = 0
-        self.last_flush_time = datetime.now()
+        self.last_flush_time = utc_now()
 
         logger.info(
             "BUFFERED_WRITER_INITIALIZED",
@@ -152,7 +153,7 @@ class BufferedHDF5Writer:
             reason = "buffer_full"
 
         # Condition 2: Timeout exceeded
-        elif (datetime.now() - self.last_flush_time).total_seconds() > self.auto_flush_seconds:
+        elif (utc_now() - self.last_flush_time).total_seconds() > self.auto_flush_seconds:
             should_flush = True
             reason = "timeout"
 
@@ -228,7 +229,7 @@ class BufferedHDF5Writer:
 
                 self.total_writes += buffer_len
                 self.total_flushes += 1
-                self.last_flush_time = datetime.now()
+                self.last_flush_time = utc_now()
 
             logger.info(
                 "FLUSH_COMPLETED",
@@ -255,7 +256,7 @@ class BufferedHDF5Writer:
         Creates new file: corpus_YYYYMMDD_HHMMSS.h5
         Renames current to archived name.
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
         archived_path = self.corpus_path.parent / f"corpus_{timestamp}.h5"
 
         logger.warning(

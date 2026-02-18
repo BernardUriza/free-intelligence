@@ -6,7 +6,7 @@ First registered user automatically becomes FI-superadmin.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from sqlalchemy.orm import Session

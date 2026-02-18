@@ -29,7 +29,7 @@ class TestTranscriptionJob:
 
     def test_job_type_is_transcription(self):
         """Should have job_type set to TRANSCRIPTION."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
         
         job = TranscriptionJob(
             job_id="test-job-123",
@@ -45,7 +45,7 @@ class TestTranscriptionJob:
 
     def test_transcription_job_chunks_default(self):
         """Should default chunks to empty list."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
         
         job = TranscriptionJob(
             job_id="test-job",
@@ -60,7 +60,7 @@ class TestTranscriptionJob:
 
     def test_transcription_job_with_chunks(self):
         """Should accept chunks."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
         
         chunks = [{"idx": 0, "transcript": "Hello"}]
         job = TranscriptionJob(
@@ -78,7 +78,7 @@ class TestTranscriptionJob:
 
     def test_transcription_job_audio_metadata(self):
         """Should store audio metadata."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
         
         job = TranscriptionJob(
             job_id="test-job",

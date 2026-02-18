@@ -10,7 +10,7 @@ Card: Infrastructure Modularization - Quick Wins (Tethys Moon)
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import h5py
 import numpy as np

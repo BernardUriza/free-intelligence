@@ -12,7 +12,7 @@ import hashlib
 import json
 import random
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import os

@@ -14,7 +14,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 import h5py
 from backend.utils.common.logging.logger import get_logger
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 
-class BaseRepository[T](ABC):
+class BaseRepository(ABC, Generic[T]):
     """Abstract base repository for HDF5 data access.
 
     Provides:

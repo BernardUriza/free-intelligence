@@ -7,7 +7,7 @@ Created: 2026-02-03 (Domain Migration)
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from backend.models.checkin_models import (
     Appointment,

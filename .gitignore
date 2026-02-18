@@ -13,6 +13,9 @@ gha-creds-*.json
 .tauri/
 .npmrc
 .claude/settings.local.json
+config/nginx/certs/*.key
+config/nginx/certs/*.crt
+config/nginx/certs/*.pem
 
 # =============================================================================
 # OS & Editor

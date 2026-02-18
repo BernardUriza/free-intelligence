@@ -11,7 +11,7 @@ Card: Infrastructure Modularization - Quick Wins (Enceladus Moon)
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import h5py

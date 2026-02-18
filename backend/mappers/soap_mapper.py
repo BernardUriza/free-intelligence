@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+
+from backend.utils.common.types import utc_now
 from typing import Any
 
 from backend.domain.soap.models import (
@@ -109,7 +111,7 @@ class SOAPMapper:
         if isinstance(created_at, datetime):
             created_at = created_at.isoformat()
         elif created_at is None:
-            created_at = datetime.now().isoformat()
+            created_at = utc_now().isoformat()
 
         if isinstance(updated_at, datetime):
             updated_at = updated_at.isoformat()

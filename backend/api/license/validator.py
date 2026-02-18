@@ -12,7 +12,7 @@ Used by both the admin CLI (for verification) and the desktop app
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from .generator import (

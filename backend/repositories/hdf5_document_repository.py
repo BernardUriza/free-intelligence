@@ -32,6 +32,7 @@ from backend.domain.document.models import (
 )
 from backend.utils.math.cpu import cosine_similarity_batch
 from backend.services.assistant.services.monitor_client import similarity_search_gpu
+from backend.utils.common.types import utc_now
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -319,7 +320,7 @@ class HDF5DocumentRepository(IDocumentRepository):
             if hasattr(doc, key):
                 setattr(doc, key, value)
 
-        doc.updated_at = datetime.now()
+        doc.updated_at = utc_now()
 
         # Re-save document
         try:

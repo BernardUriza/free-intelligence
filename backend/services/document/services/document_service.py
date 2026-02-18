@@ -37,11 +37,10 @@ from backend.services.document.services.embedding_service import (
     generate_embedding,
     generate_embeddings_batch,
 )
+from backend.utils.common.types import utc_now
 from backend.utils.common.logging.logger import get_logger
 
 logger = get_logger(__name__)
-
-
 class DocumentService:
     """High-level document management service.
 
@@ -228,7 +227,7 @@ class DocumentService:
                 {
                     "status": DocumentStatus.INDEXED,
                     "error_message": None,
-                    "updated_at": datetime.now()
+                    "updated_at": utc_now()
                 }
             )
 

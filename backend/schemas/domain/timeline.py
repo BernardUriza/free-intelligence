@@ -13,7 +13,7 @@ Sprint: SPR-2025W44
 
 import hashlib
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 

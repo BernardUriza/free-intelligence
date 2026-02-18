@@ -9,8 +9,34 @@ Created: 2025-10-31
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TypedDict
+
+
+def utc_now() -> datetime:
+    """
+    Get current UTC time with timezone info.
+
+    HIPAA-compliant timezone-aware datetime utility.
+    All timestamps in the system should use this function
+    to ensure consistency across audit logs, documents, and sessions.
+
+    Returns:
+        datetime: Current UTC time with tzinfo=timezone.utc
+
+    Examples:
+        >>> now = utc_now()
+        >>> now.tzinfo
+        datetime.timezone.utc
+        >>> now > utc_now()  # False - time moves forward
+        False
+
+    HIPAA Rationale:
+        - Audit trails require consistent timestamps
+        - Cross-timezone queries need UTC normalization
+        - Prevents bugs from naive datetime comparisons
+    """
+    return datetime.now(timezone.utc)
 
 
 class KPIsSnapshot(TypedDict, total=False):

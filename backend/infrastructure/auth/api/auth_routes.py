@@ -10,7 +10,7 @@ GET  /auth/rbac-matrix - Role-permission matrix
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status

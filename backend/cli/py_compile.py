@@ -6,7 +6,7 @@ Reports JSON output to /tmp/fi-artifacts/pycompile_report.json
 
 import json
 import py_compile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import os
 import sys

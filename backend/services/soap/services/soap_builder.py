@@ -7,6 +7,8 @@ handling type conversions and validation.
 from __future__ import annotations
 
 from datetime import datetime
+
+from backend.utils.common.types import utc_now
 from typing import Any
 
 from backend.providers.models import (
@@ -100,7 +102,7 @@ class SOAPBuilder:
             metadata = SOAPMetadata(
                 medico="Sistema Automatizado",
                 especialidad="General",
-                fecha=datetime.now(),
+                fecha=utc_now(),
                 duracion_consulta=0,
                 consentimiento_informado=True,
             )

@@ -89,8 +89,9 @@ class TestCatalogModel:
             CatalogSource,
             QuantizationType,
         )
+        from backend.utils.common.types import utc_now
 
-        now = datetime.now()
+        now = utc_now()
         model = CatalogModel(
             id="mistral-7b-instruct-q4",
             name="Mistral 7B Instruct",

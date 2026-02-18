@@ -11,7 +11,7 @@ Migrated from: backend/api/routers/session/public/sessions_pkg/diarization.py
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.infrastructure.common.repository_singletons import get_task_repository

@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 
 import os
 from backend.utils.common.logging.logger import get_logger
+from backend.utils.common.types import utc_now
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -221,7 +222,7 @@ def create_backup(
         raise FileNotFoundError(f"Corpus not found: {corpus_path}")
 
     # Generate backup filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
     backup_name = f"corpus_backup_{timestamp}.h5"
     if encrypt:
         backup_name += ".enc"
@@ -254,7 +255,7 @@ def create_backup(
     # Create metadata
     metadata = {
         "backup_id": timestamp,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "corpus_path": str(corpus_path_obj),
         "backup_path": str(backup_path),
         "encrypted": encrypt,
@@ -263,7 +264,7 @@ def create_backup(
         "original_size": corpus_path_obj.stat().st_size,
         "backup_size": backup_path.stat().st_size,
         "retention_days": retention_days,
-        "expires_at": (datetime.now() + timedelta(days=retention_days)).isoformat(),
+        "expires_at": (utc_now() + timedelta(days=retention_days)).isoformat(),
     }
 
     # Save metadata
@@ -445,7 +446,7 @@ def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> list[str]:
     if not backup_dir_obj.exists():
         return []
 
-    cutoff_date = datetime.now() - timedelta(days=retention_days)
+    cutoff_date = utc_now() - timedelta(days=retention_days)
     removed = []
 
     # Find all metadata files
@@ -470,7 +471,7 @@ def cleanup_old_backups(backup_dir: str, retention_days: int = 30) -> list[str]:
             logger.info(
                 "BACKUP_REMOVED",
                 backup_path=str(backup_path),
-                age_days=(datetime.now() - backup_date).days,
+                age_days=(utc_now() - backup_date).days,
             )
 
     logger.info("BACKUPS_CLEANED_UP", backup_dir=backup_dir, removed_count=len(removed))

@@ -15,7 +15,7 @@ FI-CORE-FEAT-003
 import gzip
 import json
 import shutil
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from backend.utils.common.logging.logger_structured import ServiceChannel

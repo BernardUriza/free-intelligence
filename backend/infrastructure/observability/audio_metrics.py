@@ -18,6 +18,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from backend.utils.common.types import utc_now
+
 
 class AudioMetrics:
     """
@@ -45,7 +47,7 @@ class AudioMetrics:
         self.queue_depth: int = 0
 
         # Session info
-        self.session_start: datetime = datetime.now()
+        self.session_start: datetime = utc_now()
 
     def record_tts_request(self, provider: str, voice: str):
         """Record a TTS request"""
@@ -120,7 +122,7 @@ class AudioMetrics:
             Dictionary with all current metrics
         """
         with self._lock:
-            uptime_seconds = (datetime.now() - self.session_start).total_seconds()
+            uptime_seconds = (utc_now() - self.session_start).total_seconds()
 
             return {
                 # Counters
