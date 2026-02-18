@@ -36,7 +36,7 @@ export function VersionBadge() {
         // Fetch release version from backend API (dynamic from GitHub releases)
         let releaseVersion: string | null = null;
         try {
-          const releasesRes = await fetch('/api/downloads/info');
+          const releasesRes = await api.raw('/api/downloads/info', { method: 'GET' });
           if (releasesRes.ok) {
             const releasesData = await releasesRes.json();
             releaseVersion = releasesData.releases?.[0]?.version || null;
