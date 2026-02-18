@@ -617,7 +617,6 @@ jobs:
       needs.detect-changes.outputs.aurity_desktop == 'true' &&
       !cancelled()
     runs-on: windows-latest
-    continue-on-error: true
     env:
       CARGO_INCREMENTAL: "1"
     steps:
@@ -684,20 +683,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit and push (now includes all synchronized files)
+          # Commit version changes (if any)
           git add .
-          # Only commit if there are changes
-          if ! git diff --staged --quiet; then
+          $staged = git diff --staged --name-only
+          if ($staged) {
             git commit -m "chore: bump version to $newVersion [skip ci]"
-            git push origin ${{ github.ref_name }}
-            Write-Host "✅ Version bumped and pushed: $currentVersion -> $newVersion"
-          else
-            Write-Host "⚠️  No version changes to commit (already at $newVersion)"
-          fi
+            Write-Host "Version committed: $currentVersion -> $newVersion"
+          } else {
+            Write-Host "No version changes to commit (already at $newVersion)"
+          }
 
           # Output for later steps
           "version=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "previous=$currentVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Push version bump
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          git push origin ${{ github.ref_name }}
+          Write-Host "Version bump pushed to ${{ github.ref_name }}"
 
       - name: Download pre-built frontend
         uses: actions/download-artifact@v4
