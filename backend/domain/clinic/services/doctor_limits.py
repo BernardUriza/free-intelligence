@@ -1,62 +1,66 @@
 """Doctor Limits Service.
 
 Validates and enforces doctor limits per clinic subscription plan.
-Supports superadmin override via max_doctors_override field.
-
-Author: Bernard Uriza Orozco
-Created: 2025-12-31
+Supports superadmin override via ``max_doctors_override`` field.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from backend.models.checkin_models import Clinic, Doctor
-from backend.utils.common.logging.logger import get_logger
+import structlog
 from fastapi import HTTPException
+
+from backend.models.checkin_models import Clinic, Doctor
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Domain value object
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class DoctorLimitInfo:
+    """Immutable snapshot of a clinic's doctor-limit state."""
+
+    current_count: int
+    max_allowed: int | None
+    can_add: bool
+    plan_name: str
+    plan_display_name: str
+    has_override: bool
+
+
+# ---------------------------------------------------------------------------
+# Queries
+# ---------------------------------------------------------------------------
 
 
 def get_doctor_limit(clinic: Clinic) -> int | None:
-    """Get the effective doctor limit for a clinic.
+    """Return the effective doctor limit for *clinic*.
 
-    Priority:
-    1. max_doctors_override (superadmin bypass)
-    2. subscription.max_doctors (plan limit)
-    3. None (unlimited)
-
-    Args:
-        clinic: The clinic to check
-
-    Returns:
-        Maximum doctors allowed, or None if unlimited
+    Resolution order:
+        1. ``max_doctors_override`` (superadmin bypass)
+        2. ``subscription.max_doctors`` (plan limit)
+        3. ``None`` (unlimited — legacy clinics without a plan)
     """
-    # Superadmin override takes priority
     if clinic.max_doctors_override is not None:
         return clinic.max_doctors_override
 
-    # Plan limit
     if clinic.subscription and clinic.subscription.max_doctors is not None:
         return clinic.subscription.max_doctors
 
-    # Default: unlimited (for legacy clinics without plan)
     return None
 
 
 def get_current_doctor_count(db: Session, clinic_id: str) -> int:
-    """Count active doctors in a clinic.
-
-    Args:
-        db: Database session
-        clinic_id: Clinic UUID
-
-    Returns:
-        Number of active doctors
-    """
+    """Count active doctors belonging to *clinic_id*."""
     return (
         db.query(Doctor)
         .filter(
@@ -67,82 +71,77 @@ def get_current_doctor_count(db: Session, clinic_id: str) -> int:
     )
 
 
+def _resolve_plan_fields(clinic: Clinic) -> tuple[str, str]:
+    """Extract ``(plan_name, plan_display_name)`` from *clinic*."""
+    if clinic.subscription:
+        return clinic.subscription.name, clinic.subscription.display_name
+    return "free", "Sin plan"
+
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+
 def validate_can_add_doctor(db: Session, clinic: Clinic) -> None:
-    """Validate if a new doctor can be added to the clinic.
-
-    Raises HTTPException 403 if the clinic has reached its doctor limit.
-
-    Args:
-        db: Database session
-        clinic: The clinic to validate
-
-    Raises:
-        HTTPException: 403 if limit exceeded
-    """
+    """Raise ``HTTPException 403`` if *clinic* has reached its doctor limit."""
+    clinic_id = str(clinic.clinic_id)
     limit = get_doctor_limit(clinic)
 
-    # No limit = unlimited
     if limit is None:
-        logger.debug(
-            "doctor_limit_check",
-            clinic_id=str(clinic.clinic_id),
-            result="unlimited",
-        )
+        logger.debug("doctor_limit_check_passed", clinic_id=clinic_id, result="unlimited")
         return
 
-    current_count = get_current_doctor_count(db, str(clinic.clinic_id))
+    current_count = get_current_doctor_count(db, clinic_id)
 
     if current_count >= limit:
-        plan_name = clinic.subscription.display_name if clinic.subscription else "Sin plan"
+        plan_name, plan_display_name = _resolve_plan_fields(clinic)
 
         logger.warning(
             "doctor_limit_exceeded",
-            clinic_id=str(clinic.clinic_id),
+            clinic_id=clinic_id,
             current_count=current_count,
             max_allowed=limit,
-            plan_name=plan_name,
         )
 
         raise HTTPException(
             status_code=403,
             detail={
                 "error": "DOCTOR_LIMIT_EXCEEDED",
-                "message": f"La clínica ha alcanzado el límite de {limit} doctores para {plan_name}.",
+                "message": (
+                    f"La clínica ha alcanzado el límite de {limit} "
+                    f"doctores para {plan_display_name}."
+                ),
                 "current_count": current_count,
                 "max_allowed": limit,
-                "plan_name": clinic.subscription.name if clinic.subscription else "free",
+                "plan_name": plan_name,
             },
         )
 
     logger.debug(
-        "doctor_limit_check",
-        clinic_id=str(clinic.clinic_id),
+        "doctor_limit_check_passed",
+        clinic_id=clinic_id,
         current_count=current_count,
         max_allowed=limit,
-        result="allowed",
     )
 
 
-def get_doctor_limit_info(db: Session, clinic: Clinic) -> dict:
-    """Get complete doctor limit information for a clinic.
+# ---------------------------------------------------------------------------
+# Info aggregation
+# ---------------------------------------------------------------------------
 
-    Args:
-        db: Database session
-        clinic: The clinic to check
 
-    Returns:
-        Dictionary with limit information
-    """
+def get_doctor_limit_info(db: Session, clinic: Clinic) -> DoctorLimitInfo:
+    """Build a complete doctor-limit snapshot for *clinic*."""
     limit = get_doctor_limit(clinic)
     current_count = get_current_doctor_count(db, str(clinic.clinic_id))
+    plan_name, plan_display_name = _resolve_plan_fields(clinic)
 
-    return {
-        "current_count": current_count,
-        "max_allowed": limit,
-        "can_add": limit is None or current_count < limit,
-        "plan_name": clinic.subscription.name if clinic.subscription else "free",
-        "plan_display_name": clinic.subscription.display_name
-        if clinic.subscription
-        else "Sin plan",
-        "has_override": clinic.max_doctors_override is not None,
-    }
+    return DoctorLimitInfo(
+        current_count=current_count,
+        max_allowed=limit,
+        can_add=limit is None or current_count < limit,
+        plan_name=plan_name,
+        plan_display_name=plan_display_name,
+        has_override=clinic.max_doctors_override is not None,
+    )

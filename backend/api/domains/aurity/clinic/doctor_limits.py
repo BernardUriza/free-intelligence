@@ -12,6 +12,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from backend.database import get_db_dependency
+from dataclasses import asdict
+
 from backend.domain.clinic.services.doctor_limits import get_doctor_limit_info
 from backend.infrastructure.auth.adapters.fastapi_adapter import get_current_user
 from backend.infrastructure.auth.domain.entities.user import User
@@ -51,7 +53,7 @@ def get_doctor_limits(
         raise HTTPException(status_code=404, detail="Clinic not found")
 
     info = get_doctor_limit_info(db, clinic)
-    return DoctorLimitInfoResponse(**info)
+    return DoctorLimitInfoResponse(**asdict(info))
 
 
 @router.patch("/{clinic_id}/doctor-override", response_model=ClinicResponse)
