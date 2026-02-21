@@ -1,13 +1,16 @@
 /**
- * useDocumentFilters - Search, filter, and computed stats
+ * useDocumentFilters - View mode, filtered results, and computed stats
  *
  * Single responsibility: derives filtered views and aggregate
  * stats from the document collection without mutating it.
+ *
+ * searchQuery and statusFilter are owned by the page component
+ * so they can be passed to both useDocuments and UI controls.
  */
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { DocumentMetadata, DocumentStatus } from '@aurity-standalone/types/knowledge';
+import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 
 export type ViewMode = 'grid' | 'list';
 
@@ -18,11 +21,12 @@ export interface DocumentStats {
   errors: number;
 }
 
-interface UseDocumentFiltersReturn {
+interface UseDocumentFiltersOptions {
+  documents: DocumentMetadata[];
   searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  statusFilter: DocumentStatus | 'all';
-  setStatusFilter: (status: DocumentStatus | 'all') => void;
+}
+
+interface UseDocumentFiltersReturn {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   filteredDocuments: DocumentMetadata[];
@@ -47,9 +51,10 @@ function computeStats(documents: DocumentMetadata[]): DocumentStats {
   };
 }
 
-export function useDocumentFilters(documents: DocumentMetadata[]): UseDocumentFiltersReturn {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
+export function useDocumentFilters({
+  documents,
+  searchQuery,
+}: UseDocumentFiltersOptions): UseDocumentFiltersReturn {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   const filteredDocuments = useMemo(
@@ -63,10 +68,6 @@ export function useDocumentFilters(documents: DocumentMetadata[]): UseDocumentFi
   const stats = useMemo(() => computeStats(documents), [documents]);
 
   return {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
     viewMode,
     setViewMode,
     filteredDocuments,

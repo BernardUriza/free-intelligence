@@ -18,40 +18,12 @@ import { useDocumentFilters } from './hooks/useDocumentFilters';
 import { KnowledgeStatsGrid } from './components/KnowledgeStatsGrid';
 import { KnowledgeActionsBar } from './components/KnowledgeActionsBar';
 import { DocumentList } from './components/DocumentList';
-import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
+import type { DocumentMetadata, DocumentStatus } from '@aurity-standalone/types/knowledge';
 
 export default function KnowledgeBasePage() {
-  // Data layer
-  const {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    viewMode,
-    setViewMode,
-    filteredDocuments,
-    stats,
-  } = useDocumentFiltersWithDocuments();
-
-  return null; // placeholder — replaced below
-}
-
-// ── Composed page (actual implementation) ────────────────────────────
-
-// We need filters.statusFilter before constructing useDocuments,
-// so we compose them inside the page component directly.
-
-KnowledgeBasePage.displayName = 'KnowledgeBasePage';
-
-// Override the default export with the real implementation:
-// eslint-disable-next-line import/no-anonymous-default-export
-export default function KnowledgeBasePage() {
-  // Filters (owns search, status, viewMode state)
-  // We initialize filters first to get statusFilter for the data hook.
+  // Filter state (owned here so statusFilter feeds into useDocuments)
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<
-    import('@aurity-standalone/types/knowledge').DocumentStatus | 'all'
-  >('all');
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
 
   // Documents CRUD
   const {
@@ -69,7 +41,10 @@ export default function KnowledgeBasePage() {
   } = useDocuments({ statusFilter });
 
   // Derived filters & stats
-  const { viewMode, setViewMode, filteredDocuments, stats } = useDocumentFilters(documents);
+  const { viewMode, setViewMode, filteredDocuments, stats } = useDocumentFilters({
+    documents,
+    searchQuery,
+  });
 
   // Modals
   const [showUploadModal, setShowUploadModal] = useState(false);
