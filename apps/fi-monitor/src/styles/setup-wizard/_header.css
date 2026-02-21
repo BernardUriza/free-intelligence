@@ -1,0 +1,27 @@
+/* ── Setup Wizard · Header ─────────────────────────────────────────── */
+/* Icon, title, subtitle at the top of each screen                     */
+
+.setup-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.setup-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.setup-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.setup-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  max-width: 320px;
+}
