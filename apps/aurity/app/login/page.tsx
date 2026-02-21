@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { Loader2 } from 'lucide-react';
+import { NeuralNetworkCanvas } from '@/components/background/NeuralNetworkCanvas';
+import { Loader2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -13,6 +15,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
 
   // Already logged in — redirect
   if (isAuthenticated && !authLoading) {
@@ -34,16 +38,30 @@ export default function LoginPage() {
     }
   };
 
+  const handlePasswordKeyEvent = (e: KeyboardEvent<HTMLInputElement>) => {
+    setCapsLock(e.getModifierState('CapsLock'));
+  };
+
   return (
     <div className="auth-login-wrapper">
+      <NeuralNetworkCanvas opacity={0.25} />
       <div className="auth-login-card">
-        <h1 className="auth-login-title">AURITY</h1>
-        <p className="auth-login-subtitle">Inicia sesion para continuar</p>
+        <div className="auth-login-logo-wrapper">
+          <Image
+            src="/logos/aurity-logo-light.png"
+            alt="Aurity"
+            width={180}
+            height={45}
+            className="w-auto h-auto"
+            priority
+          />
+        </div>
+        <p className="auth-login-subtitle">Inicia sesión para continuar</p>
 
         <form onSubmit={handleSubmit} className="auth-login-form">
           <div>
             <label htmlFor="email" className="auth-login-label">
-              Email
+              Correo electrónico
             </label>
             <input
               id="email"
@@ -59,18 +77,37 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="auth-login-label">
-              Password
+              Contraseña
             </label>
-            <input
-              id="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="layout-auth-input"
-              placeholder="********"
-            />
+            <div className="auth-login-password-wrapper">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyUp={handlePasswordKeyEvent}
+                onKeyDown={handlePasswordKeyEvent}
+                className="layout-auth-input auth-login-password-input"
+                placeholder="********"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="auth-login-password-toggle"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {capsLock && (
+              <p className="auth-login-capslock">
+                <AlertTriangle size={14} />
+                Caps Lock activado
+              </p>
+            )}
           </div>
 
           {error && (
@@ -90,7 +127,7 @@ export default function LoginPage() {
         <p className="auth-login-footer">
           No tienes cuenta?{' '}
           <Link href="/register" className="auth-login-link">
-            Registrate
+            Regístrate
           </Link>
         </p>
       </div>

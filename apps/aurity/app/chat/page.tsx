@@ -59,7 +59,7 @@ export default function ChatPage() {
   return (
     <AppTemplate
       headerConfig={headerConfig}
-      backgroundGradient="none"
+      backgroundGradient="slate"
       padding="0"
       maxWidth="full"
       fullHeight={true}
