@@ -13,7 +13,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #0f0c29;
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -22,72 +22,259 @@
       color: white;
       -webkit-user-select: none;
       user-select: none;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Layered gradient background */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 40%, rgba(102, 126, 234, 0.35) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 70% 60%, rgba(118, 75, 162, 0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 30% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+        linear-gradient(160deg, #0f0c29 0%, #1a1040 30%, #241652 60%, #1a1040 100%);
+      z-index: 0;
+      animation: bgShift 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes bgShift {
+      0%   { opacity: 1; }
+      50%  { opacity: 0.85; }
+      100% { opacity: 1; }
+    }
+
+    /* Floating ambient orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      z-index: 0;
+      animation: float 6s ease-in-out infinite alternate;
+    }
+    .orb-1 {
+      width: 200px; height: 200px;
+      background: rgba(102, 126, 234, 0.2);
+      top: -40px; left: -40px;
+      animation-duration: 7s;
+    }
+    .orb-2 {
+      width: 160px; height: 160px;
+      background: rgba(118, 75, 162, 0.18);
+      bottom: -30px; right: -30px;
+      animation-duration: 9s;
+      animation-delay: 1s;
+    }
+    .orb-3 {
+      width: 120px; height: 120px;
+      background: rgba(59, 130, 246, 0.12);
+      top: 50%; right: 10%;
+      animation-duration: 5s;
+      animation-delay: 2s;
+    }
+
+    @keyframes float {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(15px, -20px) scale(1.08); }
+    }
+
+    /* Content wrapper */
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 56px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 1px 0 rgba(255, 255, 255, 0.08) inset;
+      animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes cardIn {
+      0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Logo */
+    .logo-container {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .logo-glow {
+      position: absolute;
+      inset: -16px;
+      border-radius: 32px;
+      background: radial-gradient(circle, rgba(102, 126, 234, 0.35) 0%, transparent 70%);
+      animation: pulse 3s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50%      { opacity: 1;   transform: scale(1.1); }
     }
 
     .logo {
-      width: 80px;
-      height: 80px;
-      border-radius: 20px;
-      margin-bottom: 20px;
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
       object-fit: contain;
+      display: block;
+      box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+      animation: logoIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
     }
 
+    @keyframes logoIn {
+      0%   { opacity: 0; transform: scale(0.7) rotate(-8deg); }
+      100% { opacity: 1; transform: scale(1)   rotate(0deg); }
+    }
+
+    /* Typography */
     h1 {
-      font-size: 28px;
-      font-weight: 600;
-      margin-bottom: 8px;
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #fff 30%, rgba(200, 210, 255, 0.85) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: textIn 0.6s ease 0.25s both;
     }
 
     .subtitle {
-      font-size: 14px;
-      opacity: 0.8;
-      margin-bottom: 30px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(180, 190, 230, 0.8);
+      margin-bottom: 32px;
+      animation: textIn 0.6s ease 0.35s both;
     }
 
+    @keyframes textIn {
+      0%   { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Loading bar */
     .loader {
-      width: 200px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
+      width: 240px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
+      position: relative;
+      animation: textIn 0.5s ease 0.45s both;
+    }
+
+    .loader::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 3px;
+      box-shadow: 0 0 8px rgba(102, 126, 234, 0.2) inset;
     }
 
     .loader-bar {
-      width: 30%;
+      width: 35%;
       height: 100%;
-      background: white;
-      border-radius: 2px;
-      animation: loading 1.5s ease-in-out infinite;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(102, 126, 234, 0.6), #a78bfa, rgba(102, 126, 234, 0.6));
+      background-size: 200% 100%;
+      animation: loading 1.8s ease-in-out infinite, shimmer 2s linear infinite;
+      box-shadow: 0 0 12px rgba(167, 139, 250, 0.4);
     }
 
     @keyframes loading {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(400%); }
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(380%); }
     }
 
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Status text */
     .status {
       font-size: 12px;
-      opacity: 0.7;
+      font-weight: 400;
+      color: rgba(180, 190, 230, 0.6);
+      letter-spacing: 0.3px;
+      transition: opacity 0.3s ease;
+      animation: textIn 0.5s ease 0.5s both;
+      min-height: 16px;
     }
 
+    /* Version badge */
     .version {
       position: absolute;
-      bottom: 16px;
-      right: 16px;
+      bottom: 20px;
+      right: 24px;
       font-size: 11px;
-      opacity: 0.5;
+      font-weight: 500;
+      color: rgba(180, 190, 230, 0.3);
+      letter-spacing: 0.5px;
+      z-index: 1;
+    }
+
+    /* Bottom branding */
+    .branding {
+      position: absolute;
+      bottom: 20px;
+      left: 24px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(180, 190, 230, 0.2);
+      z-index: 1;
     }
   </style>
 </head>
 <body>
-  <img class="logo" src="icons/icon-128x128.png" alt="Aurity">
-  <h1>Aurity</h1>
-  <p class="subtitle">Medical AI Assistant</p>
-  <div class="loader">
-    <div class="loader-bar"></div>
+  <!-- Ambient orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Main card -->
+  <div class="content">
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <img class="logo" src="icons/icon-128x128.png" alt="Aurity">
+    </div>
+    <h1>Aurity</h1>
+    <p class="subtitle">Medical AI</p>
+    <div class="loader">
+      <div class="loader-bar"></div>
+    </div>
+    <p class="status" id="status">Iniciando...</p>
   </div>
-  <p class="status" id="status">Iniciando...</p>
+
+  <p class="branding">Free Intelligence</p>
   <p class="version" id="version">v—</p>
 
   <script>
