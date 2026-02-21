@@ -16,7 +16,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { detectTauri, isBrowser } from '@/lib/environment';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2, Download, Cloud, Shield, AlertTriangle, Lightbulb, Rocket } from 'lucide-react';
+import { CheckCircle, Loader2, Download, Cloud, Shield, AlertTriangle, Lightbulb, Rocket, ShieldAlert, WifiOff, FolderLock, SkipForward } from 'lucide-react';
 import { useWizardState, resetWizardState } from './hooks/useWizardState';
 
 // Export function to reset wizard (for use in settings/menu)
@@ -163,13 +163,15 @@ export function DesktopSetupWizard() {
             markSetupComplete();
           }, 2000);
         } else {
-          setError('La instalación falló. Por favor intenta de nuevo.');
+          setError('La instalación no se completó. Es posible que tu antivirus haya bloqueado el proceso o que falten permisos. Intenta desactivar temporalmente tu antivirus y vuelve a intentar.');
           setScreen('ERROR');
         }
       }
     } catch (err) {
       console.error('[DesktopWizard] Installation failed:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      // Tauri invoke errors can be strings, Error objects, or objects with message property
+      const errorMsg = extractErrorMessage(err);
+      setError(errorMsg);
       setScreen('ERROR');
     }
   };
@@ -189,6 +191,11 @@ export function DesktopSetupWizard() {
     setError(null);
     setProgress([]);
     checkFiMonitor();
+  };
+
+  // Skip wizard (user will set up later)
+  const skipSetup = async () => {
+    await markSetupComplete(false);
   };
 
   // Mark setup as complete using the hook (persists to filesystem on desktop)
@@ -228,7 +235,7 @@ export function DesktopSetupWizard() {
         {screen === 'NOT_INSTALLED' && <NotInstalledScreen onInstall={installFiMonitor} />}
         {screen === 'INSTALLING' && <InstallingScreen progress={progress} />}
         {screen === 'READY' && <ReadyScreen />}
-        {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstallation} />}
+        {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstallation} onSkip={skipSetup} />}
 
       </div>
     </div>
@@ -373,33 +380,111 @@ function ReadyScreen() {
   );
 }
 
+/// Extract a readable error message from Tauri invoke errors.
+/// Tauri can throw: strings, Error objects, or { message: string } objects.
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message);
+  return 'Error de instalación. Verifica tu conexión a internet e intenta de nuevo.';
+}
+
+/// Classify the error to show specific, actionable guidance
+type ErrorType = 'permission' | 'antivirus' | 'network' | 'not-found' | 'unknown';
+
+function classifyError(error: string | null): ErrorType {
+  if (!error) return 'unknown';
+  const lower = error.toLowerCase();
+  if (lower.includes('permiso') || lower.includes('permission') || lower.includes('denied') || lower.includes('access') || lower.includes('código: 5')) return 'permission';
+  if (lower.includes('antivirus') || lower.includes('bloqueando') || lower.includes('blocked')) return 'antivirus';
+  if (lower.includes('download') || lower.includes('network') || lower.includes('internet') || lower.includes('conexi') || lower.includes('fetch') || lower.includes('timeout') || lower.includes('status: 4') || lower.includes('status: 5')) return 'network';
+  if (lower.includes('not found') || lower.includes('no encontr') || lower.includes('no such file')) return 'not-found';
+  return 'unknown';
+}
+
+const ERROR_GUIDANCE: Record<ErrorType, { icon: typeof AlertTriangle; title: string; steps: string[] }> = {
+  permission: {
+    icon: FolderLock,
+    title: 'Permisos insuficientes',
+    steps: [
+      'Haz clic derecho en el instalador y selecciona "Ejecutar como administrador"',
+      'Si estás en una PC corporativa, pide a tu equipo de TI que autorice la instalación',
+      'Verifica que tu usuario tenga permisos de escritura en la carpeta de usuario',
+    ],
+  },
+  antivirus: {
+    icon: ShieldAlert,
+    title: 'Antivirus bloqueando la instalación',
+    steps: [
+      'Desactiva temporalmente tu antivirus (Windows Defender, Avast, Norton, etc.)',
+      'Agrega una excepción para la carpeta %LOCALAPPDATA%\\FI Monitor',
+      'Vuelve a activar el antivirus después de instalar',
+    ],
+  },
+  network: {
+    icon: WifiOff,
+    title: 'Error de conexión',
+    steps: [
+      'Verifica que tienes conexión a internet',
+      'Si usas VPN o proxy, intenta desactivarlo temporalmente',
+      'La descarga es de ~50 MB, verifica que tu red no bloquee descargas grandes',
+    ],
+  },
+  'not-found': {
+    icon: AlertTriangle,
+    title: 'Archivo no encontrado',
+    steps: [
+      'La instalación de Aurity Desktop puede estar incompleta',
+      'Reinstala Aurity Desktop desde la página de descargas',
+      'Si el problema persiste, descarga FI Monitor manualmente',
+    ],
+  },
+  unknown: {
+    icon: AlertTriangle,
+    title: 'Error de instalación',
+    steps: [
+      'Reinicia la aplicación e intenta de nuevo',
+      'Si tu antivirus bloquea la instalación, agrega una excepción temporal',
+      'Verifica que tienes conexión a internet estable',
+      'Si el problema persiste, descarga FI Monitor manualmente desde GitHub',
+    ],
+  },
+};
+
 // ERROR - Installation failed
 interface ErrorScreenProps {
   error: string | null;
   onRetry: () => void;
+  onSkip: () => void;
 }
 
-function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
+function ErrorScreen({ error, onRetry, onSkip }: ErrorScreenProps) {
+  const errorType = classifyError(error);
+  const guidance = ERROR_GUIDANCE[errorType];
+  const GuidanceIcon = guidance.icon;
+
   return (
     <div className="onb-stack-lg">
       <div className="onb-error-card">
         <div className="onb-row-mb">
           <div className="onb-error-icon">
-            <AlertTriangle className="onb-icon-sm onb-icon-red" />
+            <GuidanceIcon className="onb-icon-sm onb-icon-red" />
           </div>
           <div>
-            <p className="onb-text-label">Error de Instalación</p>
-            <p className="onb-error-detail">{error || 'Error desconocido'}</p>
+            <p className="onb-text-label">{guidance.title}</p>
+            {error && error !== guidance.title && (
+              <p className="onb-error-detail">{error}</p>
+            )}
           </div>
         </div>
 
         <div className="onb-info-body">
-          <p className="onb-font-medium">Posibles causas:</p>
-          <ul className="onb-list">
-            <li>Permisos insuficientes</li>
-            <li>Antivirus bloqueando instalación</li>
-            <li>Sin conexión a internet</li>
-          </ul>
+          <p className="onb-font-medium">Solución:</p>
+          <ol className="onb-list" style={{ listStyleType: 'decimal' }}>
+            {guidance.steps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
         </div>
       </div>
 
@@ -409,6 +494,14 @@ function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
           className="onb-btn-primary"
         >
           Reintentar
+        </Button>
+        <Button
+          onClick={onSkip}
+          variant="outline"
+          className="onb-btn-secondary"
+        >
+          <SkipForward className="onb-icon-sm onb-icon-mr" />
+          Configurar después
         </Button>
       </div>
 

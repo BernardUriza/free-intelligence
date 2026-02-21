@@ -92,6 +92,9 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": null,
+      "webviewInstallMode": {
+        "type": "skip"
+      },
       "wix": null,
       "nsis": {
         "installerIcon": "icons/icon.ico",

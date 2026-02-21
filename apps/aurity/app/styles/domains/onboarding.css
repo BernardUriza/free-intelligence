@@ -169,6 +169,10 @@
     @apply flex-1 bg-cyan-600 hover:bg-cyan-500 text-white;
   }
 
+  .onb-btn-secondary {
+    @apply flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white;
+  }
+
   .onb-text-center-fine {
     @apply text-xs text-slate-500 text-center;
   }

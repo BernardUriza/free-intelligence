@@ -110,6 +110,14 @@ const faqs = [
     question: '¿Funciona con mi especialidad médica?',
     answer: 'Sí. Aurity se adapta a cualquier especialidad: medicina general, pediatría, ginecología, cardiología, etc. El modelo de IA entiende terminología médica en español.',
   },
+  {
+    question: 'Windows me dice que no tiene permisos o bloquea la instalación, ¿qué hago?',
+    answer: 'Esto sucede porque el instalador aún no tiene firma digital de Microsoft (estamos en fase piloto). Para instalarlo: 1) Si aparece "Windows protegió su PC" (SmartScreen), haz clic en "Más información" y luego en "Ejecutar de todas formas". 2) Si tu antivirus lo bloquea, agrega una excepción temporal para el archivo descargado. 3) Si estás en una PC corporativa y necesitas permisos de administrador, pide a tu equipo de TI que autorice la instalación — Aurity se instala en tu carpeta de usuario y no modifica archivos del sistema.',
+  },
+  {
+    question: 'Mi antivirus bloquea Aurity, ¿es seguro?',
+    answer: 'Sí, es completamente seguro. Los antivirus a veces marcan aplicaciones nuevas o sin firma digital como sospechosas (falso positivo). Aurity Desktop es código abierto y se instala solo en tu carpeta de usuario. Puedes agregar una excepción en tu antivirus para la carpeta de Aurity.',
+  },
 ];
 
 const systemRequirements = {
@@ -715,16 +723,23 @@ export default function DownloadsPage() {
                       </div>
                     </div>
                     {latestRelease.platforms.windows ? (
-                      <a
-                        className="dl-download-btn"
-                        href={latestRelease.platforms.windows.url !== '#coming-soon' ? latestRelease.platforms.windows.url : undefined}
-                        download
-                      >
-                        <Download className="dl-icon-sm" />
-                        {latestRelease.platforms.windows.url === '#coming-soon'
-                          ? 'Próximamente'
-                          : `Descargar EXE`}
-                      </a>
+                      <>
+                        <a
+                          className="dl-download-btn"
+                          href={latestRelease.platforms.windows.url !== '#coming-soon' ? latestRelease.platforms.windows.url : undefined}
+                          download
+                        >
+                          <Download className="dl-icon-sm" />
+                          {latestRelease.platforms.windows.url === '#coming-soon'
+                            ? 'Próximamente'
+                            : `Descargar EXE`}
+                        </a>
+                        <p className="dl-platform-hint" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '8px', lineHeight: '1.4' }}>
+                          Si Windows SmartScreen bloquea la instalación, haz clic en
+                          &quot;Más información&quot; → &quot;Ejecutar de todas formas&quot;.
+                          No se requieren permisos de administrador.
+                        </p>
+                      </>
                     ) : (
                       <p className="dl-platform-desc">Aún no disponible</p>
                     )}

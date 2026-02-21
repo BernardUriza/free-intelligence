@@ -207,13 +207,20 @@ pub fn install_wsl() -> Result<String, WslError> {
                 "-Wait",
             ])
             .output()
-            .map_err(|e| WslError::CommandFailed(format!("Failed to start WSL installation: {}", e)))?;
+            .map_err(|e| WslError::CommandFailed(format!("No se pudo iniciar la instalación de WSL: {}", e)))?;
 
         if output.status.success() {
-            Ok("WSL installation initiated. A restart may be required.".to_string())
+            Ok("Instalación de WSL iniciada. Es posible que se requiera reiniciar el equipo.".to_string())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(WslError::CommandFailed(format!("WSL installation failed: {}", stderr)))
+            let err_lower = stderr.to_lowercase();
+            if err_lower.contains("cancelled") || err_lower.contains("canceled") || err_lower.contains("user") {
+                Err(WslError::CommandFailed("La instalación de WSL requiere permisos de administrador. Se mostró una ventana de autorización que fue cancelada o denegada. Haz clic en 'Sí' cuando Windows te pida permiso.".to_string()))
+            } else if err_lower.contains("access") || err_lower.contains("denied") || err_lower.contains("permission") {
+                Err(WslError::CommandFailed("No se tienen permisos suficientes para instalar WSL. Esta operación requiere ejecutarse como administrador. Si estás en una PC corporativa, contacta a tu equipo de TI.".to_string()))
+            } else {
+                Err(WslError::CommandFailed(format!("La instalación de WSL falló: {}. Intenta ejecutar 'wsl --install' manualmente desde PowerShell como administrador.", stderr)))
+            }
         }
     }
 

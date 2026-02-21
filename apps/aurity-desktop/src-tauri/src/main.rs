@@ -30,6 +30,38 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
 
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/// Localhost address for all local bindings
+const LOCALHOST: &str = "127.0.0.1";
+
+/// Default backend port (frontend expects this)
+const DEFAULT_BACKEND_PORT: u16 = 7001;
+
+/// Fallback port range when default is busy
+const FALLBACK_PORT_START: u16 = 7002;
+const FALLBACK_PORT_END: u16 = 7050;
+
+/// Ollama API base URL
+const OLLAMA_API_URL: &str = "http://localhost:11434";
+
+/// Timeout for Ollama health checks
+const OLLAMA_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Timeout for backend health checks
+const BACKEND_HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Maximum health check attempts (500ms each = 30s total)
+const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 60;
+
+/// Minimum splash screen duration for branding animation
+const MIN_SPLASH_DURATION: Duration = Duration::from_secs(15);
+
+/// Fallback timeout to force-show main window
+const FALLBACK_WINDOW_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// Application errors for Tauri commands
 #[derive(Debug, thiserror::Error, Serialize)]
 pub enum AppError {
@@ -65,17 +97,14 @@ struct BackendState {
 
 /// Find an available port based on build mode
 /// Port allocation:
-///   - 7001: Desktop (fixed, both dev and release)
-///   - 7002-7050: Fallback if 7001 is busy
+///   - DEFAULT_BACKEND_PORT: Desktop (fixed, both dev and release)
+///   - FALLBACK_PORT_START..FALLBACK_PORT_END: Fallback if default is busy
 fn find_available_port() -> Option<u16> {
-    // Always try 7001 first (frontend expects this)
-    let port = 7001;
-    if TcpListener::bind(("127.0.0.1", port)).is_ok() {
-        return Some(port);
+    if TcpListener::bind((LOCALHOST, DEFAULT_BACKEND_PORT)).is_ok() {
+        return Some(DEFAULT_BACKEND_PORT);
     }
-    // Fallback to dynamic if 7001 is busy
-    for p in 7002..7050 {
-        if TcpListener::bind(("127.0.0.1", p)).is_ok() {
+    for p in FALLBACK_PORT_START..FALLBACK_PORT_END {
+        if TcpListener::bind((LOCALHOST, p)).is_ok() {
             return Some(p);
         }
     }
@@ -85,12 +114,30 @@ fn find_available_port() -> Option<u16> {
 /// Check if the backend is responding to health checks.
 /// Accepts a pre-built client to avoid recreating it on each call (used in retry loops).
 async fn check_backend_health(client: &reqwest::Client, port: u16) -> bool {
-    let url = format!("http://127.0.0.1:{}/api/health", port);
+    let url = format!("http://{}:{}/api/health", LOCALHOST, port);
     client
         .get(&url)
         .send()
         .await
         .is_ok_and(|r| r.status().is_success())
+}
+
+/// Check if Ollama is responding to API requests.
+/// Reusable helper to avoid repeating the same check in 3+ places.
+async fn is_ollama_running() -> bool {
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(OLLAMA_CHECK_TIMEOUT)
+        .build()
+    else {
+        return false;
+    };
+    let url = format!("{}/api/tags", OLLAMA_API_URL);
+    client
+        .get(&url)
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
 }
 
 /// Emit loading status to splashscreen
@@ -102,7 +149,7 @@ fn emit_status(app: &tauri::AppHandle, message: &str) {
 #[tauri::command]
 fn get_backend_url(state: tauri::State<'_, Arc<BackendState>>) -> String {
     let port = state.port.load(Ordering::SeqCst);
-    format!("http://127.0.0.1:{}", port)
+    format!("http://{}:{}", LOCALHOST, port)
 }
 
 /// Check if backend is ready
@@ -114,15 +161,7 @@ fn get_backend_status(state: tauri::State<'_, Arc<BackendState>>) -> bool {
 /// Check if Ollama is running locally
 #[tauri::command]
 async fn check_ollama_status() -> Result<bool, AppError> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .build()
-        .map_err(|e| AppError::Network(e.to_string()))?;
-
-    match client.get("http://localhost:11434/api/tags").send().await {
-        Ok(response) => Ok(response.status().is_success()),
-        Err(_) => Ok(false),
-    }
+    Ok(is_ollama_running().await)
 }
 
 /// Ensure Ollama/Edge infrastructure is running
@@ -130,20 +169,7 @@ async fn check_ollama_status() -> Result<bool, AppError> {
 /// On macOS/Linux: runs ollama-tunnel.sh start
 #[tauri::command]
 async fn ensure_edge_infrastructure(_app: tauri::AppHandle) -> Result<String, AppError> {
-    // First check if Ollama is already running
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .build()
-        .map_err(|e| AppError::Network(e.to_string()))?;
-
-    let ollama_running = client
-        .get("http://localhost:11434/api/tags")
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false);
-
-    if ollama_running {
+    if is_ollama_running().await {
         return Ok("Ollama already running".to_string());
     }
 
@@ -415,16 +441,8 @@ async fn check_first_run_status(app: tauri::AppHandle) -> Result<FirstRunStatus,
     let data_dir = get_data_dir(&app)?;
     let config_exists = data_dir.join("config/fi.policy.yaml").exists();
 
-    // Check Ollama synchronously for simplicity
-    let ollama_ok = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .build()
-        .map_err(|e| AppError::Network(e.to_string()))?
-        .get("http://localhost:11434/api/tags")
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false);
+    // Check Ollama
+    let ollama_ok = is_ollama_running().await;
 
     Ok(FirstRunStatus {
         config_initialized: config_exists,
@@ -653,8 +671,8 @@ fn setup_window_transition(app_handle: &tauri::AppHandle, port: u16) {
 
     // Inject backend URL into main window
     let js = format!(
-        "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-        port
+        "window.__AURITY_BACKEND_URL__ = 'http://{}:{}';",
+        LOCALHOST, port
     );
     let _ = main_window.eval(&js);
 
@@ -664,10 +682,9 @@ fn setup_window_transition(app_handle: &tauri::AppHandle, port: u16) {
     let ready_handle = app_handle.clone();
     main_window.listen("frontend-ready", move |_| {
         let elapsed = splash_start.elapsed();
-        let min_splash_duration = Duration::from_secs(15);
 
-        if elapsed < min_splash_duration {
-            let remaining = min_splash_duration - elapsed;
+        if elapsed < MIN_SPLASH_DURATION {
+            let remaining = MIN_SPLASH_DURATION - elapsed;
             info!("Frontend ready - waiting {:.1}s more for splash animation", remaining.as_secs_f32());
             let handle = ready_handle.clone();
             tauri::async_runtime::spawn(async move {
@@ -698,7 +715,7 @@ fn setup_window_transition(app_handle: &tauri::AppHandle, port: u16) {
     // Fallback: show main and close splash after 20s if frontend doesn't respond
     let fallback_handle = app_handle.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(20)).await;
+        tokio::time::sleep(FALLBACK_WINDOW_TIMEOUT).await;
         if let Some(main) = fallback_handle.get_webview_window("main") {
             if !main.is_visible().unwrap_or(true) {
                 info!("Fallback: showing main window after timeout");
@@ -719,13 +736,12 @@ async fn run_health_checks(app_handle: &tauri::AppHandle, state: &Arc<BackendSta
     emit_status(app_handle, "Verificando backend...");
 
     let mut attempts = 0;
-    let max_attempts = 60; // 30 seconds total (500ms * 60)
     let health_client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
+        .timeout(BACKEND_HEALTH_TIMEOUT)
         .build()
         .unwrap_or_default();
 
-    while attempts < max_attempts {
+    while attempts < MAX_HEALTH_CHECK_ATTEMPTS {
         if check_backend_health(&health_client, port).await {
             state.is_ready.store(true, Ordering::SeqCst);
             info!("Backend is healthy on port {}", port);
@@ -748,9 +764,9 @@ async fn run_health_checks(app_handle: &tauri::AppHandle, state: &Arc<BackendSta
         }
     }
 
-    emit_status(app_handle, "Error: Backend no responde");
-    error!("Backend failed to respond after {} attempts", max_attempts);
-    let _ = app_handle.emit("backend-error", "Backend failed to start");
+    emit_status(app_handle, "Error: El backend no responde después de 30 segundos. Puede que tu antivirus esté bloqueando la conexión local. Intenta reiniciar la aplicación.");
+    error!("Backend failed to respond after {} attempts", MAX_HEALTH_CHECK_ATTEMPTS);
+    let _ = app_handle.emit("backend-error", "El backend de IA no pudo iniciar. Verifica que tu antivirus no esté bloqueando Aurity y reinicia la aplicación.");
 }
 
 /// Spawn the backend sidecar and manage startup lifecycle:
@@ -768,8 +784,8 @@ async fn spawn_backend(app_handle: tauri::AppHandle, state: Arc<BackendState>) {
             p
         }
         None => {
-            error!("No available ports in range 7001-7999");
-            emit_status(&app_handle, "Error: No hay puertos disponibles");
+            error!("No available ports in range {}-{}", DEFAULT_BACKEND_PORT, FALLBACK_PORT_END);
+            emit_status(&app_handle, &format!("Error: No se encontró un puerto disponible ({}-{}). Cierra otras aplicaciones que puedan estar usando estos puertos e intenta de nuevo.", DEFAULT_BACKEND_PORT, FALLBACK_PORT_END));
             return;
         }
     };
@@ -784,7 +800,15 @@ async fn spawn_backend(app_handle: tauri::AppHandle, state: Arc<BackendState>) {
         Ok(cmd) => cmd,
         Err(e) => {
             error!("Failed to create sidecar command: {}", e);
-            emit_status(&app_handle, &format!("Error: sidecar no disponible ({})", e));
+            let err_str = e.to_string();
+            let user_msg = if err_str.contains("permission") || err_str.contains("denied") || err_str.contains("access") {
+                format!("Error de permisos: No se puede ejecutar el backend. Verifica que tu antivirus no esté bloqueando Aurity o intenta ejecutar como administrador. ({})", e)
+            } else if err_str.contains("not found") || err_str.contains("No such file") {
+                format!("Error: No se encontró el ejecutable del backend. La instalación puede estar incompleta. Reinstala Aurity Desktop. ({})", e)
+            } else {
+                format!("Error al iniciar el backend de IA: {}. Si el problema persiste, reinstala la aplicación.", e)
+            };
+            emit_status(&app_handle, &user_msg);
             return;
         }
     };
@@ -832,7 +856,15 @@ async fn spawn_backend(app_handle: tauri::AppHandle, state: Arc<BackendState>) {
         }
         Err(e) => {
             error!("Failed to spawn sidecar: {}", e);
-            emit_status(&app_handle, &format!("Error: {}", e));
+            let err_str = e.to_string();
+            let user_msg = if err_str.contains("permission") || err_str.contains("denied") || err_str.contains("access") {
+                format!("Error de permisos al iniciar el backend. Tu antivirus o configuración de Windows puede estar bloqueando la ejecución. Agrega Aurity a las excepciones de tu antivirus. ({})", e)
+            } else if err_str.contains("not found") || err_str.contains("No such file") {
+                format!("No se encontró el backend de IA. La instalación puede estar dañada. Por favor reinstala Aurity Desktop. ({})", e)
+            } else {
+                format!("No se pudo iniciar el backend de IA: {}. Intenta reiniciar la aplicación o reinstalarla.", e)
+            };
+            emit_status(&app_handle, &user_msg);
 
             // In dev mode, continue anyway without backend
             #[cfg(debug_assertions)]
@@ -843,8 +875,8 @@ async fn spawn_backend(app_handle: tauri::AppHandle, state: Arc<BackendState>) {
 
                 if let Some(main_window) = app_handle.get_webview_window("main") {
                     let js = format!(
-                        "window.__AURITY_BACKEND_URL__ = 'http://127.0.0.1:{}';",
-                        port
+                        "window.__AURITY_BACKEND_URL__ = 'http://{}:{}';",
+                        LOCALHOST, port
                     );
                     let _ = main_window.eval(&js);
                     let _ = main_window.eval("window.__AURITY_DEV_MODE__ = true;");
@@ -895,7 +927,13 @@ fn main() {
                     info!("Config already exists");
                 }
                 Err(e) => {
-                    warn!("Failed to bootstrap config: {}", e);
+                    let err_str = e.to_string();
+                    if err_str.contains("permission") || err_str.contains("denied") || err_str.contains("access") {
+                        warn!("Permission error bootstrapping config: {}", e);
+                        emit_status(&app_handle, "Error de permisos al crear la configuración. Verifica que tienes permisos de escritura en tu carpeta de usuario.");
+                    } else {
+                        warn!("Failed to bootstrap config: {}", e);
+                    }
                 }
             }
 
