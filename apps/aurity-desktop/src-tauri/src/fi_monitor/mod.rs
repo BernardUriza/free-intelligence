@@ -10,10 +10,10 @@
 //   install.rs   — Silent NSIS install, full orchestration flow, launch
 //   errors.rs    — User-friendly error classification (network/HTTP/NSIS)
 
-mod detection;
-mod download;
+pub mod detection;
+pub mod download;
 mod errors;
-mod install;
+pub mod install;
 mod paths;
 
 use serde::Serialize;

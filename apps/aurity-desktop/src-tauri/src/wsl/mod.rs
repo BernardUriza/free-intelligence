@@ -12,9 +12,9 @@
 //   backend.rs   — Backend lifecycle in WSL (setup, start, stop, health, logs)
 //   paths.rs     — Path conversion and backend source discovery
 
-mod backend;
-mod detection;
-mod install;
+pub mod backend;
+pub mod detection;
+pub mod install;
 mod paths;
 
 use serde::{Deserialize, Serialize};

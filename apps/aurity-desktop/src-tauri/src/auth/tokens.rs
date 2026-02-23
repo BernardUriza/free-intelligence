@@ -17,6 +17,7 @@ pub async fn refresh_tokens(auth_state: State<'_, AuthState>) -> Result<AuthToke
 
     let refresh_token = current_tokens
         .refresh_token
+        .clone()
         .ok_or(AuthError::OAuthError("No refresh token available".into()))?;
 
     let config = flow::get_config(&auth_state)?;
