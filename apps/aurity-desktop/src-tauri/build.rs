@@ -24,10 +24,11 @@ fn main() {
             fi_monitor_conf.display()
         );
     } else {
-        // Fallback for CI or environments where fi-monitor source isn't available
-        println!("cargo:rustc-env=FI_MONITOR_VERSION=1.0.6");
+        // Fallback for CI or environments where fi-monitor source isn't available.
+        // Keep this in sync with apps/fi-monitor/src-tauri/tauri.conf.json version field.
+        println!("cargo:rustc-env=FI_MONITOR_VERSION=1.0.14");
         println!("cargo:rustc-env=FI_MONITOR_PRODUCT_NAME=FIMonitor");
-        println!("cargo:warning=fi-monitor tauri.conf.json not found, using fallback version");
+        println!("cargo:warning=fi-monitor tauri.conf.json not found, using fallback version 1.0.14");
     }
 
     tauri_build::build()

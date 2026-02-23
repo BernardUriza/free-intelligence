@@ -2,25 +2,36 @@
 
 use log::{info, warn};
 use tauri::Emitter;
+use tokio::time::timeout;
 
 use super::detection::check_fi_monitor_installed;
 use super::download::download_fi_monitor;
 use super::errors;
-use super::{MonitorError, POST_INSTALL_DELAY};
+use super::{MonitorError, INSTALL_TIMEOUT, POST_INSTALL_DELAY};
 
 /// Install FI Monitor silently from a downloaded NSIS installer.
+/// Uses tokio::process to avoid blocking the async runtime, with a 5-minute timeout.
 #[tauri::command]
 pub async fn install_fi_monitor_silent(_installer_path: String) -> Result<bool, MonitorError> {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
+        use tokio::process::Command;
 
-        let output = Command::new(&_installer_path)
-            .args(["/S"]) // NSIS silent install flag
-            .output()
-            .map_err(|e| {
-                MonitorError::InstallFailed(format!("Failed to run installer: {}", e))
-            })?;
+        let output = timeout(
+            INSTALL_TIMEOUT,
+            Command::new(&_installer_path)
+                .args(["/S"]) // NSIS silent install flag
+                .output(),
+        )
+        .await
+        .map_err(|_| {
+            MonitorError::InstallFailed(
+                "La instalación tardó demasiado (timeout 5 min). \
+                 Intenta ejecutar el instalador manualmente."
+                    .into(),
+            )
+        })?
+        .map_err(|e| MonitorError::InstallFailed(format!("Failed to run installer: {}", e)))?;
 
         if output.status.success() {
             tokio::time::sleep(POST_INSTALL_DELAY).await;

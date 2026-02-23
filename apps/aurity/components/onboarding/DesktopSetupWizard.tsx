@@ -53,6 +53,7 @@ export function DesktopSetupWizard() {
   const [showWizard, setShowWizard] = useState(false);
   const [screen, setScreen] = useState<Screen>('CHECKING');
   const [progress, setProgress] = useState<string[]>([]);
+  const [downloadPercent, setDownloadPercent] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
@@ -130,7 +131,17 @@ export function DesktopSetupWizard() {
       }
     } catch (err) {
       console.error('[DesktopWizard] Failed to check FI Monitor:', err);
-      setScreen('NOT_INSTALLED');
+      const errorMsg = extractErrorMessage(err);
+      // Only treat as "not installed" if the error is clearly about absence.
+      // Any other Tauri error (permissions, crash) must surface to the user.
+      const isNotInstalled = errorMsg.toLowerCase().includes('not installed')
+        || errorMsg.toLowerCase().includes('no instalado');
+      if (isNotInstalled) {
+        setScreen('NOT_INSTALLED');
+      } else {
+        setError(errorMsg || 'No se pudo verificar el estado de FI Monitor.');
+        setScreen('ERROR');
+      }
     }
   };
 
@@ -138,20 +149,26 @@ export function DesktopSetupWizard() {
   const installFiMonitor = async () => {
     setScreen('INSTALLING');
     setProgress(['Descargando FI Monitor...']);
+    setDownloadPercent(0);
 
     try {
       // Listen for progress events
       if (typeof window !== 'undefined' && '__TAURI__' in window) {
         const { listen } = await import('@tauri-apps/api/event');
 
-        const unlisten = await listen<string>('fi-monitor-install-status', (event) => {
+        const unlistenStatus = await listen<string>('fi-monitor-install-status', (event) => {
           setProgress(prev => [...prev, event.payload]);
+        });
+
+        const unlistenProgress = await listen<{ percentage: number }>('fi-monitor-download-progress', (event) => {
+          setDownloadPercent(Math.round(event.payload.percentage));
         });
 
         // Start installation
         const result = await invokeTauri<boolean>('install_fi_monitor_full');
 
-        unlisten();
+        unlistenStatus();
+        unlistenProgress();
 
         if (result) {
           setProgress(prev => [...prev, '[OK] FI Monitor instalado correctamente']);
@@ -233,7 +250,7 @@ export function DesktopSetupWizard() {
         {/* Content by screen */}
         {screen === 'CHECKING' && <CheckingScreen />}
         {screen === 'NOT_INSTALLED' && <NotInstalledScreen onInstall={installFiMonitor} />}
-        {screen === 'INSTALLING' && <InstallingScreen progress={progress} />}
+        {screen === 'INSTALLING' && <InstallingScreen progress={progress} downloadPercent={downloadPercent} />}
         {screen === 'READY' && <ReadyScreen />}
         {screen === 'ERROR' && <ErrorScreen error={error} onRetry={retryInstallation} onSkip={skipSetup} />}
 
@@ -304,10 +321,14 @@ function NotInstalledScreen({ onInstall }: NotInstalledScreenProps) {
 // INSTALLING - Installing FI Monitor with progress
 interface InstallingScreenProps {
   progress: string[];
+  downloadPercent: number;
 }
 
-function InstallingScreen({ progress }: InstallingScreenProps) {
-  const progressPercent = Math.min(100, (progress.length / 5) * 100);
+function InstallingScreen({ progress, downloadPercent }: InstallingScreenProps) {
+  // Use real download % when available, fall back to step-based estimate for other phases
+  const progressPercent = downloadPercent > 0
+    ? downloadPercent
+    : Math.min(90, (progress.length / 5) * 100);
 
   return (
     <div className="onb-stack-lg">
@@ -381,12 +402,18 @@ function ReadyScreen() {
 }
 
 /// Extract a readable error message from Tauri invoke errors.
-/// Tauri can throw: strings, Error objects, or { message: string } objects.
+/// Tauri 2.x serializes Rust enums as: { "VariantName": "message" }
+/// e.g. MonitorError::DownloadFailed("x") → { "DownloadFailed": "x" }
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message);
-  return 'Error de instalación. Verifica tu conexión a internet e intenta de nuevo.';
+  if (err && typeof err === 'object') {
+    if ('message' in err) return String((err as { message: unknown }).message);
+    // Rust enum serialization: { "DownloadFailed": "msg" } or { "InstallFailed": "msg" }
+    const values = Object.values(err as Record<string, unknown>);
+    if (values.length === 1 && typeof values[0] === 'string') return values[0];
+  }
+  return 'Error desconocido al instalar. Revisa tu conexión e intenta de nuevo.';
 }
 
 /// Classify the error to show specific, actionable guidance

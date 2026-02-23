@@ -34,6 +34,9 @@ pub(crate) const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 /// Delay after silent install before verifying success
 pub(crate) const POST_INSTALL_DELAY: Duration = Duration::from_secs(2);
 
+/// Maximum time to wait for the NSIS installer to complete
+pub(crate) const INSTALL_TIMEOUT: Duration = Duration::from_secs(300); // 5 minutes
+
 /// NSIS exit code for "Access Denied"
 pub(crate) const NSIS_EXIT_ACCESS_DENIED: i32 = 5;
 
