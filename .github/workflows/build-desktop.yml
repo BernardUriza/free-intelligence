@@ -267,6 +267,7 @@ jobs:
         shell: pwsh
         run: |
           $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis | ConvertFrom-Json
+          "version=$($INFO.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "file=$($INFO.file)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
