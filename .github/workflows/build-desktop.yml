@@ -346,6 +346,38 @@ jobs:
           NEXT_PUBLIC_API_URL=http://localhost:7001
           EOF
 
+      - name: Generate releases.json
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          FI_VERSION=$(grep '^version' apps/fi-monitor/src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          PUB_DATE=$(date -u +"%Y-%m-%d")
+          cat > apps/aurity/public/releases.json << EOF
+          {
+            "releases": [
+              {
+                "version": "$VERSION",
+                "fiVersion": "$FI_VERSION",
+                "date": "$PUB_DATE",
+                "platforms": {
+                  "windows": {
+                    "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe",
+                    "size": "~100 MB",
+                    "sha256": "pending"
+                  }
+                },
+                "changelog": [
+                  "Aurity Desktop v$VERSION",
+                  "FI Monitor v$FI_VERSION incluido"
+                ]
+              }
+            ],
+            "generatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "source": "ci"
+          }
+          EOF
+          echo "✅ releases.json generado: Aurity v$VERSION + FI Monitor v$FI_VERSION"
+          cat apps/aurity/public/releases.json
+
       - name: Build Next.js frontend
         working-directory: apps/aurity
         run: |

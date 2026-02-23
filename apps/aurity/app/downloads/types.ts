@@ -6,6 +6,7 @@ export interface PlatformAsset {
 
 export interface Release {
   version: string;
+  fiVersion?: string;
   date: string;
   platforms: {
     macos?: PlatformAsset;

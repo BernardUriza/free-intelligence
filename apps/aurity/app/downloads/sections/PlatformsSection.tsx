@@ -1,4 +1,4 @@
-import { Download, Apple, Monitor } from 'lucide-react';
+import { Download, Apple, Monitor, Tag, Cpu } from 'lucide-react';
 
 import type { Release } from '../types';
 
@@ -10,6 +10,20 @@ export function PlatformsSection({ latestRelease }: PlatformsSectionProps) {
   return (
     <section className="dl-platforms-section">
       <div className="dl-section-container-wide">
+        {/* Version badges */}
+        <div className="dl-version-badges">
+          <span className="dl-version-badge dl-version-badge--aurity">
+            <Tag className="dl-version-badge-icon" />
+            Aurity Desktop v{latestRelease.version}
+          </span>
+          {latestRelease.fiVersion && (
+            <span className="dl-version-badge dl-version-badge--fi">
+              <Cpu className="dl-version-badge-icon" />
+              FI Monitor v{latestRelease.fiVersion}
+            </span>
+          )}
+        </div>
+
         <h2 className="dl-platforms-title">Disponible para tu plataforma</h2>
         <p className="dl-platforms-subtitle">Instalación simple, sin configuración complicada</p>
 
