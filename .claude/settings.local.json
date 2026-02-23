@@ -213,7 +213,11 @@
       "Bash(az account show:*)",
       "Bash(az resource:*)",
       "Bash(az webapp:*)",
-      "Bash(az containerapp show:*)"
+      "Bash(az containerapp show:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(git commit:*)",
+      "Bash(gh run view:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
