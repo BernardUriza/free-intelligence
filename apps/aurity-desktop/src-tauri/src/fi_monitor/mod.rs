@@ -78,10 +78,4 @@ pub struct DownloadProgress {
     pub percentage: f32,
 }
 
-// =============================================================================
-// RE-EXPORTS (Tauri commands)
-// =============================================================================
 
-pub use detection::check_fi_monitor_installed;
-pub use download::download_fi_monitor;
-pub use install::{install_fi_monitor_full, install_fi_monitor_silent, launch_fi_monitor};

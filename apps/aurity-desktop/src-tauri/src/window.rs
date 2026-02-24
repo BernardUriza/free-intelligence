@@ -2,6 +2,7 @@
 
 use log::info;
 use tauri::{Emitter, Listener, Manager};
+#[cfg(target_os = "macos")]
 use tauri_plugin_deep_link::DeepLinkExt;
 
 use crate::constants::{FALLBACK_WINDOW_TIMEOUT, LOCALHOST, MIN_SPLASH_DURATION};

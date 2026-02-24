@@ -80,16 +80,4 @@ pub struct WslStatus {
     pub backend_running: bool,
 }
 
-// =============================================================================
-// RE-EXPORTS (Tauri commands)
-// =============================================================================
 
-pub use backend::{
-    check_wsl_backend_health,
-    get_wsl_backend_logs,
-    setup_wsl_backend,
-    start_wsl_backend,
-    stop_wsl_backend,
-};
-pub use detection::check_wsl_status;
-pub use install::{enable_wsl_feature, install_wsl};

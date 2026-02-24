@@ -112,10 +112,4 @@ impl Default for AuthState {
     }
 }
 
-// =============================================================================
-// RE-EXPORTS (Tauri commands)
-// =============================================================================
 
-pub use flow::{configure_auth0, handle_auth_callback, start_auth_flow};
-pub use keychain::{clear_tokens, get_stored_tokens};
-pub use tokens::{get_token_expiry, is_token_expired, refresh_tokens};
