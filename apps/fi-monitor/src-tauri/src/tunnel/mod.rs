@@ -6,5 +6,5 @@ mod local;
 mod upload;
 mod watchdog;
 
-pub(crate) use commands::{read_tunnel_file, start_tunnel, stop_tunnel};
+pub(crate) use commands::*;
 pub(crate) use local::start_tunnel_local;

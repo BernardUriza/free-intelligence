@@ -3,8 +3,8 @@
 mod detection;
 mod install;
 
-pub(crate) use detection::check_python_installed;
-pub(crate) use install::{download_and_install_python, install_python_silent};
+pub(crate) use detection::*;
+pub(crate) use install::*;
 
 use serde::Serialize;
 

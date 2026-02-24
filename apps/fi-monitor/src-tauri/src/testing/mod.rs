@@ -4,9 +4,9 @@ mod llm;
 mod rag;
 mod status;
 
-// Shared types used by submodules
-pub(crate) use llm::{test_llm_health, test_ollama};
-pub(crate) use status::get_status;
+// Glob re-exports to include __cmd__ companions for generate_handler!
+pub(crate) use llm::*;
+pub(crate) use status::*;
 
 use serde::{Deserialize, Serialize};
 
