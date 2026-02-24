@@ -44,8 +44,10 @@ function Root() {
   // 🔧 DEV MODE: Skip wizard en web browser para debugging con Chrome DevTools
   const isWebBrowser = !isTauriContext();
 
-  // Show wizard if setup not completed (solo en Tauri)
-  if (!isWebBrowser && !setupState?.completed) {
+  // Show wizard if setup not completed, or if skipped with missing deps
+  const needsSetup = !setupState?.completed ||
+    (setupState?.skipped && (!setupState?.ollamaInstalled || !setupState?.pythonInstalled));
+  if (!isWebBrowser && needsSetup) {
     return <SetupWizard />;
   }
 
