@@ -1,0 +1,84 @@
+/* ── Setup Wizard · Actions ────────────────────────────────────────── */
+/* Buttons, links, and version badge                                   */
+
+/* ── Button group ───────────────────────────────────────────────── */
+
+.setup-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* ── Base button ────────────────────────────────────────────────── */
+
+.setup-btn {
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.setup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Primary variant ────────────────────────────────────────────── */
+
+.setup-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.setup-btn-primary:hover:not(:disabled) {
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
+}
+
+/* ── Secondary variant ──────────────────────────────────────────── */
+
+.setup-btn-secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border-bright);
+}
+
+.setup-btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ── Link ───────────────────────────────────────────────────────── */
+
+.setup-link {
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+.setup-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.setup-link a:hover {
+  text-decoration: underline;
+}
+
+/* ── Version badge ──────────────────────────────────────────────── */
+
+.setup-version {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 10px;
+  border-radius: 4px;
+}

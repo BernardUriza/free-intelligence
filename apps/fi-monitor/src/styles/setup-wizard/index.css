@@ -1,0 +1,9 @@
+/* ── Setup Wizard ──────────────────────────────────────────────────── */
+/* Barrel file — import order mirrors render hierarchy                  */
+
+@import './_layout.css';
+@import './_header.css';
+@import './_info.css';
+@import './_progress.css';
+@import './_feedback.css';
+@import './_actions.css';

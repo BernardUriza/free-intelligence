@@ -267,6 +267,7 @@ jobs:
         shell: pwsh
         run: |
           $INFO = node apps/aurity-desktop/scripts/get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis | ConvertFrom-Json
+          "version=$($INFO.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "path=$($INFO.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "sig=$($INFO.sig)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "file=$($INFO.file)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -344,6 +345,38 @@ jobs:
           NEXT_PUBLIC_BACKEND_URL=http://localhost:7001
           NEXT_PUBLIC_API_URL=http://localhost:7001
           EOF
+
+      - name: Generate releases.json
+        run: |
+          VERSION=$(node -p "require('./apps/aurity-desktop/src-tauri/tauri.conf.json').version")
+          FI_VERSION=$(grep '^version' apps/fi-monitor/src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          PUB_DATE=$(date -u +"%Y-%m-%d")
+          cat > apps/aurity/public/releases.json << EOF
+          {
+            "releases": [
+              {
+                "version": "$VERSION",
+                "fiVersion": "$FI_VERSION",
+                "date": "$PUB_DATE",
+                "platforms": {
+                  "windows": {
+                    "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v$VERSION/Aurity_${VERSION}_x64-setup.exe",
+                    "size": "~100 MB",
+                    "sha256": "pending"
+                  }
+                },
+                "changelog": [
+                  "Aurity Desktop v$VERSION",
+                  "FI Monitor v$FI_VERSION incluido"
+                ]
+              }
+            ],
+            "generatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "source": "ci"
+          }
+          EOF
+          echo "✅ releases.json generado: Aurity v$VERSION + FI Monitor v$FI_VERSION"
+          cat apps/aurity/public/releases.json
 
       - name: Build Next.js frontend
         working-directory: apps/aurity
@@ -1018,7 +1051,7 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       (needs.build-windows.result == 'success' ||
        needs.build-macos.result == 'success')
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-fi-monitor]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -1047,8 +1080,18 @@ jobs:
 
           PLATFORMS=${PLATFORMS%, }
 
+          # FI Monitor status
+          FI_MONITOR_STATUS="${{ needs.build-fi-monitor.result }}"
+          if [ "$FI_MONITOR_STATUS" != "success" ]; then
+            FI_MONITOR_ALERT="true"
+          else
+            FI_MONITOR_ALERT="false"
+          fi
+
           echo "platforms=$PLATFORMS" >> $GITHUB_OUTPUT
           echo "platform_badges=$PLATFORM_BADGES" >> $GITHUB_OUTPUT
+          echo "fi_monitor_alert=$FI_MONITOR_ALERT" >> $GITHUB_OUTPUT
+          echo "fi_monitor_status=$FI_MONITOR_STATUS" >> $GITHUB_OUTPUT
 
       - name: Extract build metadata
         id: metadata
@@ -1121,6 +1164,7 @@ jobs:
                   <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🎯 Plataformas Construidas</h3>
                   <p style="margin: 0; color: #666; font-size: 16px;">${{ steps.platforms.outputs.platforms }}</p>
                 </div>
+                ${{ steps.platforms.outputs.fi_monitor_alert == 'true' && format('<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 16px 20px; border-radius: 8px; margin-top: 16px;"><p style="margin: 0; color: #92400e; font-weight: 600;">⚠️ FI Monitor build falló ({0})</p><p style="margin: 8px 0 0 0; color: #78350f; font-size: 14px;">El setup wizard de nuevas instalaciones fallará. Revisa el workflow: <a href="{1}/{2}/actions/runs/{3}" style="color: #0078D4;">{3}</a></p></div>', steps.platforms.outputs.fi_monitor_status, github.server_url, github.repository, github.run_id) || '' }}
               </div>
               <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0 0 10px 0; color: #9ca3af; font-size: 14px;">

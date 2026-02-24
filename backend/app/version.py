@@ -5,4 +5,4 @@ Single source of truth for version across the application.
 
 from __future__ import annotations
 
-__version__ = "1.0.19"
+__version__ = "1.0.23"

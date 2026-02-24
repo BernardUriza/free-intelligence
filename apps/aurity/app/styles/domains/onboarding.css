@@ -169,6 +169,10 @@
     @apply flex-1 bg-cyan-600 hover:bg-cyan-500 text-white;
   }
 
+  .onb-btn-secondary {
+    @apply flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white;
+  }
+
   .onb-text-center-fine {
     @apply text-xs text-slate-500 text-center;
   }
@@ -267,15 +271,15 @@
 
 @layer components {
   .auth-login-wrapper {
-    @apply min-h-screen flex items-center justify-center bg-slate-950 px-4;
+    @apply min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 px-4 relative overflow-hidden;
   }
 
   .auth-login-card {
-    @apply w-full max-w-sm;
+    @apply w-full max-w-sm relative z-10;
   }
 
-  .auth-login-title {
-    @apply text-2xl font-bold text-white text-center mb-1;
+  .auth-login-logo-wrapper {
+    @apply flex justify-center mb-2;
   }
 
   .auth-login-subtitle {
@@ -287,7 +291,23 @@
   }
 
   .auth-login-label {
-    @apply block text-sm text-slate-300 mb-1;
+    @apply block text-sm text-slate-300 mb-1 font-medium;
+  }
+
+  .auth-login-password-wrapper {
+    @apply relative;
+  }
+
+  .auth-login-password-input {
+    @apply pr-10;
+  }
+
+  .auth-login-password-toggle {
+    @apply absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors;
+  }
+
+  .auth-login-capslock {
+    @apply flex items-center gap-1.5 text-amber-400 text-xs mt-1.5;
   }
 
   .auth-login-error {
@@ -315,15 +335,15 @@
 
 @layer components {
   .auth-register-wrapper {
-    @apply min-h-screen flex items-center justify-center bg-slate-950 px-4;
+    @apply min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 px-4 relative overflow-hidden;
   }
 
   .auth-register-card {
-    @apply w-full max-w-sm;
+    @apply w-full max-w-sm relative z-10;
   }
 
-  .auth-register-title {
-    @apply text-2xl font-bold text-white text-center mb-1;
+  .auth-register-logo-wrapper {
+    @apply flex justify-center mb-2;
   }
 
   .auth-register-subtitle {
@@ -335,7 +355,23 @@
   }
 
   .auth-register-label {
-    @apply block text-sm text-slate-300 mb-1;
+    @apply block text-sm text-slate-300 mb-1 font-medium;
+  }
+
+  .auth-register-password-wrapper {
+    @apply relative;
+  }
+
+  .auth-register-password-input {
+    @apply pr-10;
+  }
+
+  .auth-register-password-toggle {
+    @apply absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors;
+  }
+
+  .auth-register-capslock {
+    @apply flex items-center gap-1.5 text-amber-400 text-xs mt-1.5;
   }
 
   .auth-register-error {

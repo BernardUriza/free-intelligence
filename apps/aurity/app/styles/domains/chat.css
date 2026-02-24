@@ -261,7 +261,7 @@
   .chat-container-expanded-tablet { @apply chat-container-base fixed z-50 animate-scale-in top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300; }
   .chat-container-fullscreen { @apply fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden animate-scale-in; }
   .chat-container-dense { @apply fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden animate-scale-in; }
-  .chat-container-embedded { @apply relative w-full h-full bg-slate-950 flex flex-col overflow-hidden; }
+  .chat-container-embedded { @apply relative w-full h-full bg-transparent flex flex-col overflow-hidden; }
   .chat-backdrop { @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40; }
 
   /* Start Screen */

@@ -153,6 +153,9 @@ backend/migration-manifest.json
 
 # Downloads (artifacts from CI/CD)
 downloads/
+# Exception: the Next.js downloads page is source code, not CI artifacts
+!apps/aurity/app/downloads/
+!apps/aurity/app/downloads/**
 
 # =============================================================================
 # Development Tools & Caches

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSetup } from './useSetup';
 import { getVersion } from '@tauri-apps/api/app';
-import './SetupWizard.css';
+import './styles/setup-wizard/index.css';
 
 export function SetupWizard() {
   const {

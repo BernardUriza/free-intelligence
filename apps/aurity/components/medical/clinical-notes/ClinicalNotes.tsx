@@ -3,56 +3,33 @@
 /**
  * ClinicalNotes - Professional SOAP Notes Editor
  *
- * Refactored 2025-12 into modular structure.
+ * Composition root that wires the useClinicalNotesForm hook
+ * to section components. All state lives in the hook; each
+ * SOAP section is a separate, independently testable component.
+ *
+ * SOLID principles applied:
+ *  - SRP: state in hook, persistence in useSaveSOAP, UI in sections
+ *  - OCP: new sections can be added without modifying existing ones
+ *  - ISP: each section receives only the props (Pick<Handlers>) it needs
+ *  - DIP: depends on handler interfaces, not implementation details
+ *
+ * @refactored 2026-02-22
  */
 
-import { useState, useCallback, useMemo, type ChangeEvent, type KeyboardEvent } from 'react';
-import {
-  Save,
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  Eye,
-  ArrowUpDown,
-  Mic,
-  MicOff,
-  Sparkles,
-  Search,
-  Pill,
-  Activity,
-  Thermometer,
-  Heart,
-  Wind,
-  TrendingUp,
-  Plus,
-  X,
-  Brain,
-  BookOpen,
-  Zap,
-  Edit3,
-  MessageSquare,
-  BarChart3,
-  ClipboardList,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
-
-// Local imports
-import type { ClinicalNotesProps, SOAPData, VitalSigns, Medication, Diagnosis } from './types';
-import { INITIAL_SOAP_DATA, NORMAL_VITAL_SIGNS, COMMON_ICD10, COMMON_DIAGNOSTIC_TESTS, POLLING_CONFIG } from './constants';
-import { getSeverityStyles } from './utils';
-import {
-  SectionHeader,
-  VitalSignInput,
-  TagList,
-  MedicationList,
-  AISuggestionCard,
-  LoadingState,
-  ErrorState,
-} from './components';
-import { useAISuggestions, useSOAPPolling } from './hooks';
+import type { ClinicalNotesProps } from './types';
+import { POLLING_CONFIG } from './constants';
+import { useClinicalNotesForm } from './hooks';
+import { LoadingState, ErrorState } from './components';
 import { PreviewModal, AIChatbot } from './modals';
+import {
+  ClinicalNotesToolbar,
+  SubjectiveSection,
+  ObjectiveSection,
+  AssessmentSection,
+  PlanSection,
+  ActionBar,
+  AISidebar,
+} from './sections';
 
 export function ClinicalNotes({
   sessionId,
@@ -60,472 +37,93 @@ export function ClinicalNotes({
   onPrevious,
   className = '',
 }: ClinicalNotesProps) {
-  // State
-  const [soapData, setSOAPData] = useState<SOAPData>(INITIAL_SOAP_DATA);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { state, handlers, aiSuggestions } = useClinicalNotesForm({
+    sessionId,
+    onNext,
+    onPrevious,
+    className,
+  });
 
-  // UI State
-  const [showAIPanel, setShowAIPanel] = useState(true);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showChatbot, setShowChatbot] = useState(false);
-  const [sectionOrder, setSectionOrder] = useState<'SOAP' | 'APSO'>('SOAP');
-  const [voiceActive, setVoiceActive] = useState<string | null>(null);
-
-  // Search State
-  const [icd10Search, setICD10Search] = useState('');
-  const [showICD10Dropdown, setShowICD10Dropdown] = useState(false);
-  const [newAllergy, setNewAllergy] = useState('');
-  const [newMedication, setNewMedication] = useState<Medication>({ name: '', dose: '', frequency: '' });
-
-  // Custom Hooks
-  const aiSuggestions = useAISuggestions(soapData);
-
-  const handleSOAPSuccess = useCallback((data: SOAPData) => {
-    setSOAPData(data);
-    setError(null);
-  }, []);
-
-  const handleSOAPError = useCallback((errorMessage: string) => {
-    setError(errorMessage);
-  }, []);
-
-  const { isLoading, status, attempts } = useSOAPPolling(sessionId, handleSOAPSuccess, handleSOAPError);
-
-  // Computed
-  const filteredICD10 = useMemo(() => {
-    if (!icd10Search.trim()) return [];
-    const search = icd10Search.toLowerCase();
-    return COMMON_ICD10.filter(
-      (d) => d.code.toLowerCase().includes(search) || d.description.toLowerCase().includes(search)
-    );
-  }, [icd10Search]);
-
-  const isComplete = soapData.chiefComplaint.trim().length > 0 && soapData.primaryDiagnosis !== null;
-
-  // Handlers
-  const updateField = useCallback(<K extends keyof SOAPData>(field: K, value: SOAPData[K]) => {
-    setSOAPData((prev) => ({ ...prev, [field]: value }));
-    setIsSaved(false);
-  }, []);
-
-  const updateVitalSign = useCallback((sign: keyof VitalSigns, value: string) => {
-    setSOAPData((prev) => ({ ...prev, vitalSigns: { ...prev.vitalSigns, [sign]: value } }));
-    setIsSaved(false);
-  }, []);
-
-  const addAllergy = useCallback(() => {
-    const trimmed = newAllergy.trim();
-    if (!trimmed) return;
-    setSOAPData((prev) => ({ ...prev, allergies: [...prev.allergies, trimmed] }));
-    setNewAllergy('');
-  }, [newAllergy]);
-
-  const removeAllergy = useCallback((index: number) => {
-    setSOAPData((prev) => ({ ...prev, allergies: prev.allergies.filter((_, i) => i !== index) }));
-  }, []);
-
-  const addMedication = useCallback(() => {
-    if (!newMedication.name.trim()) return;
-    setSOAPData((prev) => ({ ...prev, medications: [...prev.medications, { ...newMedication }] }));
-    setNewMedication({ name: '', dose: '', frequency: '' });
-  }, [newMedication]);
-
-  const removeMedication = useCallback((index: number) => {
-    setSOAPData((prev) => ({ ...prev, medications: prev.medications.filter((_, i) => i !== index) }));
-  }, []);
-
-  const selectDiagnosis = useCallback((diagnosis: Diagnosis) => {
-    setSOAPData((prev) => ({ ...prev, primaryDiagnosis: diagnosis }));
-    setICD10Search('');
-    setShowICD10Dropdown(false);
-  }, []);
-
-  const clearPrimaryDiagnosis = useCallback(() => {
-    setSOAPData((prev) => ({ ...prev, primaryDiagnosis: null }));
-  }, []);
-
-  const toggleDiagnosticTest = useCallback((test: string) => {
-    setSOAPData((prev) => ({
-      ...prev,
-      diagnosticTests: prev.diagnosticTests.includes(test)
-        ? prev.diagnosticTests.filter((t) => t !== test)
-        : [...prev.diagnosticTests, test],
-    }));
-  }, []);
-
-  const removeDiagnosticTest = useCallback((index: number) => {
-    setSOAPData((prev) => ({ ...prev, diagnosticTests: prev.diagnosticTests.filter((_, i) => i !== index) }));
-  }, []);
-
-  const removeDifferentialDiagnosis = useCallback((index: number) => {
-    setSOAPData((prev) => ({ ...prev, differentialDiagnoses: prev.differentialDiagnoses.filter((_, i) => i !== index) }));
-  }, []);
-
-  const fillNormalVitals = useCallback(() => {
-    setSOAPData((prev) => ({ ...prev, vitalSigns: NORMAL_VITAL_SIGNS }));
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    setIsSaving(true);
-    setIsSaved(false);
-    setSaveMessage(null);
-
-    try {
-      const backendSOAP = {
-        subjective: {
-          chiefComplaint: soapData.chiefComplaint,
-          hpi: soapData.hpi,
-          pastMedicalHistory: soapData.currentMedications,
-          allergies: soapData.allergies,
-        },
-        objective: {
-          vitalSigns: Object.entries(soapData.vitalSigns)
-            .filter(([, v]) => v)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join(', '),
-          physicalExam: soapData.physicalExam,
-        },
-        assessment: {
-          primaryDiagnosis: soapData.primaryDiagnosis?.description || '',
-          differentialDiagnoses: soapData.differentialDiagnoses.map((d) => d.description),
-        },
-        plan: {
-          medications: soapData.medications,
-          studies: soapData.diagnosticTests,
-          followUp: soapData.followUp,
-          treatment: '',
-        },
-      };
-
-      const result = await medicalWorkflowApi.updateSOAP(sessionId, backendSOAP);
-
-      setIsSaved(true);
-      setSaveMessage({
-        type: 'success',
-        text: result.orders_created > 0
-          ? `Notas guardadas. ${result.orders_created} órdenes médicas creadas automáticamente.`
-          : 'Notas guardadas correctamente.',
-      });
-
-      setTimeout(() => setSaveMessage(null), 5000);
-    } catch (err) {
-      setSaveMessage({ type: 'error', text: err instanceof Error ? err.message : 'Error al guardar' });
-      setIsSaved(false);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [sessionId, soapData]);
-
-  const handleKeyPress = useCallback((e: KeyboardEvent<HTMLInputElement>, action: () => void) => {
-    if (e.key === 'Enter') action();
-  }, []);
-
-  // Render
-  if (isLoading) {
+  // --- Loading / Error gates ---
+  if (state.isLoading) {
     return (
       <div className={className}>
-        <LoadingState status={status} attempts={attempts} maxAttempts={POLLING_CONFIG.maxAttempts} />
+        <LoadingState
+          status={state.pollingStatus}
+          attempts={state.pollingAttempts}
+          maxAttempts={POLLING_CONFIG.maxAttempts}
+        />
       </div>
     );
   }
 
-  if (error) {
+  if (state.error) {
     return (
       <div className={className}>
-        <ErrorState message={error} />
+        <ErrorState message={state.error} />
       </div>
     );
   }
 
+  // --- Main layout ---
   return (
     <div className={`cnotes-layout ${className}`}>
-      {/* Main Content */}
       <div className="cnotes-main">
-        {/* Toolbar */}
-        <div className="cnotes-toolbar">
-          <div>
-            <h2 className="fi-title-2xl">Notas Clínicas SOAP</h2>
-            <p className="fi-subtitle">Inputs estructurados con asistencia de IA</p>
-          </div>
-          <div className="cnotes-toolbar-actions">
-            <Button onClick={() => setShowPreviewModal(true)} variant="secondary" icon={Eye}>Vista Previa</Button>
-            <Button onClick={() => setSectionOrder((prev) => (prev === 'SOAP' ? 'APSO' : 'SOAP'))} variant="secondary" icon={ArrowUpDown}>{sectionOrder}</Button>
-            <Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} icon={Zap}>Asistente IA</Button>
-            <Button onClick={() => setShowAIPanel((prev) => !prev)} variant={showAIPanel ? 'purple' : 'secondary'} icon={Brain}>Sugerencias</Button>
-          </div>
-        </div>
+        <ClinicalNotesToolbar
+          sectionOrder={state.sectionOrder}
+          showChatbot={state.showChatbot}
+          showAIPanel={state.showAIPanel}
+          handlers={handlers}
+        />
 
-        {/* Subjective Section */}
-        <section className="fi-card-xl" aria-labelledby="subjective-heading">
-          <SectionHeader icon={MessageSquare} title="Subjetivo" iconColor="text-blue-400" />
-          <h4 id="subjective-heading" className="cnotes-sr-only">Sección Subjetivo</h4>
+        <SubjectiveSection
+          soapData={state.soapData}
+          newAllergy={state.newAllergy}
+          voiceActive={state.voiceActive}
+          handlers={handlers}
+        />
 
-          <div className="cnotes-field-group">
-            <label htmlFor="chief-complaint" className="fi-label">Motivo de Consulta *</label>
-            <div className="cnotes-input-row">
-              <Input
-                id="chief-complaint"
-                type="text"
-                value={soapData.chiefComplaint}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => updateField('chiefComplaint', e.target.value)}
-                placeholder="Ej: Dolor de garganta por 3 días"
-                className="cnotes-input-flex"
-              />
-              <Button
-                onClick={() => setVoiceActive((prev) => (prev === 'chief' ? null : 'chief'))}
-                variant={voiceActive === 'chief' ? 'danger' : 'secondary'}
-                icon={voiceActive === 'chief' ? MicOff : Mic}
-                aria-label={voiceActive === 'chief' ? 'Desactivar dictado' : 'Activar dictado'}
-              />
-            </div>
-          </div>
+        <ObjectiveSection soapData={state.soapData} handlers={handlers} />
 
-          <div className="cnotes-field-group">
-            <label htmlFor="hpi" className="fi-label">Historia de Enfermedad Actual</label>
-            <textarea
-              id="hpi"
-              value={soapData.hpi}
-              onChange={(e) => updateField('hpi', e.target.value)}
-              rows={3}
-              placeholder="Descripción detallada de síntomas..."
-              className="fi-textarea-blue"
-            />
-          </div>
+        <AssessmentSection
+          soapData={state.soapData}
+          icd10Search={state.icd10Search}
+          showICD10Dropdown={state.showICD10Dropdown}
+          handlers={handlers}
+        />
 
-          <div className="cnotes-field-group">
-            <label className="fi-label">Alergias</label>
-            <TagList items={soapData.allergies} onRemove={removeAllergy} />
-            <div className="cnotes-input-row">
-              <Input
-                type="text"
-                value={newAllergy}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewAllergy(e.target.value)}
-                onKeyPress={(e: KeyboardEvent<HTMLInputElement>) => handleKeyPress(e, addAllergy)}
-                placeholder="Agregar alergia..."
-                className="cnotes-input-flex"
-              />
-              <Button onClick={addAllergy} variant="primary" icon={Plus} />
-            </div>
-          </div>
+        <PlanSection
+          soapData={state.soapData}
+          newMedication={state.newMedication}
+          showChatbot={state.showChatbot}
+          handlers={handlers}
+        />
 
-          <div>
-            <label className="fi-label">Medicamentos Actuales</label>
-            {soapData.currentMedications.length > 0 && (
-              <div className="cnotes-med-list">
-                {soapData.currentMedications.map((med, idx) => (
-                  <div key={`current-med-${idx}`} className="cnotes-med-item">
-                    <Pill className="cnotes-med-icon fi-text-primary" aria-hidden="true" />
-                    <span className="cnotes-med-name">{med}</span>
-                    <Button variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${med}`} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Objective Section */}
-        <section className="fi-card-xl" aria-labelledby="objective-heading">
-          <SectionHeader icon={BarChart3} title="Objetivo" iconColor="text-cyan-400" />
-          <h4 id="objective-heading" className="cnotes-sr-only">Sección Objetivo</h4>
-
-          <div className="cnotes-field-group">
-            <div className="cnotes-vitals-header">
-              <span className="cnotes-vitals-label fi-text">Signos Vitales</span>
-              <Button onClick={fillNormalVitals} variant="ghost" size="sm" icon={CheckCircle2} className="cnotes-fill-normal-btn fi-text-success">
-                Llenar valores normales
-              </Button>
-            </div>
-
-            <div className="cnotes-vitals-grid">
-              <VitalSignInput icon={Thermometer} iconColor="text-red-400" label="Temp." value={soapData.vitalSigns.temperature} onChange={(v) => updateVitalSign('temperature', v)} placeholder="36.5" unit="°C" step="0.1" />
-              <VitalSignInput icon={Heart} iconColor="text-red-400" label="FC" value={soapData.vitalSigns.heartRate} onChange={(v) => updateVitalSign('heartRate', v)} placeholder="72" unit="bpm" inputWidth="w-12" />
-              <VitalSignInput icon={Activity} iconColor="fi-text-primary" label="PA" value={soapData.vitalSigns.bloodPressure} onChange={(v) => updateVitalSign('bloodPressure', v)} placeholder="120/80" type="text" inputWidth="w-16" />
-              <VitalSignInput icon={Wind} iconColor="text-cyan-400" label="FR" value={soapData.vitalSigns.respiratoryRate} onChange={(v) => updateVitalSign('respiratoryRate', v)} placeholder="16" unit="/min" inputWidth="w-12" />
-              <VitalSignInput icon={TrendingUp} iconColor="fi-text-green" label="SpO₂" value={soapData.vitalSigns.oxygenSaturation} onChange={(v) => updateVitalSign('oxygenSaturation', v)} placeholder="98" unit="%" inputWidth="w-12" />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="physical-exam" className="cnotes-exam-label fi-label">
-              <Edit3 className="cnotes-exam-icon" aria-hidden="true" />
-              Examen Físico
-            </label>
-            <textarea id="physical-exam" value={soapData.physicalExam} onChange={(e) => updateField('physicalExam', e.target.value)} rows={3} placeholder="Descripción del examen físico..." className="fi-textarea-cyan" />
-          </div>
-        </section>
-
-        {/* Assessment Section */}
-        <section className="fi-card-xl" aria-labelledby="assessment-heading">
-          <SectionHeader icon={Search} title="Evaluación" iconColor="text-purple-400" />
-          <h4 id="assessment-heading" className="cnotes-sr-only">Sección Evaluación</h4>
-
-          <div className="cnotes-field-group">
-            <label htmlFor="icd10-search" className="fi-label">Diagnóstico Principal</label>
-            <div className="cnotes-relative">
-              <Input
-                id="icd10-search"
-                type="text"
-                value={icd10Search}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => { setICD10Search(e.target.value); setShowICD10Dropdown(true); }}
-                onFocus={() => setShowICD10Dropdown(true)}
-                icon={Search}
-                placeholder="Buscar diagnóstico por código ICD-10 o nombre..."
-              />
-
-              {showICD10Dropdown && filteredICD10.length > 0 && (
-                <div className="fi-dropdown" role="listbox">
-                  {filteredICD10.map((diagnosis) => (
-                    <button key={diagnosis.code} type="button" onClick={() => selectDiagnosis(diagnosis)} className="cnotes-dropdown-item cnotes-dropdown-item-border" role="option" aria-selected={false}>
-                      <div className="fi-flex-between">
-                        <div>
-                          <span className="cnotes-dropdown-code">{diagnosis.code}</span>
-                          <span className="cnotes-dropdown-desc">{diagnosis.description}</span>
-                        </div>
-                        <span className={`cnotes-severity-badge ${getSeverityStyles(diagnosis.severity)}`}>{diagnosis.severity}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {soapData.primaryDiagnosis && (
-              <div className="cnotes-primary-dx">
-                <div className="fi-flex-between">
-                  <div>
-                    <span className="fi-text-purple cnotes-dx-code">{soapData.primaryDiagnosis.code}</span>
-                    <span className="cnotes-dx-desc">{soapData.primaryDiagnosis.description}</span>
-                  </div>
-                  <Button onClick={clearPrimaryDiagnosis} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label="Eliminar diagnóstico principal" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {soapData.differentialDiagnoses.length > 0 && (
-            <div className="cnotes-diff-section">
-              <span className="fi-label">Diagnósticos Diferenciales</span>
-              <div className="cnotes-diff-list">
-                {soapData.differentialDiagnoses.map((diff, idx) => (
-                  <div key={`diff-${idx}`} className="cnotes-diff-item">
-                    <div className="fi-flex-between">
-                      <div>
-                        {diff.code && <span className="fi-text-purple cnotes-diff-code">{diff.code}</span>}
-                        <span className="cnotes-diff-desc">{diff.description}</span>
-                      </div>
-                      <Button onClick={() => removeDifferentialDiagnosis(idx)} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${diff.description}`} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Plan Section */}
-        <section className="fi-card-xl" aria-labelledby="plan-heading">
-          <SectionHeader icon={ClipboardList} title="Plan" iconColor="text-emerald-400" action={<Button onClick={() => setShowChatbot((prev) => !prev)} variant={showChatbot ? 'success' : 'secondary'} size="sm" icon={Zap}>Asistente IA</Button>} />
-          <h4 id="plan-heading" className="cnotes-sr-only">Sección Plan</h4>
-
-          <div className="cnotes-field-group">
-            <span className="fi-label">Tratamiento Farmacológico</span>
-            <MedicationList medications={soapData.medications} onRemove={removeMedication} />
-            <div className="cnotes-med-form-grid">
-              <Input type="text" value={newMedication.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, name: e.target.value }))} placeholder="Medicamento" />
-              <Input type="text" value={newMedication.dose} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, dose: e.target.value }))} placeholder="Dosis" />
-              <Input type="text" value={newMedication.frequency} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMedication((prev) => ({ ...prev, frequency: e.target.value }))} placeholder="Frecuencia" />
-            </div>
-            <Button onClick={addMedication} variant="primary" icon={Plus} size="sm">Agregar medicamento</Button>
-          </div>
-
-          <div className="cnotes-field-group">
-            <span className="fi-label">Estudios de Laboratorio / Gabinete</span>
-            <div className="cnotes-test-list">
-              {COMMON_DIAGNOSTIC_TESTS.map((test) => (
-                <label key={test} className="cnotes-test-item">
-                  <input type="checkbox" checked={soapData.diagnosticTests.includes(test)} onChange={() => toggleDiagnosticTest(test)} className="cnotes-test-checkbox" />
-                  <span className="cnotes-test-label">{test}</span>
-                </label>
-              ))}
-            </div>
-
-            {soapData.diagnosticTests.length > 0 && (
-              <div className="cnotes-orders-section">
-                <span className="cnotes-orders-label">Órdenes Seleccionadas:</span>
-                <div className="cnotes-orders-list">
-                  {soapData.diagnosticTests.map((test, idx) => (
-                    <div key={`selected-test-${idx}`} className="cnotes-order-item">
-                      <div className="fi-flex-between">
-                        <span className="cnotes-order-name">{test}</span>
-                        <Button onClick={() => removeDiagnosticTest(idx)} variant="ghost" size="sm" icon={X} className="cnotes-remove-btn" aria-label={`Eliminar ${test}`} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="follow-up" className="fi-label">Seguimiento</label>
-            <textarea id="follow-up" value={soapData.followUp} onChange={(e) => updateField('followUp', e.target.value)} rows={2} placeholder="Instrucciones de seguimiento..." className="fi-textarea-blue" />
-          </div>
-        </section>
-
-        {/* Action Buttons */}
-        <div className="cnotes-actions">
-          {onPrevious && <Button onClick={onPrevious} variant="secondary" size="lg" className="cnotes-input-flex">Anterior</Button>}
-          <Button onClick={handleSave} disabled={!isComplete || isSaving} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={isSaving ? undefined : isSaved ? CheckCircle2 : Save} loading={isSaving} className="cnotes-input-flex">
-            {isSaving ? 'Guardando...' : isSaved ? 'Guardado' : 'Guardar Notas'}
-          </Button>
-          {onNext && <Button onClick={onNext} disabled={!isComplete} variant={isComplete ? 'primary' : 'secondary'} size="lg" icon={ChevronRight} className="cnotes-input-flex">Continuar</Button>}
-        </div>
-
-        {saveMessage && (
-          <div className={`cnotes-save-msg ${saveMessage.type === 'success' ? 'cnotes-save-msg-success' : 'cnotes-save-msg-error'}`} role="alert">
-            {saveMessage.type === 'success' ? <CheckCircle2 className="cnotes-save-icon fi-text-success" aria-hidden="true" /> : <AlertCircle className="cnotes-save-icon-error" aria-hidden="true" />}
-            <p className={saveMessage.type === 'success' ? 'cnotes-save-text fi-text-success' : 'cnotes-save-text-error'}>{saveMessage.text}</p>
-          </div>
-        )}
+        <ActionBar
+          isComplete={state.isComplete}
+          isSaving={state.isSaving}
+          isSaved={state.isSaved}
+          saveMessage={state.saveMessage}
+          onPrevious={onPrevious}
+          onNext={onNext}
+          onSave={handlers.handleSave}
+        />
       </div>
 
-      {/* AI Suggestions Panel */}
-      {showAIPanel && (
-        <aside className="cnotes-ai-sidebar" aria-label="Panel de sugerencias de IA">
-          <div className="cnotes-ai-panel">
-            <div className="cnotes-ai-header">
-              <Sparkles className="cnotes-ai-icon fi-text-purple" aria-hidden="true" />
-              <h3 className="cnotes-ai-title">Asistente IA</h3>
-            </div>
+      {state.showAIPanel && <AISidebar suggestions={aiSuggestions} />}
 
-            {aiSuggestions.length === 0 ? (
-              <p className="cnotes-ai-empty">Completa los campos para recibir sugerencias...</p>
-            ) : (
-              <div className="cnotes-ai-suggestions">
-                {aiSuggestions.map((suggestion, idx) => (
-                  <AISuggestionCard key={idx} suggestion={suggestion} />
-                ))}
-              </div>
-            )}
-
-            <div className="cnotes-ai-actions-wrap">
-              <p className="cnotes-ai-actions-label">Acciones Rápidas</p>
-              <div className="cnotes-diff-list">
-                <Button variant="ghost" size="sm" icon={Sparkles} fullWidth className="cnotes-ai-quick-btn">Generar resumen</Button>
-                <Button variant="ghost" size="sm" icon={BookOpen} fullWidth className="cnotes-ai-quick-btn">Buscar guías clínicas</Button>
-              </div>
-            </div>
-          </div>
-        </aside>
-      )}
-
-      {/* Modals */}
-      <PreviewModal isOpen={showPreviewModal} onClose={() => setShowPreviewModal(false)} soapData={soapData} />
-      <AIChatbot isOpen={showChatbot} onClose={() => setShowChatbot(false)} sessionId={sessionId} soapData={soapData} onSOAPUpdate={setSOAPData} />
+      <PreviewModal
+        isOpen={state.showPreviewModal}
+        onClose={() => handlers.setShowPreviewModal(false)}
+        soapData={state.soapData}
+      />
+      <AIChatbot
+        isOpen={state.showChatbot}
+        onClose={() => handlers.setShowChatbot(() => false)}
+        sessionId={sessionId}
+        soapData={state.soapData}
+        onSOAPUpdate={handlers.setSOAPData}
+      />
     </div>
   );
 }

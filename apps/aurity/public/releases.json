@@ -1,0 +1,22 @@
+{
+  "releases": [
+    {
+      "version": "1.0.24",
+      "fiVersion": "1.0.14",
+      "date": "2026-02-23",
+      "platforms": {
+        "windows": {
+          "url": "https://github.com/BernardUriza/free-intelligence/releases/download/v1.0.24/Aurity_1.0.24_x64-setup.exe",
+          "size": "~100 MB",
+          "sha256": "pending"
+        }
+      },
+      "changelog": [
+        "Aurity Desktop v1.0.24",
+        "Fix build: public types for Tauri commands"
+      ]
+    }
+  ],
+  "generatedAt": "2026-02-23T00:00:00Z",
+  "source": "manual"
+}

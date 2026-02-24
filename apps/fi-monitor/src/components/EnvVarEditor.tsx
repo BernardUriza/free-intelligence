@@ -1,58 +1,75 @@
-import { useState, useEffect } from 'react'
-import { invoke, isTauriContext } from '../lib/tauri-adapter'
+import { useState, useEffect, useCallback } from 'react';
+import { invoke, isTauriContext } from '../lib/tauri-adapter';
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle,
+  ClipboardList,
+  Lightbulb,
+  Loader,
+  RotateCcw,
+  Save,
+  Settings,
+} from 'lucide-react';
+
+// ── Types ────────────────────────────────────────────────────────────
 
 interface EnvVar {
-  key: string
-  value: string
-  default_value: string
-  description: string
-  requires_restart: boolean
+  key: string;
+  value: string;
+  default_value: string;
+  description: string;
+  requires_restart: boolean;
 }
 
 interface EnvPreset {
-  name: string
-  description: string
-  vars: Record<string, string>
+  name: string;
+  description: string;
+  vars: Record<string, string>;
 }
 
-// Common Ollama environment variables with defaults
+// ── Constants ────────────────────────────────────────────────────────
+
+const LOG_PREFIX = '[EnvVarEditor]';
+const SUCCESS_DISPLAY_MS = 3000;
+
 const COMMON_ENV_VARS: EnvVar[] = [
   {
     key: 'OLLAMA_NUM_PARALLEL',
     value: '1',
     default_value: '1',
     description: 'Maximum number of parallel requests. Higher values increase throughput but use more memory.',
-    requires_restart: true
+    requires_restart: true,
   },
   {
     key: 'OLLAMA_MAX_LOADED_MODELS',
     value: '1',
     default_value: '1',
     description: 'Maximum number of models to keep loaded in memory. Affects RAM usage.',
-    requires_restart: true
+    requires_restart: true,
   },
   {
     key: 'OLLAMA_ORIGINS',
     value: '*',
     default_value: '*',
     description: 'CORS allowed origins. Use "*" to allow all, or specify specific domains.',
-    requires_restart: true
+    requires_restart: true,
   },
   {
     key: 'OLLAMA_FLASH_ATTENTION',
     value: 'false',
     default_value: 'false',
     description: 'Enable Flash Attention optimization (requires compatible GPU).',
-    requires_restart: true
+    requires_restart: true,
   },
   {
     key: 'OLLAMA_MAX_QUEUE',
     value: '512',
     default_value: '512',
     description: 'Maximum number of requests in queue. Higher values handle bursts better.',
-    requires_restart: true
-  }
-]
+    requires_restart: true,
+  },
+];
 
 const ENV_PRESETS: EnvPreset[] = [
   {
@@ -62,8 +79,8 @@ const ENV_PRESETS: EnvPreset[] = [
       OLLAMA_NUM_PARALLEL: '4',
       OLLAMA_MAX_LOADED_MODELS: '3',
       OLLAMA_MAX_QUEUE: '1024',
-      OLLAMA_FLASH_ATTENTION: 'true'
-    }
+      OLLAMA_FLASH_ATTENTION: 'true',
+    },
   },
   {
     name: 'Low Memory',
@@ -72,8 +89,8 @@ const ENV_PRESETS: EnvPreset[] = [
       OLLAMA_NUM_PARALLEL: '1',
       OLLAMA_MAX_LOADED_MODELS: '1',
       OLLAMA_MAX_QUEUE: '256',
-      OLLAMA_FLASH_ATTENTION: 'false'
-    }
+      OLLAMA_FLASH_ATTENTION: 'false',
+    },
   },
   {
     name: 'Development',
@@ -82,122 +99,126 @@ const ENV_PRESETS: EnvPreset[] = [
       OLLAMA_NUM_PARALLEL: '2',
       OLLAMA_MAX_LOADED_MODELS: '2',
       OLLAMA_MAX_QUEUE: '512',
-      OLLAMA_FLASH_ATTENTION: 'false'
-    }
-  }
-]
+      OLLAMA_FLASH_ATTENTION: 'false',
+    },
+  },
+];
+
+const OLLAMA_ENV_DOCS_URL =
+  'https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server';
+
+// ── Component ────────────────────────────────────────────────────────
 
 export function EnvVarEditor() {
-  const [envVars, setEnvVars] = useState<EnvVar[]>(COMMON_ENV_VARS)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
+  const [envVars, setEnvVars] = useState<EnvVar[]>(COMMON_ENV_VARS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const loadEnvVars = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const backendVars = await invoke<{ key: string; value: string }[]>('get_env_vars');
+      const backendMap = Object.fromEntries(backendVars.map((v) => [v.key, v.value]));
+
+      setEnvVars(
+        COMMON_ENV_VARS.map((envVar) => ({
+          ...envVar,
+          value: backendMap[envVar.key] ?? envVar.default_value,
+        })),
+      );
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to load env vars:`, err);
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // 🛡️ GUARD: Solo ejecutar en contexto Tauri
     if (!isTauriContext()) {
-      console.warn('[EnvVarEditor] Not in Tauri context, disabling component')
-      setLoading(false)
-      return
+      console.warn(`${LOG_PREFIX} Not in Tauri context, disabling component`);
+      setLoading(false);
+      return;
     }
-    loadEnvVars()
-  }, [])
+    loadEnvVars();
+  }, [loadEnvVars]);
 
-  const loadEnvVars = async () => {
-    setLoading(true)
-    setError(null)
+  const markDirty = useCallback(() => {
+    setHasChanges(true);
+    setSuccess(false);
+  }, []);
+
+  const handleChange = useCallback(
+    (key: string, newValue: string) => {
+      setEnvVars((prev) => prev.map((v) => (v.key === key ? { ...v, value: newValue } : v)));
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  const handleReset = useCallback(
+    (key: string) => {
+      setEnvVars((prev) =>
+        prev.map((v) => (v.key === key ? { ...v, value: v.default_value } : v)),
+      );
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  const handleApplyPreset = useCallback(
+    (preset: EnvPreset) => {
+      if (!confirm(`Apply "${preset.name}" preset?\n\n${preset.description}`)) return;
+
+      setEnvVars((prev) =>
+        prev.map((v) => ({
+          ...v,
+          value: preset.vars[v.key] ?? v.value,
+        })),
+      );
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    setError(null);
     try {
-      // Load from Tauri backend
-      const backendVars = await invoke<{ key: string; value: string }[]>('get_env_vars')
-      const backendMap = Object.fromEntries(backendVars.map(v => [v.key, v.value]))
+      // Env vars are staged — applied on next Ollama restart
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      console.log(`${LOG_PREFIX} Env vars staged (applied on next service restart):`, envVars);
 
-      const loaded = COMMON_ENV_VARS.map(envVar => ({
-        ...envVar,
-        value: backendMap[envVar.key] || envVar.default_value
-      }))
-      setEnvVars(loaded)
+      setSuccess(true);
+      setHasChanges(false);
+      setTimeout(() => setSuccess(false), SUCCESS_DISPLAY_MS);
     } catch (err) {
-      console.error('[EnvVarEditor] Failed to load env vars:', err)
-      setError(String(err))
+      console.error(`${LOG_PREFIX} Failed to save env vars:`, err);
+      setError(String(err));
     } finally {
-      setLoading(false)
+      setSaving(false);
     }
-  }
+  }, [envVars]);
 
-  const handleChange = (key: string, newValue: string) => {
-    setEnvVars(prev =>
-      prev.map(v => (v.key === key ? { ...v, value: newValue } : v))
-    )
-    setHasChanges(true)
-    setSuccess(false)
-  }
-
-  const handleReset = (key: string) => {
-    setEnvVars(prev =>
-      prev.map(v => (v.key === key ? { ...v, value: v.default_value } : v))
-    )
-    setHasChanges(true)
-    setSuccess(false)
-  }
-
-  const handleApplyPreset = (preset: EnvPreset) => {
-    if (!confirm(`Apply "${preset.name}" preset?\n\n${preset.description}`)) return
-
-    setEnvVars(prev =>
-      prev.map(v => ({
-        ...v,
-        value: preset.vars[v.key] || v.value
-      }))
-    )
-    setHasChanges(true)
-    setSuccess(false)
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    setError(null)
-    try {
-      // Env vars are applied at process start — log to console for debugging
-      await new Promise(resolve => setTimeout(resolve, 200))
-      console.log('[EnvVarEditor] Env vars staged (applied on next service restart):', envVars)
-
-      setSuccess(true)
-      setHasChanges(false)
-
-      // Hide success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err) {
-      console.error('[EnvVarEditor] Failed to save env vars:', err)
-      setError(String(err))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // 🛡️ UI degradada si no está en Tauri
+  // Non-Tauri fallback
   if (!isTauriContext()) {
     return (
       <div className="env-var-editor-disabled">
-        <div style={{
-          padding: '32px',
-          textAlign: 'center',
-          color: 'var(--text-dim)',
-          background: 'rgba(244, 67, 54, 0.1)',
-          border: '1px solid rgba(244, 67, 54, 0.3)',
-          borderRadius: '8px'
-        }}>
-          <p style={{ fontSize: '48px', margin: '0 0 16px 0' }}>⚠️</p>
-          <p style={{ fontSize: '14px', fontWeight: '500', margin: '0 0 8px 0' }}>
+        <div className="env-disabled-banner">
+          <AlertTriangle size={48} style={{ opacity: 0.6 }} />
+          <p className="env-disabled-title">
             Env var editor only available in Tauri app
           </p>
-          <p style={{ fontSize: '12px', margin: '0', opacity: 0.7 }}>
+          <p className="env-disabled-subtitle">
             This feature requires the native Tauri runtime
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (loading) {
@@ -206,21 +227,25 @@ export function EnvVarEditor() {
         <div className="spinner" />
         <span>Loading environment variables...</span>
       </div>
-    )
+    );
   }
 
   return (
     <div className="env-var-editor">
       {/* Header */}
       <div className="env-header">
-        <h3>🔧 Environment Variables</h3>
+        <h3><Settings size={16} style={{ verticalAlign: 'middle' }} /> Environment Variables</h3>
         <div className="env-actions">
           <button
             className="btn-save"
             onClick={handleSave}
             disabled={!hasChanges || saving}
           >
-            {saving ? '⏳ Saving...' : '💾 Save Changes'}
+            {saving ? (
+              <><Loader size={14} /> Saving...</>
+            ) : (
+              <><Save size={14} /> Save Changes</>
+            )}
           </button>
         </div>
       </div>
@@ -228,29 +253,29 @@ export function EnvVarEditor() {
       {/* Error Banner */}
       {error && (
         <div className="env-error" onClick={() => setError(null)}>
-          ⚠️ {error}
+          <AlertTriangle size={14} /> {error}
         </div>
       )}
 
       {/* Success Banner */}
       {success && (
         <div className="env-success">
-          ✅ Environment variables saved. Restart Ollama to apply changes.
+          <CheckCircle size={14} /> Environment variables saved. Restart Ollama to apply changes.
         </div>
       )}
 
       {/* Warning Banner */}
       {hasChanges && (
         <div className="env-warning">
-          ⚠️ Unsaved changes. Click "Save Changes" and restart Ollama to apply.
+          <AlertTriangle size={14} /> Unsaved changes. Click &quot;Save Changes&quot; and restart Ollama to apply.
         </div>
       )}
 
       {/* Presets */}
       <div className="env-presets">
-        <h4>📋 Quick Presets</h4>
+        <h4><ClipboardList size={14} style={{ verticalAlign: 'middle' }} /> Quick Presets</h4>
         <div className="preset-grid">
-          {ENV_PRESETS.map(preset => (
+          {ENV_PRESETS.map((preset) => (
             <button
               key={preset.name}
               className="preset-card"
@@ -275,7 +300,7 @@ export function EnvVarEditor() {
             </tr>
           </thead>
           <tbody>
-            {envVars.map(envVar => (
+            {envVars.map((envVar) => (
               <tr key={envVar.key}>
                 <td>
                   <div className="var-name" title={envVar.description}>
@@ -304,7 +329,7 @@ export function EnvVarEditor() {
                     disabled={envVar.value === envVar.default_value}
                     title="Reset to default"
                   >
-                    ↺
+                    <RotateCcw size={14} />
                   </button>
                 </td>
               </tr>
@@ -316,20 +341,18 @@ export function EnvVarEditor() {
       {/* Info Footer */}
       <div className="env-footer">
         <p>
-          💡 <strong>Tip:</strong> Changes require restarting Ollama to take effect.
+          <Lightbulb size={14} style={{ verticalAlign: 'middle' }} />{' '}
+          <strong>Tip:</strong> Changes require restarting Ollama to take effect.
           Stop and start Ollama from the Services tab after saving.
         </p>
         <p>
-          📖 <strong>Docs:</strong>{' '}
-          <a
-            href="https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <BookOpen size={14} style={{ verticalAlign: 'middle' }} />{' '}
+          <strong>Docs:</strong>{' '}
+          <a href={OLLAMA_ENV_DOCS_URL} target="_blank" rel="noopener noreferrer">
             Ollama Environment Variables
           </a>
         </p>
       </div>
     </div>
-  )
+  );
 }
