@@ -5,9 +5,7 @@
 mod commands;
 mod persistence;
 
-pub(crate) use commands::{
-    get_setup_state, mark_setup_completed, mark_setup_skipped, update_setup_state,
-};
+pub(crate) use commands::*;
 
 use serde::{Deserialize, Serialize};
 

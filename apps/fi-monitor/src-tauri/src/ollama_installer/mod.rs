@@ -21,6 +21,6 @@ pub struct OllamaInstallStatus {
     pub install_path: Option<String>,
 }
 
-// Re-export Tauri commands
-pub use detection::check_ollama_installed;
-pub use install::{download_and_install_ollama, install_ollama_silent};
+// Glob re-exports to include __cmd__ companions for generate_handler!
+pub use detection::*;
+pub use install::*;

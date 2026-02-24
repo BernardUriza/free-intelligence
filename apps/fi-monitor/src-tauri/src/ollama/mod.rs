@@ -17,7 +17,7 @@ mod models;
 // Re-export reusable helpers (used by tunnel.rs, testing.rs, main.rs)
 pub(crate) use health::{check_ollama, get_ollama_models};
 
-// Re-export Tauri commands
-pub(crate) use env_vars::{get_env_vars, set_env_vars};
-pub(crate) use lifecycle::{start_ollama, stop_ollama};
-pub(crate) use models::{delete_ollama_model, list_ollama_models_detailed, pull_ollama_model};
+// Re-export Tauri commands (glob to include __cmd__ companions for generate_handler!)
+pub(crate) use env_vars::*;
+pub(crate) use lifecycle::*;
+pub(crate) use models::*;

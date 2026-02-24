@@ -4,11 +4,8 @@ mod gateway;
 mod rag;
 mod sidecar;
 
-pub(crate) use gateway::{check_gateway, start_gateway, start_gateway_internal, stop_gateway};
-pub(crate) use rag::{
-    check_rag_service, get_rag_stats, start_rag_service, start_rag_service_internal,
-    stop_rag_service,
-};
+pub(crate) use gateway::*;
+pub(crate) use rag::*;
 
 use serde::Serialize;
 

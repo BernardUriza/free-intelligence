@@ -10,8 +10,6 @@ pub enum AppError {
     #[error("{0}")]
     Json(String),
     #[error("{0}")]
-    Network(String),
-    #[error("{0}")]
     Config(String),
     #[error("{0}")]
     Script(String),

@@ -36,7 +36,7 @@ pub async fn setup_wsl_backend(_app: tauri::AppHandle) -> Result<String, WslErro
 
         // ── Verify WSL ─────────────────────────────────────────────────
         emit_progress("Verificando WSL...");
-        let status = super::check_wsl_status()?;
+        let status = super::detection::check_wsl_status()?;
         if !status.installed {
             return Err(WslError::NotAvailable(
                 "WSL no está instalado. Instálalo primero.".into(),

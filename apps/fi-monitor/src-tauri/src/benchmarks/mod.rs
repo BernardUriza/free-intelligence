@@ -69,7 +69,7 @@ pub(crate) struct BenchmarkHistory {
 // RE-EXPORTS (Tauri commands)
 // =============================================================================
 
-pub(crate) use gateway::benchmark_gateway;
-pub(crate) use ollama::benchmark_ollama;
-pub(crate) use rag::benchmark_rag_service;
-pub(crate) use suite::{benchmark_all, get_benchmark_history};
+pub(crate) use gateway::*;
+pub(crate) use ollama::*;
+pub(crate) use rag::*;
+pub(crate) use suite::*;
