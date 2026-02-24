@@ -25,7 +25,7 @@ pub struct WizardState {
 
 /// First-run status for frontend wizard
 #[derive(Serialize)]
-struct FirstRunStatus {
+pub struct FirstRunStatus {
     config_initialized: bool,
     ollama_available: bool,
     data_dir: String,
@@ -33,7 +33,7 @@ struct FirstRunStatus {
 
 /// Python installation status
 #[derive(Serialize)]
-struct PythonStatus {
+pub struct PythonStatus {
     installed: bool,
     version: Option<String>,
     pip_available: bool,

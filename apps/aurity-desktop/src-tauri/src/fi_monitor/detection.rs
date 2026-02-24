@@ -1,7 +1,7 @@
 // Detection — check installed status, running process, registry version.
 
 use super::paths::{exe_name, find_installed_path};
-use super::{FiMonitorStatus, MonitorError, FI_MONITOR_PRODUCT_NAME};
+use super::{FiMonitorStatus, FI_MONITOR_PRODUCT_NAME};
 
 /// Check if FI Monitor is installed.
 #[tauri::command]
