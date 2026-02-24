@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use super::rag::test_rag_query;
 use super::{OllamaGenerateRequest, OllamaGenerateResponse, SmokeTestResult, TestResult};
-use crate::ollama::check_ollama;
+use crate::ollama::{check_ollama, get_ollama_models};
 use crate::state::{http_client, ollama_base_url};
 
 /// Pre-defined question bank for random LLM tests.
@@ -74,8 +74,10 @@ async fn test_llm_query(question: Option<String>) -> Result<TestResult, String> 
     let start = Instant::now();
     let client = http_client(60)?;
 
+    let model = pick_model().await?;
+
     let request = OllamaGenerateRequest {
-        model: "qwen3:1.7b".to_string(),
+        model,
         prompt: prompt.clone(),
         stream: false,
     };
@@ -105,6 +107,15 @@ async fn test_llm_query(question: Option<String>) -> Result<TestResult, String> 
     })
 }
 
+/// Pick the first available Ollama model (prefers smaller models).
+async fn pick_model() -> Result<String, String> {
+    let models = get_ollama_models().await;
+    models
+        .into_iter()
+        .next()
+        .ok_or_else(|| "No Ollama models available".to_string())
+}
+
 /// Pick a pseudo-random question from the bank based on current timestamp.
 fn pick_random_question() -> String {
     let now = std::time::SystemTime::now()
@@ -130,8 +141,18 @@ pub(crate) async fn test_llm_health() -> Result<SmokeTestResult, String> {
     let start = Instant::now();
     let client = http_client(15)?;
 
+    let model = match pick_model().await {
+        Ok(m) => m,
+        Err(_) => return Ok(SmokeTestResult {
+            success: false,
+            latency_ms: 0,
+            response: String::new(),
+            error: Some("No Ollama models available".to_string()),
+        }),
+    };
+
     let request = OllamaGenerateRequest {
-        model: "qwen2.5-coder:3b".to_string(),
+        model,
         prompt: "What is 2+2? Answer with just the number, nothing else.".to_string(),
         stream: false,
     };

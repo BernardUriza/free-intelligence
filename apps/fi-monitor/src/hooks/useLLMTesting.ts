@@ -101,11 +101,16 @@ export function useLLMTesting(
           const controller = new AbortController()
           const timeoutId = setTimeout(() => controller.abort(), 15000)
 
+          // Pick first available model
+          const tagsRes = await fetch(`${SERVICE_URLS.OLLAMA}/api/tags`, { signal: controller.signal })
+          const tags = await tagsRes.json()
+          const model = tags.models?.[0]?.name || 'qwen3:1.7b'
+
           const response = await fetch(`${SERVICE_URLS.OLLAMA}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: 'qwen2.5-coder:3b',
+              model,
               prompt: 'What is 2+2? Answer with just the number, nothing else.',
               stream: false
             }),
