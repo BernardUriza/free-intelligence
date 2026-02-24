@@ -145,9 +145,17 @@ export function useSetup() {
           if (pythonSuccess) {
             setProgress(prev => [...prev, '✓ Python 3.14 instalado correctamente']);
           }
-        } catch (err) {
-          setProgress(prev => [...prev, `✗ Error instalando Python: ${err}`]);
-          throw new Error(`Python installation failed: ${err}`);
+        } catch (bundleErr) {
+          setProgress(prev => [...prev, `Instalador bundleado no disponible, descargando...`]);
+          try {
+            pythonSuccess = await invoke<boolean>('download_and_install_python');
+            if (pythonSuccess) {
+              setProgress(prev => [...prev, '✓ Python 3.14 instalado correctamente (descarga)']);
+            }
+          } catch (downloadErr) {
+            setProgress(prev => [...prev, `✗ Error instalando Python: ${downloadErr}`]);
+            throw new Error(`Python installation failed: ${downloadErr}`);
+          }
         }
       }
 
@@ -160,9 +168,17 @@ export function useSetup() {
           if (ollamaSuccess) {
             setProgress(prev => [...prev, '✓ Ollama instalado correctamente']);
           }
-        } catch (err) {
-          setProgress(prev => [...prev, `✗ Error instalando Ollama: ${err}`]);
-          throw new Error(`Ollama installation failed: ${err}`);
+        } catch (bundleErr) {
+          setProgress(prev => [...prev, `Instalador bundleado no disponible, descargando...`]);
+          try {
+            ollamaSuccess = await invoke<boolean>('download_and_install_ollama');
+            if (ollamaSuccess) {
+              setProgress(prev => [...prev, '✓ Ollama instalado correctamente (descarga)']);
+            }
+          } catch (downloadErr) {
+            setProgress(prev => [...prev, `✗ Error instalando Ollama: ${downloadErr}`]);
+            throw new Error(`Ollama installation failed: ${downloadErr}`);
+          }
         }
       }
 
