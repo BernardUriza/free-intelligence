@@ -14,6 +14,9 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('DemoMode');
 
 export interface DemoConsultation {
   sessionId: string;
@@ -115,14 +118,14 @@ export function useDemoMode(): DemoModeState {
   const enableDemoMode = useCallback((demo: DemoConsultation) => {
     setIsDemoMode(true);
     setCurrentDemo(demo);
-    console.log('[Demo Mode] Enabled with:', demo.sessionId);
+    log.info('Enabled', { sessionId: demo.sessionId });
   }, []);
 
   // Disable demo mode
   const disableDemoMode = useCallback(() => {
     setIsDemoMode(false);
     setCurrentDemo(null);
-    console.log('[Demo Mode] Disabled');
+    log.info('Disabled');
   }, []);
 
   // Simulate realistic delay
@@ -138,7 +141,7 @@ export function useDemoMode(): DemoModeState {
       await simulateDelay(500, 1000);
       enableDemoMode(demo);
     } else {
-      console.warn(`[Demo Mode] Consultation ${consultationId} not found`);
+      log.warn('Consultation not found', { consultationId });
     }
   }, [simulateDelay, enableDemoMode]);
 

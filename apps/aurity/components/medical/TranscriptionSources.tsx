@@ -11,8 +11,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Clock, RefreshCw, AlertTriangle, Music, Volume2, Check, Zap, Square, Lightbulb } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('TranscriptionSources');
 import { Button } from '@/components/ui/button';
 import { getBackendUrl } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
@@ -56,13 +59,6 @@ export function TranscriptionSources({
     ? `${getBackendUrl()}${ROUTES.medicalAi}/sessions/${sessionId}/audio`
     : null;
 
-  // Debug: Log audio URL only when it changes
-  useEffect(() => {
-    if (audioUrl) {
-      console.log('[TranscriptionSources] Audio URL:', audioUrl);
-    }
-  }, [audioUrl]);
-
   const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
     const audio = e.currentTarget;
     const error = audio.error;
@@ -85,12 +81,12 @@ export function TranscriptionSources({
       }
     }
 
-    console.error('[TranscriptionSources] Audio error:', errorMessage, error);
+    log.error('Audio playback error', { errorMessage, code: error?.code });
     setAudioError(errorMessage);
   };
 
   const handleAudioCanPlay = () => {
-    console.log('[TranscriptionSources] Audio loaded successfully');
+    log.debug('Audio loaded');
     setAudioLoaded(true);
     setAudioError(null);
   };
@@ -120,7 +116,7 @@ export function TranscriptionSources({
             preload="auto"
             onError={handleAudioError}
             onCanPlay={handleAudioCanPlay}
-            onLoadedMetadata={() => console.log('[TranscriptionSources] Audio metadata loaded')}
+            onLoadedMetadata={() => {}}
           >
             Tu navegador no soporta reproducción de audio.
           </audio>

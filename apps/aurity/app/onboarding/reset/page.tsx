@@ -71,11 +71,12 @@ export default function OnboardingResetPage() {
     const completed = localStorage.getItem('aurity_onboarding_completed');
     const survey = localStorage.getItem('fi_onboarding_survey');
 
-    console.log('[INFO] Current Onboarding State:');
-    console.log('- Progress:', progress ? JSON.parse(progress) : 'None');
-    console.log('- Conversation:', conversation ? JSON.parse(conversation) : 'None');
-    console.log('- Completed:', completed || 'false');
-    console.log('- Survey:', survey ? JSON.parse(survey) : 'None');
+    log.info('Onboarding state', {
+      progress: progress ? JSON.parse(progress) : null,
+      conversation: conversation ? JSON.parse(conversation) : null,
+      completed: completed || 'false',
+      survey: survey ? JSON.parse(survey) : null,
+    });
 
     showInfo('Estado mostrado en consola', 'Presiona F12 para ver los detalles');
   };

@@ -15,6 +15,9 @@
 
 import { useRef, useCallback } from 'react';
 import { medicalWorkflowApi, type StreamChunkResponse } from '@aurity-standalone/api-client/medical-workflow';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AudioUpload');
 
 export interface AudioUploadState {
   // Refs
@@ -101,8 +104,6 @@ export function useAudioUpload(): AudioUploadState {
       inflightRef.current.add(chunkId);
 
       try {
-        console.log(`[AudioUpload] Uploading chunk ${chunkNumber} (${blob.size} bytes)`);
-
         const response = await medicalWorkflowApi.uploadChunk(
           sessionId,
           chunkNumber,
@@ -114,8 +115,6 @@ export function useAudioUpload(): AudioUploadState {
           }
         );
 
-        console.log(`[AudioUpload] Chunk ${chunkNumber} uploaded successfully`);
-
         // Remove from inflight
         inflightRef.current.delete(chunkId);
 
@@ -123,7 +122,7 @@ export function useAudioUpload(): AudioUploadState {
           options.onSuccess(response);
         }
       } catch (error) {
-        console.error(`[AudioUpload] Chunk ${chunkNumber} upload failed:`, error);
+        log.error('Chunk upload failed', { chunkNumber, error: String(error) });
 
         // Remove from inflight
         inflightRef.current.delete(chunkId);

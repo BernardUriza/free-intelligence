@@ -18,6 +18,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('OnboardingChat');
 import {
   Bot,
   Sparkles,
@@ -334,7 +337,7 @@ export function useOnboardingChat(
         if (data.userData) setUserData(data.userData);
       }
     } catch (e) {
-      console.error("[useOnboardingChat] Failed to load progress:", e);
+      log.error('Failed to load progress', { error: String(e) });
     }
   }, []);
 
@@ -343,7 +346,7 @@ export function useOnboardingChat(
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ phase, userData }));
     } catch (e) {
-      console.error("[useOnboardingChat] Failed to save progress:", e);
+      log.error('Failed to save progress', { error: String(e) });
     }
   }, [phase, userData]);
 
@@ -412,7 +415,7 @@ export function useOnboardingChat(
       }
     } else {
       // Failed to parse JSON - use fallback questions
-      console.warn("[useOnboardingChat] Failed to parse JSON, using fallback");
+      log.warn('Failed to parse JSON response, using fallback questions');
 
       // Show personalization questions if:
       // 1. Already in personalization phase, OR
