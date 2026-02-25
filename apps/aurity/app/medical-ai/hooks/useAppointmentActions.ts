@@ -10,6 +10,9 @@ import { useState, useCallback, type Dispatch, type SetStateAction } from 'react
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 import { confirmDialog } from '@/lib/swal';
 import type { PendingWorkflowData, AppointmentSubmitData } from '../types';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AppointmentActions');
 
 import type { Patient } from '@aurity-standalone/types/patient';
 import type { Patient as MedicalPatient } from '@aurity-standalone/types/medical';
@@ -66,14 +69,14 @@ export function useAppointmentActions({
     async (appointment: Appointment) => {
       const patient = patients.find((p) => p.id === appointment.patient_id);
       if (!patient) {
-        console.error('[MedicalAI] Patient not found for appointment:', appointment.patient_id);
+        log.error('Patient not found for appointment', { patientId: appointment.patient_id });
         return;
       }
 
       try {
         await startAppointment(appointment.appointment_id);
       } catch (error) {
-        console.error('[MedicalAI] Failed to start appointment:', error);
+        log.error('Failed to start appointment', { error: String(error) });
       }
 
       handleStartNewConsultation(patient);

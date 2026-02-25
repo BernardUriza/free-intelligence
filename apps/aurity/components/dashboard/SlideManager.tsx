@@ -39,6 +39,9 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ContentItem } from './waiting-room-host';
 import { confirmDelete, toastError, toastSuccess } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('SlideManager');
 
 interface Slide {
   media_id: string;
@@ -75,7 +78,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
       });
       setSlides(sorted);
     } catch (error) {
-      console.error('Failed to fetch slides:', error);
+      log.error('Failed to fetch slides', { error: String(error) });
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +95,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
       onSlidesUpdate?.();
       toastSuccess('Slide eliminado');
     } catch (error) {
-      console.error('Failed to delete slide:', error);
+      log.error('Failed to delete slide', { error: String(error) });
       toastError('Error al eliminar');
     }
   };
@@ -105,7 +108,7 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
       onSlidesUpdate?.();
       toastSuccess(currentState ? 'Slide desactivado' : 'Slide activado');
     } catch (error) {
-      console.error('Failed to update slide:', error);
+      log.error('Failed to update slide', { error: String(error) });
       toastError('Error al actualizar');
     }
   };

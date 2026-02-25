@@ -20,6 +20,9 @@ import { Button } from '@/components/ui/button';
 import { TriviaEditor } from './TriviaEditor';
 import { getTriviaQuestions, type TriviaQuestion } from '@/lib/api/widget-configs';
 import { toastSuccess, toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ContentManagement');
 
 type ContentTab = 'seeds' | 'trivias' | 'exercises' | 'tips';
 
@@ -47,7 +50,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
       const response = await getTriviaQuestions();
       setTrivias(response.questions);
     } catch (error) {
-      console.error('Failed to load trivias:', error);
+      log.error('Failed to load trivias', { error: String(error) });
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +58,6 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
 
   const handleSaveTrivia = async (trivia: TriviaQuestion) => {
     try {
-      console.log('Saving trivia:', trivia);
       setShowTriviaEditor(false);
       setEditingTrivia(undefined);
       await loadTrivias();
@@ -63,7 +65,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
 
       toastSuccess('Trivia guardada');
     } catch (error) {
-      console.error('Failed to save trivia:', error);
+      log.error('Failed to save trivia', { error: String(error) });
       toastError('Error al guardar trivia');
     }
   };

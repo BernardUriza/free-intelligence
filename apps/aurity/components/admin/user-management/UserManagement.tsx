@@ -17,6 +17,9 @@ import {
   adminGetUserClinicInfo,
   type Clinic,
 } from '@/lib/api/clinics';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('UserManagement');
 
 import type { User, UserManagementProps } from './types';
 import { InviteUserModal, UserActivityModal, ClinicAssignmentModal } from './modals';
@@ -39,7 +42,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
       const clinicList = await fetchClinics(true);
       setClinics(clinicList);
     } catch (error) {
-      console.error('Failed to load clinics:', error);
+      log.error('Failed to load clinics', { error: String(error) });
     }
   }, []);
 
@@ -74,7 +77,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
 
       setUsers(usersWithClinicInfo);
     } catch (error) {
-      console.error('Failed to load users:', error);
+      log.error('Failed to load users', { error: String(error) });
       setUsers([]);
     } finally {
       setLoading(false);
@@ -92,7 +95,7 @@ export function UserManagement({ onClose, asPage = false }: UserManagementProps)
       const clinicInfo = await adminGetUserClinicInfo(user.user_id);
       setUsers(prev => prev.map(u => u.user_id === user.user_id ? { ...u, clinicInfo } : u));
     } catch (error) {
-      console.error('Failed to load clinic info:', error);
+      log.error('Failed to load clinic info', { error: String(error) });
     } finally {
       setLoadingClinicInfo(null);
     }

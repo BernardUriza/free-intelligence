@@ -8,6 +8,9 @@
 import { useCallback } from 'react';
 import { useChatUpload } from '@aurity-standalone/hooks/useChatUpload';
 import type { PersonaType } from '../ChatToolbar';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('FileUpload');
 
 export interface UseFileUploadStateOptions {
   persona: PersonaType;
@@ -48,15 +51,12 @@ export function useFileUploadState({
   } = useChatUpload({
     persona,
     userId,
-    onUploadComplete: (doc) => {
-      console.log('[FileUpload] Complete:', doc.doc_id);
-    },
-    onIndexed: (doc) => {
-      console.log('[FileUpload] Indexed:', doc.doc_id, doc.chunks_count, 'chunks');
+    onUploadComplete: () => {},
+    onIndexed: () => {
       setTimeout(reset, 3000);
     },
     onError: (error) => {
-      console.error('[FileUpload] Error:', error);
+      log.error('Upload failed', { error: String(error) });
     },
   });
 
