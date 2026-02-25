@@ -134,7 +134,6 @@ export const OnboardingMessage = memo(function OnboardingMessage({
             <MessageActions
               isUser={isUser}
               content={message.content}
-              showMoreButton={false}
               audioPlayer={
                 (isLoading || audioUrl) && (
                   <AudioPlayer

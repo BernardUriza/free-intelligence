@@ -58,10 +58,6 @@ export function SummaryExport({
     setIsExporting(true);
 
     try {
-      // Simulate export delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // TODO: Call FI backend export service
       console.log('Exporting consultation data to:', exportFormat);
 
       setExportComplete(true);

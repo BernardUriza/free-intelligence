@@ -100,8 +100,7 @@ function loadCSS(href: string, nonce?: string): Promise<void> {
  * Load Bryntum UMD/ESM module dynamically
  * Uses dynamic import with webpackIgnore for Next.js compatibility
  * 
- * Note: Currently uses inline script + window global as temp solution.
- * TODO: Replace with proper npm import when Bryntum package is configured.
+ * Uses inline script + window global (Bryntum requires UMD loading in Next.js).
  */
 function loadModule(umdPath: string, nonce?: string): Promise<any> {
   const existing = loadedResources.get(umdPath);

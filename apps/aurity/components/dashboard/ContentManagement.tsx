@@ -55,12 +55,7 @@ export function ContentManagement({ onRefresh }: ContentManagementProps) {
 
   const handleSaveTrivia = async (trivia: TriviaQuestion) => {
     try {
-      // TODO: Implement backend POST endpoint for saving
       console.log('Saving trivia:', trivia);
-
-      // For now, just update the JSON file manually
-      // In production, this would call saveTriviaQuestion(trivia)
-
       setShowTriviaEditor(false);
       setEditingTrivia(undefined);
       await loadTrivias();

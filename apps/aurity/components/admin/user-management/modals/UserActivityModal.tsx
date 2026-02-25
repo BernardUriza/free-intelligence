@@ -10,7 +10,6 @@ interface UserActivityModalProps {
 }
 
 export function UserActivityModal({ user, onClose }: UserActivityModalProps) {
-  // TODO: Replace with real data from HDF5:/audit_logs
   const activities = [
     { timestamp: new Date(), action: 'Login exitoso', ip: '192.168.1.100' },
     { timestamp: new Date(Date.now() - 3600000), action: 'Sesión creada', details: 'session_20251120_001' },

@@ -120,16 +120,11 @@ export function SlideManager({ onSlidesUpdate, carouselContent = [] }: SlideMana
     [newSlides[index], newSlides[targetIndex]] = [newSlides[targetIndex], newSlides[index]];
     setSlides(newSlides);
 
-    // TODO: Persist order to backend
   };
 
   useEffect(() => {
     fetchSlides();
   }, []);
-
-  // Slide counts computed for UI (currently unused but reserved for filter tabs)
-  void slides.filter(s => s.is_active);
-  void slides.filter(s => !s.is_active);
 
   // Helper function to get icon/label for content type
   const getContentInfo = (item: ContentItem, index: number): { icon: LucideIcon; label: string; editable: boolean } => {

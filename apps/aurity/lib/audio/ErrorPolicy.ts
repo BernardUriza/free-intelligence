@@ -115,7 +115,7 @@ export function createAudioError(
  * Log error to console (dev) or backend (prod)
  *
  * Development: Logs full error object to console.error
- * Production: Sends error code and message only (TODO: implement backend endpoint)
+ * Production: Sends error code and message to console.error
  *
  * @param error - AudioError event to log
  */
@@ -123,8 +123,6 @@ export function logAudioError(error: AudioError): void {
   if (process.env.NODE_ENV === 'development') {
     console.error('[AudioPolicy]', error);
   } else {
-    // In production, send to backend observability sink
-    // TODO: Implement /api/observability/events endpoint (Phase 4)
     console.error('[AudioPolicy]', error.code, error.message);
   }
 }

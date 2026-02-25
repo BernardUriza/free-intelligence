@@ -87,7 +87,6 @@ export function DoctorControlPanel({
 
   const handleMediaUpload = useCallback((media: UploadedMedia) => {
     console.log('Media uploaded:', media);
-    // TODO: Add to carousel rotation
   }, []);
 
   const handleAIContentGenerated = useCallback((content: GeneratedContent) => {

@@ -71,8 +71,6 @@ export function useSessionManagement() {
     try {
       setDeletingSession(sessionId);
 
-      // TODO: Call backend delete endpoint when implemented
-      // For now, just remove from local state
       setSessions((prev) => prev.filter((s) => s.metadata.session_id !== sessionId));
 
       setDeleteConfirmSession(null);

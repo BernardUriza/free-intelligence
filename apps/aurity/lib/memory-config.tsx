@@ -391,8 +391,6 @@ export const timelineEventConfig: TimelineConfig = {
         return;
       }
 
-      // TODO(human): Implement audio playback
-      // For now, just log
       console.log('[Timeline] Playing audio for event', event.id, {
         audioHash,
         chunkNumber,

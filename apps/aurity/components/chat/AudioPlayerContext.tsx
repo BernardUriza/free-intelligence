@@ -108,28 +108,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     })();
   }, [BACKEND_URL, stateMachine]);
 
-  // Phase 4: Observability (commented - activate when backend endpoint is ready)
-  // Sends cache stats to backend every 60 seconds
-  /*
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const stats = queueManager.getCacheStats();
-      fetch(`${BACKEND_URL}/api/observability/audio/metrics`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cache_size: stats.size,
-          cache_max: stats.maxSize,
-          queue_depth: 0, // TODO: track queue depth
-          timestamp: Date.now(),
-        }),
-      }).catch(err => console.error('[AudioMetrics] Failed to send:', err));
-    }, 60000); // Every minute
-
-    return () => clearInterval(interval);
-  }, [BACKEND_URL, queueManager]);
-  */
-
   /**
    * Generate and play audio
    *

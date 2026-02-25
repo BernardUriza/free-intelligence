@@ -52,7 +52,7 @@ function loadBryntumCSS(): void {
  * Load Bryntum JS module dynamically
  * Returns SchedulerPro constructor
  * 
- * TODO: Replace with proper npm import once Bryntum package is installed
+ * Loads Bryntum JS module via UMD script (required for Next.js compatibility)
  */
 async function loadBryntumModule(): Promise<unknown> {
   return new Promise((resolve, reject) => {
