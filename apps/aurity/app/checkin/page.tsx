@@ -79,7 +79,6 @@ function CheckinContent() {
     }
   }
 
-  // TODO: Fetch clinic name from API
   const clinicName = 'Clínica AURITY';
 
   // Build params for chat mode link

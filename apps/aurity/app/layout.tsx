@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     title: 'Free Intelligence · AURITY',
     description: 'Asistente médico con IA en la nube. Tus datos siempre seguros, con opción de instalación propia.',
     images: ['https://app.aurity.io/og-banner.png'],
-    creator: '@freeintelligence', // TODO: Update with real Twitter handle
+    creator: '@freeintelligence',
   },
 
   // Additional metadata

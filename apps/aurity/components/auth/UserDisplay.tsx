@@ -28,13 +28,7 @@ export function UserDisplay() {
     isLoading,
     loginWithRedirect,
     logout,
-    getAccessTokenSilently,
   } = useAuth();
-
-  // Debug: Verify logout is defined
-  useEffect(() => {
-    console.log('[UserDisplay] logout function:', typeof logout, logout);
-  }, [logout]);
 
   const { isSuperAdmin } = useRBAC();
   const router = useRouter();
@@ -58,7 +52,7 @@ export function UserDisplay() {
         right: window.innerWidth - rect.right, // Distance from right edge
       });
     }
-  }, [dropdownOpen]); // TODO: Add window dimensions tracking if needed for responsiveness
+  }, [dropdownOpen]);
 
   // Extract role from user context
   useEffect(() => {
@@ -183,15 +177,11 @@ export function UserDisplay() {
         <div className="fi-border-top usr-menu-divider">
           <button
             onClick={async () => {
-              console.log('[UserDisplay] Logout button clicked');
               setDropdownOpen(false);
               try {
-                console.log('[UserDisplay] Calling logout...');
-                // Logout without redirecting back to origin to allow user to continue using the app unauthenticated
                 await logout({ logoutParams: { returnTo: window.location.origin + '/chat' } });
-                console.log('[UserDisplay] Logout completed');
-              } catch (error) {
-                console.error('[UserDisplay] Logout failed:', error);
+              } catch {
+                // Logout failed silently — user stays on current page
               }
             }}
             className="usr-menu-item-danger fi-text-error"

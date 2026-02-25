@@ -58,7 +58,6 @@ async def _analyze_emotional_state(
 
 async def _get_rag_context(
     query: str,
-    persona: str,
     clinic_id: str | None,
 ) -> str | None:
     """Get RAG context for query using DocumentService.
@@ -68,7 +67,6 @@ async def _get_rag_context(
 
     Args:
         query: User's question/message
-        persona: Persona ID (not used currently, reserved for filtering)
         clinic_id: Clinic ID for multi-tenancy filtering
 
     Returns:
@@ -229,7 +227,6 @@ async def chat_with_assistant(
         clinic_id = current_user.clinic_id if current_user else None
         rag_context = await _get_rag_context(
             query=last_message.content,
-            persona=request.persona,
             clinic_id=clinic_id,
         )
         if rag_context:
@@ -266,8 +263,8 @@ async def chat_with_assistant(
         assistant_message = Message(role="assistant", content=result["response"])
         choice = ChatCompletionChoice(index=0, message=assistant_message, finish_reason="stop")
 
-        prompt_tokens = len(last_message.content.split()) * 4
-        completion_tokens = len(result["response"].split()) * 4
+        prompt_tokens = result.get("prompt_tokens") or len(last_message.content.split()) * 4
+        completion_tokens = result.get("completion_tokens") or len(result["response"].split()) * 4
         total_tokens = prompt_tokens + completion_tokens
 
         usage = ChatCompletionUsage(

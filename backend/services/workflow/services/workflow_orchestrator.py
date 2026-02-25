@@ -7,7 +7,7 @@ SOLID Principles Applied:
 - Dependency Inversion: Depends on abstract worker interfaces, not concrete implementations
 - Open/Closed: Adding new workflows doesn't require changing existing code
 
-File: backend/api/public/workflows/services/workflow_orchestrator.py
+File: backend/services/workflow/services/workflow_orchestrator.py
 Created: 2025-11-20
 Refactored: 2026-01-28 (Phase 2.3 - DI pattern)
 Updated: 2026-02-01 (Phase 2.3 - Worker DI migration)
@@ -102,7 +102,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        self.task_repo.task_exists(
+        self.task_repo.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.DIARIZATION,
         )
@@ -148,7 +148,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        self.task_repo.task_exists(
+        self.task_repo.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.SOAP_GENERATION,
         )
@@ -195,7 +195,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        self.task_repo.task_exists(
+        self.task_repo.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.EMOTION_ANALYSIS,
         )
@@ -240,7 +240,7 @@ class WorkflowOrchestrator:
         )
 
         # 1. Create task
-        self.task_repo.task_exists(
+        self.task_repo.ensure_task_exists(
             session_id=session_id,
             task_type=TaskType.ENCRYPTION,
         )

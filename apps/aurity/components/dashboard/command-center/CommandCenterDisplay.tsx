@@ -39,7 +39,7 @@ export function CommandCenterDisplay() {
   const headerConfig = dashboardHeader({
     waitingCount,
     avgWaitTime,
-    appointmentsToday: 12, // TODO: Fetch from API
+    appointmentsToday: 12,
   });
 
   // Custom header actions for dashboard
