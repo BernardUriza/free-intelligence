@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('EvidencePack');
 import {
   FileText,
   Hash,
@@ -108,22 +111,17 @@ export function EvidencePackViewer({ sessionId, onNext, onPrevious }: EvidencePa
         const data = await api.get<{ session_id: string; evidence_pack: EvidencePack }>(
           `${ROUTES.medicalAi}/sessions/${sessionId}/evidence`
         );
-        setPack(data.evidence_pack);  // Backend wraps in { session_id, evidence_pack }
-
-        console.log('[EvidencePackViewer] Loaded evidence pack:', data.evidence_pack.pack_id);
+        setPack(data.evidence_pack);
       } catch (err) {
-        console.error('[EvidencePackViewer] Error loading evidence pack:', err);
-
         const errorMsg = err instanceof Error ? err.message : String(err);
-        // Check if it's a "not found" error (expected when SOAP doesn't exist yet)
         const isNoDataError = errorMsg.includes('not found') ||
                              errorMsg.includes('404') ||
                              errorMsg.includes('does not exist');
 
         if (isNoDataError) {
-          console.log('[EvidencePackViewer] Evidence pack not ready yet');
           setError('El Evidence Pack se generará cuando las notas SOAP estén disponibles');
         } else {
+          log.error('Failed to load evidence pack', { error: errorMsg });
           setError(err instanceof Error ? err.message : 'Failed to load evidence pack');
         }
       } finally {

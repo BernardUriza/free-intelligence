@@ -17,6 +17,9 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Mic, Pause, Play, Loader2 } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('RecordingControls');
 import type { LucideIcon } from 'lucide-react';
 
 import {
@@ -149,12 +152,10 @@ export function RecordingControls({
 
   const handleClick = useCallback(async () => {
     if (isFinalized) {
-      console.warn('[RecordingControls] Session finalized - recording not allowed');
       return;
     }
 
     if (isTransitioning || isProcessing) {
-      console.warn('[RecordingControls] Ignoring click - already transitioning');
       return;
     }
 
@@ -174,7 +175,7 @@ export function RecordingControls({
         setTransitionAction(null);
       }
     } catch (error) {
-      console.error('[RecordingControls] Action failed:', error);
+      log.error('Action failed', { error: String(error) });
       setTransitionAction(null);
     }
   }, [isFinalized, isTransitioning, isProcessing, isPaused, isRecording, onStart, onPause, onResume]);

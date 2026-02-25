@@ -14,6 +14,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('SessionAudit');
 import {
   X,
   AlertTriangle,
@@ -131,7 +134,7 @@ export function SessionAuditPanel({
         const data = await api.get<AuditData>(`${ROUTES.sessions}/${sessionId}/audit`);
         setAuditData(data);
       } catch (err) {
-        console.error('Failed to load audit data:', err);
+        log.error('Failed to load audit data', { error: String(err) });
         setError(err instanceof Error ? err.message : 'Error al cargar auditoría');
       } finally {
         setLoading(false);
@@ -164,7 +167,7 @@ export function SessionAuditPanel({
 
       onClose();
     } catch (err) {
-      console.error('Failed to submit feedback:', err);
+      log.error('Failed to submit feedback', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al enviar feedback');
     } finally {
       setSubmitting(false);

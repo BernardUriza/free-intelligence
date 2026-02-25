@@ -17,6 +17,9 @@
 import React, { useState } from 'react';
 import { Download, FileText, Database, Check, Archive, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('SummaryExport');
 
 interface SummaryExportProps {
   onPrevious?: () => void;
@@ -58,8 +61,6 @@ export function SummaryExport({
     setIsExporting(true);
 
     try {
-      console.log('Exporting consultation data to:', exportFormat);
-
       setExportComplete(true);
 
       // Auto-complete after 1 second
@@ -70,7 +71,7 @@ export function SummaryExport({
       }, 1000);
 
     } catch (error) {
-      console.error('Export failed:', error);
+      log.error('Export failed', { format: exportFormat, error: String(error) });
     } finally {
       setIsExporting(false);
     }
