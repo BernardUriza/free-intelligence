@@ -16,6 +16,9 @@ import {
   getTarget,
   isCloud,
 } from '@/lib/config/deployment';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('APIClient');
 
 // Single source of truth for backend URL - now uses deployment target config
 // Cloud: same-origin (empty string) or explicit NEXT_PUBLIC_BACKEND_URL
@@ -29,14 +32,9 @@ export function getBackendUrl(): string {
   return BACKEND_URL;
 }
 
-// Log deployment configuration in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log(`[API Client] Target: ${getTarget()}, Backend: ${BACKEND_URL || '(same-origin)'}`);
-}
-
-// Warn in production if cloud mode is using same-origin (expected behavior)
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && isCloud() && !BACKEND_URL) {
-  console.info('[API Client] Cloud mode: Using same-origin relative API paths.');
+// Log deployment configuration at startup
+if (typeof window !== 'undefined') {
+  log.info('Initialized', { target: getTarget(), backend: BACKEND_URL || '(same-origin)' });
 }
 
 export class APIError extends Error {
@@ -139,7 +137,7 @@ export async function apiRequest<T>(
     }
     // Include the attempted URL in the error to aid debugging (CORS / mixed-content / network)
     const errMsg = error instanceof Error ? error.message : 'Unknown';
-    console.error(`[apiRequest] Network error fetching ${url}: ${errMsg}`);
+    log.error('Network error', { url, error: errMsg });
     throw new Error(`Network error fetching ${url}: ${errMsg}`);
   }
 }
@@ -169,7 +167,7 @@ export async function apiUpload<T>(
       if (attempt > 0) {
         // Exponential backoff: 1s, 2s, 4s
         const delay = retryDelay * Math.pow(2, attempt - 1);
-        console.log(`[Upload Retry] Attempt ${attempt}/${retries} after ${delay}ms delay`);
+        log.debug('Upload retry', { attempt, retries, delay });
         await sleep(delay);
       }
 
@@ -194,7 +192,7 @@ export async function apiUpload<T>(
 
       // Success - return result
       if (attempt > 0) {
-        console.log(`[Upload Retry] Success on attempt ${attempt + 1}`);
+        log.debug('Upload succeeded after retry', { attempt: attempt + 1 });
       }
       return await response.json();
     } catch (error) {
@@ -202,19 +200,14 @@ export async function apiUpload<T>(
 
       // Don't retry on HTTP errors (4xx, 5xx) - only retry network errors
       if (error instanceof APIError) {
-        console.error(`[Upload] HTTP ${error.status} - not retrying`);
+        log.error('Upload HTTP error, not retrying', { status: error.status });
         throw error;
       }
 
-      // Log retry attempt
       if (attempt < retries) {
-        console.warn(
-          `[Upload] Attempt ${attempt + 1}/${retries + 1} failed: ${lastError.message}`
-        );
+        log.warn('Upload attempt failed', { attempt: attempt + 1, total: retries + 1, error: lastError.message });
       } else {
-        console.error(
-          `[Upload] All ${retries + 1} attempts failed: ${lastError.message}`
-        );
+        log.error('Upload all attempts failed', { total: retries + 1, error: lastError.message });
       }
     }
   }
@@ -249,7 +242,7 @@ export async function apiRawRequest(
     return await fetchWithTimeout(url, { ...options, headers });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown';
-    console.error(`[apiRawRequest] Network error fetching ${url}: ${errMsg}`);
+    log.error('Raw request network error', { url, error: errMsg });
     throw new Error(`Network error fetching ${url}: ${errMsg}`);
   }
 }

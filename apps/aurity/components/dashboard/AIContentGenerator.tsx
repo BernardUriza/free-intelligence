@@ -2,7 +2,7 @@
  * AIContentGenerator - Generate AI-powered health content for TV display
  *
  * Card: FI-UI-FEAT-TVD-002
- * Uses waitingRoomAPI to generate health tips and trivia questions
+ * Uses waiting-room API functions to generate health tips and trivia questions
  * that can be added to the TV display rotation.
  */
 
@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react';
 import { Sparkles, Lightbulb, HelpCircle, RefreshCw, Send, Check, Copy, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
+import { generateTip, generateTrivia, type TipCategory } from '@/lib/api/waiting-room';
 import { AI_CONTENT_CATEGORIES, AI_TRIVIA_DIFFICULTIES } from '@/lib/dashboard/constants';
 import { getDynamicIcon } from '@/lib/icons';
 
@@ -51,7 +51,7 @@ export function AIContentGenerator({
     setGeneratedContent(null);
 
     try {
-      const response = await waitingRoomAPI.generateTip({ category: selectedCategory });
+      const response = await generateTip({ category: selectedCategory });
 
       const content: GeneratedContent = {
         type: 'tip',
@@ -76,7 +76,7 @@ export function AIContentGenerator({
     setGeneratedContent(null);
 
     try {
-      const response = await waitingRoomAPI.generateTrivia({ difficulty: selectedDifficulty });
+      const response = await generateTrivia({ difficulty: selectedDifficulty });
 
       const content: GeneratedContent = {
         type: 'trivia',
