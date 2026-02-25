@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { toastError, toastSuccess } from '@/lib/swal';
 import { adminAssignUserToClinic, type Clinic, type ClinicRole, type AdminUserClinicInfo } from '@/lib/api/clinics';
+import { createLogger } from '@/lib/internal/logger';
 import type { User } from '../types';
 import { CLINIC_ROLES } from '../types';
+
+const log = createLogger('ClinicAssignment');
 
 interface ClinicAssignmentModalProps {
   user: User;
@@ -70,7 +73,7 @@ export function ClinicAssignmentModal({
         });
       }
     } catch (error) {
-      console.error('Failed to assign user to clinic:', error);
+      log.error('Failed to assign user to clinic', { error: String(error) });
       toastError('Error al asignar usuario a clínica');
     } finally {
       setSaving(false);

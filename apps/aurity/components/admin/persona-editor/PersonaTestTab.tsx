@@ -10,6 +10,9 @@ import { testPersona } from '@aurity-standalone/api-client/personas';
 import { Zap } from 'lucide-react';
 import { toastError } from '@/lib/swal';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PersonaTest');
 
 interface PersonaTestTabProps {
   personaId: string;
@@ -28,7 +31,7 @@ export function PersonaTestTab({ personaId }: PersonaTestTabProps) {
       const result = await testPersona(personaId, { input: testInput });
       setTestResult(result);
     } catch (error) {
-      console.error('Failed to test persona:', error);
+      log.error('Failed to test persona', { error: String(error) });
       toastError('Error al probar la persona');
     } finally {
       setTesting(false);

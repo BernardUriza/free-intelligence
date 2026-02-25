@@ -16,6 +16,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import {
   X,
   FileText,
@@ -46,6 +47,8 @@ import {
   Sparkles,
   MessageCircle,
 } from 'lucide-react';
+
+const log = createLogger('DocumentPreview');
 import { Button } from '@/components/ui/button';
 import { fetchDocument, formatFileSize, formatDate, getDocumentQuestions } from '@aurity-standalone/api-client/knowledge';
 import type { DocumentMetadata, Document, DocumentType, DocumentStatus, DocumentQuestion, QuestionSource } from '@aurity-standalone/types/knowledge';
@@ -145,7 +148,7 @@ export function DocumentPreviewModal({ isOpen, onClose, document: docMeta }: Doc
         const qs = await getDocumentQuestions(docMeta.doc_id);
         setQuestions(qs);
       } catch (err) {
-        console.error('Error loading questions:', err);
+        log.error('Failed to load questions', { error: String(err) });
         setQuestions([]);
       } finally {
         setLoadingQuestions(false);

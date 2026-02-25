@@ -5,10 +5,13 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi, type MedicalOrder } from '@aurity-standalone/api-client/medical-workflow';
 import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 import type { ChatMessage, OrderType } from '../types';
+
+const log = createLogger('OrderChatbot');
 
 interface UseOrderChatbotProps {
   sessionId: string;
@@ -108,7 +111,7 @@ export function useOrderChatbot({ sessionId, onOrderCreated }: UseOrderChatbotPr
         content: result.explanation
       }]);
     } catch (error) {
-      console.error('[Chatbot] Error:', error);
+      log.error('Chat error', { error: String(error) });
       setChatMessages(prev => [...prev, {
         role: 'assistant',
         content: `Error: ${error instanceof Error ? error.message : 'Desconocido'}`

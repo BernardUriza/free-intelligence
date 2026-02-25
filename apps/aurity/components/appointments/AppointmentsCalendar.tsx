@@ -17,7 +17,10 @@
 'use client';
 
 import { useCallback, useMemo, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { SchedulerCore, buildAppointmentSchedulerConfig, initBryntumPatchHook, cleanupBryntumPatchHook } from '@/components/bryntum';
+
+const log = createLogger('AppointmentsCalendar');
 import { APPOINTMENT_VIEW_PRESETS, type AppointmentViewMode } from '@/components/bryntum/config/appointment-presets.config';
 import { type Doctor, type Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 
@@ -119,7 +122,7 @@ export function AppointmentsCalendar({
   }, [onSchedulerReady]);
 
   const handleError = useCallback((error: unknown) => {
-    console.error('[AppointmentsCalendar] Scheduler error:', error);
+    log.error('Scheduler error', { error: String(error) });
   }, []);
 
   // ============================================================================

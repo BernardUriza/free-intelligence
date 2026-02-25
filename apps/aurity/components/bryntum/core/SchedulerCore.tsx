@@ -17,7 +17,10 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { useBryntumScheduler } from '../hooks/useBryntumScheduler';
+
+const log = createLogger('SchedulerCore');
 
 // ============================================================================
 // Types
@@ -210,7 +213,7 @@ export function SchedulerCore({
       }
     } catch (e) {
       // Non-fatal: keep previous data
-      console.warn('[SchedulerCore] Failed to apply updated data/config:', e);
+      log.warn('Failed to apply updated data/config', { error: String(e) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindowStartTs, timeWindowEndTs, isReady, instance, getConfig]);

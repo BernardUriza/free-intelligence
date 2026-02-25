@@ -13,6 +13,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { X, Plus, Trash2, Save, AlertCircle, Brain } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('TriviaEditor');
 
 interface TriviaQuestion {
   id: string;
@@ -85,7 +88,7 @@ export function TriviaEditor({ question, onSave, onCancel }: TriviaEditorProps) 
 
       await onSave(formData);
     } catch (error) {
-      console.error('Failed to save trivia:', error);
+      log.error('Failed to save trivia', { error: String(error) });
       setErrors({ general: 'Error al guardar. Intente nuevamente.' });
     } finally {
       setIsSaving(false);

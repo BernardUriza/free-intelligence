@@ -9,9 +9,12 @@
  */
 
 import { useEffect, useState } from "react";
+import { createLogger } from '@/lib/internal/logger';
 import { GenericPolicyViewer } from '@/components/policy/GenericPolicyViewer';
 import { AppTemplate } from '@/components/layout/AppTemplate';
 import { policyHeader } from '@/config/page-headers';
+
+const log = createLogger('PolicyPage');
 
 interface PolicyResponse {
   policy: any;
@@ -41,7 +44,7 @@ export default function PolicyPage() {
         setLoading(false);
       })
       .catch(err => {
-        console.error('Failed to load policy:', err);
+        log.error('Failed to load policy', { error: String(err) });
         setError(err.message || 'Unknown error');
         setLoading(false);
       });

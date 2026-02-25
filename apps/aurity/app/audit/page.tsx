@@ -11,8 +11,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createLogger } from '@/lib/internal/logger';
 import { AuditTable } from "../../components/audit/AuditTable";
 import { PageHeader } from '@/components/layout/PageHeader';
+
+const log = createLogger('AuditPage');
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { auditHeader } from "@/config/page-headers";
 import { getAuditLogs, getAuditOperations } from "../../lib/api/audit";
@@ -35,7 +38,7 @@ export default function AuditPage() {
       const response = await getAuditOperations();
       setOperations(response.operations);
     } catch (err) {
-      console.error("Failed to load operations:", err);
+      log.error('Failed to load operations', { error: String(err) });
     }
   }, []);
 

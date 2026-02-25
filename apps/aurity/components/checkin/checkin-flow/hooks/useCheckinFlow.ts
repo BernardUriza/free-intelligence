@@ -5,10 +5,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import {
   checkinAPI,
   isValidCurp,
 } from '@aurity-standalone/api-client/checkin';
+
+const log = createLogger('CheckinFlow');
 import type { IdentifyPatientResponse, CompleteCheckinResponse } from '@aurity-standalone/types/checkin';
 import type { FlowState, IdentificationMethod, IdentificationFormState } from '../types';
 
@@ -45,7 +48,7 @@ export function useCheckinFlow({ clinicId, onComplete }: UseCheckinFlowProps) {
         const session = await checkinAPI.startSession(clinicId, 'mobile');
         setState(prev => ({ ...prev, session }));
       } catch (error) {
-        console.error('Failed to start session:', error);
+        log.error('Failed to start session', { error: String(error) });
       }
     }
     initSession();

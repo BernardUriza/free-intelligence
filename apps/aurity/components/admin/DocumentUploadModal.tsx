@@ -9,6 +9,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
 import {
   X,
   Upload,
@@ -16,6 +17,8 @@ import {
   AlertCircle,
   Bot,
 } from 'lucide-react';
+
+const log = createLogger('DocumentUpload');
 import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
 import { uploadDocument, formatFileSize } from '@aurity-standalone/api-client/knowledge';
 import { AVAILABLE_PERSONAS } from '@aurity-standalone/types/knowledge';
@@ -110,7 +113,7 @@ export function DocumentUploadModal({ isOpen, onClose, onSuccess }: DocumentUplo
       onSuccess(doc);
       handleClose();
     } catch (err) {
-      console.error('Upload failed:', err);
+      log.error('Upload failed', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al subir el documento');
     } finally {
       setUploading(false);

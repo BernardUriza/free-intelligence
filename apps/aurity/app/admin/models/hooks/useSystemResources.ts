@@ -10,6 +10,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import {
   fetchSystemResources,
   fetchRunningModels,
@@ -18,6 +19,8 @@ import {
   type RunningModelsResponse,
 } from '@/lib/api/system';
 import { toastSuccess, toastError } from '@/lib/swal';
+
+const log = createLogger('SystemResources');
 
 const POLL_INTERVAL_MS = 10_000;
 
@@ -36,7 +39,7 @@ export function useSystemResources() {
       setSystemResources(resources);
       setRunningModels(running);
     } catch (err) {
-      console.error('Failed to load system resources:', err);
+      log.error('Failed to load system resources', { error: String(err) });
     } finally {
       setResourcesLoading(false);
     }

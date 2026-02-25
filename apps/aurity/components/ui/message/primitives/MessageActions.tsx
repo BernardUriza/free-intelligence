@@ -18,7 +18,10 @@
 
 import { memo, useState, useCallback, type ReactNode } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
 import { messageStyles } from '../styles/message-styles';
+
+const log = createLogger('MessageActions');
 
 export interface MessageActionsProps {
   /** Is this a user message */
@@ -46,7 +49,7 @@ export const MessageActions = memo(function MessageActions({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('[MessageActions] Copy failed:', err);
+      log.error('Copy failed', { error: String(err) });
     }
   }, [content]);
 

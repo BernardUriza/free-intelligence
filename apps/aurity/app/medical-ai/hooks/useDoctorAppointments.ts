@@ -6,12 +6,15 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 import {
   fetchAppointments as fetchAppointmentsApi,
   createAppointment as createAppointmentApi,
   updateAppointment as updateAppointmentApi,
 } from '@/lib/api/clinics';
+
+const log = createLogger('DoctorAppointments');
 
 interface CreateAppointmentData {
   patient_id: string;
@@ -115,7 +118,7 @@ export function useDoctorAppointments(
 
       setAppointments(uniqueAppointments);
     } catch (err) {
-      console.error('[useDoctorAppointments] Error:', err);
+      log.error('Failed to load appointments', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al cargar citas');
     } finally {
       setLoading(false);

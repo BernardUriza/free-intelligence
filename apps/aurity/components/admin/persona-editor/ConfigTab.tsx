@@ -13,6 +13,9 @@ import type { LLMModel } from '@aurity-standalone/types/llm';
 import { fetchLLMModels } from '@aurity-standalone/api-client/llm-models';
 import { VOICE_GROUPS, getVoiceInfo } from '@aurity-standalone/types/voices';
 import { Mic, Loader2, Cpu, Target, Globe, Mic2, Star } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PersonaConfig');
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -42,7 +45,7 @@ export function ConfigTab({ persona, onChange }: ConfigTabProps) {
         const models = await fetchLLMModels({ includeInactive: false });
         setLlmModels(models);
       } catch (error) {
-        console.error('Failed to load LLM models, using fallback:', error);
+        log.warn('Failed to load LLM models, using fallback', { error: String(error) });
         // Fallback to hardcoded models if API fails
         setLlmModels([]);
       } finally {

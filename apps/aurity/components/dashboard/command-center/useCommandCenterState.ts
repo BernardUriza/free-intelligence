@@ -1,8 +1,11 @@
 
 import { useState, useCallback, useEffect } from "react"
+import { createLogger } from '@/lib/internal/logger'
 import { useToast } from "@/hooks/useToast"
 import { useDashboardShortcuts } from "@/hooks/useDashboardShortcuts"
 import { listClinicMedia } from "@/lib/api/clinic-media"
+
+const log = createLogger('CommandCenter')
 import {
   MOCK_QUEUE_PATIENTS,
   ESTIMATED_MINUTES_PER_PATIENT,
@@ -83,7 +86,7 @@ export const useCommandCenterState = () => {
         const media = await listClinicMedia({ activeOnly: true })
         setSlides(media)
       } catch (error) {
-        console.error("Failed to fetch slides:", error)
+        log.error('Failed to fetch slides', { error: String(error) })
       } finally {
         setIsLoadingSlides(false)
       }

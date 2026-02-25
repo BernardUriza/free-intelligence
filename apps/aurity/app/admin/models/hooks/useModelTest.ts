@@ -13,6 +13,9 @@ import { useCallback } from 'react';
 import type { LLMModel } from '@aurity-standalone/types/llm';
 import { testLLMModel } from '@aurity-standalone/api-client/llm-models';
 import { toastError, swal, showProgressiveLoading, closeDialog } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ModelTest');
 
 /** Progressive loading stages for local Ollama models. */
 function getLocalStages(label: string) {
@@ -84,7 +87,7 @@ export function useModelTest() {
     } catch (err) {
       progressController.stop();
       closeDialog();
-      console.error('Failed to test model:', err);
+      log.error('Failed to test model', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al probar el modelo');
     }
   }, []);

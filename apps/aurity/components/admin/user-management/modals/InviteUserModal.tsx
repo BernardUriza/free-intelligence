@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { ROLES, getRoleName, getRoleBadgeColor, type Role } from '@aurity-standalone/hooks/useRBAC';
 import { showError, showSuccess } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('InviteUser');
 
 interface InviteUserModalProps {
   onClose: () => void;
@@ -34,7 +37,7 @@ export function InviteUserModal({ onClose, onInvite }: InviteUserModalProps) {
       onInvite();
       onClose();
     } catch (error) {
-      console.error('Failed to invite user:', error);
+      log.error('Failed to invite user', { error: String(error) });
       await showError('Error', 'No se pudo crear el usuario');
     } finally {
       setSending(false);
