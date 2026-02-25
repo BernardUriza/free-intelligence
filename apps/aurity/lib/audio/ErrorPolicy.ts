@@ -4,8 +4,7 @@
  * Transforms noisy console warnings into structured events with normalized error codes.
  * Redacts PII (emails, phone numbers) before logging to comply with HIPAA/privacy policies.
  *
- * Phase 1 (Legacy): createAudioError, logAudioError (maintained for backward compatibility)
- * Phase 2+ (New): reportAudioError via ErrorReporter subsystem with:
+ * reportAudioError via ErrorReporter subsystem with:
  * - Normalization of empty objects, Error instances, strings
  * - Environment-aware severity mapping (dev degraded, prod full)
  * - Deduplication (5s window)
@@ -25,14 +24,6 @@
  * @module ErrorPolicy
  * @see /apps/aurity/docs/audio/RUNBOOK.md
  */
-
-export interface AudioError {
-  code: string;
-  message: string;
-  context: Record<string, unknown>;
-  timestamp: number;
-  recoverable: boolean;
-}
 
 /**
  * Normalized error codes for audio subsystem
@@ -76,77 +67,8 @@ export function redactPII(text: string): string {
   return redacted;
 }
 
-/**
- * Create structured error event
- *
- * Automatically redacts PII from context.text field.
- * Marks errors as recoverable or unrecoverable based on code.
- *
- * @param code - Error code key (e.g., 'NO_PROVIDER', 'PLAYBACK_FAILED')
- * @param message - Human-readable error description
- * @param context - Additional context (will be redacted if contains 'text' field)
- * @returns Structured AudioError event
- */
-export function createAudioError(
-  code: keyof typeof ERROR_CODES,
-  message: string,
-  context: Record<string, unknown> = {}
-): AudioError {
-  // Redact PII from context
-  const sanitizedContext = { ...context };
-  if (typeof sanitizedContext.text === 'string') {
-    sanitizedContext.text = redactPII(sanitizedContext.text);
-  }
-
-  // Determine if error is recoverable
-  const recoverableErrors = ['NO_PROVIDER', 'BACKEND_UNREACHABLE', 'RATE_LIMITED'];
-  const recoverable = recoverableErrors.includes(code);
-
-  return {
-    code: ERROR_CODES[code],
-    message,
-    context: sanitizedContext,
-    timestamp: Date.now(),
-    recoverable,
-  };
-}
-
-/**
- * Log error to console (dev) or backend (prod)
- *
- * Development: Logs full error object to console.error
- * Production: Sends error code and message to console.error
- *
- * @param error - AudioError event to log
- */
-export function logAudioError(error: AudioError): void {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('[AudioPolicy]', error);
-  } else {
-    console.error('[AudioPolicy]', error.code, error.message);
-  }
-}
-
-/**
- * Transform legacy "No provider found" warning
- *
- * Converts the old console.warn fallback into a structured error event.
- *
- * @returns AudioError event for missing provider
- */
-export function transformNoProviderWarning(): AudioError {
-  return createAudioError(
-    'NO_PROVIDER',
-    'AudioPlayerProvider not mounted in component tree',
-    {
-      hint: 'Mount <AudioPlayerProvider> in app/layout.tsx',
-      recoverable: true,
-    }
-  );
-}
-
 // ============================================================================
-// New ErrorReporter-based functions (Phase 2+)
+// ErrorReporter-based functions
 // ============================================================================
 
 import type { TelemetryIds } from './types/audio-errors.types';
