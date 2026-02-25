@@ -20,6 +20,9 @@ import {
   fetchDoctorLimits,
 } from '@/lib/api/clinics';
 import { toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ClinicDetails');
 
 export function useClinicDetails() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -39,7 +42,7 @@ export function useClinicDetails() {
       setAppointments(appointmentsData);
       setDoctorLimits(limitsData);
     } catch (err) {
-      console.error('Failed to load clinic details:', err);
+      log.error('Failed to load clinic details', { error: String(err) });
     } finally {
       setLoadingDetails(false);
     }
@@ -56,7 +59,7 @@ export function useClinicDetails() {
         prev.map((d) => (d.doctor_id === updated.doctor_id ? updated : d)),
       );
     } catch (err) {
-      console.error('Failed to update doctor:', err);
+      log.error('Failed to update doctor', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al actualizar doctor');
       throw err;
     }

@@ -10,6 +10,9 @@
 
 import { useState, useEffect } from 'react';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Auth');
 
 interface AuthUser {
   id: string;
@@ -113,11 +116,11 @@ export function useAuth() {
           isLoading: false,
         });
       } else {
-        console.error('Auto-login failed:', result.message || result.error);
+        log.error('Auto-login failed', { message: result.message || result.error });
         setAuthState((prev) => ({ ...prev, isLoading: false }));
       }
     } catch (error) {
-      console.error('Auto-login error:', error);
+      log.error('Auto-login error', { error: String(error) });
       setAuthState((prev) => ({ ...prev, isLoading: false }));
     }
   };

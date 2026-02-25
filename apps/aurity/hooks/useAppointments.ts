@@ -10,6 +10,9 @@ import {
 } from "@/lib/api/clinics";
 import type { Appointment, Doctor } from "@/components/bryntum/utils/appointment-transform.utils";
 import { toastError, toastSuccess } from "@/lib/swal";
+import { createLogger } from "@/lib/internal/logger";
+
+const log = createLogger("Appointments");
 
 export function useAppointments(initialDate: Date = new Date()) {
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -68,7 +71,7 @@ export function useAppointments(initialDate: Date = new Date()) {
       );
       toastSuccess("Cita actualizada correctamente");
     } catch (error) {
-      console.error("Failed to update appointment:", error);
+      log.error("Failed to update appointment", { error: String(error) });
       toastError(error instanceof Error ? error.message : "Error al actualizar cita");
       // Revert UI
       loadAppointments(selectedClinic, currentDate);
@@ -83,7 +86,7 @@ export function useAppointments(initialDate: Date = new Date()) {
       toastSuccess("Cita creada correctamente");
       return newAppointment;
     } catch (error) {
-      console.error("Failed to create appointment:", error);
+      log.error("Failed to create appointment", { error: String(error) });
       toastError(error instanceof Error ? error.message : "Error al crear cita");
       throw error;
     }

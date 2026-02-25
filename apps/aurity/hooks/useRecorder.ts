@@ -252,7 +252,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
                 });
               }
             } catch (err) {
-              console.error('[Chunked Recorder] Final chunk processing failed:', err);
+              log.error('Final chunk processing failed', { error: String(err) });
             }
           }
         } catch (err) {

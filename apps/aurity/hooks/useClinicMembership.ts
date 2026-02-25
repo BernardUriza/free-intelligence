@@ -13,6 +13,9 @@ import { useState, useCallback } from 'react';
 import type { Clinic, ClinicMembership, ClinicRole } from '@/lib/api/clinics';
 import { getClinicMembership, linkToClinic } from '@/lib/api/clinics';
 import { toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ClinicMembership');
 
 interface LinkForm {
   nombre: string;
@@ -35,7 +38,7 @@ export function useClinicMembership() {
       const data = await getClinicMembership(user.sub, user.email ?? undefined);
       setMembership(data);
     } catch (err) {
-      console.error('Failed to load membership:', err);
+      log.error('Failed to load membership', { error: String(err) });
     }
   }, []);
 
@@ -66,7 +69,7 @@ export function useClinicMembership() {
       }
       return false;
     } catch (err) {
-      console.error('Failed to link to clinic:', err);
+      log.error('Failed to link to clinic', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al vincularse a la clínica');
       return false;
     } finally {
