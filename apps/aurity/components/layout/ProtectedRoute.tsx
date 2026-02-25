@@ -19,7 +19,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading: authLoading, loginWithRedirect, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, loginWithRedirect } = useAuth();
   const { hasAnyRole, isSuperAdmin, isLoading: rbacLoading } = useRBAC();
   const router = useRouter();
 
@@ -38,30 +38,17 @@ export function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) 
         return;
       }
 
-      console.log('[ProtectedRoute] User authenticated:', user?.email);
-
       // Superadmin bypass (handled by useRBAC hook)
-      if (isSuperAdmin) {
-        console.log('[ProtectedRoute] [SUPERADMIN] Full access granted');
-        return;
-      }
+      if (isSuperAdmin) return;
 
       // Check role requirements if specified
-      if (requireRoles && requireRoles.length > 0) {
-        console.log('[ProtectedRoute] Required roles:', requireRoles);
-
-        if (!hasAnyRole(requireRoles)) {
-          console.warn('[ProtectedRoute] Access denied - missing required roles');
-          router.push('/unauthorized');
-          return;
-        }
-
-        console.log('[ProtectedRoute] [OK] Access granted');
+      if (requireRoles?.length && !hasAnyRole(requireRoles)) {
+        router.push('/unauthorized');
       }
     };
 
     checkAuth();
-  }, [isAuthenticated, authLoading, rbacLoading, loginWithRedirect, requireRoles, hasAnyRole, isSuperAdmin, router, user]);
+  }, [isAuthenticated, authLoading, rbacLoading, loginWithRedirect, requireRoles, hasAnyRole, isSuperAdmin, router]);
 
   // Show loading state while checking authentication
   if (authLoading || rbacLoading) {

@@ -62,26 +62,17 @@ export function useWizardState(): UseWizardStateResult {
   // Load state from storage
   const loadState = useCallback(async () => {
     setIsLoading(true);
-    console.log('[useWizardState] Loading state...');
 
     try {
       const desktop = isDesktop();
-      console.log('[useWizardState] isDesktop:', desktop);
 
       if (desktop) {
-        // Try to load from filesystem via Tauri
-        console.log('[useWizardState] Calling get_wizard_state...');
         const tauriState = await invokeTauri<WizardState>('get_wizard_state');
-        console.log('[useWizardState] Tauri state:', tauriState);
 
         if (tauriState) {
-          // Check if we need to migrate from localStorage
           const localStorageComplete = localStorage.getItem(STORAGE_KEY) === 'true';
-          console.log('[useWizardState] localStorage complete:', localStorageComplete);
 
           if (!tauriState.desktop_setup_completed && localStorageComplete) {
-            // Migration: localStorage has data but filesystem doesn't
-            console.log('[useWizardState] Migrating from localStorage to filesystem');
             const fiMonitorInstalled = localStorage.getItem(STORAGE_KEY_FI_MONITOR) === 'true';
             // Tauri 2.0 uses camelCase on JS side, converts to snake_case for Rust
             const migratedState = await invokeTauri<WizardState>('mark_desktop_setup_complete', {
@@ -93,7 +84,6 @@ export function useWizardState(): UseWizardStateResult {
               // Clear localStorage after successful migration
               localStorage.removeItem(STORAGE_KEY);
               localStorage.removeItem(STORAGE_KEY_FI_MONITOR);
-              console.log('[useWizardState] Migration complete, localStorage cleared');
             } else {
               setState(tauriState);
             }
@@ -113,7 +103,6 @@ export function useWizardState(): UseWizardStateResult {
       loadFromLocalStorage();
     } finally {
       setIsLoading(false);
-      console.log('[useWizardState] Loading complete');
     }
   }, []);
 
@@ -190,7 +179,6 @@ export function useWizardState(): UseWizardStateResult {
         fi_monitor_installed: null,
       });
 
-      console.log('[useWizardState] Wizard state reset');
     } catch (error) {
       console.error('[useWizardState] Error resetting state:', error);
       // Still clear localStorage even if Tauri fails
