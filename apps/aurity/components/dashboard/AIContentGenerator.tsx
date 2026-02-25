@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { generateTip, generateTrivia, type TipCategory } from '@/lib/api/waiting-room';
 import { AI_CONTENT_CATEGORIES, AI_TRIVIA_DIFFICULTIES } from '@/lib/dashboard/constants';
 import { getDynamicIcon } from '@/lib/icons';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AIContentGenerator');
 
 interface AIContentGeneratorProps {
   /** Callback when content is ready to be added to TV */
@@ -63,7 +66,7 @@ export function AIContentGenerator({
 
       setGeneratedContent(content);
     } catch (err) {
-      console.error('Failed to generate tip:', err);
+      log.error('Failed to generate tip', { category: selectedCategory, error: String(err) });
       setError('Error al generar el tip. Intenta de nuevo.');
     } finally {
       setIsGenerating(false);
@@ -91,7 +94,7 @@ export function AIContentGenerator({
 
       setGeneratedContent(content);
     } catch (err) {
-      console.error('Failed to generate trivia:', err);
+      log.error('Failed to generate trivia', { difficulty: selectedDifficulty, error: String(err) });
       setError('Error al generar la trivia. Intenta de nuevo.');
     } finally {
       setIsGenerating(false);

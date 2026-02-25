@@ -7,6 +7,9 @@
 
 import type { BryntumEvent, BryntumResource } from '../types/scheduler.types';
 import { getAppointmentColor, getSpecialtyColor } from '../config/appointment-features.config';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AppointmentTransform');
 
 /**
  * Doctor availability per day (0 = Sunday)
@@ -115,7 +118,7 @@ export function transformAppointment(appointment: Appointment): BryntumEvent {
   
   // Validate date is valid
   if (isNaN(startDate.getTime())) {
-    console.error('Invalid scheduled_at date:', appointment.scheduled_at);
+    log.warn('Invalid scheduled_at date', { scheduledAt: appointment.scheduled_at });
     // Fallback to current time
     startDate.setTime(Date.now());
   }
@@ -158,7 +161,7 @@ export function transformDoctors(doctors: Doctor[]): BryntumResource[] {
  */
 export function transformAppointments(appointments: Appointment[]): BryntumEvent[] {
   if (!Array.isArray(appointments)) {
-    console.error('transformAppointments: Expected array, got:', typeof appointments);
+    log.error('transformAppointments: expected array', { received: typeof appointments });
     return [];
   }
   

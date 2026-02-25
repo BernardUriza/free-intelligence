@@ -18,6 +18,9 @@ import { MetadataPanel } from '@/components/dashboard/MetadataPanel';
 import type { Interaction } from '@/components/types/interaction';
 import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Viewer');
 
 export default function ViewerClient() {
   const params = useParams();
@@ -159,7 +162,7 @@ export default function ViewerClient() {
       setCopiedPrompt(true);
       setTimeout(() => setCopiedPrompt(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to copy prompt', { error: String(err) });
     }
   }, [interaction?.prompt]);
 
@@ -170,7 +173,7 @@ export default function ViewerClient() {
       setCopiedResponse(true);
       setTimeout(() => setCopiedResponse(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to copy response', { error: String(err) });
     }
   }, [interaction?.response]);
 

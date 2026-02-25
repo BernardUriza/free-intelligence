@@ -25,6 +25,9 @@ import type { Persona, PersonaUpdateRequest } from '@aurity-standalone/types/per
 import { fetchPersona, updatePersona } from '@aurity-standalone/api-client/personas';
 import { ConfigTab, PromptTab, ExamplesTab, PersonaTestTab } from './persona-editor';
 import { toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PersonaEditor');
 
 interface PersonaEditorProps {
   personaId: string;
@@ -49,7 +52,7 @@ export function PersonaEditor({ personaId, isOpen, onClose, onSave }: PersonaEdi
         const data = await fetchPersona(personaId);
         setPersona(data);
       } catch (error) {
-        console.error('Failed to load persona:', error);
+        log.error('Failed to load persona', { personaId, error: String(error) });
         toastError('Error al cargar la persona');
       } finally {
         setLoading(false);
@@ -82,7 +85,7 @@ export function PersonaEditor({ personaId, isOpen, onClose, onSave }: PersonaEdi
       onSave(updated);
       onClose();
     } catch (error) {
-      console.error('Failed to save persona:', error);
+      log.error('Failed to save persona', { personaId, error: String(error) });
       toastError('Error al guardar la persona');
     } finally {
       setSaving(false);

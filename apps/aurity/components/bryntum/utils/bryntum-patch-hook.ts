@@ -14,6 +14,9 @@
 
 import type { Doctor } from './appointment-transform.utils';
 import { isDateInWorkingHours } from './working-hours.resolver';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('BryntumPatch');
 
 // Global type declaration
 declare global {
@@ -39,22 +42,16 @@ export function initBryntumPatchHook(doctors: Doctor[]): void {
     const doctor = window.__FI_DOCTORS_CACHE__?.find(d => d.doctor_id === resourceId);
 
     if (!doctor) {
-      console.warn(`[FI Patch] Doctor not found: ${resourceId}`);
+      log.warn('Doctor not found', { resourceId });
       return true; // Allow if doctor not found (shouldn't happen)
     }
 
     const isAllowed = isDateInWorkingHours(doctor, date);
 
-    if (!isAllowed) {
-      console.log(
-        `[FI Patch] Blocked at ${date.toISOString()} - outside working hours for ${doctor.display_name || doctor.nombre}`
-      );
-    }
-
     return isAllowed;
   };
 
-  console.log(`[FI Patch] Initialized with ${doctors.length} doctors`);
+  log.info('Initialized', { doctorCount: doctors.length });
 }
 
 /**
