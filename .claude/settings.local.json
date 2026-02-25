@@ -236,7 +236,8 @@
       "Bash(timeout 15 /c/Users/buo45/AppData/Local/FIMonitor/fi-backend.exe rag:*)",
       "Bash(tasklist | grep -i \"fi-monitor\\\\|fi-backend\" 2>/dev/null)",
       "Bash(start:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(cmd.exe:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
