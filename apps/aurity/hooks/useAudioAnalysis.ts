@@ -72,9 +72,7 @@ export function useAudioAnalysis(
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
 
-    console.log(
-      `[Audio Setup] Gain: ${gain}x, Silence threshold: ${silenceThreshold}/255 (${Math.round((silenceThreshold / 255) * 100)}%)`
-    );
+    // Audio analysis configured — gain and threshold set via props
 
     // Audio analysis loop
     const dataArray = new Uint8Array(analyser.frequencyBinCount);

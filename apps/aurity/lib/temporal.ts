@@ -13,7 +13,7 @@ function validateTimeZone(value: string): string {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(message);
     }
-    console.warn(`[temporal] ${message}. Falling back to ${DEFAULT_TZ}.`, { error });
+    // Invalid timezone — falling back to default
     return DEFAULT_TZ;
   }
 }

@@ -143,7 +143,7 @@ export function useChatVoiceRecorder(
             return updated;
           });
         } else {
-          console.warn(`[Chat Voice] Chunk ${chunkNumber} returned empty transcript`);
+          // Empty transcript for chunk — not unusual for silence segments
           addLog(`[WARN] Chunk ${chunkNumber} sin transcripción`);
         }
       } catch (err) {

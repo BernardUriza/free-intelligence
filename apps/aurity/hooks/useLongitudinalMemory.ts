@@ -13,6 +13,9 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('LongitudinalMemory');
 import {
   getLongitudinalMemory,
   getMemoryStats,
@@ -197,7 +200,7 @@ export function useLongitudinalMemory(): UseLongitudinalMemoryReturn {
           }
         }
       } catch (err) {
-        console.error('[useLongitudinalMemory] Fetch error:', err);
+        log.error('Fetch error', { error: String(err) });
         setError('Error al cargar la memoria longitudinal');
       } finally {
         setIsLoading(false);

@@ -103,7 +103,7 @@ export function extractRolesFromToken(token: string): string[] {
     const payload = decodeJwtPayload<JwtPayload>(token);
     return payload.roles || [];
   } catch (error) {
-    console.error('[jwt-utils] Failed to extract roles:', error);
+    // Silent fail — return empty roles on decode error
     return [];
   }
 }

@@ -71,7 +71,7 @@ export const licensesApi = {
 
 /** @deprecated Token is now handled automatically by api client */
 export function setLicenseToken(_token: string | null): void {
-  console.warn('[licenses.ts] setLicenseToken is deprecated - token is handled automatically');
+  // No-op — token handled automatically by api client
 }
 
 // ============================================================================
