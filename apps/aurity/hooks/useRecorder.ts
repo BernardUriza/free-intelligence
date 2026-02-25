@@ -19,6 +19,9 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { makeRecorder } from '@/lib/recording/makeRecorder';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Recorder');
 
 interface UseRecorderConfig {
   onChunk: (blob: Blob, chunkNumber: number) => Promise<void> | void;
@@ -109,7 +112,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             timeoutPromise
           ]);
         } catch (micError) {
-          console.error('[Recorder] [ERROR] Microphone access FAILED:', micError);
+          log.error('Microphone access failed', { error: String(micError) });
           throw micError;
         }
       }
@@ -168,7 +171,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
         err instanceof Error
           ? err.message
           : 'No se pudo acceder al micrófono. Por favor, verifica los permisos.';
-      console.error('[Recorder] Start error:', err);
+      log.error('Start failed', { error: String(err) });
       if (onError) {
         onError(errorMessage);
       }
@@ -225,7 +228,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             setFullAudioBlob(fullBlob);
           }
         } catch (err) {
-          console.warn('[Continuous Recorder] Stop error (non-critical):', err);
+          log.warn('Continuous recorder stop error (non-critical)', { error: String(err) });
         }
         continuousRecorderRef.current = null;
       }
@@ -245,7 +248,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
               const result = onChunk(lastChunk, finalChunkNumber);
               if (result instanceof Promise) {
                 result.catch((err: Error) => {
-                  console.error('[Chunked Recorder] Final chunk processing failed:', err);
+                  log.error('Final chunk processing failed', { error: String(err) });
                 });
               }
             } catch (err) {
@@ -253,14 +256,14 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             }
           }
         } catch (err) {
-          console.warn('[Chunked Recorder] Stop error (non-critical):', err);
+          log.warn('Chunked recorder stop error (non-critical)', { error: String(err) });
         }
         recorderRef.current = null;
       }
 
       return fullBlob;
     } catch (err) {
-      console.error('[Recorder] Stop error:', err);
+      log.error('Stop failed', { error: String(err) });
 
       // Even on error, ensure microphone is released
       if (currentStreamRef.current) {

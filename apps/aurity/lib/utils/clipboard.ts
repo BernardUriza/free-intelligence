@@ -6,6 +6,10 @@
  * Card: FI-UI-FEAT-100
  */
 
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Clipboard');
+
 /**
  * Copy text to clipboard
  *
@@ -21,7 +25,7 @@ export async function copyToClipboard(
     // Modern Clipboard API (preferred)
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
-      console.log(`[Clipboard] Copied${label ? ` ${label}` : ''}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`);
+      log.debug('Copied', { label });
       return true;
     }
 
@@ -39,14 +43,14 @@ export async function copyToClipboard(
     document.body.removeChild(textArea);
 
     if (successful) {
-      console.log(`[Clipboard] Copied (fallback)${label ? ` ${label}` : ''}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`);
+      log.debug('Copied (fallback)', { label });
       return true;
     }
 
-    console.error('[Clipboard] Copy failed');
+    log.error('Copy failed');
     return false;
   } catch (err) {
-    console.error('[Clipboard] Error:', err);
+    log.error('Copy error', { error: String(err) });
     return false;
   }
 }

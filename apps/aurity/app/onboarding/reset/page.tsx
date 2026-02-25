@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { toastError, showInfo } from '@/lib/swal';
 import { Trash2, BarChart2, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, FolderOpen, Loader2 } from 'lucide-react';
 import { isDesktop } from '@/lib/config/deployment';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('OnboardingReset');
 
 export default function OnboardingResetPage() {
   const router = useRouter();
@@ -40,13 +43,11 @@ export default function OnboardingResetPage() {
         try {
           const { invoke } = await import('@tauri-apps/api/core');
           await invoke('reset_wizard_state');
-          console.log('[OK] Desktop wizard state reset (filesystem)');
+          log.info('Desktop wizard state reset');
         } catch (tauriErr) {
-          console.warn('Could not reset Tauri wizard state:', tauriErr);
+          log.warn('Could not reset Tauri wizard state', { error: String(tauriErr) });
         }
       }
-
-      console.log('[OK] Onboarding data cleared from LocalStorage');
 
       setStatus('done');
 
@@ -55,7 +56,7 @@ export default function OnboardingResetPage() {
         router.push('/onboarding');
       }, 2000);
     } catch (error) {
-      console.error('Failed to reset onboarding:', error);
+      log.error('Failed to reset onboarding', { error: String(error) });
       toastError('Error al reiniciar onboarding');
       setStatus('idle');
     }

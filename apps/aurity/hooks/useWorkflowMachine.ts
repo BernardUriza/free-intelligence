@@ -9,6 +9,9 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('WorkflowMachine');
 import {
   WorkflowState,
   WorkflowEvent,
@@ -63,14 +66,15 @@ export function useWorkflowMachine(): UseWorkflowMachineReturn {
   const send = useCallback((event: WorkflowEvent) => {
     const currentState = stateRef.current;
 
-    console.log(`[WorkflowMachine] Event: ${event.type} (from state: ${currentState})`);
+    log.debug('Event received', { event: event.type, from: currentState });
 
     // Check if transition is valid
     if (!canTransition(currentState, event.type)) {
-      console.warn(
-        `[WorkflowMachine] Invalid transition: ${event.type} from ${currentState}. ` +
-        `Valid events: ${getValidTransitions(currentState).join(', ')}`
-      );
+      log.warn('Invalid transition', {
+        event: event.type,
+        from: currentState,
+        valid: getValidTransitions(currentState).join(', '),
+      });
       return;
     }
 
@@ -78,11 +82,11 @@ export function useWorkflowMachine(): UseWorkflowMachineReturn {
     const nextState = getNextState(currentState, event.type);
 
     if (!nextState) {
-      console.error(`[WorkflowMachine] No next state for event: ${event.type}`);
+      log.error('No next state for event', { event: event.type });
       return;
     }
 
-    console.log(`[WorkflowMachine] Transition: ${currentState} → ${nextState}`);
+    log.debug('Transition', { from: currentState, to: nextState });
 
     // Update state
     setState(nextState);

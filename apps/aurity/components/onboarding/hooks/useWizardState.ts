@@ -9,6 +9,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { isDesktop } from '@/lib/config/deployment';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('WizardState');
 
 // Storage key for localStorage (legacy + fallback)
 const STORAGE_KEY = 'aurity_desktop_setup_complete';
@@ -21,7 +24,7 @@ const invokeTauri = async <T,>(cmd: string, args?: Record<string, unknown>): Pro
       const { invoke } = await import('@tauri-apps/api/core');
       return await invoke<T>(cmd, args);
     } catch (error) {
-      console.error(`[useWizardState] Tauri command ${cmd} failed:`, error);
+      log.error('Tauri command failed', { cmd, error: String(error) });
       throw error;
     }
   }
@@ -99,7 +102,7 @@ export function useWizardState(): UseWizardStateResult {
         loadFromLocalStorage();
       }
     } catch (error) {
-      console.error('[useWizardState] Error loading state, falling back to localStorage:', error);
+      log.error('Error loading state, falling back to localStorage', { error: String(error) });
       loadFromLocalStorage();
     } finally {
       setIsLoading(false);
@@ -148,7 +151,7 @@ export function useWizardState(): UseWizardStateResult {
         fi_monitor_installed: fiMonitorInstalled,
       });
     } catch (error) {
-      console.error('[useWizardState] Error marking complete, using localStorage fallback:', error);
+      log.error('Error marking complete, using localStorage fallback', { error: String(error) });
       localStorage.setItem(STORAGE_KEY, 'true');
       localStorage.setItem(STORAGE_KEY_FI_MONITOR, fiMonitorInstalled.toString());
       setState({
@@ -180,7 +183,7 @@ export function useWizardState(): UseWizardStateResult {
       });
 
     } catch (error) {
-      console.error('[useWizardState] Error resetting state:', error);
+      log.error('Error resetting state', { error: String(error) });
       // Still clear localStorage even if Tauri fails
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEY_FI_MONITOR);
@@ -219,7 +222,7 @@ export async function resetWizardState(): Promise<void> {
       await invoke('reset_wizard_state');
     }
   } catch (error) {
-    console.error('[resetWizardState] Tauri reset failed:', error);
+    log.error('Tauri reset failed', { error: String(error) });
   }
 
   // Always clear localStorage

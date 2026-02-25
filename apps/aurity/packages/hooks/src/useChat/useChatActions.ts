@@ -233,13 +233,6 @@ export function useChatActions({
         },
       };
 
-      // DEBUG: Log to verify model is being captured
-      console.log('[useChatActions] Created assistant message:', {
-        model: response.model,
-        hasModel: Boolean(response.model),
-        metadata: fiMessage.metadata,
-      });
-
       setMessages(prev => {
         const exists = prev.some(m =>
           m.role === 'assistant' && m.content.trim() === response.message.trim()

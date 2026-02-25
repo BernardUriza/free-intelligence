@@ -16,6 +16,9 @@ import { useState, useCallback, useRef } from 'react';
 import { uploadDocument, updateDocument } from '@/lib/api/knowledge';
 import { ROUTES } from '@/lib/api/routes';
 import type { DocumentMetadata } from '@aurity-standalone/types/knowledge';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ChatUpload');
 
 export type UploadStatus =
   | 'idle'
@@ -198,7 +201,7 @@ export function useChatUpload(options: UseChatUploadOptions) {
   // Set usage instructions after user selection
   const setInstructions = useCallback(async (instructions: string) => {
     if (!state.docId) {
-      console.error('[useChatUpload] No docId to update');
+      log.error('No docId to update');
       return;
     }
 
@@ -270,10 +273,10 @@ export function useChatUpload(options: UseChatUploadOptions) {
           setTimeout(poll, 1000);
         } else {
           // Timeout but not necessarily error - document might still be processing
-          console.warn('[useChatUpload] Polling timeout, document still processing');
+          log.warn('Polling timeout, document still processing');
         }
       } catch (err) {
-        console.error('[useChatUpload] Polling error:', err);
+        log.error('Polling error', { error: String(err) });
         // Don't fail on polling errors, just stop
       }
     };
