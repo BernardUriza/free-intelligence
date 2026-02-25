@@ -22,11 +22,21 @@ use tauri::{
     Emitter, Manager,
 };
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::UpdaterExt;
 use tokio::time::sleep;
 
 use crate::config::{check_single_instance, cleanup_lock, get_config_path, load_config};
 use crate::state::AppState;
+
+/// Port where the localhost plugin serves the frontend (for browser access).
+static LOCALHOST_PORT: std::sync::OnceLock<u16> = std::sync::OnceLock::new();
+
+/// Tauri command: get the localhost URL for browser access.
+#[tauri::command]
+fn get_browser_url() -> Option<String> {
+    LOCALHOST_PORT.get().map(|port| format!("http://localhost:{}", port))
+}
 
 fn main() {
     // Check for single instance FIRST (fail hard if already running)
@@ -48,12 +58,18 @@ fn main() {
         println!("[FI Monitor] Last tunnel URL: {}", url);
     }
 
+    // Pick a port for the localhost plugin (browser access)
+    let port = portpicker::pick_unused_port().unwrap_or(1430);
+    LOCALHOST_PORT.set(port).ok();
+    println!("[FI Monitor] Browser URL: http://localhost:{}", port);
+
     let state = Arc::new(AppState {
         config: Mutex::new(config),
         ..Default::default()
     });
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_localhost::Builder::new(port).build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
@@ -70,7 +86,8 @@ fn main() {
             // Setup system tray with Rust TrayIconBuilder
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let browser = MenuItem::with_id(app, "browser", "Open in Browser", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &browser, &quit])?;
             let tray_builder = TrayIconBuilder::new();
             let tray_builder = match app.default_window_icon() {
                 Some(icon) => tray_builder.icon(icon.clone()),
@@ -85,6 +102,12 @@ fn main() {
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.show();
                             let _ = w.set_focus();
+                        }
+                    }
+                    "browser" => {
+                        if let Some(port) = LOCALHOST_PORT.get() {
+                            let url = format!("http://localhost:{}", port);
+                            let _ = app.shell().open(&url, None::<tauri_plugin_shell::open::Program>);
                         }
                     }
                     _ => {}
@@ -266,6 +289,7 @@ fn main() {
             setup_store::update_setup_state,
             setup_store::mark_setup_completed,
             setup_store::mark_setup_skipped,
+            get_browser_url,
         ])
         .run(tauri::generate_context!())
         .expect("error running FI Monitor");

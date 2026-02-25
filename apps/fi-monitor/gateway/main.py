@@ -59,6 +59,19 @@ app = FastAPI(
 )
 
 
+@app.get("/gateway/health")
+async def health() -> dict:
+    """Gateway health check (doesn't check backends)."""
+    return {
+        "status": "ok",
+        "gateway_port": GATEWAY_PORT,
+        "backends": {
+            "ollama": OLLAMA_URL,
+            "rag_service": RAG_SERVICE_URL,
+        },
+    }
+
+
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def gateway(request: Request, path: str) -> Response:
     """Route requests to appropriate backend service.
@@ -136,19 +149,6 @@ async def gateway(request: Request, path: str) -> Response:
             status_code=500,
             media_type="application/json",
         )
-
-
-@app.get("/gateway/health")
-async def health() -> dict:
-    """Gateway health check (doesn't check backends)."""
-    return {
-        "status": "ok",
-        "gateway_port": GATEWAY_PORT,
-        "backends": {
-            "ollama": OLLAMA_URL,
-            "rag_service": RAG_SERVICE_URL,
-        },
-    }
 
 
 # ============================================================================

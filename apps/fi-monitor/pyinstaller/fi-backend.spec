@@ -90,6 +90,8 @@ hidden_imports = [
     "torch",
     "sentence_transformers",
     "numpy",
+    "scipy",
+    "sklearn",
     "PyPDF2",
     # System monitoring
     "psutil",
@@ -97,7 +99,7 @@ hidden_imports = [
     "anyio",
     "anyio._backends",
     "anyio._backends._asyncio",
-    # Local modules
+    # Local modules (datas copies full directories; runtime_hook.py fixes bare imports)
     "gateway",
     "gateway.main",
     "rag_service",
@@ -107,7 +109,7 @@ hidden_imports = [
 ]
 
 # Collect all submodules from key packages
-for pkg in ["fastapi", "starlette", "torch", "sentence_transformers"]:
+for pkg in ["fastapi", "starlette", "torch", "sentence_transformers", "sklearn", "scipy"]:
     try:
         hidden_imports.extend(collect_submodules(pkg))
     except Exception as e:
@@ -138,7 +140,6 @@ excludes = [
     # Not needed
     "tkinter",
     "matplotlib",
-    "scipy",
     "pandas",
     "PIL",
 ]
@@ -151,7 +152,7 @@ a = Analysis(
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[str(Path(SPECPATH) / "runtime_hook.py")],
     excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
