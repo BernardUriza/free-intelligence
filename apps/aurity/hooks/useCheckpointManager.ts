@@ -14,7 +14,10 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi, type CheckpointResponse } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('Checkpoint');
 import { getBackendUrl } from '@/lib/config/deployment';
 import { ROUTES } from '@/lib/api/routes';
 
@@ -58,8 +61,6 @@ export function useCheckpointManager(): CheckpointManagerState {
       setError(null);
 
       try {
-        console.log(`[Checkpoint] Creating checkpoint for session ${sessionId}...`);
-
         // Simulate progress
         const progressInterval = setInterval(() => {
           setProgress((prev) => Math.min(prev + 10, 90));
@@ -80,8 +81,6 @@ export function useCheckpointManager(): CheckpointManagerState {
         setLastCheckpoint(checkpointInfo);
         setIsCreating(false);
 
-        console.log(`[Checkpoint] Created successfully:`, checkpointInfo);
-
         return response;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Error al crear checkpoint';
@@ -89,7 +88,7 @@ export function useCheckpointManager(): CheckpointManagerState {
         setIsCreating(false);
         setProgress(0);
 
-        console.error('[Checkpoint] Creation failed:', err);
+        log.error('Creation failed', { error: String(err) });
 
         return null;
       }
