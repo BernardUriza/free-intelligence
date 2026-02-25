@@ -15,6 +15,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AudioDevices');
 
 // =============================================================================
 // Types
@@ -85,7 +88,7 @@ function saveDeviceId(deviceId: string | null): void {
       localStorage.setItem(STORAGE_KEY, deviceId);
     }
   } catch (err) {
-    console.warn('[useAudioDevices] Failed to save device ID:', err);
+    log.warn('Failed to save device ID', { error: String(err) });
   }
 }
 
@@ -162,7 +165,7 @@ export function useAudioDevices(): UseAudioDevicesReturn {
           setSelectedDeviceId(storedId);
         } else {
           // Stored device no longer exists, clear selection
-          console.warn('[useAudioDevices] Stored device not found, using default');
+          log.warn('Stored device not found, using default');
           saveDeviceId(null);
           setSelectedDeviceId(null);
         }
@@ -172,7 +175,7 @@ export function useAudioDevices(): UseAudioDevicesReturn {
       const permState = await queryMicrophonePermission();
       setPermissionState(permState);
     } catch (err) {
-      console.error('[useAudioDevices] Failed to enumerate devices:', err);
+      log.error('Failed to enumerate devices', { error: String(err) });
       setError('No se pudieron enumerar los dispositivos de audio');
     } finally {
       setIsLoading(false);
@@ -204,7 +207,7 @@ export function useAudioDevices(): UseAudioDevicesReturn {
       await refreshDevices();
       return true;
     } catch (err) {
-      console.error('[useAudioDevices] Permission denied:', err);
+      log.error('Microphone permission denied', { error: String(err) });
       setPermissionState('denied');
       setError('Permiso de micrófono denegado');
       return false;
@@ -215,7 +218,6 @@ export function useAudioDevices(): UseAudioDevicesReturn {
    * Select a specific device
    */
   const selectDevice = useCallback((deviceId: string | null) => {
-    console.log('[useAudioDevices] Selecting device:', deviceId);
     setSelectedDeviceId(deviceId);
     saveDeviceId(deviceId);
   }, []);
@@ -240,7 +242,6 @@ export function useAudioDevices(): UseAudioDevicesReturn {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices) return;
 
     const handleDeviceChange = () => {
-      console.log('[useAudioDevices] Device change detected');
       refreshDevices();
     };
 

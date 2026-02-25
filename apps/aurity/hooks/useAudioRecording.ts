@@ -9,6 +9,9 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AudioRecording');
 
 export interface AudioRecordingState {
   isRecording: boolean;
@@ -152,10 +155,8 @@ export function useAudioRecording(
 
       setIsRecording(true);
       setIsPaused(false);
-
-      console.log('[AudioRecording] Started recording');
     } catch (error) {
-      console.error('[AudioRecording] Failed to start:', error);
+      log.error('Failed to start recording', { error: String(error) });
       throw error;
     }
   }, [mimeType, audioBitsPerSecond, timeslice, onDataAvailable, monitorAudioLevel]);
@@ -165,7 +166,6 @@ export function useAudioRecording(
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
-      console.log('[AudioRecording] Paused');
     }
   }, []);
 
@@ -174,7 +174,6 @@ export function useAudioRecording(
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
-      console.log('[AudioRecording] Resumed');
     }
   }, []);
 
@@ -190,7 +189,6 @@ export function useAudioRecording(
 
       recorder.onstop = () => {
         const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-        console.log('[AudioRecording] Stopped, blob size:', blob.size);
 
         // Cleanup
         if (animationFrameRef.current) {

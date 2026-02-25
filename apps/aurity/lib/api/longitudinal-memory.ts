@@ -15,6 +15,9 @@ import {
 } from '@/config/timeline.config';
 import { api } from './client';
 import { ROUTES } from './routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('LongitudinalMemory');
 
 // API endpoint base — uses ROUTES.timeline as single source of truth
 // Backend mounts memory router at /timeline/memory
@@ -120,12 +123,10 @@ export async function getLongitudinalMemory(
   }
 
   try {
-    console.log('[LongitudinalMemory] Fetching:', `${MEMORY_ENDPOINT}?${queryParams}`);
     const data = await api.get<LongitudinalMemoryResponse>(`${MEMORY_ENDPOINT}?${queryParams}`);
-    console.log('[LongitudinalMemory] Received:', data.events.length, 'events');
     return data;
   } catch (error) {
-    console.error('[LongitudinalMemory] Fetch failed:', error);
+    log.error('Fetch failed', { error: String(error) });
     return createEmptyResponse(offset, limit);
   }
 }
@@ -177,7 +178,7 @@ export async function searchMemory(
   try {
     return await api.get<LongitudinalMemoryResponse>(`${MEMORY_BASE}/search?${queryParams}`);
   } catch (error) {
-    console.error('[searchMemory] Error:', error);
+    log.error('Search failed', { error: String(error) });
     return createEmptyResponse(offset, limit);
   }
 }

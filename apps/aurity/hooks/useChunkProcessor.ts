@@ -20,7 +20,10 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { ROUTES } from '@/lib/api/routes';
+
+const log = createLogger('ChunkProcessor');
 
 interface ChunkStatus {
   index: number;
@@ -120,7 +123,7 @@ export function useChunkProcessor(
           }>(`${ROUTES.jobs}/${jobId}`);
 
           if (jobStatus.error) {
-            console.error(`[CHUNK ${chunkNumber}] Poll failed: ${jobStatus.error}`);
+            log.error('Poll failed', { chunk: chunkNumber, error: jobStatus.error });
             setBackendHealth('degraded');
             return null;
           }
@@ -130,12 +133,7 @@ export function useChunkProcessor(
           const targetChunk = jobStatus.chunks?.find((c) => c.chunk_number === chunkNumber);
 
           if (!targetChunk) {
-            // Chunk not yet in job metadata
-            if (attempt % 5 === 0 || attempt >= maxAttempts - 2) {
-              console.log(
-                `[CHUNK ${chunkNumber}] [WAIT] Chunk not found in job yet (attempt ${attempt + 1}/${maxAttempts})`
-              );
-            }
+            // Chunk not yet in job metadata — wait and continue
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
             continue;
           }
@@ -154,10 +152,6 @@ export function useChunkProcessor(
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            console.log(
-              `[CHUNK ${chunkNumber}] [OK] Poll completed (${latency}ms)`,
-              targetChunk
-            );
             addLog(`Chunk ${chunkNumber} transcrito en ${(latency / 1000).toFixed(1)}s`);
 
             // Extract transcript from chunk
@@ -204,16 +198,11 @@ export function useChunkProcessor(
             if (transcript) {
               return transcript;
             } else {
-              console.warn(
-                `[CHUNK ${chunkNumber}] Chunk completed but no transcript.`,
-                targetChunk
-              );
+              log.warn('Chunk completed without transcript', { chunk: chunkNumber });
               return null;
             }
           } else if (targetChunk.status === 'failed') {
-            console.error(
-              `[CHUNK ${chunkNumber}] Chunk failed: ${targetChunk.error_message || 'Unknown error'}`
-            );
+            log.error('Chunk failed', { chunk: chunkNumber, error: targetChunk.error_message });
             addLog(`[ERROR] Chunk ${chunkNumber} falló: ${targetChunk.error_message || 'Unknown'}`);
 
             setChunkStatuses((prev) =>
@@ -232,19 +221,10 @@ export function useChunkProcessor(
             return null;
           } else if (targetChunk.status === 'pending' || targetChunk.status === 'processing') {
             // Still processing, wait and continue polling
-            if (attempt % 5 === 0 || attempt >= maxAttempts - 2) {
-              // Log every 5 attempts OR when close to timeout
-              console.log(
-                `[CHUNK ${chunkNumber}] [WAIT] Polling... (${targetChunk.status}, attempt ${attempt + 1}/${maxAttempts})`
-              );
-            }
             await new Promise((resolve) => setTimeout(resolve, pollInterval));
             continue;
           } else {
-            console.warn(
-              `[CHUNK ${chunkNumber}] Unknown chunk status: ${targetChunk.status}`,
-              targetChunk
-            );
+            log.warn('Unknown chunk status', { chunk: chunkNumber, status: targetChunk.status });
             return null;
           }
         } catch {
@@ -255,9 +235,7 @@ export function useChunkProcessor(
       }
 
       // Timeout after maxAttempts - chunk will be marked as unresolved
-      console.warn(
-        `[CHUNK ${chunkNumber}] [WARN] Timeout after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s). Backend may be overloaded or STT service unavailable.`
-      );
+      log.warn('Chunk timeout', { chunk: chunkNumber, attempts: maxAttempts, timeoutSec: (maxAttempts * pollInterval) / 1000 });
       addLog(`[WARN] Chunk ${chunkNumber} timeout después de ${maxAttempts} intentos - transcripción incompleta`);
 
       setChunkStatuses((prev) =>

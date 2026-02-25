@@ -6,7 +6,10 @@
  */
 
 import { useEffect, useMemo } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { mergeMessages, areMessagesEqual } from '@/lib/chat/sync';
+
+const log = createLogger('ChatSync');
 import { createMessageStorage } from '@/lib/chat/storage';
 import { BackendSyncStrategy, WebSocketSyncStrategy } from '@/lib/chat/sync-strategy';
 import type { FIMessage, OnboardingPhase } from '@aurity-standalone/types/assistant';
@@ -77,8 +80,6 @@ export function useChatSync({
       const loaded = storage.load(storageKey);
       if (loaded.length > 0) {
         const deduped = mergeMessages(loaded, []);
-        console.log('[Chat:Load] Loaded', loaded.length, '→ Deduped to', deduped.length);
-
         if (deduped.length > INITIAL_MESSAGES_LIMIT) {
           const visibleMessages = deduped.slice(-INITIAL_MESSAGES_LIMIT);
           const olderMessages = deduped.slice(0, -INITIAL_MESSAGES_LIMIT);
@@ -138,7 +139,7 @@ export function useChatSync({
         });
       } catch (err) {
         if (!isConnectionError(err)) {
-          console.error('[Chat:Sync] Backend sync failed:', err);
+          log.error('Backend sync failed', { error: String(err) });
         }
       }
     };
@@ -159,10 +160,7 @@ export function useChatSync({
     const enabled = !!doctorId && !!storageKey;
     if (!enabled || loadingInitial) return;
 
-    console.log('[Chat:WS] Connecting...');
-
     realtimeSync.connect(doctorId, (message) => {
-      console.log('[Chat:WS] Received message');
 
       setMessages(prev => {
         const exists = prev.some(m => {
@@ -178,7 +176,6 @@ export function useChatSync({
     });
 
     return () => {
-      console.log('[Chat:WS] Disconnecting...');
       realtimeSync.disconnect();
     };
   }, [doctorId, storageKey, realtimeSync, loadingInitial, setMessages]);

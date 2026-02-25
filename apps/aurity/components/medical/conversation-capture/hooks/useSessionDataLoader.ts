@@ -6,7 +6,10 @@
  */
 
 import { useEffect, useState } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('SessionDataLoader');
 import { getBackendUrl } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 import type { ChunkMetric } from '../types';
@@ -57,7 +60,6 @@ export function useSessionDataLoader({
   useEffect(() => {
     if (!readOnly || !externalSessionId) return;
 
-    console.log('[SessionDataLoader] Read-only mode - loading session:', externalSessionId);
     setSessionId(externalSessionId);
     setIsFinalized(true);
 
@@ -68,16 +70,9 @@ export function useSessionDataLoader({
         // Load all 3 transcription sources (Triple Vision)
         const sources = await medicalWorkflowApi.getTranscriptionSources(externalSessionId);
 
-        console.log('[SessionDataLoader] Loaded transcription sources:', {
-          webspeech_count: sources.webspeech_final.length,
-          chunks_count: sources.transcription_per_chunks.length,
-          full_length: sources.full_transcription.length,
-        });
-
         // 1. Populate WebSpeech transcripts
         if (sources.webspeech_final.length > 0) {
           setWebSpeechTranscripts(sources.webspeech_final);
-          console.log('[SessionDataLoader] [OK] WebSpeech loaded:', sources.webspeech_final.length);
         }
 
         // 2. Populate chunk transcripts (Whisper/Deepgram)
@@ -109,7 +104,6 @@ export function useSessionDataLoader({
             }
           });
 
-          console.log('[SessionDataLoader] [OK] Chunks loaded:', sources.transcription_per_chunks.length);
         }
 
         // Load audio file
@@ -127,7 +121,7 @@ export function useSessionDataLoader({
           (sources.webspeech_final.length > 0 ? `, ${sources.webspeech_final.length} webspeech` : '')
         );
       } catch (err) {
-        console.error('[SessionDataLoader] Failed to load session:', err);
+        log.error('Failed to load session', { sessionId: externalSessionId, error: String(err) });
         addLog(`Error cargando sesión: ${err}`);
       }
     };

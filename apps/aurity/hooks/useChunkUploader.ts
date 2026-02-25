@@ -9,7 +9,10 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('ChunkUploader');
 
 export interface ChunkStatus {
   chunk_number: number;
@@ -91,7 +94,6 @@ export function useChunkUploader(
     async (sessionId: string, chunkNumber: number, audioBlob: Blob) => {
       // Prevent duplicate uploads
       if (uploadQueueRef.current.has(chunkNumber)) {
-        console.log(`[ChunkUploader] Chunk ${chunkNumber} already in queue, skipping`);
         return;
       }
 
@@ -107,8 +109,6 @@ export function useChunkUploader(
       while (attempts < maxRetries) {
         try {
           updateChunkStatus(chunkNumber, { status: 'uploading' });
-
-          console.log(`[ChunkUploader] Uploading chunk ${chunkNumber} (attempt ${attempts + 1}/${maxRetries})`);
 
           const result = await medicalWorkflowApi.uploadChunk(
             sessionId,
@@ -129,23 +129,19 @@ export function useChunkUploader(
             onUploadComplete(chunkNumber);
           }
 
-          console.log(`[ChunkUploader] [OK] Chunk ${chunkNumber} uploaded successfully`);
           break; // Success, exit retry loop
         } catch (error) {
           lastError = error as Error;
           attempts++;
 
-          console.error(
-            `[ChunkUploader] [ERROR] Chunk ${chunkNumber} failed (attempt ${attempts}/${maxRetries}):`,
-            error
-          );
+          log.error('Chunk upload failed', { chunk: chunkNumber, attempt: attempts, maxRetries, error: String(error) });
 
           updateChunkStatus(chunkNumber, { retries: attempts });
 
           if (attempts < maxRetries) {
             // Wait before retry (exponential backoff)
             const delay = retryDelay * Math.pow(2, attempts - 1);
-            console.log(`[ChunkUploader] Retrying chunk ${chunkNumber} in ${delay}ms...`);
+            log.debug('Retrying chunk upload', { chunk: chunkNumber, delay });
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
@@ -164,7 +160,7 @@ export function useChunkUploader(
           onUploadError(chunkNumber, lastError.message);
         }
 
-        console.error(`[ChunkUploader] [ERROR] Chunk ${chunkNumber} failed after ${maxRetries} attempts`);
+        log.error('Chunk upload exhausted retries', { chunk: chunkNumber, maxRetries });
       }
 
       // Update uploading state

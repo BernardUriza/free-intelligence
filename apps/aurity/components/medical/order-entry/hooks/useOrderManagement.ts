@@ -5,7 +5,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi, type MedicalOrder } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('OrderEntry');
 import type { OrderType } from '../types';
 
 export function useOrderManagement(sessionId: string) {
@@ -23,7 +26,6 @@ export function useOrderManagement(sessionId: string) {
       const fetchedOrders = await medicalWorkflowApi.getOrders(sessionId);
       setOrders(fetchedOrders);
       setLastRefresh(new Date());
-      console.log(`[OrderEntry] Loaded ${fetchedOrders.length} orders`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
 
@@ -32,11 +34,10 @@ export function useOrderManagement(sessionId: string) {
                            errorMsg.includes('does not exist');
 
       if (isNoDataError) {
-        console.log('[OrderEntry] Orders not initialized yet, will continue polling...');
         setOrders([]);
         setLastRefresh(new Date());
       } else {
-        console.error('[OrderEntry] Failed to load orders:', err);
+        log.error('Failed to load orders', { error: String(err) });
         setError('Error al cargar órdenes médicas');
       }
     } finally {
@@ -53,14 +54,11 @@ export function useOrderManagement(sessionId: string) {
   // Auto-poll every 3s if no orders
   useEffect(() => {
     if (orders.length === 0 && !loading) {
-      console.log('[OrderEntry] No orders found, starting auto-poll...');
       const interval = setInterval(() => {
-        console.log('[OrderEntry] Auto-polling for new orders...');
         loadOrders();
       }, 3000);
 
       return () => {
-        console.log('[OrderEntry] Stopping auto-poll');
         clearInterval(interval);
       };
     }
@@ -100,7 +98,7 @@ export function useOrderManagement(sessionId: string) {
       setOrders(prev => [...prev, newOrder]);
       return true;
     } catch (err) {
-      console.error('[OrderEntry] Failed to create order:', err);
+      log.error('Failed to create order', { error: String(err) });
       setError('Error al crear la orden');
       return false;
     } finally {
@@ -114,7 +112,7 @@ export function useOrderManagement(sessionId: string) {
       setOrders(prev => prev.filter(order => order.id !== id));
       await medicalWorkflowApi.deleteOrder(sessionId, id);
     } catch (err) {
-      console.error('[OrderEntry] Failed to delete order:', err);
+      log.error('Failed to delete order', { error: String(err) });
       setError('Error al eliminar la orden');
       const fetchedOrders = await medicalWorkflowApi.getOrders(sessionId);
       setOrders(fetchedOrders);
