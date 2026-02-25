@@ -12,6 +12,9 @@ import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, Brain, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PersonasAdmin');
 import type { Persona } from '@aurity-standalone/types/persona';
 import { PersonaCreateModal } from '@/components/admin/persona';
 import { personaService } from '@/services/persona';
@@ -44,7 +47,7 @@ export default function PersonasAdminPage() {
       const data = await personaService.list();
       setPersonas(data);
     } catch (err) {
-      console.error('Failed to load personas:', err);
+      log.error('Failed to load personas', { error: String(err) });
       setError(
         err instanceof Error ? err.message : 'Error al cargar las personas'
       );
@@ -114,7 +117,7 @@ export default function PersonasAdminPage() {
         setIsEditing(false);
       }
     } catch (err) {
-      console.error('Failed to delete persona:', err);
+      log.error('Failed to delete persona', { error: String(err) });
       setDeleteError(
         err instanceof Error ? err.message : 'Error al eliminar la persona'
       );

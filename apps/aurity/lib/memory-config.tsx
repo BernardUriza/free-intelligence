@@ -387,14 +387,8 @@ export const timelineEventConfig: TimelineConfig = {
       const chunkNumber = event.metadata?.event_number || event.metadata?.chunk_number;
 
       if (!audioHash) {
-        console.warn('[Timeline] No audio hash found for event', event.id);
         return;
       }
-
-      console.log('[Timeline] Playing audio for event', event.id, {
-        audioHash,
-        chunkNumber,
-      });
     },
   },
 };

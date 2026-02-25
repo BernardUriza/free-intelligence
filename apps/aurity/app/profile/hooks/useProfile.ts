@@ -10,7 +10,10 @@ import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 import { showSuccess, showError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
 import type { DiskUsage, ClearMemoryResponse } from '../types';
+
+const log = createLogger('Profile');
 
 export function useProfile() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -23,7 +26,7 @@ export function useProfile() {
       const data = await api.get<DiskUsage>(`${ROUTES.system}/disk-usage`);
       setDiskUsage(data);
     } catch (error) {
-      console.error('Error fetching disk usage:', error);
+      log.error('Failed to fetch disk usage', { error: String(error) });
     }
   }, []);
 
@@ -67,7 +70,7 @@ export function useProfile() {
         url: window.location.href
       }));
     } catch (error) {
-      console.error('Error deleting memory:', error);
+      log.error('Failed to delete memory', { error: String(error) });
       await showError('Error de red', error instanceof Error ? error.message : 'No se pudo conectar al servidor');
     } finally {
       setIsDeleting(false);

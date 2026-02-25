@@ -53,7 +53,6 @@ export function DiarizationProcessingModal({
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        console.log('[DiarizationModal] ESC pressed - emergency exit');
         onCancel();
       }
     };
