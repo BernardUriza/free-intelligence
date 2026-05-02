@@ -224,6 +224,19 @@ class MemoryStore:
     async def update_reminder_time(self, reminder_id: int, new_remind_at: float) -> None:
         await self._reminders.update_reminder_time(reminder_id, new_remind_at)
 
+    async def update_reminder_fields(
+        self,
+        reminder_id: int,
+        *,
+        new_remind_at: float | None = None,
+        new_description: str | None = None,
+    ) -> bool:
+        return await self._reminders.update_reminder_fields(
+            reminder_id,
+            new_remind_at=new_remind_at,
+            new_description=new_description,
+        )
+
     async def get_channel_reminders(self, channel_id: str) -> list[dict]:
         return await self._reminders.get_channel_reminders(channel_id)
 

@@ -46,6 +46,8 @@ def memory_with_data():
         ]
     )
     mem.save_reminder = AsyncMock(return_value=42)
+    mem.delete_reminder = AsyncMock(return_value=True)
+    mem.update_reminder_fields = AsyncMock(return_value=True)
     mem.get_pending_reminders = AsyncMock(
         return_value=[
             {
@@ -279,3 +281,103 @@ async def test_create_reminder_invalid_json(client):
         data="not json",
     )
     assert resp.status == 400
+
+
+async def test_delete_reminder_requires_auth(client):
+    resp = await client.delete("/debug/reminders/4")
+    assert resp.status == 401
+
+
+async def test_delete_reminder_invalid_id(client):
+    resp = await client.delete("/debug/reminders/abc", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status == 400
+
+
+async def test_delete_reminder_success(client, memory_with_data):
+    resp = await client.delete("/debug/reminders/4", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status == 200
+    data = await resp.json()
+    assert data == {"id": 4, "deleted": True}
+    memory_with_data.delete_reminder.assert_awaited_once_with(4)
+
+
+async def test_delete_reminder_not_found(client, memory_with_data):
+    memory_with_data.delete_reminder = AsyncMock(return_value=False)
+    resp = await client.delete("/debug/reminders/999", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status == 404
+
+
+async def test_patch_reminder_requires_auth(client):
+    resp = await client.patch("/debug/reminders/4", json={"description": "x"})
+    assert resp.status == 401
+
+
+async def test_patch_reminder_invalid_id(client):
+    resp = await client.patch(
+        "/debug/reminders/abc",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"description": "x"},
+    )
+    assert resp.status == 400
+
+
+async def test_patch_reminder_empty_payload(client):
+    resp = await client.patch(
+        "/debug/reminders/4",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={},
+    )
+    assert resp.status == 400
+
+
+async def test_patch_reminder_blank_description(client):
+    resp = await client.patch(
+        "/debug/reminders/4",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"description": "   "},
+    )
+    assert resp.status == 400
+
+
+async def test_patch_reminder_past_remind_at(client):
+    resp = await client.patch(
+        "/debug/reminders/4",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"remind_at": "2000-01-01T00:00:00-06:00"},
+    )
+    assert resp.status == 400
+
+
+async def test_patch_reminder_success_description_only(client, memory_with_data):
+    resp = await client.patch(
+        "/debug/reminders/4",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"description": "nuevo texto"},
+    )
+    assert resp.status == 200
+    memory_with_data.update_reminder_fields.assert_awaited_once()
+    kwargs = memory_with_data.update_reminder_fields.await_args.kwargs
+    assert kwargs["new_description"] == "nuevo texto"
+    assert kwargs["new_remind_at"] is None
+
+
+async def test_patch_reminder_success_remind_at_only(client, memory_with_data):
+    resp = await client.patch(
+        "/debug/reminders/4",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"remind_at": "2099-06-01T08:00:00-06:00"},
+    )
+    assert resp.status == 200
+    kwargs = memory_with_data.update_reminder_fields.await_args.kwargs
+    assert kwargs["new_remind_at"] is not None
+    assert kwargs["new_description"] is None
+
+
+async def test_patch_reminder_not_found(client, memory_with_data):
+    memory_with_data.update_reminder_fields = AsyncMock(return_value=False)
+    resp = await client.patch(
+        "/debug/reminders/999",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"description": "x"},
+    )
+    assert resp.status == 404

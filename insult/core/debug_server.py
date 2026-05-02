@@ -192,6 +192,78 @@ async def _handle_create_reminder(request: web.Request) -> web.Response:
     )
 
 
+async def _handle_delete_reminder(request: web.Request) -> web.Response:
+    """Admin write path — delete a not-yet-delivered reminder by id.
+
+    Returns 404 if the row doesn't exist or was already delivered. Used to
+    clean up duplicates / mistakes when fixing them via Discord chat would
+    cost a roundtrip with the LLM.
+    """
+    raw_id = request.match_info.get("id", "")
+    try:
+        reminder_id = int(raw_id)
+    except ValueError:
+        return _bad_request("id must be an integer")
+
+    memory = request.app[_MEMORY_KEY]
+    deleted = await memory.delete_reminder(reminder_id)
+    if not deleted:
+        return web.json_response({"error": "not found or already delivered"}, status=404)
+    return web.json_response({"id": reminder_id, "deleted": True})
+
+
+async def _handle_patch_reminder(request: web.Request) -> web.Response:
+    """Admin write path — update remind_at and/or description of a pending reminder.
+
+    Body (JSON): any subset of `{remind_at, description}`. At least one
+    field must be present and non-null. `remind_at` accepts the same
+    ISO 8601 + tz format as POST.
+    """
+    raw_id = request.match_info.get("id", "")
+    try:
+        reminder_id = int(raw_id)
+    except ValueError:
+        return _bad_request("id must be an integer")
+
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError):
+        return _bad_request("body must be valid JSON")
+
+    new_remind_at: float | None = None
+    if "remind_at" in payload and payload["remind_at"] is not None:
+        new_remind_at = parse_remind_at(str(payload["remind_at"]))
+        if new_remind_at is None:
+            return _bad_request("remind_at must be a future ISO 8601 datetime with tz offset")
+
+    new_description: str | None = None
+    if "description" in payload and payload["description"] is not None:
+        desc = str(payload["description"]).strip()
+        if not desc:
+            return _bad_request("description cannot be empty")
+        new_description = desc
+
+    if new_remind_at is None and new_description is None:
+        return _bad_request("at least one of remind_at, description is required")
+
+    memory = request.app[_MEMORY_KEY]
+    changed = await memory.update_reminder_fields(
+        reminder_id,
+        new_remind_at=new_remind_at,
+        new_description=new_description,
+    )
+    if not changed:
+        return web.json_response({"error": "not found or already delivered"}, status=404)
+    return web.json_response(
+        {
+            "id": reminder_id,
+            "updated": True,
+            "remind_at": new_remind_at,
+            "description": new_description,
+        }
+    )
+
+
 async def _handle_costs(_request: web.Request) -> web.Response:
     from insult.core.llm import get_usage_report
 
@@ -209,6 +281,8 @@ def build_app(memory: MemoryStore, debug_token: str) -> web.Application:
     app.router.add_get("/debug/stats", _handle_stats)
     app.router.add_get("/debug/reminders", _handle_reminders)
     app.router.add_post("/debug/reminders", _handle_create_reminder)
+    app.router.add_delete("/debug/reminders/{id}", _handle_delete_reminder)
+    app.router.add_patch("/debug/reminders/{id}", _handle_patch_reminder)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
 

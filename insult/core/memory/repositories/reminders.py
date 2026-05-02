@@ -106,6 +106,41 @@ class RemindersRepository(BaseRepository):
         except aiosqlite.Error as e:
             log.error("reminder_update_time_failed", reminder_id=reminder_id, error=str(e))
 
+    async def update_reminder_fields(
+        self,
+        reminder_id: int,
+        *,
+        new_remind_at: float | None = None,
+        new_description: str | None = None,
+    ) -> bool:
+        """Patch a not-yet-delivered reminder. Returns True if any field changed.
+
+        Either argument can be None to leave that column untouched. If both
+        are None this is a no-op and returns False.
+        """
+        sets: list[str] = []
+        params: list = []
+        if new_remind_at is not None:
+            sets.append("remind_at = ?")
+            params.append(new_remind_at)
+        if new_description is not None:
+            sets.append("description = ?")
+            params.append(new_description)
+        if not sets:
+            return False
+        params.append(reminder_id)
+        db = await self._conn()
+        try:
+            cursor = await db.execute(
+                f"UPDATE reminders SET {', '.join(sets)} WHERE id = ? AND delivered = 0",  # noqa: S608
+                params,
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+        except aiosqlite.Error as e:
+            log.error("reminder_update_fields_failed", reminder_id=reminder_id, error=str(e))
+            return False
+
     async def get_channel_reminders(self, channel_id: str) -> list[dict]:
         """All pending (not-yet-delivered) reminders for a channel."""
         db = await self._conn()
