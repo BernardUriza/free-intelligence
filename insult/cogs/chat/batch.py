@@ -96,7 +96,11 @@ class BatchManager:
             # bot turn of its own.
             if text:
                 try:
-                    echo = f"**{message.author.display_name} dijo** 🔊 {text}"
+                    # Discord block-quote (`>>>` — multi-line) gives the echo
+                    # a vertical bar in the client so readers can visually
+                    # separate "what the user said" from the bot's reply,
+                    # which arrives as a normal message right after.
+                    echo = f">>> 🔊 **{message.author.display_name} dijo:**\n{text}\n🎙️"
                     # Discord hard limit is 2000 chars per message; truncate
                     # with an ellipsis if Whisper produced a novel.
                     if len(echo) > 1990:
