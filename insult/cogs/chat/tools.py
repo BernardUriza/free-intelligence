@@ -13,6 +13,7 @@ on the selected preset.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 
 import discord
 import structlog
@@ -25,7 +26,7 @@ from insult.core.actions import (
 )
 from insult.core.delivery import send_response
 from insult.core.guild_setup import post_reminder_set
-from insult.core.reminders import REMINDER_TOOLS, format_reminder_list, parse_remind_at
+from insult.core.reminders import REMINDER_TOOLS, format_reminder_list, resolve_remind_at
 
 log = structlog.get_logger()
 
@@ -43,14 +44,26 @@ async def execute_reminder_call(
     try:
         if tool_call.name == "create_reminder":
             description = tool_call.input.get("description", "")
-            remind_at_str = tool_call.input.get("remind_at", "")
+            remind_at_str = tool_call.input.get("remind_at") or None
+            in_seconds = tool_call.input.get("in_seconds")
             mention_ids = tool_call.input.get("mention_user_ids", [])
             recurring = tool_call.input.get("recurring", "none")
 
-            remind_at = parse_remind_at(remind_at_str)
+            remind_at = resolve_remind_at(remind_at_str, in_seconds)
             if remind_at is None:
-                log.warning("reminder_invalid_time", remind_at=remind_at_str)
+                log.warning(
+                    "reminder_invalid_time",
+                    remind_at=remind_at_str,
+                    in_seconds=in_seconds,
+                )
                 return
+            # Format an ISO string for downstream display (post_reminder_set
+            # expects a string). When the LLM only sent in_seconds we
+            # synthesize one in CDMX time.
+            if not remind_at_str:
+                from zoneinfo import ZoneInfo
+
+                remind_at_str = datetime.fromtimestamp(remind_at, tz=ZoneInfo("America/Mexico_City")).isoformat()
 
             mention_str = ",".join(mention_ids) if mention_ids else ""
             guild_id = str(message.guild.id) if message.guild else None

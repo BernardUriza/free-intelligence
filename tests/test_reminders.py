@@ -11,7 +11,40 @@ from insult.core.reminders import (
     detect_reminder_intent,
     format_reminder_list,
     parse_remind_at,
+    resolve_remind_at,
 )
+
+
+class TestResolveRemindAt:
+    def test_iso_path_takes_priority(self):
+        ts = resolve_remind_at("2099-06-15T10:00:00-06:00", 60)
+        assert ts is not None
+        assert ts > time.time() + 86400  # far future, not now+60s
+
+    def test_falls_back_to_in_seconds_when_iso_invalid(self):
+        before = time.time()
+        ts = resolve_remind_at("not-a-date", 120)
+        assert ts is not None
+        assert before + 119 <= ts <= before + 122
+
+    def test_in_seconds_alone(self):
+        before = time.time()
+        ts = resolve_remind_at(None, 600)
+        assert ts is not None
+        assert before + 599 <= ts <= before + 602
+
+    def test_both_none_returns_none(self):
+        assert resolve_remind_at(None, None) is None
+
+    def test_iso_past_falls_through_to_in_seconds(self):
+        before = time.time()
+        ts = resolve_remind_at("2000-01-01T00:00:00-06:00", 30)
+        assert ts is not None
+        assert before + 29 <= ts <= before + 32
+
+    def test_zero_or_negative_in_seconds_rejected(self):
+        assert resolve_remind_at(None, 0) is None
+        assert resolve_remind_at(None, -10) is None
 
 
 class TestDetectReminderIntent:
@@ -217,8 +250,15 @@ class TestToolSchemas:
     def test_create_reminder_required_fields(self):
         create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
         required = create["input_schema"]["required"]
-        assert "description" in required
-        assert "remind_at" in required
+        assert required == ["description"]
+
+    def test_create_reminder_supports_relative_delta(self):
+        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
+        props = create["input_schema"]["properties"]
+        assert "remind_at" in props
+        assert "in_seconds" in props
+        assert props["in_seconds"]["type"] == "integer"
+        assert props["in_seconds"]["minimum"] == 1
 
     def test_list_reminders_required_fields(self):
         list_tool = next(t for t in REMINDER_TOOLS if t["name"] == "list_reminders")

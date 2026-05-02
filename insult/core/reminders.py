@@ -21,9 +21,12 @@ REMINDER_TOOLS = [
         "name": "create_reminder",
         "description": (
             "Set a reminder for the group or a specific user. Use this when someone asks to be reminded "
-            "of something. You MUST provide remind_at as an ISO 8601 datetime string with timezone offset "
-            "for Mexico City (-06:00 or -05:00 depending on DST). The current time is provided in the system prompt. "
-            "Examples: '2026-04-09T09:00:00-06:00', '2026-04-03T14:30:00-06:00'. "
+            "of something. Provide ONE of `remind_at` (absolute ISO 8601) or `in_seconds` (relative delta). "
+            "PREFER `in_seconds` for short relatives ('en 2 horas' → 7200, 'en 30 min' → 1800, "
+            "'mañana a esta hora' → 86400) — it sidesteps timezone/DST conversion errors. "
+            "Use `remind_at` only when the user names an absolute date or time-of-day "
+            "('mañana a las 9' → '2026-05-03T09:00:00-06:00'). "
+            "The current time is provided in the system prompt. "
             "Always confirm the reminder in your response so the user knows when they'll be reminded."
         ),
         "input_schema": {
@@ -36,8 +39,17 @@ REMINDER_TOOLS = [
                 "remind_at": {
                     "type": "string",
                     "description": (
-                        "ISO 8601 datetime with timezone offset for when to send the reminder "
-                        "(e.g. '2026-04-09T09:00:00-06:00')"
+                        "Absolute ISO 8601 datetime with timezone offset "
+                        "(e.g. '2026-04-09T09:00:00-06:00'). Mutually exclusive with `in_seconds`."
+                    ),
+                },
+                "in_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": (
+                        "Relative delta in seconds from now. Use for short relatives like "
+                        "'en 2 horas' (7200), 'en 10 min' (600), 'mañana a esta hora' (86400). "
+                        "Mutually exclusive with `remind_at`."
                     ),
                 },
                 "mention_user_ids": {
@@ -51,7 +63,7 @@ REMINDER_TOOLS = [
                     "description": "Recurrence pattern. Default is 'none' (one-time).",
                 },
             },
-            "required": ["description", "remind_at"],
+            "required": ["description"],
         },
     },
     {
@@ -154,6 +166,28 @@ def parse_remind_at(iso_str: str) -> float | None:
     except (ValueError, OverflowError) as e:
         log.warning("reminder_parse_failed", iso_str=iso_str, error=str(e))
         return None
+
+
+def resolve_remind_at(iso_str: str | None, in_seconds: int | None) -> float | None:
+    """Resolve `remind_at` from one of two inputs: an ISO 8601 string or a
+    relative delta in seconds. Returns Unix timestamp or None if both inputs
+    are absent/invalid.
+
+    The relative path exists to sidestep a recurring LLM mistake: when the
+    user says "en 2 horas" the model has to compute now+2h, format ISO,
+    pick the right tz offset (DST-aware), and not fat-finger any of it.
+    Passing a raw delta lets the model skip the formatting entirely and
+    move the conversion responsibility into Python's `time.time() + delta`.
+    """
+    import time
+
+    if iso_str:
+        ts = parse_remind_at(iso_str)
+        if ts is not None:
+            return ts
+    if in_seconds is not None and in_seconds > 0:
+        return time.time() + in_seconds
+    return None
 
 
 def compute_next_occurrence(remind_at: float, recurring: str) -> float | None:
