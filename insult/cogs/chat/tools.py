@@ -48,6 +48,7 @@ async def execute_reminder_call(
             in_seconds = tool_call.input.get("in_seconds")
             mention_ids = tool_call.input.get("mention_user_ids", [])
             recurring = tool_call.input.get("recurring", "none")
+            requires_ack = bool(tool_call.input.get("requires_ack", False))
 
             remind_at = resolve_remind_at(remind_at_str, in_seconds)
             if remind_at is None:
@@ -76,6 +77,7 @@ async def execute_reminder_call(
                 remind_at=remind_at,
                 mention_user_ids=mention_str,
                 recurring=recurring,
+                requires_ack=requires_ack,
             )
             log.info(
                 "reminder_created",

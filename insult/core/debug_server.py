@@ -175,6 +175,7 @@ async def _handle_create_reminder(request: web.Request) -> web.Response:
             remind_at=remind_at,
             mention_user_ids=mention_user_ids,
             recurring=recurring,
+            requires_ack=bool(payload.get("requires_ack", False)),
         )
     except Exception as e:  # surface all DB errors to the admin caller
         log.error("debug_create_reminder_failed", error=str(e))

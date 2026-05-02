@@ -24,7 +24,7 @@ from insult.core.proactive import (
     should_send_now,
     should_world_scan,
 )
-from insult.core.reminders import compute_next_occurrence
+from insult.core.reminders import ACK_MAX_RETRIES, ACK_TIMEOUT_SECONDS, compute_next_occurrence
 from insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from insult.core.snooze import SNOOZE_EMOJIS, snooze_delta_for_emoji
 
@@ -43,6 +43,8 @@ def _build(container: Container):
         _health_check.cancel()
         if _reminder_check_task.is_running():
             _reminder_check_task.cancel()
+        if _ack_overdue_task.is_running():
+            _ack_overdue_task.cancel()
         if _summarize_channels_task.is_running():
             _summarize_channels_task.cancel()
         if _backup_task.is_running():
@@ -335,6 +337,19 @@ def _build(container: Container):
                     except Exception:
                         log.exception("reminder_snooze_setup_failed", reminder_id=reminder["id"])
 
+                # Ack affordance: when requires_ack is set, tag delivery time
+                # and add the ✅ reaction. The overdue sweep below re-fires
+                # one time if the ✅ is missing after ACK_TIMEOUT_SECONDS.
+                if sent_msg is not None and reminder.get("requires_ack"):
+                    try:
+                        await memory.set_ack_metadata(reminder["id"], sent_msg.id, _time.time())
+                        try:
+                            await sent_msg.add_reaction("✅")
+                        except Exception:
+                            log.warning("reminder_ack_reaction_failed", reminder_id=reminder["id"])
+                    except Exception:
+                        log.exception("reminder_ack_setup_failed", reminder_id=reminder["id"])
+
                 # Handle recurring
                 if reminder["recurring"] != "none":
                     next_time = compute_next_occurrence(reminder["remind_at"], reminder["recurring"])
@@ -358,6 +373,40 @@ def _build(container: Container):
                 )
         except Exception:
             log.exception("reminder_check_failed")
+
+    # --- Ack Overdue Sweep ---
+    # Runs every 5 min. For requires_ack reminders that were delivered more
+    # than ACK_TIMEOUT_SECONDS ago and still haven't been ✅'d, schedule one
+    # re-fire (a fresh non-ack reminder firing in 60s) and bump the original
+    # row's retry counter so we never re-fire it more than ACK_MAX_RETRIES.
+    @tasks.loop(seconds=300)
+    async def _ack_overdue_task():
+        try:
+            now = _time.time()
+            overdue = await memory.get_ack_overdue(now, ACK_TIMEOUT_SECONDS, ACK_MAX_RETRIES)
+            for r in overdue:
+                try:
+                    new_id = await memory.save_reminder(
+                        channel_id=r["channel_id"],
+                        guild_id=r["guild_id"],
+                        created_by=r["created_by"],
+                        description=f"⚠️ Sin confirmar: {r['description']}",
+                        remind_at=now + 60,  # re-fire in ~1 min so the sweep doesn't pick it up again before sending
+                        mention_user_ids=r["mention_user_ids"] or "",
+                        recurring="none",
+                        requires_ack=False,  # avoid retry loops; one re-fire is the policy
+                    )
+                    await memory.increment_ack_retry(r["id"])
+                    log.info(
+                        "reminder_ack_overdue_refired",
+                        original_id=r["id"],
+                        new_id=new_id,
+                        retry_count=r["ack_retry_count"] + 1,
+                    )
+                except Exception:
+                    log.exception("reminder_ack_overdue_refire_failed", reminder_id=r["id"])
+        except Exception:
+            log.exception("ack_overdue_task_failed")
 
     # --- Health Check ---
     @tasks.loop(seconds=60)
@@ -397,6 +446,7 @@ def _build(container: Container):
             await bot.add_cog(VoiceCog(container))
             _health_check.start()
             _reminder_check_task.start()
+            _ack_overdue_task.start()
             _proactive_task.start()
             _summarize_channels_task.start()
             if is_azure_configured():
@@ -440,6 +490,18 @@ def _build(container: Container):
         if bot.user is not None and payload.user_id == bot.user.id:
             return
         emoji = str(payload.emoji)
+        # Ack path: a ✅ on a delivered requires_ack reminder marks it confirmed
+        # and skips the overdue re-fire. We try this BEFORE snooze so a single
+        # ✅ on a reminder that has both affordances (rare but possible) acks
+        # rather than snoozing.
+        if emoji == "✅":
+            if await memory.mark_ack_received(payload.message_id):
+                log.info(
+                    "reminder_ack_received",
+                    ack_msg_id=payload.message_id,
+                    user_id=payload.user_id,
+                )
+            return
         delta = snooze_delta_for_emoji(emoji)
         if delta is None:
             return

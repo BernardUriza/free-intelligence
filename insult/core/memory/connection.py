@@ -230,7 +230,12 @@ class ConnectionManager:
                 recurring TEXT NOT NULL DEFAULT 'none',
                 delivered INTEGER NOT NULL DEFAULT 0,
                 created_at REAL NOT NULL,
-                snooze_msg_id INTEGER
+                snooze_msg_id INTEGER,
+                requires_ack INTEGER NOT NULL DEFAULT 0,
+                ack_msg_id INTEGER,
+                ack_received INTEGER NOT NULL DEFAULT 0,
+                ack_retry_count INTEGER NOT NULL DEFAULT 0,
+                delivered_at REAL
             )
         """)
         # v3.7.7 migration: snooze_msg_id stores the Discord message id of the
@@ -238,6 +243,19 @@ class ConnectionManager:
         # the reminder (used to schedule a re-fire on ⏰/⏭️/📅).
         with contextlib.suppress(aiosqlite.OperationalError):
             await self._db.execute("ALTER TABLE reminders ADD COLUMN snooze_msg_id INTEGER")
+        # v3.7.8 migration: ack columns for reminders that demand confirmation.
+        # When requires_ack=1 the bot re-fires once after a timeout if the
+        # user did not react with ✅. Used for medication / critical tasks.
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN requires_ack INTEGER NOT NULL DEFAULT 0")
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN ack_msg_id INTEGER")
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN ack_received INTEGER NOT NULL DEFAULT 0")
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN ack_retry_count INTEGER NOT NULL DEFAULT 0")
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN delivered_at REAL")
         await self._db.execute("""
             CREATE INDEX IF NOT EXISTS idx_reminders_pending
             ON reminders(delivered, remind_at)
@@ -245,6 +263,10 @@ class ConnectionManager:
         await self._db.execute("""
             CREATE INDEX IF NOT EXISTS idx_reminders_snooze_msg
             ON reminders(snooze_msg_id)
+        """)
+        await self._db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reminders_ack_pending
+            ON reminders(requires_ack, ack_received, ack_retry_count, delivered_at)
         """)
 
     async def _create_phase1_tables(self) -> None:

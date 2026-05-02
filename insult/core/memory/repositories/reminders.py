@@ -28,6 +28,7 @@ class RemindersRepository(BaseRepository):
         remind_at: float,
         mention_user_ids: str = "",
         recurring: str = "none",
+        requires_ack: bool = False,
     ) -> int:
         """Insert a new reminder. Returns its ID. Raises on DB failure because
         callers need to surface "I couldn't save your reminder" to the user."""
@@ -35,8 +36,8 @@ class RemindersRepository(BaseRepository):
         try:
             cursor = await db.execute(
                 "INSERT INTO reminders (channel_id, guild_id, created_by, description, remind_at, "
-                "mention_user_ids, recurring, delivered, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+                "mention_user_ids, recurring, delivered, created_at, requires_ack) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
                 (
                     channel_id,
                     guild_id,
@@ -46,6 +47,7 @@ class RemindersRepository(BaseRepository):
                     mention_user_ids,
                     recurring,
                     time.time(),
+                    1 if requires_ack else 0,
                 ),
             )
             await db.commit()
@@ -56,6 +58,7 @@ class RemindersRepository(BaseRepository):
                 channel_id=channel_id,
                 description=description[:80],
                 remind_at=remind_at,
+                requires_ack=requires_ack,
             )
             return reminder_id
         except aiosqlite.Error as e:
@@ -67,7 +70,7 @@ class RemindersRepository(BaseRepository):
         db = await self._conn()
         cursor = await db.execute(
             "SELECT id, channel_id, guild_id, created_by, description, remind_at, "
-            "mention_user_ids, recurring FROM reminders "
+            "mention_user_ids, recurring, requires_ack FROM reminders "
             "WHERE delivered = 0 AND remind_at <= ? ORDER BY remind_at ASC",
             (now,),
         )
@@ -82,6 +85,7 @@ class RemindersRepository(BaseRepository):
                 "remind_at": r[5],
                 "mention_user_ids": r[6],
                 "recurring": r[7],
+                "requires_ack": bool(r[8]) if r[8] is not None else False,
             }
             for r in rows
         ]
@@ -205,6 +209,79 @@ class RemindersRepository(BaseRepository):
             "description": row[4],
             "mention_user_ids": row[5],
         }
+
+    async def set_ack_metadata(
+        self,
+        reminder_id: int,
+        ack_msg_id: int,
+        delivered_at: float,
+    ) -> None:
+        """Tag a delivered reminder with its ack message id and delivery time.
+        Called after a requires_ack reminder is sent so the timeout sweep can
+        find rows whose ack window has lapsed."""
+        db = await self._conn()
+        try:
+            await db.execute(
+                "UPDATE reminders SET ack_msg_id = ?, delivered_at = ? WHERE id = ?",
+                (ack_msg_id, delivered_at, reminder_id),
+            )
+            await db.commit()
+        except aiosqlite.Error as e:
+            log.error("reminder_set_ack_metadata_failed", reminder_id=reminder_id, error=str(e))
+
+    async def mark_ack_received(self, ack_msg_id: int) -> bool:
+        """Mark a reminder as acknowledged when the user reacts ✅. Returns
+        True if a row was updated — False means no reminder matches that
+        message id (already acked, expired, or never existed)."""
+        db = await self._conn()
+        try:
+            cursor = await db.execute(
+                "UPDATE reminders SET ack_received = 1 WHERE ack_msg_id = ? AND ack_received = 0",
+                (ack_msg_id,),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+        except aiosqlite.Error as e:
+            log.error("reminder_mark_ack_failed", ack_msg_id=ack_msg_id, error=str(e))
+            return False
+
+    async def get_ack_overdue(self, now: float, timeout_seconds: float, max_retries: int) -> list[dict]:
+        """Reminders whose ack window has lapsed without a ✅ and that have
+        not yet been re-fired (ack_retry_count < max_retries). The returned
+        dicts carry the columns needed to enqueue a new pending reminder."""
+        db = await self._conn()
+        cursor = await db.execute(
+            "SELECT id, channel_id, guild_id, created_by, description, mention_user_ids, ack_retry_count "
+            "FROM reminders "
+            "WHERE requires_ack = 1 AND ack_received = 0 AND delivered = 1 "
+            "AND ack_retry_count < ? AND delivered_at IS NOT NULL AND delivered_at <= ?",
+            (max_retries, now - timeout_seconds),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": r[0],
+                "channel_id": r[1],
+                "guild_id": r[2],
+                "created_by": r[3],
+                "description": r[4],
+                "mention_user_ids": r[5],
+                "ack_retry_count": r[6],
+            }
+            for r in rows
+        ]
+
+    async def increment_ack_retry(self, reminder_id: int) -> None:
+        """Bump the retry counter so we don't fire the same overdue ack twice."""
+        db = await self._conn()
+        try:
+            await db.execute(
+                "UPDATE reminders SET ack_retry_count = ack_retry_count + 1 WHERE id = ?",
+                (reminder_id,),
+            )
+            await db.commit()
+        except aiosqlite.Error as e:
+            log.error("reminder_increment_ack_retry_failed", reminder_id=reminder_id, error=str(e))
 
     async def clear_snooze_msg_id(self, msg_id: int) -> None:
         """Detach the snooze pointer so a second reaction can't double-fire."""

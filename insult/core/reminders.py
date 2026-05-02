@@ -62,6 +62,17 @@ REMINDER_TOOLS = [
                     "enum": ["none", "daily", "weekly", "monthly"],
                     "description": "Recurrence pattern. Default is 'none' (one-time).",
                 },
+                "requires_ack": {
+                    "type": "boolean",
+                    "description": (
+                        "Set to true ONLY for critical reminders the user has explicitly asked be enforced "
+                        "(medication, time-sensitive medical / legal / safety actions). When true, the bot "
+                        "re-fires the reminder once after a 30-minute window if the user has not reacted "
+                        "with ✅ to confirm. Default false. Do NOT set this for routine appointments or "
+                        "habit nudges — it is intentionally annoying and should be reserved for cases the "
+                        "user signaled they cannot afford to miss."
+                    ),
+                },
             },
             "required": ["description"],
         },
@@ -100,6 +111,17 @@ REMINDER_TOOLS = [
         },
     },
 ]
+
+
+# ---------------------------------------------------------------------------
+# Ack timing constants — used by the bot's overdue-ack sweep
+# ---------------------------------------------------------------------------
+
+ACK_TIMEOUT_SECONDS: float = 1800.0
+"""How long to wait for a ✅ reaction before re-firing a requires_ack reminder."""
+
+ACK_MAX_RETRIES: int = 1
+"""Maximum number of re-fires per reminder. 1 = original + one re-fire, then stop."""
 
 
 # ---------------------------------------------------------------------------

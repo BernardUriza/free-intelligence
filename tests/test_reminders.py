@@ -6,6 +6,8 @@ from datetime import UTC
 import pytest
 
 from insult.core.reminders import (
+    ACK_MAX_RETRIES,
+    ACK_TIMEOUT_SECONDS,
     REMINDER_TOOLS,
     compute_next_occurrence,
     detect_reminder_intent,
@@ -13,6 +15,17 @@ from insult.core.reminders import (
     parse_remind_at,
     resolve_remind_at,
 )
+
+
+class TestAckConstants:
+    def test_timeout_is_positive(self):
+        assert ACK_TIMEOUT_SECONDS > 0
+
+    def test_max_retries_is_positive(self):
+        # 1 means "fire once more after the original" — bumping this above 2
+        # turns reminders into spam. Pin at 1 unless the policy changes.
+        assert ACK_MAX_RETRIES >= 1
+        assert ACK_MAX_RETRIES <= 2
 
 
 class TestResolveRemindAt:
@@ -277,3 +290,10 @@ class TestToolSchemas:
         create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
         recurring_prop = create["input_schema"]["properties"]["recurring"]
         assert set(recurring_prop["enum"]) == {"none", "daily", "weekly", "monthly"}
+
+    def test_create_reminder_supports_requires_ack(self):
+        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
+        prop = create["input_schema"]["properties"].get("requires_ack")
+        assert prop is not None
+        assert prop["type"] == "boolean"
+        assert "requires_ack" not in create["input_schema"]["required"]
