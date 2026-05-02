@@ -5,6 +5,7 @@ and calls create_reminder / list_reminders / cancel_reminder tools.
 Reminders are stored in SQLite and delivered by a background task in bot.py.
 """
 
+import re
 from datetime import UTC, datetime
 
 import structlog
@@ -87,6 +88,42 @@ REMINDER_TOOLS = [
         },
     },
 ]
+
+
+# ---------------------------------------------------------------------------
+# Intent detection — safety net for silent tool failures
+# ---------------------------------------------------------------------------
+
+# High-confidence patterns: the user explicitly asked for a reminder/agenda.
+# Low-confidence phrases ("no se me olvide", "avísame") are intentionally
+# excluded — the false-positive cost (nudging when the user didn't want
+# formal scheduling) outweighs the benefit. The use case for this detector
+# is to catch the v3.7.2-class bug: tool flow rejected by the API, fallback
+# strips all tools, the bot replies in prose as if everything is fine, and
+# the user has no signal that the reminder was eaten. The original prompt
+# Bernard sent that surfaced the bug starts with "Recuérdame en un reminder
+# hacer eso el lunes" — both `recuérdame` and `reminder` patterns hit it.
+_REMINDER_INTENT_RE = re.compile(
+    r"\b(?:"
+    r"recu[eé]rda(?:me|nos)|recuerdame|recordame|"
+    r"(?:p[oó]n|ag[eé]nda|m[eé]te)(?:me|nos)\s+(?:un|el|una)?\s*(?:reminder|recordatorio)|"
+    r"(?:reminder|recordatorio)\s+(?:para|de|en)\s|"
+    r"set\s+(?:an?\s+)?reminder"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def detect_reminder_intent(text: str) -> bool:
+    """Return True if the user's message clearly asks the bot to create a reminder.
+
+    Used after an LLM turn to detect the case where the model failed to call
+    `create_reminder` despite an obvious request — typically because the API
+    rejected the tool schema and the BadRequest fallback stripped all tools.
+    Without this detector that failure mode is silent: the bot replies as if
+    everything is fine and the user only notices when the reminder never fires.
+    """
+    return bool(_REMINDER_INTENT_RE.search(text))
 
 
 # ---------------------------------------------------------------------------

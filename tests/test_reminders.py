@@ -8,9 +8,46 @@ import pytest
 from insult.core.reminders import (
     REMINDER_TOOLS,
     compute_next_occurrence,
+    detect_reminder_intent,
     format_reminder_list,
     parse_remind_at,
 )
+
+
+class TestDetectReminderIntent:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Recuérdame mañana ir a comprar sertralina",
+            "recuerdame en un reminder hacer eso el lunes",
+            "Recordame eso por favor",
+            "Ponme un reminder para mañana",
+            "ponme un recordatorio de la junta",
+            "Agéndame un reminder",
+            "agendame el recordatorio de la dentista",
+            "set a reminder for tomorrow",
+            "set reminder to call mom",
+            "Reminder para el lunes a las 9",
+            "recordatorio de la junta de mañana",
+        ],
+    )
+    def test_matches_clear_intents(self, text):
+        assert detect_reminder_intent(text) is True
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Ya está, gracias",
+            "que no se me olvide la junta",
+            "te recuerdo a tu primo",
+            "yo recuerdo cuando éramos chicos",
+            "el reminder #4 ya está duplicado",
+            "cancela el recordatorio 5",
+            "avísame cuando llegues",
+        ],
+    )
+    def test_skips_low_confidence_or_unrelated(self, text):
+        assert detect_reminder_intent(text) is False
 
 
 class TestParseRemindAt:

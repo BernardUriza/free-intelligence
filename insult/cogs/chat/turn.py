@@ -54,6 +54,7 @@ from insult.core.flows import ExpressionHistory, analyze_flows, build_flow_promp
 from insult.core.llm import MEDICAL_WEB_SEARCH_TOOL, WEB_SEARCH_TOOL
 from insult.core.presets import PresetMode, PresetModifier
 from insult.core.reactions import add_reactions, parse_reactions, strip_reactions
+from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, OpusBudget, select_model
 from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
@@ -326,15 +327,29 @@ async def run_turn(
         return "llm_failed"
 
     llm_ms = int((time.monotonic() - llm_start) * 1000)
+    tool_names = [tc.name for tc in llm_response.tool_calls]
     log.info(
         "llm_call_complete",
         llm_ms=llm_ms,
         text_len=len(llm_response.text),
         tool_calls=len(llm_response.tool_calls),
-        tool_names=[tc.name for tc in llm_response.tool_calls],
+        tool_names=tool_names,
         model_used=llm_response.model_used,
         elapsed_ms=_stage_elapsed(),
     )
+
+    # Safety net for the v3.7.2-class silent-fail: if the user obviously asked
+    # for a reminder and the LLM did not call create_reminder, log a warning
+    # and append a short nudge to the response so the user knows the formal
+    # reminder was not set. Without this the bug is invisible from the user's
+    # side — the bot replies in prose and they only notice when nothing fires.
+    intent_unattended = "create_reminder" not in tool_names and detect_reminder_intent(text)
+    if intent_unattended:
+        log.warning(
+            "reminder_intent_unattended",
+            text_preview=text[:120],
+            tool_names=tool_names,
+        )
 
     # Opus budget: record only on success so transient failures don't burn the cap
     if model_choice is not None and model_choice.tier == ModelTier.CRISIS:
@@ -371,6 +386,12 @@ async def run_turn(
     before = response
     response = strip_reactions(response)
     _log_mutation("strip_reactions", before, response)
+
+    # Reminder-intent nudge (see intent_unattended detection above). Appended
+    # only when the LLM produced text — silent reaction-only turns would feel
+    # bizarre with a meta footer and the warning log already captured the case.
+    if intent_unattended and response.strip():
+        response = response.rstrip() + "\n\n*(no agendé recordatorio formal — si querías uno, dime día y hora.)*"
 
     log.info(
         "stage_post_llm_done",
