@@ -45,6 +45,7 @@ def memory_with_data():
             },
         ]
     )
+    mem.save_reminder = AsyncMock(return_value=42)
     mem.get_pending_reminders = AsyncMock(
         return_value=[
             {
@@ -208,3 +209,73 @@ async def test_reminders_by_channel(client, memory_with_data):
 async def test_reminders_requires_auth(client):
     resp = await client.get("/debug/reminders")
     assert resp.status == 401
+
+
+async def test_create_reminder_requires_auth(client):
+    resp = await client.post("/debug/reminders", json={"channel_id": "1", "description": "x", "remind_at": "x"})
+    assert resp.status == 401
+
+
+async def test_create_reminder_rejects_missing_fields(client):
+    resp = await client.post(
+        "/debug/reminders",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"channel_id": "111"},
+    )
+    assert resp.status == 400
+
+
+async def test_create_reminder_rejects_past_time(client):
+    resp = await client.post(
+        "/debug/reminders",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"channel_id": "111", "description": "x", "remind_at": "2000-01-01T00:00:00-06:00"},
+    )
+    assert resp.status == 400
+
+
+async def test_create_reminder_success(client, memory_with_data):
+    resp = await client.post(
+        "/debug/reminders",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={
+            "channel_id": "111",
+            "guild_id": "gid",
+            "description": "llamar a la dentista",
+            "remind_at": "2099-01-01T09:00:00-06:00",
+            "mention_user_ids": ["907264175246569543"],
+            "created_by": "admin",
+        },
+    )
+    assert resp.status == 201
+    data = await resp.json()
+    assert data["id"] == 42
+    assert data["description"] == "llamar a la dentista"
+    memory_with_data.save_reminder.assert_awaited_once()
+    kwargs = memory_with_data.save_reminder.await_args.kwargs
+    assert kwargs["channel_id"] == "111"
+    assert kwargs["mention_user_ids"] == "907264175246569543"
+    assert kwargs["recurring"] == "none"
+
+
+async def test_create_reminder_invalid_recurring(client):
+    resp = await client.post(
+        "/debug/reminders",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={
+            "channel_id": "111",
+            "description": "x",
+            "remind_at": "2099-01-01T09:00:00-06:00",
+            "recurring": "yearly",
+        },
+    )
+    assert resp.status == 400
+
+
+async def test_create_reminder_invalid_json(client):
+    resp = await client.post(
+        "/debug/reminders",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        data="not json",
+    )
+    assert resp.status == 400

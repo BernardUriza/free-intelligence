@@ -10,7 +10,12 @@ Security model:
 - Binds to 0.0.0.0 by default. For production, gate via network boundary
   (Azure Container Apps without ingress is private by default).
 
-All endpoints are read-only. No write paths. Ever.
+All endpoints are read-only EXCEPT `POST /debug/reminders` — see that
+handler for the carve-out. The write path exists because when the LLM's
+`create_reminder` tool flow is broken (e.g. tool schema rejected by the
+API, fallback strips all tools), the user has no in-band way to recover
+a reminder request and the bot silently ate it. The admin-side POST is
+the manual escape hatch.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ import structlog
 from aiohttp import web
 
 from insult.core.memory import MemoryStore
+from insult.core.reminders import parse_remind_at
 
 log = structlog.get_logger()
 
@@ -125,6 +131,67 @@ async def _handle_reminders(request: web.Request) -> web.Response:
     return web.json_response({"count": len(reminders), "reminders": reminders})
 
 
+async def _handle_create_reminder(request: web.Request) -> web.Response:
+    """Admin write path — insert a reminder bypassing the LLM tool flow.
+
+    Body (JSON):
+      - channel_id (str, required)
+      - description (str, required)
+      - remind_at (str ISO 8601 with tz offset, required) — e.g. "2026-05-04T08:00:00-06:00"
+      - guild_id (str, optional)
+      - created_by (str, optional, default "admin")
+      - mention_user_ids (list[str] | str CSV, optional)
+      - recurring (str, optional, one of: none|daily|weekly|monthly, default "none")
+    """
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError):
+        return _bad_request("body must be valid JSON")
+
+    channel_id = payload.get("channel_id")
+    description = payload.get("description")
+    remind_at_iso = payload.get("remind_at")
+    if not channel_id or not description or not remind_at_iso:
+        return _bad_request("channel_id, description, and remind_at are required")
+
+    remind_at = parse_remind_at(remind_at_iso)
+    if remind_at is None:
+        return _bad_request("remind_at must be a future ISO 8601 datetime with tz offset")
+
+    recurring = payload.get("recurring", "none")
+    if recurring not in {"none", "daily", "weekly", "monthly"}:
+        return _bad_request("recurring must be one of: none, daily, weekly, monthly")
+
+    mention_raw = payload.get("mention_user_ids", "")
+    mention_user_ids = ",".join(str(x) for x in mention_raw) if isinstance(mention_raw, list) else str(mention_raw)
+
+    memory = request.app[_MEMORY_KEY]
+    try:
+        reminder_id = await memory.save_reminder(
+            channel_id=str(channel_id),
+            guild_id=str(payload["guild_id"]) if payload.get("guild_id") else None,
+            created_by=str(payload.get("created_by", "admin")),
+            description=str(description),
+            remind_at=remind_at,
+            mention_user_ids=mention_user_ids,
+            recurring=recurring,
+        )
+    except Exception as e:  # surface all DB errors to the admin caller
+        log.error("debug_create_reminder_failed", error=str(e))
+        return web.json_response({"error": f"save failed: {e}"}, status=500)
+
+    return web.json_response(
+        {
+            "id": reminder_id,
+            "channel_id": channel_id,
+            "description": description,
+            "remind_at": remind_at,
+            "recurring": recurring,
+        },
+        status=201,
+    )
+
+
 async def _handle_costs(_request: web.Request) -> web.Response:
     from insult.core.llm import get_usage_report
 
@@ -141,6 +208,7 @@ def build_app(memory: MemoryStore, debug_token: str) -> web.Application:
     app.router.add_get("/debug/channels", _handle_channels)
     app.router.add_get("/debug/stats", _handle_stats)
     app.router.add_get("/debug/reminders", _handle_reminders)
+    app.router.add_post("/debug/reminders", _handle_create_reminder)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
 
