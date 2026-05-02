@@ -161,22 +161,6 @@ WEB_SEARCH_TOOL = {
     "type": "web_search_20250305",
     "name": "web_search",
     "max_uses": 3,
-    # Description bumps the bias toward proactive use. Anthropic's web_search
-    # tool defaults to conservative — Claude only searches when it perceives
-    # an obvious factual gap. Without this nudge it skips opportunities to
-    # ground a synthesis answer (apartheid ↔ speciesism, neoliberalism ↔
-    # self-help, etc.) and falls back to opinion. See Phase 2.5 in
-    # .claude/plans/insult_thinking_pipeline.md for the incident report.
-    "description": (
-        "Search the web for evidence to ground claims. USE PROACTIVELY when: "
-        "(a) the user articulates a non-obvious connection between domains "
-        "(philosophy ↔ politics, ethics ↔ science, history ↔ current debate); "
-        "(b) the answer requires synthesizing 3+ concepts you weren't explicitly "
-        "trained to combine; (c) you are about to challenge or dismiss a leap — "
-        "search FIRST, evaluate AFTER. When in doubt, search rather than assert. "
-        "Cite specific authors, books, or studies in the response, not vague "
-        "'hay literatura' hedges."
-    ),
 }
 
 MEDICAL_WEB_SEARCH_TOOL = {
