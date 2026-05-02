@@ -26,6 +26,7 @@ from insult.core.proactive import (
 )
 from insult.core.reminders import compute_next_occurrence
 from insult.core.siesta.presence.discord import SiestaPresenceUpdater
+from insult.core.snooze import SNOOZE_EMOJIS, snooze_delta_for_emoji
 
 log = structlog.get_logger()
 
@@ -310,10 +311,29 @@ def _build(container: Container):
                     text = f"\u23f0 Recordatorio: {reminder['description']}"
 
                 msg = f"{mentions} {text}".strip() if mentions else text
+                sent_msg = None
                 try:
-                    await channel.send(msg)
+                    sent_msg = await channel.send(msg)
                 except Exception:
                     log.exception("reminder_send_failed", reminder_id=reminder["id"])
+
+                # Snooze affordance: only one-shot reminders get reactions —
+                # recurring ones already re-fire on their own and the user
+                # would conflate the two flows.
+                if sent_msg is not None and reminder["recurring"] == "none":
+                    try:
+                        await memory.set_snooze_msg_id(reminder["id"], sent_msg.id)
+                        for emoji in SNOOZE_EMOJIS:
+                            try:
+                                await sent_msg.add_reaction(emoji)
+                            except Exception:
+                                log.warning(
+                                    "reminder_snooze_reaction_failed",
+                                    reminder_id=reminder["id"],
+                                    emoji=emoji,
+                                )
+                    except Exception:
+                        log.exception("reminder_snooze_setup_failed", reminder_id=reminder["id"])
 
                 # Handle recurring
                 if reminder["recurring"] != "none":
@@ -406,6 +426,50 @@ def _build(container: Container):
             prefix=container.settings.command_prefix,
             memory_recent=container.settings.memory_recent_limit,
             memory_relevant=container.settings.memory_relevant_limit,
+        )
+
+    @bot.event
+    async def on_raw_reaction_add(payload):
+        """Snooze handler — see insult/core/snooze.py for the emoji map.
+
+        Uses raw events so it works for delivered reminders no longer in
+        the message cache (typical after a restart). Skips the bot's own
+        reactions (we add the snooze emojis ourselves) and any emoji that
+        isn't in the snooze set.
+        """
+        if bot.user is not None and payload.user_id == bot.user.id:
+            return
+        emoji = str(payload.emoji)
+        delta = snooze_delta_for_emoji(emoji)
+        if delta is None:
+            return
+        reminder = await memory.get_reminder_for_snooze(payload.message_id)
+        if reminder is None:
+            return
+        # Re-arm before clearing the pointer so a crash between the two
+        # leaves the snooze pointer intact (user can react again).
+        new_remind_at = _time.time() + delta
+        try:
+            new_id = await memory.save_reminder(
+                channel_id=reminder["channel_id"],
+                guild_id=reminder["guild_id"],
+                created_by=reminder["created_by"],
+                description=reminder["description"],
+                remind_at=new_remind_at,
+                mention_user_ids=reminder["mention_user_ids"] or "",
+                recurring="none",
+            )
+        except Exception:
+            log.exception("reminder_snooze_create_failed", original_id=reminder["id"], delta=delta)
+            return
+        await memory.clear_snooze_msg_id(payload.message_id)
+        log.info(
+            "reminder_snoozed",
+            original_id=reminder["id"],
+            new_id=new_id,
+            delta_seconds=delta,
+            emoji=emoji,
+            user_id=payload.user_id,
         )
 
     @bot.event

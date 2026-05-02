@@ -243,6 +243,15 @@ class MemoryStore:
     async def delete_reminder(self, reminder_id: int) -> bool:
         return await self._reminders.delete_reminder(reminder_id)
 
+    async def set_snooze_msg_id(self, reminder_id: int, msg_id: int) -> None:
+        await self._reminders.set_snooze_msg_id(reminder_id, msg_id)
+
+    async def get_reminder_for_snooze(self, msg_id: int) -> dict | None:
+        return await self._reminders.get_reminder_for_snooze(msg_id)
+
+    async def clear_snooze_msg_id(self, msg_id: int) -> None:
+        await self._reminders.clear_snooze_msg_id(msg_id)
+
     # -- Disclosure --
 
     async def store_disclosure(

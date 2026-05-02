@@ -165,6 +165,59 @@ class RemindersRepository(BaseRepository):
             for r in rows
         ]
 
+    async def set_snooze_msg_id(self, reminder_id: int, msg_id: int) -> None:
+        """Tag a reminder with the Discord message id where it was delivered.
+
+        Used by the snooze flow: when a user reacts to that delivered message
+        with ⏰/⏭️/📅 we look up the reminder by message id and recreate it
+        with a future remind_at."""
+        db = await self._conn()
+        try:
+            await db.execute(
+                "UPDATE reminders SET snooze_msg_id = ? WHERE id = ?",
+                (msg_id, reminder_id),
+            )
+            await db.commit()
+        except aiosqlite.Error as e:
+            log.error("reminder_set_snooze_msg_failed", reminder_id=reminder_id, error=str(e))
+
+    async def get_reminder_for_snooze(self, msg_id: int) -> dict | None:
+        """Look up the (delivered) reminder whose snooze_msg_id matches.
+
+        Returns the columns needed to recreate the reminder (channel_id,
+        guild_id, created_by, description, mention_user_ids). Returns None
+        if no row matches — protects against snooze attempts on stale or
+        already-snoozed messages."""
+        db = await self._conn()
+        cursor = await db.execute(
+            "SELECT id, channel_id, guild_id, created_by, description, mention_user_ids "
+            "FROM reminders WHERE snooze_msg_id = ? LIMIT 1",
+            (msg_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "channel_id": row[1],
+            "guild_id": row[2],
+            "created_by": row[3],
+            "description": row[4],
+            "mention_user_ids": row[5],
+        }
+
+    async def clear_snooze_msg_id(self, msg_id: int) -> None:
+        """Detach the snooze pointer so a second reaction can't double-fire."""
+        db = await self._conn()
+        try:
+            await db.execute(
+                "UPDATE reminders SET snooze_msg_id = NULL WHERE snooze_msg_id = ?",
+                (msg_id,),
+            )
+            await db.commit()
+        except aiosqlite.Error as e:
+            log.error("reminder_clear_snooze_msg_failed", msg_id=msg_id, error=str(e))
+
     async def delete_reminder(self, reminder_id: int) -> bool:
         """Delete a NOT-yet-delivered reminder. Returns True if a row was removed."""
         db = await self._conn()

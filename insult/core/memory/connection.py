@@ -229,12 +229,22 @@ class ConnectionManager:
                 mention_user_ids TEXT NOT NULL DEFAULT '',
                 recurring TEXT NOT NULL DEFAULT 'none',
                 delivered INTEGER NOT NULL DEFAULT 0,
-                created_at REAL NOT NULL
+                created_at REAL NOT NULL,
+                snooze_msg_id INTEGER
             )
         """)
+        # v3.7.7 migration: snooze_msg_id stores the Discord message id of the
+        # delivered reminder so on_raw_reaction_add can map a reaction back to
+        # the reminder (used to schedule a re-fire on ⏰/⏭️/📅).
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE reminders ADD COLUMN snooze_msg_id INTEGER")
         await self._db.execute("""
             CREATE INDEX IF NOT EXISTS idx_reminders_pending
             ON reminders(delivered, remind_at)
+        """)
+        await self._db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reminders_snooze_msg
+            ON reminders(snooze_msg_id)
         """)
 
     async def _create_phase1_tables(self) -> None:
