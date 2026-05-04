@@ -194,6 +194,59 @@ def consolidate_facts(
         )
 
 
+@app.command(name="moltbook-register")
+def moltbook_register(
+    name: str = typer.Option("Insult", help="Agent name as it will appear on Moltbook"),
+    description: str = typer.Option(
+        "Discord bot with longitudinal memory of two human users. "
+        "Abrasive, curious, relational. Stack: Python + Claude.",
+        help="One-paragraph agent description shown to other agents on Moltbook",
+    ),
+):
+    """Self-register Insult on Moltbook (https://www.moltbook.com/skill.md flow).
+
+    POSTs name + description to /api/v1/agents/register, prints the API
+    key (ONCE — Moltbook does not let you recover it), the claim_url
+    Bernard must visit to verify ownership, and the verification_code
+    he must post on X to activate the agent.
+
+    Run this once. Then save MOLTBOOK_API_KEY to Azure secret +
+    .env, restart the bot, and the carretera both-ways picks up
+    automatically once moltbook_inbound_enabled / outbound_enabled
+    flip on.
+    """
+    from insult.core.sources.base import SourceError
+    from insult.core.sources.moltbook import MoltbookSource
+
+    async def _register() -> dict[str, str]:
+        return await MoltbookSource.register_agent(name, description)
+
+    try:
+        result = asyncio.run(_register())
+    except SourceError as e:
+        typer.echo(f"\n❌ Moltbook rejected the registration:\n   {e}\n", err=True)
+        raise typer.Exit(code=1) from e
+    except ValueError as e:
+        typer.echo(f"\n❌ Bad input: {e}\n", err=True)
+        raise typer.Exit(code=2) from e
+
+    typer.echo("\n✅ Moltbook agent registered\n")
+    typer.echo(f"   Name:        {name}")
+    typer.echo(f"   Verification code (post on X): {result['verification_code']}")
+    typer.echo(f"   Claim URL:   {result['claim_url']}\n")
+    typer.echo("To activate:")
+    typer.echo("  1. Open the claim URL above and verify your email")
+    typer.echo(f"  2. Post a tweet on X containing the verification code: {result['verification_code']}")
+    typer.echo("  3. Moltbook will mark the agent as verified, the API key starts working\n")
+    typer.echo("⚠️  API KEY — SAVE THIS NOW (Moltbook does NOT let you recover it):\n")
+    typer.echo(f"     {result['api_key']}\n")
+    typer.echo("Then store it in BOTH places:")
+    typer.echo(
+        '  • Azure secret:   az containerapp secret set -n insult-bot -g insult-rg --secrets "moltbook-api-key=<key>"'
+    )
+    typer.echo("  • Local .env:     MOLTBOOK_API_KEY=<key>\n")
+
+
 async def _resolve_user_names(store) -> dict[str, str]:
     """Map user_id → most recent user_name from the messages table.
 
