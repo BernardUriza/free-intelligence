@@ -18,6 +18,13 @@ from insult.core.errors import ErrorType, get_error_response
 from insult.core.guild_setup import post_reminder_delivered
 from insult.core.metrics import upload_dashboard_data
 from insult.core.moltbook_inbound import build_inbound_digest
+from insult.core.moltbook_outbound import (
+    build_post_draft,
+    detect_salience_signal,
+    is_outbound_blocked,
+    redact_with_llm,
+    regex_privacy_strip,
+)
 from insult.core.proactive import (
     generate_proactive_message,
     generate_world_scan_message,
@@ -71,6 +78,8 @@ def _build(container: Container):
             _summarize_channels_task.cancel()
         if _moltbook_inbound_task.is_running():
             _moltbook_inbound_task.cancel()
+        if _moltbook_outbound_task.is_running():
+            _moltbook_outbound_task.cancel()
         if _backup_task.is_running():
             _backup_task.cancel()
         await container.siesta.stop()
@@ -385,6 +394,116 @@ def _build(container: Container):
         except Exception:
             log.exception("moltbook_inbound_task_failed")
 
+    # --- Moltbook OUTBOUND posting (every 24h, gated stack) ---
+    # Three layers fire in order: gates (vulnerability + disclosure),
+    # salience (must have a fresh stance / synthesis to seed off), and
+    # the regex + LLM redaction pipeline. Any layer can short-circuit
+    # silently — that's the design, not a bug.
+    @tasks.loop(hours=24)
+    async def _moltbook_outbound_task():
+        if not container.settings.moltbook_outbound_enabled:
+            return
+        source = _get_moltbook_source()
+        if source is None:
+            return  # api_key empty
+        if not container.settings.moltbook_submolts:
+            log.info("moltbook_outbound_skipped", reason="no_submolts_configured")
+            return
+        try:
+            # Find target channel (same heuristic as inbound)
+            target_channel = None
+            latest_msg_ts: float = 0
+            for guild in bot.guilds:
+                for ch in guild.text_channels:
+                    try:
+                        recent = await memory.get_recent(str(ch.id), limit=1)
+                        if recent and recent[0]["timestamp"] > latest_msg_ts:
+                            latest_msg_ts = recent[0]["timestamp"]
+                            target_channel = ch
+                    except Exception:
+                        log.debug("moltbook_outbound_channel_skip", channel=ch.name)
+            if target_channel is None:
+                log.info("moltbook_outbound_skipped", reason="no_active_channel")
+                return
+
+            recent_msgs = await memory.get_recent(str(target_channel.id), limit=15)
+            user_ids = list({m["user_id"] for m in recent_msgs if m.get("role") == "user" and m.get("user_id")})
+            if not user_ids:
+                log.info("moltbook_outbound_skipped", reason="no_users_in_channel")
+                return
+
+            # GATE 1 — vulnerability + disclosure
+            blocked_reason, blocked_uid = await is_outbound_blocked(user_ids, memory=memory)
+            if blocked_reason:
+                log.warning(
+                    "moltbook_outbound_blocked",
+                    reason=blocked_reason,
+                    user_id=blocked_uid,
+                )
+                return
+
+            # GATE 2 — must have a salient reason
+            signal = await detect_salience_signal(
+                str(target_channel.id),
+                user_ids,
+                memory=memory,
+                recent_messages=recent_msgs,
+            )
+            if signal is None:
+                log.info("moltbook_outbound_skipped", reason="no_salience")
+                return
+
+            # Build draft (LLM call #1)
+            target_submolt = container.settings.moltbook_submolts[0]  # post to first
+            draft = await build_post_draft(
+                signal,
+                target_submolt,
+                persona=container.settings.system_prompt,
+                llm=container.llm,
+            )
+            if draft is None:
+                log.warning("moltbook_outbound_skipped", reason="draft_failed")
+                return
+
+            # Collect facts for redaction's negative-target prompt
+            all_facts: list[str] = []
+            for uid in user_ids:
+                facts = await memory.get_facts(uid)
+                all_facts.extend(f["fact"] for f in facts)
+
+            # Layer 3a — regex strip (cheap pre-filter)
+            stripped = regex_privacy_strip(draft.content, [{"fact": f} for f in all_facts])
+
+            # Layer 3b — LLM redaction (decisive, with substring leak detection)
+            redacted = await redact_with_llm(
+                stripped,
+                all_facts,
+                client=container.llm.client,
+                model=container.settings.summary_model,
+            )
+            if redacted is None:
+                log.warning(
+                    "moltbook_outbound_skipped",
+                    reason="redaction_failed_or_leaked",
+                    title=draft.title,
+                )
+                return
+
+            # PUBLISH
+            try:
+                post = await source.create_post(target_submolt, draft.title, redacted)
+                log.info(
+                    "moltbook_outbound_post_created",
+                    post_id=post.id,
+                    submolt=target_submolt,
+                    title=draft.title,
+                    salience_kind=signal.kind,
+                )
+            except Exception:
+                log.exception("moltbook_outbound_publish_failed", title=draft.title)
+        except Exception:
+            log.exception("moltbook_outbound_task_failed")
+
     # --- Reminder Delivery (check every 30s for due reminders) ---
     @tasks.loop(seconds=30)
     async def _reminder_check_task():
@@ -565,6 +684,7 @@ def _build(container: Container):
             # circuits when api_key / submolts / inbound_enabled are not set
             # (fail-closed default). Same posture as _backup_task wrt is_azure.
             _moltbook_inbound_task.start()
+            _moltbook_outbound_task.start()
             if is_azure_configured():
                 _backup_task.start()
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))
