@@ -80,23 +80,32 @@ class MessagesRepository(BaseRepository):
         When user_id is provided, returns messages sent BY the user plus
         assistant replies addressed TO the user (for_user_id match) so
         per-user context isolation is possible in shared channels.
+
+        Each row carries `user_id` AND `user_name`. The user_id was added
+        in v3.7.25 because the OUTBOUND lane needs distinct user identities
+        to run the vulnerability gate against — pulling user_id by name
+        was racy when two users happened to share a display name across
+        guilds.
         """
         db = await self._conn()
         if user_id:
             cursor = await db.execute(
-                "SELECT user_name, role, content, timestamp FROM messages "
+                "SELECT user_id, user_name, role, content, timestamp FROM messages "
                 "WHERE channel_id = ? AND (user_id = ? OR for_user_id = ?) "
                 "ORDER BY timestamp DESC LIMIT ?",
                 (channel_id, user_id, user_id, limit),
             )
         else:
             cursor = await db.execute(
-                "SELECT user_name, role, content, timestamp FROM messages "
+                "SELECT user_id, user_name, role, content, timestamp FROM messages "
                 "WHERE channel_id = ? ORDER BY timestamp DESC LIMIT ?",
                 (channel_id, limit),
             )
         rows = await cursor.fetchall()
-        return [{"user_name": r[0], "role": r[1], "content": r[2], "timestamp": r[3]} for r in reversed(rows)]
+        return [
+            {"user_id": r[0], "user_name": r[1], "role": r[2], "content": r[3], "timestamp": r[4]}
+            for r in reversed(rows)
+        ]
 
     async def search(self, channel_id: str, query: str, limit: int = 5, user_id: str | None = None) -> list[dict]:
         """Keyword LIKE-search across message content, optionally scoped to a user.
