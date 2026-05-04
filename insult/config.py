@@ -62,6 +62,21 @@ class Settings(BaseSettings):
     debug_host: str = "127.0.0.1"
     debug_port: int = 8787
 
+    # Moltbook integration (see .claude/plans/elegant-foraging-knuth.md).
+    # The carretera both-ways is fail-closed by default: an empty api_key
+    # disables both lanes regardless of the *_enabled flags. The flags are
+    # the second gate — they let an operator stage rollout (inbound first,
+    # then outbound) once the key is provisioned, mirroring how
+    # is_azure_configured() gates the backup loop in bot.py.
+    moltbook_api_key: SecretStr = SecretStr("")
+    moltbook_base_url: str = "https://www.moltbook.com/api/v1"
+    # Comma-separated submolt names, e.g. "m/philosophy,m/ai-agents". Parsed
+    # via the moltbook_submolts property to keep .env friendly (Pydantic
+    # parsing of list[str] from env requires JSON, which is awkward to type).
+    moltbook_submolts_raw: str = ""
+    moltbook_outbound_enabled: bool = False
+    moltbook_inbound_enabled: bool = False
+
     # Paths
     storage_dir: Path = _PROJECT_ROOT / "storage"
     db_path: Path = _PROJECT_ROOT / "storage" / "memory.db"
@@ -79,6 +94,11 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """dotenv wins over shell env vars — prevents stale key overrides."""
         return (init_settings, dotenv_settings, env_settings, file_secret_settings)
+
+    @property
+    def moltbook_submolts(self) -> list[str]:
+        """Parsed submolt list from the comma-separated env value."""
+        return [s.strip() for s in self.moltbook_submolts_raw.split(",") if s.strip()]
 
     def ensure_dirs(self):
         self.storage_dir.mkdir(parents=True, exist_ok=True)
