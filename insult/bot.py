@@ -12,7 +12,7 @@ from insult.cogs import ChatCog, UtilityCog
 from insult.cogs.voice import VoiceCog
 from insult.core.backup import download_db, is_azure_configured, upload_db
 from insult.core.character import _get_current_time_context, strip_metadata
-from insult.core.debug_server import start_debug_server, stop_debug_server
+from insult.core.debug_server import MoltbookDebugContext, start_debug_server, stop_debug_server
 from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
 from insult.core.guild_setup import post_reminder_delivered
@@ -698,6 +698,11 @@ def _build(container: Container):
                         debug_token=debug_token,
                         host=container.settings.debug_host,
                         port=container.settings.debug_port,
+                        moltbook_ctx=MoltbookDebugContext(
+                            source_factory=_get_moltbook_source,
+                            llm=container.llm,
+                            settings=container.settings,
+                        ),
                     )
                 except Exception:
                     log.exception("debug_server_start_failed")

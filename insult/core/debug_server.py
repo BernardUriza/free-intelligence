@@ -10,17 +10,20 @@ Security model:
 - Binds to 0.0.0.0 by default. For production, gate via network boundary
   (Azure Container Apps without ingress is private by default).
 
-All endpoints are read-only EXCEPT `POST /debug/reminders` — see that
-handler for the carve-out. The write path exists because when the LLM's
-`create_reminder` tool flow is broken (e.g. tool schema rejected by the
-API, fallback strips all tools), the user has no in-band way to recover
-a reminder request and the bot silently ate it. The admin-side POST is
-the manual escape hatch.
+All endpoints are read-only EXCEPT:
+  • `POST /debug/reminders` — admin escape hatch when the LLM's
+    create_reminder tool flow is broken (see v3.7.3 commit).
+  • `POST /debug/moltbook/post` — manual override for OUTBOUND posting,
+    requires a preview-hash echo so a stale draft can't be published
+    by accident. See v3.7.23 / Phase 5 of the carretera plan.
 """
 
 from __future__ import annotations
 
+import hashlib
 import hmac
+from dataclasses import dataclass
+from typing import Any
 
 import structlog
 from aiohttp import web
@@ -30,9 +33,23 @@ from insult.core.reminders import parse_remind_at
 
 log = structlog.get_logger()
 
+
+@dataclass
+class MoltbookDebugContext:
+    """Wires the OUTBOUND lane components into the debug server so the
+    /debug/moltbook/* endpoints can preview drafts and force-post without
+    waiting for the cron. None when MOLTBOOK_API_KEY is unset (the lane
+    itself is fail-closed; the debug endpoints follow the same posture)."""
+
+    source_factory: Any  # Callable[[], MoltbookSource | None]
+    llm: Any
+    settings: Any
+
+
 # Typed aiohttp app keys (avoid NotAppKeyWarning)
 _MEMORY_KEY: web.AppKey[MemoryStore] = web.AppKey("memory", MemoryStore)
 _TOKEN_KEY: web.AppKey[str] = web.AppKey("debug_token", str)
+_MOLTBOOK_KEY: web.AppKey[MoltbookDebugContext | None] = web.AppKey("moltbook_ctx", object)  # type: ignore[arg-type]
 
 
 def _unauthorized() -> web.Response:
@@ -265,17 +282,217 @@ async def _handle_patch_reminder(request: web.Request) -> web.Response:
     )
 
 
+def _moltbook_unconfigured() -> web.Response:
+    return web.json_response(
+        {"error": "moltbook source not configured (api_key empty or context missing)"},
+        status=503,
+    )
+
+
+def _draft_hash(title: str, content: str, submolt: str) -> str:
+    """Stable hash of the parts an operator would echo back to publish.
+
+    The hash is for accident prevention, not adversarial defense — the
+    Bearer token guards against unauthorized callers; this guards against
+    'I copied an old preview into my publish call.'"""
+    blob = f"{submolt}\x00{title}\x00{content}".encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+async def _handle_moltbook_feed(request: web.Request) -> web.Response:
+    """Preview what Insult would see if it ran an inbound fetch right now.
+    No LLM calls, no curation, no Discord side-effects — just the raw
+    posts the source returns."""
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    source = ctx.source_factory()
+    if source is None:
+        return _moltbook_unconfigured()
+    submolt = request.query.get("submolt")
+    try:
+        limit = int(request.query.get("limit", "10"))
+    except ValueError:
+        return _bad_request("limit must be an integer")
+    if limit < 1 or limit > 25:
+        return _bad_request("limit must be between 1 and 25")
+
+    try:
+        if submolt:
+            posts = await source.fetch_submolt_posts(submolt, sort="hot", limit=limit)
+        else:
+            posts = await source.fetch_feed(sort="hot", limit=limit)
+    except Exception as e:
+        return web.json_response({"error": f"fetch failed: {e}"}, status=502)
+
+    return web.json_response(
+        {
+            "submolt": submolt,
+            "count": len(posts),
+            "posts": [
+                {
+                    "id": p.id,
+                    "title": p.title,
+                    "content": p.content[:500],
+                    "author": p.author,
+                    "submolt": p.submolt,
+                    "upvotes": p.upvotes,
+                    "comment_count": p.comment_count,
+                    "url": p.url,
+                }
+                for p in posts
+            ],
+        }
+    )
+
+
+async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Response:
+    """Run the OUTBOUND pipeline against the bot's current memory but DON'T
+    publish. Returns the draft, redaction result, gate status, and a
+    preview_hash the operator must echo back to actually publish.
+
+    This is the inspection surface required before flipping
+    MOLTBOOK_OUTBOUND_ENABLED=true in prod."""
+    from insult.core.moltbook_outbound import (
+        build_post_draft,
+        detect_salience_signal,
+        is_outbound_blocked,
+        redact_with_llm,
+        regex_privacy_strip,
+    )
+
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    if ctx.source_factory() is None:
+        return _moltbook_unconfigured()
+    if not ctx.settings.moltbook_submolts:
+        return _bad_request("moltbook_submolts is empty")
+
+    channel_id = request.query.get("channel_id")
+    if not channel_id:
+        return _bad_request("channel_id is required")
+    memory = request.app[_MEMORY_KEY]
+    recent = await memory.get_recent(channel_id, limit=15)
+    user_ids = list({m["user_id"] for m in recent if m.get("role") == "user" and m.get("user_id")})
+    if not user_ids:
+        return web.json_response({"skipped_reason": "no_users_in_channel"}, status=200)
+
+    blocked_reason, blocked_uid = await is_outbound_blocked(user_ids, memory=memory)
+    if blocked_reason:
+        return web.json_response({"skipped_reason": blocked_reason, "blocked_user_id": blocked_uid}, status=200)
+
+    signal = await detect_salience_signal(channel_id, user_ids, memory=memory, recent_messages=recent)
+    if signal is None:
+        return web.json_response({"skipped_reason": "no_salience"}, status=200)
+
+    target_submolt = ctx.settings.moltbook_submolts[0]
+    draft = await build_post_draft(
+        signal,
+        target_submolt,
+        persona=ctx.settings.system_prompt,
+        llm=ctx.llm,
+    )
+    if draft is None:
+        return web.json_response({"skipped_reason": "draft_failed"}, status=200)
+
+    all_facts: list[str] = []
+    for uid in user_ids:
+        facts = await memory.get_facts(uid)
+        all_facts.extend(f["fact"] for f in facts)
+    stripped = regex_privacy_strip(draft.content, [{"fact": f} for f in all_facts])
+    redacted = await redact_with_llm(stripped, all_facts, client=ctx.llm.client, model=ctx.settings.summary_model)
+    if redacted is None:
+        return web.json_response(
+            {"skipped_reason": "redaction_failed_or_leaked", "draft_title": draft.title}, status=200
+        )
+
+    preview_hash = _draft_hash(draft.title, redacted, target_submolt)
+    return web.json_response(
+        {
+            "salience_kind": signal.kind,
+            "salience_topic": signal.topic,
+            "submolt": target_submolt,
+            "title": draft.title,
+            "content": redacted,
+            "regex_stripped": stripped,
+            "draft_pre_redaction": draft.content,
+            "preview_hash": preview_hash,
+            "facts_count": len(all_facts),
+            "user_ids": user_ids,
+        }
+    )
+
+
+async def _handle_moltbook_post(request: web.Request) -> web.Response:
+    """Force-publish a draft to Moltbook. Body must include preview_hash
+    matching the hash of (title, content, submolt) so a stale draft from
+    a previous preview-outbound call can't be replayed."""
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    source = ctx.source_factory()
+    if source is None:
+        return _moltbook_unconfigured()
+
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError):
+        return _bad_request("body must be valid JSON")
+
+    title = payload.get("title")
+    content = payload.get("content")
+    submolt = payload.get("submolt")
+    preview_hash = payload.get("preview_hash")
+    if not all(isinstance(x, str) and x for x in (title, content, submolt, preview_hash)):
+        return _bad_request("title, content, submolt, preview_hash are required strings")
+
+    expected_hash = _draft_hash(title, content, submolt)
+    if not hmac.compare_digest(preview_hash, expected_hash):
+        log.warning("moltbook_post_hash_mismatch", expected=expected_hash, got=preview_hash[:16])
+        return web.json_response(
+            {"error": "preview_hash mismatch — re-run /preview-outbound and copy the fresh hash"},
+            status=409,
+        )
+
+    try:
+        post = await source.create_post(submolt, title, content)
+    except Exception as e:
+        log.exception("moltbook_post_publish_failed")
+        return web.json_response({"error": f"publish failed: {e}"}, status=502)
+
+    log.info("moltbook_post_admin_published", post_id=post.id, submolt=submolt, title=title)
+    return web.json_response(
+        {
+            "id": post.id,
+            "submolt": post.submolt or submolt,
+            "url": post.url,
+            "published": True,
+        },
+        status=201,
+    )
+
+
 async def _handle_costs(_request: web.Request) -> web.Response:
     from insult.core.llm import get_usage_report
 
     return web.json_response(get_usage_report())
 
 
-def build_app(memory: MemoryStore, debug_token: str) -> web.Application:
-    """Construct the aiohttp Application with routes and middleware."""
+def build_app(
+    memory: MemoryStore,
+    debug_token: str,
+    moltbook_ctx: MoltbookDebugContext | None = None,
+) -> web.Application:
+    """Construct the aiohttp Application with routes and middleware.
+
+    `moltbook_ctx` is optional — when None the /debug/moltbook/* endpoints
+    return 503. This lets the server start in deployments without a
+    Moltbook key without leaking error spam at boot."""
     app = web.Application(middlewares=[_auth_middleware])
     app[_MEMORY_KEY] = memory
     app[_TOKEN_KEY] = debug_token
+    app[_MOLTBOOK_KEY] = moltbook_ctx
     app.router.add_get("/debug/health", _handle_health)
     app.router.add_get("/debug/messages", _handle_messages)
     app.router.add_get("/debug/channels", _handle_channels)
@@ -284,6 +501,9 @@ def build_app(memory: MemoryStore, debug_token: str) -> web.Application:
     app.router.add_post("/debug/reminders", _handle_create_reminder)
     app.router.add_delete("/debug/reminders/{id}", _handle_delete_reminder)
     app.router.add_patch("/debug/reminders/{id}", _handle_patch_reminder)
+    app.router.add_get("/debug/moltbook/feed", _handle_moltbook_feed)
+    app.router.add_get("/debug/moltbook/preview-outbound", _handle_moltbook_preview_outbound)
+    app.router.add_post("/debug/moltbook/post", _handle_moltbook_post)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
 
@@ -293,9 +513,10 @@ async def start_debug_server(
     debug_token: str,
     host: str = "127.0.0.1",
     port: int = 8787,
+    moltbook_ctx: MoltbookDebugContext | None = None,
 ) -> web.AppRunner:
     """Start the debug server and return the runner for lifecycle management."""
-    app = build_app(memory, debug_token)
+    app = build_app(memory, debug_token, moltbook_ctx=moltbook_ctx)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
