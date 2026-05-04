@@ -188,12 +188,29 @@ class ConnectionManager:
                 topic TEXT NOT NULL,
                 findings TEXT NOT NULL,
                 commentary TEXT NOT NULL,
-                timestamp REAL NOT NULL
+                timestamp REAL NOT NULL,
+                source TEXT NOT NULL DEFAULT 'web',
+                external_id TEXT
             )
         """)
+        # v3.7.12 migration: source + external_id let world_scans store
+        # digests from outside platforms (Moltbook today, others later)
+        # alongside web_search results, deduped via UNIQUE(source, external_id).
+        # See .claude/plans/elegant-foraging-knuth.md Phase 0.
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE world_scans ADD COLUMN source TEXT NOT NULL DEFAULT 'web'")
+        with contextlib.suppress(aiosqlite.OperationalError):
+            await self._db.execute("ALTER TABLE world_scans ADD COLUMN external_id TEXT")
         await self._db.execute("""
             CREATE INDEX IF NOT EXISTS idx_world_scans_ts
             ON world_scans(timestamp DESC)
+        """)
+        # Partial unique index: only enforce uniqueness when external_id is set
+        # so existing web_search rows (external_id=NULL) are unaffected.
+        await self._db.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_world_scans_source_external
+            ON world_scans(source, external_id)
+            WHERE external_id IS NOT NULL
         """)
 
     async def _create_channel_summaries_table(self) -> None:
