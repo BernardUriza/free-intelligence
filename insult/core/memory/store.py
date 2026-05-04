@@ -292,6 +292,9 @@ class MemoryStore:
     ) -> None:
         await self._disclosure.store_disclosure(channel_id, user_id, category, severity, signals, excerpt)
 
+    async def get_recent_max_severity(self, user_id: str, since_ts: float) -> int:
+        return await self._disclosure.get_recent_max_severity(user_id, since_ts)
+
     # -- Relational state (arcs + stance + contradictions) --
 
     async def get_arc(self, channel_id: str, user_id: str) -> dict | None:

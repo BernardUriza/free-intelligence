@@ -40,3 +40,22 @@ class DisclosureRepository(BaseRepository):
             await db.commit()
         except aiosqlite.Error as e:
             log.error("disclosure_store_failed", error=str(e))
+
+    async def get_recent_max_severity(self, user_id: str, since_ts: float) -> int:
+        """Return the maximum severity logged for a user since a timestamp.
+
+        Used by the OUTBOUND gate: if a user disclosed something at severity
+        ≥ 3 in the recent past, posting external content that mentions or
+        adjacents that disclosure is unsafe — bail out of the entire posting
+        flow regardless of how the draft is redacted.
+
+        Returns 0 if there are no rows since the cutoff."""
+        db = await self._conn()
+        cursor = await db.execute(
+            "SELECT MAX(severity) FROM disclosure_log WHERE user_id = ? AND timestamp >= ?",
+            (user_id, since_ts),
+        )
+        row = await cursor.fetchone()
+        if row is None or row[0] is None:
+            return 0
+        return int(row[0])
