@@ -17,6 +17,7 @@ from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
 from insult.core.guild_setup import post_reminder_delivered
 from insult.core.metrics import upload_dashboard_data
+from insult.core.moltbook_inbound import build_inbound_digest
 from insult.core.proactive import (
     generate_proactive_message,
     generate_world_scan_message,
@@ -27,6 +28,7 @@ from insult.core.proactive import (
 from insult.core.reminders import ACK_MAX_RETRIES, ACK_TIMEOUT_SECONDS, compute_next_occurrence
 from insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from insult.core.snooze import SNOOZE_EMOJIS, snooze_delta_for_emoji
+from insult.core.sources.moltbook import MoltbookSource
 
 log = structlog.get_logger()
 
@@ -36,6 +38,26 @@ def _build(container: Container):
     bot = container.bot
     memory = container.memory
     _debug_runner = None  # type: ignore[var-annotated]
+
+    # Moltbook source — lazy-init at first use, gated by api_key. None when
+    # MOLTBOOK_API_KEY is empty so the inbound/outbound tasks short-circuit
+    # without ever touching the network. The same fail-closed pattern as
+    # is_azure_configured() guards _backup_task.
+    _moltbook_source: MoltbookSource | None = None
+
+    def _get_moltbook_source() -> MoltbookSource | None:
+        nonlocal _moltbook_source
+        if _moltbook_source is not None:
+            return _moltbook_source
+        api_key = container.settings.moltbook_api_key.get_secret_value()
+        if not api_key:
+            return None
+        _moltbook_source = MoltbookSource(
+            api_key=api_key,
+            base_url=container.settings.moltbook_base_url,
+        )
+        log.info("moltbook_source_initialized", base_url=container.settings.moltbook_base_url)
+        return _moltbook_source
 
     # --- Graceful Shutdown ---
     async def graceful_shutdown(sig: signal.Signals):
@@ -47,11 +69,15 @@ def _build(container: Container):
             _ack_overdue_task.cancel()
         if _summarize_channels_task.is_running():
             _summarize_channels_task.cancel()
+        if _moltbook_inbound_task.is_running():
+            _moltbook_inbound_task.cancel()
         if _backup_task.is_running():
             _backup_task.cancel()
         await container.siesta.stop()
         if _debug_runner is not None:
             await stop_debug_server(_debug_runner)
+        if _moltbook_source is not None:
+            await _moltbook_source.close()
         await memory.close()
         await upload_db(container.settings.db_path)
         await bot.close()
@@ -273,6 +299,92 @@ def _build(container: Container):
         except Exception:
             log.exception("channel_summarization_task_failed")
 
+    # --- Moltbook INBOUND digest (every 6h, gated on api_key + flag + idle) ---
+    # Reuses the same target_channel discovery + should_send_now coordination
+    # as _proactive_task so we never double-tap with a proactive message.
+    @tasks.loop(hours=6)
+    async def _moltbook_inbound_task():
+        if not container.settings.moltbook_inbound_enabled:
+            return
+        source = _get_moltbook_source()
+        if source is None:
+            return  # api_key empty — fail-closed without noise
+        if not container.settings.moltbook_submolts:
+            log.info("moltbook_inbound_skipped", reason="no_submolts_configured")
+            return
+        try:
+            from datetime import datetime as dt
+            from zoneinfo import ZoneInfo
+
+            now = dt.now(ZoneInfo("America/Mexico_City"))
+
+            # Find most recently active text channel (same heuristic as proactive)
+            target_channel = None
+            latest_msg_ts: float = 0
+            for guild in bot.guilds:
+                for ch in guild.text_channels:
+                    try:
+                        recent = await memory.get_recent(str(ch.id), limit=1)
+                        if recent and recent[0]["timestamp"] > latest_msg_ts:
+                            latest_msg_ts = recent[0]["timestamp"]
+                            target_channel = ch
+                    except Exception:
+                        log.debug("moltbook_inbound_channel_skip", channel=ch.name)
+            if target_channel is None:
+                return
+
+            # should_send_now coordination: don't talk over an active conversation
+            # AND don't fire right after a proactive (it would feel like spam).
+            recent_msgs = await memory.get_recent(str(target_channel.id), limit=15)
+            last_user_ts = next(
+                (m["timestamp"] for m in reversed(recent_msgs) if m["role"] == "user"),
+                None,
+            )
+            if not should_send_now(now.hour, _last_proactive_ts, last_user_ts, _unanswered_proactives):
+                log.info("moltbook_inbound_skipped", reason="should_send_now_false")
+                return
+
+            # Build context: every distinct user_id seen in recent_msgs
+            user_ids = list({m["user_id"] for m in recent_msgs if m.get("role") == "user" and m.get("user_id")})
+
+            result = await build_inbound_digest(
+                source,
+                container.settings.moltbook_submolts,
+                user_ids,
+                memory=memory,
+                llm=container.llm,
+                settings=container.settings,
+                recent_messages=recent_msgs,
+            )
+            if result.skipped_reason:
+                log.info("moltbook_inbound_skipped", reason=result.skipped_reason)
+                return
+            if not result.rendered_message:
+                return
+
+            try:
+                parts = split_response(result.rendered_message)
+                for part in parts:
+                    await target_channel.send(part)
+                log.info(
+                    "moltbook_inbound_sent",
+                    channel=target_channel.name,
+                    picks=len(result.picks),
+                    rendered_len=len(result.rendered_message),
+                )
+                # Persist as bot message so future context build sees it
+                await memory.store(
+                    str(target_channel.id),
+                    str(bot.user.id),
+                    bot.user.name,
+                    "assistant",
+                    result.rendered_message.replace(MESSAGE_DELIMITER, "\n"),
+                )
+            except Exception:
+                log.exception("moltbook_inbound_send_failed")
+        except Exception:
+            log.exception("moltbook_inbound_task_failed")
+
     # --- Reminder Delivery (check every 30s for due reminders) ---
     @tasks.loop(seconds=30)
     async def _reminder_check_task():
@@ -449,6 +561,10 @@ def _build(container: Container):
             _ack_overdue_task.start()
             _proactive_task.start()
             _summarize_channels_task.start()
+            # Moltbook inbound runs unconditionally; the task itself short-
+            # circuits when api_key / submolts / inbound_enabled are not set
+            # (fail-closed default). Same posture as _backup_task wrt is_azure.
+            _moltbook_inbound_task.start()
             if is_azure_configured():
                 _backup_task.start()
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))
