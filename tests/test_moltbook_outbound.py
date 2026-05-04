@@ -152,6 +152,157 @@ async def test_salience_skips_low_confidence_stance():
     assert sig is None
 
 
+async def test_salience_arc_recovery_fresh_transition():
+    """User in RECOVERY phase for <24h → arc_recovery signal fires."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(
+        return_value={
+            "phase": "recovery",
+            "phase_since": time.time() - 3600,  # 1h ago
+        }
+    )
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=[])
+    assert sig is not None
+    assert sig.kind == "arc_recovery"
+    assert "resilience" in sig.topic.lower() or "emergence" in sig.topic.lower()
+
+
+async def test_salience_arc_recovery_skips_old_transition():
+    """STABILITY for >24h is not a 'fresh transition' — don't fire."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(
+        return_value={
+            "phase": "stability",
+            "phase_since": time.time() - 7 * 86400,  # 7 days ago
+        }
+    )
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=[])
+    assert sig is None
+
+
+async def test_salience_arc_recovery_skips_crisis():
+    """User actively in CRISIS — never use as a posting signal."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(
+        return_value={
+            "phase": "crisis",
+            "phase_since": time.time() - 3600,
+        }
+    )
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=[])
+    assert sig is None
+
+
+async def test_salience_arc_recovery_handles_missing_arc():
+    """First-time user with no arc state → just skip, don't crash."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(return_value=None)
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=[])
+    assert sig is None
+
+
+async def test_salience_topic_repetition_fires_on_three_mentions():
+    """Same user mentions same topic-keywords ≥3 times within 24h."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(return_value=None)
+    now = time.time()
+    recent = [
+        {
+            "role": "user",
+            "user_id": "u1",
+            "content": "filosofía contemporánea fenomenología consciencia",
+            "timestamp": now - 7200,
+        },
+        {
+            "role": "user",
+            "user_id": "u1",
+            "content": "filosofía contemporánea fenomenología consciencia",
+            "timestamp": now - 3600,
+        },
+        {
+            "role": "user",
+            "user_id": "u1",
+            "content": "filosofía contemporánea fenomenología consciencia",
+            "timestamp": now - 600,
+        },
+    ]
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=recent)
+    assert sig is not None
+    assert sig.kind == "topic_repetition"
+
+
+async def test_salience_topic_repetition_skips_below_threshold():
+    """Only 2 mentions → not enough to count as convergence."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(return_value=None)
+    now = time.time()
+    recent = [
+        {"role": "user", "user_id": "u1", "content": "filosofía fenomenología consciencia", "timestamp": now - 600},
+        {"role": "user", "user_id": "u1", "content": "filosofía fenomenología consciencia", "timestamp": now - 1200},
+    ]
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=recent)
+    assert sig is None
+
+
+async def test_salience_topic_repetition_only_counts_user_in_user_ids():
+    """A bystander mentioning the topic 3 times shouldn't count if they
+    aren't in the user_ids set we're posting on behalf of."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(return_value=None)
+    now = time.time()
+    recent = [
+        {"role": "user", "user_id": "stranger", "content": "filosofía fenomenología", "timestamp": now - 100},
+        {"role": "user", "user_id": "stranger", "content": "filosofía fenomenología", "timestamp": now - 200},
+        {"role": "user", "user_id": "stranger", "content": "filosofía fenomenología", "timestamp": now - 300},
+    ]
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=recent)
+    assert sig is None
+
+
+async def test_salience_topic_repetition_skips_stale_messages():
+    """Messages from >24h ago don't contribute — convergence has to be
+    recent to count as live concern."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(return_value=[])
+    mem.get_arc = AsyncMock(return_value=None)
+    old = time.time() - 5 * 86400
+    recent = [
+        {"role": "user", "user_id": "u1", "content": "filosofía fenomenología consciencia", "timestamp": old - 100},
+        {"role": "user", "user_id": "u1", "content": "filosofía fenomenología consciencia", "timestamp": old - 200},
+        {"role": "user", "user_id": "u1", "content": "filosofía fenomenología consciencia", "timestamp": old - 300},
+    ]
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=recent)
+    assert sig is None
+
+
+async def test_salience_priority_stance_beats_arc():
+    """When BOTH a fresh stance AND a fresh arc transition exist, stance
+    wins because it has actual propositional content. Arc would be a
+    posture-change seed without semantics."""
+    mem = MagicMock()
+    mem.get_stances = AsyncMock(
+        return_value=[
+            {
+                "topic": "consciencia",
+                "position": "no es predicción de errores",
+                "confidence": 0.9,
+                "timestamp": time.time() - 3600,
+            }
+        ]
+    )
+    mem.get_arc = AsyncMock(return_value={"phase": "stability", "phase_since": time.time() - 1800})
+    sig = await detect_salience_signal("ch", ["u1"], memory=mem, recent_messages=[])
+    assert sig is not None
+    assert sig.kind == "stance"
+
+
 async def test_salience_falls_back_to_synthesis_signal():
     """No fresh stance, but a recent user message activated the synthesis
     detector → synthesis is the seed."""

@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 
 import structlog
 
+from insult.core.stance_log import _extract_topic
 from insult.core.synthesis_detector import detect_synthesis
 from insult.core.vulnerability import is_vulnerable_user
 
@@ -48,6 +49,19 @@ _SALIENCE_WINDOW_SECONDS = 36 * 3600
 # Minimum stance confidence required to be a posting seed. Below this the
 # stance is too vague to anchor a public post.
 _MIN_STANCE_CONFIDENCE = 0.6
+
+# arc_recovery window: how recently a phase transition into RECOVERY or
+# STABILITY counts as a "good moment to post" signal. 24h matches the
+# outbound cron interval, so a user who entered STABILITY yesterday gets
+# exactly one chance to seed a post.
+_ARC_RECOVERY_WINDOW_SECONDS = 24 * 3600
+
+# topic_repetition: minimum count of same-topic mentions from the same
+# user in the lookback window before it counts as salience. 3 is the
+# threshold mem0 / Stanford Generative Agents use for "this matters
+# enough to abstract" — below that it's still casual conversation.
+_TOPIC_REPETITION_MIN_COUNT = 3
+_TOPIC_REPETITION_LOOKBACK_SECONDS = 24 * 3600
 
 
 # ---------------------------------------------------------------------------
@@ -121,18 +135,28 @@ async def detect_salience_signal(
 ) -> SalienceSignal | None:
     """Find ONE concrete reason to post now, or None.
 
-    Priority order (return first hit):
-      1. STANCE — a recent high-confidence stance Insult took
-      2. SYNTHESIS — a recent user message that activated the synthesis detector
-         (cross-domain claim Insult could expand on without leaking specifics)
+    Priority order (return first hit) — most-specific first so we prefer
+    seeds with explicit propositional content over heuristic cues:
 
-    Stances are queried from memory; synthesis is detected per-message
-    against `recent_messages` because we don't persist a synthesis log.
-    """
+      1. STANCE — a fresh high-confidence stance Insult took. Strongest
+         seed because the position is already abstract (topic + claim),
+         not personal facts.
+      2. SYNTHESIS — a recent user message that activated the cross-
+         domain detector. The user articulated something Insult could
+         expand on publicly.
+      3. ARC_RECOVERY — a user transitioned out of CRISIS into
+         RECOVERY or STABILITY in the last 24h. NOT a content seed —
+         a posture-change seed. Insult can publish an abstract idea
+         about resilience or emergence without referencing the user.
+      4. TOPIC_REPETITION — a user mentioned the same topic 3+ times in
+         the last 24h. Fallback when no stance/synthesis fired but
+         the conversation has clearly converged on something.
+
+    Stances and arc state come from memory; synthesis and topic
+    repetition are detected per-message against `recent_messages`."""
     cutoff = time.time() - _SALIENCE_WINDOW_SECONDS
 
-    # 1. STANCE — Insult's own positions are the safest seed material because
-    #    they're already abstract (topic + position), not personal facts.
+    # 1. STANCE
     for uid in user_ids:
         stances = await memory.get_stances(channel_id, uid, limit=10)
         for s in stances:
@@ -148,7 +172,7 @@ async def detect_salience_signal(
                 confidence=confidence,
             )
 
-    # 2. SYNTHESIS — scan recent USER messages for cross-domain hits.
+    # 2. SYNTHESIS
     if recent_messages:
         for m in reversed(recent_messages[-15:]):
             if m.get("role") != "user":
@@ -159,10 +183,96 @@ async def detect_salience_signal(
                     kind="synthesis",
                     seed_text=m.get("content", "")[:300],
                     topic=", ".join(sig.matched_terms[:3]),
-                    confidence=0.7,  # heuristic — synthesis hits are "interesting"
+                    confidence=0.7,
                 )
 
+    # 3. ARC_RECOVERY — fresh transition into RECOVERY / STABILITY
+    arc_signal = await _detect_arc_recovery(channel_id, user_ids, memory=memory)
+    if arc_signal is not None:
+        return arc_signal
+
+    # 4. TOPIC_REPETITION — same user, same topic, ≥3 times in 24h
+    return _detect_topic_repetition(user_ids, recent_messages or [])
+
+
+async def _detect_arc_recovery(
+    channel_id: str,
+    user_ids: list[str],
+    *,
+    memory,
+) -> SalienceSignal | None:
+    """User just exited CRISIS into RECOVERY or STABILITY → publishable
+    posture-change. We do NOT use the user's content as seed; the seed is
+    a generic 'idea about resilience / emergence' the bot can expand on."""
+    cutoff = time.time() - _ARC_RECOVERY_WINDOW_SECONDS
+    for uid in user_ids:
+        try:
+            arc = await memory.get_arc(channel_id, uid)
+        except Exception:
+            log.debug("moltbook_arc_lookup_failed", user_id=uid)
+            continue
+        if not arc:
+            continue
+        phase = str(arc.get("phase", "")).lower()
+        phase_since = float(arc.get("phase_since", 0.0))
+        if phase not in ("recovery", "stability"):
+            continue
+        if phase_since < cutoff:
+            # Stable for too long — not a fresh transition
+            continue
+        return SalienceSignal(
+            kind="arc_recovery",
+            seed_text=f"emergence and resilience after difficulty (phase={phase})",
+            topic="resilience emergence",
+            confidence=0.65,
+        )
     return None
+
+
+def _detect_topic_repetition(
+    user_ids: list[str],
+    recent_messages: list[dict],
+) -> SalienceSignal | None:
+    """A topic mentioned 3+ times by the same user in 24h is convergent
+    enough to seed a public abstract take. Reuses stance_log._extract_topic
+    so the topic-keyword extraction matches the rest of the codebase
+    (instead of inventing a parallel keyword extractor)."""
+    if not recent_messages:
+        return None
+    cutoff = time.time() - _TOPIC_REPETITION_LOOKBACK_SECONDS
+    user_set = set(user_ids)
+
+    # topic → (count, latest_message_text, latest_user_id)
+    counts: dict[str, int] = {}
+    latest: dict[str, tuple[str, str]] = {}
+    for m in recent_messages:
+        if m.get("role") != "user":
+            continue
+        if m.get("timestamp", 0) < cutoff:
+            continue
+        uid = m.get("user_id")
+        if uid is None or uid not in user_set:
+            continue
+        content = m.get("content", "")
+        topic = _extract_topic(content)
+        if not topic:
+            continue
+        counts[topic] = counts.get(topic, 0) + 1
+        latest[topic] = (content[:300], str(uid))
+
+    # Highest count first — if tied, the most-recent message wins
+    if not counts:
+        return None
+    best_topic = max(counts.items(), key=lambda kv: kv[1])[0]
+    if counts[best_topic] < _TOPIC_REPETITION_MIN_COUNT:
+        return None
+    seed_text, _uid = latest[best_topic]
+    return SalienceSignal(
+        kind="topic_repetition",
+        seed_text=seed_text,
+        topic=best_topic,
+        confidence=0.6,  # weakest of the four — fallback signal
+    )
 
 
 # ---------------------------------------------------------------------------
