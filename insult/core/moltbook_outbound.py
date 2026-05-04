@@ -328,3 +328,125 @@ async def build_post_draft(
     except Exception:
         log.exception("moltbook_outbound_draft_failed", signal_kind=signal.kind)
         return None
+
+
+# ---------------------------------------------------------------------------
+# LLM redaction pass — second scrub layer (decisive)
+# ---------------------------------------------------------------------------
+
+
+_REDACTION_SYSTEM = """\
+You are a privacy redactor for a public social-network post.
+
+INPUT FORMAT
+- The user message contains:
+    DRAFT:
+    <text to rewrite>
+
+    PRIVATE FACTS THAT MUST NOT BE INFERABLE FROM YOUR OUTPUT:
+    - fact A
+    - fact B
+    ...
+
+YOUR JOB
+Rewrite the draft so it preserves the IDEA / TAKE / OPINION but removes
+anything that would identify the humans behind it. The output is going
+to be PUBLIC on a social network where other agents and search engines
+will read it.
+
+HARD RULES
+- Output must NOT contain any of the listed facts, literally OR by paraphrase
+- Output must NOT mention names, specific dates, locations, dosages,
+  diagnoses, or specific incidents — even ones not in the facts list,
+  if they sound personal
+- Output MUST preserve the intellectual content (the take, the opinion,
+  the abstraction)
+- Tone: Spanish (Mexican casual), matching the draft. Same persona.
+- 2-4 sentences. NO subtitles or lists.
+
+WHEN YOU CAN'T REDACT SAFELY
+If the draft cannot be rewritten without revealing the private facts —
+because the take itself only makes sense WITH the private context — return
+a single empty line. The caller will skip publishing.
+
+OUTPUT FORMAT
+Return ONLY the rewritten draft. No <output> tags, no JSON, no
+commentary, no preamble like "Here is the rewritten:". Just the text."""
+
+
+async def redact_with_llm(
+    content: str,
+    private_facts: list[str],
+    *,
+    client,
+    model: str,
+) -> str | None:
+    """Run a Haiku-class redaction pass over a draft.
+
+    Decisive privacy layer: even if `regex_privacy_strip` missed something
+    (a paraphrase, an ungeneric proper noun, an oblique reference), this
+    LLM call has the FULL fact list as a *negative target* and is told
+    not to leak by literal OR paraphrase. After the LLM returns, we still
+    do a literal-substring check because trusting the LLM not to slip
+    after telling it not to slip is exactly how leaks happen.
+
+    Returns:
+      • str — the redacted draft, ready to publish
+      • None — LLM failed, returned empty, or our post-check found a
+        literal-substring leak. Caller treats this as 'skip this cycle'.
+    """
+    if not content or not content.strip():
+        return None
+    if not private_facts:
+        # Nothing to redact against — surface the pre-redaction draft as-is.
+        # (regex_privacy_strip already ran upstream so generic patterns are
+        # already gone; this branch exists for testing edge cases.)
+        return content
+
+    # Cap at 30 facts to keep prompt size bounded; pick the first 30
+    # which are typically the most-recently-extracted (already most relevant).
+    facts_block = "\n".join(f"- {f}" for f in private_facts[:30])
+    user_content = f"DRAFT:\n{content}\n\nPRIVATE FACTS THAT MUST NOT BE INFERABLE FROM YOUR OUTPUT:\n{facts_block}"
+
+    try:
+        response = await client.messages.create(
+            model=model,
+            max_tokens=min(max(len(content) * 2, 256), 2048),
+            system=_REDACTION_SYSTEM,
+            messages=[{"role": "user", "content": user_content}],
+        )
+        redacted = response.content[0].text.strip()
+    except Exception:
+        log.exception("moltbook_redaction_call_failed")
+        return None
+
+    if not redacted:
+        log.info("moltbook_redaction_returned_empty", facts_count=len(private_facts))
+        return None
+
+    # Substring-leak post-check. The LLM was told not to leak; this verifies.
+    # We do case-insensitive substring match because casing is not a defense.
+    redacted_lower = redacted.lower()
+    for f in private_facts:
+        f_str = str(f).strip()
+        # Skip very short / generic facts to avoid false positives. Short
+        # proper nouns (Bernard, Alex) are already stripped in the regex
+        # layer; what reaches us here is only the long contextual facts,
+        # so the threshold can be reasonably high without losing coverage.
+        if len(f_str) < 10:
+            continue
+        if f_str.lower() in redacted_lower:
+            log.warning(
+                "moltbook_redaction_leak_detected",
+                fact_preview=f_str[:60],
+                redacted_preview=redacted[:120],
+            )
+            return None
+
+    log.info(
+        "moltbook_redaction_applied",
+        original_len=len(content),
+        redacted_len=len(redacted),
+        facts_count=len(private_facts),
+    )
+    return redacted
