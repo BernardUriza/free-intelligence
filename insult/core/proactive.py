@@ -284,17 +284,64 @@ _MOOD_TOPICS = {
     ],
 }
 
-_INTEREST_TOPICS = {
-    "programming": ["tech news AI development 2026", "software engineering industry"],
-    "python": ["Python programming news updates 2026"],
-    "gaming": ["gaming news releases 2026", "videogames industry drama"],
-    "vegan": ["animal rights news 2026", "veganism movement"],
-    "music": ["music releases Mexico Latin America 2026"],
-    "art": ["contemporary art exhibitions Mexico 2026"],
-    "politics": ["Mexico politics social movements 2026"],
-    "psicolog": ["psychology research findings human behavior"],
-    "filosof": ["philosophy contemporary essays ideas"],
-}
+# Word-boundary patterns. Bare substrings ("art" matching "parte" /
+# "departamento" / "artista" indiscriminately) caused the bot to default
+# to the same single art topic on almost every world_scan — the keyword
+# triggered on routine words and the "art" bucket only had one topic.
+# Patterns now require whole-word boundaries and Spanish/English variants
+# are listed explicitly. Each bucket also holds enough alternatives that
+# `random.choice` actually varies what it picks.
+_INTEREST_PATTERNS: list[tuple[re.Pattern[str], list[str]]] = [
+    (
+        re.compile(r"\b(programming|coding|software|developer)\b", re.IGNORECASE),
+        ["tech news AI development 2026", "software engineering industry"],
+    ),
+    (
+        re.compile(r"\bpython\b", re.IGNORECASE),
+        ["Python programming news updates 2026"],
+    ),
+    (
+        re.compile(r"\b(gaming|videogames?|videojuegos?)\b", re.IGNORECASE),
+        ["gaming news releases 2026", "videogames industry drama"],
+    ),
+    (
+        re.compile(r"\b(vegan|veganism|veganismo|vegana?s?)\b", re.IGNORECASE),
+        ["animal rights news 2026", "veganism movement"],
+    ),
+    (
+        re.compile(r"\b(music|m[uú]sica|canci[oó]n|banda)\b", re.IGNORECASE),
+        [
+            "music releases Mexico Latin America 2026",
+            "indie music Mexico City scene 2026",
+            "Latin alternative music releases 2026",
+        ],
+    ),
+    (
+        # "expo" alone matches the word but NOT "exporta"/"exponencial".
+        # Same reasoning for the other forms.
+        re.compile(r"\b(arte|artista|exposici[oó]n|expo|museo|galer[ií]a|escultura|pintura)\b", re.IGNORECASE),
+        [
+            "contemporary art exhibitions Mexico 2026",
+            "Mexico independent cinema releases 2026",
+            "Latin American contemporary literature 2026",
+            "experimental theater performance Mexico City 2026",
+            "indie music Mexico Latin America scene 2026",
+            "documentary photography Mexico 2026",
+        ],
+    ),
+    (
+        re.compile(r"\b(pol[ií]tica|elecciones?|gobierno|gobiernos?)\b", re.IGNORECASE),
+        ["Mexico politics social movements 2026"],
+    ),
+    (
+        re.compile(r"\b(psicolog[íi]a|terapia|salud mental)\b", re.IGNORECASE),
+        ["psychology research findings human behavior"],
+    ),
+    (
+        re.compile(r"\b(filosof[íi]a|fenomenolog[íi]a|epistemolog[íi]a)\b", re.IGNORECASE),
+        ["philosophy contemporary essays ideas"],
+    ),
+]
 
 _DEFAULT_TOPICS = [
     "Mexico noticias trending hoy",
@@ -313,17 +360,16 @@ def _pick_search_topic(user_facts: dict[str, list[dict]], mood: str, recent_text
         return random.choice(_MOOD_TOPICS[mood])
 
     # Priority 2: Extract topics from recent conversation text
-    recent_lower = recent_text.lower()
-    matched_topics = []
-    for keyword, topics in _INTEREST_TOPICS.items():
-        if keyword in recent_lower:
+    matched_topics: list[str] = []
+    for pattern, topics in _INTEREST_PATTERNS:
+        if pattern.search(recent_text):
             matched_topics.extend(topics)
 
     # Priority 3: User facts
     if not matched_topics:
-        all_facts_text = " ".join(f["fact"].lower() for facts in user_facts.values() for f in facts)
-        for keyword, topics in _INTEREST_TOPICS.items():
-            if keyword in all_facts_text:
+        all_facts_text = " ".join(f["fact"] for facts in user_facts.values() for f in facts)
+        for pattern, topics in _INTEREST_PATTERNS:
+            if pattern.search(all_facts_text):
                 matched_topics.extend(topics)
 
     if matched_topics:

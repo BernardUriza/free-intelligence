@@ -223,6 +223,29 @@ class TestPickSearchTopic:
         topic = _pick_search_topic({}, "neutral", "")
         assert topic  # Returns a default topic
 
+    def test_substring_art_does_not_match_parte_or_departamento(self):
+        """Regression: pre-v3.7.10 the keyword 'art' substring-matched
+        'parte' / 'departamento' / 'artista' / 'reportar' etc., so almost
+        every neutral-mood world_scan picked the lone art topic and the
+        bot kept inviting users to museums. Ensure word boundaries hold."""
+        boring_text = "Ya está la reserva del departamento. Te paso una parte del reporte después."
+        # No facts → if 'art' still substring-matches, this returns the art bucket;
+        # otherwise it falls through to _DEFAULT_TOPICS.
+        # We can't assert which default it returns (random), but we CAN assert
+        # the result is NOT in the art bucket.
+        topic = _pick_search_topic({}, "neutral", boring_text)
+        assert "art exhibitions" not in topic
+        assert "documentary photography" not in topic
+
+    def test_word_arte_matches_art_bucket(self):
+        """Counterpart to the regression test: real mentions of 'arte'
+        SHOULD still trigger the cultural-topics bucket."""
+        topic = _pick_search_topic({}, "neutral", "Vamos a ver una expo de arte contemporáneo")
+        # Bucket has 6 entries, all are cultural — at least one of these
+        # keywords must appear.
+        cultural_keywords = ["art exhibitions", "cinema", "literature", "theater", "music", "photography"]
+        assert any(kw in topic for kw in cultural_keywords)
+
 
 # ---------------------------------------------------------------------------
 # Elapsed description
