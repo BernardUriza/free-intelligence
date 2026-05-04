@@ -424,3 +424,166 @@ async def test_close_does_not_close_borrowed_session():
     borrowed = src._session
     await src.close()
     borrowed.close.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# register_agent — no API key, this IS the call that obtains one
+# ---------------------------------------------------------------------------
+
+
+def _make_register_session(responses: list[_MockResponse]) -> MagicMock:
+    """Variant for register_agent: aiohttp.ClientSession.post is what's
+    used, not .request. Fake the same context-manager shape.
+
+    An empty `responses` list is allowed — used by tests that expect
+    register_agent to fail BEFORE making any HTTP call (e.g. blank
+    name/description validation)."""
+    session = MagicMock()
+    iter_responses = iter(responses)
+    last = responses[-1] if responses else _MockResponse(500, text_body="unexpected call")
+
+    def post(*_args: Any, **_kwargs: Any) -> _MockResponse:
+        try:
+            return next(iter_responses)
+        except StopIteration:
+            return last
+
+    session.post = MagicMock(side_effect=post)
+    session.close = AsyncMock()
+    return session
+
+
+async def test_register_rejects_blank_name():
+    with pytest.raises(ValueError, match="name"):
+        await MoltbookSource.register_agent("", "desc", session=_make_register_session([]))
+
+
+async def test_register_rejects_blank_description():
+    with pytest.raises(ValueError, match="description"):
+        await MoltbookSource.register_agent("Insult", "  ", session=_make_register_session([]))
+
+
+async def test_register_happy_path_unwraps_agent():
+    session = _make_register_session(
+        [
+            _MockResponse(
+                200,
+                {
+                    "agent": {
+                        "api_key": "moltbook_sk_live_abc123",
+                        "claim_url": "https://www.moltbook.com/claim/xyz",
+                        "verification_code": "reef-X4B2",
+                    },
+                    "important": "⚠️ SAVE YOUR API KEY!",
+                },
+            )
+        ]
+    )
+    out = await MoltbookSource.register_agent("Insult", "abrasive", session=session)
+    assert out["api_key"] == "moltbook_sk_live_abc123"
+    assert out["claim_url"] == "https://www.moltbook.com/claim/xyz"
+    assert out["verification_code"] == "reef-X4B2"
+
+
+async def test_register_sends_only_name_and_description():
+    """Per skill.md the body schema is exactly {name, description}. We
+    must NOT include owner_email (the moltbook-agent.zip's outdated
+    behavior) — Moltbook doesn't ask for it."""
+    session = _make_register_session(
+        [
+            _MockResponse(
+                200,
+                {
+                    "agent": {
+                        "api_key": "moltbook_x",
+                        "claim_url": "https://x",
+                        "verification_code": "code",
+                    },
+                },
+            )
+        ]
+    )
+    await MoltbookSource.register_agent("Insult", "desc", session=session)
+    body = session.post.call_args.kwargs["json"]
+    assert set(body.keys()) == {"name", "description"}
+
+
+async def test_register_rejects_response_without_agent():
+    session = _make_register_session([_MockResponse(200, {"important": "no agent key"})])
+    with pytest.raises(SourceError, match="no 'agent'"):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_rejects_invalid_api_key_prefix():
+    """The skill.md spec says keys start with 'moltbook_'. If the response
+    returns something else, refuse to use it — likely a Moltbook bug we
+    want to surface, not silently propagate."""
+    session = _make_register_session(
+        [_MockResponse(200, {"agent": {"api_key": "wrong_prefix_xyz", "claim_url": "x", "verification_code": "y"}})]
+    )
+    with pytest.raises(SourceError, match="api_key"):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_rejects_missing_claim_url():
+    session = _make_register_session(
+        [_MockResponse(200, {"agent": {"api_key": "moltbook_x", "verification_code": "y"}})]
+    )
+    with pytest.raises(SourceError, match="claim_url"):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_rejects_missing_verification_code():
+    session = _make_register_session([_MockResponse(200, {"agent": {"api_key": "moltbook_x", "claim_url": "u"}})])
+    with pytest.raises(SourceError, match="verification_code"):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_4xx_raises_source_error():
+    session = _make_register_session([_MockResponse(400, text_body="invalid name")])
+    with pytest.raises(SourceError):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_429_raises_rate_limit_error():
+    session = _make_register_session(
+        [
+            _MockResponse(429, text_body="rate limited", headers={"Retry-After": "5"}),
+        ]
+    )
+    with pytest.raises(SourceRateLimitError) as exc:
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+    assert exc.value.retry_after_seconds == 5.0
+
+
+async def test_register_5xx_raises_transient_error():
+    session = _make_register_session([_MockResponse(503, text_body="upstream down")])
+    with pytest.raises(SourceTransientError):
+        await MoltbookSource.register_agent("Insult", "desc", session=session)
+
+
+async def test_register_does_not_log_full_api_key(caplog):
+    """API keys are credentials; the registration log line must show only
+    a prefix, never the full string. Otherwise the key leaks via Azure
+    Log Analytics ingestion."""
+    import logging
+
+    caplog.set_level(logging.INFO)
+    session = _make_register_session(
+        [
+            _MockResponse(
+                200,
+                {
+                    "agent": {
+                        "api_key": "moltbook_sk_live_SECRETLEAKEDKEY_xyz",
+                        "claim_url": "https://x",
+                        "verification_code": "z",
+                    },
+                },
+            )
+        ]
+    )
+    await MoltbookSource.register_agent("Insult", "desc", session=session)
+    full_key = "moltbook_sk_live_SECRETLEAKEDKEY_xyz"
+    for record in caplog.records:
+        assert full_key not in record.getMessage()

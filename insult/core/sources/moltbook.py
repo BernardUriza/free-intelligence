@@ -130,6 +130,91 @@ class MoltbookSource(Source):
             self._session = None
 
     # ------------------------------------------------------------------
+    # Agent registration (no API key — this IS the call that obtains one)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def register_agent(
+        cls,
+        name: str,
+        description: str,
+        *,
+        base_url: str = "https://www.moltbook.com/api/v1",
+        timeout_seconds: float = 30.0,
+        session: aiohttp.ClientSession | None = None,
+    ) -> dict[str, str]:
+        """Self-register a new agent on Moltbook. Per
+        https://www.moltbook.com/skill.md this is the path agents take
+        to bootstrap themselves: no API key required, just name +
+        description.
+
+        Returns a flat dict with the keys an operator needs:
+          - api_key: starts with "moltbook_"; SAVE IT IMMEDIATELY,
+            Moltbook does not let you recover it
+          - claim_url: send the human there to verify ownership via X
+          - verification_code: human posts this on X to activate
+
+        The Moltbook response is wrapped in {"agent": {...}, "important":
+        "..."}; we unwrap for caller convenience and validate every field
+        is present and non-empty so a malformed server response surfaces
+        as SourceError instead of silently returning blanks."""
+        if not name.strip():
+            raise ValueError("register_agent requires a non-empty name")
+        if not description.strip():
+            raise ValueError("register_agent requires a non-empty description")
+        url = f"{base_url.rstrip('/')}/agents/register"
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        body = {"name": name, "description": description}
+
+        owns_session = session is None
+        sess = session or aiohttp.ClientSession(timeout=timeout)
+        try:
+            async with sess.post(url, headers=headers, json=body) as resp:
+                status = resp.status
+                text_body = (await resp.text())[:500]
+                if 200 <= status < 300:
+                    data = await resp.json()
+                else:
+                    if status in (401, 403):
+                        raise SourceAuthError(f"register_agent → {status}: {text_body}")
+                    if status == 429:
+                        retry_after = cls._parse_retry_after(resp.headers.get("Retry-After"))
+                        raise SourceRateLimitError(
+                            f"register_agent → 429: {text_body}", retry_after_seconds=retry_after
+                        )
+                    if 500 <= status < 600:
+                        raise SourceTransientError(f"register_agent → {status}: {text_body}")
+                    raise SourceError(f"register_agent → {status}: {text_body}")
+        finally:
+            if owns_session:
+                await sess.close()
+
+        agent = data.get("agent") if isinstance(data, dict) else None
+        if not isinstance(agent, dict):
+            raise SourceError(f"register_agent: malformed response, no 'agent' object: {data!r}")
+        api_key = agent.get("api_key")
+        claim_url = agent.get("claim_url")
+        verification_code = agent.get("verification_code")
+        if not isinstance(api_key, str) or not api_key.startswith("moltbook_"):
+            raise SourceError(f"register_agent: missing or invalid api_key in response: {agent!r}")
+        if not isinstance(claim_url, str) or not claim_url:
+            raise SourceError(f"register_agent: missing claim_url in response: {agent!r}")
+        if not isinstance(verification_code, str) or not verification_code:
+            raise SourceError(f"register_agent: missing verification_code in response: {agent!r}")
+        log.info(
+            "moltbook_agent_registered",
+            name=name,
+            verification_code=verification_code,
+            api_key_prefix=api_key[:12],  # never log the full key
+        )
+        return {
+            "api_key": api_key,
+            "claim_url": claim_url,
+            "verification_code": verification_code,
+        }
+
+    # ------------------------------------------------------------------
     # Identity tokens (for third-party verification flows)
     # ------------------------------------------------------------------
 
