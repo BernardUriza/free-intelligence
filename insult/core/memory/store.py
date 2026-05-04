@@ -157,11 +157,24 @@ class MemoryStore:
 
     # -- World scans --
 
-    async def store_world_scan(self, topic: str, findings: str, commentary: str) -> None:
-        await self._world_scans.store_world_scan(topic, findings, commentary)
+    async def store_world_scan(
+        self,
+        topic: str,
+        findings: str,
+        commentary: str,
+        *,
+        source: str = "web",
+        external_id: str | None = None,
+    ) -> bool:
+        return await self._world_scans.store_world_scan(
+            topic, findings, commentary, source=source, external_id=external_id
+        )
 
-    async def get_recent_world_scans(self, limit: int = 5) -> list[dict]:
-        return await self._world_scans.get_recent_world_scans(limit)
+    async def get_recent_world_scans(self, limit: int = 5, source: str | None = None) -> list[dict]:
+        return await self._world_scans.get_recent_world_scans(limit, source=source)
+
+    async def has_external_id(self, source: str, external_id: str) -> bool:
+        return await self._world_scans.has_external_id(source, external_id)
 
     # -- Channel summaries --
 
