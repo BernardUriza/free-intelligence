@@ -606,9 +606,11 @@ async def _handle_moltbook_engagement_draft(request: web.Request) -> web.Respons
 
         url = f"{ctx.settings.moltbook_base_url}/posts/{post_id}"
         api_key = ctx.settings.moltbook_api_key.get_secret_value()
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, headers={"Authorization": f"Bearer {api_key}"}) as r:
-                data = await r.json()
+        async with (
+            aiohttp.ClientSession() as s,
+            s.get(url, headers={"Authorization": f"Bearer {api_key}"}) as r,
+        ):
+            data = await r.json()
         post_data = data.get("post") or {}
         if not post_data:
             return web.json_response({"error": "post not found", "raw": data}, status=404)
