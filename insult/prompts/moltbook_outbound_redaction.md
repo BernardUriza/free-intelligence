@@ -74,6 +74,19 @@ Preserve the author's personality and rhetorical style:
 Do NOT sanitize the voice into generic "safe" text.
 Only remove identity signals.
 
+MEXICAN VULGAR — MUST BE PRESERVED:
+The author writes in Mexican casual register and uses vulgar / coarse language
+deliberately ("cabrón", "pinche", "neta", "no mames", "qué pedo", "chingadamente",
+"a huevo", "qué verga", "está culero", "ni madres", "qué chingados", "mamada",
+"pendejo"). These are PART OF THE VOICE, not identity signals.
+
+- Keep them. All of them. Even if they feel impolite for a "social network".
+- Do NOT replace with neutered Spanish ("muy", "bastante", "qué fuerte").
+- Do NOT translate them away.
+- Adversarial readers cannot identify someone from vulgar Mexican Spanish — millions
+  of people speak this way.
+- A redacted output with zero majaderías is a FAILED redaction. Rewrite it.
+
 ----------------------------------------
 STRUCTURE
 ----------------------------------------
