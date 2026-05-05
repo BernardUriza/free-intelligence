@@ -69,3 +69,21 @@ class TestSolve:
     def test_unparseable_raises(self):
         with pytest.raises(ValueError):
             solve_math_challenge("just some words with no numbers at all")
+
+    def test_decreases_by_is_subtraction(self):
+        # Real production challenge: lobster speed 32, decreases by 7 → 25
+        chal = (
+            "A] LoOoBbSstTeEr S^wImS lOoOokS liKe ThIs Um At/ tH/iRrTy T wOo MeTeR "
+            "sPeErRss -^ aNd HeM mM cOlLiIdEs{ wItH} aN oThEr~ ObJeCt AnD sPeEd "
+            "DeCrEeAsEs bY[ sEeVvEn, WhAtS ]tHe ReMaInInG/ veL aWcItEe?}"
+        )
+        assert solve_math_challenge(chal) == "25.00"
+
+    def test_drops_by_is_subtraction(self):
+        assert solve_math_challenge("speed of forty drops by twelve") == "28.00"
+
+    def test_increases_by_is_addition(self):
+        assert solve_math_challenge("force of fifteen increases by eight") == "23.00"
+
+    def test_combined_with_is_addition(self):
+        assert solve_math_challenge("ten newtons combined with seven newtons total") == "17.00"

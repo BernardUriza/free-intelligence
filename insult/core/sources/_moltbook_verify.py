@@ -79,14 +79,27 @@ def _decode_obfuscated(text: str) -> str:
 
 def _permissive(word: str) -> str:
     r"""Build a regex pattern that matches `word` even with each letter
-    repeated >=1 times (Moltbook anti-bot pattern)."""
-    return "".join(c + "+" for c in word)
+    repeated >=1 times AND optional whitespace between letters. Moltbook's
+    obfuscation does both: 'tHrReEe' (doubled letters), and 'T wOo'
+    (space injected mid-word). Pattern: 't+\s*w+\s*o+' matches all of
+    'two', 't woo', 'twoo', 'tt woo'."""
+    return r"\s*".join(c + "+" for c in word)
+
+
+def _normalize_intraword_noise(text: str) -> str:
+    """Strip `/` and similar separators when they appear *between letters*
+    — Moltbook injects them inside words ('tH/iRrTy'); they're never the
+    division operator inside a word number. Run before _replace_word_numbers
+    so the permissive regex can match across the (now-removed) noise."""
+    text = re.sub(r"(?<=[a-z])\s*/\s*(?=[a-z])", " ", text)
+    return re.sub(r"\s+", " ", text)
 
 
 def _replace_word_numbers(text: str) -> str:
     """Replace English word numbers with digit equivalents. Compounds
     like 'twenty three' first, then standalone words. Tolerates Moltbook's
-    consonant-doubling: 'twennty thrreee' and 'twenty three' both → '23'."""
+    consonant-doubling AND space-injection."""
+    text = _normalize_intraword_noise(text)
     # Compounds: tens + ones → digits
     for tens_w, tens_v in _TENS.items():
         for ones_w, ones_v in _ONES.items():
@@ -105,19 +118,82 @@ def _replace_word_numbers(text: str) -> str:
 
 def _detect_op(between: str) -> str:
     """Sniff the operator out of the words/symbols between two numbers.
-    Defaults to '*' (lobster math is overwhelmingly multiplication).
-    Order matters: 'multiplied by' before 'plus' so we don't match 'p'
-    inside 'multiplied'."""
-    if "*" in between or " x " in between or "times" in between or "multiplied by" in between:
-        return "*"
-    if "/" in between or "divided by" in between:
-        return "/"
-    if "+" in between or "plus" in between:
-        return "+"
-    if "minus" in between:
+    Order matters: longer/more-specific phrases first so we don't accidentally
+    match a substring of a longer operator phrase.
+
+    Falls back to '*' only when nothing else matches — many lobster problems
+    are multiplication, but production has shown subtraction phrasings like
+    'decreases by', 'collides ... speed decreases by N', 'velocity loss of N'.
+
+    The text we're sniffing in still has Moltbook's doubled letters
+    ('decreeases', 'remoooves', 'subbtractss'); collapse repeats here so
+    the keyword match works."""
+    between = re.sub(r"([a-z])\1+", r"\1", between.lower())
+
+    # Subtraction signals (most common english framings)
+    sub_keywords = (
+        "decreases by",
+        "decrease by",
+        "decreased by",
+        "drops by",
+        "drop by",
+        "dropped by",
+        "loses",
+        "lose ",
+        "lost",
+        "subtract",
+        "subtracts",
+        "subtracting",
+        "reduce",
+        "reduced",
+        "less ",
+        "minus",
+        "remove",
+        "removes",
+        "remaining",
+        "left after",
+        "after losing",
+    )
+    if any(kw in between for kw in sub_keywords):
         return "-"
-    # Plain '-' is ambiguous (it shows up as a word separator after the
-    # hyphen→space replacement), so we don't trust it here.
+
+    # Multiplication
+    if (
+        "*" in between
+        or " x " in between
+        or "times" in between
+        or "multiplied by" in between
+        or "product of" in between
+    ):
+        return "*"
+
+    # Division
+    if (
+        "/" in between
+        or "divided by" in between
+        or "divide" in between
+        or "split into" in between
+        or "split among" in between
+    ):
+        return "/"
+
+    # Addition
+    if (
+        "+" in between
+        or "plus" in between
+        or "added to" in between
+        or "adds" in between
+        or "increase by" in between
+        or "increases by" in between
+        or "increased by" in between
+        or "combined with" in between
+        or "together with" in between
+        or "total of" in between
+    ):
+        return "+"
+
+    # Plain '-' is ambiguous because hyphen→space replacement nukes legit
+    # hyphens, so we don't trust it as a sole signal. Default '*'.
     return "*"
 
 
