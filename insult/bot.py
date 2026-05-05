@@ -69,24 +69,33 @@ def _build(container: Container):
         try:
             resp = await container.llm.client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=20,
+                max_tokens=200,
                 system=(
-                    "Decode the obfuscated math word problem and return ONLY the "
-                    "numeric answer with two decimal places (e.g. '15.00'). The "
-                    "text uses doubled letters and case-mashing as anti-bot noise; "
-                    "ignore that. No explanation, no units, no extra characters."
+                    "Decode the obfuscated math word problem (ignore doubled "
+                    "letters and case-mashing). Compute the answer. End your "
+                    "response with the FINAL ANSWER on its own line in the "
+                    "exact format: ANSWER: NN.NN  (two decimals, no units). "
+                    "Show your work above that line if you want, but the very "
+                    "last line MUST be 'ANSWER: <number>.<two-decimals>'."
                 ),
                 messages=[{"role": "user", "content": challenge_text}],
             )
             raw = resp.content[0].text.strip() if resp.content else ""
-            log.info("moltbook_verify_llm_solver_raw", raw=raw[:200])
+            log.info("moltbook_verify_llm_solver_raw", raw=raw[:300])
             import re as _re
 
-            m = _re.search(r"-?\d+(?:\.\d+)?", raw)
+            # Prefer the explicit ANSWER: <num> marker. Fall back to the LAST
+            # number anywhere in the text (Haiku tends to put the final answer
+            # at the end of a "show your work" trace).
+            m = _re.search(r"ANSWER\s*:\s*(-?\d+(?:\.\d+)?)", raw, _re.IGNORECASE)
             if not m:
-                log.warning("moltbook_verify_llm_solver_no_number", raw=raw[:200])
-                return None
-            num = float(m.group())
+                matches = list(_re.finditer(r"-?\d+(?:\.\d+)?", raw))
+                if not matches:
+                    log.warning("moltbook_verify_llm_solver_no_number", raw=raw[:300])
+                    return None
+                num = float(matches[-1].group())
+            else:
+                num = float(m.group(1))
             return f"{num:.2f}"
         except Exception:
             log.exception("moltbook_verify_llm_solver_failed")
