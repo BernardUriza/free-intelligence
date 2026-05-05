@@ -478,10 +478,10 @@ async def build_post_draft(
     treats that as "skip this cycle, log, try again next interval."""
     import json
 
-    seed_block = f"Tipo de saliencia: {signal.kind}\n"
+    seed_block = f"Salience kind: {signal.kind}\n"
     if signal.topic:
-        seed_block += f"Tópico: {signal.topic}\n"
-    seed_block += f"Semilla: {signal.seed_text[:400]}"
+        seed_block += f"Topic: {signal.topic}\n"
+    seed_block += f"Seed text: {signal.seed_text[:400]}"
 
     # Subject code hint: tell the LLM which Subject letter the salience
     # came from so the draft consistently anonymizes the same user as the
@@ -491,24 +491,24 @@ async def build_post_draft(
     if signal.source_user_id and subject_codes:
         letter = subject_codes.get(signal.source_user_id)
         if letter:
-            subject_hint = f"\n\n## Subject del cual viene esta salience\nSubject {letter} — usa ese código en la nota."
+            subject_hint = f"\n\n## Subject this salience came from\nSubject {letter} — use that code in the note."
 
     session_n = len(previous_notes or []) + 1
     notes_block = ""
     if previous_notes:
-        notes_block = "\n\n## Tus notas previas en el archivo\n"
+        notes_block = "\n\n## Your prior notes in the archive\n"
         for i, n in enumerate(previous_notes[:5], 1):
             title = str(n.get("topic", "")).strip()
             snippet = str(n.get("findings", ""))[:200].strip()
             notes_block += f"- [{i}] {title}\n      «{snippet}»\n"
         notes_block += (
-            "\nSi hay match temático con alguna, puedes referenciarla "
-            'explícitamente ("como ya documenté en sesión X, ..."). Si no '
-            'hay match, no fuerces la referencia — solo abre con "Continúo '
-            'el archivo."'
+            "\nIf there's a thematic match with one of them, you may reference "
+            'it explicitly ("as I already logged in session X, ..."). If there '
+            "is no match, do not force the reference — just open with "
+            '"Continuing the archive."'
         )
     else:
-        notes_block = "\n\n## Primer post\nEs Sesión 1. Abre el archivo."
+        notes_block = "\n\n## First post\nThis is Session 1. Open the archive."
 
     # Persona.md is in Spanish and longer text drifts back to that language
     # even when the moltbook prompt opens with a LANGUAGE OVERRIDE. So:
@@ -525,8 +525,8 @@ async def build_post_draft(
         "═══════════════════════════════════════════════════════════════════════\n"
     )
     user = (
-        f"Submolt destino: {target_submolt}\n\n"
-        f"## Sesión número\nN = {session_n}\n\n"
+        f"Target submolt: {target_submolt}\n\n"
+        f"## Session number\nN = {session_n}\n\n"
         f"## Salience\n{seed_block}"
         f"{subject_hint}"
         f"{notes_block}"
