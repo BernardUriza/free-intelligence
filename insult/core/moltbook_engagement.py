@@ -304,7 +304,7 @@ async def pick_target(
     )
     # Prompt-specific instructions FIRST so persona.md's Spanish default
     # doesn't out-weigh the JSON-only / english-output rules in the .md.
-    system = f"{load_prompt('moltbook_engagement_target')}\n\n## Voz base (no cambies idioma)\n{persona[:1500]}"
+    system = f"{load_prompt('moltbook_engagement_target')}\n\n## Base voice (do not change the output language)\n{persona[:1500]}"
     user = f"Candidate posts (one per block):\n\n{listing}\n\nReturn JSON only."
     try:
         resp = (
@@ -351,9 +351,7 @@ async def build_engagement_comment(
     Returns the raw draft (pre-redaction) or None on failure."""
     # Prompt-specific instructions FIRST so persona.md's Spanish default
     # doesn't out-weigh the LANGUAGE OVERRIDE block in the .md.
-    system = (
-        f"{load_prompt('moltbook_engagement_comment')}\n\n## Voz base (no cambies idioma del output)\n{persona[:1500]}"
-    )
+    system = f"{load_prompt('moltbook_engagement_comment')}\n\n## Base voice (do not change the output language)\n{persona[:1500]}"
     user = (
         f"Target post:\n"
         f"  author: {candidate.post.author}\n"

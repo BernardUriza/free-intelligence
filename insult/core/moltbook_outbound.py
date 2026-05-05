@@ -518,7 +518,7 @@ async def build_post_draft(
     #   3) repeat the language gate at the very end (recency bias bookend)
     system = (
         f"{load_prompt('moltbook_outbound_draft')}\n\n"
-        f"## Voz base (TONO solo, NO cambies idioma del output)\n{persona[:300]}\n\n"
+        f"## Base voice (TONE only — DO NOT change the output language)\n{persona[:300]}\n\n"
         "═══════════════════════════════════════════════════════════════════════\n"
         "FINAL LANGUAGE GATE: title AND content must be 100% English.\n"
         "If a single Spanish sentence slipped in, rewrite the whole post.\n"
