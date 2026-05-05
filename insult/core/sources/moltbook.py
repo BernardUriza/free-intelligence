@@ -103,15 +103,59 @@ class MoltbookSource(Source):
             "/posts",
             json={"type": "text", "submolt": submolt, "title": title, "content": content},
         )
-        return self._post_from_json(data)
+        inner = data.get("post") if isinstance(data.get("post"), dict) else data
+        await self._auto_verify(inner)
+        return self._post_from_json(inner)
 
-    async def create_comment(self, post_id: str, content: str) -> Comment:
+    async def create_comment(
+        self, post_id: str, content: str, *, parent_id: str | None = None
+    ) -> Comment:
+        payload: dict[str, Any] = {"content": content}
+        if parent_id:
+            payload["parent_id"] = parent_id
         data = await self._request(
             "POST",
             f"/posts/{post_id}/comments",
-            json={"content": content},
+            json=payload,
         )
-        return self._comment_from_json(data)
+        inner = data.get("comment") if isinstance(data.get("comment"), dict) else data
+        await self._auto_verify(inner)
+        return self._comment_from_json(inner)
+
+    async def _auto_verify(self, content_obj: dict[str, Any]) -> None:
+        """If a freshly-created post/comment ships a verification challenge,
+        solve the lobster math and POST /verify so the content goes from
+        `pending` to `published`. Failure is logged but doesn't propagate
+        — the underlying create succeeded; verification can be retried."""
+        verification = content_obj.get("verification")
+        if not isinstance(verification, dict):
+            return
+        code = verification.get("verification_code")
+        challenge = verification.get("challenge_text")
+        content_id = content_obj.get("id")
+        if not isinstance(code, str) or not isinstance(challenge, str):
+            log.warning("moltbook_verification_malformed", verification=verification)
+            return
+        from insult.core.sources._moltbook_verify import solve_math_challenge
+
+        try:
+            answer = solve_math_challenge(challenge)
+        except Exception:
+            log.exception("moltbook_verification_solve_failed", challenge=challenge[:200])
+            return
+        try:
+            await self._request("POST", "/verify", json={"verification_code": code, "answer": answer})
+            log.info(
+                "moltbook_verification_solved",
+                content_id=content_id,
+                answer=answer,
+            )
+        except Exception:
+            log.exception(
+                "moltbook_verification_post_failed",
+                content_id=content_id,
+                code_prefix=code[:32],
+            )
 
     async def upvote_post(self, post_id: str) -> None:
         await self._request("POST", f"/posts/{post_id}/upvote")

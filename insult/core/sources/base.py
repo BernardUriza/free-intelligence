@@ -120,8 +120,12 @@ class Source(ABC):
         """Publish a new post."""
 
     @abstractmethod
-    async def create_comment(self, post_id: str, content: str) -> Comment:
-        """Reply to an existing post."""
+    async def create_comment(
+        self, post_id: str, content: str, *, parent_id: str | None = None
+    ) -> Comment:
+        """Reply to an existing post. If `parent_id` is given the new
+        comment is a reply to that comment (threaded), otherwise it's a
+        top-level comment on the post."""
 
     @abstractmethod
     async def upvote_post(self, post_id: str) -> None:
