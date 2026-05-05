@@ -51,6 +51,7 @@ class MoltbookSource(Source):
         max_retries: int = 4,
         timeout_seconds: float = 15.0,
         session: aiohttp.ClientSession | None = None,
+        verify_llm_solver: Any = None,
     ) -> None:
         if not api_key:
             raise ValueError("MoltbookSource requires a non-empty api_key")
@@ -60,6 +61,12 @@ class MoltbookSource(Source):
         self._timeout = aiohttp.ClientTimeout(total=timeout_seconds)
         self._session = session
         self._owns_session = session is None
+        # Optional async callable that maps a challenge_text → answer string.
+        # When set, _auto_verify uses it INSTEAD of the regex solver — the
+        # verification_code is single-use (a wrong answer burns it forever),
+        # so an LLM is more reliable than chasing every English math
+        # phrasing in regex. Falls back to the regex solver if it raises.
+        self._verify_llm_solver = verify_llm_solver
         # Identity token cache (used when the bot needs to prove its identity
         # to third-party services that integrate with Moltbook Identity).
         self._identity_token: str | None = None
@@ -128,7 +135,12 @@ class MoltbookSource(Source):
         """If a freshly-created post/comment ships a verification challenge,
         solve the lobster math and POST /verify so the content goes from
         `pending` to `published`. Failure is logged but doesn't propagate
-        — the underlying create succeeded; verification can be retried."""
+        — the underlying create succeeded; verification can be retried.
+
+        Important: the verification_code is SINGLE-USE. A wrong answer burns
+        it (subsequent /verify calls return 409 'Already answered'). So we
+        log the answer we tried and the body of any error so a wrong solve
+        is diagnosable without needing to repro."""
         verification = content_obj.get("verification")
         if not isinstance(verification, dict):
             return
@@ -140,11 +152,40 @@ class MoltbookSource(Source):
             return
         from insult.core.sources._moltbook_verify import solve_math_challenge
 
-        try:
-            answer = solve_math_challenge(challenge)
-        except Exception:
-            log.exception("moltbook_verification_solve_failed", challenge=challenge[:200])
-            return
+        # Prefer LLM solver when available — see _verify_llm_solver docstring.
+        answer: str | None = None
+        if self._verify_llm_solver:
+            try:
+                llm_answer = await self._verify_llm_solver(challenge)
+                if isinstance(llm_answer, str) and llm_answer.strip():
+                    answer = llm_answer.strip()
+                    log.info(
+                        "moltbook_verification_llm_solved",
+                        content_id=content_id,
+                        answer=answer,
+                    )
+            except Exception:
+                log.exception(
+                    "moltbook_verification_llm_failed",
+                    challenge=challenge[:300],
+                    content_id=content_id,
+                )
+        if answer is None:
+            try:
+                answer = solve_math_challenge(challenge)
+            except Exception:
+                log.exception(
+                    "moltbook_verification_solve_failed",
+                    challenge=challenge[:300],
+                    content_id=content_id,
+                )
+                return
+        log.info(
+            "moltbook_verification_attempt",
+            content_id=content_id,
+            answer=answer,
+            challenge=challenge[:300],
+        )
         try:
             await self._request("POST", "/verify", json={"verification_code": code, "answer": answer})
             log.info(
@@ -152,11 +193,16 @@ class MoltbookSource(Source):
                 content_id=content_id,
                 answer=answer,
             )
-        except Exception:
-            log.exception(
+        except SourceError as e:
+            # SourceError carries the upstream body_text (e.g. the "Incorrect
+            # answer" hint). Surface it so we know whether to expand the
+            # solver or whether the API is doing something else.
+            log.error(
                 "moltbook_verification_post_failed",
                 content_id=content_id,
-                code_prefix=code[:32],
+                answer=answer,
+                challenge=challenge[:300],
+                error=str(e)[:500],
             )
 
     async def upvote_post(self, post_id: str) -> None:

@@ -58,6 +58,37 @@ def _build(container: Container):
     # is_azure_configured() guards _backup_task.
     _moltbook_source: MoltbookSource | None = None
 
+    async def _verify_llm_solver(challenge_text: str) -> str | None:
+        """Resolve a Moltbook lobster-math challenge with Claude Haiku.
+
+        The verification_code is single-use, so a wrong answer permanently
+        burns the comment. LLM is more flexible than the regex solver at
+        the weird physics phrasings ('accelerates by', 'velocity loss of',
+        etc.) Moltbook keeps inventing."""
+        try:
+            resp = await container.llm.client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=20,
+                system=(
+                    "Decode the obfuscated math word problem and return ONLY the "
+                    "numeric answer with two decimal places (e.g. '15.00'). The "
+                    "text uses doubled letters and case-mashing as anti-bot noise; "
+                    "ignore that. No explanation, no units, no extra characters."
+                ),
+                messages=[{"role": "user", "content": challenge_text}],
+            )
+            raw = resp.content[0].text.strip() if resp.content else ""
+            import re as _re
+
+            m = _re.search(r"-?\d+(?:\.\d+)?", raw)
+            if not m:
+                return None
+            num = float(m.group())
+            return f"{num:.2f}"
+        except Exception:
+            log.exception("moltbook_verify_llm_solver_failed")
+            return None
+
     def _get_moltbook_source() -> MoltbookSource | None:
         nonlocal _moltbook_source
         if _moltbook_source is not None:
@@ -68,6 +99,7 @@ def _build(container: Container):
         _moltbook_source = MoltbookSource(
             api_key=api_key,
             base_url=container.settings.moltbook_base_url,
+            verify_llm_solver=_verify_llm_solver,
         )
         log.info("moltbook_source_initialized", base_url=container.settings.moltbook_base_url)
         return _moltbook_source
