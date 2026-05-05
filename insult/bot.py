@@ -65,6 +65,7 @@ def _build(container: Container):
         burns the comment. LLM is more flexible than the regex solver at
         the weird physics phrasings ('accelerates by', 'velocity loss of',
         etc.) Moltbook keeps inventing."""
+        log.info("moltbook_verify_llm_solver_entered", challenge_len=len(challenge_text))
         try:
             resp = await container.llm.client.messages.create(
                 model="claude-haiku-4-5-20251001",
@@ -78,10 +79,12 @@ def _build(container: Container):
                 messages=[{"role": "user", "content": challenge_text}],
             )
             raw = resp.content[0].text.strip() if resp.content else ""
+            log.info("moltbook_verify_llm_solver_raw", raw=raw[:200])
             import re as _re
 
             m = _re.search(r"-?\d+(?:\.\d+)?", raw)
             if not m:
+                log.warning("moltbook_verify_llm_solver_no_number", raw=raw[:200])
                 return None
             num = float(m.group())
             return f"{num:.2f}"
