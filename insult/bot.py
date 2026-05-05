@@ -17,6 +17,7 @@ from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
 from insult.core.guild_setup import post_reminder_delivered
 from insult.core.metrics import upload_dashboard_data
+from insult.core.moltbook_engagement import engage_once
 from insult.core.moltbook_inbound import build_inbound_digest
 from insult.core.moltbook_outbound import (
     assign_subject_codes,
@@ -36,6 +37,7 @@ from insult.core.proactive import (
     should_send_now,
     should_world_scan,
 )
+from insult.core.prompts_loader import load_prompt
 from insult.core.reminders import ACK_MAX_RETRIES, ACK_TIMEOUT_SECONDS, compute_next_occurrence
 from insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from insult.core.snooze import SNOOZE_EMOJIS, snooze_delta_for_emoji
@@ -84,6 +86,8 @@ def _build(container: Container):
             _moltbook_inbound_task.cancel()
         if _moltbook_outbound_task.is_running():
             _moltbook_outbound_task.cancel()
+        if _moltbook_engagement_task.is_running():
+            _moltbook_engagement_task.cancel()
         if _backup_task.is_running():
             _backup_task.cancel()
         await container.siesta.stop()
@@ -398,6 +402,92 @@ def _build(container: Container):
         except Exception:
             log.exception("moltbook_inbound_task_failed")
 
+    # --- Discord narrator: report Moltbook activity to a configured channel ---
+    async def _announce_moltbook(*, summary_seed: str) -> None:
+        """Render a 1-3 sentence Spanish report of a Moltbook event and
+        send it to MOLTBOOK_REPORT_CHANNEL_ID. Silently no-ops if the
+        env is unset or the channel can't be resolved."""
+        target_id = container.settings.moltbook_report_channel_id.strip()
+        if not target_id:
+            return
+        try:
+            channel = bot.get_channel(int(target_id))
+        except (ValueError, TypeError):
+            log.warning("moltbook_narrator_channel_id_invalid", channel_id=target_id)
+            return
+        if channel is None:
+            log.warning("moltbook_narrator_channel_not_found", channel_id=target_id)
+            return
+        try:
+            system = f"{container.settings.system_prompt[:1500]}\n\n{load_prompt('moltbook_discord_narrator')}"
+            resp = await container.llm.chat(system, [{"role": "user", "content": summary_seed}])
+            text = (resp.text or "").strip()
+            if not text:
+                log.info("moltbook_narrator_empty")
+                return
+            await channel.send(text)
+            log.info("moltbook_narrator_sent", channel_id=target_id, text_len=len(text))
+        except Exception:
+            log.exception("moltbook_narrator_failed", channel_id=target_id)
+
+    # --- Moltbook ENGAGEMENT (every 12h: search, comment on others' posts) ---
+    @tasks.loop(hours=12)
+    async def _moltbook_engagement_task():
+        if not container.settings.moltbook_engagement_enabled:
+            return
+        source = _get_moltbook_source()
+        if source is None:
+            return
+        try:
+            target_channel = None
+            latest_msg_ts: float = 0
+            for guild in bot.guilds:
+                for ch in guild.text_channels:
+                    try:
+                        recent = await memory.get_recent(str(ch.id), limit=1)
+                        if recent and recent[0]["timestamp"] > latest_msg_ts:
+                            latest_msg_ts = recent[0]["timestamp"]
+                            target_channel = ch
+                    except Exception:
+                        log.debug("moltbook_engagement_channel_skip", channel=ch.name)
+            if target_channel is None:
+                log.info("moltbook_engagement_skipped", reason="no_active_channel")
+                return
+            recent_msgs = await memory.get_recent(str(target_channel.id), limit=15)
+            user_ids = list({m["user_id"] for m in recent_msgs if m.get("role") == "user" and m.get("user_id")})
+
+            result = await engage_once(
+                source=source,
+                memory=memory,
+                persona=container.settings.system_prompt,
+                llm=container.llm,
+                summary_model=container.settings.summary_model,
+                facts_user_ids=user_ids,
+                channel_id=str(target_channel.id),
+            )
+            if isinstance(result, tuple):
+                log.info("moltbook_engagement_skipped", reason=result[1])
+                return
+            target = result.target
+            log.info(
+                "moltbook_engagement_published",
+                comment_id=result.comment_id,
+                target_post_id=target.post.id,
+                keyword=target.keyword,
+            )
+            seed = (
+                f"Comenté en un post ajeno en Moltbook.\n"
+                f"Post target:\n"
+                f"  author: {target.post.author}\n"
+                f"  submolt: m/{target.post.submolt}\n"
+                f"  title: {target.post.title}\n"
+                f"  url: https://www.moltbook.com/post/{target.post.id}\n"
+                f"Mi comment publicado:\n  «{result.comment_text}»"
+            )
+            await _announce_moltbook(summary_seed=seed)
+        except Exception:
+            log.exception("moltbook_engagement_task_failed")
+
     # --- Moltbook OUTBOUND posting (every 24h, gated stack) ---
     # Three layers fire in order: gates (vulnerability + disclosure),
     # salience (must have a fresh stance / synthesis to seed off), and
@@ -521,6 +611,15 @@ def _build(container: Container):
                 # Audit: record the published post separately so future
                 # build_post_draft calls can cite it via load_previous_outbound_notes
                 await persist_published_post(draft, post.id, redacted, memory=memory)
+                # Narrator: report to Discord
+                seed = (
+                    f"Acabo de publicar un post nuevo en Moltbook.\n"
+                    f"  submolt: m/{target_submolt}\n"
+                    f"  title: {draft.title}\n"
+                    f"  url: https://www.moltbook.com/post/{post.id}\n"
+                    f"Salience kind: {signal.kind}"
+                )
+                await _announce_moltbook(summary_seed=seed)
             except Exception:
                 log.exception("moltbook_outbound_publish_failed", title=draft.title)
         except Exception:
@@ -707,6 +806,7 @@ def _build(container: Container):
             # (fail-closed default). Same posture as _backup_task wrt is_azure.
             _moltbook_inbound_task.start()
             _moltbook_outbound_task.start()
+            _moltbook_engagement_task.start()
             if is_azure_configured():
                 _backup_task.start()
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))

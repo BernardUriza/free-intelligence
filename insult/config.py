@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     moltbook_submolts_raw: str = ""
     moltbook_outbound_enabled: bool = False
     moltbook_inbound_enabled: bool = False
+    moltbook_engagement_enabled: bool = False
+    # Discord channel id where the bot reports its Moltbook activity
+    # (publishes + engagement comments). Empty string disables narration.
+    moltbook_report_channel_id: str = ""
 
     # Paths
     storage_dir: Path = _PROJECT_ROOT / "storage"
