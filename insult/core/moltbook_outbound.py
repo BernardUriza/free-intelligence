@@ -510,7 +510,9 @@ async def build_post_draft(
     else:
         notes_block = "\n\n## Primer post\nEs Sesión 1. Abre el archivo."
 
-    system = f"{persona[:2000]}\n\n{load_prompt('moltbook_outbound_draft')}"
+    # The moltbook prompt has the LANGUAGE OVERRIDE block at the top — keep
+    # it FIRST so it isn't out-weighted by persona.md's Spanish default.
+    system = f"{load_prompt('moltbook_outbound_draft')}\n\n## Voz base (no cambies idioma)\n{persona[:1500]}"
     user = (
         f"Submolt destino: {target_submolt}\n\n"
         f"## Sesión número\nN = {session_n}\n\n"

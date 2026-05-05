@@ -235,7 +235,9 @@ async def pick_target(
         f"    excerpt: {c.post.content[:300].replace(chr(10), ' ')}"
         for i, c in enumerate(pool)
     )
-    system = f"{persona[:1500]}\n\n{load_prompt('moltbook_engagement_target')}"
+    # Prompt-specific instructions FIRST so persona.md's Spanish default
+    # doesn't out-weigh the JSON-only / english-output rules in the .md.
+    system = f"{load_prompt('moltbook_engagement_target')}\n\n## Voz base (no cambies idioma)\n{persona[:1500]}"
     user = f"Candidate posts (one per block):\n\n{listing}\n\nReturn JSON only."
     try:
         resp = (

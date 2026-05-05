@@ -149,37 +149,19 @@ class LLMResponse:
 
 # Web search tool definition — Claude's native server-side search.
 #
-# Two variants:
-#   - WEB_SEARCH_TOOL: general-purpose, any domain. Used outside of
-#     clinical/safety contexts.
-#   - MEDICAL_WEB_SEARCH_TOOL: constrained to authoritative medical sources
-#     and localized to Mexico. Used when the user is flagged as vulnerable
-#     or the preset is RESPECTFUL_SERIOUS so that the bot cannot cite a
-#     random wellness blog about quetiapine dosing. See APA Health Advisory
-#     and MIND-SAFE framework references in vulnerability.py.
+# A single open tool is registered every turn. We considered a
+# domain-restricted "medical" variant for vulnerable users, but Anthropic's
+# API rejects two tools with the same name in one request, and switching
+# tool definitions between turns invalidates the prompt cache (tools →
+# system → messages hierarchy). Source-quality steering for clinical
+# queries lives in `_VULNERABLE_OVERLAY_PROMPT` (core/presets.py) instead,
+# which lets the model reach authoritative sources for "what is quetiapine"
+# while still surfacing useful results when the same user asks about a
+# fintech or a hostel.
 WEB_SEARCH_TOOL = {
     "type": "web_search_20250305",
     "name": "web_search",
     "max_uses": 3,
-}
-
-MEDICAL_WEB_SEARCH_TOOL = {
-    "type": "web_search_20250305",
-    "name": "web_search",
-    "max_uses": 3,
-    "allowed_domains": [
-        "medlineplus.gov",  # NIH patient-facing drug + condition info (Spanish + English)
-        "cima.aemps.es",  # AEMPS CIMA — Spanish regulatory drug leaflets (prospectos + fichas técnicas)
-        "nih.gov",  # National Institutes of Health
-        "nimh.nih.gov",  # National Institute of Mental Health
-        "who.int",  # World Health Organization
-        "salud.gob.mx",  # Mexican Secretaría de Salud
-    ],
-    "user_location": {
-        "type": "approximate",
-        "country": "MX",
-        "timezone": "America/Mexico_City",
-    },
 }
 
 

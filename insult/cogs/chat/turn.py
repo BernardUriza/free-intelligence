@@ -51,8 +51,8 @@ from insult.core.disclosure import scan_disclosure
 from insult.core.errors import ErrorType, classify_error, get_error_response
 from insult.core.facts import build_facts_prompt
 from insult.core.flows import ExpressionHistory, analyze_flows, build_flow_prompt, validate_flow_adherence
-from insult.core.llm import MEDICAL_WEB_SEARCH_TOOL, WEB_SEARCH_TOOL
-from insult.core.presets import PresetMode, PresetModifier
+from insult.core.llm import WEB_SEARCH_TOOL
+from insult.core.presets import PresetModifier
 from insult.core.reactions import add_reactions, parse_reactions, strip_reactions
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, OpusBudget, select_model
@@ -252,15 +252,14 @@ async def run_turn(
             verbosity=round(profile.avg_word_count, 1),
         )
 
-    # --- Tools: static + web_search variant per preset ---
-    # RESPECTFUL_SERIOUS (clinical / vulnerable) restricts search to
-    # authoritative medical sources (MedlinePlus, AEMPS CIMA, NIH, WHO).
-    # Rationale + domain list lives in llm.MEDICAL_WEB_SEARCH_TOOL.
-    tools = list(all_tools)
-    if preset.mode == PresetMode.RESPECTFUL_SERIOUS:
-        tools.append(MEDICAL_WEB_SEARCH_TOOL)
-    else:
-        tools.append(WEB_SEARCH_TOOL)
+    # --- Tools: static + open web_search ---
+    # Anthropic's API rejects two tools with the same name in one request,
+    # and switching tool definitions between turns invalidates the prompt
+    # cache (tools → system → messages hierarchy). So we register one
+    # web_search and steer source selection via the vulnerable-user
+    # overlay prompt when clinical citations matter (see
+    # `_VULNERABLE_OVERLAY_PROMPT` in core/presets.py).
+    tools = [*all_tools, WEB_SEARCH_TOOL]
 
     force_tool = PresetModifier.ACTION_INTENT in preset.modifiers
     tool_choice = {"type": "any"} if force_tool else None
