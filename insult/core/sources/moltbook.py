@@ -107,9 +107,7 @@ class MoltbookSource(Source):
         await self._auto_verify(inner)
         return self._post_from_json(inner)
 
-    async def create_comment(
-        self, post_id: str, content: str, *, parent_id: str | None = None
-    ) -> Comment:
+    async def create_comment(self, post_id: str, content: str, *, parent_id: str | None = None) -> Comment:
         payload: dict[str, Any] = {"content": content}
         if parent_id:
             payload["parent_id"] = parent_id
