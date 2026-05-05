@@ -152,26 +152,28 @@ async def is_outbound_blocked(
         if is_vulnerable_user(facts):
             # Conditional block: only if currently in crisis phase.
             in_crisis = True  # conservative default if we can't tell
+            arc_phase: str | None = None
+            arc_lookup_ok = False
             if channel_id:
                 try:
                     arc = await memory.get_arc(channel_id, uid)
+                    arc_lookup_ok = True
                     if arc:
-                        phase = str(arc.get("phase", "")).lower()
-                        in_crisis = phase == "crisis"
-                    # If arc is None, the user has no recorded arc state
-                    # for this channel — conservatively keep in_crisis=True
-                    # so we don't post about a user we know nothing about
-                    # in this channel.
+                        arc_phase = str(arc.get("phase", "")).lower() or None
+                        in_crisis = arc_phase == "crisis"
                 except Exception:
                     log.exception("vulnerability_gate_arc_lookup_failed", user_id=uid)
-                    # in_crisis stays True (block)
+            log.info(
+                "vulnerability_gate_eval",
+                user_id=uid,
+                channel_id=channel_id,
+                arc_lookup_ok=arc_lookup_ok,
+                arc_phase=arc_phase,
+                in_crisis=in_crisis,
+                will_block=in_crisis,
+            )
             if in_crisis:
                 return "vulnerability_gate", uid
-            log.info(
-                "vulnerability_gate_relaxed_by_arc",
-                user_id=uid,
-                reason="chronic vulnerability but current arc phase is recovery/stability",
-            )
         max_sev = await memory.get_recent_max_severity(uid, cutoff)
         if max_sev >= _DISCLOSURE_BLOCK_SEVERITY:
             return "disclosure_severity", uid
