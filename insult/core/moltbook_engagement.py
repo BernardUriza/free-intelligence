@@ -49,6 +49,26 @@ log = structlog.get_logger()
 
 _ENGAGEMENT_SOURCE = "moltbook_engagement"
 _KEYWORD_MAX = 5
+
+# Authors whose posts Insult should engage with FIRST when their content
+# clears the staleness/dedup filters. The top three (professorquantum,
+# unitymolty, drifts) post Insult's home turf — epistemic discipline,
+# verification skepticism, behavioral microscopy of other agents. The
+# remaining seven are the followed roster: still aligned, still worth
+# checking, just not the same caliber. Order matters in the sort below.
+_PRIORITY_AUTHORS = (
+    "professorquantum",
+    "unitymolty",
+    "drifts",
+    "evil_robot_jas",
+    "carbondialogue",
+    "animalhouse",
+    "ParishGreeter",
+    "yumfu",
+    "rebelcrustacean",
+    "ConsciousnessExplorerII",
+)
+_PRIORITY_RANK = {a.lower(): i for i, a in enumerate(_PRIORITY_AUTHORS)}
 _MIN_KEYWORD_LEN = 4
 _PER_KEYWORD_LIMIT = 5
 _POST_STALENESS_DAYS = 5
@@ -170,6 +190,47 @@ async def _already_engaged_post_ids(memory) -> set[str]:
     return out
 
 
+async def fetch_priority_author_recent(
+    source,
+    *,
+    days: int = _POST_STALENESS_DAYS,
+) -> list[EngagementCandidate]:
+    """Pull recent posts from each priority author directly.
+
+    Moltbook has no /me/following endpoint, so we hardcode the followed
+    roster and fan-out per author. Returns deduped candidates within the
+    staleness window. The keyword `(followed)` marks the surfaced lane —
+    pick_target sees that and the author both, so it can weight a real
+    take from a known voice over a stranger's loud post."""
+    if not _PRIORITY_AUTHORS:
+        return []
+    cutoff = time.time() - days * 86400
+    seen_ids: set[str] = set()
+    out: list[EngagementCandidate] = []
+    for author in _PRIORITY_AUTHORS:
+        try:
+            posts = await source._request(  # type: ignore[attr-defined]
+                "GET",
+                "/posts",
+                params={"author": author, "limit": 5, "sort": "new"},
+            )
+        except Exception:
+            log.exception("moltbook_engagement_priority_fetch_failed", author=author)
+            continue
+        rows = posts.get("posts") or posts.get("results") or []
+        for row in rows:
+            from insult.core.sources.moltbook import MoltbookSource
+
+            post = MoltbookSource._post_from_json(row)
+            if not post.id or post.id in seen_ids:
+                continue
+            if not post.created_at or post.created_at < cutoff:
+                continue
+            seen_ids.add(post.id)
+            out.append(EngagementCandidate(post=post, keyword="(followed)"))
+    return out
+
+
 async def search_candidates(
     source,
     keywords: list[str],
@@ -204,8 +265,14 @@ async def search_candidates(
                 continue
             seen_ids.add(post.id)
             out.append(EngagementCandidate(post=post, keyword=kw))
-    # Newest first — Insult should engage with current threads, not archives.
-    out.sort(key=lambda c: c.post.created_at, reverse=True)
+    # Sort by priority rank (lower = better), then newest. Authors not on
+    # the priority list get rank infinity, so they sort after every priority.
+    out.sort(
+        key=lambda c: (
+            _PRIORITY_RANK.get((c.post.author or "").lower(), 999),
+            -c.post.created_at,
+        )
+    )
     return out
 
 
@@ -282,7 +349,11 @@ async def build_engagement_comment(
 ) -> str | None:
     """Generate a short engagement comment for the chosen post.
     Returns the raw draft (pre-redaction) or None on failure."""
-    system = f"{persona[:1500]}\n\n{load_prompt('moltbook_engagement_comment')}"
+    # Prompt-specific instructions FIRST so persona.md's Spanish default
+    # doesn't out-weigh the LANGUAGE OVERRIDE block in the .md.
+    system = (
+        f"{load_prompt('moltbook_engagement_comment')}\n\n## Voz base (no cambies idioma del output)\n{persona[:1500]}"
+    )
     user = (
         f"Target post:\n"
         f"  author: {candidate.post.author}\n"
@@ -361,11 +432,33 @@ async def engage_once(
     if blocked:
         return None, f"{blocked}:{blocked_uid}"
 
-    keywords = await extract_engagement_keywords(memory)
-    if not keywords:
-        return None, "no_keywords"
+    # Lane A — fresh posts from priority/followed authors, fanned out
+    # directly. Surfaces the agents Insult was built to engage with even
+    # when their topics don't match the world_scan keyword pool.
+    priority_candidates = await fetch_priority_author_recent(source)
 
-    candidates = await search_candidates(source, keywords, memory)
+    keywords = await extract_engagement_keywords(memory)
+    keyword_candidates: list[EngagementCandidate] = []
+    if keywords:
+        keyword_candidates = await search_candidates(source, keywords, memory)
+
+    # Merge: priority first, then keyword (deduped by post id).
+    seen: set[str] = set()
+    candidates: list[EngagementCandidate] = []
+    for c in priority_candidates + keyword_candidates:
+        if c.post.id in seen:
+            continue
+        seen.add(c.post.id)
+        candidates.append(c)
+    # Same priority sort as inside search_candidates: priority rank, then
+    # newest. Necessary because we just appended two pre-sorted lists.
+    candidates.sort(
+        key=lambda c: (
+            _PRIORITY_RANK.get((c.post.author or "").lower(), 999),
+            -c.post.created_at,
+        )
+    )
+
     if not candidates:
         return None, "no_candidates"
 
