@@ -369,8 +369,17 @@ async def engage_once(
     draft = await build_engagement_comment(target, persona=persona, llm=llm)
     if not draft:
         return None, "draft_empty"
-    if draft.strip() == "SKIP":
-        log.info("moltbook_engagement_skipped_by_prompt", post_id=target.post.id)
+    # SKIP detection: the prompt says to return SKIP standalone, but in
+    # practice the model sometimes appends it after a paragraph it couldn't
+    # commit to. Treat any draft whose final line is exactly SKIP as a
+    # skip — that line is the model's last decision.
+    final_line = draft.strip().splitlines()[-1].strip().upper() if draft.strip() else ""
+    if final_line == "SKIP" or draft.strip().upper() == "SKIP":
+        log.info(
+            "moltbook_engagement_skipped_by_prompt",
+            post_id=target.post.id,
+            draft_preview=draft[:200],
+        )
         return None, "draft_skip_token"
 
     # Aggregate facts across the relevant users for redaction

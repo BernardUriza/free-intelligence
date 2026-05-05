@@ -19,7 +19,7 @@ DISCORD_MAX_CHARS = 1990  # Leave room for version tag
 TYPING_CHARS_PER_SECOND = 50  # ~250 CPM, fast mobile typing speed
 MIN_TYPING_DELAY = 0.8
 MAX_TYPING_DELAY = 5.0
-VERSION_TAG = "ᵛ³·⁷·⁴²"  # superscript unicode — visible but unobtrusive
+VERSION_TAG = "ᵛ³·⁷·⁴³"  # superscript unicode — visible but unobtrusive
 
 
 def split_response(response: str) -> list[str]:
