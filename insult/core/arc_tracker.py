@@ -124,7 +124,11 @@ def _update_stability(
     """STABILITY -> CRISIS check."""
 
     crisis_triggered = disclosure_severity >= 3
-    preset_triggered = preset_mode == "respectful_serious"
+    # preset_mode == respectful_serious can be forced by the chronic
+    # vulnerability overlay (vulnerability.py) even when the user disclosed
+    # nothing in this turn. Require some active signal (severity >= 1) to
+    # avoid a permanent CRISIS yo-yo for chronically vulnerable users.
+    preset_triggered = preset_mode == "respectful_serious" and disclosure_severity >= 1
 
     if crisis_triggered or preset_triggered:
         depth = min(3, max(disclosure_severity - 1, 1))

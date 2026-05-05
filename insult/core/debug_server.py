@@ -133,6 +133,26 @@ async def _handle_stats(request: web.Request) -> web.Response:
     return web.json_response(stats)
 
 
+async def _handle_arc_reset(request: web.Request) -> web.Response:
+    """POST /debug/arc/reset?channel_id=X&user_id=Y — force STABILITY.
+
+    Used to break out of stuck CRISIS state caused by historical bugs in the
+    arc transition logic. Body/query: channel_id, user_id. Returns the prior
+    arc and the new one.
+    """
+    memory = request.app[_MEMORY_KEY]
+    channel_id = request.query.get("channel_id")
+    user_id = request.query.get("user_id")
+    if not channel_id or not user_id:
+        return _bad_request("channel_id and user_id required")
+    import time as _time
+
+    prior = await memory.get_arc(channel_id, user_id)
+    await memory.upsert_arc(channel_id, user_id, "stability", _time.time(), 0, 0, 0)
+    new = await memory.get_arc(channel_id, user_id)
+    return web.json_response({"prior": prior, "new": new})
+
+
 async def _handle_reminders(request: web.Request) -> web.Response:
     memory = request.app[_MEMORY_KEY]
     channel_id = request.query.get("channel_id")
@@ -510,6 +530,7 @@ def build_app(
     app.router.add_get("/debug/messages", _handle_messages)
     app.router.add_get("/debug/channels", _handle_channels)
     app.router.add_get("/debug/stats", _handle_stats)
+    app.router.add_post("/debug/arc/reset", _handle_arc_reset)
     app.router.add_get("/debug/reminders", _handle_reminders)
     app.router.add_post("/debug/reminders", _handle_create_reminder)
     app.router.add_delete("/debug/reminders/{id}", _handle_delete_reminder)

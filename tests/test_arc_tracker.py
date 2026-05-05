@@ -33,11 +33,19 @@ class TestUpdateArc:
         assert result.crisis_depth >= 1
         assert result.turns_in_phase == 1
 
-    def test_stability_to_crisis_on_serious_preset(self):
+    def test_stability_to_crisis_on_serious_preset_with_disclosure(self):
+        # respectful_serious + disclosure>=1 → CRISIS (real crisis pattern)
         state = ArcState()
-        result = update_arc(state, disclosure_severity=0, user_state="neutral", preset_mode="respectful_serious")
+        result = update_arc(state, disclosure_severity=1, user_state="neutral", preset_mode="respectful_serious")
         assert result.phase == EmotionalPhase.CRISIS
         assert result.crisis_depth >= 1
+
+    def test_stability_stays_when_serious_preset_forced_by_overlay(self):
+        # vulnerability_overlay forces respectful_serious chronically; without
+        # active disclosure this MUST NOT push the user into CRISIS.
+        state = ArcState()
+        result = update_arc(state, disclosure_severity=0, user_state="neutral", preset_mode="respectful_serious")
+        assert result.phase == EmotionalPhase.STABILITY
 
     def test_crisis_stays_in_crisis_without_recovery_signals(self):
         state = ArcState(phase=EmotionalPhase.CRISIS, crisis_depth=2, turns_in_phase=1)
