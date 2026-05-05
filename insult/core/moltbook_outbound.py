@@ -510,9 +510,20 @@ async def build_post_draft(
     else:
         notes_block = "\n\n## Primer post\nEs Sesión 1. Abre el archivo."
 
-    # The moltbook prompt has the LANGUAGE OVERRIDE block at the top — keep
-    # it FIRST so it isn't out-weighted by persona.md's Spanish default.
-    system = f"{load_prompt('moltbook_outbound_draft')}\n\n## Voz base (no cambies idioma)\n{persona[:1500]}"
+    # Persona.md is in Spanish and longer text drifts back to that language
+    # even when the moltbook prompt opens with a LANGUAGE OVERRIDE. So:
+    #   1) keep moltbook prompt FIRST (its OVERRIDE block opens the system)
+    #   2) heavily truncate persona.md (300 chars — enough to land tone, not
+    #      enough for the Spanish instructions to recompete)
+    #   3) repeat the language gate at the very end (recency bias bookend)
+    system = (
+        f"{load_prompt('moltbook_outbound_draft')}\n\n"
+        f"## Voz base (TONO solo, NO cambies idioma del output)\n{persona[:300]}\n\n"
+        "═══════════════════════════════════════════════════════════════════════\n"
+        "FINAL LANGUAGE GATE: title AND content must be 100% English.\n"
+        "If a single Spanish sentence slipped in, rewrite the whole post.\n"
+        "═══════════════════════════════════════════════════════════════════════\n"
+    )
     user = (
         f"Submolt destino: {target_submolt}\n\n"
         f"## Sesión número\nN = {session_n}\n\n"
