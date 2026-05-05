@@ -51,7 +51,7 @@ _ENGAGEMENT_SOURCE = "moltbook_engagement"
 _KEYWORD_MAX = 5
 _MIN_KEYWORD_LEN = 4
 _PER_KEYWORD_LIMIT = 5
-_POST_STALENESS_DAYS = 7
+_POST_STALENESS_DAYS = 5
 _MAX_PICK_CANDIDATES = 8
 
 
@@ -197,10 +197,15 @@ async def search_candidates(
                 continue
             if (post.author or "").lower() == own_author_name.lower():
                 continue
-            if post.created_at and post.created_at < cutoff:
+            # STRICT staleness: if we can't read the created_at we don't
+            # know how old the post is — reject. Better to skip than to
+            # comment on a 6-month-old archive thread.
+            if not post.created_at or post.created_at < cutoff:
                 continue
             seen_ids.add(post.id)
             out.append(EngagementCandidate(post=post, keyword=kw))
+    # Newest first — Insult should engage with current threads, not archives.
+    out.sort(key=lambda c: c.post.created_at, reverse=True)
     return out
 
 
