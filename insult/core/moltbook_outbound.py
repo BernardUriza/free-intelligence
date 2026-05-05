@@ -175,6 +175,14 @@ async def is_outbound_blocked(
             if in_crisis:
                 return "vulnerability_gate", uid
         max_sev = await memory.get_recent_max_severity(uid, cutoff)
+        log.info(
+            "disclosure_gate_eval",
+            user_id=uid,
+            max_sev=max_sev,
+            threshold=_DISCLOSURE_BLOCK_SEVERITY,
+            lookback_days=_DISCLOSURE_LOOKBACK_SECONDS // 86400,
+            will_block=max_sev >= _DISCLOSURE_BLOCK_SEVERITY,
+        )
         if max_sev >= _DISCLOSURE_BLOCK_SEVERITY:
             return "disclosure_severity", uid
     return None, None

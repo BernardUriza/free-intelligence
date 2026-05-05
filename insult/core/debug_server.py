@@ -133,6 +133,46 @@ async def _handle_stats(request: web.Request) -> web.Response:
     return web.json_response(stats)
 
 
+async def _handle_disclosure_list(request: web.Request) -> web.Response:
+    """GET /debug/disclosure?user_id=X&days=14 — list disclosure_log rows."""
+    memory = request.app[_MEMORY_KEY]
+    user_id = request.query.get("user_id")
+    if not user_id:
+        return _bad_request("user_id required")
+    try:
+        days = int(request.query.get("days", "14"))
+    except ValueError:
+        return _bad_request("days must be int")
+    import time as _time
+
+    since = _time.time() - days * 86400
+    db = await memory._disclosure._conn()
+    cursor = await db.execute(
+        "SELECT timestamp, channel_id, category, severity, message_excerpt "
+        "FROM disclosure_log WHERE user_id = ? AND timestamp >= ? "
+        "ORDER BY timestamp DESC LIMIT 50",
+        (user_id, since),
+    )
+    rows = await cursor.fetchall()
+    return web.json_response(
+        {
+            "user_id": user_id,
+            "days": days,
+            "count": len(rows),
+            "rows": [
+                {
+                    "timestamp": r[0],
+                    "channel_id": r[1],
+                    "category": r[2],
+                    "severity": r[3],
+                    "excerpt": r[4],
+                }
+                for r in rows
+            ],
+        }
+    )
+
+
 async def _handle_arc_reset(request: web.Request) -> web.Response:
     """POST /debug/arc/reset?channel_id=X&user_id=Y — force STABILITY.
 
@@ -530,6 +570,7 @@ def build_app(
     app.router.add_get("/debug/messages", _handle_messages)
     app.router.add_get("/debug/channels", _handle_channels)
     app.router.add_get("/debug/stats", _handle_stats)
+    app.router.add_get("/debug/disclosure", _handle_disclosure_list)
     app.router.add_post("/debug/arc/reset", _handle_arc_reset)
     app.router.add_get("/debug/reminders", _handle_reminders)
     app.router.add_post("/debug/reminders", _handle_create_reminder)
