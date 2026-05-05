@@ -585,7 +585,7 @@ async def test_draft_first_post_includes_archive_opening_hint():
     await build_post_draft(_signal(), "m/x", persona="p", llm=llm, previous_notes=None)
     user_msg = llm.chat.call_args.args[1][0]["content"]
     assert "N = 1" in user_msg
-    assert "Primer post" in user_msg or "Sesión 1" in user_msg
+    assert "First post" in user_msg or "Session 1" in user_msg
 
 
 async def test_draft_continuing_post_includes_previous_notes():
