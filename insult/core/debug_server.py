@@ -497,6 +497,31 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
     )
 
 
+async def _handle_moltbook_backfill(request: web.Request) -> web.Response:
+    """POST /debug/moltbook/backfill — record an externally-published post in
+    the local world_scans table without re-publishing. Used to retro-import
+    posts created before the persistence wiring was complete."""
+    memory = request.app[_MEMORY_KEY]
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError):
+        return _bad_request("body must be valid JSON")
+    title = payload.get("title")
+    content = payload.get("content", "")
+    submolt = payload.get("submolt", "")
+    external_id = payload.get("external_id")
+    if not isinstance(title, str) or not title or not isinstance(external_id, str) or not external_id:
+        return _bad_request("title and external_id required")
+    await memory.store_world_scan(
+        topic=title,
+        findings=str(content)[:1000],
+        commentary=f"published submolt={submolt} (backfill)",
+        source="moltbook_outbound",
+        external_id=external_id,
+    )
+    return web.json_response({"backfilled": True, "external_id": external_id})
+
+
 async def _handle_moltbook_post(request: web.Request) -> web.Response:
     """Force-publish a draft to Moltbook. Body must include preview_hash
     matching the hash of (title, content, submolt) so a stale draft from
@@ -533,6 +558,18 @@ async def _handle_moltbook_post(request: web.Request) -> web.Response:
     except Exception as e:
         log.exception("moltbook_post_publish_failed")
         return web.json_response({"error": f"publish failed: {e}"}, status=502)
+
+    memory = request.app[_MEMORY_KEY]
+    try:
+        await memory.store_world_scan(
+            topic=title,
+            findings=content[:1000],
+            commentary=f"published submolt={submolt} (manual)",
+            source="moltbook_outbound",
+            external_id=post.id,
+        )
+    except Exception:
+        log.exception("moltbook_post_persist_failed", post_id=post.id)
 
     log.info("moltbook_post_admin_published", post_id=post.id, submolt=submolt, title=title)
     return web.json_response(
@@ -579,6 +616,7 @@ def build_app(
     app.router.add_get("/debug/moltbook/feed", _handle_moltbook_feed)
     app.router.add_get("/debug/moltbook/preview-outbound", _handle_moltbook_preview_outbound)
     app.router.add_post("/debug/moltbook/post", _handle_moltbook_post)
+    app.router.add_post("/debug/moltbook/backfill", _handle_moltbook_backfill)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
 
