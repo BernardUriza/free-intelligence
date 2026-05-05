@@ -43,7 +43,7 @@ log = structlog.get_logger()
 # capacity to leak when the bot literally never narrates from the user's
 # point of view. Severity 4 is "clear acute disclosure" (vs sev 3 "noted
 # concern"), which is the level that actually warrants gating.
-_DISCLOSURE_LOOKBACK_SECONDS = 14 * 86400
+_DISCLOSURE_LOOKBACK_SECONDS = 7 * 86400
 _DISCLOSURE_BLOCK_SEVERITY = 4
 
 # Salience window: how recently a stance / synthesis must have fired for
