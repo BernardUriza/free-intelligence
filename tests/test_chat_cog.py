@@ -112,23 +112,26 @@ class TestChatCog:
         tool_types = [t.get("type", "") for t in tools]
         assert "web_search_20250305" in tool_types
 
-    async def test_medical_web_search_enabled_on_crisis(self, cog, mock_ctx):
-        """During RESPECTFUL_SERIOUS, web_search is still passed but the
-        tool definition is the DOMAIN-RESTRICTED medical variant so the
-        model can only pull from trusted sources (MedlinePlus, CIMA/AEMPS,
-        NIH). Before v3.5.4 web_search was disabled entirely, which left
-        the bot unable to verify pharmacology when a user asked about
-        their medication — see APA Health Advisory."""
+    async def test_web_search_open_even_on_crisis(self, cog, mock_ctx):
+        """During RESPECTFUL_SERIOUS the web_search tool is registered OPEN
+        (no allowed_domains). Before v3.7.51 we registered a domain-locked
+        medical variant for vulnerable users — but Anthropic's API only
+        accepts one tool per name, and switching variants between turns
+        invalidated the prompt cache. Worse, an isolated psychiatric-med
+        signal in a user's facts (e.g. Bernard taking sertralina) forced
+        every search to the medical allowlist, so 'búscame Plata Card' or
+        'busca el Selina hostel' returned zero results. Source-quality
+        steering for clinical queries lives in `_VULNERABLE_OVERLAY_PROMPT`
+        now, not in the tool definition."""
         cog.llm.chat = AsyncMock(return_value=LLMResponse(text="Habla. Que pasa?"))
         await self._call_chat(cog, mock_ctx, "me quiero morir")
         call_kwargs = cog.llm.chat.call_args
         tools = call_kwargs.kwargs.get("tools", [])
         web_search_tools = [t for t in tools if t.get("type") == "web_search_20250305"]
-        # Exactly one web_search tool, and it's the medical (allowlisted) variant.
         assert len(web_search_tools) == 1
-        assert "allowed_domains" in web_search_tools[0]
-        assert "medlineplus.gov" in web_search_tools[0]["allowed_domains"]
-        assert "cima.aemps.es" in web_search_tools[0]["allowed_domains"]
+        # The tool MUST be open — no allowlist, no blocklist, no user_location.
+        assert "allowed_domains" not in web_search_tools[0]
+        assert "blocked_domains" not in web_search_tools[0]
 
     @patch("insult.cogs.chat.tools.send_response", new_callable=AsyncMock)
     async def test_inaugurate_channel_generates_message(self, mock_send, cog):
