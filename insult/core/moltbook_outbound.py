@@ -112,16 +112,66 @@ class OutboundDecision:
 # ---------------------------------------------------------------------------
 
 
-async def is_outbound_blocked(user_ids: list[str], *, memory) -> tuple[str | None, str | None]:
+async def is_outbound_blocked(
+    user_ids: list[str],
+    *,
+    memory,
+    channel_id: str | None = None,
+) -> tuple[str | None, str | None]:
     """Return (reason, user_id) if any gate blocks; (None, None) if all pass.
 
-    Order matters — vulnerability check is cheaper (just a fact scan) so we
-    do it first. The disclosure check is a SQL hit per user."""
+    Two gates run per user:
+
+    1. **Vulnerability gate**, conditional on current arc phase. A user
+       whose accumulated facts cross VULNERABLE_THRESHOLD is "chronically"
+       vulnerable. v3.7.28 changed this from "always block" to "block only
+       when their CURRENT arc phase is crisis." The reasoning: a user who
+       had a depressive episode in 2024 isn't permanently a topic-of-no-
+       posting; they're vulnerable when the conversation is about that.
+       Recovery / stability phases let posts through, on the assumption
+       that Joan Bright structural anonymization + redaction v2 handle
+       residual leak risk.
+
+       If `channel_id` is None (caller couldn't resolve one), or if the
+       arc lookup raises, we conservatively fall back to "block." Caller
+       should pass channel_id whenever possible.
+
+    2. **Disclosure-severity gate**, unchanged. A severity-≥4 disclosure
+       in the last 14 days is an active event signal; we always block on
+       it regardless of arc phase, because severity ≥ 4 means "clear
+       acute disclosure" — the moment the user just told us something
+       big.
+
+    Order matters — vulnerability check is cheaper (fact scan + 1 lookup
+    if vulnerable) so we do it first. The disclosure check is a SQL hit
+    per user.
+    """
     cutoff = time.time() - _DISCLOSURE_LOOKBACK_SECONDS
     for uid in user_ids:
         facts = await memory.get_facts(uid)
         if is_vulnerable_user(facts):
-            return "vulnerability_gate", uid
+            # Conditional block: only if currently in crisis phase.
+            in_crisis = True  # conservative default if we can't tell
+            if channel_id:
+                try:
+                    arc = await memory.get_arc(channel_id, uid)
+                    if arc:
+                        phase = str(arc.get("phase", "")).lower()
+                        in_crisis = phase == "crisis"
+                    # If arc is None, the user has no recorded arc state
+                    # for this channel — conservatively keep in_crisis=True
+                    # so we don't post about a user we know nothing about
+                    # in this channel.
+                except Exception:
+                    log.exception("vulnerability_gate_arc_lookup_failed", user_id=uid)
+                    # in_crisis stays True (block)
+            if in_crisis:
+                return "vulnerability_gate", uid
+            log.info(
+                "vulnerability_gate_relaxed_by_arc",
+                user_id=uid,
+                reason="chronic vulnerability but current arc phase is recovery/stability",
+            )
         max_sev = await memory.get_recent_max_severity(uid, cutoff)
         if max_sev >= _DISCLOSURE_BLOCK_SEVERITY:
             return "disclosure_severity", uid

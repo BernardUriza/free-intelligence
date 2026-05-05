@@ -381,7 +381,7 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
     if not user_ids:
         return web.json_response({"skipped_reason": "no_users_in_channel"}, status=200)
 
-    blocked_reason, blocked_uid = await is_outbound_blocked(user_ids, memory=memory)
+    blocked_reason, blocked_uid = await is_outbound_blocked(user_ids, memory=memory, channel_id=channel_id)
     if blocked_reason:
         return web.json_response({"skipped_reason": blocked_reason, "blocked_user_id": blocked_uid}, status=200)
 

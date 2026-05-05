@@ -27,7 +27,7 @@ from insult.core.moltbook_outbound import (
 # ---------------------------------------------------------------------------
 
 
-def _mock_memory(facts_by_user=None, max_severity_by_user=None):
+def _mock_memory(facts_by_user=None, max_severity_by_user=None, arc_by_user=None):
     mem = MagicMock()
 
     async def get_facts(uid):
@@ -39,10 +39,24 @@ def _mock_memory(facts_by_user=None, max_severity_by_user=None):
     async def get_stances(channel_id, uid, limit=10):
         return []
 
+    async def get_arc(channel_id, uid):
+        return (arc_by_user or {}).get(uid)
+
     mem.get_facts = AsyncMock(side_effect=get_facts)
     mem.get_recent_max_severity = AsyncMock(side_effect=get_recent_max_severity)
     mem.get_stances = AsyncMock(side_effect=get_stances)
+    mem.get_arc = AsyncMock(side_effect=get_arc)
     return mem
+
+
+# Vulnerable user fact set used by multiple tests to cross VULNERABLE_THRESHOLD
+_VULNERABLE_FACTS = {
+    "u1": [
+        {"fact": "Toma quetiapina 50mg para CPTSD", "category": "personal"},
+        {"fact": "Diagnóstico de Complex PTSD", "category": "personal"},
+        {"fact": "Hospitalizado en 2024", "category": "incidents"},
+    ]
+}
 
 
 async def test_no_users_passes_gate():
@@ -52,18 +66,78 @@ async def test_no_users_passes_gate():
     assert uid is None
 
 
-async def test_vulnerability_gate_blocks_first():
-    """A user crossing the vulnerable threshold blocks ALL outbound,
-    regardless of disclosure history."""
-    vulnerable = {
-        "u1": [
-            {"fact": "Toma quetiapina 50mg para CPTSD", "category": "personal"},
-            {"fact": "Diagnóstico de Complex PTSD", "category": "personal"},
-            {"fact": "Hospitalizado en 2024", "category": "incidents"},
-        ]
-    }
-    mem = _mock_memory(facts_by_user=vulnerable)
+async def test_vulnerability_gate_blocks_when_no_channel_id():
+    """No channel_id → can't look up arc phase → conservative block.
+    The function defaults in_crisis=True when it has no way to verify
+    the user is OK right now."""
+    mem = _mock_memory(facts_by_user=_VULNERABLE_FACTS)
     reason, uid = await is_outbound_blocked(["u1"], memory=mem)
+    assert reason == "vulnerability_gate"
+    assert uid == "u1"
+
+
+async def test_vulnerability_gate_blocks_when_no_arc_data():
+    """Channel_id provided but arc returns None — conservative block."""
+    mem = _mock_memory(facts_by_user=_VULNERABLE_FACTS, arc_by_user={"u1": None})
+    reason, uid = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
+    assert reason == "vulnerability_gate"
+    assert uid == "u1"
+
+
+async def test_vulnerability_gate_blocks_when_arc_phase_crisis():
+    """User chronically vulnerable AND currently in CRISIS → block."""
+    mem = _mock_memory(
+        facts_by_user=_VULNERABLE_FACTS,
+        arc_by_user={"u1": {"phase": "crisis", "phase_since": 1700000000}},
+    )
+    reason, uid = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
+    assert reason == "vulnerability_gate"
+    assert uid == "u1"
+
+
+async def test_vulnerability_gate_relaxed_when_arc_phase_stability():
+    """User chronically vulnerable BUT currently in STABILITY → pass.
+    The whole point of v3.7.28: chronic facts don't permanently silence
+    outbound; only an active crisis does."""
+    mem = _mock_memory(
+        facts_by_user=_VULNERABLE_FACTS,
+        arc_by_user={"u1": {"phase": "stability", "phase_since": 1700000000}},
+    )
+    reason, uid = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
+    assert reason is None
+    assert uid is None
+
+
+async def test_vulnerability_gate_relaxed_when_arc_phase_recovery():
+    """RECOVERY phase also lets the post through. The user is moving out
+    of crisis; encouraging the structural-anonymized post is OK."""
+    mem = _mock_memory(
+        facts_by_user=_VULNERABLE_FACTS,
+        arc_by_user={"u1": {"phase": "recovery", "phase_since": 1700000000}},
+    )
+    reason, _ = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
+    assert reason is None
+
+
+async def test_vulnerability_gate_blocks_uppercase_crisis():
+    """Phase strings are lowercased before comparison — defensive in case
+    the schema ever stores 'CRISIS' or 'Crisis'."""
+    mem = _mock_memory(
+        facts_by_user=_VULNERABLE_FACTS,
+        arc_by_user={"u1": {"phase": "CRISIS", "phase_since": 1700000000}},
+    )
+    reason, _ = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
+    assert reason == "vulnerability_gate"
+
+
+async def test_vulnerability_gate_blocks_when_arc_lookup_raises():
+    """If memory.get_arc throws, treat as 'can't tell' → conservative block.
+    Privacy errors should fail-closed."""
+    mem = MagicMock()
+    mem.get_facts = AsyncMock(return_value=_VULNERABLE_FACTS["u1"])
+    mem.get_arc = AsyncMock(side_effect=RuntimeError("DB down"))
+    mem.get_recent_max_severity = AsyncMock(return_value=0)
+    reason, uid = await is_outbound_blocked(["u1"], memory=mem, channel_id="ch1")
     assert reason == "vulnerability_gate"
     assert uid == "u1"
 

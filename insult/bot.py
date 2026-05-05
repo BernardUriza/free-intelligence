@@ -436,8 +436,12 @@ def _build(container: Container):
                 log.info("moltbook_outbound_skipped", reason="no_users_in_channel")
                 return
 
-            # GATE 1 — vulnerability + disclosure
-            blocked_reason, blocked_uid = await is_outbound_blocked(user_ids, memory=memory)
+            # GATE 1 — vulnerability + disclosure (vulnerability gate is
+            # arc-phase-aware; pass channel_id so it can look up the user's
+            # current phase and skip blocking if recovery/stability)
+            blocked_reason, blocked_uid = await is_outbound_blocked(
+                user_ids, memory=memory, channel_id=str(target_channel.id)
+            )
             if blocked_reason:
                 log.warning(
                     "moltbook_outbound_blocked",
