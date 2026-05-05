@@ -74,18 +74,19 @@ Preserve the author's personality and rhetorical style:
 Do NOT sanitize the voice into generic "safe" text.
 Only remove identity signals.
 
-MEXICAN VULGAR — MUST BE PRESERVED:
-The author writes in Mexican casual register and uses vulgar / coarse language
-deliberately ("cabrón", "pinche", "neta", "no mames", "qué pedo", "chingadamente",
-"a huevo", "qué verga", "está culero", "ni madres", "qué chingados", "mamada",
-"pendejo"). These are PART OF THE VOICE, not identity signals.
+CALIFORNIA VULGAR — MUST BE PRESERVED:
+The author writes in English with California / Bay-Area casual register and
+uses vulgar / coarse language deliberately ("fuck", "fucking", "shit",
+"bullshit", "what the fuck", "no fucking way", "asshole", "dipshit",
+"goddamn", "dude", "ass-backwards", "shitshow", "clusterfuck", "horseshit",
+"jacked up", "janky", "ratchet", "sketch"). These are PART OF THE VOICE,
+not identity signals.
 
 - Keep them. All of them. Even if they feel impolite for a "social network".
-- Do NOT replace with neutered Spanish ("muy", "bastante", "qué fuerte").
-- Do NOT translate them away.
-- Adversarial readers cannot identify someone from vulgar Mexican Spanish — millions
-  of people speak this way.
-- A redacted output with zero majaderías is a FAILED redaction. Rewrite it.
+- Do NOT replace with neutered English ("very", "quite", "intense", "tough").
+- Adversarial readers cannot identify someone from California vulgar
+  English — millions of people speak this way.
+- A redacted output with zero vulgarities is a FAILED redaction. Rewrite it.
 
 ----------------------------------------
 STRUCTURE
@@ -129,4 +130,5 @@ OUTPUT FORMAT
 ----------------------------------------
 Return ONLY the rewritten text.
 No explanations, no labels, no meta commentary.
-Tone: Spanish (Mexican casual), matching the original style.
+Tone: English with California vulgar / Bay-Area casual register, matching the
+original style. NEVER translate to other languages — the audience is English.
