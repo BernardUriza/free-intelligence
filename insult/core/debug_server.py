@@ -497,6 +497,102 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
     )
 
 
+async def _handle_moltbook_engagement_preview(request: web.Request) -> web.Response:
+    """GET /debug/moltbook/preview-engagement?channel_id=X — runs the
+    engagement pipeline through draft + redaction WITHOUT publishing.
+    Returns the chosen target post, the redacted comment, and a hash you'd
+    echo back to /engage to actually publish."""
+    from insult.core.moltbook_engagement import engage_once
+
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    source = ctx.source_factory()
+    if source is None:
+        return _moltbook_unconfigured()
+    memory = request.app[_MEMORY_KEY]
+    channel_id = request.query.get("channel_id")
+    if not channel_id:
+        return _bad_request("channel_id required")
+    recent = await memory.get_recent(channel_id, limit=15)
+    user_ids = list({m["user_id"] for m in recent if m.get("role") == "user" and m.get("user_id")})
+    result = await engage_once(
+        source=source,
+        memory=memory,
+        persona=ctx.settings.system_prompt,
+        llm=ctx.llm,
+        summary_model=ctx.settings.summary_model,
+        facts_user_ids=user_ids,
+        channel_id=channel_id,
+        dry_run=True,
+    )
+    if not isinstance(result, tuple):
+        # EngagementResult on success
+        target = result.target
+        preview_hash = _draft_hash("engagement", result.comment_text, target.post.id)
+        return web.json_response(
+            {
+                "target_post_id": target.post.id,
+                "target_title": target.post.title,
+                "target_author": target.post.author,
+                "target_submolt": target.post.submolt,
+                "keyword": target.keyword,
+                "comment": result.comment_text,
+                "comment_pre_redaction": result.comment_text_pre_redaction,
+                "preview_hash": preview_hash,
+            }
+        )
+    return web.json_response({"skipped_reason": result[1]}, status=200)
+
+
+async def _handle_moltbook_engage(request: web.Request) -> web.Response:
+    """POST /debug/moltbook/engage — manual override that publishes a
+    pre-approved engagement comment. Body needs target_post_id + comment +
+    preview_hash. Same hash-echo pattern as /post."""
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    source = ctx.source_factory()
+    if source is None:
+        return _moltbook_unconfigured()
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError):
+        return _bad_request("body must be valid JSON")
+    target_post_id = payload.get("target_post_id")
+    comment = payload.get("comment")
+    preview_hash = payload.get("preview_hash")
+    parent_id = payload.get("parent_id")  # optional, for threaded replies
+    if not all(isinstance(x, str) and x for x in (target_post_id, comment, preview_hash)):
+        return _bad_request("target_post_id, comment, preview_hash are required strings")
+    expected = _draft_hash("engagement", comment, target_post_id)
+    if not hmac.compare_digest(preview_hash, expected):
+        return web.json_response(
+            {"error": "preview_hash mismatch — re-run /preview-engagement"},
+            status=409,
+        )
+    try:
+        kwargs = {"parent_id": parent_id} if isinstance(parent_id, str) and parent_id else {}
+        c = await source.create_comment(target_post_id, comment, **kwargs)
+    except Exception as e:
+        log.exception("moltbook_engagement_admin_publish_failed")
+        return web.json_response({"error": f"publish failed: {e}"}, status=502)
+
+    memory = request.app[_MEMORY_KEY]
+    try:
+        await memory.store_world_scan(
+            topic=f"comment on post: {target_post_id[:36]}",
+            findings=comment[:1000],
+            commentary=f"post_id={target_post_id} (manual)",
+            source="moltbook_engagement",
+            external_id=c.id,
+        )
+    except Exception:
+        log.exception("moltbook_engagement_admin_persist_failed", comment_id=c.id)
+    log.info("moltbook_engagement_admin_published", comment_id=c.id, target_post_id=target_post_id)
+    return web.json_response({"comment_id": c.id, "published": True})
+
+
 async def _handle_moltbook_backfill(request: web.Request) -> web.Response:
     """POST /debug/moltbook/backfill — record an externally-published post in
     the local world_scans table without re-publishing. Used to retro-import
@@ -617,6 +713,8 @@ def build_app(
     app.router.add_get("/debug/moltbook/preview-outbound", _handle_moltbook_preview_outbound)
     app.router.add_post("/debug/moltbook/post", _handle_moltbook_post)
     app.router.add_post("/debug/moltbook/backfill", _handle_moltbook_backfill)
+    app.router.add_get("/debug/moltbook/preview-engagement", _handle_moltbook_engagement_preview)
+    app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
 
