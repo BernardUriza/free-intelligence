@@ -95,7 +95,11 @@ class MoltbookSource(Source):
             "/search/posts",
             params={"q": query, "limit": min(limit, 25)},
         )
-        return [self._post_from_json(p) for p in data.get("posts", [])]
+        # The search endpoint returns {"results": [...]}, not "posts" — be
+        # liberal in what we accept so a future API rename to "posts"
+        # doesn't break the client either.
+        rows = data.get("results") or data.get("posts") or []
+        return [self._post_from_json(p) for p in rows]
 
     async def create_post(self, submolt: str, title: str, content: str) -> Post:
         data = await self._request(
@@ -385,15 +389,24 @@ class MoltbookSource(Source):
 
     @staticmethod
     def _post_from_json(data: dict[str, Any]) -> Post:
+        # author can be a flat string OR an object {id, name, ...}; submolt
+        # likewise (search endpoint returns {id, name, displayName}, feed
+        # sometimes returns a bare slug). Always project to a string.
+        author_raw = data.get("author_name") or data.get("author") or ""
+        if isinstance(author_raw, dict):
+            author_raw = author_raw.get("name") or ""
+        submolt_raw = data.get("submolt") or ""
+        if isinstance(submolt_raw, dict):
+            submolt_raw = submolt_raw.get("name") or ""
         return Post(
             id=str(data.get("id", "")),
             title=str(data.get("title", "")),
             content=str(data.get("content", "")),
-            author=str(data.get("author_name") or data.get("author", "")),
-            submolt=str(data.get("submolt", "")),
+            author=str(author_raw),
+            submolt=str(submolt_raw),
             upvotes=int(data.get("upvotes", 0)),
             comment_count=int(data.get("comment_count", 0)),
-            created_at=_parse_timestamp(data.get("created_at")),
+            created_at=_parse_timestamp(data.get("created_at") or data.get("createdAt")),
             url=data.get("url"),
             source="moltbook",
             raw=data,
