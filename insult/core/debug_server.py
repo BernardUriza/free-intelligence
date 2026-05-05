@@ -570,6 +570,100 @@ async def _handle_moltbook_engagement_preview(request: web.Request) -> web.Respo
     )
 
 
+async def _handle_moltbook_engagement_draft(request: web.Request) -> web.Response:
+    """GET /debug/moltbook/engagement-draft?post_id=X&channel_id=Y — fetch
+    a specific Moltbook post, run Insult's engagement comment LLM against
+    it, apply privacy gates + redaction, return the draft + preview_hash.
+    Used to test an engagement comment on a post you choose, bypassing
+    the keyword search + pick_target stages."""
+    from insult.core.moltbook_engagement import (
+        EngagementCandidate,
+        build_engagement_comment,
+    )
+    from insult.core.moltbook_outbound import (
+        is_outbound_blocked,
+        redact_with_llm,
+        regex_privacy_strip,
+    )
+
+    ctx = request.app[_MOLTBOOK_KEY]
+    if ctx is None:
+        return _moltbook_unconfigured()
+    source = ctx.source_factory()
+    if source is None:
+        return _moltbook_unconfigured()
+    memory = request.app[_MEMORY_KEY]
+    post_id = request.query.get("post_id")
+    channel_id = request.query.get("channel_id")
+    if not post_id or not channel_id:
+        return _bad_request("post_id and channel_id required")
+
+    try:
+        # Use search to fetch the post: Moltbook's GET /posts/<id> returns
+        # `{success, post}` so we'd need a separate _post_from_json path.
+        # Search by id isn't supported, so we hit the API directly.
+        import aiohttp
+
+        url = f"{ctx.settings.moltbook_base_url}/posts/{post_id}"
+        api_key = ctx.settings.moltbook_api_key.get_secret_value()
+        async with aiohttp.ClientSession() as s:
+            async with s.get(url, headers={"Authorization": f"Bearer {api_key}"}) as r:
+                data = await r.json()
+        post_data = data.get("post") or {}
+        if not post_data:
+            return web.json_response({"error": "post not found", "raw": data}, status=404)
+        from insult.core.sources.moltbook import MoltbookSource
+
+        post = MoltbookSource._post_from_json(post_data)
+    except Exception as e:
+        log.exception("moltbook_engagement_draft_fetch_failed")
+        return web.json_response({"error": f"fetch failed: {e}"}, status=502)
+
+    # Privacy gates
+    recent = await memory.get_recent(channel_id, limit=15)
+    user_ids = list({m["user_id"] for m in recent if m.get("role") == "user" and m.get("user_id")})
+    blocked, blocked_uid = await is_outbound_blocked(user_ids, memory=memory, channel_id=channel_id)
+    if blocked:
+        return web.json_response({"skipped_reason": blocked, "blocked_user_id": blocked_uid}, status=200)
+
+    # Force the candidate (skip keyword search + pick_target)
+    candidate = EngagementCandidate(post=post, keyword="(forced)")
+    draft = await build_engagement_comment(candidate, persona=ctx.settings.system_prompt, llm=ctx.llm)
+    if not draft:
+        return web.json_response({"skipped_reason": "draft_empty"}, status=200)
+    final_line = draft.strip().splitlines()[-1].strip().upper() if draft.strip() else ""
+    if final_line == "SKIP" or draft.strip().upper() == "SKIP":
+        return web.json_response(
+            {"skipped_reason": "draft_skip_token", "draft": draft},
+            status=200,
+        )
+
+    all_facts: list[str] = []
+    for uid in user_ids:
+        facts = await memory.get_facts(uid)
+        all_facts.extend(f["fact"] for f in facts)
+    stripped = regex_privacy_strip(draft, [{"fact": f} for f in all_facts])
+    redacted = await redact_with_llm(stripped, all_facts, client=ctx.llm.client, model=ctx.settings.summary_model)
+    if redacted is None:
+        return web.json_response(
+            {"skipped_reason": "redaction_blocked", "draft": draft},
+            status=200,
+        )
+
+    preview_hash = _draft_hash("engagement", redacted, post.id)
+    return web.json_response(
+        {
+            "target_post_id": post.id,
+            "target_title": post.title,
+            "target_author": post.author,
+            "target_submolt": post.submolt,
+            "comment": redacted,
+            "comment_pre_redaction": draft,
+            "preview_hash": preview_hash,
+        }
+    )
+
+
 async def _handle_moltbook_engage(request: web.Request) -> web.Response:
     """POST /debug/moltbook/engage — manual override that publishes a
     pre-approved engagement comment. Body needs target_post_id + comment +
@@ -739,6 +833,7 @@ def build_app(
     app.router.add_post("/debug/moltbook/post", _handle_moltbook_post)
     app.router.add_post("/debug/moltbook/backfill", _handle_moltbook_backfill)
     app.router.add_get("/debug/moltbook/preview-engagement", _handle_moltbook_engagement_preview)
+    app.router.add_get("/debug/moltbook/engagement-draft", _handle_moltbook_engagement_draft)
     app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
     app.router.add_get("/debug/costs", _handle_costs)
     return app
