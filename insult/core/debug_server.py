@@ -542,7 +542,32 @@ async def _handle_moltbook_engagement_preview(request: web.Request) -> web.Respo
                 "preview_hash": preview_hash,
             }
         )
-    return web.json_response({"skipped_reason": result[1]}, status=200)
+    # On skip, surface enough state to diagnose: the keyword pool we
+    # extracted and how many raw candidates each keyword surfaced before
+    # the dedupe/staleness/already-engaged filter.
+    from insult.core.moltbook_engagement import (
+        _already_engaged_post_ids,
+        extract_engagement_keywords,
+    )
+
+    keywords = await extract_engagement_keywords(memory)
+    already = await _already_engaged_post_ids(memory)
+    per_keyword: list[dict] = []
+    for kw in keywords:
+        try:
+            posts = await source.search_posts(kw, limit=5)
+            per_keyword.append({"keyword": kw, "raw_count": len(posts), "ids": [p.id for p in posts]})
+        except Exception as e:
+            per_keyword.append({"keyword": kw, "error": str(e)[:200]})
+    return web.json_response(
+        {
+            "skipped_reason": result[1],
+            "keywords": keywords,
+            "already_engaged_ids": list(already),
+            "search_per_keyword": per_keyword,
+        },
+        status=200,
+    )
 
 
 async def _handle_moltbook_engage(request: web.Request) -> web.Response:
