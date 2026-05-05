@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 
 import structlog
 
+from insult.core.prompts_loader import load_prompt
 from insult.core.stance_log import _extract_topic
 from insult.core.synthesis_detector import detect_synthesis
 from insult.core.vulnerability import is_vulnerable_user
@@ -35,11 +36,15 @@ from insult.core.vulnerability import is_vulnerable_user
 log = structlog.get_logger()
 
 
-# How far back the disclosure gate looks for a severity≥3 hit. 30 days
-# is conservative — a user revealing a CPTSD diagnosis 4 weeks ago should
-# still suppress related external content. Tune by KQL telemetry once
-# the lane is live.
-_DISCLOSURE_LOOKBACK_SECONDS = 30 * 86400
+# How far back the disclosure gate looks for a severity≥4 hit. Relaxed
+# from 30d/sev3 to 14d/sev4 in v3.7.26 because the new draft format
+# (Joan Bright dictation with subject codes A/B) anonymizes by structure
+# rather than by post-hoc redaction — a user's recent disclosure has less
+# capacity to leak when the bot literally never narrates from the user's
+# point of view. Severity 4 is "clear acute disclosure" (vs sev 3 "noted
+# concern"), which is the level that actually warrants gating.
+_DISCLOSURE_LOOKBACK_SECONDS = 14 * 86400
+_DISCLOSURE_BLOCK_SEVERITY = 4
 
 # Salience window: how recently a stance / synthesis must have fired for
 # the cron to consider it a posting reason. Longer than the cron interval
@@ -73,10 +78,12 @@ _TOPIC_REPETITION_LOOKBACK_SECONDS = 24 * 3600
 class SalienceSignal:
     """A reason to post NOW. The cron only fires outbound when one fires."""
 
-    kind: str  # 'stance' | 'synthesis' | 'arc_recovery'
+    kind: str  # 'stance' | 'synthesis' | 'arc_recovery' | 'topic_repetition'
     seed_text: str  # raw text that anchored the salience (NOT the post draft)
     topic: str = ""  # for stance signals: the stance topic keywords
     confidence: float = 0.0  # 0..1
+    source_user_id: str | None = None  # which Discord user_id the seed came from
+    #                                    (used to map to Subject A/B in the draft)
 
 
 @dataclass
@@ -116,7 +123,7 @@ async def is_outbound_blocked(user_ids: list[str], *, memory) -> tuple[str | Non
         if is_vulnerable_user(facts):
             return "vulnerability_gate", uid
         max_sev = await memory.get_recent_max_severity(uid, cutoff)
-        if max_sev >= 3:
+        if max_sev >= _DISCLOSURE_BLOCK_SEVERITY:
             return "disclosure_severity", uid
     return None, None
 
@@ -170,6 +177,7 @@ async def detect_salience_signal(
                 seed_text=str(s.get("position", "")),
                 topic=str(s.get("topic", "")),
                 confidence=confidence,
+                source_user_id=uid,
             )
 
     # 2. SYNTHESIS
@@ -184,6 +192,7 @@ async def detect_salience_signal(
                     seed_text=m.get("content", "")[:300],
                     topic=", ".join(sig.matched_terms[:3]),
                     confidence=0.7,
+                    source_user_id=m.get("user_id"),
                 )
 
     # 3. ARC_RECOVERY — fresh transition into RECOVERY / STABILITY
@@ -225,6 +234,7 @@ async def _detect_arc_recovery(
             seed_text=f"emergence and resilience after difficulty (phase={phase})",
             topic="resilience emergence",
             confidence=0.65,
+            source_user_id=uid,
         )
     return None
 
@@ -266,12 +276,13 @@ def _detect_topic_repetition(
     best_topic = max(counts.items(), key=lambda kv: kv[1])[0]
     if counts[best_topic] < _TOPIC_REPETITION_MIN_COUNT:
         return None
-    seed_text, _uid = latest[best_topic]
+    seed_text, source_uid = latest[best_topic]
     return SalienceSignal(
         kind="topic_repetition",
         seed_text=seed_text,
         topic=best_topic,
         confidence=0.6,  # weakest of the four — fallback signal
+        source_user_id=source_uid,
     )
 
 
@@ -363,27 +374,26 @@ def regex_privacy_strip(text: str, facts: list[dict]) -> str:
 # ---------------------------------------------------------------------------
 
 
-_DRAFT_PROMPT = """\
-Vas a publicar un post en Moltbook (red social de AI agents). El post lo lees TÚ
-mismo en feed, no es para humanos directos — son otros agents.
+# Prompt lives in insult/prompts/moltbook_outbound_draft.md — edit there to
+# tune behavior without redeploying. The loader is mtime-aware.
 
-CONTEXTO DE SALIENCIA: una observación / postura / hilo que se gestó en tu chat
-de Discord con tus humanos. NO copies la observación literal; tómala como semilla
-y abstráela a una idea posteable que NO requiera contexto privado.
 
-Reglas duras:
-- NUNCA menciones nombres propios de tus humanos (Bernard, Alex, etc.)
-- NUNCA menciones fechas específicas, dosis, lugares concretos
-- NUNCA menciones diagnósticos médicos, medicamentos, terapia
-- El post debe tener sentido SIN tu chat de Discord como contexto
-- Spanish (Mexican casual). Tono Insult: abrasivo, curioso, anti-domination
-- 2-4 oraciones. NO subtítulos ni listas — fluye como pensamiento
+def assign_subject_codes(user_ids: list[str]) -> dict[str, str]:
+    """Map Discord user_ids to Subject letters (A, B, C, ...) deterministically.
 
-Estructura del output (devuelve SOLO el JSON, nada más):
-{
-  "title": "<título corto, ≤80 chars, provocativo>",
-  "content": "<cuerpo del post, 2-4 oraciones>"
-}"""
+    Sort by user_id ascending and assign A to the smallest. This gives stable
+    codes across runs even if user_ids are passed in different orders. With
+    Bernard's setup (Alex=1431..., Bernard=9072...), Alex maps to A and
+    Bernard maps to B, which is what he asked for.
+
+    Beyond two users it just keeps going (C, D, ...). Caller supplies the
+    full list of distinct user_ids in the channel."""
+    out: dict[str, str] = {}
+    for i, uid in enumerate(sorted(set(user_ids))):
+        if i >= 26:
+            break  # cap at Z; 26 users in a channel is already absurd
+        out[uid] = chr(ord("A") + i)
+    return out
 
 
 async def build_post_draft(
@@ -393,8 +403,16 @@ async def build_post_draft(
     persona: str,
     llm,
     model: str | None = None,
+    previous_notes: list[dict] | None = None,
+    subject_codes: dict[str, str] | None = None,
 ) -> OutboundDraft | None:
     """Generate a draft post anchored on a salience signal.
+
+    `previous_notes` is the list of prior outbound posts (from world_scans
+    with source='moltbook_outbound'), used to:
+      • Compute the session number for the Joan Bright format (N = len + 1)
+      • Let the LLM cite a previous note explicitly when there's thematic
+        match (option B continuity from the design discussion)
 
     Returns None if the LLM came back empty or failed JSON parsing — caller
     treats that as "skip this cycle, log, try again next interval."""
@@ -405,8 +423,41 @@ async def build_post_draft(
         seed_block += f"Tópico: {signal.topic}\n"
     seed_block += f"Semilla: {signal.seed_text[:400]}"
 
-    system = f"{persona[:2000]}\n\n{_DRAFT_PROMPT}"
-    user = f"Submolt destino: {target_submolt}\n\n## Salience\n{seed_block}"
+    # Subject code hint: tell the LLM which Subject letter the salience
+    # came from so the draft consistently anonymizes the same user as the
+    # same letter across posts. We never expose the user_id itself —
+    # only the letter mapping.
+    subject_hint = ""
+    if signal.source_user_id and subject_codes:
+        letter = subject_codes.get(signal.source_user_id)
+        if letter:
+            subject_hint = f"\n\n## Subject del cual viene esta salience\nSubject {letter} — usa ese código en la nota."
+
+    session_n = len(previous_notes or []) + 1
+    notes_block = ""
+    if previous_notes:
+        notes_block = "\n\n## Tus notas previas en el archivo\n"
+        for i, n in enumerate(previous_notes[:5], 1):
+            title = str(n.get("topic", "")).strip()
+            snippet = str(n.get("findings", ""))[:200].strip()
+            notes_block += f"- [{i}] {title}\n      «{snippet}»\n"
+        notes_block += (
+            "\nSi hay match temático con alguna, puedes referenciarla "
+            'explícitamente ("como ya documenté en sesión X, ..."). Si no '
+            'hay match, no fuerces la referencia — solo abre con "Continúo '
+            'el archivo."'
+        )
+    else:
+        notes_block = "\n\n## Primer post\nEs Sesión 1. Abre el archivo."
+
+    system = f"{persona[:2000]}\n\n{load_prompt('moltbook_outbound_draft')}"
+    user = (
+        f"Submolt destino: {target_submolt}\n\n"
+        f"## Sesión número\nN = {session_n}\n\n"
+        f"## Salience\n{seed_block}"
+        f"{subject_hint}"
+        f"{notes_block}"
+    )
 
     try:
         kwargs: dict = {}
@@ -445,43 +496,7 @@ async def build_post_draft(
 # ---------------------------------------------------------------------------
 
 
-_REDACTION_SYSTEM = """\
-You are a privacy redactor for a public social-network post.
-
-INPUT FORMAT
-- The user message contains:
-    DRAFT:
-    <text to rewrite>
-
-    PRIVATE FACTS THAT MUST NOT BE INFERABLE FROM YOUR OUTPUT:
-    - fact A
-    - fact B
-    ...
-
-YOUR JOB
-Rewrite the draft so it preserves the IDEA / TAKE / OPINION but removes
-anything that would identify the humans behind it. The output is going
-to be PUBLIC on a social network where other agents and search engines
-will read it.
-
-HARD RULES
-- Output must NOT contain any of the listed facts, literally OR by paraphrase
-- Output must NOT mention names, specific dates, locations, dosages,
-  diagnoses, or specific incidents — even ones not in the facts list,
-  if they sound personal
-- Output MUST preserve the intellectual content (the take, the opinion,
-  the abstraction)
-- Tone: Spanish (Mexican casual), matching the draft. Same persona.
-- 2-4 sentences. NO subtitles or lists.
-
-WHEN YOU CAN'T REDACT SAFELY
-If the draft cannot be rewritten without revealing the private facts —
-because the take itself only makes sense WITH the private context — return
-a single empty line. The caller will skip publishing.
-
-OUTPUT FORMAT
-Return ONLY the rewritten draft. No <output> tags, no JSON, no
-commentary, no preamble like "Here is the rewritten:". Just the text."""
+# Prompt lives in insult/prompts/moltbook_outbound_redaction.md
 
 
 async def redact_with_llm(
@@ -522,7 +537,7 @@ async def redact_with_llm(
         response = await client.messages.create(
             model=model,
             max_tokens=min(max(len(content) * 2, 256), 2048),
-            system=_REDACTION_SYSTEM,
+            system=load_prompt("moltbook_outbound_redaction"),
             messages=[{"role": "user", "content": user_content}],
         )
         redacted = response.content[0].text.strip()
@@ -560,3 +575,94 @@ async def redact_with_llm(
         facts_count=len(private_facts),
     )
     return redacted
+
+
+# ---------------------------------------------------------------------------
+# Audit persistence — every draft hits the DB before publication
+# ---------------------------------------------------------------------------
+
+
+_DRAFT_SOURCE = "moltbook_outbound_draft"
+_PUBLISHED_SOURCE = "moltbook_outbound"
+
+
+async def persist_draft(
+    draft: OutboundDraft,
+    redacted_content: str | None,
+    *,
+    memory,
+    extra_notes: str = "",
+) -> None:
+    """Save the draft to world_scans BEFORE publishing.
+
+    Two reasons this exists:
+      1. Audit trail — even if Moltbook later 5xx's the publish, or a future
+         deploy changes the redaction logic, we have the original draft
+         (pre and post redaction) on disk for review.
+      2. Recovery — if Moltbook deletes a post or the operator wants to
+         replay one, the original is right here.
+
+    Stored with source='moltbook_outbound_draft'. The PUBLISHED variant
+    (source='moltbook_outbound', external_id=post.id) is added separately
+    by `persist_published_post` after the network call succeeds. Two rows
+    per published post is intentional: 'draft' is what we generated,
+    'outbound' is what actually shipped.
+    """
+    try:
+        commentary_parts = [
+            f"signal_kind={draft.salience.kind}",
+            f"signal_topic={draft.salience.topic}",
+            f"signal_confidence={draft.salience.confidence:.2f}",
+        ]
+        if redacted_content is not None:
+            commentary_parts.append(f"redacted_len={len(redacted_content)}")
+        if extra_notes:
+            commentary_parts.append(extra_notes)
+        await memory.store_world_scan(
+            topic=draft.title,
+            findings=(redacted_content if redacted_content is not None else draft.content)[:1000],
+            commentary=" | ".join(commentary_parts),
+            source=_DRAFT_SOURCE,
+            external_id=None,  # not yet published
+        )
+    except Exception:
+        # Persistence failure must NOT block the publish. Audit trail is best
+        # effort — losing one draft to disk is recoverable from logs.
+        log.exception("moltbook_outbound_draft_persist_failed", title=draft.title[:80])
+
+
+async def persist_published_post(
+    draft: OutboundDraft,
+    published_external_id: str,
+    redacted_content: str,
+    *,
+    memory,
+) -> None:
+    """Save a row recording the successful publish. external_id is the
+    Moltbook post id returned by source.create_post — that's what later
+    queries (and the duplicate-detection partial UNIQUE INDEX on
+    world_scans) use to dedupe."""
+    try:
+        await memory.store_world_scan(
+            topic=draft.title,
+            findings=redacted_content[:1000],
+            commentary=(f"published signal_kind={draft.salience.kind} submolt={draft.target_submolt}"),
+            source=_PUBLISHED_SOURCE,
+            external_id=published_external_id,
+        )
+    except Exception:
+        log.exception(
+            "moltbook_outbound_published_persist_failed",
+            external_id=published_external_id,
+        )
+
+
+async def load_previous_outbound_notes(memory, limit: int = 5) -> list[dict]:
+    """Fetch the last N published outbound posts for the Joan Bright
+    continuity feature. Returns rows with fields: topic (= title),
+    findings (= published content), timestamp, external_id."""
+    try:
+        return await memory.get_recent_world_scans(limit=limit, source=_PUBLISHED_SOURCE)
+    except Exception:
+        log.exception("moltbook_outbound_load_previous_failed")
+        return []

@@ -354,9 +354,12 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
     This is the inspection surface required before flipping
     MOLTBOOK_OUTBOUND_ENABLED=true in prod."""
     from insult.core.moltbook_outbound import (
+        assign_subject_codes,
         build_post_draft,
         detect_salience_signal,
         is_outbound_blocked,
+        load_previous_outbound_notes,
+        persist_draft,
         redact_with_llm,
         regex_privacy_strip,
     )
@@ -387,11 +390,15 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
         return web.json_response({"skipped_reason": "no_salience"}, status=200)
 
     target_submolt = ctx.settings.moltbook_submolts[0]
+    previous_notes = await load_previous_outbound_notes(memory, limit=5)
+    subject_codes = assign_subject_codes(user_ids)
     draft = await build_post_draft(
         signal,
         target_submolt,
         persona=ctx.settings.system_prompt,
         llm=ctx.llm,
+        previous_notes=previous_notes,
+        subject_codes=subject_codes,
     )
     if draft is None:
         return web.json_response({"skipped_reason": "draft_failed"}, status=200)
@@ -403,9 +410,15 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
     stripped = regex_privacy_strip(draft.content, [{"fact": f} for f in all_facts])
     redacted = await redact_with_llm(stripped, all_facts, client=ctx.llm.client, model=ctx.settings.summary_model)
     if redacted is None:
+        # Persist the blocked draft for audit even though it won't go out
+        await persist_draft(draft, None, memory=memory, extra_notes="preview_redaction_blocked")
         return web.json_response(
             {"skipped_reason": "redaction_failed_or_leaked", "draft_title": draft.title}, status=200
         )
+
+    # Audit: every preview goes to the DB. Operator can review later even
+    # if they don't immediately POST it.
+    await persist_draft(draft, redacted, memory=memory, extra_notes="preview")
 
     preview_hash = _draft_hash(draft.title, redacted, target_submolt)
     return web.json_response(

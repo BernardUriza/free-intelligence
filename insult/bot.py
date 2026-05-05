@@ -19,9 +19,13 @@ from insult.core.guild_setup import post_reminder_delivered
 from insult.core.metrics import upload_dashboard_data
 from insult.core.moltbook_inbound import build_inbound_digest
 from insult.core.moltbook_outbound import (
+    assign_subject_codes,
     build_post_draft,
     detect_salience_signal,
     is_outbound_blocked,
+    load_previous_outbound_notes,
+    persist_draft,
+    persist_published_post,
     redact_with_llm,
     regex_privacy_strip,
 )
@@ -453,13 +457,17 @@ def _build(container: Container):
                 log.info("moltbook_outbound_skipped", reason="no_salience")
                 return
 
-            # Build draft (LLM call #1)
+            # Build draft (LLM call #1) with continuity context
             target_submolt = container.settings.moltbook_submolts[0]  # post to first
+            previous_notes = await load_previous_outbound_notes(memory, limit=5)
+            subject_codes = assign_subject_codes(user_ids)
             draft = await build_post_draft(
                 signal,
                 target_submolt,
                 persona=container.settings.system_prompt,
                 llm=container.llm,
+                previous_notes=previous_notes,
+                subject_codes=subject_codes,
             )
             if draft is None:
                 log.warning("moltbook_outbound_skipped", reason="draft_failed")
@@ -482,12 +490,19 @@ def _build(container: Container):
                 model=container.settings.summary_model,
             )
             if redacted is None:
+                # Persist the draft anyway — operator can audit what was
+                # generated even when redaction blocked it
+                await persist_draft(draft, None, memory=memory, extra_notes="redaction_blocked")
                 log.warning(
                     "moltbook_outbound_skipped",
                     reason="redaction_failed_or_leaked",
                     title=draft.title,
                 )
                 return
+
+            # AUDIT: persist draft BEFORE publishing — if Moltbook 5xxs after
+            # accepting the post, we still know exactly what we generated
+            await persist_draft(draft, redacted, memory=memory)
 
             # PUBLISH
             try:
@@ -499,6 +514,9 @@ def _build(container: Container):
                     title=draft.title,
                     salience_kind=signal.kind,
                 )
+                # Audit: record the published post separately so future
+                # build_post_draft calls can cite it via load_previous_outbound_notes
+                await persist_published_post(draft, post.id, redacted, memory=memory)
             except Exception:
                 log.exception("moltbook_outbound_publish_failed", title=draft.title)
         except Exception:

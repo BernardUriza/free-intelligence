@@ -12,9 +12,13 @@ from unittest.mock import AsyncMock, MagicMock
 from insult.core.moltbook_outbound import (
     OutboundDraft,
     SalienceSignal,
+    assign_subject_codes,
     build_post_draft,
     detect_salience_signal,
     is_outbound_blocked,
+    load_previous_outbound_notes,
+    persist_draft,
+    persist_published_post,
     regex_privacy_strip,
 )
 
@@ -64,16 +68,8 @@ async def test_vulnerability_gate_blocks_first():
     assert uid == "u1"
 
 
-async def test_disclosure_severity_3_blocks():
-    mem = _mock_memory(max_severity_by_user={"u1": 3})
-    reason, uid = await is_outbound_blocked(["u1"], memory=mem)
-    assert reason == "disclosure_severity"
-    assert uid == "u1"
-
-
 async def test_disclosure_severity_2_does_not_block():
-    """Severity 2 is "mild mention" — not a hard block, just informs ranking
-    (caller may still choose to skip via salience filter)."""
+    """Severity 2 is "mild mention" — never blocks."""
     mem = _mock_memory(max_severity_by_user={"u1": 2})
     reason, _ = await is_outbound_blocked(["u1"], memory=mem)
     assert reason is None
@@ -468,3 +464,201 @@ async def test_draft_returns_none_on_exception():
     llm.chat = AsyncMock(side_effect=RuntimeError("anthropic dead"))
     draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
     assert draft is None
+
+
+# ---------------------------------------------------------------------------
+# Subject codes — Alex=A, Bernard=B (deterministic, sorted by user_id)
+# ---------------------------------------------------------------------------
+
+
+def test_assign_subject_codes_alex_is_a_bernard_is_b():
+    """Alex's user_id (1431...) sorts before Bernard's (9072...) alphabetically,
+    so Alex gets A and Bernard gets B. Per Bernard's explicit request."""
+    codes = assign_subject_codes(["907264175246569543", "1431300030823927999"])
+    assert codes["1431300030823927999"] == "A"  # Alex
+    assert codes["907264175246569543"] == "B"  # Bernard
+
+
+def test_assign_subject_codes_deduplicates():
+    """Same user_id passed twice doesn't get two letters."""
+    codes = assign_subject_codes(["u1", "u1", "u2"])
+    assert len(codes) == 2
+    assert set(codes.values()) == {"A", "B"}
+
+
+def test_assign_subject_codes_caps_at_z():
+    """26 users get A-Z; 27th and beyond drop out (rather than continue
+    into AA which would break the 'one letter' contract)."""
+    codes = assign_subject_codes([f"u{i:03d}" for i in range(30)])
+    assert len(codes) == 26
+    assert "Z" in codes.values()
+
+
+def test_assign_subject_codes_empty():
+    assert assign_subject_codes([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# Build draft with previous_notes (continuity) and subject_codes
+# ---------------------------------------------------------------------------
+
+
+async def test_draft_first_post_includes_archive_opening_hint():
+    """When previous_notes is empty, the user prompt tells the LLM it's
+    Sesión 1 and points at the archive-opening template."""
+    llm = MagicMock()
+    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 1.","content":"abrir archivo"}'))
+    await build_post_draft(_signal(), "m/x", persona="p", llm=llm, previous_notes=None)
+    user_msg = llm.chat.call_args.args[1][0]["content"]
+    assert "N = 1" in user_msg
+    assert "Primer post" in user_msg or "Sesión 1" in user_msg
+
+
+async def test_draft_continuing_post_includes_previous_notes():
+    """When previous_notes has entries, the user prompt cites them so the
+    LLM can reference past posts (option B continuity)."""
+    llm = MagicMock()
+    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 4.","content":"continuo"}'))
+    previous = [
+        {"topic": "Sesión 1. Subject A predictive coding", "findings": "first note content..."},
+        {"topic": "Sesión 2. Subject B fixation", "findings": "second note content..."},
+        {"topic": "Sesión 3. Subject A again", "findings": "third note content..."},
+    ]
+    await build_post_draft(_signal(), "m/x", persona="p", llm=llm, previous_notes=previous)
+    user_msg = llm.chat.call_args.args[1][0]["content"]
+    assert "N = 4" in user_msg
+    assert "Sesión 1. Subject A predictive coding" in user_msg
+    assert "Sesión 2. Subject B fixation" in user_msg
+    assert "Sesión 3. Subject A again" in user_msg
+
+
+async def test_draft_subject_hint_uses_letter_not_user_id():
+    """The user prompt receives the LETTER mapping (Subject A) but never
+    the raw user_id. Privacy in the prompt itself."""
+    llm = MagicMock()
+    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
+    sig = SalienceSignal(
+        kind="stance",
+        seed_text="seed",
+        topic="topic",
+        confidence=0.8,
+        source_user_id="1431300030823927999",  # Alex
+    )
+    codes = {"1431300030823927999": "A", "907264175246569543": "B"}
+    await build_post_draft(sig, "m/x", persona="p", llm=llm, subject_codes=codes)
+    user_msg = llm.chat.call_args.args[1][0]["content"]
+    assert "Subject A" in user_msg
+    assert "1431300030823927999" not in user_msg  # the user_id MUST NOT leak
+
+
+async def test_draft_omits_subject_hint_when_no_source_user_id():
+    """If the salience didn't track which user it came from, no hint
+    fires — the LLM picks Subject A/B itself."""
+    llm = MagicMock()
+    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
+    sig = SalienceSignal(kind="stance", seed_text="seed", topic="topic", confidence=0.8)
+    await build_post_draft(sig, "m/x", persona="p", llm=llm, subject_codes={"u1": "A"})
+    user_msg = llm.chat.call_args.args[1][0]["content"]
+    assert "Subject del cual viene" not in user_msg
+
+
+# ---------------------------------------------------------------------------
+# persist_draft / persist_published_post — audit trail
+# ---------------------------------------------------------------------------
+
+
+async def test_persist_draft_writes_with_draft_source():
+    """Drafts go to world_scans with source='moltbook_outbound_draft' and
+    NULL external_id (haven't published yet)."""
+    mem = MagicMock()
+    mem.store_world_scan = AsyncMock(return_value=True)
+    draft = OutboundDraft(title="t", content="c", target_submolt="m/x", salience=_signal())
+    await persist_draft(draft, "redacted version", memory=mem)
+    kw = mem.store_world_scan.call_args.kwargs
+    assert kw["source"] == "moltbook_outbound_draft"
+    assert kw["external_id"] is None
+    assert kw["topic"] == "t"
+
+
+async def test_persist_draft_uses_redacted_when_provided():
+    """We persist the redacted version (what would go out), not the raw LLM
+    output, so the audit trail reflects what the user would actually see."""
+    mem = MagicMock()
+    mem.store_world_scan = AsyncMock(return_value=True)
+    draft = OutboundDraft(title="t", content="raw content", target_submolt="m/x", salience=_signal())
+    await persist_draft(draft, "redacted content", memory=mem)
+    kw = mem.store_world_scan.call_args.kwargs
+    assert kw["findings"] == "redacted content"
+
+
+async def test_persist_draft_falls_back_to_raw_when_no_redaction():
+    """When redaction failed (None), persist the raw draft anyway —
+    operator needs to see what the LLM generated."""
+    mem = MagicMock()
+    mem.store_world_scan = AsyncMock(return_value=True)
+    draft = OutboundDraft(title="t", content="raw content", target_submolt="m/x", salience=_signal())
+    await persist_draft(draft, None, memory=mem, extra_notes="redaction_blocked")
+    kw = mem.store_world_scan.call_args.kwargs
+    assert "raw content" in kw["findings"]
+    assert "redaction_blocked" in kw["commentary"]
+
+
+async def test_persist_draft_swallows_exceptions():
+    """Audit persistence MUST NOT block the publish — DB failure logs but
+    doesn't propagate."""
+    mem = MagicMock()
+    mem.store_world_scan = AsyncMock(side_effect=RuntimeError("DB down"))
+    draft = OutboundDraft(title="t", content="c", target_submolt="m/x", salience=_signal())
+    # No exception should escape this call
+    await persist_draft(draft, "r", memory=mem)
+
+
+async def test_persist_published_post_uses_published_source():
+    """Published posts go to world_scans with source='moltbook_outbound'
+    and external_id=post.id. Two rows per published post (draft + outbound)
+    is intentional — the dedupe partial UNIQUE INDEX is on
+    (source, external_id), so they don't collide."""
+    mem = MagicMock()
+    mem.store_world_scan = AsyncMock(return_value=True)
+    draft = OutboundDraft(title="t", content="c", target_submolt="m/x", salience=_signal())
+    await persist_published_post(draft, "moltbook_post_xyz", "redacted", memory=mem)
+    kw = mem.store_world_scan.call_args.kwargs
+    assert kw["source"] == "moltbook_outbound"
+    assert kw["external_id"] == "moltbook_post_xyz"
+
+
+async def test_load_previous_outbound_notes_filters_by_source():
+    mem = MagicMock()
+    mem.get_recent_world_scans = AsyncMock(return_value=[{"topic": "Sesión 1.", "findings": "..."}])
+    notes = await load_previous_outbound_notes(mem, limit=5)
+    assert len(notes) == 1
+    mem.get_recent_world_scans.assert_awaited_once_with(limit=5, source="moltbook_outbound")
+
+
+async def test_load_previous_outbound_notes_returns_empty_on_error():
+    mem = MagicMock()
+    mem.get_recent_world_scans = AsyncMock(side_effect=RuntimeError("DB down"))
+    notes = await load_previous_outbound_notes(mem)
+    assert notes == []
+
+
+# ---------------------------------------------------------------------------
+# Vulnerability gate threshold change (v3.7.26 — sev≥4 instead of ≥3)
+# ---------------------------------------------------------------------------
+
+
+async def test_disclosure_severity_3_no_longer_blocks():
+    """v3.7.26 relaxed the gate from sev≥3 to sev≥4. A user with sev=3
+    in last 14 days now passes (relying on the structural anonymization
+    of Joan Bright format + LLM redaction pass to handle leakage)."""
+    mem = _mock_memory(max_severity_by_user={"u1": 3})
+    reason, _ = await is_outbound_blocked(["u1"], memory=mem)
+    assert reason is None
+
+
+async def test_disclosure_severity_4_still_blocks():
+    """sev=4 = clear acute disclosure. Still blocks."""
+    mem = _mock_memory(max_severity_by_user={"u1": 4})
+    reason, uid = await is_outbound_blocked(["u1"], memory=mem)
+    assert reason == "disclosure_severity"
+    assert uid == "u1"

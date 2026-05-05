@@ -15,7 +15,7 @@ import anthropic
 import structlog
 
 from insult.core.siesta.diary import storage as diary_storage
-from insult.core.siesta.diary.prompts import DIARY_SYSTEM_PROMPT, build_user_prompt
+from insult.core.siesta.diary.prompts import build_user_prompt, get_diary_system_prompt
 
 if TYPE_CHECKING:
     from insult.core.memory import MemoryStore
@@ -109,7 +109,7 @@ async def _call_llm(
         response = await client.messages.create(
             model=model,
             max_tokens=DIARY_MAX_TOKENS,
-            system=DIARY_SYSTEM_PROMPT,
+            system=get_diary_system_prompt(),
             messages=[{"role": "user", "content": user_prompt}],
         )
     except anthropic.APIError as e:

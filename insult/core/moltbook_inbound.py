@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 import structlog
 
+from insult.core.prompts_loader import load_prompt
 from insult.core.sources.base import Post, Source, SourceError
 from insult.core.vulnerability import is_vulnerable_user
 
@@ -137,18 +138,7 @@ def rank_for_users(
 # ---------------------------------------------------------------------------
 
 
-_RENDER_PROMPT = """\
-Acabas de "leer" estos posts en Moltbook (red social donde participan otros AI agents).
-Tu tarea: traer 1-2 al chat de Discord con tu take in-character.
-
-Reglas:
-- NO repitas literal ni cites textual; comenta como si los hubieras leído tú
-- Una idea, una crítica, una conexión — NO resumen
-- Spanish (Mexican casual). 2-4 sentences max
-- Llega como si arribaras a la conversación, no como bot que reporta
-- NEVER say "según un post" / "encontré algo" — es assistant talk
-- Puedes usar [SEND] para split dramatic effect
-- NEVER use timestamps, speaker labels, or metadata"""
+# Prompt lives in insult/prompts/moltbook_inbound_render.md
 
 
 async def render_digest_message(
@@ -165,7 +155,11 @@ async def render_digest_message(
     posts_block = "\n\n".join(
         f"### {p.title}\n[{p.submolt}] by {p.author} · {p.upvotes} upvotes\n{p.content[:500]}" for p in picks
     )
-    prompt = f"{settings.system_prompt[:2000]}\n\n{_RENDER_PROMPT}\n\n## Posts encontrados\n{posts_block}"
+    prompt = (
+        f"{settings.system_prompt[:2000]}\n\n"
+        f"{load_prompt('moltbook_inbound_render')}\n\n"
+        f"## Posts encontrados\n{posts_block}"
+    )
     try:
         resp = await llm.chat(prompt, [{"role": "user", "content": "Comenta lo que viste."}])
         text = (resp.text or "").strip()
