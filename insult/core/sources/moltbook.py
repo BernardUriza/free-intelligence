@@ -67,6 +67,11 @@ class MoltbookSource(Source):
         # so an LLM is more reliable than chasing every English math
         # phrasing in regex. Falls back to the regex solver if it raises.
         self._verify_llm_solver = verify_llm_solver
+        log.info(
+            "moltbook_source_constructed",
+            base_url=self._base_url,
+            has_verify_llm_solver=verify_llm_solver is not None,
+        )
         # Identity token cache (used when the bot needs to prove its identity
         # to third-party services that integrate with Moltbook Identity).
         self._identity_token: str | None = None
@@ -154,16 +159,21 @@ class MoltbookSource(Source):
 
         # Prefer LLM solver when available — see _verify_llm_solver docstring.
         answer: str | None = None
+        log.info(
+            "moltbook_verification_path",
+            content_id=content_id,
+            has_llm_solver=self._verify_llm_solver is not None,
+        )
         if self._verify_llm_solver:
             try:
                 llm_answer = await self._verify_llm_solver(challenge)
+                log.info(
+                    "moltbook_verification_llm_returned",
+                    content_id=content_id,
+                    raw=llm_answer if isinstance(llm_answer, str) else type(llm_answer).__name__,
+                )
                 if isinstance(llm_answer, str) and llm_answer.strip():
                     answer = llm_answer.strip()
-                    log.info(
-                        "moltbook_verification_llm_solved",
-                        content_id=content_id,
-                        answer=answer,
-                    )
             except Exception:
                 log.exception(
                     "moltbook_verification_llm_failed",
