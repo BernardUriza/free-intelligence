@@ -127,6 +127,42 @@ def should_force_overwrite(
     return has_strict_gain
 
 
+def should_abort_download(
+    local_counts: dict[str, int],
+    remote_counts: dict[str, int],
+) -> bool:
+    """Whether the download must be aborted because the remote blob is
+    strictly poorer than the local DB.
+
+    Pure function — symmetric to `should_force_overwrite` on the upload
+    path. Returns True only when, for every authoritative table, local has
+    >= remote rows AND for at least one table local has STRICTLY MORE rows.
+    In that case, downloading would erase rows we have on disk that the
+    remote does not — exactly the regression that wiped Alex's clinical
+    fact cluster (CPTSD, quetiapina, sertralina, neuropsiquiatra, artritis)
+    on 2026-04-27 when a fresh container restored a stale blob over a
+    long-running rich replica.
+
+    The startup path calls this AFTER fetching the remote bytes into a
+    side-buffer but BEFORE atomically replacing the local DB file. Pure
+    function so the policy can be unit-tested without azure-storage-blob.
+
+    Note: this is intentionally aggressive. If you ever need to manually
+    restore a blob that has fewer rows on purpose (e.g. operator bisecting
+    bad facts), bypass it by clearing storage/memory.db before the
+    container starts so `local_counts` is all zeros — `proceed`.
+    """
+    has_strict_gain = False
+    for table in ("messages", "user_facts"):
+        local = int(local_counts.get(table, 0))
+        remote = int(remote_counts.get(table, 0))
+        if local < remote:
+            return False
+        if local > remote:
+            has_strict_gain = True
+    return has_strict_gain
+
+
 def should_abort_upload(
     current_remote_mtime: datetime | None,
     last_known_local_mtime: datetime | None,
@@ -201,7 +237,33 @@ async def download_db(db_path: Path) -> bool:
                     )
                     return False
 
+                # Richness guard: if the local DB exists and is strictly
+                # richer than the remote (more messages or user_facts and
+                # never fewer of either), refuse to overwrite. This is the
+                # symmetric counterpart of `should_force_overwrite` on the
+                # upload path. It guards against the regression discovered
+                # 2026-04-27 where a container swap pulled a stale 4-fact
+                # blob over a 92-fact local DB. Byte-size alone (the older
+                # check above) is insufficient: a VACUUMed rich DB can be
+                # smaller than a bloated stale one.
                 db_path.parent.mkdir(parents=True, exist_ok=True)
+                if db_path.exists():
+                    remote_check_path = db_path.parent / "memory_remote_check.db"
+                    try:
+                        remote_check_path.write_bytes(data)
+                        local_counts = count_authoritative_rows(db_path)
+                        remote_counts = count_authoritative_rows(remote_check_path)
+                        if should_abort_download(local_counts, remote_counts):
+                            log.warning(
+                                "azure_download_aborted_richer_local",
+                                local_counts=local_counts,
+                                remote_counts=remote_counts,
+                                reason="local DB is strictly richer; downloading would erase rows",
+                            )
+                            return False
+                    finally:
+                        remote_check_path.unlink(missing_ok=True)
+
                 db_path.write_bytes(data)
                 log.info(
                     "azure_db_downloaded",

@@ -23,6 +23,7 @@ from pathlib import Path
 
 from insult.core.backup import (
     count_authoritative_rows,
+    should_abort_download,
     should_abort_upload,
     should_force_overwrite,
     should_unstick_baseline,
@@ -198,3 +199,51 @@ def test_force_overwrite_handles_missing_keys():
     assert should_force_overwrite({"user_facts": 100}, {"messages": 50}) is False
     # Empty local: no strict gain.
     assert should_force_overwrite({}, {"messages": 50}) is False
+
+
+# --- should_abort_download ---------------------------------------------------
+#
+# The 2026-04-27 Alex incident reconstructed: a container swap downloaded a
+# stale 4-fact blob over a long-running 92-fact local DB on startup. The
+# upload-side fix (force_overwrite) only kicks in AFTER the bot has already
+# clobbered its own local state. The download-side guard catches it before
+# any data is overwritten.
+
+
+def test_abort_download_when_local_strictly_richer_in_facts():
+    # The exact Alex regression: local 92 facts, remote 4 facts. Don't
+    # download — the blob is stale and would erase the cluster.
+    assert should_abort_download({"messages": 100, "user_facts": 92}, {"messages": 100, "user_facts": 4}) is True
+
+
+def test_abort_download_when_local_strictly_richer_in_messages():
+    # Long-running rich container, fresh blob has fewer messages.
+    assert should_abort_download({"messages": 5000, "user_facts": 50}, {"messages": 1000, "user_facts": 50}) is True
+
+
+def test_proceed_download_when_remote_has_more_facts():
+    # Operator pushed a fresh blob with 16 facts, local has 3 from a
+    # newly-spawned container. Download is correct here.
+    assert should_abort_download({"messages": 200, "user_facts": 3}, {"messages": 100, "user_facts": 16}) is False
+
+
+def test_proceed_download_when_remote_has_more_messages():
+    # Symmetric case on messages table.
+    assert should_abort_download({"messages": 100, "user_facts": 50}, {"messages": 200, "user_facts": 50}) is False
+
+
+def test_proceed_download_when_counts_equal():
+    # No strict gain locally → safe to download (same content / different mtime).
+    assert should_abort_download({"messages": 100, "user_facts": 50}, {"messages": 100, "user_facts": 50}) is False
+
+
+def test_proceed_download_when_local_empty():
+    # Brand-new container at first boot: no local data → must download.
+    assert should_abort_download({"messages": 0, "user_facts": 0}, {"messages": 100, "user_facts": 50}) is False
+
+
+def test_abort_download_handles_missing_keys():
+    # Mirror of force_overwrite_handles_missing_keys.
+    assert should_abort_download({"messages": 100}, {"messages": 50}) is True
+    assert should_abort_download({"user_facts": 100}, {"messages": 50}) is False
+    assert should_abort_download({}, {"messages": 50}) is False
