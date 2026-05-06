@@ -11,7 +11,7 @@ from insult.app import Container, create_app
 from insult.cogs import ChatCog, UtilityCog
 from insult.cogs.voice import VoiceCog
 from insult.core.backup import download_db, is_azure_configured, upload_db
-from insult.core.character import _get_current_time_context, strip_metadata
+from insult.core.character import _get_current_time_context
 from insult.core.debug_server import MoltbookDebugContext, start_debug_server, stop_debug_server
 from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
@@ -232,28 +232,21 @@ def _build(container: Container):
 
         if is_world_scan:
             scan_result = await generate_world_scan_message(
-                container.llm.client, container.settings.llm_model, time_str, user_facts, recent_msgs
+                container.llm, container.settings.llm_model, time_str, user_facts, recent_msgs
             )
             msg = scan_result.commentary if scan_result else None
         else:
             scan_result = None
             msg = await generate_proactive_message(
-                container.llm.client, container.settings.llm_model, time_str, user_facts, recent_msgs
+                container.llm, container.settings.llm_model, time_str, user_facts, recent_msgs
             )
 
         if msg:
-            # Route through character guard (Fix 5)
-            from insult.core.character import detect_anti_patterns, detect_break
-
-            msg = strip_metadata(msg)
-            breaks = detect_break(msg)
-            if breaks:
-                log.warning("proactive_character_break", patterns=breaks)
-                return  # Don't send broken proactive messages
-
-            anti_patterns = detect_anti_patterns(msg)
-            if anti_patterns:
-                log.warning("proactive_anti_pattern", patterns=anti_patterns)
+            # LLMClient.chat already ran character_break + anti_pattern +
+            # language_cure + strip_metadata in the generate_* helpers.
+            # No need to re-detect here — if a break survived, .chat()
+            # would have either retried, fallen back, or sanitized the
+            # output. Trust the wrapper.
 
             try:
                 parts = split_response(msg)
@@ -340,7 +333,7 @@ def _build(container: Container):
                         continue
 
                     summary = await summarize_channel(
-                        container.llm.client,
+                        container.llm,
                         container.settings.summary_model,
                         ch_name,
                         messages,

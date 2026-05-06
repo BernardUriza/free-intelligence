@@ -123,7 +123,6 @@ def consolidate_facts(
     happened during consolidation will preserve the bot's version and
     log a warning instead of clobbering the new messages.
     """
-    import anthropic
 
     from insult.config import settings
     from insult.core.backup import download_db, is_azure_configured, upload_db
@@ -144,13 +143,23 @@ def consolidate_facts(
 
         store = MemoryStore(settings.db_path)
         await store.connect()
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
+        # Wrap the SDK client in an LLMClient so consolidator goes through
+        # utility_call (retry policy + cache_control). cure_model="" keeps
+        # language_cure off — judge output is JSON, not user-facing text.
+        from insult.core.llm import LLMClient
+
+        llm = LLMClient(
+            api_key=settings.anthropic_api_key.get_secret_value(),
+            model=settings.summary_model,
+            max_tokens=4096,
+            cure_model="",
+        )
         try:
             if user_id:
                 report = await consolidate_user_facts(
                     user_id,
                     memory=store,
-                    llm_client=client,
+                    llm=llm,
                     model=settings.summary_model,
                     dry_run=dry_run,
                 )
@@ -161,7 +170,7 @@ def consolidate_facts(
                 name_resolver = await _resolve_user_names(store)
                 reports = await consolidate_all_users(
                     memory=store,
-                    llm_client=client,
+                    llm=llm,
                     model=settings.summary_model,
                     dry_run=dry_run,
                     name_resolver=name_resolver,

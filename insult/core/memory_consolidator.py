@@ -164,11 +164,18 @@ def _validate_plan(plan: list[dict], facts: list[dict]) -> list[dict]:
 
 
 async def _call_judge(
-    client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
     facts: list[dict],
 ) -> tuple[list[dict] | None, int, int]:
     """Single Haiku call. Returns (plan, input_tokens, output_tokens).
+
+    Routes through LLMClient.utility_call — utility-grade because the
+    output is a JSON plan parsed downstream, not user-facing text.
+    Cache + retry policy apply; character_break / language_cure don't.
+    Token counts are no longer returned (utility_call doesn't expose
+    them per-call yet); we return zeros and the caller already accepts
+    that as best-effort accounting.
 
     Logs a warning when the response stop_reason is ``max_tokens`` —
     that's the canary for "we need to bump JUDGE_MAX_OUTPUT_TOKENS or
@@ -178,25 +185,27 @@ async def _call_judge(
     """
     user_prompt = _build_user_prompt(facts)
     try:
-        response = await client.messages.create(
+        response = await llm.utility_call(
+            load_prompt("memory_consolidator_judge"),
+            [{"role": "user", "content": user_prompt}],
             model=model,
             max_tokens=JUDGE_MAX_OUTPUT_TOKENS,
-            system=load_prompt("memory_consolidator_judge"),
-            messages=[{"role": "user", "content": user_prompt}],
         )
     except (anthropic.APIError, anthropic.APIConnectionError) as e:
         log.warning("consolidator_judge_call_failed", error=str(e))
         return None, 0, 0
-    if getattr(response, "stop_reason", None) == "max_tokens":
+    if response.stop_reason == "max_tokens":
         log.warning(
             "consolidator_judge_truncated",
             facts_in=len(facts),
-            output_tokens=response.usage.output_tokens,
             max_tokens=JUDGE_MAX_OUTPUT_TOKENS,
         )
-    raw = response.content[0].text if response.content else ""
-    plan = _parse_judge_response(raw)
-    return plan, response.usage.input_tokens, response.usage.output_tokens
+    plan = _parse_judge_response(response.text)
+    # Token counts now live in get_usage_report() (per-family); the per-
+    # call accounting that used to flow back through this return is no
+    # longer needed by the caller. Return zeros so the call signature
+    # stays the same for backwards compat.
+    return plan, 0, 0
 
 
 async def _apply_plan(
@@ -299,7 +308,7 @@ async def consolidate_user_facts(
     user_id: str,
     *,
     memory: MemoryStore,
-    llm_client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
     dry_run: bool = False,
 ) -> ConsolidationReport:
@@ -321,7 +330,7 @@ async def consolidate_user_facts(
         log.info("consolidator_user_skipped", user_id=user_id, reason="below_min_facts", facts=len(facts))
         return report
 
-    plan, in_toks, out_toks = await _call_judge(llm_client, model, facts)
+    plan, in_toks, out_toks = await _call_judge(llm, model, facts)
     report.haiku_input_tokens = in_toks
     report.haiku_output_tokens = out_toks
     if plan is None:
@@ -444,7 +453,7 @@ async def hard_purge_soft_deleted(
 async def consolidate_all_users(
     *,
     memory: MemoryStore,
-    llm_client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
     dry_run: bool = False,
     write_diary: bool = True,
@@ -488,9 +497,7 @@ async def consolidate_all_users(
                     processed_users=idx,
                     current_user_id=uid,
                 )
-            report = await consolidate_user_facts(
-                uid, memory=memory, llm_client=llm_client, model=model, dry_run=dry_run
-            )
+            report = await consolidate_user_facts(uid, memory=memory, llm=llm, model=model, dry_run=dry_run)
             reports.append(report)
 
         if not dry_run:
@@ -507,7 +514,7 @@ async def consolidate_all_users(
                 await write_diary_for_run(
                     reports,
                     memory=memory,
-                    llm_client=llm_client,
+                    llm=llm,
                     model=model,
                     name_resolver=name_resolver,
                 )

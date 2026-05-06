@@ -22,12 +22,16 @@ SUMMARIZATION_PROMPT = (
 _TWENTY_FOUR_HOURS = 86400
 
 
-async def summarize_channel(client, model: str, channel_name: str, messages: list[dict]) -> str:
+async def summarize_channel(llm, model: str, channel_name: str, messages: list[dict]) -> str:
     """Call LLM to summarize recent channel activity.
 
+    Routes through LLMClient.utility_call — gets retry policy + cache
+    (when system prompt is reused across channels) without the user-
+    facing guards that don't apply to internal summaries.
+
     Args:
-        client: Anthropic client instance.
-        model: Model name (e.g. claude-haiku-3-5-20241022).
+        llm: LLMClient instance.
+        model: Model name (e.g. claude-haiku-4-5-20251001).
         channel_name: Human-readable channel name.
         messages: List of message dicts with user_name, role, content, timestamp.
 
@@ -43,13 +47,13 @@ async def summarize_channel(client, model: str, channel_name: str, messages: lis
     prompt = SUMMARIZATION_PROMPT.replace("{channel_name}", channel_name)
 
     try:
-        response = await client.messages.create(
+        response = await llm.utility_call(
+            prompt,
+            [{"role": "user", "content": f"Messages from #{channel_name}:\n\n{formatted}"}],
             model=model,
             max_tokens=150,
-            system=prompt,
-            messages=[{"role": "user", "content": f"Messages from #{channel_name}:\n\n{formatted}"}],
         )
-        return response.content[0].text.strip()
+        return response.text.strip()
     except Exception:
         log.exception("channel_summarization_failed", channel=channel_name)
         return ""

@@ -11,13 +11,14 @@ import json
 import anthropic
 import structlog
 
+from insult.core.llm import LLMClient
 from insult.core.prompts_loader import load_prompt
 
 log = structlog.get_logger()
 
 
 async def extract_facts(
-    client: anthropic.AsyncAnthropic,
+    llm: LLMClient,
     model: str,
     user_name: str,
     existing_facts: list[dict],
@@ -26,6 +27,11 @@ async def extract_facts(
     """Extract/update user facts from recent conversation using LLM.
 
     Returns a list of fact dicts with 'fact' and 'category' keys.
+
+    Uses LLMClient.utility_call (not chat) because the output is
+    structured JSON parsed downstream — character_break detection +
+    language_cure are wrong tools for that path. Cache hits still apply
+    when the system prompt is stable across users.
     """
     existing_str = "\n".join(f"- [{f['category']}] {f['fact']}" for f in existing_facts) if existing_facts else "(none)"
 
@@ -36,15 +42,15 @@ async def extract_facts(
     )
 
     try:
-        response = await client.messages.create(
+        response = await llm.utility_call(
+            load_prompt("facts_extraction"),
+            [{"role": "user", "content": user_prompt}],
             model=model,
             max_tokens=4096,
-            system=load_prompt("facts_extraction"),
-            messages=[{"role": "user", "content": user_prompt}],
         )
-        raw = response.content[0].text.strip()
+        raw = response.text.strip()
         if response.stop_reason == "max_tokens":
-            log.warning("facts_extraction_truncated", user_name=user_name, output_tokens=response.usage.output_tokens)
+            log.warning("facts_extraction_truncated", user_name=user_name)
             return existing_facts
 
         # Parse JSON — handle markdown code blocks

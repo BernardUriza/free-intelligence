@@ -536,7 +536,7 @@ async def run_turn(
     ch_name = getattr(message.channel, "name", "")
     spawn_task(
         extract_user_facts(
-            llm.client,
+            llm,
             settings.summary_model,
             memory,
             bot,

@@ -100,25 +100,28 @@ def _resolve_status(failed_count: int, users_total: int) -> str:
 
 
 async def _call_llm(
-    client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
     user_prompt: str,
 ) -> tuple[str, str | None]:
-    """Single Haiku call. Returns (text, error_or_none)."""
+    """Single Haiku call via LLMClient.utility_call. Returns (text, error_or_none).
+
+    The diary system prompt is identical across runs, so prompt cache
+    pays off cycle to cycle. utility_call (not chat) is the right
+    wrapper — diary entries are persisted, not user-facing prose, so
+    character_break / language_cure overhead would be wasted Haiku
+    tokens on a path that already runs at the end of consolidation.
+    """
     try:
-        response = await client.messages.create(
+        response = await llm.utility_call(
+            get_diary_system_prompt(),
+            [{"role": "user", "content": user_prompt}],
             model=model,
             max_tokens=DIARY_MAX_TOKENS,
-            system=get_diary_system_prompt(),
-            messages=[{"role": "user", "content": user_prompt}],
         )
     except anthropic.APIError as e:
         return PLACEHOLDER_ON_LLM_FAILURE, f"api_error: {e}"
-    text = ""
-    for block in response.content:
-        if getattr(block, "type", None) == "text":
-            text = getattr(block, "text", "").strip()
-            break
+    text = response.text.strip()
     if not text:
         return PLACEHOLDER_ON_LLM_FAILURE, "empty_response"
     return text, None
@@ -128,7 +131,7 @@ async def write_diary_for_run(
     reports: list[ConsolidationReport],
     *,
     memory: MemoryStore,
-    llm_client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
     name_resolver: dict[str, str] | None = None,
 ) -> int | None:
@@ -152,7 +155,7 @@ async def write_diary_for_run(
         duration_ms=summary["duration_ms"],
     )
 
-    content, llm_error = await _call_llm(llm_client, model, user_prompt)
+    content, llm_error = await _call_llm(llm, model, user_prompt)
     status = _resolve_status(len(summary["failed_users"]), len(reports))
 
     log.info(

@@ -157,7 +157,7 @@ async def summarize_user_images_into_text(
         return base_text
     started = time.monotonic()
     try:
-        summary = await summarize_images(image_blocks, client=llm.client, model=summary_model)
+        summary = await summarize_images(image_blocks, llm=llm, model=summary_model)
         log.info(
             "image_summary_ok",
             duration_ms=int((time.monotonic() - started) * 1000),

@@ -65,7 +65,7 @@ def spawn_tracked_task(
 
 
 async def extract_user_facts(
-    llm_client,
+    llm,
     summary_model: str,
     memory,
     bot,
@@ -80,9 +80,13 @@ async def extract_user_facts(
 
     Posts safe additions to the system channel so the operator can audit
     what Insult is remembering without having to curl the debug endpoint.
+
+    `llm` is the LLMClient (not the raw AsyncAnthropic client) — fact
+    extraction goes through utility_call so it picks up retry policy +
+    prompt caching, but skips the user-facing guards.
     """
     try:
-        new_facts = await extract_facts(llm_client, summary_model, user_name, existing_facts, recent)
+        new_facts = await extract_facts(llm, summary_model, user_name, existing_facts, recent)
         if new_facts != existing_facts:
             await memory.save_facts(user_id, new_facts)
             if guild_id:

@@ -12,7 +12,6 @@ None and the caller falls back to storing the plain text.
 
 from __future__ import annotations
 
-import anthropic
 import structlog
 
 log = structlog.get_logger()
@@ -30,35 +29,35 @@ _PROMPT = (
 async def summarize_images(
     image_blocks: list[dict],
     *,
-    client: anthropic.AsyncAnthropic,
+    llm,
     model: str,
 ) -> str | None:
     """Return a short textual description of the image(s), or None on failure.
 
     Input: list of Claude API image content blocks (type="image"). Packs
-    them into a single Haiku call and returns the combined description.
+    them into a single Haiku call via LLMClient.utility_call and returns
+    the combined description. Goes through the wrapper for retry policy
+    and prompt caching — the system _PROMPT is identical across every
+    call, so cache hit pays off after one image-bearing message.
     """
     if not image_blocks:
         return None
 
-    content: list[dict] = [*image_blocks, {"type": "text", "text": _PROMPT}]
     try:
-        response = await client.messages.create(
+        response = await llm.utility_call(
+            _PROMPT,
+            [{"role": "user", "content": image_blocks}],
             model=model,
             max_tokens=SUMMARY_MAX_TOKENS,
-            messages=[{"role": "user", "content": content}],
-            timeout=SUMMARY_TIMEOUT,
         )
     except Exception as e:
         log.warning("image_summary_failed", error=str(e), error_type=type(e).__name__)
         return None
 
-    for block in response.content:
-        if getattr(block, "type", None) == "text":
-            text = block.text.strip()
-            if text:
-                log.info("image_summary_generated", count=len(image_blocks), length=len(text))
-                return text
+    text = response.text.strip()
+    if text:
+        log.info("image_summary_generated", count=len(image_blocks), length=len(text))
+        return text
 
     log.warning("image_summary_empty", count=len(image_blocks))
     return None

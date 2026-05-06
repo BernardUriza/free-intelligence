@@ -118,31 +118,35 @@ async def store():
 
 
 def _mock_anthropic(judge_plan: list[dict]) -> MagicMock:
-    """Build a mock Anthropic client whose messages.create returns ``judge_plan`` as JSON."""
-    client = MagicMock()
-    response = MagicMock()
-    response.content = [MagicMock(text=json.dumps(judge_plan))]
-    response.usage = MagicMock(input_tokens=100, output_tokens=50)
-    client.messages.create = AsyncMock(return_value=response)
-    return client
+    """Build a mock LLMClient whose utility_call returns ``judge_plan`` as JSON.
+
+    Kept the legacy name for test stability; what we mock is now the
+    LLMClient wrapper rather than the raw Anthropic client (post-v3.7.62
+    consolidator routes through utility_call for cache + retry, with
+    JSON output unaffected by the user-facing guards)."""
+    from insult.core.llm import LLMResponse
+
+    llm = MagicMock()
+    llm.utility_call = AsyncMock(return_value=LLMResponse(text=json.dumps(judge_plan), stop_reason="end_turn"))
+    return llm
 
 
 class TestConsolidateUserFactsApply:
     async def test_skips_when_no_facts(self, store):
         client = _mock_anthropic([])
-        report = await consolidate_user_facts("u1", memory=store, llm_client=client, model="claude-haiku-4-5-20251001")
+        report = await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
         assert report.facts_in == 0
         assert report.facts_out == 0
-        assert client.messages.create.await_count == 0  # never called LLM
+        assert client.utility_call.await_count == 0  # never called LLM
 
     async def test_skips_when_below_min_facts(self, store):
         await store.add_manual_fact("u1", "fact A")
         await store.add_manual_fact("u1", "fact B")
         client = _mock_anthropic([])
-        report = await consolidate_user_facts("u1", memory=store, llm_client=client, model="claude-haiku-4-5-20251001")
+        report = await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
         assert report.facts_in == 2
         # 2 < 3 minimum → no LLM call, no changes
-        assert client.messages.create.await_count == 0
+        assert client.utility_call.await_count == 0
 
     async def test_delete_op_soft_deletes(self, store):
         await store.add_manual_fact("u1", "live fact 1")
@@ -159,7 +163,7 @@ class TestConsolidateUserFactsApply:
             {"op": "DELETE", "id": ids[2], "reason": "duplicate of id=1"},
         ]
         client = _mock_anthropic(plan)
-        report = await consolidate_user_facts("u1", memory=store, llm_client=client, model="claude-haiku-4-5-20251001")
+        report = await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
 
         assert report.counts_by_op()["DELETE"] == 1
         assert report.counts_by_op()["NOOP"] == 2
@@ -190,7 +194,7 @@ class TestConsolidateUserFactsApply:
             {"op": "NOOP", "id": ids[2]},
         ]
         client = _mock_anthropic(plan)
-        await consolidate_user_facts("u1", memory=store, llm_client=client, model="claude-haiku-4-5-20251001")
+        await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
 
         live_after = await store.get_facts("u1")
         texts = {f["fact"] for f in live_after}
@@ -212,7 +216,7 @@ class TestConsolidateUserFactsDryRun:
         plan = [{"op": "DELETE", "id": ids[0]}, {"op": "NOOP", "id": ids[1]}, {"op": "NOOP", "id": ids[2]}]
         client = _mock_anthropic(plan)
         report = await consolidate_user_facts(
-            "u1", memory=store, llm_client=client, model="claude-haiku-4-5-20251001", dry_run=True
+            "u1", memory=store, llm=client, model="claude-haiku-4-5-20251001", dry_run=True
         )
         assert report.counts_by_op()["DELETE"] == 1
         # DB unchanged
@@ -262,9 +266,11 @@ class TestConsolidateAllUsers:
         # Mock a NOOP-only plan so nothing changes — we only verify orchestration
         client = MagicMock()
 
-        def _build_response(*args, **kwargs):
+        from insult.core.llm import LLMResponse
+
+        def _build_response(system, messages, **kwargs):
             # echo the input fact ids back as NOOPs by inspecting the user prompt
-            user_prompt = kwargs["messages"][0]["content"]
+            user_prompt = messages[0]["content"]
             ids = []
             for line in user_prompt.split("\n"):
                 if '"id":' in line:
@@ -272,16 +278,13 @@ class TestConsolidateAllUsers:
                     if chunk.isdigit():
                         ids.append(int(chunk))
             plan = [{"op": "NOOP", "id": i} for i in ids]
-            response = MagicMock()
-            response.content = [MagicMock(text=json.dumps(plan))]
-            response.usage = MagicMock(input_tokens=50, output_tokens=20)
-            return response
+            return LLMResponse(text=json.dumps(plan), stop_reason="end_turn")
 
-        client.messages.create = AsyncMock(side_effect=_build_response)
+        client.utility_call = AsyncMock(side_effect=_build_response)
 
         reports = await consolidate_all_users(
             memory=store,
-            llm_client=client,
+            llm=client,
             model="claude-haiku-4-5-20251001",
             write_diary=False,
         )
@@ -289,4 +292,4 @@ class TestConsolidateAllUsers:
         assert {r.user_id for r in reports} == {"u1", "u2"}
         assert all(r.counts_by_op()["NOOP"] == 3 for r in reports)
         # 2 users x 1 LLM call each (diary disabled in this test)
-        assert client.messages.create.await_count == 2
+        assert client.utility_call.await_count == 2

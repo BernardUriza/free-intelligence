@@ -17,9 +17,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-import anthropic
 import structlog
 
+from insult.core.llm import LLMClient
 from insult.core.prompts_loader import load_prompt
 
 log = structlog.get_logger()
@@ -332,13 +332,20 @@ def _pick_search_topic(user_facts: dict[str, list[dict]], mood: str, recent_text
 
 
 async def generate_proactive_message(
-    client: anthropic.AsyncAnthropic,
+    llm: LLMClient,
     model: str,
     time_str: str,
     user_facts: dict[str, list[dict]],
     recent_messages: list[dict],
 ) -> str | None:
-    """Generate an in-character context-aware check-in message."""
+    """Generate an in-character context-aware check-in message.
+
+    Routed through LLMClient.chat (not client.messages.create) so the
+    proactive output gets the same protections as a turn response:
+    character_break detection, anti_pattern monitoring, language_cure,
+    and formatting normalization. Without this wrapper, a proactive
+    message that drifts ("As an AI...") would ship to the channel
+    untouched."""
     facts_lines = []
     for user_name, facts in user_facts.items():
         user_facts_str = ", ".join(f["fact"] for f in facts[:5])
@@ -361,19 +368,19 @@ async def generate_proactive_message(
     )
 
     try:
-        response = await client.messages.create(
+        response = await llm.chat(
+            load_prompt("proactive_social"),
+            [{"role": "user", "content": user_prompt}],
             model=model,
-            max_tokens=256,
-            system=load_prompt("proactive_social"),
-            messages=[{"role": "user", "content": user_prompt}],
         )
-        text = response.content[0].text.strip()
+        text = response.text.strip()
         log.info(
             "proactive_message_generated",
             mode="social",
             mood=mood,
             elapsed=elapsed,
             length=len(text),
+            model_used=response.model_used,
         )
         return text if text else None
     except Exception:
@@ -391,13 +398,19 @@ class WorldScanResult:
 
 
 async def generate_world_scan_message(
-    client: anthropic.AsyncAnthropic,
+    llm: LLMClient,
     model: str,
     time_str: str,
     user_facts: dict[str, list[dict]],
     recent_messages: list[dict] | None = None,
 ) -> WorldScanResult | None:
     """Generate an in-character world scan message using web search.
+
+    Routed through LLMClient.chat — gives us character_break detection,
+    anti_pattern monitoring, language_cure, and consistent retry policy
+    on top of the web_search server tool. Server-side `tool_use` and
+    `web_search_tool_result` blocks are still parsed transparently by
+    `_parse_response_content`; we only consume the text output.
 
     Returns WorldScanResult with commentary + metadata, or None on failure.
     """
@@ -421,29 +434,20 @@ async def generate_world_scan_message(
     )
 
     try:
-        response = await client.messages.create(
-            model=model,
-            max_tokens=512,
-            system=load_prompt("proactive_world_scan"),
-            messages=[{"role": "user", "content": user_prompt}],
+        response = await llm.chat(
+            load_prompt("proactive_world_scan"),
+            [{"role": "user", "content": user_prompt}],
             tools=[_WORLD_SCAN_SEARCH_TOOL],
+            model=model,
         )
-
-        # Extract text from response (skip server-side search tool blocks)
-        text_parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                text_parts.append(block.text)
-
-        text = "\n".join(text_parts).strip()
+        text = response.text.strip()
         log.info(
             "proactive_message_generated",
             mode="world_scan",
             mood=mood,
             length=len(text),
             search_topic=search_topic,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
+            model_used=response.model_used,
         )
         if not text:
             return None

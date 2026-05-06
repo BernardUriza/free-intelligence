@@ -58,7 +58,7 @@ def build_adaptive_prompt(
 ) -> tuple[str, PresetSelection]:
     """Compose the system prompt and return (prompt, preset_selection)."""
     # base_prompt (persona.md) is the only 100% stable section — mark the cache
-    # boundary right after it so the Anthropic cache covers ~15K tokens of persona
+    # boundary right after it so the Anthropic cache covers ~10K tokens of persona
     # across requests. Everything appended below is dynamic.
     prompt = base_prompt + CACHE_BOUNDARY
 

@@ -151,6 +151,7 @@ class LLMResponse:
     text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     model_used: str = ""  # populated by chat() — reflects the model that actually produced the text
+    stop_reason: str = ""  # raw API stop_reason; "max_tokens" / "end_turn" / "tool_use" / "pause_turn"
 
 
 # Web search tool definition — Claude's native server-side search.
@@ -246,12 +247,17 @@ class LLMClient:
         tools: list[dict] | None = None,
         tool_choice: dict | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
         on_timeout: Callable[[], Awaitable[None]] | None = None,
     ) -> LLMResponse:
         """Raw API call with retry logic for transient errors.
 
         `model` overrides self.model for this call only (used by the 3-tier
         router to route per-turn). Defaults to self.model when None.
+
+        `max_tokens` overrides self.max_tokens for this call only (used by
+        utility_call() — facts extraction wants 4096, proactive social
+        wants 256, etc.). Defaults to self.max_tokens when None.
 
         `on_timeout` is awaited once after the FIRST timeout so callers can
         notify the user that we're retrying (keeps the UX honest instead of
@@ -275,7 +281,7 @@ class LLMClient:
                 log.info("llm_request", model=effective_model, attempt=attempt, messages=len(messages))
                 kwargs = {
                     "model": effective_model,
-                    "max_tokens": self.max_tokens,
+                    "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
                     "system": _build_system_blocks(system_prompt),
                     "messages": messages,
                 }
@@ -313,6 +319,7 @@ class LLMClient:
                 )
                 parsed = _parse_response_content(response.content)
                 parsed.model_used = effective_model
+                parsed.stop_reason = response.stop_reason or ""
                 log.info(
                     "llm_response",
                     model=effective_model,
@@ -722,3 +729,38 @@ class LLMClient:
             exit_reason="ok",
         )
         return response
+
+    async def utility_call(
+        self,
+        system_prompt: str,
+        messages: list[MessageParam],
+        *,
+        tools: list[dict] | None = None,
+        tool_choice: dict | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMResponse:
+        """Internal-utility variant of chat() — runs through retry policy
+        and prompt caching, but skips the user-facing guards
+        (character_break detection, anti_pattern check, language_cure,
+        formatting normalization, deduplication).
+
+        Use for non-user-facing LLM work: facts extraction, channel
+        summaries, memory consolidator judges, image descriptions,
+        siesta diary entries. The output of these calls feeds into the
+        bot's internal state, not the user — running language_cure on
+        them would be wasted Haiku tokens, and a "character break" in a
+        fact JSON output is not a leak (it's parser failure, handled
+        by the JSON parse).
+
+        Returns the same LLMResponse as `chat()`, including `stop_reason`
+        so callers can detect truncation.
+        """
+        return await self._send(
+            system_prompt,
+            messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            model=model,
+            max_tokens=max_tokens,
+        )
