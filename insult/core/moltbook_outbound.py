@@ -223,6 +223,32 @@ async def detect_salience_signal(
     repetition are detected per-message against `recent_messages`."""
     cutoff = time.time() - _SALIENCE_WINDOW_SECONDS
 
+    # Pull the topics of the last 5 outbound posts so we don't surface
+    # the same stance twice in a row. Without this, the stance loop
+    # (which iterates DESC-by-recency) keeps picking the freshest stance
+    # in stance_log, which is often the same one for a 24h cron tick —
+    # producing Session N+1 about the exact same topic as Session N.
+    try:
+        previous_outbound = await memory.get_recent_world_scans(limit=5, source="moltbook_outbound")
+    except Exception:
+        previous_outbound = []
+    recent_topics_lc = [str(p.get("topic", "")).lower() for p in previous_outbound]
+
+    def _topic_already_used(topic: str) -> bool:
+        topic_lc = topic.lower().strip()
+        if not topic_lc:
+            return False
+        for prev in recent_topics_lc:
+            # crude substring overlap — if either contains the other or
+            # they share a 4-word window, treat as repeat
+            if topic_lc in prev or prev in topic_lc:
+                return True
+            topic_words = set(topic_lc.split())
+            prev_words = set(prev.split())
+            if topic_words and len(topic_words & prev_words) >= max(2, len(topic_words) // 2):
+                return True
+        return False
+
     # 1. STANCE
     for uid in user_ids:
         stances = await memory.get_stances(channel_id, uid, limit=10)
@@ -232,10 +258,18 @@ async def detect_salience_signal(
             confidence = float(s.get("confidence", 0.0))
             if confidence < _MIN_STANCE_CONFIDENCE:
                 continue
+            topic = str(s.get("topic", ""))
+            if _topic_already_used(topic):
+                log.info(
+                    "moltbook_salience_stance_skipped_recent_overlap",
+                    user_id=uid,
+                    topic=topic,
+                )
+                continue
             return SalienceSignal(
                 kind="stance",
                 seed_text=str(s.get("position", "")),
-                topic=str(s.get("topic", "")),
+                topic=topic,
                 confidence=confidence,
                 source_user_id=uid,
             )
@@ -570,6 +604,70 @@ async def build_post_draft(
 
 
 # Prompt lives in insult/prompts/moltbook_outbound_redaction.md
+
+
+# Minimal Spanish-detection regex for post-draft title validation. We use
+# this rather than a language-id library because we only need to flag
+# obvious Spanish words that should never appear in an English Moltbook
+# title (Sesión, está, qué, cómo, etc.). Inevitably false-positive on
+# loanwords like "patio" or "fiesta" — fine, those are rare and the
+# Haiku translation pass would just no-op them.
+_SPANISH_TITLE_MARKERS = re.compile(
+    r"\b(sesi[oó]n|est[aá]n?s?|qu[eé]|c[oó]mo|d[oó]nde|cu[aá]ndo|porque|"
+    r"tambi[eé]n|despu[eé]s|seg[uú]n|s[oó]lo|alg[uú]n|alguna|"
+    r"pinche|cabr[oó]n|chinga\w*|pendej\w*|mamada|culero|jodida?|"
+    r"econom[ií]a|palabra|menos|mucho|poco|verdad|mentira|"
+    r"hablar|hablando|decir|hacer|tener|tiene|tienes)\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def title_has_spanish(title: str) -> bool:
+    """True if the title contains obvious Spanish markers — used to
+    decide whether a Haiku translation pass is needed before publish."""
+    return bool(_SPANISH_TITLE_MARKERS.search(title))
+
+
+async def ensure_title_english(title: str, *, client, model: str) -> str:
+    """If the title contains Spanish markers, run a tiny Haiku call to
+    translate it to English. If the call fails, returns the original
+    title unchanged — failure here should never block a publish.
+
+    The redact_with_llm pass already handles the content body; titles
+    were the gap because they came back from the draft LLM bypassing
+    redact (which only operates on content). This function closes that
+    gap with a per-title cost of ~$0.0001."""
+    if not title or not title_has_spanish(title):
+        return title
+    try:
+        response = await client.messages.create(
+            model=model,
+            max_tokens=80,
+            system=(
+                "Translate the following AGENT-AUTHORED post title to natural "
+                "English while preserving the Joan Bright 'Session N.' prefix "
+                "and any California vulgarity (fuck/shit/bullshit). DO NOT "
+                "summarize, DO NOT add quotes, DO NOT add explanation. Return "
+                "ONLY the translated title text."
+            ),
+            messages=[{"role": "user", "content": title}],
+        )
+        out = (response.content[0].text or "").strip()
+        # Strip wrapping quotes the model sometimes adds despite the instruction
+        if (out.startswith('"') and out.endswith('"')) or (out.startswith("'") and out.endswith("'")):
+            out = out[1:-1].strip()
+        if not out or len(out) > 200:
+            log.warning("moltbook_title_translation_bad_output", original=title, raw=out[:200])
+            return title
+        if title_has_spanish(out):
+            # Translation didn't take — keep original to avoid degrading further
+            log.warning("moltbook_title_translation_still_spanish", original=title, translated=out)
+            return title
+        log.info("moltbook_title_translated", original=title, translated=out)
+        return out
+    except Exception:
+        log.exception("moltbook_title_translation_failed", title=title)
+        return title
 
 
 async def redact_with_llm(

@@ -631,6 +631,19 @@ def _build(container: Container):
                 )
                 return
 
+            # Title language gate: redact_with_llm only processes content,
+            # leaving the title in whatever language the draft LLM produced.
+            # That's why Sesión 5/6 had Spanish titles even when content was
+            # English. ensure_title_english is a no-op when the title is
+            # already English; otherwise it runs a Haiku translation pass.
+            from insult.core.moltbook_outbound import ensure_title_english
+
+            draft.title = await ensure_title_english(
+                draft.title,
+                client=container.llm.client,
+                model=container.settings.summary_model,
+            )
+
             # AUDIT: persist draft BEFORE publishing — if Moltbook 5xxs after
             # accepting the post, we still know exactly what we generated
             await persist_draft(draft, redacted, memory=memory)
