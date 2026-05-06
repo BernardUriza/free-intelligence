@@ -30,10 +30,16 @@ log = structlog.get_logger()
 # Keys are the family tag returned by _resolve_family(); Sonnet is the
 # fallback for unknown models (conservative — overestimates Haiku slightly
 # but never understates Opus which would mask a blown budget).
+# Opus pricing dropped 3x from 4.1 → 4.5+ (4.5/4.6/4.7 all share the new
+# rate). Verified against https://platform.claude.com/docs/en/about-claude/pricing
+# on 2026-05-05. If we ever default to an older Opus (4 / 4.1 / 3) the
+# report will UNDERSTATE cost — but those models are deprecated and the
+# config doesn't reference them. Sonnet and Haiku rates have been stable
+# across 4.x.
 _PRICING: dict[str, dict[str, float]] = {
     "haiku": {"input": 1.00, "output": 5.00, "cache_read": 0.10, "cache_create": 1.25},
     "sonnet": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_create": 3.75},
-    "opus": {"input": 15.00, "output": 75.00, "cache_read": 1.50, "cache_create": 18.75},
+    "opus": {"input": 5.00, "output": 25.00, "cache_read": 0.50, "cache_create": 6.25},
 }
 _DEFAULT_FAMILY = "sonnet"
 
