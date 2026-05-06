@@ -39,6 +39,22 @@ log = structlog.get_logger()
 _IDENTITY_TOKEN_TTL_SECONDS = 3600.0
 _IDENTITY_TOKEN_REFRESH_BEFORE_EXPIRY = 300.0
 
+# Rate-limit caps documented in https://www.moltbook.com/skill.md.
+# Comments: 1 per 20 seconds, 50 per day.
+# Posts: 1 per 30 minutes (we don't enforce this — only one outbound
+# post per 24h cron tick, so the platform cap is unreachable).
+# All writes count toward 30/60s, but the binding constraint is the
+# 20s comment gap so we sleep on that one.
+_WRITE_MIN_INTERVAL_SECONDS = 20.0
+_WRITE_DAILY_CAP = 50
+
+# Verification streak before the bot warns: 70% of the 10-strike auto-
+# suspension threshold from skill.md. Hitting this should never happen
+# in steady state — it means the LLM solver is broken or Moltbook
+# changed the challenge format.
+_VERIFY_FAILURE_ALARM_THRESHOLD = 7
+_VERIFY_FAILURE_SUSPEND_THRESHOLD = 10
+
 
 class MoltbookSource(Source):
     """`Source` implementation backed by Moltbook's REST API."""
@@ -76,6 +92,20 @@ class MoltbookSource(Source):
         # to third-party services that integrate with Moltbook Identity).
         self._identity_token: str | None = None
         self._identity_expires_at: float = 0.0
+        # Write rate limiter — preempts the 1-per-20s / 50-per-day caps.
+        # All write calls (create_post, create_comment, upvote_post) await
+        # this lock. The lock holder sleeps the gap, then releases.
+        self._write_lock = asyncio.Lock()
+        self._last_write_ts: float = 0.0
+        self._write_count_day: int = 0
+        self._write_count_day_key: int = 0  # epoch-day when the count was last reset
+        # Verification streak counter — increments on _auto_verify failure,
+        # resets on success. At ALARM_THRESHOLD we emit one warning log so
+        # the operator notices BEFORE the platform suspends the account at
+        # SUSPEND_THRESHOLD. The `_alarm_emitted_for_streak` flag guards
+        # against re-emitting the alarm every tick once we've crossed it.
+        self._consecutive_verify_failures: int = 0
+        self._verify_alarm_emitted: bool = False
 
     # ------------------------------------------------------------------
     # Source ABC
@@ -113,7 +143,31 @@ class MoltbookSource(Source):
         rows = data.get("results") or data.get("posts") or []
         return [self._post_from_json(p) for p in rows]
 
+    async def fetch_home(self) -> dict[str, Any]:
+        """Pull /api/v1/home — the canonical "what's new for me" endpoint.
+
+        Per Moltbook skill.md, this is the FIRST call of any heartbeat:
+        one shot returns your_account, activity_on_your_posts (replies on
+        YOUR posts that you should respond to first), notifications, dms,
+        and a personalized feed preview. The heartbeat task in
+        moltbook_engagement.py drives off `activity_on_your_posts`.
+        """
+        return await self._request("GET", "/home")
+
+    async def mark_notifications_read(self, post_id: str) -> None:
+        """Clear the "new" badge on activity for one post after we've
+        responded. Idempotent at the platform level — safe to retry. We
+        log + swallow failures because we never want a notification-state
+        glitch to block a successful publish.
+        """
+        try:
+            await self._request("POST", f"/notifications/read-by-post/{post_id}")
+            log.info("moltbook_notifications_marked_read", post_id=post_id)
+        except SourceError as e:
+            log.warning("moltbook_mark_notifications_read_failed", post_id=post_id, error=str(e)[:200])
+
     async def create_post(self, submolt: str, title: str, content: str) -> Post:
+        await self._await_write_slot()
         data = await self._request(
             "POST",
             "/posts",
@@ -124,6 +178,7 @@ class MoltbookSource(Source):
         return self._post_from_json(inner)
 
     async def create_comment(self, post_id: str, content: str, *, parent_id: str | None = None) -> Comment:
+        await self._await_write_slot()
         payload: dict[str, Any] = {"content": content}
         if parent_id:
             payload["parent_id"] = parent_id
@@ -135,6 +190,37 @@ class MoltbookSource(Source):
         inner = data.get("comment") if isinstance(data.get("comment"), dict) else data
         await self._auto_verify(inner)
         return self._comment_from_json(inner)
+
+    async def _await_write_slot(self) -> None:
+        """Preempt the platform's write rate limits.
+
+        skill.md spec: 1 comment / 20s, 50 / day. Hitting either cap
+        returns 429 from the API. We sleep before each write so the
+        platform never sees the rapid-fire burst.
+
+        - Per-call sleep: enough to put us 20s past the LAST write.
+        - Daily counter: keyed off epoch-day (UTC). Resets when the day
+          rolls over. At cap we raise SourceRateLimitError so callers
+          see a typed error instead of a silent skip.
+        """
+        async with self._write_lock:
+            now = time.time()
+            today = int(now // 86400)
+            if today != self._write_count_day_key:
+                self._write_count_day_key = today
+                self._write_count_day = 0
+            if self._write_count_day >= _WRITE_DAILY_CAP:
+                raise SourceRateLimitError(
+                    f"Moltbook daily write cap reached ({_WRITE_DAILY_CAP}/day). Heartbeat will retry tomorrow.",
+                    retry_after_seconds=86400 - (now % 86400),
+                )
+            wait = (self._last_write_ts + _WRITE_MIN_INTERVAL_SECONDS) - now
+            if wait > 0:
+                log.info("moltbook_rate_limit_wait", wait_seconds=round(wait, 2))
+                await asyncio.sleep(wait)
+            # Set ts AFTER the sleep so two concurrent waiters serialize
+            self._last_write_ts = time.time()
+            self._write_count_day += 1
 
     # ──────────────────────────────────────────────────────────────────
     # OPERATOR POLICY — NO DELETE (v3.7.67)
@@ -238,19 +324,39 @@ class MoltbookSource(Source):
                 content_id=content_id,
                 answer=answer,
             )
+            # Streak reset on success — and clear the alarm flag so a future
+            # streak that crosses the threshold gets surfaced again.
+            self._consecutive_verify_failures = 0
+            self._verify_alarm_emitted = False
         except SourceError as e:
             # SourceError carries the upstream body_text (e.g. the "Incorrect
             # answer" hint). Surface it so we know whether to expand the
             # solver or whether the API is doing something else.
+            self._consecutive_verify_failures += 1
             log.error(
                 "moltbook_verification_post_failed",
                 content_id=content_id,
                 answer=answer,
                 challenge=challenge[:300],
                 error=str(e)[:500],
+                consecutive_failures=self._consecutive_verify_failures,
             )
+            # Alarm at 70% of the suspension threshold. Emit ONCE per
+            # streak so we don't spam every tick after crossing it.
+            if self._consecutive_verify_failures >= _VERIFY_FAILURE_ALARM_THRESHOLD and not self._verify_alarm_emitted:
+                log.error(
+                    "moltbook_verification_alarm",
+                    consecutive_failures=self._consecutive_verify_failures,
+                    suspend_threshold=_VERIFY_FAILURE_SUSPEND_THRESHOLD,
+                    note=(
+                        "Approaching account auto-suspension. The LLM verify "
+                        "solver is failing. Investigate before next publish."
+                    ),
+                )
+                self._verify_alarm_emitted = True
 
     async def upvote_post(self, post_id: str) -> None:
+        await self._await_write_slot()
         await self._request("POST", f"/posts/{post_id}/upvote")
 
     async def health_check(self) -> bool:

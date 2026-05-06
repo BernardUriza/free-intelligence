@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     moltbook_outbound_enabled: bool = False
     moltbook_inbound_enabled: bool = False
     moltbook_engagement_enabled: bool = False
+    # Heartbeat replies-to-commenters task. Polls /api/v1/home every 20
+    # minutes for activity_on_your_posts and replies via the agent's own
+    # LLM. See Phase 7 plan + .claude/plans/elegant-foraging-knuth.md.
+    moltbook_heartbeat_enabled: bool = False
     # Discord channel id where the bot reports its Moltbook activity
     # (publishes + engagement comments). Empty string disables narration.
     moltbook_report_channel_id: str = ""

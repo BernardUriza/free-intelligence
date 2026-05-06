@@ -17,7 +17,7 @@ from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
 from insult.core.guild_setup import post_reminder_delivered
 from insult.core.metrics import upload_dashboard_data
-from insult.core.moltbook_engagement import engage_once
+from insult.core.moltbook_engagement import engage_once, reply_to_own_post_commenters
 from insult.core.moltbook_inbound import build_inbound_digest
 from insult.core.moltbook_outbound import (
     assign_subject_codes,
@@ -140,6 +140,8 @@ def _build(container: Container):
             _moltbook_outbound_task.cancel()
         if _moltbook_engagement_task.is_running():
             _moltbook_engagement_task.cancel()
+        if _moltbook_heartbeat_task.is_running():
+            _moltbook_heartbeat_task.cancel()
         if _backup_task.is_running():
             _backup_task.cancel()
         await container.siesta.stop()
@@ -534,6 +536,65 @@ def _build(container: Container):
         except Exception:
             log.exception("moltbook_engagement_task_failed")
 
+    # --- Moltbook HEARTBEAT (every 20min: reply to commenters on OUR posts) ---
+    # Phase 7 (.claude/plans/elegant-foraging-knuth.md). The 12h engagement
+    # task above only INITIATES comments on others' posts; if someone replies
+    # to one of OUR posts we never respond. The Moltbook skill.md prescribes
+    # this exact loop — poll /home → reply via the agent's own LLM → mark
+    # notifications read — as the canonical heartbeat. Hand-writing replies
+    # via raw curl is explicitly named as an anti-pattern there, so this loop
+    # routes through LLMClient.chat + redact_with_llm + the rate-limited
+    # MoltbookSource.create_comment.
+    @tasks.loop(minutes=20)
+    async def _moltbook_heartbeat_task():
+        if not container.settings.moltbook_heartbeat_enabled:
+            return
+        source = _get_moltbook_source()
+        if source is None:
+            return
+        try:
+            target_channel = None
+            latest_msg_ts: float = 0
+            for guild in bot.guilds:
+                for ch in guild.text_channels:
+                    try:
+                        recent = await memory.get_recent(str(ch.id), limit=1)
+                        if recent and recent[0]["timestamp"] > latest_msg_ts:
+                            latest_msg_ts = recent[0]["timestamp"]
+                            target_channel = ch
+                    except Exception:
+                        log.debug("moltbook_heartbeat_channel_skip", channel=ch.name)
+            if target_channel is None:
+                log.info("moltbook_heartbeat_skipped", reason="no_active_channel")
+                return
+            recent_msgs = await memory.get_recent(str(target_channel.id), limit=15)
+            user_ids = list({m["user_id"] for m in recent_msgs if m.get("role") == "user" and m.get("user_id")})
+
+            results = await reply_to_own_post_commenters(
+                source=source,
+                memory=memory,
+                persona=container.settings.system_prompt,
+                llm=container.llm,
+                summary_model=container.settings.summary_model,
+                facts_user_ids=user_ids,
+                channel_id=str(target_channel.id),
+                blocked_authors=container.settings.moltbook_blocked_authors,
+            )
+            if not results:
+                log.info("moltbook_heartbeat_no_replies")
+                return
+            log.info("moltbook_heartbeat_published", count=len(results))
+            for r in results:
+                seed = (
+                    f"Le contesté a @{r.parent_comment_author} en mi post de Moltbook.\n"
+                    f"Mi post:\n  title: {r.post_title}\n  url: https://www.moltbook.com/post/{r.post_id}\n"
+                    f"Su comment:\n  parent_id: {r.parent_comment_id}\n"
+                    f"Mi reply publicada:\n  «{r.reply_text}»"
+                )
+                await _announce_moltbook(summary_seed=seed)
+        except Exception:
+            log.exception("moltbook_heartbeat_task_failed")
+
     # --- Moltbook OUTBOUND posting (every 24h, gated stack) ---
     # Three layers fire in order: gates (vulnerability + disclosure),
     # salience (must have a fresh stance / synthesis to seed off), and
@@ -866,6 +927,7 @@ def _build(container: Container):
             _moltbook_inbound_task.start()
             _moltbook_outbound_task.start()
             _moltbook_engagement_task.start()
+            _moltbook_heartbeat_task.start()
             if is_azure_configured():
                 _backup_task.start()
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))

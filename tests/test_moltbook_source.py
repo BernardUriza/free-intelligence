@@ -587,3 +587,158 @@ async def test_register_does_not_log_full_api_key(caplog):
     full_key = "moltbook_sk_live_SECRETLEAKEDKEY_xyz"
     for record in caplog.records:
         assert full_key not in record.getMessage()
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 — heartbeat helpers, rate limiter, verification streak alarm
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_home_parses_activity_on_your_posts():
+    """`fetch_home()` returns the JSON body verbatim — the heartbeat
+    consumer is what parses `activity_on_your_posts`. We just assert
+    the GET hits /home and that the payload round-trips intact."""
+    payload = {
+        "activity_on_your_posts": [
+            {"post_id": "p_own_1", "post_title": "Session 4", "unread_count": 3},
+            {"post_id": "p_own_2", "post_title": "Session 5", "unread_count": 1},
+        ],
+        "activity_on_others": [],
+    }
+    src = _make_fast_source([_MockResponse(200, payload)])
+    home = await src.fetch_home()
+    call = src._session.request.call_args
+    assert call.args[0] == "GET"
+    assert call.args[1].endswith("/home")
+    assert home == payload
+
+
+async def test_mark_notifications_read_swallows_source_error():
+    """Marking notifications read is a fire-and-forget — if it fails
+    we want a log line but NOT a raised exception (the heartbeat
+    already published the actual reply; the unread badge is cosmetic)."""
+    src = _make_fast_source([_MockResponse(500, text_body="boom")])
+    # Should NOT raise — the implementation logs and returns None.
+    await src.mark_notifications_read("p_own_1")
+
+
+async def test_rate_limiter_sleeps_20s_between_writes():
+    """1 write / 20s — confirm the limiter inserts a sleep when the
+    last write was less than 20s ago. The patched `asyncio.sleep` lets
+    us inspect the requested wait without burning real time."""
+    import insult.core.sources.moltbook as mod
+
+    src = _make_fast_source(
+        [
+            _MockResponse(
+                200,
+                {
+                    "id": "c_new",
+                    "post_id": "p1",
+                    "content": "agree",
+                    "author_name": "Insult",
+                    "upvotes": 0,
+                    "created_at": 1777800000.0,
+                },
+            )
+        ]
+    )
+    # Simulate "we wrote 5s ago" — limiter should sleep ~15s.
+    import time as _time
+
+    src._last_write_ts = _time.time() - 5.0
+    src._write_count_day = 0
+    await src.create_comment("p1", "agree")
+    waits = [c.args[0] for c in mod.asyncio.sleep.await_args_list if c.args]
+    rate_limit_waits = [w for w in waits if 14.0 <= w <= 16.0]
+    assert rate_limit_waits, f"no ~15s rate-limit sleep observed, saw: {waits}"
+
+
+async def test_rate_limiter_daily_cap_raises_typed_error():
+    """At 50 writes the limiter must raise SourceRateLimitError BEFORE
+    issuing an HTTP request. Heartbeat callers depend on the typed
+    error to know to retry tomorrow rather than next tick."""
+    src = _make_fast_source([_MockResponse(200, {"id": "x"})])
+    # Force the daily counter into the current epoch-day at the cap.
+    import time as _time
+
+    src._write_count_day_key = int(_time.time() // 86400)
+    src._write_count_day = 50
+    with pytest.raises(SourceRateLimitError):
+        await src.create_comment("p1", "shouldnt-publish")
+    # And the session should NEVER have seen the call.
+    assert src._session.request.call_count == 0
+
+
+async def test_verification_failure_streak_resets_on_success():
+    """`_consecutive_verify_failures` resets to 0 on a successful
+    /verify, AND the alarm-emitted flag clears so a fresh streak that
+    re-crosses the threshold gets surfaced again."""
+    create_resp = _MockResponse(
+        200,
+        {
+            "id": "c_with_verify",
+            "post_id": "p1",
+            "content": "x",
+            "author_name": "Insult",
+            "upvotes": 0,
+            "created_at": 1.0,
+            "verification": {
+                "verification_code": "vc_abc",
+                "challenge_text": "What is 2 + 2? answer NN.NN",
+            },
+        },
+    )
+    verify_ok = _MockResponse(200, {"ok": True})
+    src = _make_fast_source([create_resp, verify_ok])
+    # Pre-seed a partial failure streak.
+    src._consecutive_verify_failures = 5
+    src._verify_alarm_emitted = True
+    await src.create_comment("p1", "x")
+    assert src._consecutive_verify_failures == 0
+    assert src._verify_alarm_emitted is False
+
+
+async def test_verification_alarm_fires_once_at_threshold():
+    """At ≥7 consecutive failures the `_verify_alarm_emitted` flag flips
+    to True (and the alarm log line fires). On the NEXT failure the flag
+    must stay True — the alarm is a one-shot per streak, not per failure.
+    Reset only happens when the streak itself resets (success path)."""
+    create_resp = _MockResponse(
+        200,
+        {
+            "id": "c_x",
+            "post_id": "p1",
+            "content": "x",
+            "author_name": "Insult",
+            "upvotes": 0,
+            "created_at": 1.0,
+            "verification": {
+                "verification_code": "vc_x",
+                "challenge_text": "Two lobsters carry 5 plus 3 muffins. Answer NN.NN",
+            },
+        },
+    )
+    # /verify returns 400 → SourceError → counter increments
+    verify_fail = _MockResponse(400, text_body="Incorrect answer")
+    src = _make_fast_source([create_resp, verify_fail, create_resp, verify_fail])
+    src._consecutive_verify_failures = 6  # next failure crosses threshold (7)
+    assert src._verify_alarm_emitted is False
+    await src.create_comment("p1", "x")
+    assert src._consecutive_verify_failures == 7
+    assert src._verify_alarm_emitted is True
+
+    # Second failing call — counter keeps going up but the one-shot
+    # alarm flag stays True (no re-trigger until a success resets it).
+    await src.create_comment("p1", "x")
+    assert src._consecutive_verify_failures == 8
+    assert src._verify_alarm_emitted is True
+
+
+async def test_delete_comment_still_refuses_after_phase7():
+    """v3.7.67 operator policy stays in force after Phase 7 — the
+    method MUST keep raising NotImplementedError no matter how many
+    helpers we add around it."""
+    src = MoltbookSource(api_key="moltbook_test_key")
+    with pytest.raises(NotImplementedError, match="operator policy"):
+        await src.delete_comment("c1")

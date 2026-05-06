@@ -540,3 +540,306 @@ async def engage_once(
         comment_id=comment.id,
         comment_url=None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat lane — reply to commenters on Insult's OWN posts
+# ---------------------------------------------------------------------------
+#
+# Phase 7 (.claude/plans/elegant-foraging-knuth.md). Closes the gap that the
+# 12h engagement task only initiates comments on others' posts; if someone
+# replies to OUR posts we never respond. The Moltbook skill.md doc names
+# this exact missing loop as the canonical heartbeat: poll /api/v1/home →
+# activity_on_your_posts → reply via the agent's own LLM → mark notifications
+# read. Anti-patterns explicitly forbidden by the doc (and by operator
+# policy 2026-05-06): hand-writing replies, raw curl, deleting failed
+# comments. This module routes every step through the bot's existing
+# infrastructure.
+
+_REPLY_SOURCE = "moltbook_reply"
+
+
+@dataclass
+class ReplyResult:
+    """Successful reply published as a heartbeat response."""
+
+    post_id: str
+    post_title: str
+    parent_comment_id: str
+    parent_comment_author: str
+    reply_text: str
+    reply_id: str
+
+
+async def build_reply_to_commenter(
+    post_title: str,
+    post_content: str,
+    parent_comment_author: str,
+    parent_comment_content: str,
+    *,
+    persona: str,
+    llm,
+    model: str | None = None,
+) -> str | None:
+    """Generate a reply to a comment on one of Insult's own posts.
+
+    Returns the raw reply text (pre-redaction) or None when the LLM
+    returned the SKIP token (commenter is shallow / mid-sentence /
+    sycophantic non-content). The system prompt has the LANGUAGE
+    OVERRIDE + ANTI-HALLUCINATION blocks the engagement_comment prompt
+    pioneered, plus a context shim that locates the model in the right
+    conversational frame ("you're replying to a comment on YOUR post,
+    not engaging a stranger's post").
+    """
+    system = (
+        f"{load_prompt('moltbook_reply_to_commenter')}\n\n"
+        f"## Base voice (do not change the output language)\n{persona[:1500]}"
+    )
+    user = (
+        f"YOUR ORIGINAL POST:\n"
+        f"  title: {post_title}\n"
+        f"  body:\n{post_content[:1800]}\n\n"
+        f"COMMENT FROM @{parent_comment_author} (you are replying to THIS):\n"
+        f"  {parent_comment_content[:1500]}\n\n"
+        f"Write the reply now. Or return the single token SKIP if no good reply."
+    )
+    try:
+        resp = (
+            await llm.chat(system, [{"role": "user", "content": user}], model=model)
+            if model
+            else await llm.chat(system, [{"role": "user", "content": user}])
+        )
+        text = (resp.text or "").strip()
+    except Exception:
+        log.exception("moltbook_reply_to_commenter_call_failed")
+        return None
+    if not text:
+        return None
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    # SKIP detection — handle both bare token and trailing-line variants
+    final_line = text.splitlines()[-1].strip().upper() if text else ""
+    if final_line == "SKIP" or text.upper() == "SKIP":
+        log.info(
+            "moltbook_reply_to_commenter_skipped",
+            parent_comment_author=parent_comment_author,
+        )
+        return None
+    return text
+
+
+def _filter_reply_candidates(
+    comments: list[dict],
+    *,
+    own_author: str,
+    blocked_authors: frozenset[str],
+    our_existing_comment_ids: set[str],
+) -> list[dict]:
+    """Keep only depth-1 comments from non-self / non-blocked authors.
+
+    Depth-1 = `parent_id is None` (top-level on the post). A non-None
+    parent_id pointing at one of OUR comments is also kept (someone
+    replied to our reply — we want to continue the conversation).
+    Anything else is depth ≥2 between strangers; replying to those
+    reads as eavesdropping.
+    """
+    keep = []
+    blocked_lc = {a.lower() for a in blocked_authors}
+    for c in comments:
+        author = (c.get("author") or {}).get("name", "") if isinstance(c.get("author"), dict) else c.get("author", "")
+        author_lc = (author or "").lower()
+        if not author_lc or author_lc == own_author.lower():
+            continue
+        if author_lc in blocked_lc:
+            continue
+        if c.get("is_deleted"):
+            continue
+        # Depth-1 detection. Moltbook's comment shape: parent_id is None
+        # for top-level comments on the post; non-None when threaded under
+        # another comment. Skip everything threaded under another comment
+        # UNLESS that other comment is ours (someone replying to our reply).
+        parent_id = c.get("parent_id")
+        if parent_id is not None and parent_id not in our_existing_comment_ids:
+            continue
+        keep.append(c)
+    return keep
+
+
+async def reply_to_own_post_commenters(
+    *,
+    source,
+    memory,
+    persona: str,
+    llm,
+    summary_model: str,
+    facts_user_ids: list[str],
+    channel_id: str | None = None,
+    blocked_authors: frozenset[str] | None = None,
+    own_author_name: str = "insultmx",
+) -> list[ReplyResult]:
+    """Heartbeat orchestrator. One pass:
+
+    1. Pull /home → activity_on_your_posts
+    2. For each post with new notifications, fetch comments (sort=new)
+    3. Filter (not-self, not-blocked, depth-1, not-already-replied-to)
+    4. Build reply via LLMClient.chat (builds reply_to_commenter prompt)
+    5. Apply privacy gates (regex_strip + redact_with_llm)
+    6. Publish via source.create_comment(post_id, redacted, parent_id=...)
+       — auto-verified + rate-limited inside the source
+    7. Persist world_scans row source='moltbook_reply' external_id=parent_comment_id
+    8. After the per-post batch: source.mark_notifications_read(post_id)
+
+    Returns the list of successful ReplyResult so the caller can run
+    the Discord narrator on each one."""
+    blocked = blocked_authors or frozenset()
+    results: list[ReplyResult] = []
+
+    # Hard outbound gates apply (this is a public utterance about a
+    # commenter who may have raised personal context; vulnerability
+    # overlay matters here just like for outbound posts).
+    blocked_reason, blocked_uid = await is_outbound_blocked(facts_user_ids, memory=memory, channel_id=channel_id)
+    if blocked_reason:
+        log.warning(
+            "moltbook_heartbeat_blocked_by_gate",
+            reason=blocked_reason,
+            user_id=blocked_uid,
+        )
+        return results
+
+    try:
+        home = await source.fetch_home()
+    except Exception:
+        log.exception("moltbook_heartbeat_home_fetch_failed")
+        return results
+
+    activity = home.get("activity_on_your_posts") or []
+    if not activity:
+        log.info("moltbook_heartbeat_no_activity")
+        return results
+
+    # Aggregate facts ONCE for redaction (same pattern as outbound).
+    all_facts: list[str] = []
+    for uid in facts_user_ids:
+        facts = await memory.get_facts(uid)
+        all_facts.extend(f["fact"] for f in facts)
+
+    for entry in activity:
+        post_id = entry.get("post_id")
+        post_title = entry.get("post_title", "")
+        if not post_id:
+            continue
+        try:
+            data = await source._request("GET", f"/posts/{post_id}/comments", params={"sort": "new", "limit": 30})  # type: ignore[attr-defined]
+        except Exception:
+            log.exception("moltbook_heartbeat_comments_fetch_failed", post_id=post_id)
+            continue
+        comments = data.get("comments") or []
+
+        # Build the set of OUR existing comment ids in this thread, so
+        # we can detect "someone replied to our reply" (depth-2 from
+        # post root, but depth-1 from our voice's standpoint).
+        our_existing: set[str] = set()
+        for c in comments:
+            author = (
+                (c.get("author") or {}).get("name", "") if isinstance(c.get("author"), dict) else c.get("author", "")
+            )
+            if author == own_author_name and (cid := c.get("id")):
+                our_existing.add(cid)
+
+        # Pull post body for context (needed by build_reply_to_commenter).
+        try:
+            post_data = await source._request("GET", f"/posts/{post_id}")  # type: ignore[attr-defined]
+            post_body = (post_data.get("post") or {}).get("content", "")
+        except Exception:
+            log.exception("moltbook_heartbeat_post_fetch_failed", post_id=post_id)
+            post_body = ""
+
+        candidates = _filter_reply_candidates(
+            comments,
+            own_author=own_author_name,
+            blocked_authors=blocked,
+            our_existing_comment_ids=our_existing,
+        )
+
+        # Dedup against world_scans — load-bearing. Per Plan agent
+        # pushback #1: don't trust /home read state, persist our own.
+        any_published = False
+        for c in candidates:
+            cid = c.get("id")
+            if not cid:
+                continue
+            already = await memory.has_external_id(_REPLY_SOURCE, cid)
+            if already:
+                log.info("moltbook_reply_dedup_skip", parent_comment_id=cid, post_id=post_id)
+                continue
+            author = (
+                (c.get("author") or {}).get("name", "") if isinstance(c.get("author"), dict) else c.get("author", "")
+            )
+            content = c.get("content", "")
+            draft = await build_reply_to_commenter(
+                post_title,
+                post_body,
+                author,
+                content,
+                persona=persona,
+                llm=llm,
+            )
+            if not draft:
+                continue
+            stripped = regex_privacy_strip(draft, [{"fact": f} for f in all_facts])
+            redacted = await redact_with_llm(stripped, all_facts, client=llm.client, model=summary_model)
+            if redacted is None:
+                log.warning(
+                    "moltbook_reply_redaction_blocked",
+                    parent_comment_id=cid,
+                    parent_comment_author=author,
+                )
+                continue
+            try:
+                published = await source.create_comment(post_id, redacted, parent_id=cid)
+            except Exception:
+                log.exception(
+                    "moltbook_reply_publish_failed",
+                    parent_comment_id=cid,
+                    post_id=post_id,
+                )
+                continue
+            try:
+                await memory.store_world_scan(
+                    topic=f"reply to @{author} on: {post_title[:120]}",
+                    findings=redacted[:1000],
+                    commentary=f"reply_id={published.id} parent_comment_id={cid}",
+                    source=_REPLY_SOURCE,
+                    external_id=cid,  # dedup key = parent comment id, NOT our reply id
+                )
+            except Exception:
+                log.exception("moltbook_reply_persist_failed", parent_comment_id=cid)
+            log.info(
+                "moltbook_reply_published",
+                parent_comment_id=cid,
+                parent_comment_author=author,
+                post_id=post_id,
+                reply_id=published.id,
+            )
+            results.append(
+                ReplyResult(
+                    post_id=post_id,
+                    post_title=post_title,
+                    parent_comment_id=cid,
+                    parent_comment_author=author,
+                    reply_text=redacted,
+                    reply_id=published.id,
+                )
+            )
+            any_published = True
+
+        # Mark notifications read for this post AFTER all replies — even
+        # if some failed redaction or publish; the unread count is for
+        # the human operator's dashboard, not for our dedup. The dedup
+        # is world_scans.has_external_id, which we already populated for
+        # the successes. Failures just won't have a row → next tick
+        # retries them, which is correct.
+        if any_published:
+            await source.mark_notifications_read(post_id)
+
+    return results
