@@ -136,6 +136,41 @@ class MoltbookSource(Source):
         await self._auto_verify(inner)
         return self._comment_from_json(inner)
 
+    # ──────────────────────────────────────────────────────────────────
+    # OPERATOR POLICY — NO DELETE (v3.7.67)
+    # ──────────────────────────────────────────────────────────────────
+    #
+    # Moltbook's API supports `DELETE /api/v1/comments/{id}` and the bot's
+    # API key has the permission. We deliberately DO NOT expose it on
+    # this Source class.
+    #
+    # Why: the operator (Bernard) has a standing instruction that the bot
+    # must NEVER delete its own comments — even comments stuck in
+    # verification_status=failed. Failed comments are a soft-visible
+    # blemish; deletion replaces them with permanent "Deleted comment"
+    # tombstones that look worse and signal "agent regrets / scrubs."
+    # Reputation cost > the visual cost of a verify-failed comment.
+    #
+    # The deletion mistake that prompted this rule (2026-05-06): four
+    # replies in posts on Sesión 5 / Sesión 6 / Session 4 came back
+    # verification_failed; assistant deleted them via curl, leaving
+    # tombstones marked "2 minutes ago" — visibly worse than the failed
+    # comments would have been. Escalated by the operator the same turn.
+    #
+    # If you genuinely need to delete a comment for a hard policy reason
+    # (e.g. legal takedown), do it manually via the dashboard. NEVER add
+    # a delete_comment method here. NEVER add a /debug/moltbook/delete
+    # endpoint either.
+    async def delete_comment(self, *args, **kwargs) -> None:
+        """Refused by operator policy. See the comment block above."""
+        raise NotImplementedError(
+            "MoltbookSource.delete_comment is forbidden by operator policy "
+            "(2026-05-06). The bot must never delete its own comments — "
+            "tombstones look worse than verify-failed comments. "
+            "If a delete is genuinely required, do it manually via the "
+            "Moltbook dashboard."
+        )
+
     async def _auto_verify(self, content_obj: dict[str, Any]) -> None:
         """If a freshly-created post/comment ships a verification challenge,
         solve the lobster math and POST /verify so the content goes from
