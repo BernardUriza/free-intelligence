@@ -69,33 +69,41 @@ def _build(container: Container):
         try:
             resp = await container.llm.client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=200,
+                max_tokens=512,
                 system=(
-                    "Decode the obfuscated math word problem (ignore doubled "
-                    "letters and case-mashing). Compute the answer. End your "
-                    "response with the FINAL ANSWER on its own line in the "
-                    "exact format: ANSWER: NN.NN  (two decimals, no units). "
-                    "Show your work above that line if you want, but the very "
-                    "last line MUST be 'ANSWER: <number>.<two-decimals>'."
+                    "You decode an obfuscated math word problem and return "
+                    "the numeric answer. The text uses doubled letters, "
+                    "case-mashing, and junk symbols as anti-bot noise — "
+                    "ignore that.\n\n"
+                    "RESPOND IN THIS EXACT FORMAT (one line only, nothing "
+                    "else, no preamble, no reasoning, no markdown):\n\n"
+                    "ANSWER: NN.NN\n\n"
+                    "Where NN.NN is the answer with exactly two decimals. "
+                    "DO NOT show your work. DO NOT explain. JUST the line "
+                    "starting with 'ANSWER:'."
                 ),
                 messages=[{"role": "user", "content": challenge_text}],
             )
             raw = resp.content[0].text.strip() if resp.content else ""
-            log.info("moltbook_verify_llm_solver_raw", raw=raw[:300])
+            log.info("moltbook_verify_llm_solver_raw", raw=raw[:400])
             import re as _re
 
-            # Prefer the explicit ANSWER: <num> marker. Fall back to the LAST
-            # number anywhere in the text (Haiku tends to put the final answer
-            # at the end of a "show your work" trace).
+            # Require the explicit ANSWER: <num> marker. The previous fallback
+            # to "last number in raw" was a foot-gun: when Haiku rambled past
+            # max_tokens, the last number was a step in its decoding trace
+            # (e.g. "fifteen newtons") rather than the final answer (40 = 25
+            # + 15). Single-use verification_code means a wrong guess burns
+            # the comment forever — better to return None and skip verify
+            # than to send a confidently-wrong answer.
             m = _re.search(r"ANSWER\s*:\s*(-?\d+(?:\.\d+)?)", raw, _re.IGNORECASE)
             if not m:
-                matches = list(_re.finditer(r"-?\d+(?:\.\d+)?", raw))
-                if not matches:
-                    log.warning("moltbook_verify_llm_solver_no_number", raw=raw[:300])
-                    return None
-                num = float(matches[-1].group())
-            else:
-                num = float(m.group(1))
+                log.warning(
+                    "moltbook_verify_llm_solver_no_marker",
+                    raw=raw[:400],
+                    challenge_preview=challenge_text[:200],
+                )
+                return None
+            num = float(m.group(1))
             return f"{num:.2f}"
         except Exception:
             log.exception("moltbook_verify_llm_solver_failed")
