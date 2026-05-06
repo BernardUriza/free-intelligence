@@ -41,6 +41,14 @@ from insult.core.character.formatting import (
     strip_lists,
     strip_metadata,
 )
+from insult.core.character.pipeline import (
+    MutationStage,
+    PipelineViolationError,
+    preserve_min_length,
+    preserve_question_marks,
+    preserve_react_markers,
+    run_pipeline,
+)
 from insult.core.character.prompts import build_adaptive_prompt, compose_extra_layers
 from insult.core.character.time_context import _get_current_time_context
 
@@ -53,6 +61,8 @@ __all__ = [
     "CONTEXT_REINFORCEMENT",
     "IDENTITY_REINFORCEMENT_SUFFIX",
     "IDENTITY_REINFORCE_THRESHOLD",
+    "MutationStage",
+    "PipelineViolationError",
     "_get_current_time_context",
     "build_adaptive_prompt",
     "compose_extra_layers",
@@ -63,6 +73,10 @@ __all__ = [
     "enforce_length_variation",
     "get_length_hint",
     "normalize_formatting",
+    "preserve_min_length",
+    "preserve_question_marks",
+    "preserve_react_markers",
+    "run_pipeline",
     "sanitize",
     "strip_echoed_quotes",
     "strip_lists",

@@ -40,10 +40,13 @@ from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from insult.core.attachments import process_attachments
 from insult.core.character import (
+    MutationStage,
     build_adaptive_prompt,
     compose_extra_layers,
     deduplicate_opener,
     enforce_length_variation,
+    preserve_react_markers,
+    run_pipeline,
     strip_echoed_quotes,
 )
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
@@ -358,33 +361,58 @@ async def run_turn(
     response = llm_response.text
     post_llm_len = len(response)
 
-    def _log_mutation(stage: str, before: str, after: str) -> None:
-        if before != after:
-            log.info(
-                "text_mutated",
-                stage=stage,
-                before_len=len(before),
-                after_len=len(after),
-                delta=len(after) - len(before),
-            )
-
-    before = response
-    response = strip_echoed_quotes(response, text)
-    _log_mutation("strip_echoed_quotes", before, response)
-
-    before = response
-    response = enforce_length_variation(response, recent_response_lengths)
-    _log_mutation("enforce_length_variation", before, response)
-
-    recent_openers = [m["content"].split("\n")[0] for m in recent if m["role"] == "assistant"][-5:]
-    before = response
-    response = deduplicate_opener(response, recent_openers)
-    _log_mutation("deduplicate_opener", before, response)
-
+    # Reactions are extracted BEFORE the mutation pipeline because the
+    # pipeline may legitimately rewrite the body around them; the
+    # ``strip_reactions`` stage at the end then removes the markers from
+    # whatever survived.
     reactions = parse_reactions(response)
-    before = response
-    response = strip_reactions(response)
-    _log_mutation("strip_reactions", before, response)
+    recent_openers = [m["content"].split("\n")[0] for m in recent if m["role"] == "assistant"][-5:]
+
+    # Intercepting Filter pattern — see insult/core/character/pipeline.py.
+    # Each stage declares its own shrink cap and any must_preserve
+    # invariants. The runner emits ``mutation_applied`` /
+    # ``pipeline_violation`` per stage, replacing the previous ad-hoc
+    # ``text_mutated`` logger which had no enforcement.
+    #
+    # Invariants set per stage:
+    # - ``deduplicate_opener``: ``preserve_react_markers`` — load-bearing
+    #   regression guard. The 2026-05-06 bug nuked an entire empathic
+    #   opener (``[REACT:🌊💙🪷🫂🌿✨]`` included) because the matcher fired
+    #   on "Eso" as if it were a name; that mutation now fails the marker
+    #   count check AND the 30% shrink cap, so it gets rejected.
+    # - ``strip_reactions``: ``max_shrink_pct=None`` — reaction-only
+    #   responses legitimately delete 100% of the text.
+    response = await run_pipeline(
+        [
+            MutationStage(
+                name="strip_echoed_quotes",
+                apply=lambda t, _ctx, _user_text=text: strip_echoed_quotes(t, _user_text),
+                max_shrink_pct=0.30,
+                on_violation="skip_stage",
+            ),
+            MutationStage(
+                name="enforce_length_variation",
+                apply=lambda t, _ctx, _lens=recent_response_lengths: enforce_length_variation(t, _lens),
+                max_shrink_pct=0.50,
+                on_violation="skip_stage",
+            ),
+            MutationStage(
+                name="deduplicate_opener",
+                apply=lambda t, _ctx, _openers=recent_openers: deduplicate_opener(t, _openers),
+                max_shrink_pct=0.30,
+                must_preserve=[preserve_react_markers],
+                on_violation="skip_stage",
+            ),
+            MutationStage(
+                name="strip_reactions",
+                apply=lambda t, _ctx: strip_reactions(t),
+                max_shrink_pct=None,  # reaction-only responses are valid
+                on_violation="skip_stage",
+            ),
+        ],
+        response,
+        ctx={},
+    )
 
     # Reminder-intent nudge (see intent_unattended detection above). Appended
     # only when the LLM produced text — silent reaction-only turns would feel

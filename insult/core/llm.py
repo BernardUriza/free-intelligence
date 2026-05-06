@@ -14,10 +14,12 @@ from insult.core.character import (
     CACHE_BOUNDARY,
     CHARACTER_REINFORCEMENT,
     CONTEXT_REINFORCEMENT,
+    MutationStage,
     detect_anti_patterns,
     detect_break,
     detect_clarification_dump,
     normalize_formatting,
+    run_pipeline,
     sanitize,
     strip_lists,
     strip_metadata,
@@ -664,54 +666,61 @@ class LLMClient:
                         to_model=fallback,
                     )
 
-        # Step 7c: Language Cure — normalize mixed-language output via Haiku
-        if self.cure_model and response.text:
-            from insult.core.language import language_cure
-
-            before_cure = response.text
-            response.text = await language_cure(self.client, self.cure_model, response.text)
-            if before_cure != response.text:
-                log.info(
-                    "llm_text_mutated",
-                    stage="language_cure",
-                    before_len=len(before_cure),
-                    after_len=len(response.text),
-                )
-            # Defense in depth: the cure model (Haiku) sometimes re-introduces
-            # scratchpad XML or stray tags even when the root prompt avoids them.
-            # Re-run strip_metadata so nothing reaches the user.
-            before_strip2 = response.text
-            response.text = strip_metadata(response.text)
-            if before_strip2 != response.text:
-                log.info(
-                    "llm_text_mutated",
-                    stage="strip_metadata_post_cure",
-                    before_len=len(before_strip2),
-                    after_len=len(response.text),
-                )
-
-        # Step 7d: Formatting normalization — deterministic enforcement of
-        # exclamation limits (max 1) and bold limits (max 2). Runs LAST so
-        # neither the LLM nor the language cure can reintroduce violations.
+        # Step 7c-d: Final post-LLM mutation pipeline. See
+        # ``insult/core/character/pipeline.py`` for the Intercepting
+        # Filter pattern this enforces. Each stage declares its own
+        # shrink cap; the runner emits ``mutation_applied`` /
+        # ``pipeline_violation`` per stage so a regression like the
+        # 2026-05-06 deduplicate_opener bug — where a stage silently
+        # deleted 51% of a vulnerable user's reply — cannot recur on
+        # any of these stages either.
+        #
+        # ``language_cure`` is the only async stage; the runner detects
+        # awaitables and awaits them so it composes here without
+        # special-casing.
         if response.text:
-            before_fmt = response.text
-            response.text = normalize_formatting(response.text)
-            if before_fmt != response.text:
-                log.info(
-                    "llm_text_mutated",
-                    stage="normalize_formatting",
-                    before_len=len(before_fmt),
-                    after_len=len(response.text),
+            stages: list[MutationStage] = []
+            if self.cure_model:
+                from insult.core.language import language_cure
+
+                async def _cure(t: str, _ctx: dict, _self: LLMClient = self) -> str:
+                    return await language_cure(_self.client, _self.cure_model, t)
+
+                stages.append(
+                    MutationStage(
+                        name="language_cure",
+                        apply=_cure,
+                        max_shrink_pct=0.50,
+                        on_violation="skip_stage",
+                    )
                 )
-            before_lists = response.text
-            response.text = strip_lists(response.text)
-            if before_lists != response.text:
-                log.info(
-                    "llm_text_mutated",
-                    stage="strip_lists",
-                    before_len=len(before_lists),
-                    after_len=len(response.text),
+                # Defense in depth: cure can reintroduce scratchpad XML
+                # the root prompt avoided. Re-run strip_metadata after.
+                stages.append(
+                    MutationStage(
+                        name="strip_metadata_post_cure",
+                        apply=lambda t, _ctx: strip_metadata(t),
+                        max_shrink_pct=0.30,
+                        on_violation="skip_stage",
+                    )
                 )
+            stages.append(
+                MutationStage(
+                    name="normalize_formatting",
+                    apply=lambda t, _ctx: normalize_formatting(t),
+                    max_shrink_pct=0.20,
+                    on_violation="skip_stage",
+                )
+            )
+            stages.append(
+                MutationStage(
+                    name="strip_lists",
+                    apply=lambda t, _ctx: strip_lists(t),
+                    max_shrink_pct=0.40,
+                    on_violation="skip_stage",
+                )
+            )
+            response.text = await run_pipeline(stages, response.text, ctx={})
 
         if response.tool_calls:
             log.info("tool_calls_detected", tools=[tc.name for tc in response.tool_calls])
