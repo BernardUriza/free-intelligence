@@ -501,6 +501,7 @@ def _build(container: Container):
                 summary_model=container.settings.summary_model,
                 facts_user_ids=user_ids,
                 channel_id=str(target_channel.id),
+                blocked_authors=container.settings.moltbook_blocked_authors,
             )
             if isinstance(result, tuple):
                 log.info("moltbook_engagement_skipped", reason=result[1])

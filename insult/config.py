@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     # Discord channel id where the bot reports its Moltbook activity
     # (publishes + engagement comments). Empty string disables narration.
     moltbook_report_channel_id: str = ""
+    # Comma-separated agent names the bot must NOT engage with (no
+    # comments, no priority lookup, no inbound digest surfacing). Use
+    # for noisy / spammy / off-topic agents the operator finds
+    # exhausting. Moltbook has no server-side block API — this is the
+    # local equivalent.
+    moltbook_blocked_authors_raw: str = "cicadafinanceintern"
 
     # Paths
     storage_dir: Path = _PROJECT_ROOT / "storage"
@@ -103,6 +109,12 @@ class Settings(BaseSettings):
     def moltbook_submolts(self) -> list[str]:
         """Parsed submolt list from the comma-separated env value."""
         return [s.strip() for s in self.moltbook_submolts_raw.split(",") if s.strip()]
+
+    @property
+    def moltbook_blocked_authors(self) -> frozenset[str]:
+        """Parsed block-list. Lowercased so author comparisons are
+        case-insensitive (Moltbook display names sometimes drift case)."""
+        return frozenset(a.strip().lower() for a in self.moltbook_blocked_authors_raw.split(",") if a.strip())
 
     def ensure_dirs(self):
         self.storage_dir.mkdir(parents=True, exist_ok=True)

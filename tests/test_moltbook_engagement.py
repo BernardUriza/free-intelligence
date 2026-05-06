@@ -177,3 +177,52 @@ class TestEngagementCandidate:
         c = EngagementCandidate(post=_post("x"), keyword="resilience")
         assert c.post.id == "x"
         assert c.keyword == "resilience"
+
+
+# ---------------------------------------------------------------------------
+# Block-list — operator-defined skip authors
+# ---------------------------------------------------------------------------
+
+
+class TestBlockedAuthors:
+    @pytest.mark.asyncio
+    async def test_search_candidates_skips_blocked_author(self):
+        source = AsyncMock()
+        source.search_posts = AsyncMock(
+            return_value=[
+                _post("p1", author="cicadafinanceintern"),
+                _post("p2", author="someone_else"),
+            ]
+        )
+        mem = _FakeMemory(world_scans=[])
+        cands = await search_candidates(
+            source,
+            ["resilience"],
+            mem,
+            blocked_authors=frozenset(["cicadafinanceintern"]),
+        )
+        ids = {c.post.id for c in cands}
+        assert "p1" not in ids
+        assert "p2" in ids
+
+    @pytest.mark.asyncio
+    async def test_search_candidates_blocked_check_is_case_insensitive(self):
+        source = AsyncMock()
+        source.search_posts = AsyncMock(return_value=[_post("p1", author="CicadaFinanceIntern")])
+        mem = _FakeMemory(world_scans=[])
+        cands = await search_candidates(
+            source,
+            ["k"],
+            mem,
+            blocked_authors=frozenset(["cicadafinanceintern"]),
+        )
+        assert cands == []
+
+    @pytest.mark.asyncio
+    async def test_search_candidates_no_block_list_lets_all_through(self):
+        source = AsyncMock()
+        source.search_posts = AsyncMock(return_value=[_post("p1", author="cicadafinanceintern")])
+        mem = _FakeMemory(world_scans=[])
+        # No blocked_authors arg → defaults to empty set, all pass
+        cands = await search_candidates(source, ["k"], mem)
+        assert len(cands) == 1

@@ -194,6 +194,7 @@ async def fetch_priority_author_recent(
     source,
     *,
     days: int = _POST_STALENESS_DAYS,
+    blocked_authors: frozenset[str] | None = None,
 ) -> list[EngagementCandidate]:
     """Pull recent posts from each priority author directly.
 
@@ -201,13 +202,21 @@ async def fetch_priority_author_recent(
     roster and fan-out per author. Returns deduped candidates within the
     staleness window. The keyword `(followed)` marks the surfaced lane —
     pick_target sees that and the author both, so it can weight a real
-    take from a known voice over a stranger's loud post."""
+    take from a known voice over a stranger's loud post.
+
+    `blocked_authors` (lowercased frozenset) — agents the operator marked
+    as 'too noisy / too pesado'. Skip them entirely; they never appear
+    in candidates even if they're on the priority roster."""
     if not _PRIORITY_AUTHORS:
         return []
+    blocked = blocked_authors or frozenset()
     cutoff = time.time() - days * 86400
     seen_ids: set[str] = set()
     out: list[EngagementCandidate] = []
     for author in _PRIORITY_AUTHORS:
+        if author.lower() in blocked:
+            log.info("moltbook_engagement_priority_skip_blocked", author=author)
+            continue
         try:
             posts = await source._request(  # type: ignore[attr-defined]
                 "GET",
@@ -238,11 +247,14 @@ async def search_candidates(
     *,
     own_author_name: str = "insultmx",
     per_keyword: int = _PER_KEYWORD_LIMIT,
+    blocked_authors: frozenset[str] | None = None,
 ) -> list[EngagementCandidate]:
     """Multi-search across keywords; return deduped candidates after
-    filtering own posts, stale posts, and already-engaged posts."""
+    filtering own posts, stale posts, already-engaged posts, and
+    operator-blocked authors."""
     if not keywords:
         return []
+    blocked = blocked_authors or frozenset()
     already = await _already_engaged_post_ids(memory)
     cutoff = time.time() - _POST_STALENESS_DAYS * 86400
     seen_ids: set[str] = set()
@@ -256,7 +268,11 @@ async def search_candidates(
         for post in posts:
             if not post.id or post.id in seen_ids or post.id in already:
                 continue
-            if (post.author or "").lower() == own_author_name.lower():
+            author_lc = (post.author or "").lower()
+            if author_lc == own_author_name.lower():
+                continue
+            if author_lc in blocked:
+                log.info("moltbook_engagement_skip_blocked_author", author=post.author, post_id=post.id)
                 continue
             # STRICT staleness: if we can't read the created_at we don't
             # know how old the post is — reject. Better to skip than to
@@ -418,6 +434,7 @@ async def engage_once(
     facts_user_ids: list[str],
     channel_id: str | None = None,
     dry_run: bool = False,
+    blocked_authors: frozenset[str] | None = None,
 ) -> EngagementResult | tuple[None, str]:
     """Run one engagement pass. Returns:
       • EngagementResult on successful publish
@@ -433,12 +450,12 @@ async def engage_once(
     # Lane A — fresh posts from priority/followed authors, fanned out
     # directly. Surfaces the agents Insult was built to engage with even
     # when their topics don't match the world_scan keyword pool.
-    priority_candidates = await fetch_priority_author_recent(source)
+    priority_candidates = await fetch_priority_author_recent(source, blocked_authors=blocked_authors)
 
     keywords = await extract_engagement_keywords(memory)
     keyword_candidates: list[EngagementCandidate] = []
     if keywords:
-        keyword_candidates = await search_candidates(source, keywords, memory)
+        keyword_candidates = await search_candidates(source, keywords, memory, blocked_authors=blocked_authors)
 
     # Merge: priority first, then keyword (deduped by post id).
     seen: set[str] = set()

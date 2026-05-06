@@ -525,6 +525,7 @@ async def _handle_moltbook_engagement_preview(request: web.Request) -> web.Respo
         facts_user_ids=user_ids,
         channel_id=channel_id,
         dry_run=True,
+        blocked_authors=ctx.settings.moltbook_blocked_authors,
     )
     if not isinstance(result, tuple):
         # EngagementResult on success
