@@ -163,16 +163,50 @@ def _detect_conversation_mood(recent_messages: list[dict]) -> str:
     return "neutral"
 
 
-def _extract_conversation_topics(recent_messages: list[dict]) -> str:
-    """Extract key topics from recent messages for context-aware generation."""
+_SELF_LABEL = "YOU (Insult)"
+
+
+def _extract_conversation_topics(recent_messages: list[dict], self_label: str = _SELF_LABEL) -> str:
+    """Extract key topics from recent messages for context-aware generation.
+
+    Distinguishes the bot's own past turns from human user turns so the
+    LLM has unambiguous speaker identity. The 2026-05-07 regression
+    (request_id at TimeGenerated 04:28:48Z) was a proactive_social
+    message where the bot narrated *"bernard2389 sigue creyendo..."*
+    as if reporting about Bernard to a third party — because the
+    context block formatted user and assistant rows symmetrically as
+    ``{name}: {content}``, leaving role ambiguous. By labeling
+    assistant rows with ``YOU (Insult)`` we anchor the model in its
+    own identity before generation.
+    """
     if not recent_messages:
         return ""
     # Use last 10 messages, full content (up to 300 chars each)
     lines = []
     for m in recent_messages[-10:]:
         content = m["content"][:300]
-        lines.append(f"{m['user_name']}: {content}")
+        speaker = self_label if m.get("role") == "assistant" else m.get("user_name") or "user"
+        lines.append(f"{speaker}: {content}")
     return "\n".join(lines)
+
+
+def _extract_participants(recent_messages: list[dict]) -> list[str]:
+    """Distinct human user names from the recent window, in first-seen order.
+
+    Excludes the bot itself (``role == "assistant"``). Used by the
+    proactive prompt to render an explicit Participants section so
+    the model treats them as live interlocutors, not log entries.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in recent_messages:
+        if m.get("role") != "user":
+            continue
+        name = m.get("user_name")
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
 
 
 def _elapsed_description(last_user_message_ts: float | None) -> str:
@@ -356,15 +390,31 @@ async def generate_proactive_message(
     # Rich context: mood + full conversation excerpt
     mood = _detect_conversation_mood(recent_messages)
     conversation_context = _extract_conversation_topics(recent_messages)
+    participants = _extract_participants(recent_messages)
     last_ts = recent_messages[-1]["timestamp"] if recent_messages else None
     elapsed = _elapsed_description(last_ts)
+
+    # Identity-anchored Participants block. The bot is listed as YOU
+    # (not by display name) so the model cannot mistake itself for a
+    # third party named "Insult" living in the chat alongside humans.
+    if participants:
+        participants_block = "\n".join(f"- {p} (human user)" for p in participants)
+    else:
+        participants_block = "- (no human users have spoken recently)"
+    participants_block += f"\n- {_SELF_LABEL} — that's you. NOT a third party."
 
     user_prompt = (
         f"Current time: {time_str}\n\n"
         f"Time since last message in chat: {elapsed}\n\n"
         f"Conversation mood: {mood}\n\n"
-        f"Last conversation:\n{conversation_context or '(no recent messages)'}\n\n"
-        f"Users in this chat:\n{facts_section}"
+        f"Participants in this thread:\n{participants_block}\n\n"
+        f"Recent exchange (chronological — anything labeled '{_SELF_LABEL}' is what YOU already said):\n"
+        f"{conversation_context or '(no recent messages)'}\n\n"
+        f"Facts you know:\n{facts_section}\n\n"
+        "Now write the check-in. Speak DIRECTLY to the human user(s) in second person ('tú/te'). "
+        "NEVER narrate any user in third person ('bernard2389 sigue creyendo...') — that's the "
+        "speaker-confusion failure mode and reads as cold and alienating. NEVER speak about "
+        "yourself in third person — you ARE Insult."
     )
 
     try:

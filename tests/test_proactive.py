@@ -9,8 +9,10 @@ from insult.core.proactive import (
     _detect_conversation_mood,
     _elapsed_description,
     _extract_conversation_topics,
+    _extract_participants,
     _pick_search_topic,
     compute_backoff_interval,
+    generate_proactive_message,
     get_conversation_state,
     should_send_now,
 )
@@ -194,6 +196,168 @@ class TestTopicExtraction:
         result = _extract_conversation_topics(msgs)
         assert "msg10" in result
         assert "msg0" not in result
+
+    def test_assistant_role_marked_as_self(self):
+        """The bot's own past turns are labeled YOU so the model
+        cannot mistake them for utterances from a third party named
+        Insult living in the chat."""
+        msgs = [
+            _msg("Ve el lado positivo", user="bernard2389"),
+            {
+                "user_name": "Insult",
+                "role": "assistant",
+                "content": "Eso no es optimismo, eso es anestesia.",
+                "timestamp": time.time(),
+            },
+        ]
+        result = _extract_conversation_topics(msgs)
+        assert "bernard2389: Ve el lado positivo" in result
+        assert "YOU (Insult): Eso no es optimismo" in result
+        # And critically, the assistant message MUST NOT appear with
+        # "Insult: ..." (no YOU prefix) — that's the failure mode.
+        assert "Insult: Eso no es optimismo" not in result
+
+    def test_self_label_is_overridable(self):
+        msgs = [
+            {
+                "user_name": "Insult",
+                "role": "assistant",
+                "content": "x",
+                "timestamp": time.time(),
+            }
+        ]
+        result = _extract_conversation_topics(msgs, self_label="MOI (BOT)")
+        assert "MOI (BOT): x" in result
+
+
+class TestParticipantExtraction:
+    def test_empty_returns_empty(self):
+        assert _extract_participants([]) == []
+
+    def test_excludes_assistant_role(self):
+        msgs = [
+            _msg("hi", user="bernard"),
+            {"user_name": "Insult", "role": "assistant", "content": "x", "timestamp": time.time()},
+        ]
+        assert _extract_participants(msgs) == ["bernard"]
+
+    def test_dedupes_preserving_first_seen_order(self):
+        msgs = [
+            _msg("a", user="alex"),
+            _msg("b", user="bernard"),
+            _msg("c", user="alex"),
+        ]
+        assert _extract_participants(msgs) == ["alex", "bernard"]
+
+
+# ---------------------------------------------------------------------------
+# Proactive prompt shape — identity-anchored framing
+# ---------------------------------------------------------------------------
+
+
+class TestProactivePromptShape:
+    """Verify the user_prompt handed to the LLM contains the structural
+    cues that prevent the 2026-05-07 speaker-confusion bug.
+
+    The bug: proactive_social produced *"bernard2389 sigue creyendo en
+    el lado positivo o ya lo convenciste"* — third-person narration of
+    the only active interlocutor. RCA showed the prompt formatted user
+    and assistant rows symmetrically (`{name}: {content}`) and never
+    explicitly told the model who YOU was. These tests pin the new
+    shape so a future refactor cannot regress silently.
+    """
+
+    @pytest.mark.asyncio
+    async def test_prompt_contains_participants_and_self_anchor(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        captured: dict = {}
+
+        async def _fake_chat(system, messages, **kw):
+            captured["system"] = system
+            captured["messages"] = messages
+            resp = MagicMock()
+            resp.text = "tú sigues creyendo en el lado positivo o ya te convencí"
+            resp.model_used = "claude-sonnet-4-6"
+            return resp
+
+        llm = MagicMock()
+        llm.chat = AsyncMock(side_effect=_fake_chat)
+
+        # Literal recent_messages from the bug turn.
+        recent = [
+            _msg("Ve el lado positivo", user="bernard2389"),
+            {
+                "user_name": "Insult",
+                "role": "assistant",
+                "content": "Eso no es optimismo, eso es anestesia.",
+                "timestamp": time.time(),
+            },
+        ]
+        user_facts = {"bernard2389": [{"fact": "lives in CDMX"}]}
+
+        out = await generate_proactive_message(
+            llm=llm,
+            model="claude-sonnet-4-6",
+            time_str="2026-05-07 22:28 CDMX",
+            user_facts=user_facts,
+            recent_messages=recent,
+        )
+        assert out  # round-trip succeeded
+
+        # The user_prompt the LLM receives is the first (and only) message.
+        assert "messages" in captured
+        prompt = captured["messages"][0]["content"]
+
+        # Identity scaffolding — Participants section
+        assert "Participants in this thread:" in prompt
+        assert "bernard2389 (human user)" in prompt
+        assert "YOU (Insult)" in prompt
+        assert "NOT a third party" in prompt
+
+        # Recent exchange labels the bot's own turn as YOU
+        assert "YOU (Insult): Eso no es optimismo" in prompt
+        # Bernard's turn stays as the name — he IS the human interlocutor
+        assert "bernard2389: Ve el lado positivo" in prompt
+
+        # Closing directive — the regression-shaped instruction
+        assert "second person" in prompt
+        assert "third person" in prompt
+        # Quote the literal failure mode so the model has the exact
+        # pattern to refuse.
+        assert "bernard2389 sigue creyendo" in prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_handles_empty_recent_messages(self):
+        """No history should still produce a syntactically valid prompt
+        — the runner falls back to a no-history placeholder rather than
+        raising."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        captured: dict = {}
+
+        async def _fake_chat(system, messages, **kw):
+            captured["messages"] = messages
+            resp = MagicMock()
+            resp.text = "siguen vivos?"
+            resp.model_used = "claude-sonnet-4-6"
+            return resp
+
+        llm = MagicMock()
+        llm.chat = AsyncMock(side_effect=_fake_chat)
+
+        out = await generate_proactive_message(
+            llm=llm,
+            model="claude-sonnet-4-6",
+            time_str="now",
+            user_facts={},
+            recent_messages=[],
+        )
+        assert out
+        prompt = captured["messages"][0]["content"]
+        assert "(no recent messages)" in prompt
+        # Even with no users active, the YOU-anchor still appears.
+        assert "YOU (Insult)" in prompt
 
 
 # ---------------------------------------------------------------------------
