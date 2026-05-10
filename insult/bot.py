@@ -907,6 +907,14 @@ def _build(container: Container):
     @bot.event
     async def on_ready():
         nonlocal _ready_fired, _debug_runner
+        # Wire the health-state singleton with this bot reference so
+        # /debug/health can answer is_ready / gateway_latency_ms. Called
+        # on every on_ready (idempotent assign) so reconnects don't
+        # leave the probe with a stale ref.
+        from insult.core.health_state import get_state as _get_health_state
+
+        _get_health_state().set_bot(bot)
+
         # Download DB from Azure on first startup (if configured)
         if not _ready_fired and is_azure_configured():
             await download_db(container.settings.db_path)

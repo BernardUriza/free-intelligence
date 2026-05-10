@@ -89,6 +89,70 @@ async def test_health_no_auth_required(client):
     assert data["status"] == "ok"
 
 
+async def test_health_exposes_pr1_fields(client):
+    """PR 1: /debug/health must expose readiness + bot-responsive signals
+    so the KQL alert and Container Apps probe can distinguish liveness
+    from readiness from zombie-handler."""
+    from insult.core.health_state import _reset_for_tests
+
+    _reset_for_tests()
+    resp = await client.get("/debug/health")
+    data = await resp.json()
+    # All keys must be present even on cold-start (None values are fine).
+    for key in (
+        "status",
+        "is_ready",
+        "gateway_latency_ms",
+        "last_turn_age_s",
+        "last_turn_within_15min",
+        "last_turn_outcome",
+        "uptime_s",
+        "turns_total",
+    ):
+        assert key in data, f"missing key in /debug/health: {key}"
+    # Cold start: no turns, no bot wired.
+    assert data["last_turn_age_s"] is None
+    assert data["last_turn_within_15min"] is False
+    assert data["last_turn_outcome"] is None
+    assert data["turns_total"] == 0
+    assert data["is_ready"] is None
+    assert data["gateway_latency_ms"] is None
+
+
+async def test_health_reflects_recorded_turn(client):
+    """After a turn is recorded, the endpoint reports a fresh age."""
+    from insult.core.health_state import _reset_for_tests, get_state
+
+    _reset_for_tests()
+    get_state().record_turn_end("ok")
+    resp = await client.get("/debug/health")
+    data = await resp.json()
+    assert data["turns_total"] == 1
+    assert data["last_turn_outcome"] == "ok"
+    assert data["last_turn_within_15min"] is True
+    assert data["last_turn_age_s"] is not None
+    assert data["last_turn_age_s"] < 1.0
+    _reset_for_tests()
+
+
+async def test_health_reflects_bot_ref(client):
+    """When the bot ref is wired, is_ready and gateway_latency_ms are set."""
+    from unittest.mock import MagicMock
+
+    from insult.core.health_state import _reset_for_tests, get_state
+
+    _reset_for_tests()
+    bot = MagicMock()
+    bot.is_ready = MagicMock(return_value=True)
+    bot.latency = 0.025  # 25 ms
+    get_state().set_bot(bot)
+    resp = await client.get("/debug/health")
+    data = await resp.json()
+    assert data["is_ready"] is True
+    assert data["gateway_latency_ms"] == 25.0
+    _reset_for_tests()
+
+
 async def test_messages_requires_auth(client):
     resp = await client.get("/debug/messages?channel_id=123")
     assert resp.status == 401

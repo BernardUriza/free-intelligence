@@ -126,6 +126,13 @@ class ChatCog(commands.Cog):
                 outcome=outcome,
                 total_ms=int((time.monotonic() - turn_start) * 1000),
             )
+            # Mark the turn boundary for /debug/health and the synthetic
+            # KQL alert. Recorded under all outcomes (ok, llm_failed,
+            # trivial_skipped, etc.) — what matters for liveness is that
+            # on_message reached the end of the pipeline at all.
+            from insult.core.health_state import get_state as _get_health_state
+
+            _get_health_state().record_turn_end(outcome)
             structlog.contextvars.unbind_contextvars("request_id", "channel_id", "user_id")
 
     async def _handle_siesta_turn(self, message: discord.Message, text: str) -> str:

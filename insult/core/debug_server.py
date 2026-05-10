@@ -28,6 +28,7 @@ from typing import Any
 import structlog
 from aiohttp import web
 
+from insult.core.health_state import get_state as get_health_state
 from insult.core.memory import MemoryStore
 from insult.core.reminders import parse_remind_at
 
@@ -78,7 +79,34 @@ async def _auth_middleware(request: web.Request, handler):
 
 
 async def _handle_health(_request: web.Request) -> web.Response:
-    return web.json_response({"status": "ok"})
+    """Liveness + readiness + bot-responsive triplet for Azure Container
+    Apps health probes and the synthetic-monitor KQL alert.
+
+    Distinguishes three failure modes that pre-PR1 collapsed into "alive":
+    - ``status=ok`` alone = process up, event loop ticking.
+    - ``is_ready=true`` = Discord gateway connected.
+    - ``last_turn_within_15min=true`` = ``on_message`` actually
+      processed something recently (catches the zombie-handler case
+      that produced the 2026-05-08T23:59 outage).
+
+    Always 200 — the synthetic monitor is responsible for interpreting
+    the body. A non-200 here would conflate "probe failed" with "bot
+    has been quiet", and Azure Container Apps would needlessly restart
+    a healthy bot during low-traffic hours.
+    """
+    state = get_health_state()
+    return web.json_response(
+        {
+            "status": "ok",
+            "is_ready": state.is_bot_ready(),
+            "gateway_latency_ms": state.gateway_latency_ms(),
+            "last_turn_age_s": state.last_turn_age_s(),
+            "last_turn_within_15min": state.last_turn_within(15 * 60),
+            "last_turn_outcome": state.last_turn_outcome(),
+            "uptime_s": round(state.uptime_s(), 1),
+            "turns_total": state.turns_total(),
+        }
+    )
 
 
 async def _handle_messages(request: web.Request) -> web.Response:
