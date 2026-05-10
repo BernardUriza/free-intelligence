@@ -130,6 +130,156 @@ while Log Analytics was not yet proven reachable from this Mac — once the
 REST path was validated (2026-04-24) the ordering flipped: KQL first,
 endpoint for content verification.
 
+### Detect dropped messages — MANDATORY before claiming "no activity"
+
+When `total_messages` is flat or the user reports "the bot died", DO NOT
+conclude "nobody wrote to it" until you have proven there are no
+**silently swallowed messages**. The bot can be alive at the gateway
+(heartbeats green, `guilds: 1`) and still drop inbound messages mid-pipeline
+(attachment processing, LLM call, post-LLM mutation, delivery). Those
+deaths leave a `chat_turn_start` with no paired `chat_turn_end`, OR
+no `chat_turn_start` at all if the drop is at the cog/listener level.
+
+**Three signals that scream "swallowed message" — check them in order:**
+
+1. **Consecutive user messages with no bot reply between them.** Pull the
+   last 30+ messages from `/debug/messages` (NOT 15 or 20 — too short to see
+   the pattern). If the same `author_id` sends 3+ messages within a short
+   window with no bot message interleaved, one was eaten. Common shape:
+   long message + image → "como ves" → "ups" → "okok" — the user is
+   poking a corpse.
+
+2. **`chat_turn_start` without paired `chat_turn_end` (same `request_id`).**
+   ```kql
+   ContainerAppConsoleLogs_CL
+   | where ContainerAppName_s == "insult-bot" and TimeGenerated > ago(24h)
+   | extend req = tostring(parse_json(Log_s).request_id),
+            ev  = tostring(parse_json(Log_s).event)
+   | where ev in ("chat_turn_start", "chat_turn_end")
+   | summarize starts = countif(ev == "chat_turn_start"),
+               ends   = countif(ev == "chat_turn_end") by req
+   | where starts > ends
+   ```
+   Every orphan `request_id` is a message that entered the pipeline and
+   never came out. Cross-reference with `stage_attachments_processed`,
+   `stage_facts_loaded`, `llm_call_start`, `llm_call_complete` to find
+   the stage where it died.
+
+3. **`unanswered` field in `proactive_message_sent`.** The proactive system
+   itself counts how many user messages went without a reply
+   (`unanswered: 3` means the bot already noticed it ate three). Treat
+   any `unanswered >= 2` in a recent proactive event as a self-report of
+   the bug — the bot is literally asking you to check why.
+
+**Why this rule exists:** on 2026-05-09 a user reported "se murió otra vez"
+and the assistant pulled only 20 messages from `/debug/messages`, saw the
+last one was "Okok", and concluded "nobody has written for 31h". The
+real story was visible in those same 20 messages: four consecutive user
+messages from the same author (one with an image attachment) with zero
+bot replies between them. The user's "Ups / Okok" was acknowledging the
+silence, not closing the conversation. The smoking gun was also visible
+in `proactive_message_sent ... unanswered: 3` from earlier the same day —
+the bot had counted the swallowed messages and the assistant didn't read
+the field. Pulling 20 messages is too few; reading them without checking
+author-sequence is worse than reading none.
+
+**Apply this rule any time:** the user reports degraded responsiveness,
+`total_messages` is unchanging across two heartbeat windows, or you see
+a `proactive_message_sent` with `unanswered > 0`. Pull `limit=50` minimum
+from `/debug/messages`, group by `author_id`, and flag any consecutive
+run of 2+ user messages without an interleaved bot message.
+
+### Resilience anti-patterns — DO NOT introduce
+
+These are codified after the 2026-05-08 outage post-mortem (full ADR
+in `.claude/plans/turn_resilience.md`). Every entry is a real failure
+mode that bit us or that production-product post-mortems documented.
+
+1. **`async with channel.typing(): await llm_or_other_long_call(...)`** —
+   `Typing.__aenter__` makes a blocking `send_typing` HTTP request
+   *before* the body runs. If the channel is hot, a 40062
+   (`ServiceResourceIsBeingRateLimited`) here kills the entire turn
+   even though the LLM never ran. Fix: typing is a fire-and-forget
+   background task that wraps its own `HTTPException`. Reference:
+   [discord.py context_managers.py:54-92](https://github.com/Rapptz/discord.py/blob/master/discord/context_managers.py).
+
+2. **`except Exception: log + send(error_message)` without an inner
+   try/except on the `send`** — when the exception was caused by the
+   channel being rate-limited, the in-character error message also
+   429s and the user sees nothing. Always wrap the recovery `send`
+   with its own guard, and fall through to `message.add_reaction(...)`
+   (different bucket, almost always survives) on secondary failure.
+
+3. **Stateless triviality filter for life-checks** — discarding
+   "ups"/"okok"/"hola?" with no awareness of whether the previous
+   turn failed is how the bot becomes invisible to a user trying to
+   wake it. The trivial gate must consult `ChannelHealth.last_outcome`
+   and bypass the skip when the previous turn failed within 60 s.
+
+4. **Logging an event whose name lies about which stage failed** —
+   `chat_llm_failed` MUST NOT fire when the LLM never ran (e.g., when
+   `channel.typing()` exploded before the LLM call). Failure stage is
+   a typed field on `chat_turn_end`, not buried in the event name.
+
+5. **Ignoring `retry-after` from the upstream** — Anthropic returns
+   `retry-after` in 429/529. Vercel AI SDK
+   [#7247](https://github.com/vercel/ai/issues/7247) is the canonical
+   anti-pattern (their retries collide on the worst possible second).
+   Always honor the header when ≤ 60 s before falling through to
+   jittered backoff.
+
+6. **Out-of-character degradation text in user-facing error paths** —
+   `persona.md` forbids exposing model identity. ChatGPT and Cursor
+   send "model overloaded" text; we cannot. Use either a reaction
+   (`[REACT:⏳]`) or an in-character `core/errors.py` message that
+   does not name the underlying tech.
+
+7. **Per-upstream circuit breaker for a single-upstream client** —
+   Marc Brooker (AWS, author of the canonical jitter paper) explicitly
+   advises against this in his [2022
+   post](https://brooker.co.za/blog/2022/02/16/circuit-breakers.html):
+   *"Circuit breakers are designed to turn partial failures into
+   complete failures."* For Anthropic API (single upstream), opening
+   the breaker just means "the bot is dead" — a worse failure than
+   a per-request retry+jitter. Use token bucket / retry budget instead.
+   Per-Discord-channel breakers are fine because channels ARE sharded.
+
+8. **Pure exponential backoff (no jitter)** — `wait = 2 ** attempt`
+   produces retry storms ("thundering herd"). AWS Standard SDK uses
+   Full Jitter (`random.uniform(0, min(2 ** attempt, cap))`). Apply
+   it to every retry path.
+
+9. **`asyncio.gather` over many channels without a per-channel
+   semaphore** — guaranteed Discord 429 storm. Documented in
+   [discord.py #5806](https://github.com/Rapptz/discord.py/issues/5806).
+
+10. **`time.sleep()` (sync) inside `async with channel.typing()`** —
+    blocks the event loop, the typing keepalive cannot refresh, dies
+    at 10 s. Documented in
+    [discord.py discussion #5969](https://github.com/Rapptz/discord.py/discussions/5969).
+
+11. **Health probe that calls downstream dependencies** — couples
+    your pod's restart decision to *their* health. A 30 s downstream
+    blip kills your pod and amplifies the outage. Liveness = "is
+    *this* process healthy"; readiness is the right place for
+    dependency checks (Kubernetes guidance).
+
+12. **Adopting an abandoned library because a previous round of
+    research recommended it** — verify lib health LIVE before
+    adopting. `purgatory` was recommended by an earlier research pass
+    and turned out to be 2 stars / 3 unresponded Snyk issues / no
+    real production users. Always run
+    `gh api repos/<owner>/<lib>` (stars, last commit, open issues)
+    and `gh search code 'from <lib> import'` (real dependents)
+    before adding to `pyproject.toml`.
+
+13. **Trusting a Discord error code from memory without verifying** —
+    40060 is `InteractionHasAlreadyBeenAcknowledged` (slash commands),
+    NOT a rate limit. 40062 is `ServiceResourceIsBeingRateLimited`.
+    They are unrelated. Always verify against
+    [discord-api-types RESTJSONErrorCodes](https://discord-api-types.dev/api/discord-api-types-v10/enum/RESTJSONErrorCodes)
+    before quoting an error code as fact.
+
 ## E2E Testing with Discord MCP
 When you need to verify that the bot actually works end-to-end (not just unit tests), use the Discord MCP server to interact with a real Discord server. This Mac is the server.
 

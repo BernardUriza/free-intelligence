@@ -1,6 +1,7 @@
 """Claude API client with character break detection and tool_use support."""
 
 import asyncio
+import random
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -48,6 +49,64 @@ _DEFAULT_FAMILY = "sonnet"
 # Timeouts are capped separately from other retries. Each timeout is ~30s of
 # dead air, so five would leave the user staring at nothing for 2+ minutes.
 _MAX_TIMEOUT_RETRIES = 2
+
+# Backoff caps per failure class — see .claude/plans/turn_resilience.md PR 0.
+# 60s for 429 because Anthropic's retry-after on org-level rate limit can ask
+# for that long; 30s for 5xx (overload) because they typically resolve faster;
+# 10s for transport timeouts because we already cap to 2 attempts and longer
+# waits compound the dead-air UX problem.
+_BACKOFF_CAP_429 = 60.0
+_BACKOFF_CAP_5XX = 30.0
+_BACKOFF_CAP_TIMEOUT = 10.0
+
+
+def _parse_retry_after(headers: object) -> float | None:
+    """Read retry-after-ms (preferred, more precise) or retry-after (seconds)
+    from a response's headers. Returns the wait time in seconds, or None when
+    the header is absent, malformed, non-positive, or above 60s (the cap above
+    which we'd rather emit our own jittered backoff than block the user).
+
+    Anthropic documents both headers; honoring them is mandatory per
+    https://platform.claude.com/docs/en/api/rate-limits and avoids the
+    Vercel-AI-SDK anti-pattern of synchronized retries
+    (github.com/vercel/ai/issues/7247).
+    """
+    if headers is None:
+        return None
+    get = getattr(headers, "get", None)
+    if get is None:
+        return None
+    ms = get("retry-after-ms")
+    if ms is not None:
+        try:
+            value = float(ms) / 1000.0
+        except (TypeError, ValueError):
+            value = None
+        if value is not None and 0 < value <= 60:
+            return value
+    sec = get("retry-after")
+    if sec is not None:
+        try:
+            value = float(sec)
+        except (TypeError, ValueError):
+            value = None
+        if value is not None and 0 < value <= 60:
+            return value
+    return None
+
+
+def _full_jitter_backoff(attempt: int, cap: float) -> float:
+    """Full Jitter backoff per AWS Standard SDK (botocore/retries/standard.py)
+    and Brooker 2015. Returns ``random.uniform(0, min(2 ** attempt, cap))``.
+
+    Full Jitter beats Decorrelated Jitter on server load in Brooker's published
+    measurements and avoids the documented clamping bug that pins decorrelated
+    intervals to max_duration with only a 1/3 chance of jitter
+    (thomwright.co.uk/2024/04/24/decorrelated-jitter/).
+    """
+    if attempt < 1:
+        attempt = 1
+    return random.uniform(0, min(2.0**attempt, cap))
 
 
 def _resolve_family(model: str) -> str:
@@ -339,8 +398,26 @@ class LLMClient:
 
             except anthropic.RateLimitError as e:
                 last_error = e
-                wait = 2**attempt
-                log.warning("llm_rate_limited", attempt=attempt, wait_seconds=wait)
+                response = getattr(e, "response", None)
+                headers = getattr(response, "headers", None) if response is not None else None
+                retry_after = _parse_retry_after(headers)
+                wait = retry_after if retry_after is not None else _full_jitter_backoff(attempt, _BACKOFF_CAP_429)
+                log.warning(
+                    "llm_rate_limited",
+                    attempt=attempt,
+                    wait_seconds=round(wait, 2),
+                    retry_after_present=retry_after is not None,
+                    status=429,
+                )
+                log.info(
+                    "llm_retry",
+                    status=429,
+                    attempt=attempt,
+                    wait_seconds=round(wait, 2),
+                    retry_after_present=retry_after is not None,
+                )
+                if attempt == self.max_retries:
+                    break
                 await asyncio.sleep(wait)
 
             except anthropic.BadRequestError as e:
@@ -361,7 +438,14 @@ class LLMClient:
             except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
                 last_error = e
                 timeout_count += 1
-                log.warning("llm_timeout", attempt=attempt, timeout_count=timeout_count, error=str(e))
+                wait = _full_jitter_backoff(attempt, _BACKOFF_CAP_TIMEOUT)
+                log.warning(
+                    "llm_timeout",
+                    attempt=attempt,
+                    timeout_count=timeout_count,
+                    wait_seconds=round(wait, 2),
+                    error=str(e),
+                )
                 # Fire callback once, after the first timeout, so the user
                 # knows we are retrying rather than dead.
                 if timeout_count == 1 and on_timeout is not None:
@@ -372,16 +456,73 @@ class LLMClient:
                 if timeout_count >= _MAX_TIMEOUT_RETRIES or attempt == self.max_retries:
                     log.warning("llm_timeout_giving_up", timeout_count=timeout_count)
                     break
-                await asyncio.sleep(1)
+                log.info(
+                    "llm_retry",
+                    status=None,
+                    attempt=attempt,
+                    wait_seconds=round(wait, 2),
+                    retry_after_present=False,
+                )
+                await asyncio.sleep(wait)
 
             except anthropic.APIStatusError as e:
                 last_error = e
-                # 529 Overloaded — transient, retry with backoff
-                if e.status_code == 529:
-                    wait = 2**attempt
-                    log.warning("llm_overloaded", attempt=attempt, wait_seconds=wait, status=529)
+                response = getattr(e, "response", None)
+                headers = getattr(response, "headers", None) if response is not None else None
+
+                # Transient 5xx (500/502/503/529 — overload class). All retried
+                # with Full Jitter; 529 keeps the historical event name so
+                # alerts that key on it still fire.
+                if e.status_code in (500, 502, 503, 529):
+                    retry_after = _parse_retry_after(headers)
+                    wait = retry_after if retry_after is not None else _full_jitter_backoff(attempt, _BACKOFF_CAP_5XX)
+                    event = "llm_overloaded" if e.status_code == 529 else "llm_transient_5xx"
+                    log.warning(
+                        event,
+                        attempt=attempt,
+                        wait_seconds=round(wait, 2),
+                        status=e.status_code,
+                        retry_after_present=retry_after is not None,
+                    )
+                    log.info(
+                        "llm_retry",
+                        status=e.status_code,
+                        attempt=attempt,
+                        wait_seconds=round(wait, 2),
+                        retry_after_present=retry_after is not None,
+                    )
                     if attempt == self.max_retries:
                         break
+                    await asyncio.sleep(wait)
+                # 504 Gateway Timeout — same family as APITimeoutError.
+                # Capped at _MAX_TIMEOUT_RETRIES regardless of max_retries so
+                # the user does not stare at 30s x N of dead air.
+                elif e.status_code == 504:
+                    timeout_count += 1
+                    wait = _full_jitter_backoff(attempt, _BACKOFF_CAP_TIMEOUT)
+                    log.warning(
+                        "llm_timeout",
+                        attempt=attempt,
+                        timeout_count=timeout_count,
+                        wait_seconds=round(wait, 2),
+                        status=504,
+                        error=str(e),
+                    )
+                    if timeout_count == 1 and on_timeout is not None:
+                        try:
+                            await on_timeout()
+                        except Exception:
+                            log.exception("on_timeout_callback_failed")
+                    if timeout_count >= _MAX_TIMEOUT_RETRIES or attempt == self.max_retries:
+                        log.warning("llm_timeout_giving_up", timeout_count=timeout_count)
+                        break
+                    log.info(
+                        "llm_retry",
+                        status=504,
+                        attempt=attempt,
+                        wait_seconds=round(wait, 2),
+                        retry_after_present=False,
+                    )
                     await asyncio.sleep(wait)
                 else:
                     log.error("llm_api_error", status=e.status_code, error=str(e))
