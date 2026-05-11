@@ -239,6 +239,89 @@ class TestExpressionSelection:
         shape, _, _ = _select_shape("jaja", _preset(PresetMode.PLAYFUL_ROAST), self._pressure(), self._epistemic(), [])
         assert shape == ResponseShape.ONE_HIT
 
+    # --- Length reciprocity (PR 2.5, 2026-05-10 — Alex feedback) ---
+    # The original Insult mirrored input length. The rewrite collapsed
+    # everything to ONE_HIT. These tests pin the new contract so any
+    # future "let's make it cortante again" change is loud.
+
+    def test_long_input_overrides_playful_preset(self):
+        """A 300-word message in PLAYFUL_ROAST must NOT come back as
+        ONE_HIT — that's the dismissive UX Alex complained about."""
+        long_msg = "palabra " * 100  # 100 words, well over 80
+        shape, reason, _ = _select_shape(
+            long_msg,
+            _preset(PresetMode.PLAYFUL_ROAST),
+            self._pressure(),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.LAYERED, f"length reciprocity violated — got {shape.value}, reason={reason}"
+        assert "reciprocity_long" in reason
+
+    def test_long_input_overrides_default_abrasive(self):
+        long_msg = "palabra " * 100
+        shape, reason, _ = _select_shape(
+            long_msg,
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.LAYERED
+        assert "reciprocity_long" in reason
+
+    def test_medium_input_picks_layered_or_expressive(self):
+        """40 words is medium territory: must produce a paragraph-
+        textured response (LAYERED) or fragmented (EXPRESSIVE_THINKING),
+        never ONE_HIT."""
+        medium_msg = "palabra " * 40
+        # Sample 25x to cover both branches of the random 60/40 split.
+        shapes: set[ResponseShape] = set()
+        for _ in range(25):
+            shape, _r, _ = _select_shape(
+                medium_msg,
+                _preset(PresetMode.DEFAULT_ABRASIVE),
+                self._pressure(),
+                self._epistemic(),
+                [],
+            )
+            shapes.add(shape)
+        # All sampled shapes must be paragraph-textured.
+        assert shapes <= {ResponseShape.LAYERED, ResponseShape.EXPRESSIVE_THINKING}, (
+            f"medium input produced non-reciprocal shapes: {[s.value for s in shapes]}"
+        )
+
+    def test_short_input_still_one_hit_in_playful(self):
+        """Reciprocity must NOT break the short-input → ONE_HIT
+        contract. Only LONG inputs override the preset default."""
+        shape, _, _ = _select_shape("jaja", _preset(PresetMode.PLAYFUL_ROAST), self._pressure(), self._epistemic(), [])
+        assert shape == ResponseShape.ONE_HIT
+
+    def test_safety_overrides_length_reciprocity(self):
+        """Pressure-5 boundary must still produce ONE_HIT even on
+        long input — safety carve-outs trump reciprocity."""
+        long_msg = "palabra " * 100
+        shape, reason, _ = _select_shape(
+            long_msg,
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(level=5),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.ONE_HIT
+        assert reason == "pressure_5_boundary"
+
+    def test_vulnerable_user_overrides_length_reciprocity(self):
+        long_msg = "palabra " * 100
+        shape, _, _ = _select_shape(
+            long_msg,
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(UserState.VULNERABLE, 1),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.SHORT_EXCHANGE
+
     def test_anti_repetition_rotates_shape(self):
         # If ONE_HIT was used twice, should rotate
         shape, _reason, avoided = _select_shape(

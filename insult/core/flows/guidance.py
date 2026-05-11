@@ -103,7 +103,14 @@ SHAPE_GUIDANCE: dict[ResponseShape, str] = {
         "Shape: SHORT-EXCHANGE. LIMIT: 2-3 sentences, max 50 words total. "
         "Quick, direct, done. No preamble, no wind-down."
     ),
-    ResponseShape.LAYERED: "Shape: LAYERED. Build up to a payoff. Set up, develop, land. 3-5 sentences.",
+    ResponseShape.LAYERED: (
+        "Shape: LAYERED. Build up to a payoff through short stitched fragments. "
+        "3-5 sentences total. Each one stands alone — short, sharp. Use hard "
+        "line breaks between thoughts, NOT comma-glued continuous prose. The "
+        "TOTAL length is a paragraph; the TEXTURE is staccato. Set up. Develop. "
+        "Land. Think Alvarado's short-sentence-stacked column rhythm, not a wall "
+        "of analytical text."
+    ),
     ResponseShape.PROBING: (
         "Shape: PROBING. Your response MUST contain at least 1 question mark. "
         "Lead with sharp questions that make THEM do the work. 1-3 questions. "

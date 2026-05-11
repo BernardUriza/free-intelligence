@@ -115,9 +115,22 @@ class ExpressionAnalyzer:
         avoided: list[str] = []
 
         # Priority cascade — first match wins. Order matters:
-        # safety (pressure 5) and vulnerable carve-out come before
-        # epistemic-driven shapes come before preset defaults come
-        # before generic length heuristics.
+        #
+        # 1. Safety carve-outs (pressure 5, vulnerable user) — these
+        #    must override length reciprocity because the user's
+        #    well-being trumps mirroring their text investment.
+        # 2. Epistemic moves — semantic intent (compress / challenge)
+        #    is meaningful regardless of input length.
+        # 3. INTELLECTUAL_PRESSURE preset — explicitly dense by design.
+        # 4. **Length reciprocity** — this branch was MISSING pre-PR2.5.
+        #    Without it the PLAYFUL_ROAST / DEFAULT_ABRASIVE presets
+        #    returned ONE_HIT to a 300-word user message, which Alex
+        #    correctly described 2026-05-10 as feeling dismissive
+        #    rather than sharp. The original Insult mirrored input
+        #    length; the rewrite collapsed everything to ONE_HIT.
+        # 5. Preset defaults (PLAYFUL_ROAST, ARC) — only reached for
+        #    short inputs now, where ONE_HIT is genuinely warranted.
+        # 6. Length heuristics for the residual neutral case.
         if pressure.pressure_level == 5:
             candidate = ResponseShape.ONE_HIT
             reason = "pressure_5_boundary"
@@ -136,6 +149,26 @@ class ExpressionAnalyzer:
         elif preset.mode == PresetMode.INTELLECTUAL_PRESSURE:
             candidate = ResponseShape.DENSE_CRITIQUE if word_count > 30 else ResponseShape.LAYERED
             reason = f"intellectual_wc={word_count}"
+
+        # --- Length reciprocity (PR 2.5) ---
+        # The original Insult responded "muchas cosas reales cortas
+        # juntas que hacían un párrafo largo" — the LAYERED shape
+        # captures exactly that texture. EXPRESSIVE_THINKING is a
+        # close cousin used to add structural variety.
+        elif word_count > 80:
+            candidate = ResponseShape.LAYERED
+            reason = f"reciprocity_long_wc={word_count}"
+        elif word_count > 30:
+            # 60/40 LAYERED vs EXPRESSIVE_THINKING. Both produce a
+            # paragraph of stitched short fragments; the split breaks
+            # structural monotony across consecutive medium-length turns.
+            if random.random() < 0.60:
+                candidate = ResponseShape.LAYERED
+                reason = f"reciprocity_medium_wc={word_count}_layered"
+            else:
+                candidate = ResponseShape.EXPRESSIVE_THINKING
+                reason = f"reciprocity_medium_wc={word_count}_expressive"
+
         elif preset.mode == PresetMode.PLAYFUL_ROAST:
             candidate = ResponseShape.ONE_HIT
             reason = "playful_preset"
@@ -145,12 +178,10 @@ class ExpressionAnalyzer:
         elif word_count < 8:
             candidate = ResponseShape.ONE_HIT
             reason = f"short_input_wc={word_count}"
-        elif word_count > 50:
-            candidate = ResponseShape.DENSE_CRITIQUE
-            reason = f"long_input_wc={word_count}"
-        elif random.random() < 0.25:
-            # 25% chance on neutral/default messages: expressive-thinking
-            # mode so the bot doesn't always sound structurally identical.
+        elif random.random() < 0.40:
+            # 40% (up from 25% pre-PR2.5) chance of EXPRESSIVE_THINKING
+            # on neutral/default messages — restores the fragmented-
+            # paragraph texture Alex remembers from the original.
             candidate = ResponseShape.EXPRESSIVE_THINKING
             reason = "expressive_mode_random_activation"
         else:
