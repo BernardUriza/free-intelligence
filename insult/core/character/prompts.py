@@ -241,10 +241,25 @@ def build_adaptive_prompt(
 
 
 def _format_other_people_block(facts: dict[str, list[dict]]) -> str:
-    """Render the "Other People in This Channel" block (top 3 facts each)."""
-    parts = ["## Other People in This Channel (they are REAL — never say they don't exist)"]
+    """Render the "Other People in This Channel" block.
+
+    Up to 20 facts per participant. Use this section as the authoritative
+    source when the current message asks ABOUT another user (their career,
+    habits, history, preferences) — those facts won't be in YOUR user_facts
+    section because that block only carries facts about the current author.
+    """
+    parts = [
+        "## Other People in This Channel (they are REAL — never say they don't exist)",
+        "When the current message asks about ANOTHER participant by name (their career, "
+        "habits, history, what they can do), THIS block is your source — not the main "
+        "user_facts block. Cite the specific facts you have. Never say 'no sé' if the fact is here.",
+    ]
     for name, person_facts in facts.items():
-        fact_lines = ", ".join(f["fact"] for f in person_facts[:3])
+        # 20 facts per person (vs the previous 3) so freshly-extracted CV
+        # data, recent disclosures, and historical context all survive
+        # truncation. See load_other_participants_facts docstring for the
+        # 2026-05-12 regression that drove this change.
+        fact_lines = "; ".join(f["fact"] for f in person_facts[:20])
         parts.append(f"- {name}: {fact_lines}")
     return "\n".join(parts)
 

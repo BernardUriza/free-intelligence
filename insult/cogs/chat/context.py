@@ -191,10 +191,18 @@ async def load_other_participants_facts(
     channel_id: str,
     user_id: str,
 ) -> dict[str, list[dict]]:
-    """Top-3 facts for up to 9 other recent participants in the channel.
+    """Top-25 facts for up to 9 other recent participants in the channel.
 
     Powers the "Other People in This Channel" prompt block. Returns {} on
     failure so missing context never breaks the turn.
+
+    The cap was bumped from 5 → 25 on 2026-05-12 after a regression where
+    Bernard asked the bot to write Alex's CV and Insult said "No sé la
+    carrera completa de Alex" two minutes after Alex had described her
+    full profile (psicología, maestra sombra, gerencia de bar, vino). The
+    bot had 35 facts about Alex in DB but only top-5 reached this dict
+    and only top-3 reached the prompt — losing the freshly extracted
+    career facts. 25 covers the realistic ceiling for one user's career.
     """
     out: dict[str, list[dict]] = {}
     try:
@@ -203,7 +211,7 @@ async def load_other_participants_facts(
             if p["user_id"] != user_id:
                 facts = await memory.get_facts(p["user_id"])
                 if facts:
-                    out[p["user_name"]] = facts[:5]
+                    out[p["user_name"]] = facts[:25]
     except Exception:
         log.exception("chat_participants_facts_failed")
     return out
