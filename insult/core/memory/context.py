@@ -44,14 +44,32 @@ def format_relative_time(timestamp: float) -> str:
 def build_context(recent: list[dict], relevant: list[dict] | None = None) -> list[dict]:
     """Assemble the LLM context: recent turns + relevant retrievals.
 
-    Output is the list the Claude messages API expects (`role` + `content`).
+    Output is the list the messages API expects (`role` + `content`).
     The "relevant" block is prepended as ONE synthetic user message with a
     header marker so the model knows these are older excerpts, not the live
-    thread. Both recent and relevant lines are prefixed with a relative
-    timestamp + speaker label so the model keeps track of authorship and
-    recency without needing a separate metadata field.
+    thread.
+
+    Recent messages from the LAST HOUR get NO timestamp prefix — just
+    `Name: content`. Older recent messages and all relevant retrievals keep
+    the `[hace Xmin] Name: content` prefix.
+
+    Why: the previous unconditional prefix `[hace 6min] Alex: ...` made
+    Sonnet 4.6 hallucinate that recent thread messages were "quotes from
+    another session". Verbatim from 2026-05-12 incident: the bot wrote
+    "si ya pasaste el CV en otra sesión, esa info no viajó a esta" about
+    a message that was 6 minutes old in the SAME thread. The `[time]`
+    bracket + "hace Xmin" format looks too much like log/citation
+    snippets the model saw during training. Dropping the prefix for the
+    fresh window collapses the cue and the model reads them as the live
+    thread they actually are.
     """
     context: list[dict] = []
+
+    # 1 hour window: anything fresher than this gets no temporal prefix
+    # because it IS the live conversation. Older recent messages keep the
+    # prefix so the model can still tell them apart from now.
+    fresh_window_seconds = 3600
+    now = time.time()
 
     if relevant:
         seen_contents = {m["content"] for m in recent}
@@ -69,11 +87,17 @@ def build_context(recent: list[dict], relevant: list[dict] | None = None) -> lis
             )
 
     for msg in recent:
-        ts = f"[{format_relative_time(msg['timestamp'])}] "
+        is_fresh = (now - msg["timestamp"]) < fresh_window_seconds
+        if is_fresh:
+            # No bracketed prefix — these are the live thread, treat them
+            # as the active conversation, not as quoted snippets.
+            content = f"{msg['user_name']}: {msg['content']}"
+        else:
+            ts = f"[{format_relative_time(msg['timestamp'])}] "
+            content = f"{ts}{msg['user_name']}: {msg['content']}"
         # Both user and assistant messages get name prefix for clear speaker
         # attribution — downstream character.strip_metadata() removes these
         # before the text reaches Discord.
-        content = f"{ts}{msg['user_name']}: {msg['content']}"
         context.append({"role": msg["role"], "content": content})
 
     return context
