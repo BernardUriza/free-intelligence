@@ -54,8 +54,7 @@ def _read_yaml(path: pathlib.Path) -> dict | None:
             return json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             print(
-                "ERROR: PyYAML no está instalado y el archivo no es JSON válido.\n"
-                "Instala con: pip install pyyaml",
+                "ERROR: PyYAML no está instalado y el archivo no es JSON válido.\nInstala con: pip install pyyaml",
                 file=sys.stderr,
             )
             sys.exit(2)
@@ -80,8 +79,7 @@ def main() -> int:
 
     if curriculum is None and pipeline is None:
         print(
-            f"ERROR: no encontré ni {CV_PATH} ni {PIPELINE_PATH}.\n"
-            "¿Estás corriendo esto desde el folder del proyecto?",
+            f"ERROR: no encontré ni {CV_PATH} ni {PIPELINE_PATH}.\n¿Estás corriendo esto desde el folder del proyecto?",
             file=sys.stderr,
         )
         return 1
@@ -93,7 +91,7 @@ def main() -> int:
     }
     body = json.dumps(payload).encode("utf-8")
 
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 — known endpoint from .env, user-controlled config
         url,
         data=body,
         method="POST",
@@ -112,15 +110,13 @@ def main() -> int:
         print(f"ERROR HTTP {e.code}: {body_text}", file=sys.stderr)
         if e.code == 401:
             print(
-                "El token no es válido o fue revocado. Genera uno nuevo en "
-                "Discord con `!sync-token` y actualiza .env.",
+                "El token no es válido o fue revocado. Genera uno nuevo en Discord con `!sync-token` y actualiza .env.",
                 file=sys.stderr,
             )
         return 1
     except urllib.error.URLError as e:
         print(
-            f"ERROR de red: {e.reason}\n"
-            "¿Está caído el bot? Revisa la URL en .env.",
+            f"ERROR de red: {e.reason}\n¿Está caído el bot? Revisa la URL en .env.",
             file=sys.stderr,
         )
         return 1
