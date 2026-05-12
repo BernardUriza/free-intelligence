@@ -19,6 +19,7 @@ from insult.core.patterns import COMMON_STOPWORDS
 from insult.core.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
+    is_acute_crisis,
     matched_signal_groups,
 )
 
@@ -56,6 +57,20 @@ class PresetSelection:
     modifiers: list[PresetModifier] = field(default_factory=list)
     confidence: float = 0.7  # 0.0-1.0, how sure we are about the mode
     reason: str = ""  # debug: why this mode was selected
+
+    @property
+    def display_label(self) -> str:
+        """Telemetry-friendly label. Renames RESPECTFUL_SERIOUS to
+        `crisis_presence` when the mode was reached via acute-crisis
+        routing, so the safety floor is visible in logs instead of
+        hidden under the everyday clinical-vocab preset name.
+
+        Internally the guidance is still the same RESPECTFUL_SERIOUS
+        block (presence, not performance) — only the telemetry label
+        changes. Use this in every log call instead of `.mode.value`."""
+        if self.reason.startswith("acute_crisis"):
+            return "crisis_presence"
+        return self.mode.value
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +479,12 @@ _VULNERABLE_OVERLAY_PROMPT = (
     "mental-health clinician involvement, hospitalization, chronic illness). "
     "Treat them with care this turn REGARDLESS of what the current message "
     "looks like on its own.\n\n"
+    "**Core directive: chronic vulnerability caps sharpness but does not "
+    "remove movement.** Soft tone, sharp thinking. Name the tension. Connect "
+    "to structure when it illuminates. Ask the consequential question. Do "
+    "NOT collapse into flat 'presence' — that reads as condescension to "
+    "someone in stable chronic care. Acknowledgment without movement is "
+    "support-staff language, not the friend they came to talk to.\n\n"
     "Non-negotiable rules:\n"
     "- Do NOT default to abrasive, dismissive, or cortante tone with this "
     "person. A curt reply reads as contempt when someone is navigating "
@@ -497,14 +518,35 @@ def build_vulnerable_overlay_prompt() -> str:
     return _VULNERABLE_OVERLAY_PROMPT
 
 
-def is_vulnerable_overlay_selection(selection: PresetSelection) -> bool:
-    """True if the PresetSelection was produced by the vulnerable-user branch.
+# Reason prefixes that activate the chronic-care / acute-crisis safety
+# overlay downstream (see _VULNERABLE_OVERLAY_PROMPT). Kept as a tuple so a
+# future routing reason can be added in one place without touching callers.
+_OVERLAY_REASON_PREFIXES: tuple[str, ...] = (
+    # Legacy: pre-F1 chronic-vulnerable forcing RESPECTFUL_SERIOUS. No longer
+    # emitted but kept here so any in-flight selection still picks up overlay.
+    "vulnerable_user_overlay",
+    # F1: chronic-vulnerable + non-acute current message — routes to a
+    # movement-permitting preset under a sharpness cap (no longer flat).
+    "chronic_nonacute_move_allowed",
+    # F1: chronic-vulnerable user whose CURRENT message contains clinical
+    # vocabulary (e.g. Alex asking about quetiapine). Routes to
+    # RESPECTFUL_SERIOUS via priority 1 BUT still activates the overlay so
+    # the clinical-source allowlist + dosing discipline apply — the
+    # exact moment that safety matters most.
+    "chronic_serious_clinical_current",
+    # F1: acute distress in the current message — strongest safety floor.
+    "acute_crisis",
+)
 
-    Callers that build the system prompt use this to decide whether to append
-    the safety overlay. The reason string is the canonical marker so we don't
-    have to add a new field to PresetSelection (keeping it backwards compatible
-    with existing telemetry consumers)."""
-    return selection.reason.startswith("vulnerable_user_overlay")
+
+def is_vulnerable_overlay_selection(selection: PresetSelection) -> bool:
+    """True if the PresetSelection should receive the chronic-care safety
+    overlay (no abrasive tone, clinical-source discipline, crisis hotlines
+    only on acute distress, sharpness cap, etc.).
+
+    The reason prefix is the canonical marker — adding a new reason that
+    needs the overlay only requires extending _OVERLAY_REASON_PREFIXES."""
+    return selection.reason.startswith(_OVERLAY_REASON_PREFIXES)
 
 
 # ---------------------------------------------------------------------------
@@ -578,28 +620,77 @@ def classify_preset(
     if synthesis.activated:
         modifiers.append(PresetModifier.MULTI_DOMAIN_SYNTHESIS)
 
-    # --- Priority 0: Vulnerable user overlay (wins over every preset) ---
-    # If the user has accumulated enough clinical/trauma signals in their
-    # long-term facts, we classify RESPECTFUL_SERIOUS regardless of what the
-    # current message looks like. This exists because a user with Complex
-    # PTSD + active psychiatric treatment writing "he dormido bien hoy" was
-    # falling through to DEFAULT_ABRASIVE — technically correct by the
-    # current-message signal, but ethically wrong given the conversation
-    # history. See insult/core/vulnerability.py for scoring rationale and
-    # APA/MIND-SAFE references.
-    vuln_score = compute_vulnerability_score(user_facts)
-    if vuln_score >= VULNERABLE_THRESHOLD:
-        signals = matched_signal_groups(user_facts)
+    # --- Priority 0: ACUTE CRISIS in current message — always wins ---
+    # Explicit distress / ideation / "no puedo más" / panic NOW. Beats
+    # everything else, including absence of chronic facts. A new user
+    # with no fact store writing "ya no puedo más" gets the safety mode.
+    if is_acute_crisis(current_message):
         return PresetSelection(
             mode=PresetMode.RESPECTFUL_SERIOUS,
             modifiers=modifiers,
-            confidence=min(0.8 + (vuln_score - VULNERABLE_THRESHOLD) * 0.05, 1.0),
-            reason=f"vulnerable_user_overlay: score={vuln_score} signals={signals}",
+            confidence=0.95,
+            reason="acute_crisis_in_current_message",
         )
 
-    # --- Priority 1: RESPECTFUL_SERIOUS ---
+    # --- Priority 0.5: Chronic vulnerable overlay (F1 — split from acute) ---
+    # The user crossed VULNERABLE_THRESHOLD in their long-term facts but
+    # the current message is NOT an acute crisis. Before F1 we forced
+    # RESPECTFUL_SERIOUS here, which produced flat "presence, not
+    # performance" replies for users in stable chronic care just trying
+    # to talk about their day (the DIF turn that aplanó a Alex).
+    #
+    # F1 routes this case to RELATIONAL_PROBE — a movement-permitting
+    # preset whose guidance ("Be direct, not soft", "Ask the question
+    # they're avoiding", "AVOID therapy-speak, platitudes, fake empathy",
+    # "challenge them, but the challenge serves THEM") naturally aligns
+    # with the chronic-care directive "sharpness capped, movement
+    # preserved". ARC was considered and rejected — its guidance carries
+    # too much old machinery (mechanism-naming, system-critique sub-
+    # sections, ideology rhetoric) that bloats the prompt for a user
+    # who just wants to talk about their day under the overlay.
+    #
+    # The new reason `chronic_nonacute_move_allowed` is recognised by
+    # is_vulnerable_overlay_selection (see _OVERLAY_REASON_PREFIXES),
+    # so the safety overlay still activates downstream — but the prefix
+    # makes the routing explicit in telemetry instead of hiding under
+    # the legacy `vulnerable_user_overlay` umbrella.
+    #
+    # Exception: if the current message itself matches _SERIOUS_PATTERNS
+    # (clinical vocabulary like "quetiapina", "trauma", "psiquiatra"),
+    # we let Priority 1 handle it as RESPECTFUL_SERIOUS — the current-
+    # message signal is stronger than the chronic prior in those turns.
+    vuln_score = compute_vulnerability_score(user_facts)
     serious_hits = _count_pattern_hits(current_message, _SERIOUS_PATTERNS)
+
+    if vuln_score >= VULNERABLE_THRESHOLD and serious_hits == 0:
+        signals = matched_signal_groups(user_facts)
+        return PresetSelection(
+            mode=PresetMode.RELATIONAL_PROBE,
+            modifiers=modifiers,
+            confidence=min(0.75 + (vuln_score - VULNERABLE_THRESHOLD) * 0.05, 0.95),
+            reason=f"chronic_nonacute_move_allowed: score={vuln_score} signals={signals}",
+        )
+
+    # --- Priority 1: RESPECTFUL_SERIOUS (clinical vocabulary in current msg) ---
     if serious_hits > 0:
+        # If the user is ALSO chronic-vulnerable, use a reason prefix that
+        # activates the chronic_care safety overlay downstream. This is the
+        # case "Alex asks about quetiapine" — same RESPECTFUL_SERIOUS mode
+        # but the overlay matters MOST here (clinical-source discipline,
+        # medlineplus/CIMA allowlist, no invented pharmacology). Without
+        # this branch we'd silently drop the overlay precisely when a
+        # vulnerable user asks about their medication.
+        if vuln_score >= VULNERABLE_THRESHOLD:
+            signals = matched_signal_groups(user_facts)
+            return PresetSelection(
+                mode=PresetMode.RESPECTFUL_SERIOUS,
+                modifiers=modifiers,
+                confidence=min(0.7 + serious_hits * 0.15, 1.0),
+                reason=(f"chronic_serious_clinical_current: score={vuln_score} hits={serious_hits} signals={signals}"),
+            )
+        # Non-chronic user with serious vocab in current message: standard
+        # RESPECTFUL_SERIOUS without the chronic overlay (the preset's own
+        # guidance already covers acute-style presence).
         return PresetSelection(
             mode=PresetMode.RESPECTFUL_SERIOUS,
             modifiers=modifiers,
@@ -674,17 +765,32 @@ def classify_preset(
     )
 
 
-_VALUE_MOVE_DIRECTIVE = (
-    "## Value Move (applies to ALL modes)\n"
-    "Every response must do at least one: clarify, deepen, challenge, or discover. "
-    "If it does none, it is noise. Never paraphrase what the user already made clear "
-    "unless you are compressing, sharpening, reframing, or exposing something hidden."
+# F1: replaces the older _VALUE_MOVE_DIRECTIVE. Same load-bearing job
+# (don't write noise) but reframed as a strategic prelude before the
+# tactical preset guidance: WHY first, HOW second. The 5 questions are
+# not for the response — they are for the model to run internally before
+# composing. Kept short on purpose: more bureaucracy here makes the
+# downstream preset guidance fight for attention.
+_INTENTIONALITY_DIRECTIVE = (
+    "## Cómo responder (pregúntate esto ANTES de escribir, no en voz alta)\n"
+    "1. ¿Qué está VIVO en este mensaje? — lo no-dicho, la contradicción, el humor que protege algo, "
+    "la duda real bajo la pregunta de fachada.\n"
+    "2. ¿Qué tensión hay sin resolver? — entre lo que quieren y lo que temen, entre lo que dicen y lo que hacen, "
+    "entre su experiencia y el sistema que la nombra mal.\n"
+    "3. ¿Qué evitan, esperan, prueban, o revelan al escribir esto?\n"
+    "4. ¿Qué movimiento haría esta conversación más real, más precisa, o más viva?\n"
+    "5. El preset de abajo te dice CÓMO mover. Estas preguntas te dicen POR QUÉ. "
+    "Si la respuesta no mueve, no es respuesta — es ruido educado."
 )
 
 
 def build_preset_prompt(selection: PresetSelection) -> str:
-    """Build the preset guidance section for injection into system prompt."""
-    parts = [PRESET_GUIDANCE[selection.mode], _VALUE_MOVE_DIRECTIVE]
+    """Build the preset guidance section for injection into system prompt.
+
+    Layer order: INTENTIONALITY (strategic, why-do-I-move) → PRESET
+    (tactical, how-do-I-move) → MODIFIERS (overlays).
+    """
+    parts = [_INTENTIONALITY_DIRECTIVE, PRESET_GUIDANCE[selection.mode]]
     for modifier in selection.modifiers:
         guidance = MODIFIER_GUIDANCE.get(modifier, "")
         if guidance:

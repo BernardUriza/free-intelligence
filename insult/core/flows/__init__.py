@@ -62,7 +62,7 @@ from insult.core.flows.types import (
     StyleFlavor,
     UserState,
 )
-from insult.core.flows.validator import validate_flow_adherence
+from insult.core.flows.validator import detect_lifelessness, validate_flow_adherence
 
 
 # ─── Backwards-compatible function aliases ─────────────────────────────────
@@ -139,5 +139,6 @@ __all__ = [
     "UserState",
     "analyze_flows",
     "build_flow_prompt",
+    "detect_lifelessness",
     "validate_flow_adherence",
 ]

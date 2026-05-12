@@ -68,7 +68,7 @@ from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.disclosure import scan_disclosure
 from insult.core.errors import ErrorType, classify_error, get_error_response
 from insult.core.facts import build_facts_prompt
-from insult.core.flows import analyze_flows, build_flow_prompt, validate_flow_adherence
+from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import PresetModifier
 from insult.core.reactions import add_reactions, parse_reactions, strip_reactions
@@ -255,7 +255,8 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
     ctx.preset = preset
     log.info(
         "preset_classified",
-        preset=preset.mode.value,
+        preset=preset.display_label,
+        preset_internal=preset.mode.value,
         modifiers=[m.value for m in preset.modifiers],
         disclosure_severity=ctx.disclosure.severity,
         disclosure_category=ctx.disclosure.category,
@@ -291,7 +292,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         log.info(
             "style_adapted",
             user_id=ctx.user_id,
-            preset=preset.mode.value,
+            preset=preset.display_label,
             preset_modifiers=[m.value for m in preset.modifiers],
             language=ctx.profile.detected_language,
             formality=round(ctx.profile.formality, 2),
@@ -325,7 +326,7 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
             primary=ctx.model_choice.primary,
             fallback=ctx.model_choice.fallback,
             reason=ctx.model_choice.reason,
-            preset=ctx.preset.mode.value,
+            preset=ctx.preset.display_label,
             disclosure_severity=ctx.disclosure.severity,
             user_id=ctx.user_id,
         )
@@ -607,6 +608,30 @@ async def _stage_deliver(ctx: TurnCtx) -> None:
 async def _stage_telemetry(ctx: TurnCtx) -> None:
     validate_flow_adherence(ctx.response_text, ctx.flow_analysis)
 
+    # F2 (2026-05-11): soft-monitor for "competent but flat" replies. We do
+    # NOT block, retry, or gate on this — F2 just measures whether the flat-
+    # presence problem (the Alex DIF turn) exists at production scale. KQL:
+    #   ContainerAppConsoleLogs_CL
+    #   | where event_s == "lifelessness_check"
+    #   | summarize count() by band_s, preset_s
+    # Once we have a week of data we decide F3 retry policy.
+    lifelessness = detect_lifelessness(ctx.response_text, ctx.text)
+    log.info(
+        "lifelessness_check",
+        preset=ctx.preset.display_label,
+        preset_reason=ctx.preset.reason,
+        score=lifelessness["score"],
+        band=lifelessness["band"],
+        signals=lifelessness["signals"],
+        therapy_speak_hits=lifelessness["therapy_speak_hits"],
+        reflection_overlap=lifelessness["reflection_overlap"],
+        has_movement_markers=lifelessness["has_movement_markers"],
+        has_question=lifelessness["has_question"],
+        response_chars=len(ctx.response_text),
+        user_id=ctx.user_id,
+        channel_id=ctx.channel_id,
+    )
+
     from insult.core.quality import check_quality
 
     recent_shapes = ctx.expression_history.recent_shapes(ctx.context_key, n=5)
@@ -626,7 +651,7 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
             "channel": ctx.channel_id,
             "input": ctx.text[:200],
             "response": ctx.response_text[:300],
-            "preset": ctx.preset.mode.value,
+            "preset": ctx.preset.display_label,
             "preset_modifiers": [m.value for m in ctx.preset.modifiers],
             "pressure": ctx.flow_analysis.pressure.pressure_level,
             "expression_shape": ctx.flow_analysis.expression.selected_shape.value,

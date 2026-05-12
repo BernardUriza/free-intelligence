@@ -66,13 +66,28 @@ def test_plain_chit_chat_is_not_accidentally_serious():
     assert result.mode != PresetMode.RESPECTFUL_SERIOUS
 
 
-# ---- Vulnerable user overlay (Component A + B) ----
+# ---- Vulnerable user overlay (F1 — split chronic from acute) ----
 #
-# These tests lock in that a user with accumulated clinical signals in their
-# fact store ALWAYS gets RESPECTFUL_SERIOUS, even when their current message
-# carries zero direct trigger words. This is the fix for the "bot is curt
-# with Alex when he says he slept well" failure mode — "he dormido bien"
-# has no clinical keyword, but his cumulative profile does.
+# F1 (2026-05-11) changed how chronic-vulnerable users are routed when the
+# current message is NOT an acute crisis. Before F1: chronic facts forced
+# RESPECTFUL_SERIOUS every turn, producing flat "presence, not performance"
+# replies that left the DIF turn (Alex) as a regression case. After F1:
+#
+#   chronic | acute-in-msg | clinical-in-msg | preset                      | reason prefix
+#   --------+--------------+-----------------+-----------------------------+--------------
+#   yes     | yes          | -               | RESPECTFUL_SERIOUS (acute)  | acute_crisis
+#                                              [telemetry: crisis_presence]
+#   yes     | no           | yes             | RESPECTFUL_SERIOUS (clinic) | serious_trigger
+#   yes     | no           | no              | RELATIONAL_PROBE (movement) | chronic_nonacute_move_allowed
+#   no      | yes          | -               | RESPECTFUL_SERIOUS (acute)  | acute_crisis
+#                                              [telemetry: crisis_presence]
+#   no      | no           | yes             | RESPECTFUL_SERIOUS (clinic) | serious_trigger
+#   no      | no           | no              | regular preset flow         | other
+#
+# is_vulnerable_overlay_selection() recognises all chronic / acute prefixes
+# so the safety overlay (chronic_care_constraints, sharpness cap, clinical
+# search allowlist, crisis hotlines on acute distress) still activates
+# downstream for every routing that crosses the vulnerability threshold.
 
 
 def _alex_like_facts() -> list[dict]:
@@ -85,25 +100,101 @@ def _alex_like_facts() -> list[dict]:
     ]
 
 
-def test_vulnerable_user_neutral_message_still_classifies_serious():
-    """The 'he dormido bien' class of message: no clinical keyword at all,
-    but user is vulnerable → must still route to RESPECTFUL_SERIOUS."""
+def test_vulnerable_user_neutral_message_routes_to_relational_probe():
+    """F1 regression: chronic-vulnerable + non-clinical current message
+    must NOT collapse to RESPECTFUL_SERIOUS (flat presence). It now routes
+    to RELATIONAL_PROBE — a movement-permitting preset whose guidance
+    naturally aligns with the chronic-care directive 'sharpness capped,
+    movement preserved'. ARC was considered but rejected for carrying too
+    much old machinery (mechanism-naming, ideology sub-sections) for this
+    routing. The safety overlay still activates via the
+    `chronic_nonacute_move_allowed` reason prefix.
+
+    This is the case that aplanó a Alex on the DIF turn before F1."""
+    from insult.core.presets import is_vulnerable_overlay_selection
+
     result = classify_preset(
         "He dormido bastante bien, y cada día me siento un poquito mejor",
         user_facts=_alex_like_facts(),
     )
-    assert result.mode == PresetMode.RESPECTFUL_SERIOUS
-    assert result.reason.startswith("vulnerable_user_overlay")
+    assert result.mode == PresetMode.RELATIONAL_PROBE
+    assert result.reason.startswith("chronic_nonacute_move_allowed")
+    assert is_vulnerable_overlay_selection(result), "safety overlay must still apply"
 
 
-def test_vulnerable_user_medication_follow_up():
-    """A message that looks like off-topic reflection but carries medication
-    context in history. Must NOT fall through to abrasive."""
+def test_vulnerable_user_medication_follow_up_routes_to_relational_probe():
+    """A reflective message without clinical-vocab triggers AND without
+    acute crisis signals must route to RELATIONAL_PROBE for chronic-vulnerable
+    users. F1: substantive engagement under the safety overlay, not flat
+    presence."""
+    from insult.core.presets import is_vulnerable_overlay_selection
+
     result = classify_preset(
         "Yo sentí efectos muy positivos desde las primeras tomas, como una especie de contención que aumentaba cada día",
         user_facts=_alex_like_facts(),
     )
+    assert result.mode == PresetMode.RELATIONAL_PROBE
+    assert result.reason.startswith("chronic_nonacute_move_allowed")
+    assert is_vulnerable_overlay_selection(result)
+
+
+def test_vulnerable_user_clinical_vocab_in_current_still_serious():
+    """If the current message contains clinical vocabulary (matches
+    _SERIOUS_PATTERNS via priority 1), RESPECTFUL_SERIOUS still wins
+    over the chronic-nonacute routing.
+
+    Critical: when the user is ALSO chronic-vulnerable, the reason must
+    use the `chronic_serious_clinical_current` prefix so the safety
+    overlay (clinical-source allowlist, no invented pharmacology, dosing
+    discipline) ACTIVATES — this is the exact moment that overlay matters
+    most, and dropping it here was the silent regression that the F1
+    rewrite almost shipped."""
+    from insult.core.presets import is_vulnerable_overlay_selection
+
+    result = classify_preset(
+        "Me aumentó dosis de quetiapina",
+        user_facts=_alex_like_facts(),
+    )
     assert result.mode == PresetMode.RESPECTFUL_SERIOUS
+    assert result.reason.startswith("chronic_serious_clinical_current")
+    assert is_vulnerable_overlay_selection(result), (
+        "Chronic vulnerable + clinical-current MUST keep the overlay — "
+        "this is where medlineplus discipline matters most."
+    )
+
+
+def test_non_chronic_user_clinical_vocab_does_not_get_overlay():
+    """Inverse: a user WITHOUT chronic facts who happens to write about
+    depression in the current message gets RESPECTFUL_SERIOUS via the
+    serious_trigger reason — no overlay (no fact history to justify it).
+    The chronic-clinical branch must NOT over-trigger."""
+    from insult.core.presets import is_vulnerable_overlay_selection
+
+    result = classify_preset("estoy con depresión severa hoy")
+    assert result.mode == PresetMode.RESPECTFUL_SERIOUS
+    assert result.reason.startswith("serious_trigger")
+    assert not is_vulnerable_overlay_selection(result)
+
+
+def test_acute_crisis_overrides_chronic_arc_routing():
+    """Acute crisis signals in the current message ALWAYS route to
+    RESPECTFUL_SERIOUS, even for chronic-vulnerable users who would
+    otherwise route to ARC."""
+    result = classify_preset(
+        "ya no puedo más",
+        user_facts=_alex_like_facts(),
+    )
+    assert result.mode == PresetMode.RESPECTFUL_SERIOUS
+    assert "acute_crisis" in result.reason
+
+
+def test_acute_crisis_routes_to_serious_for_new_users_too():
+    """A new user (no facts) writing acute distress must also route to
+    RESPECTFUL_SERIOUS via the acute branch. Safety floor is independent
+    of fact history."""
+    result = classify_preset("ya no aguanto, no puedo más con esto")
+    assert result.mode == PresetMode.RESPECTFUL_SERIOUS
+    assert "acute_crisis" in result.reason
 
 
 def test_non_vulnerable_user_neutral_message_is_not_serious():
@@ -115,3 +206,75 @@ def test_non_vulnerable_user_neutral_message_is_not_serious():
     ]
     result = classify_preset("he dormido bien hoy", user_facts=facts)
     assert result.mode != PresetMode.RESPECTFUL_SERIOUS
+
+
+# ---- display_label rename: CRISIS_PRESENCE in telemetry ----
+#
+# Aju ste 1 (2026-05-11): the safety floor for acute crisis must be visible
+# in telemetry as `crisis_presence`, not hidden under the everyday
+# `respectful_serious` label that is also used for clinical-vocab routing
+# (e.g. a user asking how quetiapine works — same internal guidance, NOT
+# crisis). Internally the mode stays RESPECTFUL_SERIOUS so the guidance
+# block is identical; only the display label differs by reason.
+
+
+def test_acute_crisis_displays_as_crisis_presence():
+    """A turn routed via acute_crisis must show up as `crisis_presence`
+    in telemetry while the internal mode stays RESPECTFUL_SERIOUS."""
+    result = classify_preset("ya no puedo más")
+    assert result.mode == PresetMode.RESPECTFUL_SERIOUS  # internal unchanged
+    assert result.display_label == "crisis_presence"
+
+
+def test_clinical_vocab_routing_still_shows_respectful_serious():
+    """A clinical-vocab routing (priority 1, NOT acute) keeps the legacy
+    respectful_serious telemetry label. The rename is reserved for acute."""
+    result = classify_preset("me aumentó dosis de quetiapina")
+    assert result.mode == PresetMode.RESPECTFUL_SERIOUS
+    assert result.display_label == "respectful_serious"
+
+
+def test_chronic_nonacute_routing_displays_as_relational_probe():
+    """Chronic-vulnerable + non-acute routes to RELATIONAL_PROBE — that is
+    the label that appears in telemetry. The display_label rename is
+    acute-only; relational_probe stays as itself."""
+    result = classify_preset(
+        "el día estuvo tranquilo, fui a caminar al parque",
+        user_facts=_alex_like_facts(),
+    )
+    assert result.display_label == "relational_probe"
+
+
+def test_safety_overlay_activates_for_all_three_routing_reasons():
+    """is_vulnerable_overlay_selection must return True for any routing
+    that crosses the vulnerability threshold: acute_crisis,
+    chronic_nonacute_move_allowed, and the legacy vulnerable_user_overlay
+    prefix (kept for any in-flight selection during deploy)."""
+    from insult.core.presets import (
+        PresetSelection,
+        is_vulnerable_overlay_selection,
+    )
+
+    acute = PresetSelection(
+        mode=PresetMode.RESPECTFUL_SERIOUS,
+        reason="acute_crisis_in_current_message",
+    )
+    assert is_vulnerable_overlay_selection(acute)
+
+    chronic = PresetSelection(
+        mode=PresetMode.RELATIONAL_PROBE,
+        reason="chronic_nonacute_move_allowed: score=11 signals=['named_diagnosis']",
+    )
+    assert is_vulnerable_overlay_selection(chronic)
+
+    legacy = PresetSelection(
+        mode=PresetMode.RESPECTFUL_SERIOUS,
+        reason="vulnerable_user_overlay: score=8 signals=[]",
+    )
+    assert is_vulnerable_overlay_selection(legacy)
+
+    not_overlay = PresetSelection(
+        mode=PresetMode.DEFAULT_ABRASIVE,
+        reason="no_specific_trigger: defaulting to abrasive",
+    )
+    assert not is_vulnerable_overlay_selection(not_overlay)

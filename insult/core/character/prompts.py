@@ -88,7 +88,8 @@ def build_adaptive_prompt(
 
     log.info(
         "preset_classified",
-        mode=preset.mode.value,
+        mode=preset.display_label,
+        mode_internal=preset.mode.value,
         modifiers=[m.value for m in preset.modifiers],
         confidence=round(preset.confidence, 2),
         reason=preset.reason,

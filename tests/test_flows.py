@@ -21,6 +21,7 @@ from insult.core.flows import (
     _select_shape,
     analyze_flows,
     build_flow_prompt,
+    detect_lifelessness,
     validate_flow_adherence,
 )
 from insult.core.presets import PresetMode, PresetSelection
@@ -819,3 +820,111 @@ class TestPhase2Enhancements:
         ]
         result = analyze_flows("hola", recent, _preset(), h, "test_streak_zero")
         assert result.agreement_streak == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# F2: Lifelessness detection — soft-monitor for "competent but flat" replies
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDetectLifelessness:
+    """Anchored on the Alex DIF turn (2026-05-11) that triggered the
+    redesign. The flat reply scored 'tibia' (2); the proposed alive
+    rewrite scored 0. Tests below lock in the discriminating power."""
+
+    ALEX_DIF_MSG = (
+        "Oigan a ver qué me dicen mañana, espero no salgan con alguna jalada. "
+        "Me estoy acordando que cuando fui al DIF para la supuesta evaluación de "
+        "autismo había muchas personas presentes. Estuvo bien equis, de lo que "
+        "salí como más altx por así decirlo fue de la movilidad reducida, y eso "
+        "que yo iba más por discapacidad psicosocial."
+    )
+    ALEX_DIF_FLAT_REPLY = (
+        "Que te den la tarjeta sin drama, nada más eso. "
+        "Y lo del DIF — a veces los sistemas de evaluación te encasillan en lo que "
+        "ellos saben medir, no necesariamente en lo que más te afecta a ti. "
+        "Que hayan priorizado movilidad reducida no significa que lo otro no existe. "
+        "Mañana nos cuentas cómo te fue."
+    )
+    ALEX_DIF_ALIVE_REPLY = (
+        "Qué raro eso de querer que te vean y al mismo tiempo sentirte exhibide "
+        "cuando por fin te ponen atención. El DIF hace esa cosa burocrática: "
+        "no mide cómo vives el mundo, mide qué casilla puede justificar. "
+        "Lo culero es salir preguntándote si el problema eras tú o el formato."
+    )
+
+    def test_alex_dif_flat_reply_is_tibia_or_worse(self):
+        """Anchor regression: the original flat DIF reply must score ≥ 2."""
+        result = detect_lifelessness(self.ALEX_DIF_FLAT_REPLY, self.ALEX_DIF_MSG)
+        assert result["band"] in ("tibia", "flat")
+        assert result["score"] >= 2
+        assert "courtesy_followup_close" in result["signals"]
+
+    def test_alex_dif_alive_rewrite_scores_alive(self):
+        """The proposed Alvarado-style rewrite must score 'alive'."""
+        result = detect_lifelessness(self.ALEX_DIF_ALIVE_REPLY, self.ALEX_DIF_MSG)
+        assert result["band"] == "alive"
+        assert result["has_movement_markers"] is True
+
+    def test_acknowledgment_opener_fires(self):
+        result = detect_lifelessness("Claro, entiendo lo que dices.")
+        assert "acknowledgment_opener" in result["signals"]
+
+    def test_courtesy_close_fires(self):
+        result = detect_lifelessness("Suena bien. Mañana me cuentas cómo te fue.")
+        assert "courtesy_followup_close" in result["signals"]
+
+    def test_courtesy_close_english_fires(self):
+        result = detect_lifelessness("Sounds good. Let me know how it goes.")
+        assert "courtesy_followup_close" in result["signals"]
+
+    def test_therapy_speak_two_hits_fires(self):
+        text = "Es válido sentir lo que sientes. Tus emociones son válidas y no estás solo."
+        result = detect_lifelessness(text)
+        assert any(s.startswith("therapy_speak_") for s in result["signals"])
+        assert result["therapy_speak_hits"] >= 2
+
+    def test_single_therapy_phrase_does_not_fire(self):
+        """Single therapy phrase is not enough — must be a cluster.
+        Prevents false positives on natural empathy expressions."""
+        result = detect_lifelessness("Está bien sentirse así a veces.")
+        assert not any(s.startswith("therapy_speak_") for s in result["signals"])
+
+    def test_movement_markers_cancel_one_signal(self):
+        """A reply that opens with acknowledgment but pivots with 'pero' or
+        names a tension should score lower than pure acknowledgment."""
+        with_movement = detect_lifelessness("Entiendo. Pero lo culero es que el sistema te encasilla en una casilla.")
+        without_movement = detect_lifelessness("Entiendo. Tiene mucho sentido.")
+        assert with_movement["score"] < without_movement["score"]
+
+    def test_question_alone_avoids_no_pull_signal(self):
+        """Presence of a question prevents the 'no_question_no_movement'
+        composite signal from firing."""
+        result = detect_lifelessness("¿Qué es lo que más te preocupa de eso?")
+        assert "no_question_no_movement" not in result["signals"]
+
+    def test_literal_reflection_detects_mirroring(self):
+        """High content-word overlap without movement markers = reflection."""
+        user = "estoy cansado del trabajo y de la gente del trabajo"
+        # Reply that mirrors the user's vocabulary without moving.
+        # Score signal is independent — we just need the flag to be on.
+        result = detect_lifelessness(
+            "Cansado del trabajo y de la gente del trabajo, suena pesado.",
+            user,
+        )
+        assert any(s.startswith("literal_reflection_") for s in result["signals"])
+
+    def test_empty_response_does_not_crash(self):
+        result = detect_lifelessness("", "user said something")
+        assert isinstance(result["score"], int)
+        assert result["band"] in ("alive", "tibia", "flat")
+
+    def test_band_buckets(self):
+        # Score 0 → alive
+        assert detect_lifelessness("¿Y qué piensas hacer al respecto?")["band"] == "alive"
+        # Score 3+ → flat (acknowledgment + courtesy + therapy + no pull)
+        flat_text = (
+            "Claro, entiendo lo que dices. Es válido sentir lo que sientes y "
+            "tus emociones son válidas. Mañana me cuentas cómo te fue."
+        )
+        assert detect_lifelessness(flat_text)["band"] == "flat"
