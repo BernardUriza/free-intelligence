@@ -44,6 +44,25 @@
 - Only the selected preset's guidance is injected into the system prompt (not all 6)
 - Classifier analyzes: current message (primary) + last 5 messages (secondary) + user facts (for MEMORY_RECALL)
 
+## Prompts
+- LLM-facing prompts MUST live in `insult/prompts/*.md`, loaded via `insult.core.prompts_loader.load_prompt(name)` — NEVER as inline Python strings.
+- The loader is mtime-aware: editing the `.md` file is picked up by the running bot on the next request without a redeploy or restart. Inline strings require a version bump and full deploy cycle just to change tone.
+- Call `load_prompt("<name>")` inside the function that uses the prompt, NOT at module level — so the mtime check fires per-request and hot-reload actually works.
+- Migration pattern when extracting an inline prompt:
+  1. Create `insult/prompts/<name>.md` with the prompt content verbatim
+  2. Replace the Python constant with `load_prompt("<name>")` inside the consumer function
+  3. Delete the inline constant
+- Exception: ≤5-line structural fragments that the prompt builder concatenates (e.g. `CACHE_BOUNDARY`, single-line headers) may stay inline — they are scaffolding, not content humans iterate.
+- Existing prompt-loader users to mirror: `moltbook_outbound_draft`, `moltbook_outbound_redaction`, `moltbook_reply_to_commenter`, `moltbook_engagement_comment`, `facts_extraction`, `language_cure`.
+- Known violations (technical debt — migrate when touched):
+  - `insult/core/presets.py` — `PRESET_GUIDANCE`, `MODIFIER_GUIDANCE`, `_VULNERABLE_OVERLAY_PROMPT`, `_INTENTIONALITY_DIRECTIVE`
+  - `insult/core/presets_llm.py` — `_CLASSIFIER_SYSTEM_PROMPT`
+  - `insult/core/character/prompts.py` — inline layers of `build_adaptive_prompt`
+  - `insult/core/flows/guidance.py` — shape/flavor/pressure guidance blocks
+  - `insult/core/flows/prompt.py` — flow prompt assembly
+  - `insult/core/summaries.py`, `image_summary.py`, `stance_log.py` — utility prompts
+- Why this rule exists: prompts are CONTENT, not code. Inline Python forces escape gymnastics on quotes, hides prompt edits in code diffs, and locks editability behind redeploy. The `prompts_loader.py` infrastructure has existed since the moltbook integration — but the convention was never documented, so subsequent commits kept adding inline prompts. Detected 2026-05-12 while debugging flat replies; the most recent `_CLASSIFIER_SYSTEM_PROMPT` addition violated the convention.
+
 ## Reactions
 - LLM includes `[REACT:emoji1,emoji2]` in response (max 3 emojis)
 - `parse_reactions()` extracts emojis, `strip_reactions()` removes markers from text
