@@ -75,6 +75,13 @@ def mock_settings():
     s.casual_model = "claude-haiku-4-5-20251001"
     s.crisis_model = "claude-opus-4-7"
     s.opus_24h_cap = 20
+    # Preset LLM classifier OFF in tests by default — the regex classifier
+    # is the legacy behavior the existing test suite expects. Individual
+    # tests that need to exercise the LLM middleware path can override
+    # this flag on the fixture before instantiating the cog.
+    s.preset_classifier_llm_enabled = False
+    s.preset_classifier_model = "claude-haiku-4-5-20251001"
+    s.preset_classifier_timeout_ms = 1500
     return s
 
 

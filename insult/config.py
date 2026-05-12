@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     crisis_model: str = "claude-opus-4-7"
     opus_24h_cap: int = 20
 
+    # Preset classifier — LLM middleware that decides preset+modifiers from
+    # CONTEXT (not regex). Falls back automatically to the regex classifier
+    # on timeout / API error / invalid JSON. The regex classifier still runs
+    # in the same turn as a shadow for divergence telemetry. Set the flag to
+    # False to disable the LLM middleware entirely (regex-only kill switch).
+    preset_classifier_llm_enabled: bool = True
+    preset_classifier_model: str = "claude-haiku-4-5-20251001"
+    preset_classifier_timeout_ms: int = 1500
+
     # Memory
     memory_recent_limit: int = 50
     memory_relevant_limit: int = 5

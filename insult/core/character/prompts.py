@@ -49,6 +49,7 @@ def build_adaptive_prompt(
     profile,
     context_len: int,
     *,
+    preset: PresetSelection | None = None,
     current_message: str = "",
     recent_messages: list[dict] | None = None,
     user_facts: list[dict] | None = None,
@@ -56,7 +57,14 @@ def build_adaptive_prompt(
     server_pulse: str = "",
     recent_response_lengths: list[int] | None = None,
 ) -> tuple[str, PresetSelection]:
-    """Compose the system prompt and return (prompt, preset_selection)."""
+    """Compose the system prompt and return (prompt, preset_selection).
+
+    If `preset` is provided, the caller has already classified the turn
+    (typically via the LLM middleware in `insult.core.presets_llm`).
+    If `preset` is None, this function classifies internally with the
+    regex classifier — backward-compatible behavior used by tests and
+    by callers that don't want the LLM middleware path.
+    """
     # base_prompt (persona.md) is the only 100% stable section — mark the cache
     # boundary right after it so the Anthropic cache covers ~10K tokens of persona
     # across requests. Everything appended below is dynamic.
@@ -73,7 +81,8 @@ def build_adaptive_prompt(
     )
 
     # --- Layer 3: Preset behavioral guidance ---
-    preset = classify_preset(current_message, recent_messages, user_facts)
+    if preset is None:
+        preset = classify_preset(current_message, recent_messages, user_facts)
     preset_prompt = build_preset_prompt(preset)
     prompt += f"\n\n{preset_prompt}"
 

@@ -116,6 +116,13 @@ class TurnCtx:
     disclosure: Any = None
     arc_state: Any = None
     preset: Any = None
+    # Background task running classify_preset_llm() in parallel with the
+    # disclosure / arc / facts I/O so the Haiku call latency is masked.
+    # Awaited in `_stage_classify_and_analyze` with a timeout; on failure
+    # the regex classifier becomes the result. Set to None when the LLM
+    # middleware is disabled via settings or when the cog is in a path
+    # that doesn't use it.
+    preset_task: Any = None
     flow_analysis: Any = None
     stances: list = field(default_factory=list)
 

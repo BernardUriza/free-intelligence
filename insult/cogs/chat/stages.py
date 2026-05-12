@@ -20,6 +20,7 @@ contextvars binding.
 
 from __future__ import annotations
 
+import asyncio
 import json as _json
 import time
 from typing import Any
@@ -71,6 +72,7 @@ from insult.core.facts import build_facts_prompt
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import PresetModifier
+from insult.core.presets_llm import classify_preset_llm
 from insult.core.reactions import add_reactions, parse_reactions, strip_reactions
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
@@ -215,6 +217,23 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
     ctx.other_participants_facts = await load_other_participants_facts(ctx.memory, ctx.channel_id, ctx.user_id)
     ctx.server_pulse = await load_server_pulse(ctx.memory, ctx.message, ctx.channel_id, ctx.text)
 
+    # Launch the LLM preset classifier as a background task so its Haiku
+    # latency overlaps with the remaining pre-LLM stages (disclosure scan,
+    # arc load, flow analysis setup). `_stage_classify_and_analyze` awaits
+    # the task with a timeout and falls back to the regex classifier on
+    # failure. Disabled-by-flag path leaves ctx.preset_task as None and
+    # the awaiter goes straight to regex.
+    if getattr(ctx.settings, "preset_classifier_llm_enabled", False):
+        ctx.preset_task = asyncio.create_task(
+            classify_preset_llm(
+                ctx.text,
+                ctx.recent,
+                ctx.user_facts,
+                ctx.llm,
+                model=getattr(ctx.settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
+            )
+        )
+
 
 # --- Stage 07: disclosure scan + arc state ---
 
@@ -242,10 +261,54 @@ async def _stage_scan_disclosure(ctx: TurnCtx) -> None:
 
 
 async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
+    # Resolve the LLM classifier task launched in stage 06 (if enabled).
+    # Strategy: await with a hard timeout. On timeout / API error / invalid
+    # JSON, the regex classifier (which still runs inside build_adaptive_prompt
+    # when preset is None) becomes the result. Telemetry logs source +
+    # divergence so we can measure how often the LLM agrees with regex.
+    llm_preset = None
+    classifier_source = "regex"
+    classifier_ms = 0
+    if ctx.preset_task is not None:
+        classifier_start = time.monotonic()
+        timeout_s = float(getattr(ctx.settings, "preset_classifier_timeout_ms", 1500)) / 1000.0
+        try:
+            llm_preset = await asyncio.wait_for(ctx.preset_task, timeout=timeout_s)
+        except TimeoutError:
+            ctx.preset_task.cancel()
+            log.warning("preset_llm_timeout_fallback", timeout_s=timeout_s)
+            llm_preset = None
+        except Exception:
+            log.exception("preset_llm_task_failed_fallback")
+            llm_preset = None
+        classifier_ms = int((time.monotonic() - classifier_start) * 1000)
+        if llm_preset is not None:
+            classifier_source = "llm"
+
+    # Shadow-run the regex classifier ALWAYS so we can detect LLM/regex
+    # divergence (F5 hybrid recommendation). Cost is ~0.1ms vs the Haiku
+    # 300ms — trivial. The regex is also the fallback when llm_preset is None.
+    from insult.core.presets import classify_preset as _classify_regex
+
+    regex_preset = _classify_regex(ctx.text, ctx.recent, ctx.user_facts)
+    effective_preset = llm_preset if llm_preset is not None else regex_preset
+
+    if llm_preset is not None and llm_preset.mode != regex_preset.mode:
+        log.info(
+            "preset_llm_regex_divergence",
+            llm_mode=llm_preset.mode.value,
+            regex_mode=regex_preset.mode.value,
+            llm_reason=llm_preset.reason,
+            regex_reason=regex_preset.reason,
+            llm_modifiers=[m.value for m in llm_preset.modifiers],
+            regex_modifiers=[m.value for m in regex_preset.modifiers],
+        )
+
     system_prompt, preset = build_adaptive_prompt(
         ctx.settings.system_prompt,
         ctx.profile,
         len(ctx.context),
+        preset=effective_preset,
         current_message=ctx.text,
         recent_messages=ctx.recent,
         user_facts=ctx.user_facts,
@@ -258,6 +321,8 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         preset=preset.display_label,
         preset_internal=preset.mode.value,
         modifiers=[m.value for m in preset.modifiers],
+        classifier_source=classifier_source,
+        classifier_ms=classifier_ms,
         disclosure_severity=ctx.disclosure.severity,
         disclosure_category=ctx.disclosure.category,
         arc_phase=ctx.arc_state.phase,
