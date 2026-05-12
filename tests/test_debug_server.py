@@ -45,6 +45,13 @@ def memory_with_data():
             },
         ]
     )
+    mem.get_facts = AsyncMock(
+        return_value=[
+            {"fact": "Estudió psicología sin titularse", "category": "professional", "ts": 1700000000.0},
+            {"fact": "Trabajó como gerente en un bar de vino natural", "category": "professional", "ts": 1700000001.0},
+            {"fact": "Tiene CPTSD diagnosticado", "category": "health", "ts": 1700000002.0},
+        ]
+    )
     mem.save_reminder = AsyncMock(return_value=42)
     mem.delete_reminder = AsyncMock(return_value=True)
     mem.update_reminder_fields = AsyncMock(return_value=True)

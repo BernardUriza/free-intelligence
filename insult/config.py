@@ -100,9 +100,21 @@ class Settings(BaseSettings):
     # local equivalent.
     moltbook_blocked_authors_raw: str = "cicadafinanceintern"
 
-    # Paths
+    # Paths — DB_PATH env var can override to mount a persistent volume in prod
+    # (e.g. /data/memory.db when an Azure Files share is mounted at /data).
     storage_dir: Path = _PROJECT_ROOT / "storage"
     db_path: Path = _PROJECT_ROOT / "storage" / "memory.db"
+
+    # Blob-based DB sync. Set to False in environments that use a persistent
+    # volume mount for db_path (Azure Files / managed disk). When False, the
+    # bot does NOT download memory.db on startup, does NOT upload periodically,
+    # and does NOT upload on shutdown. The volume IS the persistence layer.
+    # Dashboard JSON uploads (facts.json, metrics.json, etc.) are independent
+    # and continue when AZURE_STORAGE_CONNECTION_STRING is set.
+    # 2026-05-12: introduced to escape the blob-download race condition
+    # that destroyed 14 minutes of an active conversation. See
+    # .claude/rules/workflow.md § "CI/CD Must NOT Mutate Production Data".
+    blob_db_sync_enabled: bool = True
 
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 

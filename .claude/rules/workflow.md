@@ -52,3 +52,86 @@ pip-audit                                       # security deps
 - Correct behavior: open with the plan, then execute. Show the plan AS you start the fix, not before. Use TaskCreate if multi-step.
 - The "what's next?" question is only legitimate when there is genuine priority ambiguity — multiple equally weighted critical items, no recent context, or an explicit user pivot. Otherwise, work.
 - This rule was registered after a `/work` invocation re-asked priority on a session that had just diagnosed a grave blob-download race condition losing longitudinal facts. The user's response was unambiguous: stop asking, start working.
+
+## CI/CD Must NOT Mutate Production Data — MANDATORY
+
+**Root cause first, then the band-aid.** A deploy that silently
+destroys the database is not "a race condition we work around" — it
+is an architectural failure that any serious CI/CD pipeline would
+prevent by construction.
+
+### The root cause that MUST be fixed
+
+The bot stores all conversation state in a SQLite file (`memory.db`)
+that lives **inside the container**. Persistence between deploys is
+done via a blob-storage backup/restore loop:
+
+1. Container running: writes to local SQLite, periodically uploads
+   the file to Azure Blob Storage (~every 10 min).
+2. Container restarting (deploy / scale event / health failure):
+   the new replica boots, finds no local DB, downloads the blob to
+   `memory.db`, and starts running.
+3. The window between (1) last upload and (2) restart is **the bug**:
+   any messages stored locally that haven't been uploaded yet are
+   wiped when the new replica overwrites with the stale blob.
+
+This is documented in [[project_blob_download_race_bug]] and was
+discovered 2026-04-27. It is STILL not fixed as of 2026-05-12. On
+2026-05-12 it destroyed 14 minutes of an active CV-disclosure
+conversation between Bernard and Alex, including the only copy of
+Alex's full resume that Insult had ever seen.
+
+**This is vibecoding, not CI/CD.** A serious deployment of a
+stateful service does one of:
+
+- **Separate the data plane from the compute plane.** PostgreSQL on
+  Azure Database for PostgreSQL, Cloud SQL, RDS, etc. The container
+  is stateless; restarting it touches nothing user-visible. This is
+  the correct fix. SQLite in a container with blob backup is
+  acceptable for a hobby weekend project, not for a bot carrying
+  vulnerable-user disclosures.
+- **At minimum**, before any restart, force a final blob upload from
+  the *outgoing* replica and block the new replica from running its
+  download until the upload completes. This is still racy under
+  network failure but closes the common case.
+
+**The user explicitly called this out on 2026-05-12**: *"el cicd
+nunca deberia afectar esto!? como es posible que una base de datos
+se elimine o se bloquee silenciosamente durante un deploy? eso es
+vibecoding puro, no cicd"*. They are right. Until the data plane is
+moved out of the container, every deploy is a partial data-loss
+event waiting to happen.
+
+### The band-aid (only valid until the root cause is fixed)
+
+Before any `git push` to `main`, check whether the bot is mid-
+conversation. The CI/CD pipeline triggers a container revision swap
+that can wipe up to ~15 minutes of messages on each swap.
+
+```bash
+# SAFE if no turn in the last 10 min, BLOCKED otherwise.
+curl -s "https://insult-bot.nicecliff-10074f57.eastus.azurecontainerapps.io/debug/health" -m 10 \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); age=d.get('last_turn_age_s'); \
+  print('SAFE' if age is None or age > 600 else f'BLOCKED — last turn {age:.0f}s ago')"
+```
+
+If output is `BLOCKED`, the deploy is FORBIDDEN until either:
+1. The root-cause fix lands (data plane moved out of container), OR
+2. The conversation pauses for >10 minutes, OR
+3. The user explicitly says "deploy now, I'm OK losing messages".
+
+**No exceptions for "small" or "urgent" fixes.** A non-blocking
+prompt change is worth less than 15 minutes of a stressed user's
+conversation with the bot.
+
+**Also applies to:** Azure container revision activation/deactivation,
+manual blob uploads, anything that triggers a container restart with
+the blob-restore path. If you must restart in flight, use the
+blob-recovery procedure (scale down → patch blob → scale up).
+
+**Treat the band-aid as evidence of architectural debt, not as a
+solution.** Every time this check runs, it is a reminder that the
+data plane lives in the wrong place. The next time a non-trivial
+amount of dev time is available, the priority is migrating
+`memory.db` out of the container, not adding more guards around
+the broken layout.

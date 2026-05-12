@@ -835,6 +835,29 @@ async def _handle_costs(_request: web.Request) -> web.Response:
     return web.json_response(get_usage_report())
 
 
+async def _handle_facts(request: web.Request) -> web.Response:
+    """GET /debug/facts?user_id=X — list the user's long-term fact rows.
+
+    Used to verify what the bot actually knows about a participant when
+    a "memory bug" report comes in. Cross-references the chat (what the
+    user says they told the bot) with the DB (what's actually in the
+    fact store). See .claude/rules/testing.md § "Inspect the database
+    BEFORE believing the chat" for the diagnostic workflow.
+
+    Added on 2026-05-12 after a CV-recovery session where the assistant
+    needed to know which of Alex's facts had been extracted (vs which
+    only lived in the messages table). The endpoint exists so future
+    incidents don't require running scripts against the blob to read
+    the fact store.
+    """
+    memory = request.app[_MEMORY_KEY]
+    user_id = request.query.get("user_id")
+    if not user_id:
+        return _bad_request("user_id required")
+    facts = await memory.get_facts(user_id)
+    return web.json_response({"user_id": user_id, "count": len(facts), "facts": facts})
+
+
 def build_app(
     memory: MemoryStore,
     debug_token: str,
@@ -867,6 +890,7 @@ def build_app(
     app.router.add_get("/debug/moltbook/engagement-draft", _handle_moltbook_engagement_draft)
     app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
     app.router.add_get("/debug/costs", _handle_costs)
+    app.router.add_get("/debug/facts", _handle_facts)
     return app
 
 

@@ -189,6 +189,101 @@ a `proactive_message_sent` with `unanswered > 0`. Pull `limit=50` minimum
 from `/debug/messages`, group by `author_id`, and flag any consecutive
 run of 2+ user messages without an interleaved bot message.
 
+### Inspect the database BEFORE believing the chat — MANDATORY
+
+When a user reports "the bot doesn't remember X", "forgot facts Y",
+"loses context Z", or any other complaint about memory, your **first
+move** is to query the database directly. NOT the chat history. NOT
+the user's testimony about what was said. NOT the LLM's narration of
+what it has in context. The database.
+
+**Concrete debugging order when "the bot forgot something":**
+
+1. **Pull `/debug/messages?channel_id=X&limit=80`** and verify the
+   message in question is physically present. If it is NOT in the
+   DB, the model is telling the truth that it doesn't have it — the
+   storage layer dropped it. Stop blaming the model.
+2. **Query KQL** for `chat_turn_start` + `stage_memory_stored` +
+   `chat_turn_end` for that message's timestamp. If all three fire
+   but the row is absent from `/debug/messages`, the bug is between
+   the log line and the actual INSERT — a deploy/restart-induced
+   blob race ([[project_blob_download_race_bug]]) is the most
+   common culprit.
+3. **Compare DB rows against Discord's own history.** Discord
+   itself is the canonical source — pull via the bot's HTTP API
+   and diff against what the DB has. If the gap window matches a
+   recent `containerapp revision activate` timestamp, the deploy
+   ate the messages.
+4. **Only after all three of the above** is it worth investigating
+   prompt construction, context truncation, attention dilution,
+   model behavior. Those are all downstream of the data plane.
+
+**Anti-pattern: chat-driven debugging.** Believing the user's
+narration ("I pasted the CV twice and the bot says it doesn't have
+it"), then iterating on prompt fixes, formatting tweaks, classifier
+changes, persona tweaks — without ever reading the DB. The user is
+reporting a symptom; the DB tells you whether the data even exists.
+Skipping that step is what a chat product would do, not what a
+developer would do.
+
+**Why this rule exists:** on 2026-05-12 the assistant spent ~3
+hours iterating fixes (preset routing, formatting normalization,
+top-N fact retrieval, timestamp prefix removal) for a "memory bug"
+that was actually a deploy-induced storage drop. A 30-second query
+to `/debug/messages` at minute 1 would have shown the messages
+were physically absent from the DB and immediately pointed at the
+blob-restore race, saving ~3 hours of misdiagnosed work and the
+user's trust. The user's exact words were *"simplemente es lo que
+hace un dev normalmente — observar la base de datos"* — and they
+were right. Believing chat testimony when there is a deterministic
+data source available is what Claude Chat does. This is Claude Code.
+
+**Applies to ALL "memory" or "forgot" or "lost context" reports**,
+regardless of how persuasive the user's narrative or how confident
+the model's "I don't have that in this session". The DB is the
+arbiter, not the model and not the user.
+
+#### Sub-rule: NO speculative explanation before verification
+
+The above rule says "check the DB". This sub-rule is stricter:
+**before producing any explanation of why the bot behaved a certain
+way, run the verification queries first.** Not "after I share a
+hypothesis." Not "if the user asks for details." Not "later when I
+have time." First. Always.
+
+Anti-pattern to refuse: the user pastes a few turns of bot output
+and asks "why did this happen?". The right move is:
+
+1. `/debug/messages?limit=120` → is the relevant data in the DB?
+2. KQL for that turn's `preset_classified` + `stage_facts_loaded`
+   + `stage_context_built` → what did the bot actually receive?
+3. Only after (1) and (2): write the explanation.
+
+If you find yourself typing "the model is probably doing X because
+Y" without having run either query, **stop and run them**. Whatever
+you were about to write is fiction until proven. Even plausible
+fiction (matching what real LLMs sometimes do) is wrong here, because
+fiction that sounds right is harder to disbelieve than fiction that
+sounds wrong, and the user trusts you to distinguish.
+
+This sub-rule was added on 2026-05-12 after the assistant violated
+the parent rule within 30 minutes of writing it. Bernard pasted two
+bot turns where Insult said *"No lo tengo. Nunca llegó a esta
+sesión"* about Alex's CV right after a recovery had restored the
+CV to the DB. The assistant wrote a confident multi-paragraph
+explanation ("the model is consistency-locked on its own prior
+disclaimers in the thread") — without checking `/debug/messages`
+to confirm the CV was actually in the DB, without checking KQL to
+see what the classifier had chosen, without confirming that
+MEMORY_RECALL had fired or that the Other People block was being
+emitted. Bernard caught it immediately. The explanation might have
+been partly right; the violation is offering it before checking.
+
+The verification cost in that case was ~30 seconds (one curl + one
+KQL). The cost of speculating wrong is the user's trust, which by
+that point in the day was already on its last reserve. Pay the 30
+seconds. Always.
+
 ### Resilience anti-patterns — DO NOT introduce
 
 These are codified after the 2026-05-08 outage post-mortem (full ADR

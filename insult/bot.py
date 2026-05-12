@@ -150,7 +150,10 @@ def _build(container: Container):
         if _moltbook_source is not None:
             await _moltbook_source.close()
         await memory.close()
-        await upload_db(container.settings.db_path)
+        # Only sync DB to blob when blob_db_sync_enabled is True. In
+        # volume-mount deployments the DB IS the volume, no upload needed.
+        if container.settings.blob_db_sync_enabled:
+            await upload_db(container.settings.db_path)
         await bot.close()
         log.info("shutdown_complete")
 
@@ -160,9 +163,12 @@ def _build(container: Container):
             loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s)))
 
     # --- Azure Backup (every 10 min) ---
+    # Only runs when blob_db_sync_enabled is True. In volume-mount
+    # deployments the DB persists in the share itself, no backup loop
+    # needed and the loop would just churn the blob unnecessarily.
     @tasks.loop(minutes=10)
     async def _backup_task():
-        if is_azure_configured():
+        if is_azure_configured() and container.settings.blob_db_sync_enabled:
             try:
                 # Checkpoint WAL without closing — safe while DB is in use
                 import contextlib
@@ -915,8 +921,12 @@ def _build(container: Container):
 
         _get_health_state().set_bot(bot)
 
-        # Download DB from Azure on first startup (if configured)
-        if not _ready_fired and is_azure_configured():
+        # Download DB from Azure on first startup ONLY when blob sync is
+        # enabled. With a persistent volume mount the DB is already at
+        # db_path; downloading the blob would overwrite it with whatever
+        # snapshot the blob has (this is the bug that destroyed 14 minutes
+        # of conversation on 2026-05-12).
+        if not _ready_fired and is_azure_configured() and container.settings.blob_db_sync_enabled:
             await download_db(container.settings.db_path)
         await memory.connect()
         if not _ready_fired:
