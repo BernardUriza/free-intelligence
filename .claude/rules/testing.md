@@ -284,6 +284,56 @@ KQL). The cost of speculating wrong is the user's trust, which by
 that point in the day was already on its last reserve. Pay the 30
 seconds. Always.
 
+#### Sub-sub-rule: a partial verification does NOT license expansion
+
+The rule above says "verify before explaining". This is the stricter
+form: **even after verifying ONE thing, a hypothesis built on top of
+that one verification is still speculation about the next thing.**
+Partial data does not authorize full narrative.
+
+Concrete example from 2026-05-12, same day, ~20 minutes after the
+parent rule was written:
+
+1. Bernard reports memory bug. Assistant explains "the model has
+   the data, it's ignoring context." Bernard catches: no DB check.
+   Rule added.
+2. Assistant verifies via SQL that the CV is in the DB. ✓
+3. Assistant then asserts (without further verification): "the
+   recent window excludes the CV because there are >50 messages
+   after it, therefore the model doesn't have it in context, so
+   the bot is being honest". This narrative is built on top of one
+   verified fact (CV is in DB at older timestamps) BUT extends to
+   multiple unverified claims:
+   - that `get_recent` is the only mechanism putting messages in
+     context (false — `memory.search` also pulls keyword-relevant
+     older messages)
+   - that the Other People block's 20 facts don't include CV-detail
+     facts (verified — they're general summaries)
+   - that the model "is being honest" rather than the alternative
+     interpretation that the relevant search ran and the model
+     ignored its results
+
+   The first claim was never checked. The third is a narrative
+   choice, not a verification.
+
+The user called it out: *"sigues inventando narrativas sin
+verificar y tus narrativas me convencen es lo peor"*. The danger
+isn't bad narratives — it's narratives that PASS the plausibility
+filter without passing the truth filter. The reader's trust does
+the rest.
+
+**Operational form of this sub-rule:** every clause in an
+explanation that asserts a causal relationship ("therefore",
+"because", "so the model is X", "the bug is Y") must point to a
+specific command output already shown in the same response. If a
+clause has no anchor, it is speculation regardless of how
+plausible it sounds. Stop the sentence. Run the check. Then write.
+
+This is not a style preference. The user said it directly: their
+own ability to detect plausible-but-unverified narrative is what
+breaks down at the end of a long day. The rule has to do that work
+instead.
+
 ### Resilience anti-patterns — DO NOT introduce
 
 These are codified after the 2026-05-08 outage post-mortem (full ADR

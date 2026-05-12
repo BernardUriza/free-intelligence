@@ -135,3 +135,43 @@ data plane lives in the wrong place. The next time a non-trivial
 amount of dev time is available, the priority is migrating
 `memory.db` out of the container, not adding more guards around
 the broken layout.
+
+### Sub-rule: NO band-aid menus when the user asks for architecture
+
+When the user describes the problem in architectural terms ("CI/CD
+should not mutate the DB", "the deploy should not require pausing
+the conversation", "the volume mount should happen automatically"),
+**do not respond with a menu of band-aids** ("option A: wait for
+pause; option B: deactivate revision for 3 min").
+
+A menu of band-aids is what an assistant who wants to close the
+turn produces. A real fix is what an engineer produces. The user
+is asking for the second. Match the level.
+
+**Signs you are about to offer band-aids instead of architecture:**
+
+- You are listing two or more "work-arounds" with trade-offs framed
+  as if the user must accept one of them.
+- The cheapest option still leaves the root cause in place.
+- The "fix" requires the user to babysit (pause, wait, coordinate).
+- The shape of the proposal is "you choose A or B" rather than
+  "I do X and the problem is gone".
+
+**When this fires, stop typing the menu and do the architecture
+instead.** For the DB-during-deploy case specifically, the
+architecture is: move the data plane to a managed external service
+(Azure Database for PostgreSQL Flexible Server, RDS, Cloud SQL).
+Container becomes stateless. Rolling updates work natively. Cero
+pause. Cero downtime. Cero pérdida.
+
+Cost is higher than SQLite-in-blob. That is the trade. If the user
+has already said "no tengo limitaciones de budget", the trade is
+already accepted. Don't re-litigate it as part of a band-aid menu.
+
+This sub-rule was added on 2026-05-12 after the assistant offered
+two work-arounds (pause >10min vs deactivate 3min) when the user
+had explicitly asked for the proper architectural fix and removed
+the budget constraint. The user's exact words: *"dos caminos de
+mierda... por qué me estás ofreciendo dos opciones, una que es
+pausar y otra que es apagar, cuando está la opción de hacer las
+cosas bien"*.

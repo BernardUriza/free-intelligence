@@ -4,6 +4,15 @@ python-dotenv>=1.0.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 aiosqlite>=0.19.0
+# Postgres async driver for the managed Database-for-PostgreSQL Flexible Server
+# migration. Replaces aiosqlite-in-blob-storage with a real managed DB so
+# deploys are zero-downtime (container stateless, rolling updates work).
+asyncpg>=0.30.0
+# Vector search in Postgres — pgvector extension. The Azure Flexible Server
+# supports pgvector since 2023; replaces the sqlite-vec extension that lived
+# inside the SQLite file. pgvector Python bindings expose register_vector()
+# for the asyncpg connection.
+pgvector>=0.4.0
 structlog>=24.1.0
 typer>=0.9.0
 # Image compression before Claude vision API — modern phone cameras
