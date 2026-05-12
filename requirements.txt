@@ -34,6 +34,11 @@ numpy
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 pytest-cov>=6.0.0
+# Spin up an ephemeral PG17 per test-session so the DB-touching tests
+# exercise the real asyncpg + pgvector path. CI installs postgresql-17
+# + pgvector packages; locally the fixture auto-skips if pg_ctl absent.
+pytest-postgresql>=6.0.0
+psycopg[binary]>=3.1
 
 # Linting & Formatting
 ruff>=0.11.0

@@ -9,6 +9,18 @@ import pytest
 from insult.core.llm import LLMResponse
 from insult.core.style import UserStyleProfile
 
+# Pull in the Postgres-backed fixture (`pg_memory_store`) plus its supporting
+# pytest-postgresql factories. The module is import-safe even when pg_ctl is
+# absent — the `REQUIRES_PG` marker handles skipping per-test in that case.
+from tests._pg_fixture import PG_CTL, REQUIRES_PG  # noqa: F401
+
+if PG_CTL is not None:  # pragma: no cover — environment-dependent branch
+    from tests._pg_fixture import (  # noqa: F401  (factories registered by-name)
+        pg_memory_store,
+        postgresql_proc,
+        postgresql_socket,
+    )
+
 # --- Mock Container ---
 
 
@@ -47,6 +59,14 @@ def mock_memory():
     # Guild config (v3.3.0)
     mem.get_guild_config = AsyncMock(return_value=None)
     mem.save_guild_config = AsyncMock()
+    # SerenityOps sync (v3.8.0) — default to "user has never synced" so the
+    # prompt builder skips the block entirely. Tests that want to exercise
+    # the populated branch override this on the fixture.
+    mem.get_latest_serenityops_snapshot = AsyncMock(return_value=None)
+    mem.insert_serenityops_snapshot = AsyncMock(return_value=1)
+    mem.create_sync_token = AsyncMock(return_value=1)
+    mem.revoke_sync_tokens = AsyncMock(return_value=0)
+    mem.resolve_sync_token = AsyncMock(return_value=None)
     return mem
 
 

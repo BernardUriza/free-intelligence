@@ -240,6 +240,105 @@ def build_adaptive_prompt(
 # a chain of `if X: prompt += "\n\n" + X`.
 
 
+def _format_serenityops_block(snapshot: dict, user_name: str) -> str:
+    """Render a compact "Professional Data (SerenityOps sync)" block.
+
+    Snapshot is the latest `serenityops_snapshots` row for the author of the
+    current message. Two payloads might be present:
+
+    - `curriculum` (CV in YAML schema): we surface name + role headline,
+      tagline, top 5 experiences, and skill cluster keys. Not the whole CV
+      — it would crowd the prompt and Insult shouldn't quote it verbatim.
+    - `opportunities` (active pipeline): we surface counts + company names +
+      stages so Insult knows what's in flight without re-reading the YAML
+      every turn.
+
+    Stale-cap: if the snapshot is older than 30 days the block flags that
+    so Insult can ask whether to re-sync before relying on it.
+    """
+    import time as _time
+
+    payload = snapshot.get("curriculum") or {}
+    pipeline = snapshot.get("opportunities") or {}
+    snapshot_at = snapshot.get("snapshot_at", 0)
+    age_days = int((_time.time() - snapshot_at) / 86400) if snapshot_at else None
+    age_note = (
+        f" (sync de hace {age_days} día(s) — pídeles re-sync si crees que cambió)"
+        if age_days is not None and age_days > 30
+        else ""
+    )
+
+    parts = [
+        f"## Professional Data — {user_name} (SerenityOps sync{age_note})",
+        "Esto vive en SU computadora — no se la inventaste, ELLE te la mandó vía sync. "
+        "Cita lo concreto cuando sea relevante (vacante específica, año en una experiencia). "
+        "No regurgites el CV entero; ya lo tienen.",
+    ]
+
+    personal = payload.get("personal") if isinstance(payload, dict) else None
+    if isinstance(personal, dict):
+        bits = []
+        title = personal.get("title")
+        tagline = personal.get("tagline")
+        location = personal.get("location")
+        modality = personal.get("work_modality_required")
+        if title:
+            bits.append(f"Rol-headline: {title}")
+        if tagline:
+            bits.append(f"Tagline: {tagline}")
+        if location:
+            bits.append(f"Ubicación: {location}")
+        if modality:
+            bits.append(f"Modalidad: {modality}")
+        if bits:
+            parts.append("### Identidad profesional\n" + "\n".join(f"- {b}" for b in bits))
+
+    summary = payload.get("summary") if isinstance(payload, dict) else None
+    if isinstance(summary, str) and summary.strip():
+        # First 280 chars — enough for an elevator pitch, not the whole CV.
+        clipped = summary.strip()[:280] + ("…" if len(summary.strip()) > 280 else "")
+        parts.append(f"### Resumen\n{clipped}")
+
+    experiences = payload.get("experience") if isinstance(payload, dict) else None
+    if isinstance(experiences, list) and experiences:
+        rows = []
+        for exp in experiences[:5]:
+            if not isinstance(exp, dict):
+                continue
+            company = exp.get("company", "?")
+            role = exp.get("role", "?")
+            start = exp.get("start_date", "")
+            end = exp.get("end_date") or ("actual" if exp.get("current") else "")
+            rows.append(f"- {role} @ {company} ({start} → {end})")
+        if rows:
+            parts.append("### Experiencia reciente\n" + "\n".join(rows))
+
+    skills = payload.get("skills") if isinstance(payload, dict) else None
+    if isinstance(skills, dict) and skills:
+        clusters = list(skills.keys())[:8]
+        parts.append("### Áreas de skills\n- " + ", ".join(clusters))
+
+    targets = payload.get("targets") if isinstance(payload, dict) else None
+    if isinstance(targets, dict):
+        roles = targets.get("desired_roles")
+        if isinstance(roles, list) and roles:
+            parts.append("### Roles que busca\n- " + "\n- ".join(roles[:6]))
+
+    pipeline_rows = pipeline.get("pipeline") if isinstance(pipeline, dict) else None
+    if isinstance(pipeline_rows, list):
+        live = [p for p in pipeline_rows if isinstance(p, dict) and p.get("outcome") is None]
+        if live:
+            rows = []
+            for p in live[:10]:
+                company = p.get("company", "?")
+                role = p.get("role", "?")
+                stage = p.get("stage", "?")
+                rows.append(f"- {company} — {role} ({stage})")
+            parts.append(f"### Pipeline activo ({len(live)} vacante(s))\n" + "\n".join(rows))
+
+    return "\n\n".join(parts)
+
+
 def _format_other_people_block(facts: dict[str, list[dict]]) -> str:
     """Render the "Other People in This Channel" block.
 
@@ -272,6 +371,8 @@ def compose_extra_layers(
     stance_prompt: str = "",
     facts_prompt: str = "",
     other_participants_facts: dict[str, list[dict]] | None = None,
+    serenityops_snapshot: dict | None = None,
+    serenityops_user_name: str = "",
 ) -> str:
     """Append optional layers to a base system prompt, skipping empty blocks.
 
@@ -279,11 +380,17 @@ def compose_extra_layers(
     arrive with its own leading newline pair (legacy quirk of
     ``build_facts_prompt``); we ``lstrip`` to normalize so concatenation
     never produces runs of three or more blank lines.
+
+    `serenityops_snapshot` (v3.8.0): latest synced CV + pipeline for the
+    author. Rendered as a dedicated block so Insult can cite specific
+    experiences or active applications without scrolling through facts.
     """
     out = base_prompt
     for block in (flow_prompt, arc_prompt, stance_prompt, facts_prompt):
         if block:
             out += "\n\n" + block.lstrip()
+    if serenityops_snapshot:
+        out += "\n\n" + _format_serenityops_block(serenityops_snapshot, serenityops_user_name or "este usuario")
     if other_participants_facts:
         out += "\n\n" + _format_other_people_block(other_participants_facts)
     return out

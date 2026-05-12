@@ -199,11 +199,13 @@ CREATE TABLE IF NOT EXISTS dream_diary (
 CREATE INDEX IF NOT EXISTS idx_dream_diary_run_ts ON dream_diary(run_ts DESC);
 
 -- ─── vectors: fact embeddings (replaces sqlite-vec) ───────────────────
--- pgvector — fixed-dim float vectors. The sqlite-vec original used 768d
--- (sentence-transformers default). Adjust DIMS if your embedding model differs.
+-- pgvector — fixed-dim float vectors. EMBEDDING_DIM in core/vectors.py is
+-- 384 because the model in use is `all-MiniLM-L6-v2`. The schema MUST match
+-- the model dimension exactly or asyncpg/pgvector will reject inserts with
+-- "expected N dimensions, got M".
 CREATE TABLE IF NOT EXISTS fact_embeddings (
     fact_id   BIGINT PRIMARY KEY REFERENCES user_facts(id) ON DELETE CASCADE,
-    embedding VECTOR(768) NOT NULL,
+    embedding VECTOR(384) NOT NULL,
     updated_at DOUBLE PRECISION NOT NULL
 );
 -- IVFFlat is the standard approximate-NN index. lists tuning depends on row
@@ -211,3 +213,36 @@ CREATE TABLE IF NOT EXISTS fact_embeddings (
 -- crosses ~10k facts per user × users.
 CREATE INDEX IF NOT EXISTS idx_fact_embeddings_cos
     ON fact_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- ─── serenityops_snapshots (v3.8.0 sync) ──────────────────────────────
+-- Append-only feed of structured professional data pushed from each user's
+-- local SerenityOps install. One row per /sync-insult invocation; the bot
+-- reads only the latest per user at prompt-build time. JSONB so we can
+-- evolve curriculum/opportunities schemas without ALTERs here.
+CREATE TABLE IF NOT EXISTS serenityops_snapshots (
+    id                 BIGSERIAL PRIMARY KEY,
+    user_id            TEXT NOT NULL,
+    snapshot_at        DOUBLE PRECISION NOT NULL,
+    curriculum_json    JSONB,
+    opportunities_json JSONB,
+    client_version     TEXT,
+    source             TEXT NOT NULL DEFAULT 'serenityops-lite'
+);
+CREATE INDEX IF NOT EXISTS idx_serenityops_user_recent
+    ON serenityops_snapshots(user_id, snapshot_at DESC);
+
+-- ─── user_sync_tokens (v3.8.0 sync) ───────────────────────────────────
+-- Per-user bearer tokens for the /sync/* endpoints. Stored as a hash so a
+-- DB leak doesn't yield usable credentials. Plaintext is shown to the user
+-- exactly once (via DM) at generation time and never persisted server-side.
+-- Rotating: insert a new row + soft-delete the previous via revoked_at.
+CREATE TABLE IF NOT EXISTS user_sync_tokens (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    token_hash   TEXT NOT NULL UNIQUE,
+    created_at   DOUBLE PRECISION NOT NULL,
+    last_used_at DOUBLE PRECISION,
+    revoked_at   DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_user_sync_tokens_lookup
+    ON user_sync_tokens(token_hash) WHERE revoked_at IS NULL;

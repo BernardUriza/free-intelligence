@@ -61,7 +61,7 @@ def db_stats():
     from insult.core.memory import MemoryStore
 
     async def _stats():
-        store = MemoryStore(settings.db_path)
+        store = MemoryStore(settings.postgres_url.get_secret_value())
         await store.connect()
         stats = await store.get_stats()
         await store.close()
@@ -87,14 +87,12 @@ def db_clean(
     cutoff = time.time() - (before_days * 86400)
 
     async def _clean():
-        store = MemoryStore(settings.db_path)
+        store = MemoryStore(settings.postgres_url.get_secret_value())
         await store.connect()
 
         if dry_run:
-            await store._ensure_connection()
-            cursor = await store._db.execute("SELECT COUNT(*) FROM messages WHERE timestamp < ?", (cutoff,))
-            row = await cursor.fetchone()
-            typer.echo(f"[DRY RUN] Would delete {row[0]} messages older than {before_days} days")
+            count = await store.count_before(cutoff)
+            typer.echo(f"[DRY RUN] Would delete {count} messages older than {before_days} days")
         else:
             count = await store.delete_before(cutoff)
             typer.echo(f"Deleted {count} messages older than {before_days} days")
@@ -115,17 +113,13 @@ def consolidate_facts(
     invocation is fine for ad-hoc curation, dry-runs against prod, or
     testing the LLM judge prompt without touching the DB.
 
-    When AZURE_STORAGE_CONNECTION_STRING is set (i.e. running in the
-    Azure Container App Job environment with an ephemeral disk), this
-    command downloads the live DB from blob storage before consolidating
-    and uploads the modified copy back at the end. The race-detection
-    in upload_db (skip_if_remote_newer=True) means a bot-write that
-    happened during consolidation will preserve the bot's version and
-    log a warning instead of clobbering the new messages.
+    Post-PG migration: writes directly to the shared Postgres database
+    (no more blob download/upload). Safe to run concurrently with the
+    live bot — Postgres handles MVCC; the SQLite single-writer race is
+    gone.
     """
 
     from insult.config import settings
-    from insult.core.backup import download_db, is_azure_configured, upload_db
     from insult.core.memory import MemoryStore
     from insult.core.memory_consolidator import (
         consolidate_all_users,
@@ -133,15 +127,11 @@ def consolidate_facts(
     )
 
     async def _run():
-        # Job execution context: pull the live DB from Azure Blob first so
-        # we don't operate on an empty ephemeral disk. Local dev (no
-        # AZURE_STORAGE_CONNECTION_STRING) skips the download and uses
-        # whatever's at settings.db_path.
-        downloaded = False
-        if is_azure_configured():
-            downloaded = await download_db(settings.db_path)
-
-        store = MemoryStore(settings.db_path)
+        # Post-PG migration: no more blob download/upload — the consolidator
+        # writes straight to the shared Postgres database. Concurrent runs
+        # with the live bot are safe because Postgres handles MVCC; the
+        # SQLite single-writer race is gone.
+        store = MemoryStore(settings.postgres_url.get_secret_value())
         await store.connect()
         # Wrap the SDK client in an LLMClient so consolidator goes through
         # utility_call (retry policy + cache_control). cure_model="" keeps
@@ -177,16 +167,6 @@ def consolidate_facts(
                 )
         finally:
             await store.close()
-
-        # Push the curated DB back to Blob Storage. Skipped on dry_run
-        # (nothing to upload) and when we're not in the Azure environment.
-        if downloaded and not dry_run:
-            uploaded = await upload_db(settings.db_path, skip_if_remote_newer=True)
-            if not uploaded:
-                log.warning(
-                    "consolidator_upload_skipped",
-                    reason="upload_db returned False — race with bot or upload failed",
-                )
 
         return reports
 
@@ -260,20 +240,9 @@ async def _resolve_user_names(store) -> dict[str, str]:
     """Map user_id → most recent user_name from the messages table.
 
     The dream diary reads better with names ("Alex", "Bernard") than with
-    Discord snowflake ids. Querying ``messages`` is dirt-cheap (indexed)
-    and we only need the latest known name per user.
-    """
-    db = store._db
-    if db is None:
-        return {}
-    cursor = await db.execute(
-        "SELECT user_id, user_name FROM messages "
-        "WHERE id IN ("
-        "  SELECT MAX(id) FROM messages WHERE role = 'user' GROUP BY user_id"
-        ")"
-    )
-    rows = await cursor.fetchall()
-    return {row[0]: row[1] for row in rows}
+    Discord snowflake ids. Delegates to the messages repo (which owns the
+    SQL) so the CLI never reaches into private store internals."""
+    return await store.get_latest_username_per_user()
 
 
 if __name__ == "__main__":

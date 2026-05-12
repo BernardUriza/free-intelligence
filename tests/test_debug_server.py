@@ -661,3 +661,120 @@ async def test_draft_hash_differs_on_any_change():
     assert _draft_hash("TITLE", "content", "m/x") != base
     assert _draft_hash("title", "CONTENT", "m/x") != base
     assert _draft_hash("title", "content", "m/y") != base
+
+
+# ---------------------------------------------------------------------------
+# /sync/serenityops — per-user bearer auth + snapshot persistence (v3.8.0 SY-2)
+# ---------------------------------------------------------------------------
+#
+# The sync endpoint uses a DIFFERENT auth path than /debug/*: each user has
+# their own bearer token stored hashed in user_sync_tokens, and the middleware
+# resolves it via `memory.resolve_sync_token(plain) -> user_id | None`. Tests
+# below pin: rejection when token unknown, rejection when body malformed,
+# happy path persists snapshot with resolved user_id.
+
+
+@pytest.fixture
+async def sync_client():
+    """Variant of the client fixture wired with a memory mock that knows about
+    sync tokens. The handler resolves bearer → user_id and writes a snapshot."""
+    mem = AsyncMock()
+    # Token resolves to alex; any other token returns None (rejected).
+    mem.resolve_sync_token = AsyncMock(
+        side_effect=lambda t: "alex-1431300030823927999" if t == "user-token-alex" else None
+    )
+    mem.insert_serenityops_snapshot = AsyncMock(return_value=77)
+    app = build_app(mem, TOKEN)
+    async with TestClient(TestServer(app)) as c:
+        yield c, mem
+
+
+async def test_sync_rejects_missing_bearer(sync_client):
+    client, _ = sync_client
+    resp = await client.post("/sync/serenityops", json={"curriculum": {"x": 1}})
+    assert resp.status == 401
+
+
+async def test_sync_rejects_unknown_token(sync_client):
+    client, _ = sync_client
+    resp = await client.post(
+        "/sync/serenityops",
+        json={"curriculum": {"x": 1}},
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+    assert resp.status == 401
+
+
+async def test_sync_rejects_non_json_body(sync_client):
+    client, _ = sync_client
+    resp = await client.post(
+        "/sync/serenityops",
+        data="not-json-at-all",
+        headers={"Authorization": "Bearer user-token-alex", "Content-Type": "application/json"},
+    )
+    assert resp.status == 400
+
+
+async def test_sync_rejects_array_body(sync_client):
+    """The endpoint expects a JSON object — top-level array is invalid input."""
+    client, _ = sync_client
+    resp = await client.post(
+        "/sync/serenityops",
+        json=[],
+        headers={"Authorization": "Bearer user-token-alex"},
+    )
+    assert resp.status == 400
+
+
+async def test_sync_rejects_empty_body(sync_client):
+    """At least one of curriculum/opportunities must be present."""
+    client, _ = sync_client
+    resp = await client.post(
+        "/sync/serenityops",
+        json={"client_version": "lite-1.0.0"},
+        headers={"Authorization": "Bearer user-token-alex"},
+    )
+    assert resp.status == 400
+
+
+async def test_sync_persists_snapshot_and_returns_id(sync_client):
+    """Happy path: snapshot row is appended; response carries id + user_id."""
+    client, mem = sync_client
+    payload = {
+        "curriculum": {"personal": {"full_name": "Alex"}},
+        "opportunities": {"pipeline": []},
+        "client_version": "lite-1.0.0",
+    }
+    resp = await client.post(
+        "/sync/serenityops",
+        json=payload,
+        headers={"Authorization": "Bearer user-token-alex"},
+    )
+    assert resp.status == 201
+    data = await resp.json()
+    assert data["ok"] is True
+    assert data["snapshot_id"] == 77
+    assert data["user_id"] == "alex-1431300030823927999"
+    mem.insert_serenityops_snapshot.assert_awaited_once_with(
+        "alex-1431300030823927999",
+        {"personal": {"full_name": "Alex"}},
+        {"pipeline": []},
+        "lite-1.0.0",
+    )
+
+
+async def test_sync_accepts_curriculum_only(sync_client):
+    """Either payload alone is enough — the endpoint should not require both."""
+    client, mem = sync_client
+    resp = await client.post(
+        "/sync/serenityops",
+        json={"curriculum": {"summary": "psicóloga 15 años"}},
+        headers={"Authorization": "Bearer user-token-alex"},
+    )
+    assert resp.status == 201
+    mem.insert_serenityops_snapshot.assert_awaited_once_with(
+        "alex-1431300030823927999",
+        {"summary": "psicóloga 15 años"},
+        None,
+        None,
+    )

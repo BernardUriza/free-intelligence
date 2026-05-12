@@ -12,13 +12,17 @@ the shared conceptual framing: "what has this user already committed to?"
   week" without replaying full transcripts.
 - `contradiction_log`: append-only. Records detected prior/current-turn
   contradictions so the MEMORY_RECALL modifier can cash them in.
+
+Migrated to asyncpg on 2026-05-12 PG migration. The stance-log FIFO
+eviction subquery converted cleanly — Postgres supports the same
+`DELETE WHERE id NOT IN (subquery)` shape SQLite uses.
 """
 
 from __future__ import annotations
 
 import time
 
-import aiosqlite
+import asyncpg
 import structlog
 
 from insult.core.memory.base import BaseRepository
@@ -32,22 +36,21 @@ class RelationalStateRepository(BaseRepository):
     # -- Emotional arcs --
 
     async def get_arc(self, channel_id: str, user_id: str) -> dict | None:
-        db = await self._conn()
-        cursor = await db.execute(
+        row = await self._fetchrow(
             "SELECT phase, phase_since, crisis_depth, recovery_signals, turns_in_phase, updated_at "
-            "FROM emotional_arcs WHERE channel_id = ? AND user_id = ?",
-            (channel_id, user_id),
+            "FROM emotional_arcs WHERE channel_id = $1 AND user_id = $2",
+            channel_id,
+            user_id,
         )
-        row = await cursor.fetchone()
         if not row:
             return None
         return {
-            "phase": row[0],
-            "phase_since": row[1],
-            "crisis_depth": row[2],
-            "recovery_signals": row[3],
-            "turns_in_phase": row[4],
-            "updated_at": row[5],
+            "phase": row["phase"],
+            "phase_since": row["phase_since"],
+            "crisis_depth": row["crisis_depth"],
+            "recovery_signals": row["recovery_signals"],
+            "turns_in_phase": row["turns_in_phase"],
+            "updated_at": row["updated_at"],
         }
 
     async def upsert_arc(
@@ -60,29 +63,25 @@ class RelationalStateRepository(BaseRepository):
         recovery_signals: int,
         turns_in_phase: int,
     ) -> None:
-        db = await self._conn()
         try:
-            await db.execute(
+            await self._execute(
                 "INSERT INTO emotional_arcs (channel_id, user_id, phase, phase_since, "
                 "crisis_depth, recovery_signals, turns_in_phase, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
                 "ON CONFLICT(channel_id, user_id) DO UPDATE SET phase=excluded.phase, "
                 "phase_since=excluded.phase_since, crisis_depth=excluded.crisis_depth, "
                 "recovery_signals=excluded.recovery_signals, turns_in_phase=excluded.turns_in_phase, "
                 "updated_at=excluded.updated_at",
-                (
-                    channel_id,
-                    user_id,
-                    phase,
-                    phase_since,
-                    crisis_depth,
-                    recovery_signals,
-                    turns_in_phase,
-                    time.time(),
-                ),
+                channel_id,
+                user_id,
+                phase,
+                phase_since,
+                crisis_depth,
+                recovery_signals,
+                turns_in_phase,
+                time.time(),
             )
-            await db.commit()
-        except aiosqlite.Error as e:
+        except asyncpg.PostgresError as e:
             log.error("arc_upsert_failed", error=str(e))
 
     # -- Stance log (FIFO, max 20 per channel-user) --
@@ -95,36 +94,46 @@ class RelationalStateRepository(BaseRepository):
         position: str,
         confidence: float,
     ) -> None:
-        db = await self._conn()
         try:
-            await db.execute(
-                "INSERT INTO stance_log (channel_id, user_id, topic, position, confidence, timestamp) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (channel_id, user_id, topic, position[:200], confidence, time.time()),
-            )
-            await db.commit()
-            # FIFO eviction: keep max 20 per (channel, user). Without this
-            # stance_log grows unbounded for active users and the context
-            # retrieval starts hitting irrelevant old positions.
-            await db.execute(
-                "DELETE FROM stance_log WHERE id NOT IN ("
-                "SELECT id FROM stance_log WHERE channel_id = ? AND user_id = ? "
-                "ORDER BY timestamp DESC LIMIT 20)",
-                (channel_id, user_id),
-            )
-            await db.commit()
-        except aiosqlite.Error as e:
+            # Wrap in a transaction so the INSERT + FIFO eviction land
+            # atomically — otherwise a crash between the two could leave
+            # the table > 20 rows for this (channel, user).
+            async with self._tx() as conn:
+                await conn.execute(
+                    "INSERT INTO stance_log (channel_id, user_id, topic, position, confidence, timestamp) "
+                    "VALUES ($1, $2, $3, $4, $5, $6)",
+                    channel_id,
+                    user_id,
+                    topic,
+                    position[:200],
+                    confidence,
+                    time.time(),
+                )
+                # FIFO eviction: keep max 20 per (channel, user). Without this
+                # stance_log grows unbounded for active users and context
+                # retrieval starts hitting irrelevant old positions.
+                await conn.execute(
+                    "DELETE FROM stance_log WHERE channel_id = $1 AND user_id = $2 AND id NOT IN ("
+                    "SELECT id FROM stance_log WHERE channel_id = $1 AND user_id = $2 "
+                    "ORDER BY timestamp DESC LIMIT 20)",
+                    channel_id,
+                    user_id,
+                )
+        except asyncpg.PostgresError as e:
             log.error("stance_store_failed", error=str(e))
 
     async def get_stances(self, channel_id: str, user_id: str, limit: int = 5) -> list[dict]:
-        db = await self._conn()
-        cursor = await db.execute(
+        rows = await self._fetch(
             "SELECT topic, position, confidence, timestamp FROM stance_log "
-            "WHERE channel_id = ? AND user_id = ? ORDER BY timestamp DESC LIMIT ?",
-            (channel_id, user_id, limit),
+            "WHERE channel_id = $1 AND user_id = $2 ORDER BY timestamp DESC LIMIT $3",
+            channel_id,
+            user_id,
+            limit,
         )
-        rows = await cursor.fetchall()
-        return [{"topic": r[0], "position": r[1], "confidence": r[2], "timestamp": r[3]} for r in rows]
+        return [
+            {"topic": r["topic"], "position": r["position"], "confidence": r["confidence"], "timestamp": r["timestamp"]}
+            for r in rows
+        ]
 
     # -- Contradictions --
 
@@ -135,13 +144,15 @@ class RelationalStateRepository(BaseRepository):
         contradicting: str,
         topic: str,
     ) -> None:
-        db = await self._conn()
         try:
-            await db.execute(
+            await self._execute(
                 "INSERT INTO contradiction_log (user_id, prior_statement, contradicting_statement, "
-                "topic, called_out, timestamp) VALUES (?, ?, ?, ?, 0, ?)",
-                (user_id, prior[:300], contradicting[:300], topic, time.time()),
+                "topic, called_out, timestamp) VALUES ($1, $2, $3, $4, 0, $5)",
+                user_id,
+                prior[:300],
+                contradicting[:300],
+                topic,
+                time.time(),
             )
-            await db.commit()
-        except aiosqlite.Error as e:
+        except asyncpg.PostgresError as e:
             log.error("contradiction_store_failed", error=str(e))

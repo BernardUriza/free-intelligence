@@ -117,10 +117,10 @@ class ConnectionManager:
             from pgvector.asyncpg import register_vector
 
             await register_vector(conn)
-        except Exception:
+        except Exception as e:
             # pgvector codec not available — semantic-search code paths
             # will degrade to "vectors_available=False" and skip.
-            pass
+            log.debug("pgvector_codec_skipped", reason=str(e))
 
     async def get_connection(self):
         """Compatibility shim for old callers that did

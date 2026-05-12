@@ -208,100 +208,25 @@ async def _call_judge(
     return plan, 0, 0
 
 
-async def _apply_plan(
-    db,
-    user_id: str,
-    facts: list[dict],
-    plan: list[dict],
-    run_ts: float,
-) -> list[FactOperation]:
-    """Translate the judge's plan to SQL ops + audit log entries."""
-    by_id = {f["id"]: f for f in facts}
-    applied: list[FactOperation] = []
-
-    for op in plan:
-        kind = op["op"]
-        reason = op.get("reason", "")[:500]
-
-        if kind == "NOOP":
-            fid = op["id"]
-            applied.append(
-                FactOperation(
-                    op="NOOP",
-                    fact_id_before=fid,
-                    fact_id_after=fid,
-                    fact_text_before=by_id[fid]["fact"],
-                    fact_text_after=by_id[fid]["fact"],
-                    reason=reason,
-                )
-            )
-            continue
-
-        if kind == "DELETE":
-            fid = op["id"]
-            await db.execute(
-                "UPDATE user_facts SET deleted_at = ? WHERE id = ?",
-                (run_ts, fid),
-            )
-            applied.append(
-                FactOperation(
-                    op="DELETE",
-                    fact_id_before=fid,
-                    fact_id_after=None,
-                    fact_text_before=by_id[fid]["fact"],
-                    fact_text_after=None,
-                    reason=reason,
-                )
-            )
-            continue
-
-        if kind == "UPDATE":
-            ids = op["merge_ids"]
-            new_text = op["new_fact"]
-            category = op.get("category", "general")
-            # Soft-delete originals
-            for fid in ids:
-                await db.execute(
-                    "UPDATE user_facts SET deleted_at = ? WHERE id = ?",
-                    (run_ts, fid),
-                )
-            # Insert merged
-            cursor = await db.execute(
-                "INSERT INTO user_facts (user_id, fact, category, updated_at, source) VALUES (?, ?, ?, ?, 'auto')",
-                (user_id, new_text, category, run_ts),
-            )
-            new_id = cursor.lastrowid or 0
-            for fid in ids:
-                applied.append(
-                    FactOperation(
-                        op="UPDATE",
-                        fact_id_before=fid,
-                        fact_id_after=new_id,
-                        fact_text_before=by_id[fid]["fact"],
-                        fact_text_after=new_text,
-                        reason=reason,
-                    )
-                )
-
-    # Write audit rows
-    for o in applied:
-        await db.execute(
-            "INSERT INTO fact_consolidation_log "
-            "(run_ts, user_id, fact_id_before, fact_id_after, op, reason, "
-            "fact_text_before, fact_text_after) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                run_ts,
-                user_id,
-                o.fact_id_before,
-                o.fact_id_after,
-                o.op,
-                o.reason,
-                o.fact_text_before,
-                o.fact_text_after,
-            ),
-        )
-    return applied
+def _op_factory(
+    op: str,
+    fact_id_before: int | None,
+    fact_id_after: int | None,
+    text_before: str | None,
+    text_after: str | None,
+    reason: str,
+) -> FactOperation:
+    """Bridge between FactsRepository.apply_consolidation_plan (which doesn't
+    know about FactOperation) and this module's dataclass. Passed in so the
+    repo can build the right rows without importing back into this package."""
+    return FactOperation(
+        op=op,
+        fact_id_before=fact_id_before,
+        fact_id_after=fact_id_after,
+        fact_text_before=text_before,
+        fact_text_after=text_after,
+        reason=reason,
+    )
 
 
 async def consolidate_user_facts(
@@ -391,11 +316,12 @@ async def consolidate_user_facts(
         )
         return report
 
-    # Apply the plan transactionally — single connection, single commit.
-    db = memory._db
+    # Apply the plan transactionally — the repo wraps every UPDATE/INSERT
+    # plus the audit-log writes in a single asyncpg transaction so a crash
+    # mid-plan can't leave user_facts and fact_consolidation_log out of sync.
+    by_id = {f["id"]: f for f in facts}
     try:
-        report.ops = await _apply_plan(db, user_id, facts, valid_plan, run_ts)
-        await db.commit()
+        report.ops = await memory._facts.apply_consolidation_plan(user_id, by_id, valid_plan, run_ts, _op_factory)
     except Exception as e:
         log.exception("consolidator_apply_failed", user_id=user_id, error=str(e))
         report.error = f"apply_failed: {e}"
@@ -419,13 +345,7 @@ async def consolidate_user_facts(
 
 async def _count_live_facts(memory: MemoryStore, user_id: str) -> int:
     """Live (non-deleted) facts after applying a plan."""
-    db = memory._db
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM user_facts WHERE user_id = ? AND deleted_at IS NULL",
-        (user_id,),
-    )
-    row = await cursor.fetchone()
-    return row[0] if row else 0
+    return await memory._facts.count_live(user_id)
 
 
 async def hard_purge_soft_deleted(
@@ -439,13 +359,7 @@ async def hard_purge_soft_deleted(
     consolidation invocation in the same scheduled job.
     """
     cutoff = time.time() - retention_seconds
-    db = memory._db
-    cursor = await db.execute(
-        "DELETE FROM user_facts WHERE deleted_at IS NOT NULL AND deleted_at < ?",
-        (cutoff,),
-    )
-    purged = cursor.rowcount or 0
-    await db.commit()
+    purged = await memory._facts.purge_soft_deleted(cutoff)
     log.info("consolidator_hard_purge", purged=purged, retention_seconds=retention_seconds)
     return purged
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -65,6 +66,24 @@ def _bad_request(msg: str) -> web.Response:
 async def _auth_middleware(request: web.Request, handler):
     # /debug/health is always public (liveness probe)
     if request.path == "/debug/health":
+        return await handler(request)
+
+    # /sync/* uses per-user bearer tokens resolved against user_sync_tokens.
+    # The handler does its own auth + stamps `request["sync_user_id"]` so
+    # downstream code knows which Discord user is pushing data. This middleware
+    # only validates that a Bearer header is present — the actual lookup
+    # belongs to the handler so the constant-time DB query is part of the
+    # authenticated path, not the open path.
+    if request.path.startswith("/sync/"):
+        header = request.headers.get("Authorization", "")
+        if not header.startswith("Bearer "):
+            return _unauthorized()
+        memory = request.app[_MEMORY_KEY]
+        provided = header[len("Bearer ") :]
+        user_id = await memory.resolve_sync_token(provided)
+        if user_id is None:
+            return _unauthorized()
+        request["sync_user_id"] = user_id
         return await handler(request)
 
     expected_token = request.app[_TOKEN_KEY]
@@ -174,29 +193,13 @@ async def _handle_disclosure_list(request: web.Request) -> web.Response:
     import time as _time
 
     since = _time.time() - days * 86400
-    db = await memory._disclosure._conn()
-    cursor = await db.execute(
-        "SELECT timestamp, channel_id, category, severity, message_excerpt "
-        "FROM disclosure_log WHERE user_id = ? AND timestamp >= ? "
-        "ORDER BY timestamp DESC LIMIT 50",
-        (user_id, since),
-    )
-    rows = await cursor.fetchall()
+    rows = await memory.list_disclosures(user_id, since)
     return web.json_response(
         {
             "user_id": user_id,
             "days": days,
             "count": len(rows),
-            "rows": [
-                {
-                    "timestamp": r[0],
-                    "channel_id": r[1],
-                    "category": r[2],
-                    "severity": r[3],
-                    "excerpt": r[4],
-                }
-                for r in rows
-            ],
+            "rows": rows,
         }
     )
 
@@ -835,6 +838,70 @@ async def _handle_costs(_request: web.Request) -> web.Response:
     return web.json_response(get_usage_report())
 
 
+# Cap on the raw JSON body the sync endpoint accepts. curriculum.yaml + a
+# few hundred pipeline rows fit comfortably under 256KB. A larger cap would
+# let a stolen token DoS the bot's prompt-build path; smaller would clip
+# legit installs once Alex's pipeline has 50+ applications with notes.
+_SYNC_MAX_BODY_BYTES = 256 * 1024
+
+
+async def _handle_sync_serenityops(request: web.Request) -> web.Response:
+    """POST /sync/serenityops — append a structured snapshot from SerenityOps.
+
+    Auth is per-user (handled in `_auth_middleware`); `request["sync_user_id"]`
+    is the Discord user id resolved from the bearer token. The body is a JSON
+    object with optional `curriculum` and `opportunities` payloads plus
+    `client_version`; both data fields are JSONB-stored as-is and never
+    interpreted server-side. The prompt builder reads only the latest snapshot.
+    """
+    user_id = request.get("sync_user_id")
+    if not user_id:
+        # Defense-in-depth — middleware already gated, but if a routing
+        # change ever sneaks a path past it, fail closed here too.
+        return _unauthorized()
+
+    # Bound the body so a stolen token can't DoS by pushing huge payloads.
+    if (request.content_length or 0) > _SYNC_MAX_BODY_BYTES:
+        return _bad_request(f"payload too large (>{_SYNC_MAX_BODY_BYTES} bytes)")
+
+    try:
+        body = await request.json()
+    except (ValueError, json.JSONDecodeError):
+        return _bad_request("body must be valid JSON")
+
+    if not isinstance(body, dict):
+        return _bad_request("body must be a JSON object")
+
+    curriculum = body.get("curriculum")
+    opportunities = body.get("opportunities")
+    if curriculum is None and opportunities is None:
+        return _bad_request("at least one of curriculum/opportunities is required")
+
+    if curriculum is not None and not isinstance(curriculum, dict):
+        return _bad_request("curriculum must be a JSON object")
+    if opportunities is not None and not isinstance(opportunities, dict):
+        return _bad_request("opportunities must be a JSON object")
+
+    client_version = body.get("client_version")
+    if client_version is not None and not isinstance(client_version, str):
+        return _bad_request("client_version must be a string")
+
+    memory = request.app[_MEMORY_KEY]
+    snapshot_id = await memory.insert_serenityops_snapshot(user_id, curriculum, opportunities, client_version)
+    log.info(
+        "sync_serenityops_accepted",
+        user_id=user_id,
+        snapshot_id=snapshot_id,
+        client_version=client_version,
+        cv_present=curriculum is not None,
+        pipeline_present=opportunities is not None,
+    )
+    return web.json_response(
+        {"ok": True, "snapshot_id": snapshot_id, "user_id": user_id},
+        status=201,
+    )
+
+
 async def _handle_facts(request: web.Request) -> web.Response:
     """GET /debug/facts?user_id=X — list the user's long-term fact rows.
 
@@ -891,6 +958,7 @@ def build_app(
     app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
     app.router.add_get("/debug/costs", _handle_costs)
     app.router.add_get("/debug/facts", _handle_facts)
+    app.router.add_post("/sync/serenityops", _handle_sync_serenityops)
     return app
 
 

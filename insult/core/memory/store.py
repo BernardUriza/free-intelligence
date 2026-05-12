@@ -28,6 +28,7 @@ from insult.core.memory.repositories import (
     ProfilesRepository,
     RelationalStateRepository,
     RemindersRepository,
+    SerenityOpsRepository,
     WorldScansRepository,
 )
 from insult.core.style import UserStyleProfile
@@ -56,6 +57,7 @@ class MemoryStore:
         self._world_scans = WorldScansRepository(self._manager)
         self._disclosure = DisclosureRepository(self._manager)
         self._guild_config = GuildConfigRepository(self._manager)
+        self._serenityops = SerenityOpsRepository(self._manager)
 
     # -- Lifecycle --
 
@@ -106,6 +108,12 @@ class MemoryStore:
 
     async def delete_before(self, cutoff: float) -> int:
         return await self._messages.delete_before(cutoff)
+
+    async def count_before(self, cutoff: float) -> int:
+        return await self._messages.count_before(cutoff)
+
+    async def get_latest_username_per_user(self) -> dict[str, str]:
+        return await self._messages.get_latest_username_per_user()
 
     async def get_all_user_messages(self, limit_per_user: int = 30) -> dict[str, dict]:
         return await self._messages.get_all_user_messages(limit_per_user)
@@ -287,6 +295,9 @@ class MemoryStore:
     async def get_recent_max_severity(self, user_id: str, since_ts: float) -> int:
         return await self._disclosure.get_recent_max_severity(user_id, since_ts)
 
+    async def list_disclosures(self, user_id: str, since_ts: float, limit: int = 50) -> list[dict]:
+        return await self._disclosure.list_disclosures(user_id, since_ts, limit)
+
     # -- Relational state (arcs + stance + contradictions) --
 
     async def get_arc(self, channel_id: str, user_id: str) -> dict | None:
@@ -341,6 +352,29 @@ class MemoryStore:
         reminders_channel_id: str,
     ) -> None:
         await self._guild_config.save_guild_config(guild_id, category_id, facts_channel_id, reminders_channel_id)
+
+    # -- SerenityOps sync (v3.8.0) --
+
+    async def insert_serenityops_snapshot(
+        self,
+        user_id: str,
+        curriculum: dict | None,
+        opportunities: dict | None,
+        client_version: str | None = None,
+    ) -> int:
+        return await self._serenityops.insert_snapshot(user_id, curriculum, opportunities, client_version)
+
+    async def get_latest_serenityops_snapshot(self, user_id: str) -> dict | None:
+        return await self._serenityops.get_latest_snapshot(user_id)
+
+    async def create_sync_token(self, user_id: str, plaintext_token: str) -> int:
+        return await self._serenityops.create_token(user_id, plaintext_token)
+
+    async def revoke_sync_tokens(self, user_id: str) -> int:
+        return await self._serenityops.revoke_all_for_user(user_id)
+
+    async def resolve_sync_token(self, plaintext_token: str) -> str | None:
+        return await self._serenityops.resolve_token(plaintext_token)
 
     # -- Context building (pure functions delegated for backwards compat) --
 

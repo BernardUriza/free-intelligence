@@ -1,26 +1,20 @@
 """Tests for the Mem0-style memory consolidator (Phase 1, v3.6.0).
 
-Covers:
-- JSON judge response parsing (raw + markdown-fenced)
-- Plan validation (drops malformed ops; assigns implicit NOOP to omitted ids)
-- ADD/UPDATE/DELETE/NOOP application: SQL effects + audit log rows
-- Soft-delete invariant: get_facts hides deleted rows; row still exists
-- 90-day hard-purge cuts off correctly
-- dry_run mode produces a report without touching the DB
-- All-users orchestration calls the per-user consolidator once per user
+Pure-function tests (JSON parsing, plan validation) run anywhere.
+DB-touching tests use the `pg_memory_store` fixture from
+`tests/_pg_fixture.py` — they exercise the consolidator end-to-end
+against a real PG17 + pgvector so the asyncpg transaction wrapping
+in `FactsRepository.apply_consolidation_plan` is verified for real.
 """
 
 from __future__ import annotations
 
 import json
-import tempfile
 import time
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.memory import MemoryStore
 from insult.core.memory_consolidator import (
     SOFT_DELETE_RETENTION_SECONDS,
     _parse_judge_response,
@@ -29,6 +23,7 @@ from insult.core.memory_consolidator import (
     consolidate_user_facts,
     hard_purge_soft_deleted,
 )
+from tests._pg_fixture import REQUIRES_PG
 
 # ---------------------------------------------------------------------------
 # Pure-function tests (no DB, no LLM)
@@ -105,16 +100,12 @@ class TestValidatePlan:
 # ---------------------------------------------------------------------------
 
 
+# Alias the PG fixture as `store` so the DB-touching tests below keep
+# their original parameter names without churning every signature.
 @pytest.fixture
-async def store():
-    """Real SQLite in tempfile so the schema migration runs."""
-    with tempfile.TemporaryDirectory() as tmp:
-        s = MemoryStore(Path(tmp) / "consolidator_test.db")
-        await s.connect()
-        try:
-            yield s
-        finally:
-            await s.close()
+async def store(pg_memory_store):
+    """Real `MemoryStore` against an ephemeral PG17 with schema applied."""
+    return pg_memory_store
 
 
 def _mock_anthropic(judge_plan: list[dict]) -> MagicMock:
@@ -131,6 +122,7 @@ def _mock_anthropic(judge_plan: list[dict]) -> MagicMock:
     return llm
 
 
+@REQUIRES_PG
 class TestConsolidateUserFactsApply:
     async def test_skips_when_no_facts(self, store):
         client = _mock_anthropic([])
@@ -170,11 +162,14 @@ class TestConsolidateUserFactsApply:
         live_after = await store.get_facts("u1")
         assert len(live_after) == 2  # soft-deleted hidden from get_facts
 
-        # Row physically still in DB with deleted_at set
-        cursor = await store._db.execute("SELECT id, deleted_at FROM user_facts WHERE id = ?", (ids[2],))
-        row = await cursor.fetchone()
+        # Row physically still in DB with deleted_at set. `get_facts` filters
+        # soft-deleted rows, so we go through the pool directly to read the raw
+        # row state. This is the only spot that reaches behind the facade —
+        # everywhere else uses the repository API.
+        pool = store._manager.pool
+        row = await pool.fetchrow("SELECT id, deleted_at FROM user_facts WHERE id = $1", ids[2])
         assert row is not None
-        assert row[1] is not None  # deleted_at populated
+        assert row["deleted_at"] is not None  # deleted_at populated
 
     async def test_update_op_creates_merged_fact_and_soft_deletes_originals(self, store):
         await store.add_manual_fact("u1", "Vive en CDMX")
@@ -205,6 +200,7 @@ class TestConsolidateUserFactsApply:
         assert len(live_after) == 2  # 3 in - 2 merged + 1 new = 2
 
 
+@REQUIRES_PG
 class TestConsolidateUserFactsDryRun:
     async def test_dry_run_does_not_touch_db(self, store):
         await store.add_manual_fact("u1", "f1")
@@ -225,6 +221,7 @@ class TestConsolidateUserFactsDryRun:
         assert {f["id"] for f in live_after} == {f["id"] for f in live_before}
 
 
+@REQUIRES_PG
 class TestHardPurge:
     async def test_purges_only_facts_past_retention(self, store):
         await store.add_manual_fact("u1", "old soft-deleted")
@@ -232,31 +229,37 @@ class TestHardPurge:
         await store.add_manual_fact("u1", "still live")
         rows = await store.get_facts("u1")
         old_id = rows[2]["id"]  # oldest insertion = first in display order... use slice 0
-        # Manually soft-delete two rows with different timestamps
+        # Manually soft-delete two rows with different timestamps. Goes
+        # through the pool directly because the repository API doesn't
+        # expose "set deleted_at to an arbitrary historical timestamp" —
+        # production only ever soft-deletes at `now`, but the retention
+        # test needs to plant rows that look like they aged out.
         old_deleted_at = time.time() - SOFT_DELETE_RETENTION_SECONDS - 86400  # past retention
         recent_deleted_at = time.time() - 3600  # 1h ago, well within retention
-        await store._db.execute(
-            "UPDATE user_facts SET deleted_at = ? WHERE id = ?",
-            (old_deleted_at, rows[0]["id"]),
+        pool = store._manager.pool
+        await pool.execute(
+            "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+            old_deleted_at,
+            rows[0]["id"],
         )
-        await store._db.execute(
-            "UPDATE user_facts SET deleted_at = ? WHERE id = ?",
-            (recent_deleted_at, rows[1]["id"]),
+        await pool.execute(
+            "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+            recent_deleted_at,
+            rows[1]["id"],
         )
-        await store._db.commit()
 
         purged = await hard_purge_soft_deleted(store)
         assert purged == 1  # only the old one
 
-        cursor = await store._db.execute("SELECT COUNT(*) FROM user_facts WHERE user_id = 'u1'")
-        row = await cursor.fetchone()
-        assert row[0] == 2  # 1 still soft-deleted + 1 live remain
+        remaining = await pool.fetchval("SELECT COUNT(*) FROM user_facts WHERE user_id = 'u1'")
+        assert remaining == 2  # 1 still soft-deleted + 1 live remain
         # The "still live" row is unaffected
         live = await store.get_facts("u1")
         assert len(live) == 1
         assert live[0]["id"] == old_id  # still-live row survived
 
 
+@REQUIRES_PG
 class TestConsolidateAllUsers:
     async def test_iterates_users_with_facts(self, store):
         for u in ("u1", "u2"):

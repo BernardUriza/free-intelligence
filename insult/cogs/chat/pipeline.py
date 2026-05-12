@@ -110,6 +110,7 @@ class TurnCtx:
     recent: list = field(default_factory=list)
     user_facts: list = field(default_factory=list)
     other_participants_facts: dict = field(default_factory=dict)
+    serenityops_snapshot: Any = None
     server_pulse: Any = None
 
     # --- Pre-LLM analysis ---

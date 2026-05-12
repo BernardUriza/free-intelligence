@@ -217,6 +217,17 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
     ctx.other_participants_facts = await load_other_participants_facts(ctx.memory, ctx.channel_id, ctx.user_id)
     ctx.server_pulse = await load_server_pulse(ctx.memory, ctx.message, ctx.channel_id, ctx.text)
 
+    # v3.8.0: pull the latest SerenityOps snapshot for the author. Cheap
+    # single-row lookup keyed by user_id — the per-user index makes this an
+    # index scan even at scale. None → user hasn't synced, prompt omits the
+    # block entirely (the omission carries information too: Insult shouldn't
+    # claim to "have your CV" when no row exists).
+    try:
+        ctx.serenityops_snapshot = await ctx.memory.get_latest_serenityops_snapshot(ctx.user_id)
+    except Exception:
+        log.exception("serenityops_snapshot_load_failed", user_id=ctx.user_id)
+        ctx.serenityops_snapshot = None
+
     # Launch the LLM preset classifier as a background task so its Haiku
     # latency overlaps with the remaining pre-LLM stages (disclosure scan,
     # arc load, flow analysis setup). `_stage_classify_and_analyze` awaits
@@ -351,6 +362,8 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         stance_prompt=build_stance_prompt(ctx.stances) if ctx.stances else "",
         facts_prompt=build_facts_prompt(ctx.user_name, ctx.user_facts),
         other_participants_facts=ctx.other_participants_facts,
+        serenityops_snapshot=ctx.serenityops_snapshot,
+        serenityops_user_name=ctx.user_name,
     )
 
     if ctx.profile and ctx.profile.is_confident:
@@ -616,6 +629,34 @@ async def _stage_ensure_payload(ctx: TurnCtx) -> None:
             tool_calls=len(ctx.llm_response.tool_calls),
         )
         ctx.response_text = get_error_response(ErrorType.GENERIC)
+        return
+
+    # Silent-tool-call recovery (v3.8.0):
+    # When the LLM fires `create_reminder` or `cancel_reminder` without
+    # writing any user-facing text, the delivery stage skips entirely
+    # (has_side_effects=True + empty body → `delivery_skipped`) and the
+    # user sees nothing in the channel where they asked. The reminder
+    # is saved, the side-channel #insult-reminders post fires, but the
+    # author still sits staring at silence and re-asks. v3.7.x logs
+    # showed this manifesting as "se volvió a morir por pedir un
+    # recordatorio" — the bot wasn't dead, just mute. Inject a short
+    # in-character confirmation so the conversation channel acknowledges
+    # the action. Other tool calls (`list_reminders`, channel ops) already
+    # post their own visible artifact in `tools.py` so they don't need it.
+    if not ctx.response_text.strip() and ctx.llm_response.tool_calls:
+        silent_tool_names = {"create_reminder", "cancel_reminder"}
+        silent_tools = [tc.name for tc in ctx.llm_response.tool_calls if tc.name in silent_tool_names]
+        if silent_tools:
+            confirmations = {
+                "create_reminder": "Ya. Te aviso.",
+                "cancel_reminder": "Cancelado.",
+            }
+            ctx.response_text = confirmations[silent_tools[0]]
+            log.info(
+                "silent_tool_call_recovered",
+                tool=silent_tools[0],
+                injected_text_len=len(ctx.response_text),
+            )
 
 
 # --- Stage 15: delivery ---

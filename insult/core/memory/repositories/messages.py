@@ -4,13 +4,18 @@ This is the hot path: every user turn reads recent + relevant, and every
 bot reply writes a new row. Also sources the channel-awareness helpers
 (participants, activity) because they query the same table. The messages
 table is append-only except for explicit pruning via `delete_before`.
+
+Migrated to asyncpg on 2026-05-12 PG migration. Placeholders `?` → `$N`,
+`aiosqlite.Error` → `asyncpg.PostgresError`. The connection pool removes
+the SQLite single-writer bottleneck — recent + search + participants can
+run concurrently on different conns.
 """
 
 from __future__ import annotations
 
 import time
 
-import aiosqlite
+import asyncpg
 import structlog
 
 from insult.core.memory.base import BaseRepository
@@ -35,42 +40,63 @@ class MessagesRepository(BaseRepository):
         channel_name: str | None = None,
         model_used: str | None = None,
     ) -> None:
-        """Append a message. Raises aiosqlite.Error on failure so the caller
+        """Append a message. Raises asyncpg.PostgresError on failure so the caller
         can decide whether to log-and-continue or bail."""
-        db = await self._conn()
         try:
-            await db.execute(
-                "INSERT INTO messages (channel_id, user_id, user_name, role, content, timestamp, for_user_id, guild_id, channel_name, model_used) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    channel_id,
-                    user_id,
-                    user_name,
-                    role,
-                    content,
-                    time.time(),
-                    for_user_id,
-                    guild_id,
-                    channel_name,
-                    model_used,
-                ),
+            await self._execute(
+                "INSERT INTO messages (channel_id, user_id, user_name, role, content, timestamp, "
+                "for_user_id, guild_id, channel_name, model_used) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                channel_id,
+                user_id,
+                user_name,
+                role,
+                content,
+                time.time(),
+                for_user_id,
+                guild_id,
+                channel_name,
+                model_used,
             )
-            await db.commit()
-        except aiosqlite.Error as e:
+        except asyncpg.PostgresError as e:
             log.error("memory_store_failed", channel_id=channel_id, user_id=user_id, error=str(e))
             raise
 
     async def delete_before(self, cutoff: float) -> int:
         """Delete messages older than cutoff timestamp. Returns count deleted."""
-        db = await self._conn()
-        cursor = await db.execute("SELECT COUNT(*) FROM messages WHERE timestamp < ?", (cutoff,))
-        row = await cursor.fetchone()
-        count = row[0] if row else 0
+        count = await self._fetchval("SELECT COUNT(*) FROM messages WHERE timestamp < $1", cutoff)
+        count = count or 0
         if count > 0:
-            await db.execute("DELETE FROM messages WHERE timestamp < ?", (cutoff,))
-            await db.commit()
+            await self._execute("DELETE FROM messages WHERE timestamp < $1", cutoff)
             log.info("memory_cleaned", deleted=count, cutoff=cutoff)
         return count
+
+    async def count_before(self, cutoff: float) -> int:
+        """Read-only sibling of `delete_before` for dry-run CLIs (`db-clean --dry-run`)."""
+        return int(await self._fetchval("SELECT COUNT(*) FROM messages WHERE timestamp < $1", cutoff) or 0)
+
+    async def count_messages_for_user(self, user_id: str) -> int:
+        """Total messages stored for a user (across channels). Useful for tests
+        that want to assert side-effects without parsing the full message list."""
+        return int(
+            await self._fetchval(
+                "SELECT COUNT(*) FROM messages WHERE user_id = $1",
+                user_id,
+            )
+            or 0
+        )
+
+    async def get_latest_username_per_user(self) -> dict[str, str]:
+        """Map user_id → most recent user_name from the messages table.
+
+        Used by the dream-diary CLI to show readable names instead of Discord
+        snowflakes. Indexed scan, dirt-cheap; only `role = 'user'` rows so we
+        never resolve the bot's own user_id to "Insult"."""
+        rows = await self._fetch(
+            "SELECT DISTINCT ON (user_id) user_id, user_name FROM messages "
+            "WHERE role = 'user' ORDER BY user_id, id DESC"
+        )
+        return {r["user_id"]: r["user_name"] for r in rows}
 
     # -- Reads: per-channel and per-user history --
 
@@ -87,55 +113,70 @@ class MessagesRepository(BaseRepository):
         was racy when two users happened to share a display name across
         guilds.
         """
-        db = await self._conn()
         if user_id:
-            cursor = await db.execute(
+            rows = await self._fetch(
                 "SELECT user_id, user_name, role, content, timestamp FROM messages "
-                "WHERE channel_id = ? AND (user_id = ? OR for_user_id = ?) "
-                "ORDER BY timestamp DESC LIMIT ?",
-                (channel_id, user_id, user_id, limit),
+                "WHERE channel_id = $1 AND (user_id = $2 OR for_user_id = $2) "
+                "ORDER BY timestamp DESC LIMIT $3",
+                channel_id,
+                user_id,
+                limit,
             )
         else:
-            cursor = await db.execute(
+            rows = await self._fetch(
                 "SELECT user_id, user_name, role, content, timestamp FROM messages "
-                "WHERE channel_id = ? ORDER BY timestamp DESC LIMIT ?",
-                (channel_id, limit),
+                "WHERE channel_id = $1 ORDER BY timestamp DESC LIMIT $2",
+                channel_id,
+                limit,
             )
-        rows = await cursor.fetchall()
         return [
-            {"user_id": r[0], "user_name": r[1], "role": r[2], "content": r[3], "timestamp": r[4]}
+            {
+                "user_id": r["user_id"],
+                "user_name": r["user_name"],
+                "role": r["role"],
+                "content": r["content"],
+                "timestamp": r["timestamp"],
+            }
             for r in reversed(rows)
         ]
 
     async def search(self, channel_id: str, query: str, limit: int = 5, user_id: str | None = None) -> list[dict]:
-        """Keyword LIKE-search across message content, optionally scoped to a user.
+        """Keyword ILIKE-search across message content, optionally scoped to a user.
 
         Words <=2 chars are dropped to avoid OR-exploding into every row.
-        No FTS here — this is the cheap fallback path; the semantic search
-        path lives in `FactsRepository.search_facts_semantic`.
+        Uses ILIKE (case-insensitive) — Postgres equivalent of SQLite's
+        default-collation LIKE. No FTS here — this is the cheap fallback
+        path; the semantic search path lives in `FactsRepository.search_facts_semantic`.
         """
-        db = await self._conn()
         words = [f"%{w}%" for w in query.split() if len(w) > 2]
         if not words:
             return []
 
-        conditions = " OR ".join(["content LIKE ?"] * len(words))
+        # Build $N placeholders for the OR-list, starting after the fixed args.
         if user_id:
-            cursor = await db.execute(
+            fixed = [channel_id, user_id]
+            offset = len(fixed) + 1
+            conditions = " OR ".join(f"content ILIKE ${offset + i}" for i in range(len(words)))
+            sql = (
                 f"SELECT user_name, role, content, timestamp FROM messages "  # noqa: S608
-                f"WHERE channel_id = ? AND (user_id = ? OR for_user_id = ?) AND ({conditions}) "
-                f"ORDER BY timestamp DESC LIMIT ?",
-                (channel_id, user_id, user_id, *words, limit),
+                f"WHERE channel_id = $1 AND (user_id = $2 OR for_user_id = $2) AND ({conditions}) "
+                f"ORDER BY timestamp DESC LIMIT ${offset + len(words)}"
             )
+            rows = await self._fetch(sql, *fixed, *words, limit)
         else:
-            cursor = await db.execute(
+            fixed = [channel_id]
+            offset = len(fixed) + 1
+            conditions = " OR ".join(f"content ILIKE ${offset + i}" for i in range(len(words)))
+            sql = (
                 f"SELECT user_name, role, content, timestamp FROM messages "  # noqa: S608
-                f"WHERE channel_id = ? AND ({conditions}) "
-                f"ORDER BY timestamp DESC LIMIT ?",
-                (channel_id, *words, limit),
+                f"WHERE channel_id = $1 AND ({conditions}) "
+                f"ORDER BY timestamp DESC LIMIT ${offset + len(words)}"
             )
-        rows = await cursor.fetchall()
-        return [{"user_name": r[0], "role": r[1], "content": r[2], "timestamp": r[3]} for r in reversed(rows)]
+            rows = await self._fetch(sql, *fixed, *words, limit)
+        return [
+            {"user_name": r["user_name"], "role": r["role"], "content": r["content"], "timestamp": r["timestamp"]}
+            for r in reversed(rows)
+        ]
 
     async def get_all_user_messages(self, limit_per_user: int = 30) -> dict[str, dict]:
         """Recent messages grouped by user_id (cross-channel).
@@ -143,24 +184,30 @@ class MessagesRepository(BaseRepository):
         Used by bulk fact-extraction and the debug dashboard. Returns a dict
         keyed by user_id with `{user_name, messages: [...]}` — not a flat list,
         because callers always need to group by user anyway."""
-        db = await self._conn()
-        cursor = await db.execute(
-            "SELECT DISTINCT user_id, user_name FROM messages WHERE role = 'user' ORDER BY timestamp DESC"
+        users = await self._fetch(
+            "SELECT DISTINCT user_id, user_name FROM messages WHERE role = 'user' ORDER BY user_id"
         )
-        users = await cursor.fetchall()
 
         result: dict[str, dict] = {}
-        for user_id, user_name in users:
-            cursor = await db.execute(
+        for u in users:
+            user_id = u["user_id"]
+            user_name = u["user_name"]
+            rows = await self._fetch(
                 "SELECT user_name, role, content, timestamp FROM messages "
-                "WHERE user_id = ? OR for_user_id = ? ORDER BY timestamp DESC LIMIT ?",
-                (user_id, user_id, limit_per_user),
+                "WHERE user_id = $1 OR for_user_id = $1 ORDER BY timestamp DESC LIMIT $2",
+                user_id,
+                limit_per_user,
             )
-            rows = await cursor.fetchall()
             result[user_id] = {
                 "user_name": user_name,
                 "messages": [
-                    {"user_name": r[0], "role": r[1], "content": r[2], "timestamp": r[3]} for r in reversed(rows)
+                    {
+                        "user_name": r["user_name"],
+                        "role": r["role"],
+                        "content": r["content"],
+                        "timestamp": r["timestamp"],
+                    }
+                    for r in reversed(rows)
                 ],
             }
         return result
@@ -170,36 +217,43 @@ class MessagesRepository(BaseRepository):
 
         Same projection as `get_recent` but without user filtering — summaries
         are channel-wide by design."""
-        db = await self._conn()
-        cursor = await db.execute(
+        rows = await self._fetch(
             "SELECT user_name, role, content, timestamp FROM messages "
-            "WHERE channel_id = ? ORDER BY timestamp DESC LIMIT ?",
-            (channel_id, limit),
+            "WHERE channel_id = $1 ORDER BY timestamp DESC LIMIT $2",
+            channel_id,
+            limit,
         )
-        rows = await cursor.fetchall()
-        return [{"user_name": r[0], "role": r[1], "content": r[2], "timestamp": r[3]} for r in reversed(rows)]
+        return [
+            {"user_name": r["user_name"], "role": r["role"], "content": r["content"], "timestamp": r["timestamp"]}
+            for r in reversed(rows)
+        ]
 
     # -- Reads: aggregates over the messages table --
 
     async def get_stats(self, channel_id: str | None = None) -> dict:
         """Row counts for health checks and the /debug/stats endpoint."""
-        db = await self._conn()
         if channel_id:
-            cursor = await db.execute(
-                "SELECT COUNT(*), COUNT(DISTINCT user_id) FROM messages WHERE channel_id = ?",
-                (channel_id,),
+            row = await self._fetchrow(
+                "SELECT COUNT(*) AS total, COUNT(DISTINCT user_id) AS users FROM messages WHERE channel_id = $1",
+                channel_id,
             )
-        else:
-            cursor = await db.execute(
-                "SELECT COUNT(*), COUNT(DISTINCT user_id), COUNT(DISTINCT channel_id) FROM messages"
-            )
-        row = await cursor.fetchone()
+            if not row:
+                return {"total_messages": 0, "unique_users": 0, "unique_channels": None}
+            return {
+                "total_messages": row["total"],
+                "unique_users": row["users"],
+                "unique_channels": None,
+            }
+        row = await self._fetchrow(
+            "SELECT COUNT(*) AS total, COUNT(DISTINCT user_id) AS users, "
+            "COUNT(DISTINCT channel_id) AS channels FROM messages"
+        )
         if not row:
-            return {"total_messages": 0, "unique_users": 0, "unique_channels": None}
+            return {"total_messages": 0, "unique_users": 0, "unique_channels": 0}
         return {
-            "total_messages": row[0],
-            "unique_users": row[1],
-            "unique_channels": row[2] if len(row) > 2 else None,
+            "total_messages": row["total"],
+            "unique_users": row["users"],
+            "unique_channels": row["channels"],
         }
 
     async def get_channel_participants(self, channel_id: str, limit: int = 10) -> list[dict]:
@@ -207,44 +261,41 @@ class MessagesRepository(BaseRepository):
 
         Used by chat.py to inject other-participants facts into the prompt
         (group-chat awareness)."""
-        db = await self._conn()
-        cursor = await db.execute(
-            "SELECT user_id, user_name, MAX(timestamp) as last_ts FROM messages "
-            "WHERE channel_id = ? AND role = 'user' "
-            "GROUP BY user_id ORDER BY last_ts DESC LIMIT ?",
-            (channel_id, limit),
+        rows = await self._fetch(
+            "SELECT user_id, user_name, MAX(timestamp) AS last_ts FROM messages "
+            "WHERE channel_id = $1 AND role = 'user' "
+            "GROUP BY user_id, user_name ORDER BY last_ts DESC LIMIT $2",
+            channel_id,
+            limit,
         )
-        rows = await cursor.fetchall()
-        return [{"user_id": r[0], "user_name": r[1], "last_ts": r[2]} for r in rows]
+        return [{"user_id": r["user_id"], "user_name": r["user_name"], "last_ts": r["last_ts"]} for r in rows]
 
     async def get_channel_activity_since(self, guild_id: str, since_ts: float) -> list[dict]:
         """(channel_id, count) pairs for channels with activity since a timestamp."""
-        db = await self._conn()
-        cursor = await db.execute(
-            "SELECT channel_id, COUNT(*) as cnt FROM messages "
-            "WHERE guild_id = ? AND timestamp > ? "
+        rows = await self._fetch(
+            "SELECT channel_id, COUNT(*) AS cnt FROM messages "
+            "WHERE guild_id = $1 AND timestamp > $2 "
             "GROUP BY channel_id ORDER BY cnt DESC",
-            (guild_id, since_ts),
+            guild_id,
+            since_ts,
         )
-        rows = await cursor.fetchall()
-        return [{"channel_id": r[0], "count": r[1]} for r in rows]
+        return [{"channel_id": r["channel_id"], "count": r["cnt"]} for r in rows]
 
     async def get_channels_overview(self, limit: int = 50) -> list[dict]:
         """All channels with message counts and latest timestamp. Debug helper."""
-        db = await self._conn()
-        cursor = await db.execute(
-            "SELECT channel_id, MAX(channel_name), MAX(guild_id), COUNT(*), MAX(timestamp) "
-            "FROM messages GROUP BY channel_id ORDER BY MAX(timestamp) DESC LIMIT ?",
-            (limit,),
+        rows = await self._fetch(
+            "SELECT channel_id, MAX(channel_name) AS channel_name, MAX(guild_id) AS guild_id, "
+            "COUNT(*) AS cnt, MAX(timestamp) AS last_ts "
+            "FROM messages GROUP BY channel_id ORDER BY MAX(timestamp) DESC LIMIT $1",
+            limit,
         )
-        rows = await cursor.fetchall()
         return [
             {
-                "channel_id": r[0],
-                "channel_name": r[1],
-                "guild_id": r[2],
-                "count": r[3],
-                "last_ts": r[4],
+                "channel_id": r["channel_id"],
+                "channel_name": r["channel_name"],
+                "guild_id": r["guild_id"],
+                "count": r["cnt"],
+                "last_ts": r["last_ts"],
             }
             for r in rows
         ]

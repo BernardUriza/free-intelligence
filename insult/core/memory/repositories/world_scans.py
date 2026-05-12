@@ -2,13 +2,17 @@
 
 Populated by a background task that summarizes news/topics into a findings
 + commentary pair. Read at turn-build time to give Insult cross-topic
-awareness without requiring a web_search call on every message."""
+awareness without requiring a web_search call on every message.
+
+Migrated to asyncpg on 2026-05-12 PG migration. `INSERT OR IGNORE` →
+`INSERT ... ON CONFLICT DO NOTHING` with `RETURNING id` so we can tell
+inserted-from-deduped without parsing the command tag."""
 
 from __future__ import annotations
 
 import time
 
-import aiosqlite
+import asyncpg
 import structlog
 
 from insult.core.memory.base import BaseRepository
@@ -33,27 +37,51 @@ class WorldScansRepository(BaseRepository):
         `source` discriminates ingestion origin (`web` for the existing
         web_search path, `moltbook` and friends for the carretera).
         `external_id` enables dedupe via the partial UNIQUE index on
-        (source, external_id) — INSERT OR IGNORE turns a duplicate into
-        a no-op rather than a constraint error.
+        (source, external_id) — `ON CONFLICT DO NOTHING` turns a duplicate
+        into a no-op rather than a constraint error.
 
         Returns True if a row was inserted, False if it was a deduped no-op
         (e.g. same Moltbook post id seen twice). Web scans always insert."""
-        db = await self._conn()
         try:
-            cursor = await db.execute(
-                "INSERT OR IGNORE INTO world_scans "
-                "(topic, findings, commentary, timestamp, source, external_id) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (topic, findings, commentary, time.time(), source, external_id),
-            )
-            await db.commit()
-            inserted = cursor.rowcount > 0
+            # When the unique partial index matches an existing row, ON CONFLICT
+            # DO NOTHING suppresses the insert and RETURNING yields zero rows;
+            # asyncpg `fetchval` returns None in that case, which is our False signal.
+            #
+            # The index is partial (`WHERE external_id IS NOT NULL`), so we must
+            # name an inferable conflict target explicitly — passing the index
+            # predicate is the only form Postgres accepts here.
+            if external_id is None:
+                # Web scans bypass dedupe entirely — index does not cover NULLs.
+                row_id = await self._fetchval(
+                    "INSERT INTO world_scans (topic, findings, commentary, timestamp, source, external_id) "
+                    "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+                    topic,
+                    findings,
+                    commentary,
+                    time.time(),
+                    source,
+                    external_id,
+                )
+            else:
+                row_id = await self._fetchval(
+                    "INSERT INTO world_scans (topic, findings, commentary, timestamp, source, external_id) "
+                    "VALUES ($1, $2, $3, $4, $5, $6) "
+                    "ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO NOTHING "
+                    "RETURNING id",
+                    topic,
+                    findings,
+                    commentary,
+                    time.time(),
+                    source,
+                    external_id,
+                )
+            inserted = row_id is not None
             if inserted:
                 log.info("world_scan_stored", topic=topic[:80], source=source, external_id=external_id)
             else:
                 log.debug("world_scan_dedup_skipped", source=source, external_id=external_id)
             return inserted
-        except aiosqlite.Error as e:
+        except asyncpg.PostgresError as e:
             log.error("world_scan_store_failed", error=str(e), source=source)
             return False
 
@@ -63,40 +91,38 @@ class WorldScansRepository(BaseRepository):
         When `source` is None, returns scans from any source (legacy behavior).
         Pass `source='web'` to keep the original-only feed, or e.g.
         `source='moltbook'` to read only the Moltbook digest stream."""
-        db = await self._conn()
         if source is None:
-            cursor = await db.execute(
+            rows = await self._fetch(
                 "SELECT topic, findings, commentary, timestamp, source, external_id "
-                "FROM world_scans ORDER BY timestamp DESC LIMIT ?",
-                (limit,),
+                "FROM world_scans ORDER BY timestamp DESC LIMIT $1",
+                limit,
             )
         else:
-            cursor = await db.execute(
+            rows = await self._fetch(
                 "SELECT topic, findings, commentary, timestamp, source, external_id "
-                "FROM world_scans WHERE source = ? ORDER BY timestamp DESC LIMIT ?",
-                (source, limit),
+                "FROM world_scans WHERE source = $1 ORDER BY timestamp DESC LIMIT $2",
+                source,
+                limit,
             )
-        rows = await cursor.fetchall()
         return [
             {
-                "topic": r[0],
-                "findings": r[1],
-                "commentary": r[2],
-                "timestamp": r[3],
-                "source": r[4],
-                "external_id": r[5],
+                "topic": r["topic"],
+                "findings": r["findings"],
+                "commentary": r["commentary"],
+                "timestamp": r["timestamp"],
+                "source": r["source"],
+                "external_id": r["external_id"],
             }
             for r in rows
         ]
 
     async def has_external_id(self, source: str, external_id: str) -> bool:
         """Quick existence check used by the inbound digest fetcher to skip
-        posts already curated. Cheaper than the full INSERT OR IGNORE round
-        when the caller wants to short-circuit BEFORE running the LLM."""
-        db = await self._conn()
-        cursor = await db.execute(
-            "SELECT 1 FROM world_scans WHERE source = ? AND external_id = ? LIMIT 1",
-            (source, external_id),
+        posts already curated. Cheaper than the full INSERT ... ON CONFLICT
+        round when the caller wants to short-circuit BEFORE running the LLM."""
+        val = await self._fetchval(
+            "SELECT 1 FROM world_scans WHERE source = $1 AND external_id = $2 LIMIT 1",
+            source,
+            external_id,
         )
-        row = await cursor.fetchone()
-        return row is not None
+        return val is not None

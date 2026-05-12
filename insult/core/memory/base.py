@@ -87,9 +87,8 @@ class BaseRepository:
                 await conn.execute("INSERT ...")
                 await conn.execute("UPDATE ...")
         """
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
-                yield conn
+        async with self._pool.acquire() as conn, conn.transaction():
+            yield conn
 
     @property
     def vectors_available(self) -> bool:

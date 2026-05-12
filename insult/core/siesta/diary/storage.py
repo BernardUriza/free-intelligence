@@ -1,9 +1,9 @@
 """Repository for ``dream_diary`` rows.
 
 Thin SQL wrappers — no business logic, no LLM calls. The schema lives
-in :mod:`insult.core.memory.connection`. Keeping this module dumb on
-purpose so it can be unit-tested against an in-memory SQLite without
-mocking the LLM client.
+in :mod:`insult.core.memory.connection`. Post-PG migration this module
+talks to the shared asyncpg pool via the memory store's manager so it
+shares the same connection lifecycle as every other table.
 """
 
 from __future__ import annotations
@@ -40,21 +40,33 @@ class DreamEntry:
     error: str | None
 
 
-def _row_to_entry(row: tuple) -> DreamEntry:
+def _record_to_entry(row) -> DreamEntry:
+    """Build a DreamEntry from an asyncpg.Record. Named access throughout
+    so the projection in SELECT can change order without breaking unpacking."""
     return DreamEntry(
-        id=row[0],
-        run_ts=row[1],
-        duration_ms=row[2],
-        users_total=row[3],
-        users_processed=row[4],
-        facts_in_total=row[5],
-        facts_out_total=row[6],
-        deletes_total=row[7],
-        updates_total=row[8],
-        status=row[9],
-        content=row[10],
-        error=row[11],
+        id=row["id"],
+        run_ts=row["run_ts"],
+        duration_ms=row["duration_ms"],
+        users_total=row["users_total"],
+        users_processed=row["users_processed"],
+        facts_in_total=row["facts_in_total"],
+        facts_out_total=row["facts_out_total"],
+        deletes_total=row["deletes_total"],
+        updates_total=row["updates_total"],
+        status=row["status"],
+        content=row["content"],
+        error=row["error"],
     )
+
+
+def _pool(memory: MemoryStore):
+    """Return the manager's pool, or None if the store isn't connected.
+
+    Lives at module level so the three callsites below stay one-liner
+    short-circuits. Callers that hit a None pool log + return empty/None
+    — the diary is a non-critical observability surface, not a data plane."""
+    pool = memory._manager.pool
+    return pool
 
 
 async def insert_entry(
@@ -75,60 +87,55 @@ async def insert_entry(
     """Persist one diary row. Returns the new id, or None on failure."""
     if status not in VALID_STATUS:
         raise ValueError(f"invalid status {status!r}; must be one of {VALID_STATUS}")
-    db = memory._db
-    if db is None:
+    pool = _pool(memory)
+    if pool is None:
         log.warning("dream_diary_insert_skipped_no_db")
         return None
-    cursor = await db.execute(
+    new_id = await pool.fetchval(
         "INSERT INTO dream_diary "
         "(run_ts, duration_ms, users_total, users_processed, "
         " facts_in_total, facts_out_total, deletes_total, updates_total, "
         " status, content, error) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            run_ts if run_ts is not None else time.time(),
-            duration_ms,
-            users_total,
-            users_processed,
-            facts_in_total,
-            facts_out_total,
-            deletes_total,
-            updates_total,
-            status,
-            content,
-            error,
-        ),
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id",
+        run_ts if run_ts is not None else time.time(),
+        duration_ms,
+        users_total,
+        users_processed,
+        facts_in_total,
+        facts_out_total,
+        deletes_total,
+        updates_total,
+        status,
+        content,
+        error,
     )
-    await db.commit()
-    return cursor.lastrowid
+    return int(new_id) if new_id is not None else None
 
 
 async def latest_entry(memory: MemoryStore) -> DreamEntry | None:
     """Most recent diary row, or None if the table is empty."""
-    db = memory._db
-    if db is None:
+    pool = _pool(memory)
+    if pool is None:
         return None
-    cursor = await db.execute(
+    row = await pool.fetchrow(
         "SELECT id, run_ts, duration_ms, users_total, users_processed, "
         "facts_in_total, facts_out_total, deletes_total, updates_total, "
         "status, content, error "
         "FROM dream_diary ORDER BY run_ts DESC LIMIT 1"
     )
-    row = await cursor.fetchone()
-    return _row_to_entry(row) if row else None
+    return _record_to_entry(row) if row else None
 
 
 async def recent_entries(memory: MemoryStore, limit: int = 5) -> list[DreamEntry]:
     """Most recent ``limit`` entries, newest first."""
-    db = memory._db
-    if db is None:
+    pool = _pool(memory)
+    if pool is None:
         return []
-    cursor = await db.execute(
+    rows = await pool.fetch(
         "SELECT id, run_ts, duration_ms, users_total, users_processed, "
         "facts_in_total, facts_out_total, deletes_total, updates_total, "
         "status, content, error "
-        "FROM dream_diary ORDER BY run_ts DESC LIMIT ?",
-        (limit,),
+        "FROM dream_diary ORDER BY run_ts DESC LIMIT $1",
+        limit,
     )
-    rows = await cursor.fetchall()
-    return [_row_to_entry(r) for r in rows]
+    return [_record_to_entry(r) for r in rows]

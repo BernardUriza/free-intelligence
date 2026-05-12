@@ -25,6 +25,7 @@ import pytest
 
 from insult.cogs.chat._failure import Criticality, FailureClass, StageFailure, StageStop
 from insult.cogs.chat.pipeline import Stage, TurnCtx, run_pipeline
+from insult.cogs.chat.stages import _stage_ensure_payload
 
 
 def _mk_ctx(spawn_task: Any = None) -> TurnCtx:
@@ -306,3 +307,79 @@ async def test_stage_timings_recorded_per_stage():
     # Timings must be ints; non-negative is the only invariant the
     # orchestrator contract promises.
     assert all(isinstance(v, int) and v >= 0 for v in result.stage_timings.values())
+
+
+# ---------------------------------------------------------------------------
+# _stage_ensure_payload — silent-tool-call recovery (v3.8.0 RM-1)
+# ---------------------------------------------------------------------------
+#
+# Bug this guards: when the LLM fires `create_reminder` or `cancel_reminder`
+# without any user-facing text, the delivery stage used to skip entirely
+# (has_side_effects=True + empty body → `delivery_skipped`). The user saw
+# silence in the channel where they asked. v3.7.x logs reproduced this as
+# "se volvió a morir por pedir un recordatorio". The recovery in
+# `_stage_ensure_payload` injects a short in-character confirmation so the
+# action is visible without disturbing the path where the LLM did write text.
+
+
+def _mk_tool_call(name: str):
+    tc = MagicMock()
+    tc.name = name
+    return tc
+
+
+def _mk_payload_ctx(*, response_text: str, tool_calls: list, reactions=None) -> TurnCtx:
+    ctx = _mk_ctx()
+    ctx.response_text = response_text
+    ctx.raw_response_text = response_text
+    ctx.reactions = reactions or []
+    ctx.llm_response = MagicMock()
+    ctx.llm_response.tool_calls = tool_calls
+    return ctx
+
+
+@pytest.mark.asyncio
+async def test_ensure_payload_recovers_silent_create_reminder():
+    """Empty text + create_reminder → confirmation gets injected."""
+    ctx = _mk_payload_ctx(response_text="", tool_calls=[_mk_tool_call("create_reminder")])
+    await _stage_ensure_payload(ctx)
+    assert ctx.response_text == "Ya. Te aviso."
+
+
+@pytest.mark.asyncio
+async def test_ensure_payload_recovers_silent_cancel_reminder():
+    ctx = _mk_payload_ctx(response_text="", tool_calls=[_mk_tool_call("cancel_reminder")])
+    await _stage_ensure_payload(ctx)
+    assert ctx.response_text == "Cancelado."
+
+
+@pytest.mark.asyncio
+async def test_ensure_payload_does_not_override_existing_text():
+    """When the LLM wrote text alongside the tool call, leave it alone."""
+    ctx = _mk_payload_ctx(
+        response_text="Ya te lo apunté pa' las nueve.",
+        tool_calls=[_mk_tool_call("create_reminder")],
+    )
+    await _stage_ensure_payload(ctx)
+    assert ctx.response_text == "Ya te lo apunté pa' las nueve."
+
+
+@pytest.mark.asyncio
+async def test_ensure_payload_leaves_list_reminders_alone():
+    """list_reminders posts its own message via tools.py — no injection needed."""
+    ctx = _mk_payload_ctx(response_text="", tool_calls=[_mk_tool_call("list_reminders")])
+    await _stage_ensure_payload(ctx)
+    # No silent-tool injection for list_reminders; falls through with empty text.
+    # `_stage_deliver` then short-circuits via `has_side_effects=True`.
+    assert ctx.response_text == ""
+
+
+@pytest.mark.asyncio
+async def test_ensure_payload_empty_no_side_effects_uses_error_fallback():
+    """No tool calls + no reactions + no text → generic in-character error."""
+    ctx = _mk_payload_ctx(response_text="", tool_calls=[])
+    await _stage_ensure_payload(ctx)
+    assert ctx.response_text  # something non-empty got injected
+    # The exact text comes from `get_error_response(ErrorType.GENERIC)` and
+    # is randomized; we only assert it's not the silent-tool recovery line.
+    assert ctx.response_text not in {"Ya. Te aviso.", "Cancelado."}

@@ -54,7 +54,10 @@ class GuildConfigRepository(BaseRepository):
                 "ON CONFLICT(guild_id) DO UPDATE SET category_id=excluded.category_id, "
                 "facts_channel_id=excluded.facts_channel_id, "
                 "reminders_channel_id=excluded.reminders_channel_id, setup_complete=1",
-                guild_id, category_id, facts_channel_id, reminders_channel_id,
+                guild_id,
+                category_id,
+                facts_channel_id,
+                reminders_channel_id,
             )
             log.info("guild_config_saved", guild_id=guild_id)
         except asyncpg.PostgresError as e:

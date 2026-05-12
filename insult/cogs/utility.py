@@ -239,6 +239,76 @@ class UtilityCog(commands.Cog):
             summary += f", **{errors}** errores"
         await ctx.send(summary)
 
+    @commands.command(name="sync-token", aliases=["synctoken"])
+    @commands.cooldown(1, 60, commands.BucketType.user)
+    async def sync_token(self, ctx: commands.Context, action: str = "show"):
+        """Generate or rotate the per-user bearer token for /sync/serenityops.
+
+        Usage:
+        - `!sync-token` or `!sync-token show` → mint a new token, DM it.
+          Older tokens are revoked atomically right before the new one is
+          handed over, so a stolen token loses access the moment the user
+          successfully runs this command.
+        - `!sync-token revoke` → revoke every live token, return nothing.
+
+        The plaintext token is sent via DM and never echoed in the channel.
+        The DB only stores `sha256(token)` so a DB leak is not a credential
+        leak — see [[reference_secrets_folder_mandatory]] for the threat model.
+        """
+        user_id = str(ctx.author.id)
+        action = (action or "show").lower()
+
+        if action not in {"show", "revoke", "rotate"}:
+            await ctx.send("Uso: `!sync-token` o `!sync-token revoke`.")
+            return
+
+        if action == "revoke":
+            revoked = await self.memory.revoke_sync_tokens(user_id)
+            await ctx.send(f"Listo. Revoqué {revoked} token(s). Si SerenityOps tenía uno, deja de jalar ya.")
+            log.info("sync_token_revoked_by_user", user_id=user_id, revoked=revoked)
+            return
+
+        # Mint a new token. Revoke prior tokens FIRST so a race between
+        # the DM and a leaked old token doesn't leave both alive.
+        import secrets
+
+        revoked = await self.memory.revoke_sync_tokens(user_id)
+        plaintext = secrets.token_urlsafe(32)
+        try:
+            await self.memory.create_sync_token(user_id, plaintext)
+        except Exception:
+            log.exception("sync_token_create_failed", user_id=user_id)
+            await ctx.send(get_error_response(ErrorType.GENERIC))
+            return
+
+        # Build the DM body. Includes the endpoint URL so the user can paste
+        # both values into SerenityOps' .env directly without hunting docs.
+        endpoint = getattr(self.settings, "public_sync_url", None) or (
+            "https://insult-bot.nicecliff-10074f57.eastus.azurecontainerapps.io/sync/serenityops"
+        )
+        body = (
+            "Tu token de sync para SerenityOps Lite. **Cópialo ahora — no lo voy a volver a mostrar.**\n\n"
+            "```\n"
+            f"INSULT_SYNC_URL={endpoint}\n"
+            f"INSULT_SYNC_TOKEN={plaintext}\n"
+            "```\n\n"
+            "Pégalo en el `.env` de `~/Documents/serenityops-lite/` y corre `/sync-insult` desde Claude Code.\n"
+            f"({revoked} token(s) anterior(es) revocado(s) — los viejos ya no jalan.)"
+        )
+
+        try:
+            await ctx.author.send(body)
+        except discord.Forbidden:
+            # User has DMs disabled — fall back to a generic in-channel
+            # warning. We do NOT echo the plaintext to a channel: that would
+            # leak the credential to everyone who can read the channel.
+            await ctx.send("No te puedo mandar DM. Abre tus DMs conmigo y vuelve a correr `!sync-token`.")
+            return
+
+        # Confirm in-channel without echoing the token.
+        await ctx.send("Te mandé el token por DM. Revisa.")
+        log.info("sync_token_issued", user_id=user_id, prior_revoked=revoked)
+
     @commands.command(name="setup")
     @commands.has_permissions(manage_channels=True)
     @commands.cooldown(1, 60, commands.BucketType.guild)

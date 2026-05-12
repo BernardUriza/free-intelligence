@@ -13,6 +13,7 @@ from insult.core.memory.repositories.messages import MessagesRepository
 from insult.core.memory.repositories.profiles import ProfilesRepository
 from insult.core.memory.repositories.relational import RelationalStateRepository
 from insult.core.memory.repositories.reminders import RemindersRepository
+from insult.core.memory.repositories.serenityops import SerenityOpsRepository
 from insult.core.memory.repositories.world_scans import WorldScansRepository
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "ProfilesRepository",
     "RelationalStateRepository",
     "RemindersRepository",
+    "SerenityOpsRepository",
     "WorldScansRepository",
 ]
