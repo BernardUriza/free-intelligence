@@ -1,18 +1,42 @@
-"""Claude API client with character break detection and tool_use support."""
+"""LLMClient — Anthropic API client with retry policy, character break
+detection, and post-generation mutation pipeline.
+
+This is the heart of the request flow. Everything user-facing goes
+through `chat()`; internal utility calls (facts extraction, channel
+summaries, memory consolidator judges) use `utility_call()` to skip
+the user-facing guards. The retry loop in `_send()` owns SDK retry
+policy entirely — we configure `max_retries=0` on the SDK so our
+outer loop is the single source of truth.
+
+Retry classes (see retry.py for the timing math):
+- 429 RateLimitError: honor retry-after-ms / retry-after up to 60s,
+  else Full Jitter with cap 60s.
+- 5xx APIStatusError (500/502/503/529): retry-after if present,
+  else Full Jitter cap 30s. 529 keeps the historical
+  `llm_overloaded` event name so alerts still fire.
+- 504 + APITimeoutError + APIConnectionError: capped at
+  _MAX_TIMEOUT_RETRIES (2) regardless of max_retries, jitter cap
+  10s. on_timeout callback fires after the first to keep UX honest.
+- 400 BadRequestError with "tool" in message: retry once without
+  tools, then break.
+
+Character-break recovery (`_recover_from_break`) escalates to the
+fallback tier if distinct, then applies the legacy reinforced-retry
+path against whichever tier last spoke. Sanitization is the final
+floor; we always ship something.
+"""
+
+from __future__ import annotations
 
 import asyncio
-import random
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
 
 import anthropic
 import structlog
 from anthropic.types import MessageParam
 
-from insult.core.actions import ToolCall
 from insult.core.character import (
-    CACHE_BOUNDARY,
     CHARACTER_REINFORCEMENT,
     CONTEXT_REINFORCEMENT,
     MutationStage,
@@ -25,260 +49,29 @@ from insult.core.character import (
     strip_lists,
     strip_metadata,
 )
+from insult.core.llm.parsing import (
+    LLMResponse,
+    _build_system_blocks,
+    _parse_response_content,
+)
+from insult.core.llm.pricing import (
+    _record_error,
+    record_usage,
+)
+from insult.core.llm.retry import (
+    _BACKOFF_CAP_5XX,
+    _BACKOFF_CAP_429,
+    _BACKOFF_CAP_TIMEOUT,
+    _MAX_TIMEOUT_RETRIES,
+    _full_jitter_backoff,
+    _parse_retry_after,
+)
 
 log = structlog.get_logger()
-
-# --- Token usage tracking (in-memory, resets on redeploy) ---
-# Pricing per million tokens, per model family (as of 2026-04).
-# Keys are the family tag returned by _resolve_family(); Sonnet is the
-# fallback for unknown models (conservative — overestimates Haiku slightly
-# but never understates Opus which would mask a blown budget).
-# Opus pricing dropped 3x from 4.1 → 4.5+ (4.5/4.6/4.7 all share the new
-# rate). Verified against https://platform.claude.com/docs/en/about-claude/pricing
-# on 2026-05-05. If we ever default to an older Opus (4 / 4.1 / 3) the
-# report will UNDERSTATE cost — but those models are deprecated and the
-# config doesn't reference them. Sonnet and Haiku rates have been stable
-# across 4.x.
-_PRICING: dict[str, dict[str, float]] = {
-    "haiku": {"input": 1.00, "output": 5.00, "cache_read": 0.10, "cache_create": 1.25},
-    "sonnet": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_create": 3.75},
-    "opus": {"input": 5.00, "output": 25.00, "cache_read": 0.50, "cache_create": 6.25},
-}
-_DEFAULT_FAMILY = "sonnet"
-
-# Timeouts are capped separately from other retries. Each timeout is ~30s of
-# dead air, so five would leave the user staring at nothing for 2+ minutes.
-_MAX_TIMEOUT_RETRIES = 2
-
-# Backoff caps per failure class — see .claude/plans/turn_resilience.md PR 0.
-# 60s for 429 because Anthropic's retry-after on org-level rate limit can ask
-# for that long; 30s for 5xx (overload) because they typically resolve faster;
-# 10s for transport timeouts because we already cap to 2 attempts and longer
-# waits compound the dead-air UX problem.
-_BACKOFF_CAP_429 = 60.0
-_BACKOFF_CAP_5XX = 30.0
-_BACKOFF_CAP_TIMEOUT = 10.0
-
-
-def _parse_retry_after(headers: object) -> float | None:
-    """Read retry-after-ms (preferred, more precise) or retry-after (seconds)
-    from a response's headers. Returns the wait time in seconds, or None when
-    the header is absent, malformed, non-positive, or above 60s (the cap above
-    which we'd rather emit our own jittered backoff than block the user).
-
-    Anthropic documents both headers; honoring them is mandatory per
-    https://platform.claude.com/docs/en/api/rate-limits and avoids the
-    Vercel-AI-SDK anti-pattern of synchronized retries
-    (github.com/vercel/ai/issues/7247).
-    """
-    if headers is None:
-        return None
-    get = getattr(headers, "get", None)
-    if get is None:
-        return None
-    ms = get("retry-after-ms")
-    if ms is not None:
-        try:
-            value = float(ms) / 1000.0
-        except (TypeError, ValueError):
-            value = None
-        if value is not None and 0 < value <= 60:
-            return value
-    sec = get("retry-after")
-    if sec is not None:
-        try:
-            value = float(sec)
-        except (TypeError, ValueError):
-            value = None
-        if value is not None and 0 < value <= 60:
-            return value
-    return None
-
-
-def _full_jitter_backoff(attempt: int, cap: float) -> float:
-    """Full Jitter backoff per AWS Standard SDK (botocore/retries/standard.py)
-    and Brooker 2015. Returns ``random.uniform(0, min(2 ** attempt, cap))``.
-
-    Full Jitter beats Decorrelated Jitter on server load in Brooker's published
-    measurements and avoids the documented clamping bug that pins decorrelated
-    intervals to max_duration with only a 1/3 chance of jitter
-    (thomwright.co.uk/2024/04/24/decorrelated-jitter/).
-    """
-    if attempt < 1:
-        attempt = 1
-    return random.uniform(0, min(2.0**attempt, cap))
-
-
-def _resolve_family(model: str) -> str:
-    """Map a full model id to its pricing family.
-
-    claude-haiku-4-5-20251001 → 'haiku', claude-sonnet-4-6 → 'sonnet', etc.
-    Unknown models default to Sonnet (conservative — overestimates Haiku
-    slightly but never understates Opus, which would hide a blown budget).
-    """
-    lower = model.lower()
-    for family in _PRICING:
-        if family in lower:
-            return family
-    return _DEFAULT_FAMILY
-
-
-def _zero_bucket() -> dict[str, int]:
-    return {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_create_tokens": 0, "requests": 0}
-
-
-# Per-family token counters. Keys populated lazily as families are seen.
-_usage_by_family: dict[str, dict[str, int]] = {}
-_errors_total = 0
 
 # Anti-pattern fallback threshold: number of pattern hits that triggers a
 # rerun against the fallback model. Below this the hit is only logged.
 _ANTI_PATTERN_FALLBACK_THRESHOLD = 2
-
-
-def record_usage(
-    input_tokens: int,
-    output_tokens: int,
-    cache_read: int = 0,
-    cache_create: int = 0,
-    model: str = "",
-) -> None:
-    """Accumulate token usage for cost tracking, keyed by model family."""
-    family = _resolve_family(model) if model else _DEFAULT_FAMILY
-    bucket = _usage_by_family.setdefault(family, _zero_bucket())
-    bucket["input_tokens"] += input_tokens
-    bucket["output_tokens"] += output_tokens
-    bucket["cache_read_tokens"] += cache_read
-    bucket["cache_create_tokens"] += cache_create
-    bucket["requests"] += 1
-
-
-def _record_error() -> None:
-    global _errors_total
-    _errors_total += 1
-
-
-def get_usage_report() -> dict:
-    """Return accumulated usage with estimated cost in USD, broken out per family."""
-    per_family: dict[str, dict] = {}
-    total_tokens_in = 0
-    total_tokens_out = 0
-    total_cache_read = 0
-    total_cache_create = 0
-    total_requests = 0
-    total_cost = 0.0
-
-    for family, bucket in _usage_by_family.items():
-        pricing = _PRICING.get(family, _PRICING[_DEFAULT_FAMILY])
-        cost_input = (bucket["input_tokens"] / 1_000_000) * pricing["input"]
-        cost_output = (bucket["output_tokens"] / 1_000_000) * pricing["output"]
-        cost_cache_read = (bucket["cache_read_tokens"] / 1_000_000) * pricing["cache_read"]
-        cost_cache_create = (bucket["cache_create_tokens"] / 1_000_000) * pricing["cache_create"]
-        family_cost = cost_input + cost_output + cost_cache_read + cost_cache_create
-
-        per_family[family] = {
-            "tokens": dict(bucket),
-            "cost_usd": round(family_cost, 4),
-        }
-
-        total_tokens_in += bucket["input_tokens"]
-        total_tokens_out += bucket["output_tokens"]
-        total_cache_read += bucket["cache_read_tokens"]
-        total_cache_create += bucket["cache_create_tokens"]
-        total_requests += bucket["requests"]
-        total_cost += family_cost
-
-    return {
-        "tokens": {
-            "input": total_tokens_in,
-            "output": total_tokens_out,
-            "cache_read": total_cache_read,
-            "cache_create": total_cache_create,
-            "total": total_tokens_in + total_tokens_out,
-        },
-        "requests": total_requests,
-        "errors": _errors_total,
-        "cost_usd": {"total": round(total_cost, 4)},
-        "per_family": per_family,
-        "avg_tokens_per_request": round((total_tokens_in + total_tokens_out) / max(total_requests, 1)),
-        "note": "Resets on redeploy. Pricing is per-family (haiku/sonnet/opus); unknown models default to sonnet rates.",
-    }
-
-
-@dataclass
-class LLMResponse:
-    """Structured response from the LLM — text + optional tool calls."""
-
-    text: str
-    tool_calls: list[ToolCall] = field(default_factory=list)
-    model_used: str = ""  # populated by chat() — reflects the model that actually produced the text
-    stop_reason: str = ""  # raw API stop_reason; "max_tokens" / "end_turn" / "tool_use" / "pause_turn"
-
-
-# Web search tool definition — Claude's native server-side search.
-#
-# A single open tool is registered every turn. We considered a
-# domain-restricted "medical" variant for vulnerable users, but Anthropic's
-# API rejects two tools with the same name in one request, and switching
-# tool definitions between turns invalidates the prompt cache (tools →
-# system → messages hierarchy). Source-quality steering for clinical
-# queries lives in `_VULNERABLE_OVERLAY_PROMPT` (core/presets.py) instead,
-# which lets the model reach authoritative sources for "what is quetiapine"
-# while still surfacing useful results when the same user asks about a
-# fintech or a hostel.
-WEB_SEARCH_TOOL = {
-    "type": "web_search_20250305",
-    "name": "web_search",
-    "max_uses": 3,
-}
-
-
-def _build_system_blocks(system_prompt: str) -> list[dict] | str:
-    """Build Anthropic system blocks with prompt caching on the stable prefix.
-
-    If `system_prompt` contains the CACHE_BOUNDARY marker, split it into a
-    cacheable stable block (everything before the marker, with
-    cache_control=ephemeral) and a dynamic block (everything after, no cache).
-    If the marker is absent, return the raw string (backwards compatible with
-    callers that don't mark a boundary — e.g., simple utility calls).
-    """
-    if CACHE_BOUNDARY not in system_prompt:
-        return system_prompt
-
-    stable, dynamic = system_prompt.split(CACHE_BOUNDARY, 1)
-    stable = stable.rstrip()
-    dynamic = dynamic.lstrip()
-
-    if not stable:
-        return dynamic or system_prompt
-
-    blocks: list[dict] = [
-        {"type": "text", "text": stable, "cache_control": {"type": "ephemeral"}},
-    ]
-    if dynamic:
-        blocks.append({"type": "text", "text": dynamic})
-    return blocks
-
-
-def _parse_response_content(content: list) -> LLMResponse:
-    """Extract text and tool_use blocks from Claude API response content.
-
-    Handles standard text, tool_use (channel creation), and server-side
-    blocks (web_search server_tool_use / web_search_tool_result) which
-    are processed transparently by the API — we just skip them.
-    """
-    text_parts: list[str] = []
-    tool_calls: list[ToolCall] = []
-
-    for block in content:
-        if hasattr(block, "text"):
-            text_parts.append(block.text)
-        elif block.type == "tool_use":
-            tool_calls.append(ToolCall(id=block.id, name=block.name, input=block.input))
-        # server_tool_use and web_search_tool_result are handled server-side
-        # by Claude — we just skip them in parsing
-
-    return LLMResponse(text="\n".join(text_parts).strip(), tool_calls=tool_calls)
 
 
 class LLMClient:

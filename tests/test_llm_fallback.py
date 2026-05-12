@@ -18,7 +18,7 @@ from insult.core.llm import LLMClient, LLMResponse
 @pytest.fixture
 def client():
     # No real network — AsyncAnthropic is instantiated but never used (we patch _send).
-    with patch("insult.core.llm.anthropic.AsyncAnthropic"):
+    with patch("insult.core.llm.client.anthropic.AsyncAnthropic"):
         return LLMClient(api_key="fake", model="sonnet-default", max_tokens=512, timeout=1.0, max_retries=1)
 
 
@@ -211,7 +211,7 @@ async def test_on_timeout_callback_fires_once_after_first_timeout():
     though a second timeout follows. Firing twice would spam the channel."""
     import anthropic
 
-    with patch("insult.core.llm.anthropic.AsyncAnthropic"):
+    with patch("insult.core.llm.client.anthropic.AsyncAnthropic"):
         c = LLMClient(api_key="fake", model="sonnet", max_tokens=512, timeout=1.0, max_retries=5)
 
     fake_request = object()  # anthropic.APITimeoutError only needs *a* request object
@@ -227,7 +227,7 @@ async def test_on_timeout_callback_fires_once_after_first_timeout():
 
     # Patch sleep so the 1s between timeout retries doesn't slow the suite.
     with (
-        patch("insult.core.llm.asyncio.sleep", new=AsyncMock()),
+        patch("insult.core.llm.client.asyncio.sleep", new=AsyncMock()),
         pytest.raises(anthropic.APITimeoutError),
     ):
         await c._send("system", [{"role": "user", "content": "hi"}], on_timeout=on_timeout)
@@ -241,7 +241,7 @@ async def test_send_breaks_after_two_timeouts_without_reaching_max_retries():
     max_retries=5. Five timeouts of ~30s each would be 2+ min of dead air."""
     import anthropic
 
-    with patch("insult.core.llm.anthropic.AsyncAnthropic"):
+    with patch("insult.core.llm.client.anthropic.AsyncAnthropic"):
         c = LLMClient(api_key="fake", model="sonnet", max_tokens=512, timeout=1.0, max_retries=5)
 
     fake_request = object()
@@ -250,7 +250,7 @@ async def test_send_breaks_after_two_timeouts_without_reaching_max_retries():
     stream_mock = _mock_stream_raises(c.client, timeout_exc)
 
     with (
-        patch("insult.core.llm.asyncio.sleep", new=AsyncMock()),
+        patch("insult.core.llm.client.asyncio.sleep", new=AsyncMock()),
         pytest.raises(anthropic.APITimeoutError),
     ):
         await c._send("system", [{"role": "user", "content": "hi"}])

@@ -109,7 +109,7 @@ class TestFullJitterBackoff:
 
 @pytest.fixture
 def client():
-    with patch("insult.core.llm.anthropic.AsyncAnthropic"):
+    with patch("insult.core.llm.client.anthropic.AsyncAnthropic"):
         return LLMClient(api_key="fake", model="sonnet-default", max_tokens=512, timeout=1.0, max_retries=3)
 
 
@@ -179,7 +179,7 @@ async def test_rate_limit_honors_retry_after_header(client, monkeypatch):
     async def fake_sleep(s: float) -> None:
         sleep_calls.append(s)
 
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", fake_sleep)
     err = _mk_rate_limit({"retry-after": "2"})
     mock_stream, _ = _patch_stream_to_raise_then_succeed(client, [err], success_text="recovered")
 
@@ -198,7 +198,7 @@ async def test_rate_limit_falls_back_to_jitter_when_no_header(client, monkeypatc
     async def fake_sleep(s: float) -> None:
         sleep_calls.append(s)
 
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", fake_sleep)
     err = _mk_rate_limit()  # no headers
     _patch_stream_to_raise_then_succeed(client, [err])
 
@@ -212,7 +212,7 @@ async def test_rate_limit_falls_back_to_jitter_when_no_header(client, monkeypatc
 async def test_rate_limit_ignores_oversized_retry_after(client, monkeypatch):
     """retry-after=120 (>60s cap) is ignored — we use our own jitter cap."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     err = _mk_rate_limit({"retry-after": "120"})
     _patch_stream_to_raise_then_succeed(client, [err])
@@ -228,7 +228,7 @@ async def test_status_500_now_retries(client, monkeypatch):
     """REGRESSION: pre-PR0 a 500 caused immediate ``break``. Now it retries
     with Full Jitter (5xx cap) and recovers."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     err = _mk_status(500)
     mock_stream, _ = _patch_stream_to_raise_then_succeed(client, [err], success_text="500 recovered")
@@ -250,7 +250,7 @@ async def test_status_502_503_retries(client, monkeypatch, code):
     async def fake_sleep(s: float) -> None:
         sleep_calls.append(s)
 
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", fake_sleep)
     _patch_stream_to_raise_then_succeed(client, [_mk_status(code)])
     await client._send("sys", [{"role": "user", "content": "hi"}])
     assert len(sleep_calls) == 1
@@ -261,7 +261,7 @@ async def test_status_502_503_retries(client, monkeypatch, code):
 async def test_status_529_retries_with_overloaded_event(client, monkeypatch):
     """529 keeps the historical ``llm_overloaded`` event name (alerts depend on it)."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     err = _mk_status(529, {"retry-after": "3"})
     _patch_stream_to_raise_then_succeed(client, [err])
@@ -276,7 +276,7 @@ async def test_status_529_retries_with_overloaded_event(client, monkeypatch):
 async def test_status_504_treated_as_timeout(client, monkeypatch):
     """504 counts toward ``_MAX_TIMEOUT_RETRIES`` (=2), not ``max_retries``."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     # Three consecutive 504s; we should give up after 2 timeout-class attempts.
     errs = [_mk_status(504), _mk_status(504), _mk_status(504)]
@@ -301,7 +301,7 @@ async def test_status_504_treated_as_timeout(client, monkeypatch):
 @pytest.mark.asyncio
 async def test_status_504_fires_on_timeout_callback(client, monkeypatch):
     """504, like APITimeoutError, fires the ``on_timeout`` callback once."""
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock())
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock())
     notice = AsyncMock()
 
     err = _mk_status(504)
@@ -344,7 +344,7 @@ async def test_bad_request_without_tools_does_not_retry(client):
 async def test_api_timeout_uses_full_jitter(client, monkeypatch):
     """APITimeoutError now sleeps with Full Jitter (was: fixed 1s)."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     err = anthropic.APITimeoutError(request=httpx.Request("POST", "https://x"))
     _patch_stream_to_raise_then_succeed(client, [err], success_text="recovered after timeout")
@@ -359,7 +359,7 @@ async def test_api_timeout_uses_full_jitter(client, monkeypatch):
 @pytest.mark.asyncio
 async def test_api_connection_error_uses_full_jitter(client, monkeypatch):
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     err = anthropic.APIConnectionError(request=httpx.Request("POST", "https://x"))
     _patch_stream_to_raise_then_succeed(client, [err])
@@ -373,7 +373,7 @@ async def test_api_connection_error_uses_full_jitter(client, monkeypatch):
 @pytest.mark.asyncio
 async def test_rate_limit_capped_by_max_retries(client, monkeypatch):
     """When every attempt is 429, we exhaust ``max_retries`` and raise."""
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock())
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock())
 
     failing_streams: list[Any] = []
     for _ in range(5):  # more than max_retries=3
@@ -394,7 +394,7 @@ async def test_rate_limit_capped_by_max_retries(client, monkeypatch):
 async def test_rate_limit_then_500_then_success(client, monkeypatch):
     """Mixed transient errors all retry through to a successful response."""
     sleep_calls: list[float] = []
-    monkeypatch.setattr("insult.core.llm.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
+    monkeypatch.setattr("insult.core.llm.client.asyncio.sleep", AsyncMock(side_effect=lambda s: sleep_calls.append(s)))
 
     errs = [_mk_rate_limit({"retry-after": "1"}), _mk_status(500)]
     _patch_stream_to_raise_then_succeed(client, errs, success_text="finally")
