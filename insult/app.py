@@ -30,7 +30,7 @@ def create_app() -> Container:
     intents.message_content = True
 
     bot = commands.Bot(command_prefix=settings.command_prefix, intents=intents)
-    memory = MemoryStore(settings.db_path)
+    memory = MemoryStore(settings.postgres_url.get_secret_value())
     llm = LLMClient(
         api_key=settings.anthropic_api_key.get_secret_value(),
         model=settings.llm_model,

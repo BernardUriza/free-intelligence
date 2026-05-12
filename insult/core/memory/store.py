@@ -17,8 +17,6 @@ Why a facade rather than "import the repos directly everywhere":
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from insult.core.memory.connection import ConnectionManager
 from insult.core.memory.context import build_context, format_relative_time
 from insult.core.memory.repositories import (
@@ -36,14 +34,19 @@ from insult.core.style import UserStyleProfile
 
 
 class MemoryStore:
-    """Facade over the domain repositories. Preserves the legacy API."""
+    """Facade over the domain repositories. Preserves the legacy API.
 
-    def __init__(self, db_path: Path):
-        self.db_path = db_path
-        self._manager = ConnectionManager(db_path)
+    Post-PG migration: takes a Postgres DSN. The container is stateless;
+    persistence lives in Azure Database for PostgreSQL Flexible Server.
+    Deploys NO LONGER mutate the DB.
+    """
+
+    def __init__(self, postgres_url: str):
+        self.postgres_url = postgres_url
+        self._manager = ConnectionManager(postgres_url)
 
         # Compose repositories. Each takes the shared manager so they all
-        # read/write through the same aiosqlite connection.
+        # read/write through the same asyncpg pool.
         self._messages = MessagesRepository(self._manager)
         self._profiles = ProfilesRepository(self._manager)
         self._facts = FactsRepository(self._manager)
@@ -61,17 +64,6 @@ class MemoryStore:
 
     async def close(self) -> None:
         await self._manager.close()
-
-    # Legacy internals kept for backwards compatibility with callers and
-    # tests that pre-date the facade. `_ensure_connection` routes through
-    # the manager; the bare `_db` attribute exposes the raw handle for
-    # modules that reach in (vectors helpers, some debug endpoints).
-    async def _ensure_connection(self) -> None:
-        await self._manager.get_connection()
-
-    @property
-    def _db(self):  # type: ignore[no-untyped-def]
-        return self._manager.raw_db
 
     @property
     def _vectors_available(self) -> bool:

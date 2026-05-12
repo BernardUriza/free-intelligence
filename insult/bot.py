@@ -10,7 +10,7 @@ from discord.ext import commands, tasks
 from insult.app import Container, create_app
 from insult.cogs import ChatCog, UtilityCog
 from insult.cogs.voice import VoiceCog
-from insult.core.backup import download_db, is_azure_configured, upload_db
+from insult.core.backup import is_azure_configured
 from insult.core.character import _get_current_time_context
 from insult.core.debug_server import MoltbookDebugContext, start_debug_server, stop_debug_server
 from insult.core.delivery import MESSAGE_DELIMITER, split_response
@@ -142,18 +142,16 @@ def _build(container: Container):
             _moltbook_engagement_task.cancel()
         if _moltbook_heartbeat_task.is_running():
             _moltbook_heartbeat_task.cancel()
-        if _backup_task.is_running():
-            _backup_task.cancel()
+        # _backup_task removed on 2026-05-12 PG migration. No-op here.
         await container.siesta.stop()
         if _debug_runner is not None:
             await stop_debug_server(_debug_runner)
         if _moltbook_source is not None:
             await _moltbook_source.close()
         await memory.close()
-        # Only sync DB to blob when blob_db_sync_enabled is True. In
-        # volume-mount deployments the DB IS the volume, no upload needed.
-        if container.settings.blob_db_sync_enabled:
-            await upload_db(container.settings.db_path)
+        # No blob upload on shutdown — DB lives in managed Postgres
+        # (Azure Database for PostgreSQL Flexible Server) since the
+        # 2026-05-12 migration. Container shutdown is a no-op for data.
         await bot.close()
         log.info("shutdown_complete")
 
@@ -162,22 +160,10 @@ def _build(container: Container):
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s)))
 
-    # --- Azure Backup (every 10 min) ---
-    # Only runs when blob_db_sync_enabled is True. In volume-mount
-    # deployments the DB persists in the share itself, no backup loop
-    # needed and the loop would just churn the blob unnecessarily.
-    @tasks.loop(minutes=10)
-    async def _backup_task():
-        if is_azure_configured() and container.settings.blob_db_sync_enabled:
-            try:
-                # Checkpoint WAL without closing — safe while DB is in use
-                import contextlib
-
-                with contextlib.suppress(Exception):
-                    await memory._db.execute("PRAGMA wal_checkpoint(PASSIVE)")
-                await upload_db(container.settings.db_path)
-            except Exception:
-                log.exception("azure_backup_failed")
+    # Azure blob backup loop REMOVED on 2026-05-12 migration to managed
+    # Postgres. The DB persists in Azure Database for PostgreSQL Flexible
+    # Server with automated point-in-time recovery (35-day default).
+    # No application-layer backup needed.
 
     # --- Proactive Messaging (check every 30 min, context-aware) ---
     _last_proactive_ts: float | None = None
@@ -921,13 +907,9 @@ def _build(container: Container):
 
         _get_health_state().set_bot(bot)
 
-        # Download DB from Azure on first startup ONLY when blob sync is
-        # enabled. With a persistent volume mount the DB is already at
-        # db_path; downloading the blob would overwrite it with whatever
-        # snapshot the blob has (this is the bug that destroyed 14 minutes
-        # of conversation on 2026-05-12).
-        if not _ready_fired and is_azure_configured() and container.settings.blob_db_sync_enabled:
-            await download_db(container.settings.db_path)
+        # No DB download on startup. Postgres is external and persistent —
+        # the new container's memory.connect() just opens a pool against
+        # the managed PG server. Cero race condition on swap.
         await memory.connect()
         if not _ready_fired:
             _bind_signals()
@@ -946,8 +928,9 @@ def _build(container: Container):
             _moltbook_outbound_task.start()
             _moltbook_engagement_task.start()
             _moltbook_heartbeat_task.start()
+            # _backup_task removed in 2026-05-12 PG migration. Siesta
+            # listener still runs (it's not blob-coupled).
             if is_azure_configured():
-                _backup_task.start()
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))
                 container.siesta.start()
             # Debug server — only starts if token is set (fail-closed)
