@@ -334,6 +334,105 @@ class TestExpressionSelection:
         assert shape != ResponseShape.ONE_HIT
         assert "one_hit" in avoided
 
+    # --- Instructional intent (PR 2.6, 2026-05-12 — Bernard feedback) ---
+    # The bot was returning ONE_HIT to short imperatives like
+    # "Pero dile cómo se abre Claude Code" because length reciprocity
+    # only fires for wc>30. Instructional triggers must produce a
+    # paragraph regardless of input length so the third-party audience
+    # (Alex) gets the actual steps.
+
+    def test_instructional_short_imperative_forces_layered(self):
+        """`Pero dile cómo se abre Claude Code` is 7 words but the
+        appropriate output is paragraph-length steps, not ONE_HIT."""
+        shape, reason, _ = _select_shape(
+            "Pero dile cómo se abre Claude Code",
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.LAYERED, f"instructional ignored — got {shape.value}, reason={reason}"
+        assert "instructional_request" in reason
+
+    def test_instructional_explica_paso_a_paso(self):
+        shape, reason, _ = _select_shape(
+            "explícame paso a paso",
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.LAYERED
+        assert "instructional_request" in reason
+
+    def test_instructional_english_imperative(self):
+        shape, reason, _ = _select_shape(
+            "tell her how to do it",
+            _preset(PresetMode.PLAYFUL_ROAST),
+            self._pressure(),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.LAYERED
+        assert "instructional_request" in reason
+
+    def test_instructional_protected_from_rotation(self):
+        """Even if LAYERED appeared in the last 2 turns, instructional
+        intent must NOT be tumbled to short_exchange — the audience
+        still needs the explanation."""
+        shape, reason, _ = _select_shape(
+            "dile cómo se abre",
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(),
+            self._epistemic(),
+            ["layered", "layered"],
+        )
+        assert shape == ResponseShape.LAYERED
+        assert "instructional_request" in reason
+        assert "rotated_from" not in reason
+
+    def test_reciprocity_long_protected_from_rotation(self):
+        """A reciprocity_long_wc=99 turn must NOT get demoted to
+        short_exchange because LAYERED was used recently. This bit
+        the bot on 2026-05-12: a 99-word ask got rotated_from_layered
+        to short_exchange."""
+        long_msg = "palabra " * 100
+        shape, reason, _ = _select_shape(
+            long_msg,
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(),
+            self._epistemic(),
+            ["layered", "layered"],
+        )
+        assert shape == ResponseShape.LAYERED
+        assert "reciprocity_long" in reason
+        assert "rotated_from" not in reason
+
+    def test_safety_overrides_instructional(self):
+        """Pressure-5 boundary still wins over instructional — safety
+        carve-outs trump content shape."""
+        shape, reason, _ = _select_shape(
+            "explícame paso a paso",
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(level=5),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.ONE_HIT
+        assert reason == "pressure_5_boundary"
+
+    def test_vulnerable_state_overrides_instructional(self):
+        """An ad-hoc VULNERABLE detected_state still routes to
+        SHORT_EXCHANGE even if the user uses an instructional verb."""
+        shape, _, _ = _select_shape(
+            "dime cómo le hago",
+            _preset(PresetMode.DEFAULT_ABRASIVE),
+            self._pressure(UserState.VULNERABLE, 1),
+            self._epistemic(),
+            [],
+        )
+        assert shape == ResponseShape.SHORT_EXCHANGE
+
     def test_anti_repetition_rotates_flavor(self):
         # Same flavor 3x should rotate
         flavor, _reason, avoided = _select_flavor(

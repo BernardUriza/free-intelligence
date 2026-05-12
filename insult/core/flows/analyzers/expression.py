@@ -22,6 +22,7 @@ import structlog
 from insult.core.flows.analyzers.base import FlowContext
 from insult.core.flows.patterns import (
     ECPHRASTIC_PATTERNS,
+    INSTRUCTIONAL_REQUEST_PATTERNS,
     REFLEXIVE_PATTERNS,
     count_hits,
 )
@@ -49,6 +50,22 @@ _SHAPE_ROTATION = [
     ResponseShape.RAPID_FIRE,
     ResponseShape.CONTRADICTION_CALLBACK,
 ]
+
+# Shape-reason prefixes that encode content-determined choices.
+# These must NOT be tumbled by anti-repetition: if the input
+# semantically demands LAYERED (long input, instructional request,
+# intellectual pressure), rotating to SHORT_EXCHANGE just because
+# LAYERED appeared in the last 2 turns defeats the entire point of
+# reciprocity. 2026-05-12 regression: a reciprocity_long_wc=99 turn
+# got rotated to short_exchange exactly when the user was asking
+# the bot to give a third party a longer explanation.
+_PROTECTED_REASON_PREFIXES = (
+    "reciprocity_long",
+    "reciprocity_medium",
+    "intellectual_",
+    "instructional_request",
+)
+
 
 _FLAVOR_ROTATION = [
     StyleFlavor.DRY,
@@ -150,6 +167,18 @@ class ExpressionAnalyzer:
             candidate = ResponseShape.DENSE_CRITIQUE if word_count > 30 else ResponseShape.LAYERED
             reason = f"intellectual_wc={word_count}"
 
+        # --- Instructional request (PR 2.6, 2026-05-12 — Bernard feedback) ---
+        # When the user asks the bot to explain, give steps, or instruct a
+        # third party, the appropriate length is set by the COMPLEXITY of
+        # the explanation, NOT by the user's own message length. Mirroring
+        # a 7-word "dile cómo se abre Claude Code" with a 7-word reply
+        # leaves Alex (the audience) without the explanation Bernard asked
+        # the bot to give. Forces LAYERED before length reciprocity falls
+        # through to short_input_wc → ONE_HIT.
+        elif count_hits(current_message, INSTRUCTIONAL_REQUEST_PATTERNS) >= 1:
+            candidate = ResponseShape.LAYERED
+            reason = f"instructional_request_wc={word_count}"
+
         # --- Length reciprocity (PR 2.5) ---
         # The original Insult responded "muchas cosas reales cortas
         # juntas que hacían un párrafo largo" — the LAYERED shape
@@ -190,7 +219,9 @@ class ExpressionAnalyzer:
 
         # Anti-repetition: if the chosen shape matches either of the last
         # two, rotate to the first unused alternative in the rotation.
-        if candidate.value in recent_shapes[-2:]:
+        # Content-determined shapes (long reciprocity, intellectual,
+        # instructional) are protected — see _PROTECTED_REASON_PREFIXES.
+        if candidate.value in recent_shapes[-2:] and not reason.startswith(_PROTECTED_REASON_PREFIXES):
             avoided.append(candidate.value)
             for alt in _SHAPE_ROTATION:
                 if alt.value not in recent_shapes[-2:]:

@@ -198,6 +198,35 @@ REFLEXIVE_PATTERNS = [
     re.compile(r"(?i)\b(la verdad no se|honestly i don'?t know|no tengo (idea|claro))\b"),
 ]
 
+# Instructional-request triggers. When the user asks the bot to teach,
+# explain, give steps, or address a third party who needs help, the
+# appropriate output is a stitched paragraph regardless of the user's
+# own message length. Mirroring a 7-word "dile cómo se abre" with a
+# 7-word reply leaves the actual audience (often a novice) without
+# the explanation they need. 2026-05-12 Bernard regression: bot
+# kept returning ONE_HIT to "Pero dile cómo se abre Claude Code" /
+# "Cómo puedo revisar lo que hizo Claude code?" and user had to
+# literally write "deja de ser cortante contesta bien, largo
+# explica todo! Alex no sabe" before the bot complied.
+INSTRUCTIONAL_REQUEST_PATTERNS = [
+    re.compile(
+        r"(?i)\b(d[ií]le|cu[eé]ntale|ens[eé][nñ]ale|mu[eé]strale|expl[ií]cale|"
+        r"ind[ií]cale|ens[eé][nñ]ame|expl[ií]came|expl[ií]camelo|cu[eé]ntame|"
+        r"d[ií]me c[oó]mo|gu[ií]ame)\b"
+    ),
+    re.compile(
+        r"(?i)\b(c[oó]mo (se|lo|le|lo hago|hago|hacemos|hacerlo|funciona|"
+        r"abro|entro|instalo|configuro|reviso|cargo|prendo|enciendo|llego)|"
+        r"qu[eé] hago|qu[eé] tengo que hacer|paso a paso)\b"
+    ),
+    re.compile(
+        r"(?i)\b(tell (him|her|them|me) (how|what|where)|show (him|her|them|me) "
+        r"how|explain (to (him|her|them|me)|how)|teach (him|her|me)|step by step|"
+        r"how do i|how does it work|walk (me|him|her|them) through)\b"
+    ),
+    re.compile(r"(?i)\b(indicaciones|instrucciones|tutorial|gu[ií]a|gu[ií]ame|onboarding)\b"),
+]
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Flow 4: Conversational Awareness patterns
