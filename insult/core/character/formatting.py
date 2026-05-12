@@ -19,15 +19,32 @@ log = structlog.get_logger()
 
 
 # ---------------------------------------------------------------------------
-# Formatting normalizer — exclamation + bold caps
+# Formatting normalizer — exclamation + bold caps + Sonnet artifacts
 # ---------------------------------------------------------------------------
 
 _EXCL_MULTI = re.compile(r"!{2,}")  # !! or !!! → .
 _EXCL_PAIR = re.compile(r"¡([^!]*)!")  # ¡text! → text.
 
+# Sonnet 4.6 artifacts (Bernard observed 2026-05-12 on #general):
+#  - Smart quotes (curly) instead of straight ones — preferred by tokenizer
+#    because training data associates them with "formal" prose.
+#  - Newline before mid-sentence em-dash — model treats `—` as paragraph break.
+#  - Newline after a colon when there is no real list following (followed by
+#    inline text or **bold**, not a list bullet) — model defaults to markdown
+#    block formatting even in chat prose.
+# All three look like orthographic errors when rendered in Discord. Cheap
+# deterministic fixes here so we don't have to fight prompt engineering.
+
+# Smart quotes regex — the ambiguous Unicode chars are intentional (we
+# want to match exactly them). noqa silences ruff RUF001 where it fires.
+_SMART_QUOTES_DOUBLE = re.compile("[“”]")  # U+201C U+201D → "
+_SMART_QUOTES_SINGLE = re.compile("[‘’]")  # U+2018 U+2019 → '  # noqa: RUF001
+_NL_BEFORE_EMDASH = re.compile(r"\n\s*—")  # \n — → space —
+_NL_AFTER_COLON_NO_LIST = re.compile(r":\s*\n+(?![\s*\-#>0-9])")  # : \n word → : word
+
 
 def normalize_formatting(text: str) -> str:
-    """Enforce exclamation and bold limits deterministically.
+    """Enforce exclamation and bold limits + clean Sonnet 4.6 formatting artifacts.
 
     Rules:
     - Collapse !! / !!! → .
@@ -35,9 +52,25 @@ def normalize_formatting(text: str) -> str:
       subsequent pairs are deflated (¡ removed, ! → .).
     - Max 2 bold blocks (**text**) per response. Excess blocks are
       stripped of ** delimiters (text preserved).
+    - Smart quotes "" and '' → straight quotes " and '.
+    - Newline immediately before a mid-sentence em-dash → single space.
+    - Newline after a colon NOT followed by a real list marker → single space.
     """
     if not text:
         return text
+
+    # 0. Smart quotes → straight quotes. Cheap, idempotent.
+    text = _SMART_QUOTES_DOUBLE.sub('"', text)
+    text = _SMART_QUOTES_SINGLE.sub("'", text)
+
+    # 0b. Newline before em-dash mid-sentence. The em-dash is a comma-strength
+    # pause in Spanish; a newline before it makes it read as a list bullet.
+    text = _NL_BEFORE_EMDASH.sub(" —", text)
+
+    # 0c. Colon followed by newline followed by inline content (NOT a list
+    # bullet, NOT a heading, NOT bold-as-list-item). Collapse to single space
+    # so "plataformas:\n**incluyeme**" reads as continuous prose.
+    text = _NL_AFTER_COLON_NO_LIST.sub(": ", text)
 
     # 1. Collapse multi-exclamation: !! → .  !!! → .
     text = _EXCL_MULTI.sub(".", text)
