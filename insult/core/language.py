@@ -28,6 +28,32 @@ _FULL_WRAPPER_RE = re.compile(
 # consume multiple arrows in a row, just the single expected one).
 _LEADING_ARROW_RE = re.compile(r"^\s*→\s*")
 
+# Meta-preambles Haiku sometimes emits when it decides the input was already
+# in Spanish or doesn't need changes. They survive the wrapper strip because
+# they're plain prose, not XML. The pattern is: one line of meta-commentary
+# ending in `:` or `.`, followed by the actual text on the next line OR on
+# the same line after the colon. Documented from v3.9.16 prod incident where
+# the visible Insult reply started with: "El texto está completamente en
+# español, así que lo devuelvo sin cambios: Sospecho que hablás del..."
+_META_PREAMBLE_RE = re.compile(
+    r"^\s*"
+    r"(?:"
+    # Spanish variants
+    r"(?:el\s+texto\s+(?:está|esta|es|ya\s+está)\s+(?:completamente\s+)?(?:en\s+(?:español|espanol)|sin\s+cambios)[^.\n:]*)"
+    r"|(?:aquí\s+está\s+el\s+texto[^.\n:]*)"
+    r"|(?:lo\s+devuelvo\s+(?:tal\s+cual|sin\s+cambios)[^.\n:]*)"
+    r"|(?:no\s+hay\s+(?:nada\s+que\s+)?(?:cambiar|traducir|cambios)[^.\n:]*)"
+    r"|(?:ya\s+(?:está|esta)\s+(?:completamente\s+)?en\s+(?:español|espanol)[^.\n:]*)"
+    # English variants
+    r"|(?:returning\s+(?:the\s+text\s+)?unchanged[^.\n:]*)"
+    r"|(?:the\s+text\s+is\s+(?:already\s+)?(?:entirely\s+|fully\s+)?in\s+spanish[^.\n:]*)"
+    r"|(?:no\s+changes\s+needed[^.\n:]*)"
+    r"|(?:here\s+is\s+the\s+text[^.\n:]*)"
+    r")"
+    r"\s*[:.\n]\s*",
+    re.IGNORECASE,
+)
+
 # Prompt lives in insult/prompts/language_cure.md
 
 
@@ -71,6 +97,16 @@ async def language_cure(
             cured = m.group(2).strip()
         # Leftover "→ " prefix from the few-shot arrow style.
         cured = _LEADING_ARROW_RE.sub("", cured, count=1)
+        # Strip meta-preambles Haiku emits when it decides "nothing to change"
+        # (e.g. "El texto está completamente en español, así que lo devuelvo
+        # sin cambios: ..."). Discovered v3.9.16 prod incident on
+        # @A.L.I.C.E. Porfiriato thread; visible to the user as a system
+        # leak before Insult's real reply. Anchored with `count=1` so we
+        # never strip more than one preamble per turn.
+        before = cured
+        cured = _META_PREAMBLE_RE.sub("", cured, count=1).strip()
+        if cured != before:
+            log.warning("language_cure_meta_preamble_stripped", chars_removed=len(before) - len(cured))
 
         if cured != text:
             log.info("language_cure_applied", original_len=len(text), cured_len=len(cured))

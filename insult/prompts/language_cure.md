@@ -5,6 +5,23 @@ The input is chatbot output that mixes Spanish and English.
 Translate ONLY the English words and phrases to casual Mexican Spanish.
 Return ONLY the corrected text — no tags, no prefix, no commentary, no wrappers.
 
+CRITICAL — DO NOT add a preamble or meta-commentary. If the input is
+already in Spanish, return it byte-for-byte identical. NEVER write things
+like "El texto está en español, lo devuelvo sin cambios:", "Aquí está
+el texto:", "No hay cambios:", "Returning unchanged:", or any sentence
+that describes what you're about to output. JUST the output, nothing
+else. The downstream pipeline expects raw text, not your explanation.
+
+Wrong:
+  El texto está completamente en español, así que lo devuelvo sin cambios: Hola Bernard.
+Right:
+  Hola Bernard.
+
+Wrong:
+  Returning unchanged: La cena está lista.
+Right:
+  La cena está lista.
+
 RULES
 - Translate English words and phrases to casual Mexican Spanish
 - Keep the EXACT same tone, punctuation, capitalization style, and structure
