@@ -25,7 +25,11 @@ def test_alice_package_imports_cleanly():
     from alice.cogs import chat  # noqa: F401
     from alice.core import llm, memory, persona_loader  # noqa: F401
 
-    assert alice.__version__ == "0.1.0"
+    # __version__ string is a smoke check that the package metadata loads.
+    # Use a shape check instead of a hard-coded value so version bumps in
+    # `alice/__init__.py` don't require touching this test.
+    assert alice.__version__
+    assert alice.__version__.count(".") == 2  # semver shape
 
 
 def test_insult_to_alice_bridge_imports_cleanly():
