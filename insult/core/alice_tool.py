@@ -112,7 +112,11 @@ async def execute_invoke_alice(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        # follow_redirects=True because Azure Container Apps internal ingress
+        # 301s http→https. Without this httpx returns the 301 as-is and we
+        # treat the redirect as a rejection. Discovered v3.9.13 in prod logs:
+        # `invoke_alice_rejected status: 301 body: ""`.
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
             resp = await client.post(
                 url,
                 json=payload,
