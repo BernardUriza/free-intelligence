@@ -84,6 +84,17 @@ async def execute_invoke_alice(
     url = os.environ.get("ALICE_INVITE_URL", "http://localhost:8788/invite")
     token = os.environ.get("INSULT_TO_ALICE_TOKEN", "")
 
+    # Always log entry so we can prove the function executed even when the
+    # outcome is silent (e.g. early returns). Token length only, never the
+    # value. URL host visible because internal Container App DNS is not
+    # secret.
+    log.info(
+        "invoke_alice_called",
+        channel_id=channel_id,
+        url_host=url.split("/")[2] if "//" in url else "?",
+        token_len=len(token),
+    )
+
     if not token:
         log.warning("invoke_alice_no_token_configured")
         return False
@@ -121,5 +132,10 @@ async def execute_invoke_alice(
         )
         return False
     except httpx.HTTPError as e:
-        log.warning("invoke_alice_http_error", error=str(e))
+        log.warning("invoke_alice_http_error", error=str(e), error_type=type(e).__name__)
+        return False
+    except Exception as e:
+        # Catch-all so the caller's tracked-task wrapper sees a clean
+        # `background_task_ok` only when we genuinely succeeded.
+        log.exception("invoke_alice_unexpected_error", error=str(e), error_type=type(e).__name__)
         return False
