@@ -241,3 +241,71 @@ class TestClassifyPresetLlm:
         assert "qué opinas del capitalismo" in user_message_content
         assert "previous" in user_message_content
         assert "le interesa la política" in user_message_content
+
+
+@pytest.mark.asyncio
+class TestActionIntentSanityGate:
+    """Regression v3.8.3 — production turn `28132200` on 2026-05-13.
+
+    The Haiku classifier emitted ``action_intent`` for the message:
+
+      "Asi hasta tu podrias acceder a esa VM, seria como una pc compartida
+       entre Alex y yo. Y ya su claude code de su maquina solo jala las
+       oportunidades de la VM y se las muestra..."
+
+    Reason logged: "Action intent: setup/automation for Alex." The message
+    has zero channel/sala/espacio nouns — the prompt rule explicitly says
+    action_intent requires a Discord channel noun. Forcing
+    ``tool_choice="any"`` drove Opus to call ``get_channel_info`` as a
+    no-op, and the bot reply was the raw `**#general** — (sin descripción)`
+    dump. The syntactic gate strips action_intent when the regex sees
+    no channel noun, regardless of what the LLM thinks the user meant.
+    """
+
+    async def test_action_intent_dropped_when_no_channel_noun(self):
+        """LLM emits action_intent but message has no channel noun → drop."""
+        mock_llm = _make_mock_llm(
+            '{"preset": "intellectual_pressure", "modifiers": ["action_intent"], '
+            '"confidence": 0.82, "reason": "Action intent: setup/automation for Alex."}'
+        )
+        result = await classify_preset_llm(
+            "Asi hasta tu podrias acceder a esa VM, seria como una pc compartida entre Alex y yo",
+            [],
+            [],
+            mock_llm,
+        )
+        assert result is not None
+        assert PresetModifier.ACTION_INTENT not in result.modifiers
+        assert "action_intent_gated" in result.reason
+
+    async def test_action_intent_kept_when_channel_noun_present(self):
+        """LLM emits action_intent AND message has channel noun → keep."""
+        mock_llm = _make_mock_llm(
+            '{"preset": "default_abrasive", "modifiers": ["action_intent"], '
+            '"confidence": 0.9, "reason": "user asks for channel rename"}'
+        )
+        result = await classify_preset_llm(
+            "cambia el nombre del canal a dev-chat",
+            [],
+            [],
+            mock_llm,
+        )
+        assert result is not None
+        assert PresetModifier.ACTION_INTENT in result.modifiers
+
+    async def test_other_modifiers_preserved_when_gating(self):
+        """Gating action_intent must not strip memory_recall / contempt."""
+        mock_llm = _make_mock_llm(
+            '{"preset": "intellectual_pressure", '
+            '"modifiers": ["action_intent", "memory_recall"], '
+            '"confidence": 0.8, "reason": "context"}'
+        )
+        result = await classify_preset_llm(
+            "configura algo para Alex que tenga entrevistas ya",
+            [],
+            [],
+            mock_llm,
+        )
+        assert result is not None
+        assert PresetModifier.ACTION_INTENT not in result.modifiers
+        assert PresetModifier.MEMORY_RECALL in result.modifiers

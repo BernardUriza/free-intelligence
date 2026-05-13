@@ -475,6 +475,46 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         elapsed_ms=ctx.elapsed_ms(),
     )
 
+    # v3.8.3 no-op-tool-only retry: when force_tool was True and the model
+    # responded with ONLY `get_channel_info` and no text, it picked the
+    # lowest-impact tool just to satisfy tool_choice="any". The user gets
+    # silence (or a generic error fallback). Retry once without forced
+    # tools so the model actually engages with the message.
+    is_force_tool = ctx.tool_choice == {"type": "any"}
+    only_no_op = bool(tool_names) and set(tool_names) == {"get_channel_info"}
+    if is_force_tool and only_no_op and not ctx.llm_response.text.strip():
+        log.warning(
+            "llm_no_op_tool_retry",
+            original_tool_names=tool_names,
+            reason="forced_tool_choice_picked_get_channel_info_only",
+        )
+        retry_tools = [t for t in ctx.tools if t.get("name") != "get_channel_info"]
+        retry_kwargs: dict[str, Any] = {
+            "tools": retry_tools,
+            "tool_choice": None,
+            "on_timeout": _notify_retry,
+        }
+        if ctx.model_choice is not None:
+            retry_kwargs["model"] = ctx.model_choice.primary
+            retry_kwargs["fallback_model"] = ctx.model_choice.fallback
+        try:
+            ctx.llm_response = await ctx.llm.chat(ctx.system_prompt, ctx.context, **retry_kwargs)
+            tool_names = [tc.name for tc in ctx.llm_response.tool_calls]
+            log.info(
+                "llm_no_op_tool_retry_complete",
+                text_len=len(ctx.llm_response.text),
+                tool_calls=len(ctx.llm_response.tool_calls),
+                tool_names=tool_names,
+            )
+        except Exception as e:
+            log.warning(
+                "llm_no_op_tool_retry_failed",
+                error_type=type(e).__name__,
+                error_msg=str(e)[:200],
+            )
+            # Keep the original (empty-text) response — _stage_ensure_payload
+            # will fall back to the generic in-character error.
+
     # v3.7.2-class safety net: warn if user clearly asked for a reminder
     # but the LLM did not call ``create_reminder``.
     ctx.intent_unattended = "create_reminder" not in tool_names and detect_reminder_intent(ctx.text)
@@ -617,22 +657,17 @@ async def _stage_spawn_side_effects(ctx: TurnCtx) -> None:
 
 # --- Stage 14: ensure non-empty payload (fallback to in-character generic) ---
 
+# Tools whose handler does NOT post a user-visible message in the channel
+# of origin. When the LLM emits one of these alone with no text body, the
+# turn would deliver silence — so the empty-response fallback must fire.
+# `get_channel_info` joined this set in v3.8.3 after the no-op tool dump
+# regression; create_reminder / cancel_reminder have always been silent.
+_NON_VISIBLE_TOOL_NAMES = {"get_channel_info", "create_reminder", "cancel_reminder"}
+
 
 async def _stage_ensure_payload(ctx: TurnCtx) -> None:
-    has_side_effects = bool(ctx.reactions or ctx.llm_response.tool_calls)
-    if not ctx.response_text.strip() and not has_side_effects:
-        log.warning(
-            "empty_response_fallback",
-            raw_llm_len=len(ctx.raw_response_text),
-            raw_llm_preview=ctx.raw_response_text[:200],
-            final_len=len(ctx.response_text),
-            tool_calls=len(ctx.llm_response.tool_calls),
-        )
-        ctx.response_text = get_error_response(ErrorType.GENERIC)
-        return
-
-    # Silent-tool-call recovery (v3.8.0):
-    # When the LLM fires `create_reminder` or `cancel_reminder` without
+    # Silent-tool-call recovery (v3.8.0) — MUST run BEFORE the empty-fallback
+    # check. When the LLM fires `create_reminder` or `cancel_reminder` without
     # writing any user-facing text, the delivery stage skips entirely
     # (has_side_effects=True + empty body → `delivery_skipped`) and the
     # user sees nothing in the channel where they asked. The reminder
@@ -658,12 +693,31 @@ async def _stage_ensure_payload(ctx: TurnCtx) -> None:
                 injected_text_len=len(ctx.response_text),
             )
 
+    # Empty-response fallback: after silent-tool recovery, if still empty
+    # AND no visible side effects, deliver an in-character generic error.
+    # `get_channel_info` is in `_NON_VISIBLE_TOOL_NAMES` since v3.8.4 — when
+    # it's the only tool call with no text, the no-op-retry in
+    # `_stage_call_llm` already produced a real response or this falls back.
+    visible_tool_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _NON_VISIBLE_TOOL_NAMES]
+    has_side_effects = bool(ctx.reactions or visible_tool_calls)
+    if not ctx.response_text.strip() and not has_side_effects:
+        log.warning(
+            "empty_response_fallback",
+            raw_llm_len=len(ctx.raw_response_text),
+            raw_llm_preview=ctx.raw_response_text[:200],
+            final_len=len(ctx.response_text),
+            tool_calls=len(ctx.llm_response.tool_calls),
+        )
+        ctx.response_text = get_error_response(ErrorType.GENERIC)
+        return
+
 
 # --- Stage 15: delivery ---
 
 
 async def _stage_deliver(ctx: TurnCtx) -> None:
-    has_side_effects = bool(ctx.reactions or ctx.llm_response.tool_calls)
+    visible_tool_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _NON_VISIBLE_TOOL_NAMES]
+    has_side_effects = bool(ctx.reactions or visible_tool_calls)
     delivery_start = time.monotonic()
     try:
         await send_response(ctx.message.channel, ctx.response_text, has_side_effects=has_side_effects)

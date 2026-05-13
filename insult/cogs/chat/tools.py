@@ -151,9 +151,21 @@ async def execute_tool_calls(
                     log.warning("tool_call_returned_none", tool=tool_call.name)
 
             elif tool_call.name == "get_channel_info" and isinstance(message.channel, discord.TextChannel):
+                # Silent in v3.8.3+: the tool exists so the LLM can read
+                # channel metadata when it wants to mention it in its reply.
+                # The previous behavior posted a raw `**#name** — topic` dump
+                # to the channel, which became the user-facing response
+                # whenever the LLM emitted only a tool_use block (no text).
+                # That happened in production when action_intent misfired
+                # and forced tool_choice="any", and Opus picked the lowest-
+                # impact tool — get_channel_info — as its forced action.
+                # Log only; never write to the channel.
                 info = execute_get_channel_info(message.channel)
-                topic_display = info["topic"] or "(sin descripción)"
-                await message.channel.send(f"**#{info['name']}** — {topic_display}")
+                log.info(
+                    "tool_get_channel_info",
+                    channel=info["name"],
+                    has_topic=bool(info["topic"]),
+                )
 
             elif tool_call.name == "edit_channel" and isinstance(message.channel, discord.TextChannel):
                 success = await execute_edit_channel(message.channel, tool_call)

@@ -248,6 +248,27 @@ _PLAYFUL_PATTERNS = [
 # user never requested. Proximity limit {0,40} keeps phrases local instead of
 # spanning half a paragraph via greedy .*
 _CHANNEL_NOUN = r"(?:canal|channel|espacio|space|sala|room)"
+# Standalone channel-noun probe — used by the LLM-classifier sanity gate
+# (`presets_llm`) to reject action_intent emissions that lack any channel
+# noun in the message. The LLM occasionally interprets "set up X for Alex"
+# as action_intent semantically, ignoring the prompt rule that requires a
+# Discord channel noun. The regex below is the syntactic ground truth.
+_CHANNEL_NOUN_RE = re.compile(rf"(?i)\b{_CHANNEL_NOUN}\b")
+
+
+def has_channel_noun(text: str) -> bool:
+    """Return True iff ``text`` mentions a Discord channel noun.
+
+    Used as a syntactic gate around the LLM preset classifier: action_intent
+    requires an explicit channel/sala/etc. mention. Without one, the modifier
+    cannot fire — it forces tool_choice="any" which drives the model into
+    no-op tool selections (see v3.8.3 regression).
+    """
+    if not text:
+        return False
+    return bool(_CHANNEL_NOUN_RE.search(text))
+
+
 _ACTION_INTENT_PATTERNS = [
     # Channel creation — verb + channel noun nearby
     re.compile(rf"(?i)\b(crea|crear|hazme|haz|arma|armame|pon|ponme)\b.{{0,40}}\b{_CHANNEL_NOUN}\b"),
