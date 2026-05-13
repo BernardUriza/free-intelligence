@@ -12,8 +12,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
+# Copy app code. shared/ is imported by insult/__main__.py and
+# insult/core/llm/retry.py since v3.9.8 — must be present at runtime.
 COPY insult/ insult/
+COPY shared/ shared/
 COPY persona.md .
 
 # Create storage dir for SQLite

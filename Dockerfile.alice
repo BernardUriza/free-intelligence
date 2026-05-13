@@ -30,11 +30,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy only ALICE's code + persona — keeps the image smaller and makes
-# Insult-side changes not invalidate ALICE's cache layer. The persona
-# file lives inside alice/ (alice/persona.md), so this single COPY
-# brings everything ALICE needs at runtime.
+# Copy ALICE's code + persona AND the shared/ package. Since v3.9.8
+# `alice/__main__.py` and `alice/cogs/chat.py` import from `shared.*`
+# (logging_setup, text chunking, llm retry). Insult's code is NOT
+# copied — the bridge between bots is REST, not a Python import.
 COPY alice/ alice/
+COPY shared/ shared/
 
 # Expose the /invite endpoint port. Discord traffic uses outbound only,
 # so we don't EXPOSE for that.
