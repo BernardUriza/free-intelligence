@@ -74,7 +74,7 @@ def _read_yaml(path: pathlib.Path) -> dict | None:
                 file=sys.stderr,
             )
             return None
-    except Exception as e:  # noqa: BLE001 — any yaml.YAMLError variant + edge cases
+    except Exception as e:  # any yaml.YAMLError variant + edge cases
         # yaml.YAMLError, yaml.parser.ParserError, yaml.scanner.ScannerError,
         # etc. — any of these means the file is malformed. Surface the line
         # number so the user can fix it but DON'T abort the sync.
