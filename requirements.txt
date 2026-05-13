@@ -22,8 +22,16 @@ Pillow>=10.0.0
 # Azure (optional — for DB persistence)
 azure-storage-blob>=12.19.0
 
-# Voice (TTS via Azure OpenAI — sent as MP3 attachment)
+# Voice (TTS via Azure OpenAI — sent as MP3 attachment).
+# Also serves as ALICE bot's primary LLM client (GPT-4.1 via OpenAI API).
 openai>=1.30.0
+
+# ALICE bot — FastAPI /invite endpoint + httpx client on Insult's side.
+# Versions tracked in lockstep so a single security advisory doesn't fork
+# us across bots.
+fastapi>=0.115
+uvicorn>=0.30
+httpx>=0.27
 
 # Vector search (semantic fact retrieval)
 sqlite-vec>=0.1.6
