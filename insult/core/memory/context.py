@@ -41,7 +41,15 @@ def format_relative_time(timestamp: float) -> str:
     return f"hace {int(days / 30)} meses"
 
 
-def build_context(recent: list[dict], relevant: list[dict] | None = None) -> list[dict]:
+SELF_BOT_USER_NAME = "Insult"
+
+
+def build_context(
+    recent: list[dict],
+    relevant: list[dict] | None = None,
+    *,
+    self_name: str = SELF_BOT_USER_NAME,
+) -> list[dict]:
     """Assemble the LLM context: recent turns + relevant retrievals.
 
     Output is the list the messages API expects (`role` + `content`).
@@ -95,9 +103,26 @@ def build_context(recent: list[dict], relevant: list[dict] | None = None) -> lis
         else:
             ts = f"[{format_relative_time(msg['timestamp'])}] "
             content = f"{ts}{msg['user_name']}: {msg['content']}"
+
+        # Critical attribution fix: an `assistant` row written by ANOTHER
+        # bot (e.g. ALICE) must NOT be passed to the LLM as `role=assistant`
+        # — that role is reserved for the SELF bot's previous turns, and
+        # the model treats it as "my own past output". When ALICE writes
+        # `role=assistant, user_name=ALICE`, the model sees it in its own
+        # context and either tries to claim authorship or denies the
+        # presence of the sibling ("no soy Alice"). Reframe sibling-bot
+        # assistant turns as `role=user` with an explicit speaker prefix
+        # so the model reads them as another voice in the room, not as
+        # its own history. Discovered v3.9.15 from the Misantla/Costa
+        # Esmeralda thread where Insult kept replying "sigo sin ser
+        # Alice" after ALICE had already answered.
+        msg_role = msg["role"]
+        if msg_role == "assistant" and msg.get("user_name") and msg["user_name"] != self_name:
+            msg_role = "user"
+
         # Both user and assistant messages get name prefix for clear speaker
         # attribution — downstream character.strip_metadata() removes these
         # before the text reaches Discord.
-        context.append({"role": msg["role"], "content": content})
+        context.append({"role": msg_role, "content": content})
 
     return context
