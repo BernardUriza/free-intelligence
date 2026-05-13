@@ -15,7 +15,6 @@ provider-agnostic and battle-tested in prod.
 from __future__ import annotations
 
 import asyncio
-import random
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -25,6 +24,7 @@ import structlog
 from openai import APIConnectionError, APITimeoutError, AsyncAzureOpenAI, RateLimitError
 
 from alice.config import settings
+from shared.llm import full_jitter_backoff, parse_retry_after
 
 log = structlog.get_logger()
 
@@ -150,7 +150,11 @@ class AliceLLMClient:
                 # Honor retry-after header if present (Vercel AI SDK issue
                 # #7247 documented as anti-pattern when you ignore it).
                 retry_after_s = _parse_retry_after(e)
-                wait = retry_after_s if retry_after_s is not None else _full_jitter(rate_limit_attempt)
+                wait = (
+                    retry_after_s
+                    if retry_after_s is not None
+                    else full_jitter_backoff(rate_limit_attempt, cap=_MAX_BACKOFF_SECONDS)
+                )
                 log.warning(
                     "alice_llm_rate_limit_retry",
                     attempt=rate_limit_attempt,
@@ -185,34 +189,19 @@ class AliceLLMClient:
 
 
 def _full_jitter(attempt: int) -> float:
-    """AWS-standard Full Jitter backoff.
-
-    Marc Brooker's 2022 jitter paper (referenced in Insult's robustness
-    rules) is the canonical source. Pure exponential without jitter
-    produces thundering-herd retry storms.
+    """Backwards-compat shim. New code should call
+    `shared.llm.full_jitter_backoff(attempt, cap)` directly.
     """
-    cap = min(2**attempt, _MAX_BACKOFF_SECONDS)
-    return random.uniform(0, cap)
+    return full_jitter_backoff(attempt, cap=_MAX_BACKOFF_SECONDS)
 
 
-def _parse_retry_after(err: RateLimitError) -> float | None:
-    """Extract the `retry-after` header from a 429 response.
-
-    OpenAI returns it as seconds (integer or float). Returns None if the
-    header is missing or unparseable — caller falls back to jittered
-    backoff.
+def _parse_retry_after(err: RateLimitError | object) -> float | None:
+    """Backwards-compat shim. Extracts headers from an SDK error object
+    and delegates to `shared.llm.parse_retry_after`. New code should pass
+    headers directly to the shared helper.
     """
-    try:
-        response = getattr(err, "response", None)
-        if response is None:
-            return None
-        header = response.headers.get("retry-after")
-        if header is None:
-            return None
-        val = float(header)
-        # Sanity cap: ignore absurd values that would freeze the bot.
-        if val < 0 or val > 60:
-            return None
-        return val
-    except (ValueError, AttributeError, TypeError):
+    response = getattr(err, "response", None)
+    if response is None:
         return None
+    headers = getattr(response, "headers", None)
+    return parse_retry_after(headers)

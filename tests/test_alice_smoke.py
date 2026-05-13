@@ -81,28 +81,28 @@ def test_parse_retry_after_honored_in_range():
 
 
 def test_chunk_text_short_returns_single_chunk():
-    from alice.cogs.chat import _chunk_text
+    from shared.text import chunk_paragraph_aware
 
-    out = _chunk_text("short message", max_chars=1900)
+    out = chunk_paragraph_aware("short message", max_chars=1900)
     assert out == ["short message"]
 
 
 def test_chunk_text_breaks_on_paragraph():
     """Long text splits on `\\n\\n` boundary when one exists below the cap."""
-    from alice.cogs.chat import _chunk_text
+    from shared.text import chunk_paragraph_aware
 
     text = ("a" * 500) + "\n\n" + ("b" * 500) + "\n\n" + ("c" * 500)
-    out = _chunk_text(text, max_chars=600)
+    out = chunk_paragraph_aware(text, max_chars=600)
     assert len(out) >= 2
     # No chunk exceeds the cap.
     assert all(len(c) <= 600 for c in out)
 
 
 def test_chunk_text_falls_back_to_hard_split_when_no_break_exists():
-    from alice.cogs.chat import _chunk_text
+    from shared.text import chunk_paragraph_aware
 
     text = "x" * 5000
-    out = _chunk_text(text, max_chars=1900)
+    out = chunk_paragraph_aware(text, max_chars=1900)
     assert len(out) == 3
     assert all(len(c) <= 1900 for c in out)
 

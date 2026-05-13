@@ -5,9 +5,10 @@ because modules do `log = structlog.get_logger()` at import time.
 """
 
 import asyncio
-import os
 
 import structlog
+
+from shared.logging_setup import configure_structlog
 
 
 def _metrics_processor(logger, method_name, event_dict):
@@ -18,26 +19,10 @@ def _metrics_processor(logger, method_name, event_dict):
     return event_dict
 
 
-# Pick renderer based on LOG_FORMAT env var (json for KQL, console for local dev)
-_log_format = os.environ.get("LOG_FORMAT", "console").lower()
-_renderer = structlog.processors.JSONRenderer() if _log_format == "json" else structlog.dev.ConsoleRenderer()
-
-# Configure structlog FIRST — before any insult.* import
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        _metrics_processor,
-        _renderer,
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(0),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=False,  # Don't cache — ensures all loggers use this config
-)
+# Configure structlog FIRST — before any insult.* import. The metrics
+# processor is Insult-specific (feeds the dashboard); the base chain
+# (timestamps, levels, contextvars, renderer) lives in shared/.
+configure_structlog(processors_extra=[_metrics_processor])
 
 # NOW import everything else
 import typer  # noqa: E402

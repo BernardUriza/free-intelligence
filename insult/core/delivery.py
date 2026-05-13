@@ -12,24 +12,39 @@ import time
 import discord
 import structlog
 
+from shared.text import (
+    DISCORD_MAX_CHARS,
+    MESSAGE_DELIMITER,
+    chunk_hard,
+    split_response,
+)
+
 log = structlog.get_logger()
 
-MESSAGE_DELIMITER = "[SEND]"
-DISCORD_MAX_CHARS = 1990  # Leave room for version tag
 TYPING_CHARS_PER_SECOND = 50  # ~250 CPM, fast mobile typing speed
 MIN_TYPING_DELAY = 0.8
 MAX_TYPING_DELAY = 5.0
-VERSION_TAG = "ᵛ³·⁹·⁷"  # superscript unicode — visible but unobtrusive
+VERSION_TAG = "ᵛ³·⁹·⁸"  # superscript unicode — visible but unobtrusive
 
 
-def split_response(response: str) -> list[str]:
-    """Split response on [SEND] delimiters, stripping empty parts."""
-    return [p.strip() for p in response.split(MESSAGE_DELIMITER) if p.strip()]
+# Preserve the legacy module-level name so existing Insult callers and
+# tests that import `from insult.core.delivery import chunk_text` keep
+# working. `chunk_hard` is the shared canonical name.
+chunk_text = chunk_hard
 
-
-def chunk_text(text: str, max_chars: int = DISCORD_MAX_CHARS) -> list[str]:
-    """Break long text into Discord-safe chunks."""
-    return [text[j : j + max_chars] for j in range(0, len(text), max_chars)]
+# Re-export DISCORD_MAX_CHARS, MESSAGE_DELIMITER, split_response for the
+# same reason. New code should import from `shared.text` directly.
+__all__ = [
+    "DISCORD_MAX_CHARS",
+    "MAX_TYPING_DELAY",
+    "MESSAGE_DELIMITER",
+    "MIN_TYPING_DELAY",
+    "TYPING_CHARS_PER_SECOND",
+    "VERSION_TAG",
+    "chunk_text",
+    "send_response",
+    "split_response",
+]
 
 
 async def send_response(

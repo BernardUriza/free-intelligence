@@ -6,29 +6,12 @@ share the same processor chain — same pattern as Insult's `__main__.py`.
 
 from __future__ import annotations
 
-import os
+from shared.logging_setup import configure_structlog
 
-import structlog
-
-# Match Insult's log format conventions so KQL queries that scan logs
-# can target both bots with the same parsers.
-_log_format = os.environ.get("LOG_FORMAT", "console").lower()
-_renderer = structlog.processors.JSONRenderer() if _log_format == "json" else structlog.dev.ConsoleRenderer()
-
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        _renderer,
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(0),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=False,
-)
+# ALICE doesn't have a metrics dashboard (yet); pass no extra processors.
+# When she gets one, drop the metrics processor in here — same shape as
+# Insult's __main__.py.
+configure_structlog(processors_extra=None)
 
 import typer  # noqa: E402
 

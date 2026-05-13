@@ -27,6 +27,7 @@ from discord.ext import commands
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
+from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
 
@@ -211,7 +212,7 @@ class AliceChatCog(commands.Cog):
             return ""
 
         # Chunk to Discord's 2000-char limit (we leave buffer for safety).
-        for chunk in _chunk_text(text, max_chars=1900):
+        for chunk in chunk_paragraph_aware(text, max_chars=1900):
             try:
                 await channel.send(chunk)
             except discord.HTTPException as e:
@@ -239,23 +240,3 @@ class AliceChatCog(commands.Cog):
             chars=len(text),
         )
         return text
-
-
-def _chunk_text(text: str, max_chars: int = 1900) -> list[str]:
-    """Split long text on paragraph boundaries when possible."""
-    if len(text) <= max_chars:
-        return [text]
-    chunks: list[str] = []
-    remaining = text
-    while len(remaining) > max_chars:
-        # Try to break on the last double-newline before the cap.
-        split = remaining.rfind("\n\n", 0, max_chars)
-        if split == -1:
-            split = remaining.rfind("\n", 0, max_chars)
-        if split == -1:
-            split = max_chars
-        chunks.append(remaining[:split].rstrip())
-        remaining = remaining[split:].lstrip()
-    if remaining:
-        chunks.append(remaining)
-    return chunks
