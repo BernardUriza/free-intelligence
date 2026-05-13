@@ -69,8 +69,7 @@ def _read_yaml(path: pathlib.Path) -> dict | None:
             return json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             print(
-                f"WARNING: PyYAML no está instalado y {path.name} no es JSON válido. "
-                "Instala con: pip install pyyaml",
+                f"WARNING: PyYAML no está instalado y {path.name} no es JSON válido. Instala con: pip install pyyaml",
                 file=sys.stderr,
             )
             return None
