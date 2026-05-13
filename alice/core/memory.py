@@ -98,6 +98,46 @@ class AliceMemory:
             out.append({"role": r["role"], "content": content})
         return out
 
+    async def store_user_message(
+        self,
+        *,
+        channel_id: str,
+        user_id: str,
+        user_name: str,
+        content: str,
+        guild_id: str | None = None,
+        channel_name: str | None = None,
+    ) -> None:
+        """Persist an inbound message from a Discord user.
+
+        In server channels Insult handles this — it sees every message in
+        the shared guild and writes a row before ALICE even runs. In DMs
+        Insult is NOT present (DMs are 1:1 with whichever bot the user
+        opened a thread with), so if ALICE doesn't persist the user's
+        message herself, the next turn's `get_recent_messages` will be
+        missing the user's side and the conversation effectively has no
+        memory. Idempotency is best-effort: same channel/user/timestamp
+        combo from Insult and ALICE both writing would create a duplicate,
+        but in practice DMs only flow through ALICE so this doesn't fire
+        in server channels.
+        """
+        try:
+            await self.pool.execute(
+                "INSERT INTO messages (channel_id, user_id, user_name, role, content, "
+                "timestamp, guild_id, channel_name) "
+                "VALUES ($1, $2, $3, 'user', $4, $5, $6, $7)",
+                channel_id,
+                user_id,
+                user_name,
+                content,
+                time.time(),
+                guild_id,
+                channel_name,
+            )
+        except asyncpg.PostgresError as e:
+            log.error("alice_memory_store_user_failed", channel_id=channel_id, error=str(e))
+            raise
+
     async def store_response(
         self,
         channel_id: str,
@@ -125,7 +165,7 @@ class AliceMemory:
                 for_user_id,
                 guild_id,
                 channel_name,
-                settings.openai_model,
+                settings.azure_openai_gpt_deployment,
             )
         except asyncpg.PostgresError as e:
             # Same posture as Insult's `MessagesRepository.store` —

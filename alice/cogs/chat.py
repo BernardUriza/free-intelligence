@@ -48,32 +48,79 @@ class AliceChatCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
-        """Respond only when ALICE is mentioned by name or @-tag.
-
-        We check both `bot.user in message.mentions` (the canonical
-        Discord mention) and the literal `@ALICE` text (which users
-        sometimes type without it resolving to a real mention if the
-        bot isn't in the role autocomplete cache). Either triggers.
-        """
-        # Never respond to ourselves; never respond in DMs (channel-only).
-        if message.author == self.bot.user:
-            return
-        if not message.guild:
-            return
-
-        mentioned_as_user = self.bot.user in message.mentions if self.bot.user else False
-        mentioned_as_text = "@ALICE" in message.content or "@alice" in message.content
-        if not (mentioned_as_user or mentioned_as_text):
-            return
-
-        await self._respond(
-            channel=message.channel,
+        """Respond only when ALICE is mentioned by name or @-tag."""
+        # Every inbound message gets a debug breadcrumb so we can prove
+        # the listener is firing even when the decision is "ignore". Without
+        # this, "no response" is indistinguishable from "listener never
+        # ran" in production logs.
+        log.info(
+            "alice_on_message",
+            author_bot=message.author.bot if message.author else None,
+            content_len=len(message.content or ""),
+            content_preview=(message.content or "")[:60],
+            mention_count=len(message.mentions),
+            bot_user_id=str(self.bot.user.id) if self.bot.user else None,
+            mentions_ids=[str(u.id) for u in message.mentions],
+            guild_id=str(message.guild.id) if message.guild else None,
             channel_id=str(message.channel.id),
-            guild_id=str(message.guild.id),
-            channel_name=getattr(message.channel, "name", None),
-            user_msg=message.content,
-            invited_by="user_mention",
         )
+
+        if message.author == self.bot.user:
+            log.debug("alice_skip_self")
+            return
+
+        # In a guild channel: respond ONLY when canonically @mentioned (so
+        # ALICE doesn't talk over conversations she wasn't invited to).
+        # In a DM: respond to every message — the user is literally already
+        # talking to her one-on-one, no opt-in needed. "Su app individual"
+        # in the user's words.
+        is_dm = message.guild is None
+        if not is_dm:
+            mentioned_as_user = self.bot.user in message.mentions if self.bot.user else False
+            mentioned_as_text = "@ALICE" in message.content or "@alice" in message.content
+            if not (mentioned_as_user or mentioned_as_text):
+                log.debug(
+                    "alice_skip_no_mention",
+                    mentioned_as_user=mentioned_as_user,
+                    mentioned_as_text=mentioned_as_text,
+                )
+                return
+
+        invited_by = "dm" if is_dm else "user_mention"
+        log.info(
+            "alice_responding",
+            is_dm=is_dm,
+            invited_by=invited_by,
+            channel_id=str(message.channel.id),
+        )
+
+        # Persist the inbound message in DMs. In server channels Insult
+        # already wrote the row, so we skip there to avoid duplicates.
+        if is_dm and message.content:
+            try:
+                await self.memory.store_user_message(
+                    channel_id=str(message.channel.id),
+                    user_id=str(message.author.id),
+                    user_name=message.author.display_name or message.author.name,
+                    content=message.content,
+                    guild_id=None,
+                    channel_name=None,
+                )
+            except Exception as e:
+                log.warning("alice_persist_user_failed", error=str(e))
+
+        # Show typing while we think — Discord drops the indicator after ~10s
+        # so we wrap the entire respond cycle in it (Insult uses the same
+        # pattern in cogs/chat.py).
+        async with message.channel.typing():
+            await self._respond(
+                channel=message.channel,
+                channel_id=str(message.channel.id),
+                guild_id=str(message.guild.id) if message.guild else None,
+                channel_name=getattr(message.channel, "name", None),
+                user_msg=message.content,
+                invited_by=invited_by,
+            )
 
     async def respond_to_invite(
         self,

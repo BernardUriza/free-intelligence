@@ -1,9 +1,11 @@
-"""OpenAI client for ALICE.
+"""Azure OpenAI client for ALICE.
 
-GPT-4.1 only. No router, no provider switching — that's the deliberate
-choice (see project_alice_mono_model_2026.md if it exists). Insult is
-Anthropic-only, AURITY is Qwen-only, ALICE is OpenAI-only. Composability
-of three specialists, not one Frankenbot.
+GPT-4.1 only, served from the shared `insult-openai` cognitive account.
+No router, no provider switching — that's the deliberate choice (see
+project_alice_v0_1_0.md). Insult is Anthropic-only, AURITY is Qwen-only,
+ALICE is GPT-4.1-only. Composability of three specialists, not one
+Frankenbot. Reusing Insult's Azure cognitive resource means one Azure
+factura instead of a second OpenAI Inc. account.
 
 Retry policy mirrors Insult's `llm/retry.py` because the lessons learned
 there (Full Jitter, honor retry-after, cap timeout retries at 2) are
@@ -20,7 +22,7 @@ from typing import Any
 
 import openai
 import structlog
-from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
+from openai import APIConnectionError, APITimeoutError, AsyncAzureOpenAI, RateLimitError
 
 from alice.config import settings
 
@@ -53,30 +55,43 @@ class LLMResponse:
 
 
 class AliceLLMClient:
-    """Async OpenAI client with retry hygiene.
+    """Async Azure OpenAI client with retry hygiene.
 
-    Built around `openai.AsyncOpenAI` directly (not LiteLLM, not a router)
-    so the request/response path is one hop from ALICE to OpenAI. The
-    `/histerical-search` of 2026-05-13 found that LiteLLM had 800+ open
-    issues and a measurable P95 latency ceiling; we skip the gateway tax.
+    Built around `openai.AsyncAzureOpenAI` directly (not LiteLLM, not a
+    router) so the request/response path is one hop from ALICE to Azure
+    OpenAI. The `/histerical-search` of 2026-05-13 found that LiteLLM had
+    800+ open issues and a measurable P95 latency ceiling; we skip the
+    gateway tax.
+
+    `model` here is the Azure *deployment* name (not the literal model
+    name). For the `insult-openai` account the deployment is `gpt-4.1`.
     """
 
     def __init__(
         self,
         api_key: str | None = None,
-        model: str | None = None,
+        endpoint: str | None = None,
+        deployment: str | None = None,
+        api_version: str | None = None,
         max_tokens: int | None = None,
         timeout_s: float | None = None,
     ):
-        self.api_key = api_key or settings.openai_api_key
-        self.model = model or settings.openai_model
+        self.api_key = api_key or settings.azure_openai_key
+        self.endpoint = endpoint or settings.azure_openai_endpoint
+        self.model = deployment or settings.azure_openai_gpt_deployment
+        self.api_version = api_version or settings.azure_openai_api_version
         self.max_tokens = max_tokens or settings.openai_max_tokens
         self.timeout_s = timeout_s or settings.openai_timeout_seconds
 
         # `max_retries=0` because we own the retry loop below. The SDK's
         # internal retries (default 2) would silently triple our timeout
         # budget — same trap Insult fell into with Anthropic's SDK.
-        self._client = AsyncOpenAI(api_key=self.api_key, max_retries=0)
+        self._client = AsyncAzureOpenAI(
+            api_key=self.api_key,
+            azure_endpoint=self.endpoint,
+            api_version=self.api_version,
+            max_retries=0,
+        )
 
     async def chat(
         self,

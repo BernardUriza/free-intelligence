@@ -43,5 +43,13 @@ def run() -> None:
     bot_run()
 
 
+@app.command()
+def version() -> None:
+    """Print ALICE's version (forces Typer into subcommand mode)."""
+    from alice import __version__
+
+    typer.echo(__version__)
+
+
 if __name__ == "__main__":
     app()

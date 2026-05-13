@@ -3,12 +3,15 @@
 Shared infrastructure with Insult:
 - Same `POSTGRES_URL` (reads the `messages` table to see the conversation
   it's about to join).
+- Same `AZURE_OPENAI_ENDPOINT`/`AZURE_OPENAI_KEY` cognitive account
+  (`insult-openai`) — ALICE consumes the `gpt-4.1` deployment, Insult uses
+  the `tts` / `whisper` deployments. One Azure resource, one factura.
 - Same `DEBUG_TOKEN` for the optional read-only introspection endpoint.
 
 ALICE-specific:
 - `ALICE_DISCORD_TOKEN` — separate Discord application from Insult's bot.
-- `OPENAI_API_KEY` — GPT-4.1 access (Alex chose 4.1 for therapy work; see
-  persona.md philosophy section).
+- `AZURE_OPENAI_GPT_DEPLOYMENT` — deployment name for chat completions
+  (defaults to `gpt-4.1`; Alex chose 4.1 for therapy work).
 - `INSULT_TO_ALICE_TOKEN` — shared secret on the `/invite` REST endpoint
   so only the Insult bot can summon ALICE through that path. Mentions from
   Discord users bypass this (they're authed by Discord itself).
@@ -31,14 +34,22 @@ class AliceSettings(BaseSettings):
         description="ALICE's Discord bot token (separate app from Insult).",
     )
 
-    # --- OpenAI ---
-    openai_api_key: str = Field(
+    # --- Azure OpenAI (shared cognitive account `insult-openai`) ---
+    azure_openai_endpoint: str = Field(
         default="",
-        description="OpenAI API key for GPT-4.1 access.",
+        description="Azure OpenAI resource endpoint, e.g. https://northcentralus.api.cognitive.microsoft.com/",
     )
-    openai_model: str = Field(
+    azure_openai_key: str = Field(
+        default="",
+        description="API key for the Azure OpenAI cognitive account.",
+    )
+    azure_openai_gpt_deployment: str = Field(
         default="gpt-4.1",
-        description="Primary model. GPT-4.1 chosen explicitly for therapy work.",
+        description="Deployment name in the cognitive account for chat completions.",
+    )
+    azure_openai_api_version: str = Field(
+        default="2025-04-01-preview",
+        description="Azure OpenAI REST API version; pinned so SDK upgrades don't surprise prod.",
     )
     openai_max_tokens: int = Field(default=2048)
     openai_timeout_seconds: float = Field(default=60.0)

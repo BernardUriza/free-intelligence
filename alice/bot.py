@@ -96,7 +96,20 @@ async def _main() -> None:
     # 4) REST server in background
     invite_task = asyncio.create_task(_start_invite_server(container))
 
-    # 5) Discord (blocking until disconnect)
+    # 5) Discord (blocking until disconnect). Register a one-shot on_ready
+    # listener so we get a clear "connected to gateway" line in prod logs
+    # — discord.py's own login info is at DEBUG level and gets filtered
+    # out, leaving us blind to whether the bot actually attached.
+    @container.bot.event
+    async def on_ready() -> None:
+        log.info(
+            "alice_gateway_ready",
+            bot_id=str(container.bot.user.id) if container.bot.user else None,
+            bot_name=str(container.bot.user) if container.bot.user else None,
+            guilds=len(container.bot.guilds),
+            cogs=list(container.bot.cogs.keys()),
+        )
+
     try:
         await container.bot.start(container.settings.alice_discord_token)
     finally:
