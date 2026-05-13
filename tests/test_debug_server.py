@@ -115,6 +115,7 @@ async def test_health_exposes_pr1_fields(client):
         "last_turn_outcome",
         "uptime_s",
         "turns_total",
+        "pg",
     ):
         assert key in data, f"missing key in /debug/health: {key}"
     # Cold start: no turns, no bot wired.
@@ -124,6 +125,99 @@ async def test_health_exposes_pr1_fields(client):
     assert data["turns_total"] == 0
     assert data["is_ready"] is None
     assert data["gateway_latency_ms"] is None
+    # PG block always present, shape consistent across reachable/unreachable.
+    assert "reachable" in data["pg"]
+    assert "latency_ms" in data["pg"]
+    assert "error" in data["pg"]
+
+
+# ---------------------------------------------------------------------------
+# /debug/health — PG reachability probe (v3.8.7 OBS-1)
+# ---------------------------------------------------------------------------
+
+
+async def test_health_pg_unreachable_when_pool_missing(client):
+    """The default `memory_with_data` is AsyncMock — `_manager` is also
+    AsyncMock, its `.pool` returns another AsyncMock object that isn't a
+    real asyncpg.Pool, so `pool.acquire()` will raise. We assert that the
+    probe handles ANY failure as `reachable=False` rather than 500'ing
+    the endpoint — Azure liveness must stay 200 even when PG is gone."""
+    resp = await client.get("/debug/health")
+    assert resp.status == 200, "health must stay 200 even when PG is unreachable"
+    data = await resp.json()
+    assert data["status"] == "ok"  # never flipped by PG failure
+    assert data["pg"]["reachable"] is False
+    assert data["pg"]["latency_ms"] is None
+    assert data["pg"]["error"] is not None
+
+
+async def test_health_pg_reachable_when_pool_returns_one():
+    """Wire a stub pool that answers `SELECT 1` in <1s and assert the
+    endpoint reports `reachable=True` + a sensible latency."""
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock
+
+    # Build a minimal asyncpg-Pool-shaped stub
+    conn = AsyncMock()
+    conn.fetchval = AsyncMock(return_value=1)
+
+    @asynccontextmanager
+    async def fake_acquire():
+        yield conn
+
+    pool_stub = MagicMock()
+    pool_stub.acquire = fake_acquire  # used as: `async with pool.acquire() as conn`
+
+    mem = AsyncMock()
+    mem._manager = MagicMock()
+    mem._manager.pool = pool_stub
+
+    app = build_app(mem, TOKEN)
+    async with TestClient(TestServer(app)) as c:
+        resp = await c.get("/debug/health")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["pg"]["reachable"] is True
+        assert isinstance(data["pg"]["latency_ms"], int)
+        assert data["pg"]["latency_ms"] < 1000
+        assert data["pg"]["error"] is None
+
+
+async def test_health_pg_timeout_does_not_500():
+    """If the pool's SELECT 1 stalls past the 1s timeout, the probe MUST
+    still return a 200 with `reachable=False, error=timeout_1s`. Liveness
+    cannot blink off because of a slow query — Azure would needlessly
+    restart the bot during a transient DB lock."""
+    import asyncio as _asyncio
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock
+
+    async def slow_fetchval(_sql):
+        await _asyncio.sleep(3.0)  # past the 1s timeout
+        return 1
+
+    conn = MagicMock()
+    conn.fetchval = slow_fetchval
+
+    @asynccontextmanager
+    async def fake_acquire():
+        yield conn
+
+    pool_stub = MagicMock()
+    pool_stub.acquire = fake_acquire
+
+    mem = AsyncMock()
+    mem._manager = MagicMock()
+    mem._manager.pool = pool_stub
+
+    app = build_app(mem, TOKEN)
+    async with TestClient(TestServer(app)) as c:
+        resp = await c.get("/debug/health")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["status"] == "ok"
+        assert data["pg"]["reachable"] is False
+        assert data["pg"]["error"] == "timeout_1s"
 
 
 async def test_health_reflects_recorded_turn(client):
