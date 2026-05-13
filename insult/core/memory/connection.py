@@ -108,6 +108,32 @@ class ConnectionManager:
             self._vectors_available = False
             log.warning("memory_connected_pg_no_vectors", reason=str(e))
 
+        # Pre-warm the embedding model so the FIRST user turn doesn't eat the
+        # ~10s `sentence-transformers/all-MiniLM-L6-v2` lazy-load latency. We
+        # only warm when pgvector is available (the only path that calls into
+        # the model); otherwise the model would stay unused in RAM.
+        #
+        # Runs in a thread because the encode call is sync CPU work — letting
+        # it block the event loop during boot would stall Discord's gateway
+        # heartbeat. The .embed() warmup also forces sentence-transformers to
+        # download the model from HuggingFace if it's not in /root/.cache,
+        # which is the slowest part on a fresh container. After this returns,
+        # `stage_facts_loaded` on the first turn drops from ~10s to <200ms.
+        if self._vectors_available:
+            import asyncio
+            import time as _time
+
+            from insult.core.vectors import get_embedding_model
+
+            warmup_start = _time.monotonic()
+            try:
+                await asyncio.to_thread(lambda: get_embedding_model().embed("boot warmup"))
+                log.info("embedding_model_prewarmed", elapsed_ms=int((_time.monotonic() - warmup_start) * 1000))
+            except Exception as e:
+                # Failing to pre-warm is not fatal — the lazy path still works,
+                # the user just pays the latency on their first message.
+                log.warning("embedding_prewarm_failed", error=str(e))
+
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
         """Per-connection setup. Runs once when a connection joins the
         pool. Registers the pgvector codec if available so VECTOR(N)

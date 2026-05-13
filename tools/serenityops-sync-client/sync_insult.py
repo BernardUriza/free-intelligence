@@ -41,6 +41,21 @@ def _load_env(path: pathlib.Path) -> dict[str, str]:
 
 
 def _read_yaml(path: pathlib.Path) -> dict | None:
+    """Best-effort YAML read.
+
+    Returns None when:
+    - the file doesn't exist (legitimate — caller decides which payload to send)
+    - the YAML is malformed (we WARN and continue rather than abort — the
+      sync may still succeed if the OTHER payload is well-formed)
+    - PyYAML is missing and the file isn't JSON either
+
+    Why we don't sys.exit on malformed YAML: this script is the only
+    bridge between the user's local SerenityOps and the bot. If one
+    file goes corrupt at 2am the user shouldn't lose the chance to push
+    the other one. The bot's prompt builder gracefully handles a None
+    side of the snapshot — see `_format_serenityops_block` which only
+    renders sections whose data is present.
+    """
     if not path.exists():
         return None
     try:
@@ -49,15 +64,26 @@ def _read_yaml(path: pathlib.Path) -> dict | None:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
     except ImportError:
         # PyYAML missing — try parsing as JSON (some installs ship the
-        # file as JSON for portability). Worst-case: report missing dep.
+        # file as JSON for portability). Worst-case: warn + return None.
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             print(
-                "ERROR: PyYAML no está instalado y el archivo no es JSON válido.\nInstala con: pip install pyyaml",
+                f"WARNING: PyYAML no está instalado y {path.name} no es JSON válido. "
+                "Instala con: pip install pyyaml",
                 file=sys.stderr,
             )
-            sys.exit(2)
+            return None
+    except Exception as e:  # noqa: BLE001 — any yaml.YAMLError variant + edge cases
+        # yaml.YAMLError, yaml.parser.ParserError, yaml.scanner.ScannerError,
+        # etc. — any of these means the file is malformed. Surface the line
+        # number so the user can fix it but DON'T abort the sync.
+        print(
+            f"WARNING: {path.name} no parseó como YAML — {type(e).__name__}: {str(e).splitlines()[0]}\n"
+            f"  → skipping this payload. Arregla el archivo y vuelve a correr /sync-insult.",
+            file=sys.stderr,
+        )
+        return None
 
 
 def main() -> int:
