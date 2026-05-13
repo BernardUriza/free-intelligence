@@ -76,18 +76,39 @@ class AliceChatCog(commands.Cog):
         # talking to her one-on-one, no opt-in needed. "Su app individual"
         # in the user's words.
         is_dm = message.guild is None
+        mentioned_as_role = False
         if not is_dm:
             mentioned_as_user = self.bot.user in message.mentions if self.bot.user else False
             mentioned_as_text = "@ALICE" in message.content or "@alice" in message.content
-            if not (mentioned_as_user or mentioned_as_text):
+            # Discord auto-creates a role with the bot's name when she's added to
+            # a server. When a user picks ALICE from the @-autocomplete the
+            # client sometimes inserts a ROLE mention (`<@&role_id>`) instead of
+            # a USER mention (`<@user_id>`). That's the same UX intent, so we
+            # treat any role mention whose name contains "alice" as a trigger.
+            mentioned_as_role = any("alice" in (r.name or "").lower() for r in message.role_mentions)
+            # Fallback: discord.py does NOT populate `message.role_mentions` for
+            # auto-created bot roles without the privileged `members` intent
+            # (which v0.1.3+ deliberately doesn't request). Detect the raw
+            # `<@&...>` syntax in content AND the literal keyword "alice"
+            # nearby as a heuristic. Works for v0.1.9 logs that showed the
+            # raw role mention but empty role_mentions list.
+            if not mentioned_as_role and "<@&" in message.content and "alice" in message.content.lower():
+                mentioned_as_role = True
+            if not (mentioned_as_user or mentioned_as_text or mentioned_as_role):
                 log.debug(
                     "alice_skip_no_mention",
                     mentioned_as_user=mentioned_as_user,
                     mentioned_as_text=mentioned_as_text,
+                    mentioned_as_role=mentioned_as_role,
                 )
                 return
 
-        invited_by = "dm" if is_dm else "user_mention"
+        if is_dm:
+            invited_by = "dm"
+        elif mentioned_as_role:
+            invited_by = "role_mention"
+        else:
+            invited_by = "user_mention"
         log.info(
             "alice_responding",
             is_dm=is_dm,
@@ -212,9 +233,17 @@ class AliceChatCog(commands.Cog):
             return ""
 
         # Chunk to Discord's 2000-char limit (we leave buffer for safety).
-        for chunk in chunk_paragraph_aware(text, max_chars=1900):
+        # Append a small version tag to the LAST chunk so prod observers
+        # can correlate the visible reply with the deployed image. Same
+        # affordance Insult uses (`VERSION_TAG` in `core/delivery.py`).
+        chunks = chunk_paragraph_aware(text, max_chars=1900)
+        from alice import __version__ as _alice_version
+
+        version_tag = f"\n-# ᵃ{_alice_version.replace('.', '·')}"
+        for i, chunk in enumerate(chunks):
+            payload = chunk + (version_tag if i == len(chunks) - 1 else "")
             try:
-                await channel.send(chunk)
+                await channel.send(payload)
             except discord.HTTPException as e:
                 log.exception("alice_send_failed", error=str(e))
                 break

@@ -7,4 +7,4 @@ Insult — Insult opines, ALICE clarifies. See `alice/persona.md` for
 the full philosophy.
 """
 
-__version__ = "0.1.8"
+__version__ = "0.1.11"
