@@ -73,7 +73,7 @@ from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessn
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import PresetModifier
 from insult.core.presets_llm import classify_preset_llm
-from insult.core.reactions import add_reactions, parse_reactions, strip_reactions
+from insult.core.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
@@ -572,11 +572,21 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
     if ctx.intent_unattended and response.strip():
         response = response.rstrip() + "\n\n*(no agendé recordatorio formal — si querías uno, dime día y hora.)*"
 
+    # Safety net: if the LLM emitted emojis inline (ignoring the `[REACT:...]`
+    # marker), harvest them into ctx.reactions and strip them from visible
+    # text. Opus 4.7 has been observed ignoring the persona's mandatory
+    # wrapper rule (v3.9.11 reinforcement didn't fully fix it), so we
+    # enforce the behavior in code rather than trust prompt adherence.
+    harvested_reactions, response = harvest_orphan_emojis(response, ctx.reactions)
+    emojis_harvested = len(harvested_reactions) - len(ctx.reactions)
+    ctx.reactions = harvested_reactions
+
     log.info(
         "stage_post_llm_done",
         raw_llm_len=post_llm_len,
         final_text_len=len(response),
         reactions=ctx.reactions,
+        emojis_harvested_inline=emojis_harvested,
         elapsed_ms=ctx.elapsed_ms(),
     )
 

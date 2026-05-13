@@ -78,6 +78,71 @@ def strip_reactions(response: str) -> str:
     return REACTION_PATTERN.sub("", response).strip()
 
 
+def harvest_orphan_emojis(
+    response_without_markers: str,
+    already_parsed: list[str],
+) -> tuple[list[str], str]:
+    """Find emojis emitted inline (not wrapped in [REACT:...]) and convert them
+    to reactions.
+
+    Opus 4.7 (and likely future models) sometimes ignores the `[REACT:...]`
+    instruction and writes emojis straight into the response text. Those
+    emojis render as plain characters in Discord chat bubbles instead of
+    firing as reactions on the user's message — exactly the wrong UX.
+
+    This harvester is the safety net: it scans the post-`strip_reactions`
+    text, extracts unique emoji graphemes up to the per-turn cap, appends
+    them to the reactions list, and strips them from the visible text.
+
+    Args:
+        response_without_markers: text after `strip_reactions` ran on it.
+        already_parsed: emojis already extracted from explicit `[REACT:...]`
+            markers. Used to dedupe AND to respect the MAX_REACTIONS cap.
+
+    Returns:
+        tuple of (combined_reactions, cleaned_text) where combined_reactions
+        respects MAX_REACTIONS and cleaned_text has the harvested emojis
+        removed.
+    """
+    if not response_without_markers:
+        return already_parsed, response_without_markers
+
+    seen = list(already_parsed)
+    seen_set = set(already_parsed)
+    remaining_budget = MAX_REACTIONS - len(seen)
+    if remaining_budget <= 0:
+        return seen, response_without_markers
+
+    found: list[tuple[int, int, str]] = []
+    for m in _EMOJI_GRAPHEME.finditer(response_without_markers):
+        token = m.group(0)
+        if not token or len(token) > _MAX_EMOJI_LEN:
+            continue
+        if token not in seen_set:
+            found.append((m.start(), m.end(), token))
+            seen_set.add(token)
+            seen.append(token)
+            remaining_budget -= 1
+            if remaining_budget <= 0:
+                break
+
+    if not found:
+        return seen, response_without_markers
+
+    # Strip the harvested emojis from the text. Walk end→start so earlier
+    # offsets stay valid as we mutate the string.
+    cleaned = response_without_markers
+    for start, end, _ in reversed(found):
+        cleaned = cleaned[:start] + cleaned[end:]
+
+    # Collapse runs of whitespace that the removal created (e.g. " ,  ," → ", ").
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r" +([.,;:!?])", r"\1", cleaned)
+    cleaned = cleaned.strip()
+
+    return seen, cleaned
+
+
 async def add_reactions(message: discord.Message, emojis: list[str]) -> None:
     """Add emoji reactions to a Discord message with human-like delay.
 
