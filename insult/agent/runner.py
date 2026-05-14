@@ -129,11 +129,13 @@ def _check_auth(authorization: str | None) -> None:
 @app.get("/health")
 async def health() -> dict:
     """Public liveness probe. Always 200. Body reflects state for monitoring."""
+    claude_md_path = WORKSPACE_ROOT / "CLAUDE.md"
     return {
         "status": "ok",
         "service": "insult-agent-runner",
         "workspace_present": WORKSPACE_ROOT.exists(),
         "persona_present": PERSONA_PATH.exists(),
+        "claude_md_present": claude_md_path.exists(),
         "auth_configured": bool(RUNNER_AUTH_TOKEN),
         "model": DEFAULT_MODEL,
     }
@@ -167,6 +169,13 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         allowed_tools=["Read", "Grep", "Glob"],
         permission_mode="bypassPermissions",
         resume=req.session_uuid,
+        # Project-only filesystem settings: load <cwd>/CLAUDE.md as project
+        # context, but do NOT read ~/.claude/ from the runner user — that
+        # directory holds .credentials.json and nothing else today, but
+        # explicit isolation prevents future debug artifacts (settings.json,
+        # agents/, etc.) from silently changing agent behavior.
+        # Default would be None → SDK loads user+project+local; we constrain.
+        setting_sources=["project"],
     )
 
     accumulated_text = ""
