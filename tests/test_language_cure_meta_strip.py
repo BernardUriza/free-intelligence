@@ -65,10 +65,7 @@ def test_lo_devuelvo_sin_cambios_variant():
 
 def test_strips_only_first_preamble_if_repeated():
     """If somehow two preambles stack, only the first gets removed per pass."""
-    inp = (
-        "El texto está completamente en español, lo devuelvo sin cambios: "
-        "No hay cambios: La cena está lista."
-    )
+    inp = "El texto está completamente en español, lo devuelvo sin cambios: No hay cambios: La cena está lista."
     out = _strip_once(inp)
     # First preamble removed, second one remains (count=1)
     assert "El texto está completamente" not in out

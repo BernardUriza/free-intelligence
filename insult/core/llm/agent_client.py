@@ -151,6 +151,4 @@ class AgentRunnerClient:
         session_count, last_turn_age_s}. Used by Insult Container App's
         own /debug/health to surface runner state.
         """
-        raise NotImplementedError(
-            "AgentRunnerClient.health() not implemented yet. Fase 2."
-        )
+        raise NotImplementedError("AgentRunnerClient.health() not implemented yet. Fase 2.")

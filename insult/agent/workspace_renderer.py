@@ -108,11 +108,15 @@ async def render_facts(pool: asyncpg.Pool) -> int:
         for fact in facts:
             cat = fact["category"] or "uncategorized"
             body_lines.append(f"- [{cat}] {fact['fact']}")
-        content = _frontmatter(
-            user_id=user_id,
-            updated_at=now_iso,
-            fact_count=len(facts),
-        ) + "\n".join(body_lines) + "\n"
+        content = (
+            _frontmatter(
+                user_id=user_id,
+                updated_at=now_iso,
+                fact_count=len(facts),
+            )
+            + "\n".join(body_lines)
+            + "\n"
+        )
         _atomic_write(WORKSPACE_ROOT / "facts" / f"{user_id}.md", content)
         written += 1
     return written
@@ -173,11 +177,15 @@ async def render_disclosure_log(pool: asyncpg.Pool) -> int:
             f"- {ts_iso} | user={row['user_id']} | sev={row['severity']} | "
             f"category={row['category']} | signals={row['signals']}"
         )
-    content = _frontmatter(
-        updated_at=now_iso,
-        lookback_days=DISCLOSURE_LOOKBACK_DAYS,
-        row_count=len(rows),
-    ) + "\n".join(body_lines) + "\n"
+    content = (
+        _frontmatter(
+            updated_at=now_iso,
+            lookback_days=DISCLOSURE_LOOKBACK_DAYS,
+            row_count=len(rows),
+        )
+        + "\n".join(body_lines)
+        + "\n"
+    )
     _atomic_write(WORKSPACE_ROOT / "disclosure_log.md", content)
     return len(rows)
 
