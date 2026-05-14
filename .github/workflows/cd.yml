@@ -1,16 +1,18 @@
 name: CD
 
 # Builds and deploys three Azure Container Apps:
-#   * insult-bot      — Discord plumbing / gateway (logical role: discord-bot).
-#                       Routes Discord events to the right runner per turn;
-#                       does no LLM work itself once LEGACY_LLM_ENABLED=false.
+#   * discord-bot     — Discord plumbing / gateway. Routes Discord events
+#                       to the right runner per turn; does no LLM work
+#                       itself once LEGACY_LLM_ENABLED=false. Renamed from
+#                       insult-bot on 2026-05-14 (RENAME-1b).
 #   * insult-runner   — Claude Code Agent SDK runner (Insult persona).
 #                       FastAPI + claude-agent-sdk + OAuth Max.
 #   * alice-bot       — ALICE persona runner (Azure OpenAI gpt-4.1).
 #                       Passive: only fires on mention or /invite from Insult.
-# The physical name `insult-bot` for the plumbing container is legacy
-# (predates the runner split). Rename to `discord-bot` is task RENAME-1b.
-# See .claude/rules/architecture.md § Nomenclature.
+# The ACR image repo `insult-bot` (the OCI artifact name) is retained for
+# now since renaming the ACR repo is a separate operation; the Container
+# App that consumes it is `discord-bot`. See .claude/rules/architecture.md
+# § Nomenclature.
 
 on:
   workflow_run:
@@ -71,10 +73,13 @@ jobs:
             --file infra/azure/runner.Dockerfile \
             .
 
-      - name: Deploy insult-bot
+      - name: Deploy discord-bot
+        # The plumbing Container App. ACR image artifact is still named
+        # `insult-bot` (legacy); the Container App that consumes it is
+        # `discord-bot` (renamed 2026-05-14).
         run: |
           az containerapp update \
-            --name insult-bot \
+            --name discord-bot \
             --resource-group insult-rg \
             --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
 
@@ -114,20 +119,20 @@ jobs:
           echo "Waiting 30s for new revisions to start..."
           sleep 30
 
-          # --- Insult ---
+          # --- discord-bot (plumbing) ---
           echo ""
-          echo "=== insult-bot ==="
-          az containerapp show -n insult-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
-          INSULT_LOGS=$(az containerapp logs show -n insult-bot -g insult-rg --tail 30 2>&1 || true)
-          echo "$INSULT_LOGS" | tail -10
-          if echo "$INSULT_LOGS" | grep -q "bot_ready"; then
-            echo "OK insult-bot: bot_ready event present"
-          elif echo "$INSULT_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
-            echo "FAIL insult-bot: crash detected on startup"
-            echo "$INSULT_LOGS" | grep -E "critical|CRITICAL|Traceback|Error" || true
+          echo "=== discord-bot ==="
+          az containerapp show -n discord-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
+          BOT_LOGS=$(az containerapp logs show -n discord-bot -g insult-rg --tail 30 2>&1 || true)
+          echo "$BOT_LOGS" | tail -10
+          if echo "$BOT_LOGS" | grep -q "bot_ready"; then
+            echo "OK discord-bot: bot_ready event present"
+          elif echo "$BOT_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
+            echo "FAIL discord-bot: crash detected on startup"
+            echo "$BOT_LOGS" | grep -E "critical|CRITICAL|Traceback|Error" || true
             exit 1
           else
-            echo "WARN insult-bot: could not confirm bot_ready, check manually"
+            echo "WARN discord-bot: could not confirm bot_ready, check manually"
           fi
 
           # --- ALICE ---

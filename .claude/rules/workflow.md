@@ -1,10 +1,10 @@
 # Workflow Rules
 
-> **Name disclaimer**: any `insult-bot` reference in this file is the
-> **physical Azure Container App name** of the Discord plumbing layer
-> (logical role: `discord-bot`). The plumbing container is the Discord
-> gateway; cognition lives in `insult-runner` (Claude Code) and
-> `alice-bot` (Azure OpenAI). See `.claude/rules/architecture.md`
+> **Name disclaimer (post-RENAME-1b, 2026-05-14)**: the plumbing Container
+> App is **`discord-bot`** (renamed from `insult-bot`). Cognition lives
+> in `insult-runner` (Claude Code Agent SDK) and `alice-bot` (Azure
+> OpenAI gpt-4.1). The ACR image is still tagged `insult-bot:<sha>`
+> (legacy OCI repo name, not yet renamed). See `.claude/rules/architecture.md`
 > § Nomenclature for the full table.
 
 ## CI Pipeline

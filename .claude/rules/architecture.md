@@ -2,31 +2,21 @@
 
 ## Nomenclature — Plumbing vs Runners
 
-Post-F3 (v3.9.25, 2026-05-14) the system separated cleanly into a plumbing
-layer and per-persona Agent SDK runners. The conceptual model and its
-physical Azure Container App names diverged because Azure does not allow
-renaming Container Apps in place:
+Post-F3 + RENAME-1b (v3.9.30, 2026-05-14) the system is three Container
+Apps with names that now match their logical roles:
 
-| Logical role | Physical name (immutable) | What it does |
+| Container App | Role | What it does |
 |---|---|---|
-| **discord-bot** (the plumbing) | `insult-bot` *(Azure Container App)* | Listens on Discord, batches messages, stores to Postgres, picks the right runner per turn via the feature flag, parses `[REACT:]` / `[REMEMBER:]` markers, delivers chunked response. Zero direct LLM calls when `LEGACY_LLM_ENABLED=false`. |
-| **insult-runner** | `insult-runner` *(Azure Container App)* | FastAPI + claude-agent-sdk (Python). OAuth Max via `~/.claude/.credentials.json`. Reads `persona.md` (Insult DNA) as system prompt + `<cwd>/CLAUDE.md` as project context via `setting_sources=["project"]`. Cwd = `/data/insult-workspace`. |
-| **alice-bot** (logical: alice-runner) | `alice-bot` *(Azure Container App)* | ALICE persona, Azure OpenAI gpt-4.1 path. Sibling runner, not a Claude Code agent (different model family). Passive: only fires on mention or `/invite` from Insult. |
-| *(future) aurity-runner* | TBD | Qwen-only third sibling per the docstring in `alice/core/llm.py`. Not implemented. |
+| **discord-bot** | Plumbing / gateway | Listens on Discord, batches messages, stores to Postgres, picks the right runner per turn via the feature flag, parses `[REACT:]` / `[REMEMBER:]` markers, delivers chunked response. Zero direct LLM calls when `LEGACY_LLM_ENABLED=false`. FQDN: `discord-bot.nicecliff-10074f57.eastus.azurecontainerapps.io`. |
+| **insult-runner** | Insult persona | FastAPI + claude-agent-sdk (Python). OAuth Max via `~/.claude/.credentials.json`. Reads `persona.md` (Insult DNA) as system prompt + `<cwd>/CLAUDE.md` as project context via `setting_sources=["project"]`. Cwd = `/data/insult-workspace`. |
+| **alice-bot** | ALICE persona | Azure OpenAI gpt-4.1 path. Sibling runner, not a Claude Code agent (different model family). Passive: only fires on mention or `/invite` from Insult. |
+| *(future) aurity-runner* | AURITY persona | Qwen-only third sibling per the docstring in `alice/core/llm.py`. Not implemented. |
 
-**Rule for documentation and new code:** call the plumbing container
-`discord-bot` (its logical role) when discussing architecture. Keep
-`insult-bot` only where it must match the physical resource — `az`
-commands, KQL filters (`ContainerAppName_s == "insult-bot"`), Docker
-image tags, the FQDN, GitHub Actions workflow steps. A grep that confuses
-the two should turn up the disclaimer block at the top of the relevant
-rule/doc file.
+**ACR artifact caveat:** the OCI image repo `insultacr.azurecr.io/insult-bot:<sha>` retains the legacy name. The Container App that consumes it is `discord-bot`. Renaming the ACR repo is a separate operation (not yet done — low value, would require updating every `az acr build --image insult-bot:...` line in CD).
 
-**Physical rename to `discord-bot`** is tracked as task RENAME-1b — a
-defer-until-low-activity-window job because the Discord bot token cannot
-be safely shared between two simultaneously-running Container Apps and a
-brief swap-window is required. Cost is real but not urgent; the logical
-rename above buys ~90% of the clarity benefit at zero downtime.
+**KQL retroactive:** logs before 2026-05-14 are filtered by `ContainerAppName_s == "insult-bot"`. Logs from 2026-05-14 onward use `discord-bot`. For queries that span the rename window, use `in("insult-bot", "discord-bot")` until the old logs roll off Log Analytics retention (~30d).
+
+**Pre-rename history:** the plumbing container was originally `insult-bot` (it was Insult, before the runner split). After F3 cutover (v3.9.25) it became a stateless plumbing layer; the name became confusing. RENAME-1b executed the physical rename via scale-to-0 → create new → delete old, with ~30s of Discord-visible downtime.
 
 ## Project Structure
 - `insult/config.py` — Pydantic Settings singleton, all config via .env

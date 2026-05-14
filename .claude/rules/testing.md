@@ -1,10 +1,11 @@
 # Testing Rules
 
-> **Name disclaimer**: any `insult-bot` reference in this file is the
-> **physical Azure Container App name** of the Discord plumbing layer
-> (logical role: `discord-bot`). Keep using `insult-bot` in `az`/KQL/
-> Docker commands — that's the immutable resource name. For prose and
-> architecture see `.claude/rules/architecture.md` § Nomenclature.
+> **Name disclaimer (post-RENAME-1b, 2026-05-14)**: the plumbing Container
+> App is now **`discord-bot`**. Older `insult-bot` references in `az`
+> commands and KQL filters in this file describe historical state — for
+> live infra always use `discord-bot`. The ACR image artifact is still
+> named `insult-bot:<sha>` (legacy OCI repo name). For queries spanning
+> the rename window: `ContainerAppName_s in ("insult-bot", "discord-bot")`.
 
 ## Verify Live Infra State Before Asserting — MANDATORY
 
