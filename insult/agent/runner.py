@@ -186,9 +186,18 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     session_uuid: str | None = req.session_uuid
     model = DEFAULT_MODEL
 
+    # Frame the user's message with turn context so the agent knows which
+    # workspace file to consult when the message contains deictic references
+    # ("eso", "la app", "de qué hablas"). The agent's Context Reflex clause
+    # in persona.md says: when the message is unclear, Read messages/<id>.md
+    # first. The agent can't do that without the channel_id, so we inject it.
+    framed_query = (
+        f"<turn_context>\nchannel_id: {req.channel_id}\nuser_id: {req.user_id}\n</turn_context>\n\n{req.user_text}"
+    )
+
     try:
         async with ClaudeSDKClient(options=options) as client:
-            await client.query(req.user_text)
+            await client.query(framed_query)
             async for message in client.receive_response():
                 # Message shapes vary across SDK versions. We only care about
                 # text payloads, tool_use calls, and the final result with
