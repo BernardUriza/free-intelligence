@@ -1,5 +1,12 @@
 # Workflow Rules
 
+> **Name disclaimer**: any `insult-bot` reference in this file is the
+> **physical Azure Container App name** of the Discord plumbing layer
+> (logical role: `discord-bot`). The plumbing container is the Discord
+> gateway; cognition lives in `insult-runner` (Claude Code) and
+> `alice-bot` (Azure OpenAI). See `.claude/rules/architecture.md`
+> § Nomenclature for the full table.
+
 ## CI Pipeline
 4 layers in GitHub Actions, all must pass on every push/PR:
 1. **Ruff Lint & Format** — fastest, runs first, blocks everything else

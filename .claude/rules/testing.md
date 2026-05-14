@@ -1,5 +1,11 @@
 # Testing Rules
 
+> **Name disclaimer**: any `insult-bot` reference in this file is the
+> **physical Azure Container App name** of the Discord plumbing layer
+> (logical role: `discord-bot`). Keep using `insult-bot` in `az`/KQL/
+> Docker commands — that's the immutable resource name. For prose and
+> architecture see `.claude/rules/architecture.md` § Nomenclature.
+
 ## Verify Live Infra State Before Asserting — MANDATORY
 
 Before making any claim about how production infrastructure is configured — ingress

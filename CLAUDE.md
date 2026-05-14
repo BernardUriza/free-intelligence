@@ -24,6 +24,8 @@ ruff check . && ruff format --check . && pytest -v --cov --cov-fail-under=80 && 
 
 ## Architecture
 
+**Nomenclature note (post-F3 / v3.9.25)**: this repo deploys to three Azure Container Apps. The plumbing container is **physically named `insult-bot`** but its **logical role is `discord-bot`** — it batches Discord events and routes to runners, doing zero LLM work directly when `LEGACY_LLM_ENABLED=false`. The Insult persona lives in `insult-runner` (Claude Code Agent SDK). The ALICE persona lives in `alice-bot` (logical role: `alice-runner`, Azure OpenAI gpt-4.1). Full table + rationale in `.claude/rules/architecture.md`. Physical rename to `discord-bot` is task RENAME-1b (deferred).
+
 **Request flow**: User message → `ChatCog.on_message` (cogs/chat.py) → memory store + profile update → context build (recent 50 + 5 keyword-relevant) → preset classification (core/presets.py) → `build_adaptive_prompt` (core/character.py) layers system prompt → `LLMClient.chat` (core/llm.py) with break detection + anti-pattern monitoring → parse reactions `[REACT:]` → response chunked to Discord (1990 char limit) → background: emoji reactions + fact extraction.
 
 **DI container**: `app.py` creates a `Container` dataclass holding Settings, MemoryStore, LLMClient, and Bot. Cogs receive the container via constructor. All tests mock this container (see `tests/conftest.py` for fixtures).

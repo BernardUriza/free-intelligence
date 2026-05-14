@@ -1,5 +1,17 @@
 name: CD
 
+# Builds and deploys three Azure Container Apps:
+#   * insult-bot      — Discord plumbing / gateway (logical role: discord-bot).
+#                       Routes Discord events to the right runner per turn;
+#                       does no LLM work itself once LEGACY_LLM_ENABLED=false.
+#   * insult-runner   — Claude Code Agent SDK runner (Insult persona).
+#                       FastAPI + claude-agent-sdk + OAuth Max.
+#   * alice-bot       — ALICE persona runner (Azure OpenAI gpt-4.1).
+#                       Passive: only fires on mention or /invite from Insult.
+# The physical name `insult-bot` for the plumbing container is legacy
+# (predates the runner split). Rename to `discord-bot` is task RENAME-1b.
+# See .claude/rules/architecture.md § Nomenclature.
+
 on:
   workflow_run:
     workflows: [CI]
