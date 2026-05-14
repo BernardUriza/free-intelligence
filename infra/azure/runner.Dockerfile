@@ -49,5 +49,17 @@ COPY persona.md /app/persona.md
 COPY infra/azure/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Non-root user is MANDATORY for Claude Code: it refuses to run with
+# `--dangerously-skip-permissions` (which our `bypassPermissions` mode
+# uses under the hood) when the process is root. Discovered the hard
+# way in v3.9.22 prod test: agent loop exits with
+# "--dangerously-skip-permissions cannot be used with root/sudo
+# privileges for security reasons". HOME is set so the SDK writes
+# `~/.claude/.credentials.json` to the right place.
+RUN useradd --create-home --shell /bin/bash --uid 10001 runner \
+ && chown -R runner:runner /app /home/runner
+USER runner
+ENV HOME=/home/runner
+
 EXPOSE 8080
 CMD ["/entrypoint.sh"]

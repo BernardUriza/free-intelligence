@@ -22,7 +22,7 @@ echo "[entrypoint] node $(node --version) | python $(python3 --version) | claude
 
 # --- OAuth Max credentials --------------------------------------------------
 
-CRED_DIR="${HOME:-/root}/.claude"
+CRED_DIR="${HOME:-/home/runner}/.claude"
 CRED_FILE="${CRED_DIR}/.credentials.json"
 
 if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
@@ -39,9 +39,13 @@ fi
 
 # --- Workspace renderer (background) ----------------------------------------
 
-mkdir -p /var/log
+# Renderer logs go to /tmp because /var/log is root-owned and the
+# `runner` user can't write there. Trade: log file gets wiped on
+# every restart, but stdout of the FastAPI side (the only thing
+# Azure Log Analytics streams) still tells the full deploy story.
+mkdir -p /tmp/insult-logs
 echo "[entrypoint] starting workspace_renderer in background"
-python3 -m insult.agent.workspace_renderer > /var/log/insult-renderer.log 2>&1 &
+python3 -m insult.agent.workspace_renderer > /tmp/insult-logs/renderer.log 2>&1 &
 RENDERER_PID=$!
 echo "[entrypoint] renderer pid=$RENDERER_PID"
 

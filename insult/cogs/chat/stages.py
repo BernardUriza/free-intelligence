@@ -413,6 +413,29 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
 # --- Stage 10: LLM call (BUSINESS-critical, the heart of the turn) ---
 
 
+def _user_in_agent_flag(user_id: str, raw: str) -> bool:
+    """Parse `INSULT_AGENT_SDK_USER_IDS` and decide if this user routes to the
+    Agent SDK runner. Empty = legacy path. "*" = all users. Otherwise CSV match.
+    """
+    if not raw:
+        return False
+    raw = raw.strip()
+    if raw == "*":
+        return True
+    ids = {x.strip() for x in raw.split(",") if x.strip()}
+    return user_id in ids
+
+
+def _pick_llm_for_turn(ctx: TurnCtx) -> tuple[Any, str]:
+    """Return (client, backend_label). Falls back to legacy LLMClient when the
+    agent path is not enabled for this user or the agent_client isn't wired.
+    """
+    flag = getattr(ctx.settings, "insult_agent_sdk_user_ids", "") or ""
+    if ctx.agent_client is not None and _user_in_agent_flag(ctx.user_id, flag):
+        return ctx.agent_client, "agent_runner"
+    return ctx.llm, "legacy"
+
+
 async def _stage_call_llm(ctx: TurnCtx) -> None:
     async def _notify_retry() -> None:
         notify_start = time.monotonic()
@@ -436,6 +459,8 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         primary_model=ctx.model_choice.primary if ctx.model_choice else ctx.settings.llm_model,
         fallback_model=ctx.model_choice.fallback if ctx.model_choice else None,
     )
+    llm_client, backend = _pick_llm_for_turn(ctx)
+    log.info("llm_backend_selected", backend=backend, user_id=ctx.user_id)
     try:
         llm_kwargs: dict[str, Any] = {
             "tools": ctx.tools,
@@ -445,7 +470,10 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         if ctx.model_choice is not None:
             llm_kwargs["model"] = ctx.model_choice.primary
             llm_kwargs["fallback_model"] = ctx.model_choice.fallback
-        ctx.llm_response = await ctx.llm.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
+        if backend == "agent_runner":
+            llm_kwargs["channel_id"] = ctx.channel_id
+            llm_kwargs["user_id"] = ctx.user_id
+        ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):
             failure_class = FailureClass.LLM_BAD_REQUEST
@@ -498,7 +526,10 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             retry_kwargs["model"] = ctx.model_choice.primary
             retry_kwargs["fallback_model"] = ctx.model_choice.fallback
         try:
-            ctx.llm_response = await ctx.llm.chat(ctx.system_prompt, ctx.context, **retry_kwargs)
+            if backend == "agent_runner":
+                retry_kwargs["channel_id"] = ctx.channel_id
+                retry_kwargs["user_id"] = ctx.user_id
+            ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **retry_kwargs)
             tool_names = [tc.name for tc in ctx.llm_response.tool_calls]
             log.info(
                 "llm_no_op_tool_retry_complete",

@@ -112,6 +112,15 @@ class Settings(BaseSettings):
     # uppercases the field name automatically).
     postgres_url: SecretStr = SecretStr("")
 
+    # Agent SDK runner (Container App insult-runner). When the user_id is in
+    # `insult_agent_sdk_user_ids` (comma-separated, "*" = all), the turn
+    # routes through `AgentRunnerClient` (OAuth Max + workspace-grounded)
+    # instead of the legacy LLMClient (API key + inline-context). Empty list
+    # disables the flag entirely. See .claude/plans/insult_agent_sdk_migration.md
+    insult_agent_runner_url: str = ""
+    insult_agent_runner_token: SecretStr = SecretStr("")
+    insult_agent_sdk_user_ids: str = ""
+
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
     @classmethod

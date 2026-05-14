@@ -89,6 +89,7 @@ class TurnCtx:
     opus_budget: Any
     spawn_task: Callable[..., None]
     all_tools: list
+    agent_client: Any = None
 
     # --- Derived identity (filled by the first stage) ---
     channel_id: str = ""

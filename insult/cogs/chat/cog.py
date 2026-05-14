@@ -42,6 +42,7 @@ class ChatCog(commands.Cog):
     def __init__(self, container: Container):
         self.memory = container.memory
         self.llm = container.llm
+        self.agent_client = container.agent_client
         self.settings = container.settings
         self.bot = container.bot
         self.siesta = container.siesta
@@ -115,6 +116,7 @@ class ChatCog(commands.Cog):
                 opus_budget=self._opus_budget,
                 spawn_task=self._spawn_task,
                 all_tools=ALL_TOOLS,
+                agent_client=self.agent_client,
             )
         except BaseException as e:
             outcome = f"unhandled:{type(e).__name__}"

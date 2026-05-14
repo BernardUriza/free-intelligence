@@ -1,86 +1,53 @@
-"""HTTP client to the VM-resident Claude Agent SDK runner.
+"""HTTP client to the Container-Apps-resident Claude Agent SDK runner.
 
-SKELETON ONLY (Fase 0). This file locks the interface contract so
-`stages.py` can branch behind a feature flag in Fase 2 without further
-churn. All methods raise NotImplementedError until Fase 2 lands.
-
-## Why this exists
-
-Insult's `LLMClient` (`insult/core/llm/client.py`) talks to Anthropic
+Insult's legacy `LLMClient` (`insult/core/llm/client.py`) talks to Anthropic
 Messages API directly: it inlines the full conversation context + facts
-+ disclosures as `messages[]` blocks, then receives a single-shot
-response. Validated 2026-05-13 (histerical-search): 1M-context recall
-degrades 20-40% on multi-hop reasoning at scale; the model treats older
-context as "background" and loses anchor on what's load-bearing.
++ disclosures as `messages[]` blocks, then receives a single-shot response.
+Validated 2026-05-13 (histerical-search): 1M-context recall degrades 20-40%
+on multi-hop reasoning at scale.
 
-`AgentRunnerClient` replaces that single-shot pattern with a remote call
-to a long-running FastAPI service on an EC2 VM. The service hosts the
-Claude Agent SDK (Python), which runs an agentic loop:
-
-  read facts/{user}.md → take action → verify → respond
-
-The agent reads selectively from `/data/insult-workspace/*.md` (a
-background renderer mirrors Postgres → markdown there) instead of
-receiving the whole blob inline. Less noise → better grounding.
+`AgentRunnerClient` replaces that single-shot pattern with a remote call to
+the FastAPI runner in the `insult-runner` Container App. The runner hosts
+the Claude Agent SDK (Python) and reads selectively from
+`/data/insult-workspace/*.md` (mirrored from Postgres by a background
+renderer) via Read/Grep/Glob.
 
 ## Drop-in contract
 
-Same signature as `LLMClient.chat()`:
-
-  async def chat(
-      self,
-      system_prompt: str,
-      messages: list[dict],
-      *,
-      model: str | None = None,
-      tools: list[dict] | None = None,
-      max_tokens: int | None = None,
-      cache_breakpoints: int = 0,
-      tool_choice: str | None = None,
-      on_timeout: Callable | None = None,
-  ) -> LLMResponse
-
-Returns the same `LLMResponse` dataclass (text + tool_calls +
-model_used + stop_reason). Caller in `stages.py:448` does NOT need to
-know which backend it's talking to — it branches on
-`ctx.user_id in settings.agent_sdk_user_ids` and picks one or the other.
-
-## What the runner ignores (intentionally)
-
-- `system_prompt`: the runner reads `persona.md` from the workspace
-  itself (mtime-aware). Caller's blob is dropped.
-- `tools`: runner uses Read/Grep/Glob exclusively in Fase 2; Write
-  added to a sandbox in Fase 3. Caller's tool list is dropped.
-- `cache_breakpoints`: Agent SDK manages its own caching strategy.
-- `tool_choice`: agent decides; runner has no mode switch.
-
-What IS preserved:
-
-- The last user message in `messages[-1]` is the prompt sent to the
-  agent. Everything before is in the workspace already.
-- `max_tokens` is passed through as the agent's response cap.
-- `on_timeout` callback fires when the agent exceeds the per-turn
-  budget (default 90s, configurable).
+Same signature as `LLMClient.chat()` so `stages.py:448` can branch behind
+the `INSULT_AGENT_SDK_USER_IDS` feature flag without changing call shape.
+Returns the same `LLMResponse` dataclass.
 
 ## Auth
 
-OAuth Max only (Bernard's plan). The runner has
-`~/.claude/.credentials.json` from the EC2 bootstrap. No API key
-fallback — on 429 quota exhaustion the runner returns an in-character
-error and the caller surfaces it via `core/errors.py`.
+OAuth Max only. The runner has the credentials in
+`~/.claude/.credentials.json`. The runner is reached via
+`INSULT_AGENT_RUNNER_URL` with a shared bearer in
+`INSULT_AGENT_RUNNER_TOKEN`. On 429 quota exhaustion the runner returns
+in-character error text; the caller surfaces it normally.
 
-## Status
+## What the runner IGNORES (intentionally)
 
-Fase 0: skeleton committed. Methods raise NotImplementedError.
-Fase 2: implementation lands + feature flag in stages.py.
-Fase 3: Bernard's ID → all IDs in feature flag.
+- `system_prompt`: runner reads persona.md from its own filesystem.
+- `tools`: runner uses Read/Grep/Glob exclusively in Fase 2.
+- `cache_breakpoints`: SDK manages its own caching.
+- `tool_choice`: agent decides per turn.
+
+## What IS preserved
+
+- `messages[-1]['content']` becomes the agent prompt (last user text).
+- `max_tokens` is forwarded only in metrics — runner uses its own cap.
+- `on_timeout`: fires once after the HTTP read timeout fires the first
+  time — same UX as legacy LLMClient's retry_notice.
 """
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from typing import Any
 
+import httpx
 import structlog
 
 from insult.core.llm.parsing import LLMResponse
@@ -88,12 +55,34 @@ from insult.core.llm.parsing import LLMResponse
 log = structlog.get_logger()
 
 
-class AgentRunnerClient:
-    """Drop-in replacement for LLMClient that delegates to the VM runner.
+class AgentRunnerError(Exception):
+    """Raised when the runner returns 5xx or invalid JSON."""
 
-    Constructor takes the runner URL and the bearer auth shared with the
-    runner. Both come from env (`INSULT_AGENT_RUNNER_URL` +
-    `INSULT_AGENT_RUNNER_TOKEN`) — set in Fase 2 deploy.
+
+def _last_user_text(messages: list[dict]) -> str:
+    """Pluck the text payload of the last user message in the API-shaped list.
+
+    Caller (stages.py) builds Anthropic-shape messages where the final entry is
+    role='user'. Its content is either a plain string OR a list of blocks (text
+    + image). We only forward text — the runner reads images via its own tools.
+    """
+    if not messages:
+        return ""
+    last = messages[-1]
+    content = last.get("content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        return "\n".join(p for p in parts if p)
+    return ""
+
+
+class AgentRunnerClient:
+    """Drop-in replacement for LLMClient that delegates to the runner.
+
+    Constructor takes the runner URL and bearer auth. Both come from env
+    (`INSULT_AGENT_RUNNER_URL` + `INSULT_AGENT_RUNNER_TOKEN`).
     """
 
     def __init__(
@@ -101,7 +90,8 @@ class AgentRunnerClient:
         runner_url: str,
         runner_token: str,
         *,
-        timeout_s: float = 90.0,
+        timeout_s: float = 120.0,
+        connect_timeout_s: float = 10.0,
     ):
         if not runner_url:
             raise ValueError("AgentRunnerClient requires runner_url")
@@ -110,6 +100,7 @@ class AgentRunnerClient:
         self._runner_url = runner_url.rstrip("/")
         self._runner_token = runner_token
         self._timeout_s = timeout_s
+        self._connect_timeout_s = connect_timeout_s
 
     async def chat(
         self,
@@ -122,33 +113,114 @@ class AgentRunnerClient:
         cache_breakpoints: int = 0,
         tool_choice: str | None = None,
         on_timeout: Callable[[], Any] | None = None,
+        channel_id: str | None = None,
+        user_id: str | None = None,
+        session_uuid: str | None = None,
+        fallback_model: str | None = None,
     ) -> LLMResponse:
-        """Send a turn to the Agent SDK runner. Returns when the agent
-        finishes its loop (text response ready) or raises on error.
+        _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
-        Only the last user message in `messages` is forwarded — earlier
-        turns are read from the workspace by the agent itself. The other
-        arguments preserve the LLMClient.chat() shape so callers can
-        swap implementations behind a feature flag without code change:
+        user_text = _last_user_text(messages)
+        if not user_text:
+            log.warning("agent_runner_client_empty_user_text", message_count=len(messages))
+            return LLMResponse(text="", model_used="agent-runner", stop_reason="empty_input")
 
-        - `system_prompt`: ignored; runner reads `persona.md` from workspace.
-        - `model`: ignored; runner picks model from its own config.
-        - `tools`: ignored; runner uses Read/Grep/Glob (Fase 2 — see plan).
-        - `cache_breakpoints`: ignored; SDK manages its own caching.
-        - `tool_choice`: ignored; agent decides per turn.
-        - `max_tokens`: passed through as the agent's response cap.
-        - `on_timeout`: fires when agent exceeds 90s per-turn budget.
-        """
-        _ = (system_prompt, messages, model, tools, max_tokens, cache_breakpoints, tool_choice, on_timeout)
-        raise NotImplementedError(
-            "AgentRunnerClient.chat() not implemented yet. "
-            "Lands in Fase 2 of the Agent SDK migration. "
-            "See .claude/plans/insult_agent_sdk_migration.md"
+        payload: dict[str, Any] = {
+            "channel_id": channel_id or "0",
+            "user_id": user_id or "0",
+            "user_text": user_text,
+        }
+        if session_uuid:
+            payload["session_uuid"] = session_uuid
+
+        timeout = httpx.Timeout(self._timeout_s, connect=self._connect_timeout_s)
+        headers = {
+            "Authorization": f"Bearer {self._runner_token}",
+            "Content-Type": "application/json",
+        }
+        url = f"{self._runner_url}/v1/turn"
+        start = time.monotonic()
+        timed_out_once = False
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+        except httpx.ReadTimeout as e:
+            if on_timeout and not timed_out_once:
+                timed_out_once = True
+                try:
+                    maybe = on_timeout()
+                    if hasattr(maybe, "__await__"):
+                        await maybe
+                except Exception:
+                    log.exception("agent_runner_on_timeout_callback_failed")
+            log.warning(
+                "agent_runner_client_timeout",
+                elapsed_ms=int((time.monotonic() - start) * 1000),
+                user_id=user_id,
+                channel_id=channel_id,
+            )
+            raise AgentRunnerError(f"runner read timeout after {self._timeout_s}s") from e
+        except httpx.HTTPError as e:
+            log.exception(
+                "agent_runner_client_http_error",
+                error_type=type(e).__name__,
+                elapsed_ms=int((time.monotonic() - start) * 1000),
+            )
+            raise AgentRunnerError(f"runner http error: {type(e).__name__}: {e}") from e
+
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        if resp.status_code >= 500:
+            log.error(
+                "agent_runner_client_5xx",
+                status=resp.status_code,
+                body_preview=resp.text[:200],
+                elapsed_ms=elapsed_ms,
+            )
+            raise AgentRunnerError(f"runner {resp.status_code}: {resp.text[:200]}")
+        if resp.status_code >= 400:
+            log.error(
+                "agent_runner_client_4xx",
+                status=resp.status_code,
+                body_preview=resp.text[:200],
+                elapsed_ms=elapsed_ms,
+            )
+            raise AgentRunnerError(f"runner {resp.status_code}: {resp.text[:200]}")
+
+        try:
+            data = resp.json()
+        except ValueError as e:
+            log.exception("agent_runner_client_invalid_json", body_preview=resp.text[:200])
+            raise AgentRunnerError("runner returned invalid JSON") from e
+
+        text = data.get("text", "") or ""
+        log.info(
+            "agent_runner_client_turn_complete",
+            text_len=len(text),
+            input_tokens=data.get("input_tokens", 0),
+            output_tokens=data.get("output_tokens", 0),
+            model=data.get("model", ""),
+            stop_reason=data.get("stop_reason", ""),
+            tool_calls=len(data.get("tool_calls", []) or []),
+            session_uuid=data.get("session_uuid"),
+            elapsed_ms=elapsed_ms,
+        )
+
+        return LLMResponse(
+            text=text,
+            tool_calls=[],
+            model_used=data.get("model", "agent-runner"),
+            stop_reason=data.get("stop_reason", ""),
         )
 
     async def health(self) -> dict[str, Any]:
-        """Probe the runner's /health endpoint. Returns {status, ready,
-        session_count, last_turn_age_s}. Used by Insult Container App's
-        own /debug/health to surface runner state.
-        """
-        raise NotImplementedError("AgentRunnerClient.health() not implemented yet. Fase 2.")
+        """Probe the runner's /health endpoint."""
+        timeout = httpx.Timeout(10.0, connect=5.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.get(f"{self._runner_url}/health")
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.HTTPError as e:
+            return {"status": "unreachable", "error": f"{type(e).__name__}: {e}"}
