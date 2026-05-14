@@ -83,6 +83,7 @@ class LLMClient:
         timeout: float = 30.0,
         max_retries: int = 5,
         cure_model: str = "",
+        enabled: bool = True,
     ):
         # max_retries=0 so the SDK does NOT retry internally — our outer loop
         # owns retry policy. Without this, SDK retries ~2x under the hood turn
@@ -92,6 +93,14 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.max_retries = max_retries
         self.cure_model = cure_model  # Haiku model for language cure (step 7c)
+        # Kill switch for the entire legacy direct-Anthropic path. When the
+        # agent runner is canonical and the API key is revoked, every aux
+        # caller (presets_llm, facts, image_summary, language_cure,
+        # summaries) routes through this client. Setting `enabled=False`
+        # makes every chat()/utility_call() return an empty LLMResponse
+        # immediately — each caller already has a fallback path for empty
+        # responses, so the net effect is silent skip + zero 401s in logs.
+        self.enabled = enabled
 
     async def _send(
         self,
@@ -445,6 +454,10 @@ class LLMClient:
 
         Returns LLMResponse with text (for Discord) and tool_calls (for actions).
         """
+        if not self.enabled:
+            log.info("llm_client_disabled_skip", path="chat", model=model or self.model)
+            return LLMResponse(text="", model_used="disabled", stop_reason="disabled")
+
         primary = model or self.model
         fallback = fallback_model or primary
         has_distinct_fallback = fallback != primary
@@ -699,6 +712,10 @@ class LLMClient:
         Returns the same LLMResponse as `chat()`, including `stop_reason`
         so callers can detect truncation.
         """
+        if not self.enabled:
+            log.info("llm_client_disabled_skip", path="utility_call", model=model or self.model)
+            return LLMResponse(text="", model_used="disabled", stop_reason="disabled")
+
         return await self._send(
             system_prompt,
             messages,

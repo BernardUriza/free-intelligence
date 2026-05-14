@@ -43,7 +43,13 @@ def create_app() -> Container:
         timeout=settings.llm_timeout,
         max_retries=settings.llm_max_retries,
         cure_model=settings.summary_model,  # Haiku for language cure (step 7c)
+        enabled=settings.legacy_llm_enabled,
     )
+    if not settings.legacy_llm_enabled:
+        log.info(
+            "llm_client_legacy_disabled",
+            note="LLMClient.chat/utility_call returns empty; aux callers fall back silently",
+        )
     siesta = SiestaPoller()
 
     # Optional Agent SDK runner — only built when both URL and token are

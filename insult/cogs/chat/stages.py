@@ -74,6 +74,7 @@ from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import PresetModifier
 from insult.core.presets_llm import classify_preset_llm
 from insult.core.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
+from insult.core.remembers import parse_remembers, persist_remembers, strip_remembers
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
@@ -566,6 +567,17 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
     post_llm_len = len(response)
 
     ctx.reactions = parse_reactions(response)
+    remembered_facts = parse_remembers(response)
+    if remembered_facts:
+        log.info(
+            "remember_markers_parsed",
+            count=len(remembered_facts),
+            user_id=ctx.user_id,
+        )
+        ctx.spawn_task(
+            persist_remembers(ctx.memory, ctx.user_id, remembered_facts),
+            name=f"persist_remembers:{ctx.user_id}",
+        )
     ctx.recent_openers = [m["content"].split("\n")[0] for m in ctx.recent if m["role"] == "assistant"][-5:]
 
     response = await run_character_pipeline(
@@ -592,6 +604,12 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
             MutationStage(
                 name="strip_reactions",
                 apply=lambda t, _ctx: strip_reactions(t),
+                max_shrink_pct=None,
+                on_violation="skip_stage",
+            ),
+            MutationStage(
+                name="strip_remembers",
+                apply=lambda t, _ctx: strip_remembers(t),
                 max_shrink_pct=None,
                 on_violation="skip_stage",
             ),

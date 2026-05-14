@@ -334,6 +334,52 @@ own ability to detect plausible-but-unverified narrative is what
 breaks down at the end of a long day. The rule has to do that work
 instead.
 
+#### Sub-sub-sub-rule: NEVER attribute a system event to a specific user input by temporal proximity alone
+
+Closely related to the "no speculative explanation" family, this is
+its own failure mode: when reporting that a logged event was caused
+by a specific user payload — "Bernard's 'X' triggered turn Y",
+"the message 'Z' produced this response", "the request_id N
+corresponds to input M" — you MUST first verify the payload from
+the same log line that names the event.
+
+Anti-pattern: read `chat_turn_end` for request_id `68293411` at
+14:26, notice the user typed "lislisto" to Claude Code at 14:25,
+and conclude "Bernard's 'lislisto' produced this turn." The two
+events are in different systems (Claude Code chat ≠ Discord
+channel) and only coincide in wall-clock time. The actual user
+text that entered the pipeline is in `chat_turn_start`'s
+`text_preview` field for that same `request_id`. Quote that, never
+the conversational text.
+
+**Operational form:** before writing the sentence "the user's input
+X caused event Y", run a query that returns the actual input
+captured at intake (`chat_turn_start.text_preview`,
+`/debug/messages?channel_id=...`, or equivalent). If your sentence
+names a payload, the payload must come from a log/DB read in the
+same response. If you only have a wall-clock correlation, write
+"a turn fired at 14:25:49" — not "your message 'X' fired at
+14:25:49."
+
+**Why this rule exists:** on 2026-05-14, during the Agent SDK
+cutover verification, the assistant reported "Bernard's 'lislisto'
+salió 100% por Agent SDK runner" based on a request_id timestamped
+right after his "lislisto" in Claude Code chat. Bernard panicked —
+he had typed "lislisto" only to Claude Code, never to Discord, and
+for a moment thought the assistant had bridged the chats and was
+sending his words to Insult without consent. The reality was an
+unrelated Discord turn (text "Y sí solo es presumir jajaja remote
+worker no es facil") that happened to fire ~10 seconds after his
+Claude Code message. The damage was trust + adrenaline spike right
+in the middle of a delicate revoke-API-key cutover. A 5-second
+query against `chat_turn_start.text_preview` would have surfaced
+the correct text and produced a non-alarming report.
+
+The cost of guessing the payload is unbounded: at worst the user
+believes the assistant has acted on their behalf without
+authorization. Always quote the payload from the structured log,
+never paraphrase from conversational context.
+
 ### Resilience anti-patterns — DO NOT introduce
 
 These are codified after the 2026-05-08 outage post-mortem (full ADR

@@ -121,6 +121,13 @@ class Settings(BaseSettings):
     insult_agent_runner_token: SecretStr = SecretStr("")
     insult_agent_sdk_user_ids: str = ""
 
+    # Legacy direct-Anthropic kill switch. Set to False once the agent runner
+    # is canonical and the API key is revoked. Every LLMClient.chat()/
+    # utility_call() returns empty fast; each aux caller already has a
+    # fallback path for empty responses. The bot Container becomes pure
+    # plumbing between Discord and the runner.
+    legacy_llm_enabled: bool = True
+
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
     @classmethod

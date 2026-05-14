@@ -125,6 +125,32 @@ class FactsRepository(BaseRepository):
         log.info("manual_fact_added", user_id=user_id, fact_id=row_id, category=category)
         return row_id
 
+    async def add_remember_fact(
+        self,
+        user_id: str,
+        fact: str,
+        category: str = "general",
+    ) -> int:
+        """Insert a fact produced in-band by the agent's `[REMEMBER:]` marker.
+
+        Replaces the legacy `core/facts.py` batch Haiku extraction. The
+        agent persona decides what's durable, emits the marker, and the
+        delivery pipeline persists it. Source='agent' so it survives any
+        future `save_facts` (which only wipes source='auto'), but stays
+        distinguishable from operator-curated source='manual' rows."""
+        now = time.time()
+        row_id = await self._fetchval(
+            "INSERT INTO user_facts (user_id, fact, category, updated_at, source) "
+            "VALUES ($1, $2, $3, $4, 'agent') RETURNING id",
+            user_id,
+            fact,
+            category,
+            now,
+        )
+        row_id = int(row_id or 0)
+        log.info("remember_fact_added", user_id=user_id, fact_id=row_id, category=category)
+        return row_id
+
     # -- Consolidator-facing primitives --
     # These methods are used by `core/memory_consolidator` to apply a
     # judge-produced plan over user_facts. Kept in the repo so SQL stays

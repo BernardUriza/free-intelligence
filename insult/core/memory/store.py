@@ -152,6 +152,9 @@ class MemoryStore:
     async def add_manual_fact(self, user_id: str, fact: str, category: str = "general") -> int:
         return await self._facts.add_manual_fact(user_id, fact, category)
 
+    async def add_remember_fact(self, user_id: str, fact: str, category: str = "general") -> int:
+        return await self._facts.add_remember_fact(user_id, fact, category)
+
     async def search_facts_semantic(self, user_id: str, query: str, limit: int = 10) -> list[dict]:
         return await self._facts.search_facts_semantic(user_id, query, limit)
 
