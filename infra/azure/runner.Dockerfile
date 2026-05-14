@@ -30,13 +30,19 @@ RUN npm install -g --silent @anthropic-ai/claude-code
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy shared/ (text chunking, retry, structlog setup) — runner reuses these.
-# Insult/ and alice/ are NOT copied: the runner is intentionally agnostic of
-# either bot's persona logic. Persona lives in the workspace mount.
+# Copy shared/ and insult/ — runner needs:
+#   - shared/* for chunking, retry, logging setup
+#   - insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner
+#   - insult/core/memory/* for asyncpg repos that the renderer queries
+# alice/ is NOT copied — runner is bot-agnostic; only the workspace
+# matters at agent-loop time.
 COPY shared/ shared/
+COPY insult/ insult/
 
-# Placeholder entrypoint until Fase 2 lands the real FastAPI app:
-#   - keeps the container alive so `az containerapp exec` works
-#   - smoke-tests Node + Python + claude-code at every boot
-# Fase 2 swaps to `python -m insult.agent.runner` or similar.
-CMD ["sh", "-c", "node --version && python3 --version && claude --version && echo 'runner placeholder up' && sleep infinity"]
+# Bootstrap script + supervisord-style entrypoint. Two long-running
+# processes share the container:
+#   - workspace_renderer (Postgres -> markdown, every 60s)
+#   - Fase 2b: FastAPI runner on :8080
+# Until Fase 2b lands, only the renderer runs. The smoke versions print
+# happens once at boot so logs confirm the toolchain is wired.
+CMD ["sh", "-c", "node --version && python3 --version && claude --version && echo 'runner up' && exec python3 -m insult.agent.workspace_renderer"]
