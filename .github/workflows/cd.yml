@@ -20,7 +20,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build & Push to ACR
+      - name: Build insult-bot image
         run: |
           az acr build \
             --registry insultacr \
@@ -29,12 +29,61 @@ jobs:
             --image insult-bot:latest \
             .
 
-      - name: Deploy to Container Apps
+      - name: Build alice-bot image
+        # ALICE is a sibling Discord bot (alice/ subpackage). Until this step
+        # was added in v3.9.18 her image only got rebuilt by manual
+        # `az acr build alice-bot:vX.Y.Z` from Bernard's laptop, which meant
+        # every alice/ change required a separate push-then-rebuild ritual.
+        # Now she ships with the same SHA as Insult.
+        run: |
+          az acr build \
+            --registry insultacr \
+            --resource-group insult-rg \
+            --image alice-bot:${{ github.sha }} \
+            --image alice-bot:latest \
+            --file Dockerfile.alice \
+            .
+
+      - name: Build insult-runner image
+        # The Agent SDK runner. Lives in its own Container App `insult-runner`
+        # inside `insult-env`. Reads the workspace mount populated by the
+        # renderer (Postgres -> markdown) and exposes a FastAPI service that
+        # Insult calls behind a per-user feature flag (see Fase 2 of the
+        # Agent SDK migration plan).
+        run: |
+          az acr build \
+            --registry insultacr \
+            --resource-group insult-rg \
+            --image insult-runner:${{ github.sha }} \
+            --image insult-runner:latest \
+            --file infra/azure/runner.Dockerfile \
+            .
+
+      - name: Deploy insult-bot
         run: |
           az containerapp update \
             --name insult-bot \
             --resource-group insult-rg \
             --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
+
+      - name: Deploy alice-bot
+        run: |
+          az containerapp update \
+            --name alice-bot \
+            --resource-group insult-rg \
+            --image insultacr.azurecr.io/alice-bot:${{ github.sha }}
+
+      - name: Deploy insult-runner
+        # New revision picks up the latest workspace-files mount + secrets.
+        # Continue-on-error in case the runner app doesn't exist yet on the
+        # first run that contains this step — the workflow shouldn't break
+        # Insult deploys just because the runner isn't set up yet.
+        continue-on-error: true
+        run: |
+          az containerapp update \
+            --name insult-runner \
+            --resource-group insult-rg \
+            --image insultacr.azurecr.io/insult-runner:${{ github.sha }}
 
       - name: Update consolidator job image
         # The fact-consolidation Container App Job runs from the SAME image
@@ -50,26 +99,47 @@ jobs:
 
       - name: Verify deployment health
         run: |
-          echo "Waiting 30s for new revision to start..."
+          echo "Waiting 30s for new revisions to start..."
           sleep 30
-          # Check that the new revision is running
-          REVISION=$(az containerapp show \
-            --name insult-bot \
-            --resource-group insult-rg \
-            --query "properties.latestRevisionName" -o tsv)
-          echo "Latest revision: $REVISION"
-          # Check logs for bot_ready event (proves bot started successfully)
-          LOGS=$(az containerapp logs show \
-            --name insult-bot \
-            --resource-group insult-rg \
-            --tail 30 2>&1 || true)
-          echo "$LOGS"
-          if echo "$LOGS" | grep -q "bot_ready"; then
-            echo "✅ Bot is healthy — bot_ready event found in logs"
-          elif echo "$LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
-            echo "❌ CRITICAL: Bot may have crashed on startup!"
-            echo "$LOGS" | grep -E "critical|CRITICAL|Traceback|Error" || true
+
+          # --- Insult ---
+          echo ""
+          echo "=== insult-bot ==="
+          az containerapp show -n insult-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
+          INSULT_LOGS=$(az containerapp logs show -n insult-bot -g insult-rg --tail 30 2>&1 || true)
+          echo "$INSULT_LOGS" | tail -10
+          if echo "$INSULT_LOGS" | grep -q "bot_ready"; then
+            echo "OK insult-bot: bot_ready event present"
+          elif echo "$INSULT_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
+            echo "FAIL insult-bot: crash detected on startup"
+            echo "$INSULT_LOGS" | grep -E "critical|CRITICAL|Traceback|Error" || true
             exit 1
           else
-            echo "⚠️ Could not confirm bot_ready — may need more time. Check manually."
+            echo "WARN insult-bot: could not confirm bot_ready, check manually"
+          fi
+
+          # --- ALICE ---
+          echo ""
+          echo "=== alice-bot ==="
+          az containerapp show -n alice-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
+          ALICE_LOGS=$(az containerapp logs show -n alice-bot -g insult-rg --tail 30 2>&1 || true)
+          echo "$ALICE_LOGS" | tail -10
+          if echo "$ALICE_LOGS" | grep -q "alice_gateway_ready"; then
+            echo "OK alice-bot: gateway_ready event present"
+          elif echo "$ALICE_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
+            echo "FAIL alice-bot: crash detected on startup"
+            exit 1
+          else
+            echo "WARN alice-bot: could not confirm gateway_ready, check manually"
+          fi
+
+          # --- Runner (best-effort, doesn't fail the deploy yet) ---
+          echo ""
+          echo "=== insult-runner ==="
+          if az containerapp show -n insult-runner -g insult-rg --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n insult-runner -g insult-rg --query "properties.latestRevisionName" -o tsv
+            RUNNER_LOGS=$(az containerapp logs show -n insult-runner -g insult-rg --tail 15 2>&1 || true)
+            echo "$RUNNER_LOGS" | tail -10
+          else
+            echo "INFO insult-runner: not yet provisioned, skipping health check"
           fi
