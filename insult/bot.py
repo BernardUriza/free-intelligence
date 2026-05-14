@@ -772,6 +772,13 @@ def _build(container: Container):
                         [{"role": "user", "content": f"Recordatorio: {reminder['description']}"}],
                     )
                     text = response.text.strip()
+                    # Empty response (e.g. LEGACY_LLM_ENABLED=false post-F3) is
+                    # NOT an exception \u2014 collapse to the same hardcoded fallback
+                    # so the user gets actual reminder content instead of just
+                    # a bare mention with no body.
+                    if not text:
+                        log.info("reminder_llm_empty_fallback", reminder_id=reminder["id"])
+                        text = f"\u23f0 Recordatorio: {reminder['description']}"
                 except Exception:
                     log.exception("reminder_llm_failed", reminder_id=reminder["id"])
                     text = f"\u23f0 Recordatorio: {reminder['description']}"

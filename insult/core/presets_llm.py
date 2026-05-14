@@ -1,5 +1,17 @@
 """LLM-based preset classifier — `decisional middleware` for preset selection.
 
+**DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the persona's
+"Implicit Mode Reflex" clause which makes preset selection a silent
+in-band behavior of the agent runner itself. The regex classifier
+in `insult.core.presets.classify_preset()` still runs as a structural
+signal (telemetry) but the LLM middleware here has no consumer when
+the agent path is canonical. With
+``PRESET_CLASSIFIER_LLM_ENABLED=false`` (or
+``LEGACY_LLM_ENABLED=false``) the call returns empty and we fall
+through to the regex result. Safe to delete once we confirm the
+agent's mode reflex produces preset-equivalent behavior across the
+full message distribution.
+
 The regex classifier in `insult.core.presets.classify_preset()` is fast and
 deterministic but blind to context. A user writing `tu sabes varios ya...`
 (an explicit invitation to demonstrate memory) has zero content-word

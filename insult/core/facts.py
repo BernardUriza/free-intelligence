@@ -1,5 +1,16 @@
 """Extract and manage persistent user facts via LLM.
 
+**DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the persona's
+in-band ``[REMEMBER: <fact>]`` marker (`insult/core/remembers.py`).
+The agent runner decides what's worth remembering during the turn
+and emits the marker; ``stages.py`` parses it and persists via
+``memory.add_remember_fact()`` (source='agent'). With
+``LEGACY_LLM_ENABLED=false`` the call here returns empty and the
+legacy batch path silently no-ops. Module retained for: the prompt
+format if we need a batch re-extraction script, and backwards-compat
+for callers that still import. Safe to delete once `user_facts`
+shows source='agent' rows for all active users for ≥1 week.
+
 After each conversation exchange, we ask the LLM to extract/update
 interesting facts about the user. Facts are stored in SQLite and
 injected into the system prompt so Insult always knows who it's

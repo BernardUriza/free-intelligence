@@ -1,5 +1,16 @@
 """Generate short text descriptions of image attachments for long-term memory.
 
+**DEPRECATED (v3.9.25, 2026-05-14)** — the agent runner has native
+vision and reads images directly inside the same turn (persona
+"Native Vision" clause). The trace-for-future-turns problem is
+solved by the workspace renderer writing the agent's own reply (which
+already describes what's in the image) to `messages/{channel_id}.md`,
+so on the next turn the agent reads the markdown and recovers
+context without needing a separate Haiku summary. With
+``LEGACY_LLM_ENABLED=false`` the call here returns empty and the
+caller's None-fallback kicks in. Safe to delete once we confirm the
+workspace messages markdown carries enough image-reference signal.
+
 The main LLM turn already uses Claude vision directly and sees the raw image.
 This module exists so that in future turns — when the conversation context is
 rebuilt from SQLite, which only stores text — Claude still has a trace of what
