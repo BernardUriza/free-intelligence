@@ -33,6 +33,12 @@ fastapi>=0.115
 uvicorn>=0.30
 httpx>=0.27
 
+# Insult Agent SDK runner (insult-runner Container App). Wraps the Claude
+# Code agent loop in a FastAPI service Insult calls behind a feature flag.
+# Pinned with >= because Anthropic ships frequent SDK updates and we want
+# pip-audit to surface advisories quickly.
+claude-agent-sdk>=0.1.81
+
 # Vector search (semantic fact retrieval)
 sqlite-vec>=0.1.6
 sentence-transformers>=3.0.0

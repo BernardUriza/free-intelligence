@@ -39,10 +39,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/ shared/
 COPY insult/ insult/
 
-# Bootstrap script + supervisord-style entrypoint. Two long-running
-# processes share the container:
-#   - workspace_renderer (Postgres -> markdown, every 60s)
-#   - Fase 2b: FastAPI runner on :8080
-# Until Fase 2b lands, only the renderer runs. The smoke versions print
-# happens once at boot so logs confirm the toolchain is wired.
-CMD ["sh", "-c", "node --version && python3 --version && claude --version && echo 'runner up' && exec python3 -m insult.agent.workspace_renderer"]
+# Persona file lives in the repo (not in workspace mount) so it ships
+# with the image. Renderer NEVER overwrites it.
+COPY persona.md /app/persona.md
+
+# Entrypoint script orchestrates two processes: renderer (background) +
+# FastAPI runner (foreground). See infra/azure/entrypoint.sh for details
+# on OAuth credential materialization and process lifecycle.
+COPY infra/azure/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 8080
+CMD ["/entrypoint.sh"]
