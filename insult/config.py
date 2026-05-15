@@ -128,6 +128,12 @@ class Settings(BaseSettings):
     # plumbing between Discord and the runner.
     legacy_llm_enabled: bool = True
 
+    # When the agent runner times out / 5xx's / rate-limits, invite ALICE to
+    # take the turn instead of failing the user-facing message. ALICE reads
+    # the recent channel from Postgres and replies in her own persona. The
+    # user sees a continuation in voice B instead of a canned error.
+    alice_failover_enabled: bool = True
+
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
     @classmethod

@@ -481,6 +481,53 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         else:
             failure_class = FailureClass.LLM_FAILED
         elapsed = int((time.monotonic() - llm_start) * 1000)
+
+        # ALICE failover: if the agent runner timed out / 5xx'd / rate-limited,
+        # invite ALICE to take this turn instead of leaving the user stuck with
+        # an in-character error. ALICE reads the recent channel from Postgres
+        # and replies with her own persona — user sees a continuation in voice
+        # B instead of a half-canned "ando hasta el queso" from voice A.
+        # Only triggers on agent_runner backend failures, NOT BadRequestError
+        # (which is usually a malformed request that ALICE can't fix either).
+        alice_failover_enabled = getattr(ctx.settings, "alice_failover_enabled", True)
+        is_agent_failure = backend == "agent_runner" and failure_class == FailureClass.LLM_FAILED
+        if alice_failover_enabled and is_agent_failure:
+            log.warning(
+                "agent_runner_fallover_to_alice",
+                error_type=type(e).__name__,
+                error_msg=str(e)[:200],
+                elapsed_ms=elapsed,
+            )
+            try:
+                from insult.core.alice_tool import execute_invoke_alice
+
+                guild_id = str(ctx.guild_id) if ctx.guild_id else None
+                fallover_reason = (
+                    f"FAILOVER: Insult (insult-runner) no respondió a este turno "
+                    f"({type(e).__name__}). Toma tú el turn — responde directamente "
+                    f"al último mensaje del usuario en este canal. No estás como "
+                    f"compañera complementaria esta vez; estás como única voz que "
+                    f"contesta. Mantén tu register, no imites a Insult."
+                )
+                ok = await execute_invoke_alice(
+                    {"reason": fallover_reason},
+                    channel_id=ctx.channel_id,
+                    guild_id=guild_id,
+                    channel_name=ctx.channel_name,
+                )
+                if ok:
+                    log.info("alice_failover_invoked", channel_id=ctx.channel_id)
+                    # Mark this as a successful turn from the user's POV — ALICE
+                    # will deliver async. discord-bot doesn't send anything itself.
+                    ctx.delivery_mode = "alice_failover"
+                    raise StageStop("alice_failover") from e
+                log.warning("alice_failover_rejected", channel_id=ctx.channel_id)
+            except StageStop:
+                raise
+            except Exception:
+                log.exception("alice_failover_internal_error")
+                # Fall through to the legacy error path below
+
         # In-character user notice via the reaction-fallback path so a
         # rate-limited channel still produces *some* signal.
         await send_with_reaction_fallback(ctx.message, get_error_response(classify_error(e)))
