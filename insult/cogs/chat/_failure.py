@@ -253,6 +253,47 @@ def spawn_typing_indicator(
     spawn_task(emit_typing_safe(channel), name="typing_indicator")
 
 
+# Discord's typing indicator times out at ~10s, so we re-fire every TYPING_KEEPALIVE_S
+# while the LLM is in flight. 7s gives a 3s safety margin against drift.
+TYPING_KEEPALIVE_S = 7.0
+
+
+async def _typing_keepalive_loop(channel: discord.abc.Messageable) -> None:
+    """Re-emit ``send_typing`` every ~7s until cancelled.
+
+    Spawned by ``spawn_typing_keepalive`` and cancelled by the caller when
+    the long operation (LLM call, agent runner round-trip) finishes. Each
+    iteration swallows rate-limit errors via ``emit_typing_safe`` so a
+    transient 429 on the typing bucket never bubbles up and breaks the turn.
+    """
+    while True:
+        await emit_typing_safe(channel)
+        try:
+            await asyncio.sleep(TYPING_KEEPALIVE_S)
+        except asyncio.CancelledError:
+            return
+
+
+def spawn_typing_keepalive(
+    channel: discord.abc.Messageable,
+) -> asyncio.Task:
+    """Start a background keepalive task that re-emits typing every ~7s.
+
+    Returns the task so the caller can cancel it when their long-running
+    operation completes (typically: ``finally: task.cancel()`` around the
+    LLM call). Cancellation is fire-and-forget — we don't await the task
+    after cancel because there's nothing to wait for: the loop exits on
+    CancelledError and that's the end of it.
+
+    Use this for operations >10s (the Discord typing TTL). For short bursts
+    (<10s) the one-shot ``emit_typing_safe`` is enough and cheaper.
+    """
+    return asyncio.create_task(
+        _typing_keepalive_loop(channel),
+        name="typing_keepalive",
+    )
+
+
 __all__ = [
     "FailureClass",
     "StageFailure",
@@ -260,6 +301,7 @@ __all__ = [
     "emit_typing_safe",
     "send_with_reaction_fallback",
     "spawn_typing_indicator",
+    "spawn_typing_keepalive",
 ]
 
 

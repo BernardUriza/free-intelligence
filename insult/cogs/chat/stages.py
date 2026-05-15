@@ -37,6 +37,7 @@ from insult.cogs.chat._failure import (
     classify_discord_exception,
     send_with_reaction_fallback,
     spawn_typing_indicator,
+    spawn_typing_keepalive,
 )
 from insult.cogs.chat.context import (
     build_context,
@@ -462,6 +463,11 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
     )
     llm_client, backend = _pick_llm_for_turn(ctx)
     log.info("llm_backend_selected", backend=backend, user_id=ctx.user_id)
+    # Keepalive the Discord typing indicator throughout the LLM call.
+    # Discord's typing indicator times out at ~10s; agent runner turns can
+    # legitimately take 15-90s (Sonnet + tool calls). The keepalive task
+    # re-fires `send_typing` every ~7s and is cancelled in `finally`.
+    typing_task = spawn_typing_keepalive(ctx.message.channel)
     try:
         llm_kwargs: dict[str, Any] = {
             "tools": ctx.tools,
@@ -538,6 +544,13 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             error_msg=str(e)[:200],
             elapsed_ms=elapsed,
         ) from e
+    finally:
+        # Stop the typing keepalive in BOTH the success and failure paths.
+        # Cancellation is fire-and-forget — the loop exits on
+        # CancelledError. We don't await because there's nothing to wait
+        # for and any await here would re-introduce the original failure
+        # mode where typing throttles could cancel the turn.
+        typing_task.cancel()
 
     ctx.llm_ms = int((time.monotonic() - llm_start) * 1000)
     tool_names = [tc.name for tc in ctx.llm_response.tool_calls]
