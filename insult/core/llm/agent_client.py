@@ -97,11 +97,7 @@ def _last_user_attachments(messages: list[dict]) -> list[dict]:
     content = last.get("content", "")
     if not isinstance(content, list):
         return []
-    return [
-        b
-        for b in content
-        if isinstance(b, dict) and b.get("type") in {"image", "document"}
-    ]
+    return [b for b in content if isinstance(b, dict) and b.get("type") in {"image", "document"}]
 
 
 class AgentRunnerClient:
