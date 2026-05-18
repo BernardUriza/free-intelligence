@@ -151,14 +151,31 @@ _reaper_task: asyncio.Task | None = None
 
 
 async def _build_options(persona: str) -> Any:
-    """Construct ClaudeAgentOptions for a new channel session."""
+    """Construct ClaudeAgentOptions for a new channel session.
+
+    F4 phase 1 (v3.9.51): the in-process `insult_db` MCP server is
+    registered alongside the workspace `Read/Grep/Glob` tools. The
+    agent can hit Postgres directly via `mcp__insult_db__*` calls or
+    keep reading the workspace markdown — both paths work during the
+    migration so we can validate before decommissioning the renderer.
+    """
     from claude_agent_sdk import ClaudeAgentOptions
+
+    from insult.agent.mcp_tools import (
+        INSULT_DB_SERVER_NAME,
+        INSULT_DB_TOOLS,
+        build_insult_db_server,
+    )
+
+    insult_db_server = build_insult_db_server()
+    mcp_tool_names = [f"mcp__{INSULT_DB_SERVER_NAME}__{t.name}" for t in INSULT_DB_TOOLS]
 
     return ClaudeAgentOptions(
         system_prompt=persona,
         cwd=str(WORKSPACE_ROOT),
         model=DEFAULT_MODEL,
-        allowed_tools=["Read", "Grep", "Glob"],
+        allowed_tools=["Read", "Grep", "Glob", *mcp_tool_names],
+        mcp_servers={INSULT_DB_SERVER_NAME: insult_db_server},
         permission_mode="bypassPermissions",
         # Project-only filesystem settings: load <cwd>/CLAUDE.md as project
         # context, but do NOT read ~/.claude/ from the runner user.
