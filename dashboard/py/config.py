@@ -1,6 +1,6 @@
 """Dashboard configuration."""
 
-VERSION = "2.0.2"
+VERSION = "2.1.0"
 
 # Azure Blob Storage URLs (public read access)
 BLOB_BASE = "https://insultstorage.blob.core.windows.net/insult-bot"

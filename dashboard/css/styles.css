@@ -23,17 +23,24 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  /* Mobile-first: vertical scroll is fine. Desktop overrides below. */
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Topbar */
+/* Topbar — mobile-first: compact, wrap-friendly */
 .topbar {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.85rem;
   border-bottom: 1px solid var(--border);
-  gap: 1rem;
+  gap: 0.5rem;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 50;
 }
 
 .logo {
@@ -49,18 +56,24 @@ body {
 .logo span { color: var(--red); }
 .logo em { font-style: normal; font-size: 0.55rem; color: var(--text-muted); margin-left: 0.25rem; }
 
-/* Tabs */
+/* Tabs — mobile-first: 44px touch targets per Apple HIG */
 .tabs {
   display: flex;
-  gap: 0.25rem;
-  margin-left: 1.5rem;
+  gap: 0.4rem;
+  margin-left: 0;
+  flex-wrap: wrap;
+  order: 3;
+  width: 100%;
 }
 
 .tab {
   font-family: var(--mono);
-  font-size: 0.6rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: 6px;
+  font-size: 0.7rem;
+  padding: 0.65rem 1rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-dim);
@@ -98,20 +111,23 @@ body {
 .status-live { color: var(--green); border-color: rgba(46, 204, 113, 0.3); }
 .status-error { color: var(--red); border-color: rgba(231, 76, 60, 0.3); }
 
-/* Bento Grid */
+/* Bento — mobile-first: 2-col stat cards, single-col panels, vertical scroll.
+   Desktop overrides at the bottom of the file restore the 4-col grid layout. */
 .bento {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: auto auto 1fr;
-  grid-template-areas:
-    "s1 s2 s3 s4"
-    "presets presets counters counters"
-    "traces traces traces traces"
-    "logs logs logs logs";
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  height: calc(100vh - 52px);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem 2rem;
+  /* No fixed height: let mobile scroll vertically. Desktop overrides this. */
 }
+
+/* Each stat card occupies one column by default (2-col grid above). */
+.stat-card { grid-column: span 1; }
+
+/* Panels (presets, counters, traces, logs) span both columns on mobile.
+   They stack vertically as you scroll. Desktop will reposition them via
+   grid-area in the @media (min-width: ...) block below. */
+.panel { grid-column: span 2; }
 
 .g-card {
   background: var(--surface);
@@ -565,15 +581,60 @@ body {
   flex-shrink: 0;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
+/* Responsive — mobile-first.
+   Default styles target phone (375px+). These overrides expand to
+   tablet/desktop. We never shrink things from a desktop baseline. */
+
+/* Tablet — 2-col stat row, side-by-side preset/counters panels */
+@media (min-width: 640px) {
+  .topbar { padding: 0.75rem 1.25rem; }
+  .tabs { width: auto; order: 0; margin-left: 1rem; }
+  .tab { font-size: 0.65rem; padding: 0.4rem 0.85rem; min-height: 36px; }
   .bento {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 1rem 1.25rem 1.5rem;
+  }
+  .stat-card { grid-column: span 1; }
+  #presets-panel { grid-column: span 2; }
+  #counters-panel { grid-column: span 2; }
+  #traces-panel { grid-column: span 4; }
+  #logs-panel { grid-column: span 4; }
+}
+
+/* Desktop — restore the original bento layout with fixed viewport height */
+@media (min-width: 1024px) {
+  body { overflow: hidden; }
+  .topbar {
+    position: static;
+    padding: 0.75rem 1.5rem;
+    flex-wrap: nowrap;
+  }
+  .bento {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto auto 1fr;
     grid-template-areas:
-      "s1 s2"
-      "s3 s4"
-      "presets counters"
-      "traces traces"
-      "logs logs";
+      "s1 s2 s3 s4"
+      "presets presets counters counters"
+      "traces traces traces traces"
+      "logs logs logs logs";
+    height: calc(100dvh - 52px);
+    padding: 1rem 1.5rem;
+  }
+  #stat-uptime { grid-area: s1; grid-column: auto; }
+  #stat-messages { grid-area: s2; grid-column: auto; }
+  #stat-latency { grid-area: s3; grid-column: auto; }
+  #stat-errors { grid-area: s4; grid-column: auto; }
+  #presets-panel { grid-area: presets; grid-column: auto; }
+  #counters-panel { grid-area: counters; grid-column: auto; }
+  #traces-panel { grid-area: traces; grid-column: auto; }
+  #logs-panel { grid-area: logs; grid-column: auto; }
+}
+
+/* Legacy block kept for backward-compat of any selector that referenced
+   the old 900px breakpoint. The min-width queries above are authoritative. */
+@media (max-width: 900px) {
+  .bento-legacy-noop {
+    /* intentionally empty — see min-width queries above */
+    display: block;
   }
 }
