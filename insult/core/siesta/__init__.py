@@ -2,18 +2,21 @@
 
 While the memory consolidator runs (a separate Azure Container App Job),
 the bot replica goes silent: it stores incoming messages, reacts with
-🛌 to acknowledge them, but does not call the LLM. This avoids
-mtime-collision races on the blob (the upload-side problem fixed in
-:mod:`insult.core.backup`) and saves tokens on responses generated
-against state that's about to be replaced.
+🛌 to acknowledge them, but does not call the LLM. This avoids races
+on the data plane and saves tokens on responses generated against state
+that's about to be replaced.
 
 Public API:
 - :class:`SiestaSnapshot`, :class:`SiestaPhase`: in-memory state types.
-- :class:`SiestaPoller`: bot-side periodic blob-metadata reader.
+- :class:`SiestaPoller`: bot-side periodic state reader.
 - ``mark_started`` / ``mark_progress`` / ``mark_finished``: consolidator-side writers.
+
+v3.9.46 (POST-DEPLOY-1): coordination moved from `blob_metadata` (Azure
+blob metadata fields hijacked on `memory.db` blob) to `pg_state`
+(Postgres `siesta_state` table). The blob is no longer the channel.
 """
 
-from insult.core.siesta.coordination.blob_metadata import (
+from insult.core.siesta.coordination.pg_state import (
     mark_finished,
     mark_progress,
     mark_started,

@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 
-from insult.core.siesta.coordination.blob_metadata import read_snapshot
+from insult.core.siesta.coordination.pg_state import read_snapshot
 from insult.core.siesta.state import AWAKE, SiestaSnapshot
 
 log = structlog.get_logger()

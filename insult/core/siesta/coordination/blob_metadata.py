@@ -1,22 +1,26 @@
-"""Cross-process coordination via Azure blob metadata.
+"""DEPRECATED v3.9.46 — kept only for tests and historical reference.
 
+The Siesta coordination has moved to Postgres (`pg_state.py`). This module
+is no longer imported by the runtime (`__init__.py` and `poller.py` both
+import `pg_state` now). The blob metadata hijack is gone, which is what
+finally unblocks deleting the `memory.db` blob entirely (POST-DEPLOY-1).
+
+Why kept on disk:
+- Existing tests in `tests/test_siesta_blob_metadata.py` exercise the
+  pure parser (`parse_metadata`) and don't need Azure.
+- Historical reference for the design rationale of the blob hijack.
+
+DO NOT use the writer functions (`mark_*`) from this module — they will
+silently no-op against the production data plane (writes go to Azure blob
+metadata that nothing else reads). Use `pg_state` instead.
+
+Original docstring kept below for context:
+
+Cross-process coordination via Azure blob metadata.
 The consolidator job and the bot replica are different processes — they
 can't share memory or use Python locks. The shared object they BOTH
 already touch is the `memory.db` blob in Azure Storage. Azure lets us
 attach arbitrary string metadata to a blob; we hijack that channel.
-
-Writers (consolidator):
-- ``mark_started(total_users)`` at the top of the run.
-- ``mark_user_progress(processed, current_user_id, phase)`` after each
-  user is finished or as the phase advances within a user.
-- ``mark_finished()`` at the very end (success OR fail — the bot must
-  always wake up).
-
-Reader (bot poller):
-- ``read_snapshot()`` returns a :class:`~insult.core.siesta.state.SiestaSnapshot`.
-
-Metadata keys are namespaced under ``siesta_*`` so they don't collide
-with anything else Azure or the SDK might attach.
 """
 
 from __future__ import annotations

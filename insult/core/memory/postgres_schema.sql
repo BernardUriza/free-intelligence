@@ -166,6 +166,22 @@ CREATE TABLE IF NOT EXISTS guild_config (
     setup_complete       INTEGER NOT NULL DEFAULT 0
 );
 
+-- ─── siesta_state ──────────────────────────────────────────────────────
+-- Cross-process Siesta coordination (v3.9.46, POST-DEPLOY-1). Replaces
+-- the old `memory.db` blob metadata hijack. Singleton row keyed by a
+-- constant ('current') — the consolidator job and the bot replica both
+-- read/write this same row. UPSERT on phase change; the bot poller
+-- reads it every 30s. Default empty/AWAKE when the row is absent.
+CREATE TABLE IF NOT EXISTS siesta_state (
+    singleton         TEXT PRIMARY KEY CHECK (singleton = 'current'),
+    phase             TEXT NOT NULL,
+    started_at        TIMESTAMPTZ,
+    total_users       INTEGER NOT NULL DEFAULT 0,
+    processed_users   INTEGER NOT NULL DEFAULT 0,
+    current_user_id   TEXT,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── fact_consolidation_log ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS fact_consolidation_log (
     id                BIGSERIAL PRIMARY KEY,
