@@ -182,7 +182,12 @@ async def _main() -> None:
             await asyncio.sleep(0.5)
             os._exit(1)
 
-        if msg_create_age > 7200 and resumes_last_hour > 0:
+        # v3.9.40 fix: previous threshold (msg_create > 2h AND resumes > 0)
+        # produced 5 false restarts/24h on alice-bot. ALICE rarely sees
+        # MESSAGE_CREATE because she's mention-only — every quiet
+        # 2h-window triggered. Real zombie needs 3+ resumes (unstable
+        # reconnect loop) AND 6h+ silence.
+        if msg_create_age > 21600 and resumes_last_hour >= 3:
             log.critical(
                 "alice_gateway_watchdog_zombie_detected_restart",
                 socket_age_s=int(socket_age),

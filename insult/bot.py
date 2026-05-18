@@ -980,12 +980,17 @@ def _build(container: Container):
             os._exit(1)
 
         # Signal B: gateway heartbeating fine but MESSAGE_CREATE starved
-        # AND a recent reconnect happened — session_id is likely stale,
-        # events are being filtered server-side. This is the zombie bug.
-        # 7200s = 2h of message silence is plenty even for a quiet
-        # weekend; combined with a resume in the last hour it's
-        # unambiguous.
-        if msg_create_age > 7200 and resumes_last_hour > 0:
+        # AND repeated reconnects happening — session_id is likely stale,
+        # events being filtered server-side. This is the zombie bug.
+        #
+        # v3.9.40 fix: previous threshold (msg_create > 2h AND resumes > 0)
+        # fired in healthy conditions — one network hiccup = 1 resume,
+        # quiet nighttime channel = 2h silence, combination is NORMAL.
+        # KQL showed 9 false restarts/24h across discord-bot + alice-bot.
+        # Real zombie pattern is REPEATED reconnections (>=3 in 1h) AND
+        # prolonged silence (>=6h). A single resume in healthy weekly
+        # ops happens hourly and is not zombie evidence.
+        if msg_create_age > 21600 and resumes_last_hour >= 3:
             log.critical(
                 "gateway_watchdog_zombie_detected_restart",
                 socket_age_s=int(socket_age),
