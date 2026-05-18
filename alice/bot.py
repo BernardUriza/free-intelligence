@@ -147,16 +147,27 @@ async def _main() -> None:
         msg_create_age = now - _last_msg_create_ts
         resumes_last_hour = len(_resumed_ts_ring)
 
+        # See insult/bot.py for the full Signal A rationale: bot.latency
+        # is the WS heartbeat round-trip, the TRUE liveness signal.
+        # on_socket_event_type only fires for DISPATCH events which can
+        # legitimately go quiet for many minutes in low-activity servers,
+        # so it produces false positives if used directly.
+        latency_s = container.bot.latency
+        if not isinstance(latency_s, float) or latency_s != latency_s:
+            latency_s = -1.0
+
         log.info(
             "alice_gateway_watchdog_tick",
             socket_age_s=int(socket_age),
             msg_create_age_s=int(msg_create_age),
             resumes_last_hour=resumes_last_hour,
+            latency_ms=int(latency_s * 1000) if latency_s >= 0 else -1,
         )
 
-        if socket_age > 180:
+        if latency_s < 0 or latency_s > 60.0:
             log.critical(
-                "alice_gateway_watchdog_silent_too_long_restart",
+                "alice_gateway_watchdog_heartbeat_dead_restart",
+                latency_s=latency_s,
                 socket_age_s=int(socket_age),
             )
             await asyncio.sleep(0.5)

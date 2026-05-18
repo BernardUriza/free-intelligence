@@ -946,27 +946,42 @@ def _build(container: Container):
         msg_create_age = now - _last_msg_create_ts
         resumes_last_hour = len(_bot_resumed_ts_ring)
 
+        # bot.latency is the WebSocket heartbeat round-trip from
+        # discord.py's keepalive thread. NaN/inf = no heartbeat sent yet
+        # or connection is dead. A huge value (>60s) means heartbeat ACK
+        # has been silent.
+        latency_s = bot.latency
+        if not isinstance(latency_s, float) or latency_s != latency_s:  # NaN check
+            latency_s = -1.0
+
         log.info(
             "gateway_watchdog_tick",
             socket_age_s=int(socket_age),
             msg_create_age_s=int(msg_create_age),
             resumes_last_hour=resumes_last_hour,
+            latency_ms=int(latency_s * 1000) if latency_s >= 0 else -1,
         )
 
-        # Signal A: gateway fully silent — no events at all for >3min.
-        # Heartbeat ACKs should arrive every ~41s; 180s means the WS is
-        # dead and discord.py's auto-reconnect failed to recover.
-        if socket_age > 180:
+        # Signal A: WebSocket heartbeat is dead.
+        # `bot.latency` measures the HEARTBEAT/HEARTBEAT_ACK round-trip
+        # from discord.py's keepalive thread. NaN or >60s means the
+        # gateway connection is no longer alive even though our process
+        # is. This is the TRUE liveness signal — NOT `on_socket_event_type`,
+        # which only fires for DISPATCH events (MESSAGE_CREATE, PRESENCE_UPDATE,
+        # TYPING_START, etc.) and can legitimately go quiet for many minutes
+        # in low-activity servers.
+        if latency_s < 0 or latency_s > 60.0:
             log.critical(
-                "gateway_watchdog_silent_too_long_restart",
+                "gateway_watchdog_heartbeat_dead_restart",
+                latency_s=latency_s,
                 socket_age_s=int(socket_age),
             )
             await asyncio.sleep(0.5)
             os._exit(1)
 
-        # Signal B: gateway heartbeating but MESSAGE_CREATE starved AND a
-        # recent reconnect happened — session_id is likely stale, events
-        # are being filtered server-side. This is the zombie bug.
+        # Signal B: gateway heartbeating fine but MESSAGE_CREATE starved
+        # AND a recent reconnect happened — session_id is likely stale,
+        # events are being filtered server-side. This is the zombie bug.
         # 7200s = 2h of message silence is plenty even for a quiet
         # weekend; combined with a resume in the last hour it's
         # unambiguous.
