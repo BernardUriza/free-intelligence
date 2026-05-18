@@ -208,9 +208,7 @@ async def get_disclosure_log(args: dict) -> dict:
         lines = [f"# Disclosures for user {user_id} (last {days}d, {len(rows)} entries)"]
         for r in rows:
             ts_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["timestamp"]))
-            lines.append(
-                f"- {ts_iso} | sev={r['severity']} | category={r['category']} | signals={r['signals']}"
-            )
+            lines.append(f"- {ts_iso} | sev={r['severity']} | category={r['category']} | signals={r['signals']}")
         return _text("\n".join(lines))
     finally:
         await conn.close()
