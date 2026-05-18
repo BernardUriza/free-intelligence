@@ -48,3 +48,65 @@
 - Log memory: memory_connected, memory_closed, memory_store_failed
 - Log attachments: attachment_processed, attachment_rejected
 - Log commands: command_error with user context
+
+## Destructive Post-Processing — MANDATORY
+
+Any post-LLM mutator (regex stripper, heuristic truncator, profile updater)
+that acts on a single signal MUST consider context before mutating output
+or persistent state. Three production bugs hit users within the same hour
+on 2026-05-18 from this exact class:
+
+| Bug | File | Symptom |
+|---|---|---|
+| Echo strip ate quoted citations | `core/character/formatting.py:strip_echoed_quotes` | `"su equipo no crece" — eso te lo inventas` became ` no crece" — eso te lo inventas` (orphan quote + missing opener + missing content) |
+| Language flipped on a single paste | `core/style.py:UserStyleProfile.update` | Bernard pasted an English email; bot responded entirely in English next turn |
+| Length enforcer truncated 80-90% of content | `core/character/formatting.py:enforce_length_variation` | Cut a 217-word response to 38 words, silently dropping `[REMEMBER:]` and `[REACT:]` markers in the tail |
+
+### Required design when mutating LLM output
+
+- **Quote-adjacency rule** (text mutators): if the matched span is inside
+  `"..."`, `'...'`, `«...»`, smart quotes, it is almost certainly
+  intentional content — skip the mutation. Use **paragraph-level evidence**
+  (`≥2 quote chars in the paragraph → assume intentional citation, skip`).
+  Character-adjacent lookbehind/lookahead is NOT enough; quotes may be
+  separated from the span by 1-2 words.
+- **Marker rescue** (truncators): before dropping any portion of the LLM
+  output, extract `[REMEMBER:]` and `[REACT:]` markers from the dropped
+  region and re-append to what remains. The persistence and reaction
+  layers must not silently lose state because of a formatting heuristic.
+- **Two-regime stickiness** (profile updaters): brand-new profiles
+  (`count < CONFIDENCE_THRESHOLD`) may flip on a single signal — they are
+  still learning. Confident profiles MUST require N consecutive
+  other-side signals (streak counter) before flipping a discrete field
+  like `detected_language`. Continuous fields keep using EMA.
+
+### Required tests for any new mutator
+
+Every mutator MUST land with at least two tests:
+
+1. The positive case it exists to fix (the bug it claims to detect)
+2. The **resistance case** — a near-miss that looks like the target but is
+   intentional and must be preserved.
+
+Examples in this codebase:
+- `test_preserves_intentional_quote` ⇆ `test_strips_unquoted_echo`
+- `test_confident_profile_resists_single_off_language_msg` ⇆
+  `test_confident_profile_switches_after_three_consecutive_off_language`
+- `test_uniform_medium_preserves_markers_in_tail` ⇆
+  `test_uniform_medium_truncates`
+
+Without the resistance test, the mutator's regression risk is invisible
+until production hits the wrong shape.
+
+### Code-review checklist before approving a new mutator
+
+- What context would make this mutation wrong? (quote-wrapped span,
+  established profile, marker-bearing tail)
+- Is there a paragraph-level / multi-signal check before the hard
+  mutation, or does it act on the first match?
+- Are there tests for both the positive case AND the resistance case?
+- Does the telemetry event (`echo_stripped`, `length_enforced`, etc.)
+  include a `reason` field describing WHY the mutation fired?
+
+Reference: full case studies in
+`memory/feedback_destructive_post_processing.md`.
