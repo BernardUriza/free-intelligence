@@ -249,6 +249,12 @@ CONFIDENCE_THRESHOLD = 5
 class UserStyleProfile:
     """Per-user style fingerprint, updated incrementally via EMA."""
 
+    # How many consecutive messages in a different language are needed before
+    # the profile switches. Single pasted snippets (e.g. an English email
+    # Bernard quotes in chat) must NOT flip the profile — see
+    # `_LANG_SWITCH_STREAK_REQUIRED` rationale in `update()`.
+    _LANG_SWITCH_STREAK_REQUIRED = 3
+
     def __init__(
         self,
         avg_word_count: float = 15.0,
@@ -257,6 +263,7 @@ class UserStyleProfile:
         technical_level: float = 0.5,
         detected_language: str = "es",
         message_count: int = 0,
+        lang_switch_streak: int = 0,
     ):
         self.avg_word_count = avg_word_count
         self.emoji_ratio = emoji_ratio
@@ -264,6 +271,11 @@ class UserStyleProfile:
         self.technical_level = technical_level
         self.detected_language = detected_language
         self.message_count = message_count
+        # Counts how many consecutive recent messages have been detected
+        # in a language OTHER than the current `detected_language`. Reset
+        # to 0 whenever a message matches the current language. Switch
+        # only when streak >= _LANG_SWITCH_STREAK_REQUIRED.
+        self.lang_switch_streak = lang_switch_streak
 
     def update(self, text: str):
         """Update profile with a new message using EMA smoothing."""
@@ -287,8 +299,29 @@ class UserStyleProfile:
         new_tech = _compute_technical_level(text)
         self.technical_level = alpha * new_tech + (1 - alpha) * self.technical_level
 
-        # Language — majority vote, not EMA (discrete value)
-        self.detected_language = _detect_language(text)
+        # Language — sticky with streak ONCE confident. Single off-language
+        # messages (a pasted email, a quoted snippet) must NOT flip an
+        # established profile.
+        # Bug 2026-05-18 18:44: Bernard pasted an English email and the
+        # bot started responding in English to the next turn.
+        # Two regimes:
+        #   - Profile still learning (count < CONFIDENCE_THRESHOLD): switch
+        #     immediately. A brand-new user who writes English in turn #1
+        #     should be detected as English right away.
+        #   - Profile confident (count >= CONFIDENCE_THRESHOLD): require
+        #     _LANG_SWITCH_STREAK_REQUIRED consecutive other-language
+        #     messages before switching. Pasted snippets get absorbed.
+        detected_now = _detect_language(text)
+        if self.message_count < CONFIDENCE_THRESHOLD:
+            self.detected_language = detected_now
+            self.lang_switch_streak = 0
+        elif detected_now == self.detected_language:
+            self.lang_switch_streak = 0
+        else:
+            self.lang_switch_streak += 1
+            if self.lang_switch_streak >= self._LANG_SWITCH_STREAK_REQUIRED:
+                self.detected_language = detected_now
+                self.lang_switch_streak = 0
 
     @property
     def is_confident(self) -> bool:
@@ -303,6 +336,7 @@ class UserStyleProfile:
             "technical_level": round(self.technical_level, 2),
             "detected_language": self.detected_language,
             "message_count": self.message_count,
+            "lang_switch_streak": self.lang_switch_streak,
         }
 
     @classmethod
@@ -314,6 +348,9 @@ class UserStyleProfile:
             technical_level=data.get("technical_level", 0.5),
             detected_language=data.get("detected_language", "es"),
             message_count=data.get("message_count", 0),
+            # Default 0 for profiles persisted before v3.9.49 — they get
+            # streak counting from the next message onwards.
+            lang_switch_streak=data.get("lang_switch_streak", 0),
         )
 
     def to_json(self) -> str:

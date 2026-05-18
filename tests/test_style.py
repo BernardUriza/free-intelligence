@@ -113,9 +113,38 @@ class TestUserStyleProfile:
         assert p.avg_word_count < 5.0
 
     def test_language_detection_in_update(self):
+        """Brand-new profile (count<5) switches immediately to detected lang."""
         p = UserStyleProfile()
         p.update("hello how are you doing today my friend")
         assert p.detected_language == "en"
+
+    def test_confident_profile_resists_single_off_language_msg(self):
+        """v3.9.49 fix: established Spanish profile must NOT flip on a single
+        pasted English snippet (the 2026-05-18 18:44 Bernard incident)."""
+        p = UserStyleProfile(detected_language="es", message_count=50)
+        p.update("Bernard Uriza Orozco 11:19 AM Damn that was a fast reply from the recruiter")
+        assert p.detected_language == "es"
+        assert p.lang_switch_streak == 1
+
+    def test_confident_profile_switches_after_three_consecutive_off_language(self):
+        """Streak threshold is 3 consecutive other-language messages."""
+        p = UserStyleProfile(detected_language="es", message_count=50)
+        p.update("hello how are you doing today my friend")
+        p.update("this is also in english what about that yeah")
+        assert p.detected_language == "es"  # 2 not enough
+        p.update("and a third english message right here in this test")
+        assert p.detected_language == "en"  # 3 flips
+        assert p.lang_switch_streak == 0  # reset after switch
+
+    def test_confident_profile_streak_resets_on_matching_lang_msg(self):
+        """Two English msgs then a Spanish msg resets the streak to 0."""
+        p = UserStyleProfile(detected_language="es", message_count=50)
+        p.update("hello how are you doing today my friend")
+        p.update("this is also in english what about that yeah")
+        assert p.lang_switch_streak == 2
+        p.update("y aqui vuelvo al español con una frase clara wey")
+        assert p.detected_language == "es"
+        assert p.lang_switch_streak == 0
 
     def test_serialization_roundtrip(self):
         p = UserStyleProfile(avg_word_count=25.3, formality=0.2, message_count=10)
