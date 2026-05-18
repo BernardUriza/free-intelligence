@@ -43,6 +43,16 @@ _counters: dict[str, int] = {
     "reminders_created": 0,
     "facts_extracted": 0,
     "facts_failed": 0,
+    # Ops signals (DASH-1c, v3.9.45). These rarely fire when healthy but
+    # are the events Bernard most needs to see when things break. The
+    # dashboard frontend can read these from the metrics blob without
+    # any UI changes — they appear in the existing counter card.
+    "gateway_zombie_restarts": 0,  # Signal B (msg_create starved + reconnect loop)
+    "gateway_heartbeat_dead_restarts": 0,  # Signal A (bot.latency dead/NaN)
+    "alice_failovers": 0,  # FAILOVER-1 invocations when runner died mid-turn
+    "invoke_alice_calls": 0,  # Insult's persona-driven tool calls to ALICE
+    "remember_facts_added": 0,  # [REMEMBER:] markers persisted as agent-source facts
+    "agent_runner_image_turns": 0,  # turns where the runner received non-text attachments (v3.9.43)
 }
 
 _start_time: float = time.time()
@@ -81,6 +91,19 @@ def record_event(event: dict) -> None:
         _counters["facts_extracted"] += 1
     elif evt == "facts_extraction_failed":
         _counters["facts_failed"] += 1
+    # --- Ops signals (DASH-1c) ---
+    elif evt == "gateway_watchdog_zombie_detected_restart":
+        _counters["gateway_zombie_restarts"] += 1
+    elif evt == "gateway_watchdog_heartbeat_dead_restart":
+        _counters["gateway_heartbeat_dead_restarts"] += 1
+    elif evt == "alice_failover_invoked":
+        _counters["alice_failovers"] += 1
+    elif evt == "invoke_alice_called":
+        _counters["invoke_alice_calls"] += 1
+    elif evt == "remember_fact_added":
+        _counters["remember_facts_added"] += 1
+    elif evt == "agent_runner_client_attachments_forwarded":
+        _counters["agent_runner_image_turns"] += 1
 
 
 def record_message_trace(trace: dict) -> None:
