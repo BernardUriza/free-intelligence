@@ -1,8 +1,10 @@
 """Discord bot setup: events, lifecycle, health check."""
 
 import asyncio
+import os
 import signal
 import time as _time
+from collections import deque
 
 import structlog
 from discord.ext import commands, tasks
@@ -128,6 +130,8 @@ def _build(container: Container):
     async def graceful_shutdown(sig: signal.Signals):
         log.info("shutdown_signal", signal=sig.name)
         _health_check.cancel()
+        if _gateway_watchdog.is_running():
+            _gateway_watchdog.cancel()
         if _reminder_check_task.is_running():
             _reminder_check_task.cancel()
         if _ack_overdue_task.is_running():
@@ -900,6 +904,82 @@ def _build(container: Container):
         except Exception:
             log.exception("health_check_failed")
 
+    # --- Gateway zombie watchdog ---
+    #
+    # Bug observed 2026-05-16/17: discord.py held a session for ~65h, kept
+    # heartbeating to the gateway (so bot_resumed fired periodically), but
+    # MESSAGE_CREATE events stopped reaching on_message. Users saw "Insult
+    # online" on Discord and sent messages; the bot silently dropped them.
+    # Bernard's `1505213719825744033` (2026-05-16 14:21Z) is the canonical
+    # lost-message — gap of 23h in our messages table.
+    #
+    # Detection: track the wall-clock of any socket event and specifically
+    # MESSAGE_CREATE separately. Discord sends a HEARTBEAT_ACK every ~41s
+    # by default, so on a healthy gateway the socket clock advances even
+    # if no human is talking. If MESSAGE_CREATE silence stretches past 2h
+    # AND we've seen a recent bot_resumed (gateway reconnected, suspicious
+    # session-id state), the gateway is zombi → force exit; Container Apps
+    # recreates the replica with a fresh session.
+    #
+    # Hard-fail backup: if no socket event of ANY kind in >180s, the
+    # gateway is fully dead (rare; discord.py reconnect path usually
+    # handles this but has been observed to wedge).
+    _last_socket_event_ts = _time.monotonic()
+    _last_msg_create_ts = _time.monotonic()
+    _bot_resumed_ts_ring: deque[float] = deque(maxlen=20)
+
+    @bot.event
+    async def on_socket_event_type(event_type: str):
+        nonlocal _last_socket_event_ts, _last_msg_create_ts
+        _last_socket_event_ts = _time.monotonic()
+        if event_type == "MESSAGE_CREATE":
+            _last_msg_create_ts = _time.monotonic()
+
+    @tasks.loop(minutes=5)
+    async def _gateway_watchdog():
+        now = _time.monotonic()
+        # Purge resume events older than 1h.
+        while _bot_resumed_ts_ring and now - _bot_resumed_ts_ring[0] > 3600:
+            _bot_resumed_ts_ring.popleft()
+
+        socket_age = now - _last_socket_event_ts
+        msg_create_age = now - _last_msg_create_ts
+        resumes_last_hour = len(_bot_resumed_ts_ring)
+
+        log.info(
+            "gateway_watchdog_tick",
+            socket_age_s=int(socket_age),
+            msg_create_age_s=int(msg_create_age),
+            resumes_last_hour=resumes_last_hour,
+        )
+
+        # Signal A: gateway fully silent — no events at all for >3min.
+        # Heartbeat ACKs should arrive every ~41s; 180s means the WS is
+        # dead and discord.py's auto-reconnect failed to recover.
+        if socket_age > 180:
+            log.critical(
+                "gateway_watchdog_silent_too_long_restart",
+                socket_age_s=int(socket_age),
+            )
+            await asyncio.sleep(0.5)
+            os._exit(1)
+
+        # Signal B: gateway heartbeating but MESSAGE_CREATE starved AND a
+        # recent reconnect happened — session_id is likely stale, events
+        # are being filtered server-side. This is the zombie bug.
+        # 7200s = 2h of message silence is plenty even for a quiet
+        # weekend; combined with a resume in the last hour it's
+        # unambiguous.
+        if msg_create_age > 7200 and resumes_last_hour > 0:
+            log.critical(
+                "gateway_watchdog_zombie_detected_restart",
+                socket_age_s=int(socket_age),
+                msg_create_age_s=int(msg_create_age),
+                resumes_last_hour=resumes_last_hour,
+            )
+            await asyncio.sleep(0.5)
+            os._exit(1)
+
     # --- Events ---
     _ready_fired = False
 
@@ -924,6 +1004,7 @@ def _build(container: Container):
             await bot.add_cog(UtilityCog(container))
             await bot.add_cog(VoiceCog(container))
             _health_check.start()
+            _gateway_watchdog.start()
             _reminder_check_task.start()
             _ack_overdue_task.start()
             _proactive_task.start()
@@ -1033,6 +1114,7 @@ def _build(container: Container):
     @bot.event
     async def on_resumed():
         log.info("bot_resumed")
+        _bot_resumed_ts_ring.append(_time.monotonic())
 
     @bot.event
     async def on_command_error(ctx, error):
