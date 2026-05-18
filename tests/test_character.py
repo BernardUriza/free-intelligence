@@ -539,11 +539,21 @@ class TestStripEchoedQuotes:
         """User messages under 5 words should not trigger stripping."""
         assert strip_echoed_quotes("Exacto, hola mundo wey", "hola mundo") == "Exacto, hola mundo wey"
 
-    def test_strips_verbatim_quote(self):
+    def test_preserves_intentional_quote(self):
+        """v3.9.47 fix: quoted phrases are INTENTIONAL citations per the
+        persona's vocabulary_appropriation rule. They must survive so the
+        bot can argue against the user's exact words.
+
+        Before this fix, the stripper deleted the quoted text together with
+        the surrounding quote marks, producing broken artifacts like
+        ` no crece" — eso te lo estás inventando` (orphan quote, missing
+        content + opener). Bernard's 2026-05-18 12:11 incident.
+        """
         user = "No he fotografiado ningún homeless porque los respeto mucho"
         response = 'Eso de "No he fotografiado ningún homeless porque los respeto mucho" está cabrón.'
         result = strip_echoed_quotes(response, user)
-        assert "No he fotografiado" not in result
+        # Whole quoted citation survives intact:
+        assert '"No he fotografiado ningún homeless porque los respeto mucho"' in result
         assert "cabrón" in result  # the bot's own words survive
 
     def test_strips_unquoted_echo(self):
@@ -565,16 +575,42 @@ class TestStripEchoedQuotes:
         result = strip_echoed_quotes(response, user)
         assert len(result) > 0
 
-    def test_real_production_example(self):
-        """Regression test from actual production messages."""
+    def test_real_production_example_preserves_quoted_citation(self):
+        """Real production example — bot quotes user to argue against the
+        statement. v3.9.47 fix preserves the quoted line so the rebuttal
+        ("Esa línea define todo tu tour") has its subject intact.
+
+        Pre-fix behavior (the bug) was to strip both the citation and its
+        quote marks, leaving the rebuttal floating without context.
+        """
         user = "No he fotografiado ningún homeless porque los respeto mucho"
         response = (
             '**"No he fotografiado ningún homeless porque los respeto mucho."**\n\n'
             "Esa línea define todo tu tour, Bernard."
         )
         result = strip_echoed_quotes(response, user)
+        # Rebuttal must remain:
         assert "define todo tu tour" in result
-        assert "No he fotografiado" not in result
+        # Quoted citation must remain (it's the subject of the rebuttal):
+        assert '"No he fotografiado ningún homeless porque los respeto mucho."' in result
+
+    def test_bernard_2026_05_18_orphan_quote_regression(self):
+        """The exact incident that drove the v3.9.47 fix.
+
+        User vented frustration; bot quoted the user's "su equipo no crece"
+        clause to rebut it. Pre-fix stripper deleted the opener+content and
+        left ` no crece" — eso te lo estás inventando` as the visible reply.
+        """
+        user = "Que se vaya a la verga si asi tratan a los candidatos ya entiendo porque su equipo no crece"
+        response = (
+            "La frustración tiene fundamento real — el proceso fue mierda.\n\n"
+            '"ya entiendo porque su equipo no crece" — eso te lo estás inventando ahorita para que duela menos.'
+        )
+        result = strip_echoed_quotes(response, user)
+        # Both quote marks must survive together with the content between them:
+        assert '"ya entiendo porque su equipo no crece"' in result
+        # No orphan closing quote at the start of a line:
+        assert not any(line.strip().startswith('"') and '"' not in line.strip()[1:] for line in result.splitlines())
 
 
 class TestDetectClarificationDump:

@@ -153,10 +153,27 @@ _QUOTE_STOPWORDS = COMMON_STOPWORDS | {
 
 
 def strip_echoed_quotes(response: str, user_message: str) -> str:
-    """Remove verbatim quotes of the user's message from the bot's response.
+    """Remove ACCIDENTAL echoes of the user's message. Preserve INTENTIONAL quotes.
 
-    Detects when the bot quoted the user's exact words (5+ word sequences)
-    and strips them. Humans don't repeat each other's full phrases in chat.
+    Distinction (v3.9.47 fix): a 5-word user-phrase that appears in the bot's
+    response is one of two things:
+
+    1. **Accidental echo** (drop): the model is parroting the user's phrasing
+       in its own narrative — "ya entiendo porque su equipo no crece, y eso es
+       culpa tuya". The repeated phrase is in plain prose, no quotes around it.
+       Strip it.
+    2. **Intentional quote** (keep): the model is naming what the user said
+       to argue against it — `"su equipo no crece" — eso te lo estás
+       inventando`. The phrase is surrounded by `"..."` or `«...»` or `"..."`.
+       This is exactly what persona.md's vocabulary_appropriation rule asks
+       for. NEVER strip.
+
+    Bug history: pre-v3.9.47 the regex matched the n-gram together with any
+    adjacent quote characters and DELETED both. Symptom seen 2026-05-18 12:11:
+    the bot emitted `"Su equipo no crece" — eso te lo estás inventando` and
+    the stripper turned it into ` no crece" — eso te lo estás inventando`
+    (orphan closing quote, missing opener and content). Bernard saw a broken
+    message and demanded the root cause.
     """
     if not response or not user_message:
         return response
@@ -177,22 +194,36 @@ def strip_echoed_quotes(response: str, user_message: str) -> str:
     if not user_ngrams:
         return response
 
-    # Find and remove echoed segments — only the n-gram itself + surrounding quotes
-    modified = response
-    for ngram in sorted(user_ngrams, key=len, reverse=True):
-        pattern = re.compile(re.escape(ngram), re.IGNORECASE)
-        if pattern.search(modified):
-            # Strip the n-gram and any immediately surrounding quote marks
-            modified = re.sub(
-                r'["“”]*' + re.escape(ngram) + r'["“”]*',
-                "",
-                modified,
-                flags=re.IGNORECASE,
-                count=1,
-            )
-            log.info("echo_stripped", ngram=ngram[:50])
+    # Detect intentional quotes paragraph-by-paragraph. The quote chars
+    # ("..."  «...» „...") wrap the quoted text but may be separated from
+    # the matched n-gram by 1-2 extra words. A char-adjacent lookahead
+    # misses those, so we use paragraph-level evidence instead: any
+    # paragraph with >=2 quote chars is treated as containing an
+    # intentional citation, and we skip echo-strip there entirely.
+    quote_chars = "\"'«»“”‘’"  # noqa: RUF001 — smart quotes are intentional
+    sorted_ngrams = sorted(user_ngrams, key=len, reverse=True)
 
-    # Clean up artifacts: double spaces, orphaned dashes, empty bold
+    def _strip_in_paragraph(paragraph: str) -> str:
+        quote_count = sum(paragraph.count(q) for q in quote_chars)
+        if quote_count >= 2:
+            # Intentional citation present — leave the whole paragraph
+            # alone. Even if there's an unquoted echo in the same para,
+            # the surgical cost is worth it: a quoted argument with a
+            # garbled tail is worse than a paragraph with a small echo.
+            return paragraph
+        out = paragraph
+        for ngram in sorted_ngrams:
+            new = re.sub(re.escape(ngram), "", out, count=1, flags=re.IGNORECASE)
+            if new != out:
+                out = new
+                log.info("echo_stripped", ngram=ngram[:50], reason="unquoted_echo")
+        return out
+
+    modified = "\n\n".join(_strip_in_paragraph(p) for p in response.split("\n\n"))
+
+    # Clean up artifacts from accidental-echo removal only. Intentional
+    # quotes were preserved entirely, so no orphan punctuation should
+    # remain there.
     modified = re.sub(r"\*\*\s*\*\*", "", modified)  # empty bold
     modified = re.sub(r"  +", " ", modified)  # double spaces
     modified = re.sub(r"\n\s*\n\s*\n", "\n\n", modified)  # triple newlines
