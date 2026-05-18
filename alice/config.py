@@ -80,5 +80,24 @@ class AliceSettings(BaseSettings):
         description="Path to ALICE's system-prompt persona (mtime-aware reload).",
     )
 
+    # --- Sibling coexistence ---
+    # When ALICE detects one of these patterns in a non-mention message,
+    # she responds anyway (intrusive mode). The list is intentionally
+    # short and high-precision — false positives = ALICE talking over a
+    # conversation she wasn't invited to. See plan
+    # `.claude/plans/sibling_bot_coexistence.md` addendum 2026-05-18.
+    intrusive_mode_enabled: bool = Field(
+        default=True,
+        description="Allow ALICE to respond without explicit @mention when clinical-disclosure keywords appear.",
+    )
+    alice_aliases: list[str] = Field(
+        default=["amix", "ali", "alicia"],
+        description="Lowercase aliases that count as addressing ALICE. 'alice' is implicit.",
+    )
+    insult_bot_user_id: str = Field(
+        default="",
+        description="Insult's Discord bot user ID. Used to filter cross-sibling listener so ALICE only reacts to Insult's messages, not to all bots in the channel.",
+    )
+
 
 settings = AliceSettings()

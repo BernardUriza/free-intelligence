@@ -1,35 +1,110 @@
-"""ALICE's chat cog — passive listener, fires only when invited.
+"""ALICE's chat cog — listens for mentions, aliases, and intrusive triggers.
 
-Two activation paths:
+Activation paths:
 
-1. **Discord @mention**: any user types `@ALICE` (Discord native mention).
-   The cog listens to `on_message`, ignores messages that don't tag ALICE,
-   and responds when she IS tagged.
+1. **Discord @mention**: user types `@ALICE` (user-mention) OR the
+   Discord client substitutes the bot's auto-created role mention
+   `<@&role_id>` (autocomplete UX). Both count.
 
-2. **Insult REST invite**: the FastAPI `/invite` endpoint (see
-   `alice/api/server.py`) calls `respond_to_invite()` directly. That
-   path bypasses Discord's event loop because it's already in an
-   asyncio context.
+2. **Alias in text**: lowercase "amix" / "ali" / "alicia" anywhere in
+   the message body — Bernard's pet names for ALICE.
 
-ALICE deliberately does NOT respond to every channel message the way
-Insult does. The whole point of her existence is that she's a presence
-you ask for — not a voice that talks over the conversation.
+3. **Intrusive clinical mode** (v3.9.41+): when the message contains a
+   clinical-disclosure keyword (CPTSD, quetiapina, psiquiatra, etc.) AND
+   the channel context suggests ALICE's register fits better, she enters
+   without explicit invitation. High-precision keyword list — false
+   positives mean ALICE talks over Insult's roast, so we keep it tight.
+
+4. **Insult REST invite**: the FastAPI `/invite` endpoint calls
+   `respond_to_invite()` directly.
+
+Historical: pre-v3.9.41 ALICE was pure mention-only and the role-mention
+fallback (`<@&...>` + literal "alice" in text) silently failed because
+Discord's autocomplete REPLACES the literal "alice" with the raw role
+mention. Bernard reported "Alex la mencionó y no respondió" — that's
+the bug being fixed here. See plan
+`.claude/plans/sibling_bot_coexistence.md` addendum 2026-05-18.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 
 import discord
 import structlog
 from discord.ext import commands
 
+from alice.config import settings as alice_settings
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
 from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
+
+
+# Clinical-disclosure keywords that trigger intrusive mode (ALICE responds
+# without explicit @mention). Tight, high-precision list — false positives
+# = ALICE talking over Insult's roast. Mirror of triggers in Insult's
+# persona.md ("Triggers OBLIGATORIOS para invocar invoke_alice").
+_CLINICAL_KEYWORDS_PATTERN = re.compile(
+    r"\b(cptsd|tept|tlp|borderline|"
+    r"quetiapina|sertralina|fluoxetina|escitalopram|alprazolam|clonazepam|"
+    r"psiquiatra|psicólog[oa]|terapeuta|"
+    r"crisis\s+(de\s+ansiedad|aguda|psiqui)|"
+    r"ataque\s+de\s+(pánico|panico)|"
+    r"ideación|ideacion|"
+    r"hospitalización\s+psiqui|hospitalizacion\s+psiqui|"
+    r"internamiento\s+psiqui|"
+    r"intent[oé]\s+suicid)",
+    re.IGNORECASE,
+)
+
+
+def _detect_alias_mention(content: str, aliases: list[str]) -> str | None:
+    """Return the matched alias if any appears as a word in `content`.
+
+    Word-boundary match so "amix" matches but "amixaco" does not. Common
+    Bernard usage: "holiii amix", "que opinas ali", "alicia, ven".
+    """
+    if not content:
+        return None
+    lowered = content.lower()
+    for alias in aliases:
+        if re.search(rf"\b{re.escape(alias.lower())}\b", lowered):
+            return alias
+    return None
+
+
+def _detect_role_mention_for_bot(message: discord.Message, bot_user: discord.ClientUser | None) -> bool:
+    """True if message contains a `<@&role_id>` that points to ALICE's auto-created role.
+
+    Discord auto-creates a managed role for every bot the moment it joins
+    a guild. When a user picks ALICE from @-autocomplete, Discord often
+    inserts the role mention (`<@&role_id>`) instead of the user mention
+    (`<@user_id>`). discord.py's `message.role_mentions` only populates
+    if the bot has `members` intent (privileged) — we don't request that.
+
+    Workaround: walk the guild's role list at runtime, find the managed
+    role whose `bot_id` is OUR bot, and check its ID against the raw
+    `<@&...>` IDs in the message content. Works without privileged
+    intents.
+    """
+    if bot_user is None or message.guild is None:
+        return False
+
+    raw_role_ids = set(re.findall(r"<@&(\d+)>", message.content or ""))
+    if not raw_role_ids:
+        return False
+
+    for role in message.guild.roles:
+        # `role.tags` is populated for managed roles (bot, integration,
+        # premium subscriber). `bot_id` matches the bot the role manages.
+        tags = getattr(role, "tags", None)
+        if tags is not None and getattr(tags, "bot_id", None) == bot_user.id and str(role.id) in raw_role_ids:
+            return True
+    return False
 
 
 class AliceChatCog(commands.Cog):
@@ -70,45 +145,51 @@ class AliceChatCog(commands.Cog):
             log.debug("alice_skip_self")
             return
 
-        # In a guild channel: respond ONLY when canonically @mentioned (so
-        # ALICE doesn't talk over conversations she wasn't invited to).
-        # In a DM: respond to every message — the user is literally already
-        # talking to her one-on-one, no opt-in needed. "Su app individual"
-        # in the user's words.
+        # In a guild channel: respond on multiple signals (mention, alias,
+        # clinical-intrusive). In a DM: respond to every message — the
+        # user is literally already talking to her 1:1, no opt-in needed.
         is_dm = message.guild is None
+        mentioned_as_user = False
+        mentioned_as_text = False
         mentioned_as_role = False
+        mentioned_as_alias = None
+        intrusive_match = None
+        invited_by = "dm" if is_dm else None
+
         if not is_dm:
             mentioned_as_user = self.bot.user in message.mentions if self.bot.user else False
             mentioned_as_text = "@ALICE" in message.content or "@alice" in message.content
-            # Discord auto-creates a role with the bot's name when she's added to
-            # a server. When a user picks ALICE from the @-autocomplete the
-            # client sometimes inserts a ROLE mention (`<@&role_id>`) instead of
-            # a USER mention (`<@user_id>`). That's the same UX intent, so we
-            # treat any role mention whose name contains "alice" as a trigger.
-            mentioned_as_role = any("alice" in (r.name or "").lower() for r in message.role_mentions)
-            # Fallback: discord.py does NOT populate `message.role_mentions` for
-            # auto-created bot roles without the privileged `members` intent
-            # (which v0.1.3+ deliberately doesn't request). Detect the raw
-            # `<@&...>` syntax in content AND the literal keyword "alice"
-            # nearby as a heuristic. Works for v0.1.9 logs that showed the
-            # raw role mention but empty role_mentions list.
-            if not mentioned_as_role and "<@&" in message.content and "alice" in message.content.lower():
-                mentioned_as_role = True
-            if not (mentioned_as_user or mentioned_as_text or mentioned_as_role):
+            # Fix v3.9.41: detect ALICE's managed role via tags.bot_id ==
+            # self.bot.user.id. Previous heuristic required literal "alice"
+            # word in the same message, which Discord's autocomplete
+            # silently removes — that's why Alex's role mention (verified
+            # 2026-05-18) never triggered. See module docstring.
+            mentioned_as_role = _detect_role_mention_for_bot(message, self.bot.user)
+            mentioned_as_alias = _detect_alias_mention(message.content, alice_settings.alice_aliases)
+            if alice_settings.intrusive_mode_enabled:
+                intrusive_match_obj = _CLINICAL_KEYWORDS_PATTERN.search(message.content or "")
+                intrusive_match = intrusive_match_obj.group(0) if intrusive_match_obj else None
+
+            if mentioned_as_user:
+                invited_by = "user_mention"
+            elif mentioned_as_text:
+                invited_by = "text_mention"
+            elif mentioned_as_role:
+                invited_by = "role_mention"
+            elif mentioned_as_alias:
+                invited_by = f"alias:{mentioned_as_alias}"
+            elif intrusive_match:
+                invited_by = f"intrusive:{intrusive_match.lower()[:40]}"
+            else:
                 log.debug(
                     "alice_skip_no_mention",
                     mentioned_as_user=mentioned_as_user,
                     mentioned_as_text=mentioned_as_text,
                     mentioned_as_role=mentioned_as_role,
+                    mentioned_as_alias=mentioned_as_alias,
+                    intrusive_mode_enabled=alice_settings.intrusive_mode_enabled,
                 )
                 return
-
-        if is_dm:
-            invited_by = "dm"
-        elif mentioned_as_role:
-            invited_by = "role_mention"
-        else:
-            invited_by = "user_mention"
         log.info(
             "alice_responding",
             is_dm=is_dm,
@@ -130,6 +211,12 @@ class AliceChatCog(commands.Cog):
                 )
             except Exception as e:
                 log.warning("alice_persist_user_failed", error=str(e))
+
+        # Every branch above either assigned `invited_by` or returned early.
+        # This assert documents the invariant for type checkers + readers
+        # and surfaces a misroute as a loud crash instead of silent
+        # behavior change.
+        assert invited_by is not None, "invited_by must be set before _respond"
 
         # Show typing while we think — Discord drops the indicator after ~10s
         # so we wrap the entire respond cycle in it (Insult uses the same
