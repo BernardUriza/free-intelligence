@@ -403,12 +403,17 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         raise HTTPException(502, f"agent loop failed: {type(e).__name__}: {e}") from e
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
+    tool_names = [tc.get("name", "?") for tc in tool_calls]
     log.info(
         "agent_runner_turn_complete",
         channel_id=req.channel_id,
         user_id=req.user_id,
         text_len=len(accumulated_text),
         tool_calls=len(tool_calls),
+        # Tool names included so KQL can distinguish workspace Read/Grep/Glob
+        # from the F4 mcp__insult_db__* tools. Critical for verifying Phase 2
+        # adoption before removing the workspace fallback in Phase 3.
+        tool_names=tool_names,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         stop_reason=stop_reason,
