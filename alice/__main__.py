@@ -8,10 +8,23 @@ from __future__ import annotations
 
 from shared.logging_setup import configure_structlog
 
-# ALICE doesn't have a metrics dashboard (yet); pass no extra processors.
-# When she gets one, drop the metrics processor in here — same shape as
-# Insult's __main__.py.
-configure_structlog(processors_extra=None)
+
+# Metrics processor: every structlog event also lands in the in-process
+# ring buffer + counters that `alice/bot.py::_metrics_upload` periodically
+# uploads to Azure Blob `alice-bot/metrics.json` for the multi-bot
+# dashboard. Same pattern as Insult's __main__.py.
+def _metrics_processor(_logger, _method_name, event_dict):
+    import contextlib
+
+    with contextlib.suppress(Exception):
+        # Never let metrics break logging.
+        from alice.core.metrics import record_event
+
+        record_event(event_dict)
+    return event_dict
+
+
+configure_structlog(processors_extra=[_metrics_processor])
 
 import typer  # noqa: E402
 

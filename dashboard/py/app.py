@@ -1,8 +1,16 @@
-"""Insult Dashboard — entry point. Fetches metrics and renders UI."""
+"""Insult + ALICE Dashboard — entry point. Fetches metrics and renders UI."""
 
 from browser import document, timer, ajax
 
-from .config import VERSION, METRICS_URL, LOGS_URL, TRACES_URL, FACTS_URL, REFRESH_INTERVAL
+from .config import (
+    VERSION,
+    METRICS_URL,
+    LOGS_URL,
+    TRACES_URL,
+    FACTS_URL,
+    ALICE_METRICS_URL,
+    REFRESH_INTERVAL,
+)
 from .carousel import CardCarousel
 
 document.select_one(".logo").innerHTML = f'<span>INSULT</span> Dashboard <em>v{VERSION}</em> <div class="logo-dot"></div>'
@@ -10,6 +18,7 @@ document.select_one(".logo").innerHTML = f'<span>INSULT</span> Dashboard <em>v{V
 # ── State ────────────────────────────────────────────────────────
 
 _metrics = {}
+_alice_metrics = {}
 _logs = []
 _traces = []
 _facts = []
@@ -20,7 +29,7 @@ _current_tab = "monitor"
 # ── Data Fetching ────────────────────────────────────────────────
 
 def fetch_data():
-    """Fetch metrics and logs from Azure Blob."""
+    """Fetch metrics and logs from Azure Blob for BOTH bots."""
     req = ajax.Ajax()
     req.open("GET", f"{METRICS_URL}?t={__import__('time').time()}", True)
     req.bind("complete", _on_metrics)
@@ -40,6 +49,13 @@ def fetch_data():
     req4.open("GET", f"{FACTS_URL}?t={__import__('time').time()}", True)
     req4.bind("complete", _on_facts)
     req4.send()
+
+    # ALICE metrics — separate blob. Failure is non-fatal (ALICE may not
+    # have uploaded yet on first deploy; card just stays empty).
+    req5 = ajax.Ajax()
+    req5.open("GET", f"{ALICE_METRICS_URL}?t={__import__('time').time()}", True)
+    req5.bind("complete", _on_alice_metrics)
+    req5.send()
 
 
 def _on_metrics(req):
@@ -67,6 +83,72 @@ def _on_traces(req):
         import json
         _traces = json.loads(req.text)
         _render_traces()
+
+
+def _on_alice_metrics(req):
+    """Receive ALICE metrics blob (may be empty on first deploy)."""
+    global _alice_metrics
+    if req.status == 200:
+        import json
+        try:
+            _alice_metrics = json.loads(req.text)
+            _render_alice_card()
+        except Exception:
+            _alice_metrics = {}
+
+
+def _render_alice_card():
+    """Render the ALICE status card. Tolerates missing fields gracefully."""
+    el = document.select_one("#alice-card-body")
+    if el is None:
+        return  # card not in DOM yet
+    if not _alice_metrics:
+        el.innerHTML = '<div class="alice-empty">ALICE no ha reportado todavía</div>'
+        return
+
+    from browser import html
+    counters = _alice_metrics.get("counters", {}) or {}
+    gateway = _alice_metrics.get("gateway", {}) or {}
+    uptime_s = _alice_metrics.get("uptime_seconds", 0)
+    uptime_str = _fmt_uptime(uptime_s)
+
+    el.clear()
+    grid = html.DIV(Class="alice-grid")
+
+    def kv(label, value, *, accent=None):
+        cls = "alice-stat"
+        if accent:
+            cls += f" alice-stat-{accent}"
+        cell = html.DIV(Class=cls)
+        cell <= html.DIV(label, Class="alice-stat-label")
+        cell <= html.DIV(str(value), Class="alice-stat-value")
+        return cell
+
+    grid <= kv("uptime", uptime_str)
+    grid <= kv("latency", f"{gateway.get('latency_ms', '--')}ms")
+    grid <= kv("guilds", gateway.get("guilds", "--"))
+    grid <= kv("turns", counters.get("turns_total", 0))
+    failover = counters.get("failover_received", 0)
+    grid <= kv("failover", failover, accent=("alert" if failover > 0 else None))
+    invites = counters.get("invite_received", 0)
+    grid <= kv("invites", invites)
+    errors = counters.get("llm_errors", 0)
+    grid <= kv("llm err", errors, accent=("alert" if errors > 0 else None))
+    restarts = counters.get("watchdog_restarts", 0)
+    grid <= kv("restarts", restarts, accent=("alert" if restarts > 0 else None))
+
+    el <= grid
+
+
+def _fmt_uptime(seconds):
+    s = int(seconds or 0)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m"
+    if s < 86400:
+        return f"{s // 3600}h {(s % 3600) // 60}m"
+    return f"{s // 86400}d {(s % 86400) // 3600}h"
 
 
 # ── Trace Carousel ───────────────────────────────────────────────

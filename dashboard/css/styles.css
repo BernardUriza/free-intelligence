@@ -581,6 +581,69 @@ body {
   flex-shrink: 0;
 }
 
+/* ALICE Sister-Bot Card */
+.bot-pill {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 100px;
+  background: rgba(155, 89, 182, 0.15);
+  color: var(--purple);
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.alice-empty {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.alice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.alice-stat {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.alice-stat-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.alice-stat-value {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alice-stat-alert {
+  border-color: rgba(231, 76, 60, 0.4);
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.alice-stat-alert .alice-stat-value {
+  color: var(--red);
+}
+
+/* Tablet widens ALICE card to 4 columns when there's room */
+@media (min-width: 640px) {
+  .alice-grid { grid-template-columns: repeat(4, 1fr); }
+  #alice-panel { grid-column: span 4; }
+}
+
 /* Responsive — mobile-first.
    Default styles target phone (375px+). These overrides expand to
    tablet/desktop. We never shrink things from a desktop baseline. */
