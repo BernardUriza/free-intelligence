@@ -124,7 +124,8 @@ async def _main() -> None:
             cogs=list(container.bot.cogs.keys()),
         )
         _gateway_watchdog.start()
-        _metrics_upload.start()
+        # _metrics_upload.start() disabled v3.9.39 — was freezing ALICE
+        # after first watchdog tick. Investigation pending.
 
     @container.bot.event
     async def on_resumed() -> None:
@@ -138,20 +139,12 @@ async def _main() -> None:
         if event_type == "MESSAGE_CREATE":
             _last_msg_create_ts = _time.monotonic()
 
-    @tasks.loop(seconds=60)
-    async def _metrics_upload() -> None:
-        """Upload metrics + logs to Azure Blob for the dashboard.
-
-        Runs every 60s — matches discord-bot's cadence so the multi-bot
-        dashboard shows fresh data for both at the same poll rate."""
-        try:
-            from alice.core.metrics import upload_dashboard_data
-
-            latency_ms = round(container.bot.latency * 1000) if container.bot.latency else 0
-            guilds = len(container.bot.guilds)
-            await upload_dashboard_data(latency_ms, guilds)
-        except Exception:
-            log.exception("alice_metrics_upload_failed")
+    # _metrics_upload task removed v3.9.39 — the task body itself was
+    # fine but adding it to ALICE's event loop (alongside _gateway_watchdog
+    # and uvicorn invite server) consistently froze the bot ~10-30s after
+    # gateway_ready. Reproduced across rev 26/27/28. The dashboard UI
+    # (DASH-1b) stays in place but will render "ALICE no ha reportado"
+    # until we re-introduce a working metrics upload path.
 
     @tasks.loop(minutes=5)
     async def _gateway_watchdog() -> None:
@@ -204,8 +197,7 @@ async def _main() -> None:
     finally:
         if _gateway_watchdog.is_running():
             _gateway_watchdog.cancel()
-        if _metrics_upload.is_running():
-            _metrics_upload.cancel()
+        # _metrics_upload cancel removed v3.9.39 along with the task itself.
         invite_task.cancel()
         with suppress(asyncio.CancelledError):
             await invite_task

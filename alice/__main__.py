@@ -8,23 +8,12 @@ from __future__ import annotations
 
 from shared.logging_setup import configure_structlog
 
-
-# Metrics processor: every structlog event also lands in the in-process
-# ring buffer + counters that `alice/bot.py::_metrics_upload` periodically
-# uploads to Azure Blob `alice-bot/metrics.json` for the multi-bot
-# dashboard. Same pattern as Insult's __main__.py.
-def _metrics_processor(_logger, _method_name, event_dict):
-    import contextlib
-
-    with contextlib.suppress(Exception):
-        # Never let metrics break logging.
-        from alice.core.metrics import record_event
-
-        record_event(event_dict)
-    return event_dict
-
-
-configure_structlog(processors_extra=[_metrics_processor])
+# Metrics processor temporarily disabled (v3.9.38 caused ALICE to freeze
+# after first watchdog tick — root cause not yet identified). Dashboard
+# DASH-1b infrastructure stays in place (alice/core/metrics.py kept,
+# dashboard UI kept) so a future re-introduction with the bug fix can
+# turn it back on without re-plumbing.
+configure_structlog(processors_extra=None)
 
 import typer  # noqa: E402
 
