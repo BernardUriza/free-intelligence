@@ -278,9 +278,16 @@ def strip_lists(text: str) -> str:
 def enforce_length_variation(text: str, recent_lengths: list[int]) -> str:
     """Mechanically enforce length variation when 3+ consecutive responses are medium.
 
-    If the last 3 responses were all 80-200 words, truncate to first 2 sentences
-    (forcing a short response). This is the nuclear option — the prompt-based
-    length hint clearly doesn't work, so we enforce mechanically.
+    If the last 3 responses were all 80-200 words, truncate to the first 4
+    sentences (forcing a shorter response). v3.9.50 fix: previously
+    truncated to 2 sentences which dropped 80-90% of content (KQL 7d:
+    avg loss ~130 words per fire, often single-sentence output). 4 keeps
+    the core idea legible while still breaking the medium-length streak.
+
+    Markers (`[REMEMBER:]`, `[REACT:]`) found in the dropped tail are
+    re-appended so the longitudinal memory and reaction layers don't
+    silently lose state when length-variation kicks in. Without this
+    rescue a fact the model decided to record would vanish.
     """
     if not text or len(recent_lengths) < 3:
         return text
@@ -289,18 +296,24 @@ def enforce_length_variation(text: str, recent_lengths: list[int]) -> str:
     if not all(80 < wc < 200 for wc in last3):
         return text  # varied enough, no intervention
 
-    # Force short: keep only first 2 sentences
+    # Force shorter: keep first 4 sentences (was 2 — too aggressive).
     sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-    if len(sentences) <= 2:
-        return text  # already short
+    if len(sentences) <= 4:
+        return text  # already short-ish
 
-    truncated = " ".join(sentences[:2])
+    head = " ".join(sentences[:4])
+    tail = " ".join(sentences[4:])
+
+    # Rescue any side-effect markers from the dropped tail.
+    rescued_markers = re.findall(r"\[(?:REMEMBER|REACT):[^\]]*\]", tail, flags=re.IGNORECASE)
+    truncated = head + ("\n" + " ".join(rescued_markers) if rescued_markers else "")
 
     log.info(
         "length_enforced",
         original_words=len(text.split()),
         truncated_words=len(truncated.split()),
         recent_lengths=last3,
+        markers_rescued=len(rescued_markers),
     )
     return truncated
 

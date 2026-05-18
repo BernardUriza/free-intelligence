@@ -511,10 +511,26 @@ class TestEnforceLengthVariation:
         assert enforce_length_variation(text, [30, 150, 250]) == text
 
     def test_uniform_medium_truncates(self):
-        text = "First sentence here. Second sentence here. Third sentence. Fourth sentence. Fifth."
+        """v3.9.50 fix: truncates to first 4 sentences (was 2 — too aggressive,
+        was dropping 80-90% of content per KQL 7d audit)."""
+        text = (
+            "First sentence here. Second sentence here. Third sentence. Fourth sentence. "
+            "Fifth sentence. Sixth sentence. Seventh sentence."
+        )
         result = enforce_length_variation(text, [120, 140, 130])
         sentences = [s for s in result.split(". ") if s]
-        assert len(sentences) <= 3  # truncated to ~2 sentences
+        assert len(sentences) <= 5  # 4 kept + possible marker line
+
+    def test_uniform_medium_preserves_markers_in_tail(self):
+        """REMEMBER/REACT markers in the truncated tail must be rescued."""
+        text = (
+            "First sentence. Second sentence. Third sentence. Fourth sentence. "
+            "Fifth sentence with [REMEMBER: bernard prefers brevity] inside. "
+            "Sixth sentence [REACT:🔥]."
+        )
+        result = enforce_length_variation(text, [120, 140, 130])
+        assert "[REMEMBER: bernard prefers brevity]" in result
+        assert "[REACT:🔥]" in result
 
     def test_already_short_not_truncated(self):
         text = "Short one. Two."
