@@ -64,7 +64,8 @@ def _last_user_text(messages: list[dict]) -> str:
 
     Caller (stages.py) builds Anthropic-shape messages where the final entry is
     role='user'. Its content is either a plain string OR a list of blocks (text
-    + image). We only forward text — the runner reads images via its own tools.
+    + image). We only return text here; images are extracted separately by
+    `_last_user_attachments`.
     """
     if not messages:
         return ""
@@ -76,6 +77,31 @@ def _last_user_text(messages: list[dict]) -> str:
         parts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
         return "\n".join(p for p in parts if p)
     return ""
+
+
+def _last_user_attachments(messages: list[dict]) -> list[dict]:
+    """Extract non-text content blocks (image, document) from the final user msg.
+
+    Returns the raw Anthropic-shaped blocks so the runner can forward them
+    directly into the SDK's streaming message format. Empty list if the
+    final message has no attachments or is text-only.
+
+    Fix v3.9.43 (REWRITE-B1): previous `_last_user_text` discarded image
+    blocks silently. Symptom: Alex sent text+2 images, Insult ignored
+    the images entirely. The runner now receives them as a separate
+    `attachments` field and inlines them into the SDK query.
+    """
+    if not messages:
+        return []
+    last = messages[-1]
+    content = last.get("content", "")
+    if not isinstance(content, list):
+        return []
+    return [
+        b
+        for b in content
+        if isinstance(b, dict) and b.get("type") in {"image", "document"}
+    ]
 
 
 class AgentRunnerClient:
@@ -121,15 +147,26 @@ class AgentRunnerClient:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
         user_text = _last_user_text(messages)
-        if not user_text:
+        attachments = _last_user_attachments(messages)
+        if not user_text and not attachments:
             log.warning("agent_runner_client_empty_user_text", message_count=len(messages))
             return LLMResponse(text="", model_used="agent-runner", stop_reason="empty_input")
 
         payload: dict[str, Any] = {
             "channel_id": channel_id or "0",
             "user_id": user_id or "0",
-            "user_text": user_text,
+            # Force a placeholder when the message is image-only (rare but
+            # legal — drag-and-drop with no caption). Pydantic min_length=1
+            # would reject empty string on the runner side.
+            "user_text": user_text or "[adjuntó solo imagen]",
         }
+        if attachments:
+            payload["attachments"] = attachments
+            log.info(
+                "agent_runner_client_attachments_forwarded",
+                count=len(attachments),
+                types=[a.get("type") for a in attachments],
+            )
         if session_uuid:
             payload["session_uuid"] = session_uuid
 

@@ -97,6 +97,13 @@ class TurnRequest(BaseModel):
     # session_uuid kept in the schema for caller backward-compat but ignored —
     # the per-channel client owns continuity now.
     session_uuid: str | None = None
+    # v3.9.43 (REWRITE-B1): Anthropic-shape content blocks for non-text
+    # attachments (image, document). Caller extracts them from the
+    # `messages[-1].content` list and forwards them raw. When present
+    # the agent receives a multimodal user message instead of text-only.
+    # Bug origin: 2026-05-18 Alex sent text+2 images, runner only saw
+    # text → bot ignored images entirely.
+    attachments: list[dict] | None = None
 
 
 class TurnResponse(BaseModel):
@@ -302,9 +309,31 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     # in parallel.
     lock = _channel_locks.setdefault(req.channel_id, asyncio.Lock())
 
-    framed_query = (
+    framed_text = (
         f"<turn_context>\nchannel_id: {req.channel_id}\nuser_id: {req.user_id}\n</turn_context>\n\n{req.user_text}"
     )
+
+    # When the turn has image/document attachments we build a multimodal
+    # streaming message and hand the SDK an AsyncIterable. The SDK's
+    # `query(str)` branch wraps strings into a text-only user message,
+    # which silently discards the attachments — hence the dual path.
+    # See `ClaudeSDKClient.query()` source.
+    has_attachments = bool(req.attachments)
+    if has_attachments:
+        content_blocks: list[dict] = [{"type": "text", "text": framed_text}]
+        content_blocks.extend(req.attachments or [])
+        streaming_msg = {
+            "type": "user",
+            "message": {"role": "user", "content": content_blocks},
+            "parent_tool_use_id": None,
+        }
+
+        async def _stream():
+            yield streaming_msg
+
+        query_input: Any = _stream()
+    else:
+        query_input = framed_text
 
     accumulated_text = ""
     tool_calls: list[dict] = []
@@ -318,7 +347,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     try:
         async with lock:
             client = await _get_or_create_client(req.channel_id)
-            await client.query(framed_query)
+            await client.query(query_input)
             async for message in client.receive_response():
                 mtype = type(message).__name__
                 if mtype == "AssistantMessage":
@@ -370,6 +399,8 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         elapsed_ms=elapsed_ms,
         is_first_turn=is_first_turn,
         pool_size=len(_pool),
+        has_attachments=has_attachments,
+        attachment_count=len(req.attachments or []),
     )
 
     return TurnResponse(
