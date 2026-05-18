@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "3.9.52"
+version = "3.9.53"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -55,6 +55,12 @@ omit = [
     "insult/core/vectors.py",  # sqlite-vec + sentence-transformers I/O (vector search)
     "insult/core/metrics.py",  # Azure Blob I/O (dashboard export)
     "insult/core/debug_server.py",  # aiohttp debug endpoints (integration test territory)
+    "insult/agent/mcp_tools.py",  # F4: in-process MCP tools (live PG required, integration test territory)
+    "insult/agent/runner.py",  # FastAPI service + Claude Agent SDK (live SDK + PG required)
+    "insult/agent/workspace_renderer.py",  # PG → markdown projector (live PG + filesystem required)
+    "insult/core/siesta/coordination/pg_state.py",  # F4: Siesta coordination via PG (live PG required, tests in test_siesta_pg_state.py skip without POSTGRES_URL)
+    "insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
+    "insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
 ]
 
 [tool.coverage.report]
