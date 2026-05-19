@@ -27,9 +27,9 @@ from enum import Enum
 class ChunkingStrategy(str, Enum):
     """Strategy for splitting documents into chunks."""
 
-    FIXED_SIZE = "fixed_size"           # Fixed token count
-    SENTENCE_AWARE = "sentence_aware"   # Respects sentence boundaries
-    PARAGRAPH_AWARE = "paragraph_aware" # Respects paragraph boundaries (best for medical)
+    FIXED_SIZE = "fixed_size"  # Fixed token count
+    SENTENCE_AWARE = "sentence_aware"  # Respects sentence boundaries
+    PARAGRAPH_AWARE = "paragraph_aware"  # Respects paragraph boundaries (best for medical)
 
 
 class ChunkConfig:
@@ -38,8 +38,8 @@ class ChunkConfig:
     def __init__(
         self,
         chunk_size: int = 400,  # Target tokens per chunk
-        overlap: int = 50,       # Token overlap between chunks
-        min_chunk_size: int = 100  # Minimum chunk size (discard smaller)
+        overlap: int = 50,  # Token overlap between chunks
+        min_chunk_size: int = 100,  # Minimum chunk size (discard smaller)
     ):
         self.chunk_size = chunk_size
         self.overlap = overlap
@@ -55,10 +55,7 @@ def estimate_tokens(text: str) -> int:
     return int(words * 1.3)  # Spanish: ~1.3 tokens per word on average
 
 
-def chunk_by_fixed_size(
-    text: str,
-    config: ChunkConfig
-) -> list[str]:
+def chunk_by_fixed_size(text: str, config: ChunkConfig) -> list[str]:
     """Split text into fixed-size chunks with overlap.
 
     Simple but loses context at boundaries. Use only if other strategies fail.
@@ -72,7 +69,7 @@ def chunk_by_fixed_size(
 
     i = 0
     while i < len(words):
-        chunk_words = words[i:i + words_per_chunk]
+        chunk_words = words[i : i + words_per_chunk]
         chunk_text = " ".join(chunk_words)
 
         if estimate_tokens(chunk_text) >= config.min_chunk_size:
@@ -84,10 +81,7 @@ def chunk_by_fixed_size(
     return chunks
 
 
-def chunk_by_sentences(
-    text: str,
-    config: ChunkConfig
-) -> list[str]:
+def chunk_by_sentences(text: str, config: ChunkConfig) -> list[str]:
     """Split text into chunks respecting sentence boundaries.
 
     Better than fixed-size: keeps sentences intact.
@@ -95,7 +89,8 @@ def chunk_by_sentences(
     """
     # Simple sentence splitting (Spanish-aware)
     import re
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+
+    sentences = re.split(r"(?<=[.!?])\s+", text)
 
     chunks = []
     current_chunk = []
@@ -132,10 +127,7 @@ def chunk_by_sentences(
     return chunks
 
 
-def chunk_by_paragraphs(
-    text: str,
-    config: ChunkConfig
-) -> list[str]:
+def chunk_by_paragraphs(text: str, config: ChunkConfig) -> list[str]:
     """Split text into chunks respecting paragraph boundaries.
 
     BEST for medical documents: preserves clinical context.
@@ -188,9 +180,7 @@ def chunk_by_paragraphs(
 
 
 def chunk_document(
-    text: str,
-    strategy: ChunkingStrategy = ChunkingStrategy.PARAGRAPH_AWARE,
-    config: ChunkConfig | None = None
+    text: str, strategy: ChunkingStrategy = ChunkingStrategy.PARAGRAPH_AWARE, config: ChunkConfig | None = None
 ) -> list[str]:
     """Split document into chunks using specified strategy.
 

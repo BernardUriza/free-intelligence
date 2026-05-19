@@ -1,14 +1,14 @@
 [project]
 name = "fi-core"
-version = "0.1.0"
-description = "Free Intelligence core — shared RAG primitives (chunking, embedder/store protocols) used by AURITY and Insult"
+version = "0.2.0"
+description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, persona character-integrity detection) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     { name = "Bernard Uriza Orozco" },
 ]
 license = { text = "MIT" }
-keywords = ["rag", "chunking", "embeddings", "fi-core"]
+keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

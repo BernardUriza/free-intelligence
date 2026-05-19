@@ -94,9 +94,7 @@ def test_fixed_size_produces_overlapping_chunks():
         # Last 5 words of chunk i should overlap with first 5 of chunk i+1
         # (at minimum 1 should match because of overlap)
         last_words_curr = chunks[i].split()[-10:]
-        assert any(w in last_words_curr for w in first_words_next), (
-            f"No overlap between chunk {i} and chunk {i+1}"
-        )
+        assert any(w in last_words_curr for w in first_words_next), f"No overlap between chunk {i} and chunk {i + 1}"
 
 
 def test_min_chunk_size_filters_tiny_chunks():
