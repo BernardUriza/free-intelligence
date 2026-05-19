@@ -467,7 +467,7 @@ async def validate_and_retry_prompt(
 
 
 # ---------------------------------------------------------------------------
-# Consolidation tools (v0.5.0) — Shape B per [[mcp-shape-b-canonical]]
+# Consolidation tools (v0.5.1) — Shape B per [[mcp-shape-b-canonical]]
 # ---------------------------------------------------------------------------
 # fi-core does NOT execute the LLM. These tools BUILD the judge prompt and
 # PARSE the raw response. The consumer (insult-runner, AURITY, fi-monitor)

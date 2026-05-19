@@ -10,4 +10,4 @@ Sub-packages:
 - ``fi_core.persona.mcp_server``           — MCP server exposing persona detectors as AI tools (extras: mcp)
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
