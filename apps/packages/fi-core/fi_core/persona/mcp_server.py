@@ -467,6 +467,252 @@ async def validate_and_retry_prompt(
 
 
 # ---------------------------------------------------------------------------
+# Consolidation tools (v0.5.0) — Shape B per [[mcp-shape-b-canonical]]
+# ---------------------------------------------------------------------------
+# fi-core does NOT execute the LLM. These tools BUILD the judge prompt and
+# PARSE the raw response. The consumer (insult-runner, AURITY, fi-monitor)
+# holds the LLM credentials and orchestrates the call.
+
+_CONSOLIDATION_JUDGE_SYSTEM_PROMPT = """\
+You are a memory curator for a long-term assistant. You will be given the COMPLETE current set of stored facts about a single user. Some are duplicates, some are stale, some contradict newer entries. Your job is to produce a curation plan as JSON.
+
+Each input fact has an integer "id" you must reference verbatim in your output.
+
+For each fact, decide ONE of:
+- "NOOP"   — keep as-is, no overlap with others
+- "DELETE" — remove (duplicate of a kept fact, contradicted by newer fact, or no longer accurate)
+- "UPDATE" — supersede this fact with merged or corrected text. Use when two or more facts cover the same topic and you want to fold them into one cleaner sentence.
+
+Hard rules:
+- Treat the LATEST `updated_at` as authoritative when two facts conflict. The newer one wins; the older one is DELETEd.
+- Never DELETE a fact unless another fact in the input set covers the same ground OR the fact is plainly contradicted. If a fact stands alone, NOOP it.
+- An UPDATE consumes one or more original ids and produces ONE new merged fact text. List the consumed ids in "merge_ids".
+- Preserve language: if the original facts are in Spanish, the merged text must be in Spanish. Same for English.
+- Preserve concrete detail. Dates, place names, numbers, names of people must survive. Don't generalize "el 20 abril 2026 lo catearon en aduana" into "tuvo un problema en la frontera".
+- Keep merged facts under 25 words.
+
+Return ONLY a JSON array. Each element is an operation object:
+
+  {"op": "NOOP",   "id": 12, "reason": "standalone fact"}
+  {"op": "DELETE", "id": 17, "reason": "duplicate of id=12"}
+  {"op": "UPDATE", "merge_ids": [3, 8], "new_fact": "...", "category": "...", "reason": "..."}
+
+Every input fact id MUST appear in exactly one operation (as `id` for NOOP/DELETE or inside `merge_ids` for UPDATE). Do not invent new facts that aren't a merge of existing ones.
+
+Return the JSON array and nothing else.
+"""
+
+
+def _render_facts_as_user_prompt(facts: list[dict]) -> str:
+    """Render the user's fact set as a JSON array string for the judge.
+
+    Each fact must have `id`, `fact`, optional `category`, and
+    `updated_at` (unix seconds). The render formats `updated_at` as an
+    ISO date for the model so age comparisons are intuitive.
+    """
+    import json as _json
+    import time as _time
+
+    lines = []
+    for f in facts:
+        ts = f.get("updated_at") or 0
+        when = _time.strftime("%Y-%m-%d", _time.gmtime(ts)) if ts else "unknown"
+        lines.append(
+            f'{{"id": {f["id"]}, "fact": {_json.dumps(f["fact"], ensure_ascii=False)}, '
+            f'"category": "{f.get("category", "general")}", "updated_at": "{when}"}}'
+        )
+    return "Current facts:\n[\n  " + ",\n  ".join(lines) + "\n]"
+
+
+@mcp.tool()
+async def build_consolidation_prompt(
+    facts: list[dict],
+    max_tokens_hint: int = 4096,
+) -> dict:
+    """Build a Mem0-style consolidation prompt — returns prompt + user_text
+    + suggested generation params. fi-core does NOT call the LLM; the
+    caller executes it with their own credentials.
+
+    Use this BEFORE invoking your LLM to consolidate a user's stored facts.
+    After receiving the LLM response, call ``parse_consolidation_result``
+    with the raw text + the same facts list to get a validated plan.
+
+    Args:
+        facts: List of fact dicts. Each MUST have ``id`` (int), ``fact``
+            (str), optional ``category`` (str), and ``updated_at`` (unix
+            seconds). Facts with missing required fields are passed
+            through to the prompt as-is — the judge can still reason
+            about them, but you'll lose age-based conflict resolution.
+        max_tokens_hint: Suggested max_tokens for the LLM call. Default
+            4096 is enough for ~80 facts; bump for larger sets.
+
+    Returns:
+        ``{
+            "system_prompt": str,       # send as system prompt
+            "user_text":     str,       # send as user message
+            "max_tokens":    int,       # max_tokens_hint, echoed back
+            "model_hint":    str,       # Haiku-class is plenty
+        }``
+
+    Notes:
+        - The system prompt is the Mem0-style judge instruction; it
+          asks for NOOP/UPDATE/DELETE ops referencing fact ids.
+        - Model hint is ``claude-haiku-4-5`` — the judge is structured
+          and small-vocab; Sonnet/Opus are overkill.
+        - Reference: arxiv 2504.19413 (Mem0 paper).
+    """
+    return {
+        "system_prompt": _CONSOLIDATION_JUDGE_SYSTEM_PROMPT,
+        "user_text": _render_facts_as_user_prompt(facts),
+        "max_tokens": max_tokens_hint,
+        "model_hint": "claude-haiku-4-5",
+    }
+
+
+@mcp.tool()
+async def parse_consolidation_result(
+    raw_response: str,
+    facts: list[dict],
+) -> dict:
+    """Parse the LLM's raw judge response into a validated op list.
+
+    Pairs with ``build_consolidation_prompt``. Strips markdown fences,
+    parses the JSON array, drops malformed ops, and adds implicit NOOPs
+    for any facts the judge omitted (so no row is ever silently lost).
+
+    Args:
+        raw_response: Verbatim text returned by the LLM. Markdown fences
+            (```json ... ```) are tolerated and stripped.
+        facts: The SAME facts list passed to ``build_consolidation_prompt``.
+            Needed to validate that every input id is referenced in
+            exactly one op and to backfill implicit NOOPs.
+
+    Returns:
+        ``{
+            "ok":      bool,           # True iff parse succeeded
+            "ops":     list[dict],     # validated, every fact id covered
+            "error":   str | None,     # set when ok=False
+            "raw_len": int,            # diagnostic: response size
+        }``
+
+        Each op has shape:
+        - NOOP/DELETE: ``{"op": "NOOP"|"DELETE", "id": int, "reason": str}``
+        - UPDATE: ``{"op": "UPDATE", "merge_ids": list[int], "new_fact": str,
+                     "category": str, "reason": str}``
+    """
+    import json as _json
+
+    text = (raw_response or "").strip()
+    if not text:
+        return {"ok": False, "ops": [], "error": "empty_response", "raw_len": 0}
+
+    # Strip markdown fence.
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+    try:
+        plan = _json.loads(text)
+    except _json.JSONDecodeError as e:
+        return {
+            "ok": False,
+            "ops": [],
+            "error": f"json_decode_error: {e}",
+            "raw_len": len(raw_response),
+        }
+
+    if not isinstance(plan, list):
+        return {
+            "ok": False,
+            "ops": [],
+            "error": "expected_array",
+            "raw_len": len(raw_response),
+        }
+
+    # Validate: drop malformed ops, track which ids the judge addressed.
+    valid_ids = {f["id"] for f in facts}
+    seen: set[int] = set()
+    valid_ops: list[dict] = []
+    for op in plan:
+        if not isinstance(op, dict) or "op" not in op:
+            continue
+        kind = op["op"]
+        if kind in ("NOOP", "DELETE"):
+            fid = op.get("id")
+            if fid not in valid_ids or fid in seen:
+                continue
+            seen.add(fid)
+            valid_ops.append(op)
+        elif kind == "UPDATE":
+            ids = op.get("merge_ids") or []
+            new_text = op.get("new_fact")
+            if not isinstance(ids, list) or not new_text:
+                continue
+            ids_int = [
+                i for i in ids if isinstance(i, int) and i in valid_ids and i not in seen
+            ]
+            if not ids_int:
+                continue
+            seen.update(ids_int)
+            op["merge_ids"] = ids_int
+            valid_ops.append(op)
+        # Unknown op kinds are silently dropped — judge can't invent.
+
+    # Implicit NOOP for any fact id the judge ignored — never silently lose a row.
+    for f in facts:
+        if f["id"] not in seen:
+            valid_ops.append(
+                {"op": "NOOP", "id": f["id"], "reason": "implicit (judge omitted)"}
+            )
+
+    return {
+        "ok": True,
+        "ops": valid_ops,
+        "error": None,
+        "raw_len": len(raw_response),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public contract — explicit per [[mcp-shape-b-canonical]] + the 2026-05-19
+# discord-bot integration. Consumers read these to wire up runtime + auto-
+# inject the tool list into persona prompts.
+# ---------------------------------------------------------------------------
+
+MCP_SERVER_NAME = "fi-core-persona"
+
+MCP_TOOLS: list[dict[str, str]] = [
+    {
+        "name": "list_packs",
+        "description": "List all built-in pattern packs available on this server.",
+    },
+    {
+        "name": "check_drift",
+        "description": "Detect persona drift in text using the listed packs.",
+    },
+    {
+        "name": "sanitize_response",
+        "description": "Last-resort: remove sentences containing break-severity matches.",
+    },
+    {
+        "name": "get_reinforcement",
+        "description": "Return the reinforcement string suitable for a specific pack.",
+    },
+    {
+        "name": "validate_and_retry_prompt",
+        "description": "Atomic loop: validate response, decide retry, return reinforced prompt.",
+    },
+    {
+        "name": "build_consolidation_prompt",
+        "description": "Build a Mem0-style judge prompt for user-fact consolidation.",
+    },
+    {
+        "name": "parse_consolidation_result",
+        "description": "Parse and validate the judge's JSON response into op list.",
+    },
+]
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

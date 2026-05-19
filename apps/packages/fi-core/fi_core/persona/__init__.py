@@ -25,6 +25,10 @@ from fi_core.persona.detect import (
     ClarificationDumpDetector,
     sanitize,
 )
+from fi_core.persona.mcp_server import (
+    MCP_SERVER_NAME,
+    MCP_TOOLS,
+)
 from fi_core.persona.types import DetectionResult
 
 __all__ = [
@@ -32,6 +36,8 @@ __all__ = [
     "BreakDetector",
     "ClarificationDumpDetector",
     "DetectionResult",
+    "MCP_SERVER_NAME",
+    "MCP_TOOLS",
     "packs",
     "sanitize",
 ]
