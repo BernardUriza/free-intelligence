@@ -215,6 +215,44 @@ async def get_disclosure_log(args: dict) -> dict:
 
 
 @tool(
+    "deep_memory",
+    (
+        "Vector-search the user's longitudinal memory for semantically "
+        "related chunks. Use when get_user_facts is too coarse — when you "
+        "remember the user mentioning something specific but you need the "
+        "actual phrasing, the context around it, or related fragments "
+        "across conversations. Returns up to top_k chunks with similarity "
+        "scores (0.0-1.0) and timestamps. Default top_k is 5; raise to 10 "
+        "for broader recall, lower to 3 for precision."
+    ),
+    {"user_id": str, "query": str, "top_k": int},
+)
+async def deep_memory(args: dict) -> dict:
+    from insult.core.deep_memory import query_user_memory
+
+    user_id = (args.get("user_id") or "").strip()
+    query = (args.get("query") or "").strip()
+    if not user_id or not query:
+        return _error("user_id and query are required")
+    top_k = max(1, min(int(args.get("top_k") or 5), 20))
+    results = await query_user_memory(user_id=user_id, query=query, top_k=top_k)
+    if not results:
+        return _text(
+            f"No deep memory chunks found for user {user_id} matching '{query}'. "
+            "Either nothing's been ingested for this user yet, or the query is too "
+            "off-topic. Try get_user_facts for the structured fact list."
+        )
+    lines = [f"# {len(results)} deep-memory chunks for user {user_id} matching '{query}'"]
+    for r in results:
+        ts_iso = r["created_at"].strftime("%Y-%m-%dT%H:%M:%SZ") if r["created_at"] else "?"
+        lines.append(
+            f"\n## sim={r['similarity']:.3f} | source={r['source_type']}/{r['source_ref']} | {ts_iso}"
+        )
+        lines.append(r["chunk_text"])
+    return _text("\n".join(lines))
+
+
+@tool(
     "publish_html_artifact",
     (
         "Publish a standalone HTML page (report, mini-app, snapshot, "
@@ -298,6 +336,7 @@ INSULT_DB_TOOLS = [
     get_recent_messages,
     search_messages,
     get_disclosure_log,
+    deep_memory,
     publish_html_artifact,
     get_emotional_arc,
 ]

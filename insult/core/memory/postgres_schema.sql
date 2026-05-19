@@ -182,6 +182,41 @@ CREATE TABLE IF NOT EXISTS siesta_state (
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── deep_memory_chunks ────────────────────────────────────────────────
+-- Vector-searchable per-user memory chunks (v3.9.60, RAG sibling).
+-- Replaces the on-prem Free Intelligence / AURITY RAG dependency for
+-- Insult's "deep memory" needs — Insult's audience is conversational, not
+-- clinical PHI, so HIPAA on-prem isolation doesn't apply.
+--
+-- Population: an ingest pipeline (siesta consolidator hook + manual
+-- backfill script) chunks messages and disclosure_log rows into
+-- ~500-token windows, embeds via Azure OpenAI ada-002 (1536 dims), and
+-- inserts here. The MCP tool `mcp__insult_db__deep_memory(user_id, query,
+-- top_k)` embeds the query and runs `embedding <=> $1` cosine search
+-- filtered by user_id.
+--
+-- `source_type` + `source_ref` lets the agent cite where a recalled chunk
+-- came from ("from your message on 2026-04-12" beats a context-free quote).
+CREATE TABLE IF NOT EXISTS deep_memory_chunks (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    source_type     TEXT NOT NULL CHECK (source_type IN ('message', 'disclosure', 'fact', 'manual')),
+    source_ref      TEXT NOT NULL,
+    chunk_text      TEXT NOT NULL,
+    embedding       vector(1536) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Idempotent ingest guard: same source_ref + chunk_text combo never inserts twice.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deep_memory_dedupe ON deep_memory_chunks(user_id, source_ref, md5(chunk_text));
+-- User filter + recency ordering for "what does X look like lately".
+CREATE INDEX IF NOT EXISTS idx_deep_memory_user_created ON deep_memory_chunks(user_id, created_at DESC);
+-- Vector search index. ivfflat with lists=100 is the standard pgvector
+-- starting point for tables <1M rows; revisit if we cross that. The
+-- ANALYZE that follows the first big insert determines the planner's
+-- statistics for the cosine operator.
+CREATE INDEX IF NOT EXISTS idx_deep_memory_embedding ON deep_memory_chunks
+    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
 -- ─── html_artifacts ────────────────────────────────────────────────────
 -- HTML artifacts the agent publishes via `publish_html_artifact`. Served
 -- by `discord-bot`'s public GET /a/{id} endpoint — no auth, anyone with
