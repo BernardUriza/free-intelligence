@@ -155,13 +155,20 @@ def extract_fi_core_mcp_tools() -> list[dict]:
     try:
         from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS  # type: ignore
 
-        return [
-            {
-                "name": f"mcp__{MCP_SERVER_NAME}__{t['name']}",
-                "desc": (t.get("description") or "").split(". ")[0] + "." if t.get("description") else "",
-            }
-            for t in MCP_TOOLS
-        ]
+        result = []
+        for t in MCP_TOOLS:
+            desc = (t.get("description") or "").split(". ")[0].strip()
+            # Avoid the double-period case: if the fi-core description already
+            # ended in '.', appending another produces '..' in persona.md.
+            if desc and not desc.endswith("."):
+                desc += "."
+            result.append(
+                {
+                    "name": f"mcp__{MCP_SERVER_NAME}__{t['name']}",
+                    "desc": desc,
+                }
+            )
+        return result
     except ImportError:
         pass
 
