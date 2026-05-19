@@ -1,6 +1,6 @@
 [project]
 name = "fi-core"
-version = "0.5.1"
+version = "0.6.0"
 description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -58,6 +58,15 @@ mcp = [
     "mcp>=1.4,<2",
 ]
 
+# Training utilities: TinyGPT + PyTorchTrainer + tokenizers + dataset readers.
+# Required for any sub-module under fi_core.training.* (other than protocols).
+# Pulls torch (heavy — only install when you actually train).
+training = [
+    "torch>=2.0",
+    "tiktoken>=0.7",
+    "tokenizers>=0.20",
+]
+
 # Convenience: install everything available so far.
 all = [
     "h5py>=3.10",
@@ -68,6 +77,8 @@ all = [
     "sentence-transformers>=2.5",
     "torch>=2.0",
     "mcp>=1.4,<2",
+    "tiktoken>=0.7",
+    "tokenizers>=0.20",
 ]
 
 dev = [
@@ -84,6 +95,8 @@ dev = [
     "sentence-transformers>=2.5",
     "torch>=2.0",
     "mcp>=1.4,<2",
+    "tiktoken>=0.7",
+    "tokenizers>=0.20",
 ]
 
 [build-system]

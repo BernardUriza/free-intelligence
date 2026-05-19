@@ -8,6 +8,7 @@ Sub-packages:
 - ``fi_core.embeddings.sentence_transformers`` — local sentence-transformers Embedder (extras: embeddings-st)
 - ``fi_core.persona``                      — character-integrity / anti-drift detectors and packs
 - ``fi_core.persona.mcp_server``           — MCP server exposing persona detectors as AI tools (extras: mcp)
+- ``fi_core.training``                     — training pipes (datasets, tokenizers, TinyGPT, PyTorchTrainer) (extras: training)
 """
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
