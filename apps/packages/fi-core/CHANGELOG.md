@@ -5,6 +5,77 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-19
+
+### Added
+
+- `fi_core.stores.pgvector.PgVectorChunkStore` — second reference
+  `DocumentChunkStore` implementation, backed by Postgres + pgvector.
+  Designed for multi-tenant chat substrates that need concurrent writes,
+  relational filters mixed with vector similarity, and transactional
+  consistency. IVFFlat index (`lists=100`) by default; documented HNSW
+  migration cue for >1M chunks per namespace. Codec registration is
+  done via one-shot bare connection BEFORE pool construction (avoids
+  the asyncpg "unknown type: vector" failure mode). 7 new tests using
+  pytest-postgresql's ephemeral PG fixture.
+- `fi_core.embeddings.azure_openai.AzureOpenAIEmbedder` — first
+  reference `Embedder` implementation. Wraps Azure OpenAI's embeddings
+  API via the openai SDK's `AsyncAzureOpenAI` client. Constructor takes
+  explicit config (api_key, endpoint, deployment, api_version, dim) —
+  NO env-var reading inside the package; caller's job to source
+  credentials. Default `dim=1536` (text-embedding-ada-002 /
+  text-embedding-3-small), parameterizable to 3072 for
+  text-embedding-3-large. 14 new tests with mocked SDK calls — no
+  network access in CI.
+- `fi_core.embeddings.sentence_transformers.SentenceTransformersEmbedder` —
+  second reference `Embedder` implementation. Loads a local
+  sentence-transformers model into the host process (CPU by default;
+  GPU via `device=` parameter, with auto-detect ladder
+  `cuda > mps > cpu` when `device=None`). Lazy-load on first `embed()`
+  call (model is NOT loaded at `__init__`). `model.encode` runs through
+  `asyncio.to_thread` so it does not block the event loop. Default
+  model `sentence-transformers/all-MiniLM-L6-v2` (384-dim, matches
+  AURITY's fi-monitor GPU service). 8 new tests including a
+  `@pytest.mark.slow` real-model load + encode test.
+
+### Changed
+
+- `fi_core/__init__.py` updated to list the four new sub-package paths.
+- `pyproject.toml`: new optional extras `stores-pgvector` (asyncpg +
+  pgvector), `embeddings-azure` (openai), `embeddings-st`
+  (sentence-transformers + torch). `[all]` and `[dev]` updated to
+  bundle all five extras. Default `numpy` and `mcp` upper bounds also
+  formalized in `[stores-hdf5]` and `[mcp]` (matching the conda recipe).
+- `[tool.pytest.ini_options]` registers a `slow` marker for the heavy
+  sentence-transformers real-model test, eliminating
+  PytestUnknownMarkWarning at collection.
+
+### Honest extraction notes
+
+- `AzureOpenAIEmbedder` was a clean extraction from discord-bot's
+  `insult/core/deep_memory.py` (lines 48-129). Stripped env-var
+  reading, promoted dim to a constructor arg, added eager validation.
+- `SentenceTransformersEmbedder` is "inspired by" not "extracted from"
+  AURITY. AURITY's `monitor_client.py` is a thin HTTP client to a
+  Cloudflare-tunneled GPU service; no `MonitorClientEmbedder` class
+  exists. The fi-core implementation is a clean local-process
+  equivalent modeled on `fi-monitor/rag_service/main.py:71` (the
+  actual SentenceTransformer instantiation point in the free-
+  intelligence monorepo).
+- `PgVectorChunkStore` is "inspired by" not "extracted from"
+  discord-bot's `deep_memory.py`. The discord-bot module is heavily
+  Discord-domain (hardcoded `user_id` column, closed CHECK constraint
+  on source_type, md5-based chunk dedupe, no document concept). The
+  fi-core implementation preserves the schema shape, cosine query
+  pattern, and IVFFlat index choice, but drops Discord-specific
+  concepts and adds the full document-lifecycle layer needed by
+  the `DocumentChunkStore` Protocol.
+
+### Coverage
+
+- 29 new tests (14 azure + 8 sentence-transformers + 7 pgvector).
+- Full suite: 124 passing in 8.87s. 0 regressions.
+
 ## [0.4.0] — 2026-05-19
 
 ### Added
