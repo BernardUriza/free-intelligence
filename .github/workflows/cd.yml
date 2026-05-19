@@ -157,6 +157,47 @@ jobs:
             az containerapp show -n insult-runner -g insult-rg --query "properties.latestRevisionName" -o tsv
             RUNNER_LOGS=$(az containerapp logs show -n insult-runner -g insult-rg --tail 15 2>&1 || true)
             echo "$RUNNER_LOGS" | tail -10
+
+            # Real smoke test against the deployed runner. This catches the
+            # silent-broken-deploy pattern that bit us 2026-05-19: CD reported
+            # "success" but the runner was missing publish_html_artifact +
+            # deep_memory because an unrelated CI failure had kept the runner
+            # on an old sha and nobody noticed for hours. Asserting against
+            # the FQDN proves the new image is actually serving.
+            FQDN="insult-runner.nicecliff-10074f57.eastus.azurecontainerapps.io"
+            TOKEN=$(az containerapp secret show \
+              -n insult-runner -g insult-rg \
+              --secret-name insult-agent-runner-token \
+              --query value -o tsv 2>/dev/null || echo "")
+
+            # 1) /health must report auth_configured=true AND claude_md_present=true.
+            HEALTH=$(curl -sS -m 15 "https://$FQDN/health" 2>&1 || echo "{}")
+            echo "health: $HEALTH"
+            if ! echo "$HEALTH" | grep -q '"auth_configured":true'; then
+              echo "FAIL insult-runner: auth_configured!=true in /health"
+              exit 1
+            fi
+            if ! echo "$HEALTH" | grep -q '"claude_md_present":true'; then
+              echo "FAIL insult-runner: claude_md_present!=true in /health"
+              exit 1
+            fi
+
+            # 2) DELETE /v1/session/<random> must return 200 with existed=false.
+            # Catches deploys that are stuck on a sha without the v3.9.69
+            # session-reset endpoint. Cheap and side-effect-free.
+            if [ -n "$TOKEN" ]; then
+              RESET=$(curl -sS -m 15 -X DELETE \
+                "https://$FQDN/v1/session/cd-smoke-${{ github.run_id }}" \
+                -H "Authorization: Bearer $TOKEN" 2>&1 || echo "{}")
+              echo "reset: $RESET"
+              if ! echo "$RESET" | grep -q '"existed":false'; then
+                echo "FAIL insult-runner: DELETE /v1/session returned unexpected shape"
+                exit 1
+              fi
+              echo "OK insult-runner: /health + DELETE /v1/session both green"
+            else
+              echo "WARN insult-runner: token unavailable, skipping DELETE check"
+            fi
           else
             echo "INFO insult-runner: not yet provisioned, skipping health check"
           fi
