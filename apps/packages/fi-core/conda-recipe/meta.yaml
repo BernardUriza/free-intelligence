@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
-{% set version = "0.5.1" %}
-{% set sha256 = "343ac38af5b4a19e51e6fc12adeab81adee297a59fd8008b4465fbf778a53985" %}
+{% set version = "0.6.0" %}
+{% set sha256 = "678b5fbe2dd7a4f83c899ef9240a8671be851168cbf386c4b1cc610c5d62db15" %}
 
 package:
   name: {{ name }}
@@ -66,6 +66,14 @@ test:
     - python -c "from importlib.util import find_spec; assert find_spec('fi_core.stores.pgvector') is not None, 'pgvector module file missing from build'; print('pgvector module file present')"
     - python -c "from importlib.util import find_spec; assert find_spec('fi_core.embeddings.azure_openai') is not None, 'azure_openai module file missing from build'; print('azure_openai module file present')"
     - python -c "from importlib.util import find_spec; assert find_spec('fi_core.embeddings.sentence_transformers') is not None, 'sentence_transformers module file missing from build'; print('sentence_transformers module file present')"
+    # Training module surfaces (require [training] extra at use-time; verify present here).
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.training') is not None, 'training package missing'; print('training package present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.training.models.tiny_gpt') is not None, 'tiny_gpt module missing'; print('tiny_gpt module present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.training.trainers.pytorch_trainer') is not None, 'pytorch_trainer module missing'; print('pytorch_trainer module present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.training.tokenizers.tiktoken_adapter') is not None, 'tiktoken_adapter module missing'; print('tiktoken_adapter module present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.training.tokenizers.bpe') is not None, 'bpe tokenizer module missing'; print('bpe tokenizer module present')"
+    # Protocols submodule must be importable without ANY optional deps installed.
+    - python -c "from fi_core.training import DatasetReader, Tokenizer, GenerationModel, Trainer; print('training protocols importable')"
 
 about:
   home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
@@ -75,7 +83,9 @@ about:
   summary: >
     Shared LLM primitives — RAG chunking + protocols, HDF5 + pgvector
     document stores, Azure OpenAI + sentence-transformers embedders,
-    persona character-integrity detection with MCP server.
+    persona character-integrity detection with MCP server, and
+    training pipes (TinyGPT + PyTorchTrainer + tokenizers + dataset
+    readers).
   description: |
     fi-core ships reusable primitives for building production LLM applications,
     extracted from real production consumers (AURITY medical RAG platform,
