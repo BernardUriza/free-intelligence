@@ -1,14 +1,14 @@
 [project]
 name = "fi-core"
-version = "0.4.0"
-description = "Free Intelligence core — shared LLM primitives (RAG chunking + Embedder/ChunkStore protocols, HDF5 store, persona character-integrity detection + MCP server) used by AURITY and Insult"
+version = "0.5.0"
+description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     { name = "Bernard Uriza Orozco" },
 ]
 license = { text = "MIT" }
-keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store", "mcp", "model-context-protocol"]
+keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store", "mcp", "model-context-protocol", "pgvector", "azure-openai", "sentence-transformers"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -25,29 +25,65 @@ dependencies = []
 # Required for fi_core.stores.hdf5.HDF5ChunkStore.
 stores-hdf5 = [
     "h5py>=3.10",
-    "numpy>=1.24",
+    "numpy>=1.24,<3",
+]
+
+# Postgres + pgvector-backed DocumentChunkStore implementation.
+# Required for fi_core.stores.pgvector.PgVectorChunkStore.
+# Use this for multi-tenant chat substrates needing concurrent writes,
+# relational filters, and transactional consistency.
+stores-pgvector = [
+    "asyncpg>=0.30",
+    "pgvector>=0.4",
+]
+
+# Azure OpenAI-backed Embedder. Required for
+# fi_core.embeddings.azure_openai.AzureOpenAIEmbedder.
+embeddings-azure = [
+    "openai>=1.40",
+]
+
+# Local sentence-transformers Embedder. Loads a model into the host
+# process; CPU-only by default, picks GPU via torch.cuda.is_available
+# when device=None. Required for
+# fi_core.embeddings.sentence_transformers.SentenceTransformersEmbedder.
+embeddings-st = [
+    "sentence-transformers>=2.5",
+    "torch>=2.0",
 ]
 
 # MCP server exposing fi_core.persona detectors as tools for AI agents.
 # Required for `python -m fi_core.persona.mcp_server`.
 mcp = [
-    "mcp>=1.4",
+    "mcp>=1.4,<2",
 ]
 
 # Convenience: install everything available so far.
 all = [
     "h5py>=3.10",
-    "numpy>=1.24",
-    "mcp>=1.4",
+    "numpy>=1.24,<3",
+    "asyncpg>=0.30",
+    "pgvector>=0.4",
+    "openai>=1.40",
+    "sentence-transformers>=2.5",
+    "torch>=2.0",
+    "mcp>=1.4,<2",
 ]
 
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-postgresql>=6.0",
+    "psycopg[binary]>=3.1",
     "ruff>=0.11",
     "h5py>=3.10",
-    "numpy>=1.24",
-    "mcp>=1.4",
+    "numpy>=1.24,<3",
+    "asyncpg>=0.30",
+    "pgvector>=0.4",
+    "openai>=1.40",
+    "sentence-transformers>=2.5",
+    "torch>=2.0",
+    "mcp>=1.4,<2",
 ]
 
 [build-system]
@@ -70,3 +106,6 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests that load heavy resources (e.g. real sentence-transformers model). Run with `-m slow` to include; default invocation skips them unless explicitly selected.",
+]
