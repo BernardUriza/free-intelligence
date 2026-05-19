@@ -292,6 +292,129 @@ class HDF5ChunkStore:
         return await asyncio.to_thread(self._reindex_document_sync, namespace, document_id)
 
     # ------------------------------------------------------------------
+    # Public sync API — for legacy callers stuck in sync FastAPI handlers
+    # or framework code that can't easily await. The async methods above
+    # are the canonical surface; these are escape hatches.
+    #
+    # All sync methods share the same signatures + semantics as their
+    # async counterparts, minus the await. Same idempotency, same status
+    # auto-promotion, same in-memory index mutation.
+    # ------------------------------------------------------------------
+
+    def create_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+        content: str,
+        metadata: DocumentMetadata | None = None,
+    ) -> str:
+        """Sync variant of ``create_document``. See async docstring."""
+        self._create_document_sync(namespace, document_id, content, metadata)
+        return document_id
+
+    def get_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+    ) -> DocumentRecord | None:
+        """Sync variant of ``get_document``."""
+        return self._get_document_sync(namespace, document_id)
+
+    def list_documents_sync(
+        self,
+        *,
+        namespace: str,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[DocumentRecord]:
+        """Sync variant of ``list_documents``."""
+        return self._list_documents_sync(namespace, status, limit)
+
+    def update_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+        content: str | None = None,
+        metadata: DocumentMetadata | None = None,
+    ) -> bool:
+        """Sync variant of ``update_document``."""
+        return self._update_document_sync(namespace, document_id, content, metadata)
+
+    def delete_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+    ) -> bool:
+        """Sync variant of ``delete_document``. Mutates in-memory index."""
+        deleted = self._delete_document_sync(namespace, document_id)
+        if deleted:
+            idx = self._index.get(namespace)
+            if idx:
+                idx.remove_document(document_id)
+        return deleted
+
+    def save_chunks_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+        chunks: list[ChunkWithEmbedding],
+    ) -> int:
+        """Sync variant of ``save_chunks``. Mutates in-memory index."""
+        saved, new_entries = self._save_chunks_sync(namespace, document_id, chunks)
+        if new_entries:
+            self._index.setdefault(namespace, _NamespaceIndex())
+            for entry in new_entries:
+                self._index[namespace].add(entry)
+        return saved
+
+    def get_chunks_by_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+    ) -> list[Chunk]:
+        """Sync variant of ``get_chunks_by_document``."""
+        return self._get_chunks_by_document_sync(namespace, document_id)
+
+    def delete_chunks_by_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+    ) -> int:
+        """Sync variant of ``delete_chunks_by_document``. Mutates in-memory index."""
+        deleted = self._delete_chunks_by_document_sync(namespace, document_id)
+        if deleted:
+            idx = self._index.get(namespace)
+            if idx:
+                idx.remove_document(document_id)
+        return deleted
+
+    def reindex_document_sync(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+    ) -> bool:
+        """Sync variant of ``reindex_document``."""
+        return self._reindex_document_sync(namespace, document_id)
+
+    def query_sync(
+        self,
+        *,
+        namespace: str,
+        query_embedding: list[float],
+        top_k: int = 5,
+    ) -> list[RetrievedChunk]:
+        """Sync variant of ``query``. Same cosine-similarity top-k."""
+        return self._query_sync(namespace, query_embedding, top_k)
+
+    # ------------------------------------------------------------------
     # Sync internals — never awaited directly, always via to_thread.
     # ------------------------------------------------------------------
 
