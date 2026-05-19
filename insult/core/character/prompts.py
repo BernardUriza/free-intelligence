@@ -31,7 +31,6 @@ from insult.core.character.detection import (
     IDENTITY_REINFORCE_THRESHOLD,
     IDENTITY_REINFORCEMENT_SUFFIX,
 )
-from insult.core.character.time_context import _get_current_time_context
 from insult.core.flows import FlowAnalysis, build_flow_prompt
 from insult.core.presets import (
     PresetSelection,
@@ -40,6 +39,7 @@ from insult.core.presets import (
     classify_preset,
     is_vulnerable_overlay_selection,
 )
+from shared.time_context import _get_current_time_context
 
 log = structlog.get_logger()
 
