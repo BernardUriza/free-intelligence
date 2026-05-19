@@ -5,6 +5,90 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-05-19
+
+### Added
+
+- **`fi_core.training`** — fifth sub-package: training pipes for
+  building small LMs on top of what the production stores already
+  write. All sub-modules require the new ``[training]`` extra (torch +
+  tiktoken + tokenizers). The base ``fi-core`` install still does NOT
+  pull these.
+- `fi_core.training.protocols` — runtime-checkable Protocols
+  ``DatasetReader``, ``Tokenizer``, ``GenerationModel``, ``Trainer``.
+  Re-exported from ``fi_core.training`` for direct ``from fi_core.training
+  import DatasetReader`` use.
+- `fi_core.training.datasets.HDF5DatasetReader` and
+  `fi_core.training.datasets.PgVectorDatasetReader` — stream ``Chunk``
+  instances out of an ``HDF5ChunkStore`` / ``PgVectorChunkStore``
+  respectively. The reader takes a constructed store (not a path or
+  DSN) so the caller controls lifecycle.
+- `fi_core.training.tokenizers.TiktokenTokenizer` — thin wrapper over
+  OpenAI's ``tiktoken`` library. Default encoding ``cl100k_base`` (the
+  GPT-4 vocab, 100,277 tokens). Use with the ``tiny_gpt_30m`` preset.
+- `fi_core.training.tokenizers.BPETokenizer` — wraps HuggingFace's
+  ``tokenizers`` library (fast Rust BPE trainer). Static ``train``
+  classmethod for fitting a corpus-specific BPE; ``save`` / ``load``
+  for persistence. Default special tokens: ``<pad>``, ``<unk>``,
+  ``<bos>``, ``<eos>``. Use with the ``tiny_gpt_5m`` preset.
+- `fi_core.training.models.TinyGPT` + ``GPTConfig`` — compact
+  decoder-only Transformer (karpathy-style minGPT): pre-LayerNorm
+  blocks, tied embedding ↔ unembedding, GELU activations, causal
+  self-attention via ``F.scaled_dot_product_attention`` (PyTorch ≥2.0
+  picks flash-attention automatically on supported GPUs). ``forward``
+  takes optional ``targets`` and returns ``(logits, loss)``.
+  ``generate`` does autoregressive sampling with temperature, top-k,
+  top-p (nucleus), and repetition penalty — logic adapted from
+  Robo-Poet's ``src/legacy/robo-poet-pytorch/src/generation/generate.py``.
+  ``configure_optimizers`` returns AdamW with the standard
+  decay / nodecay parameter split.
+- `fi_core.training.models.presets` — factory functions
+  ``tiny_gpt_5m`` (8K vocab, ~5M params) and ``tiny_gpt_30m``
+  (cl100k_base, ~30M params). Both use 6 layers × 8 heads × 256
+  hidden, 256-token context, dropout 0.1.
+- `fi_core.training.trainers.PyTorchTrainer` — config-driven training
+  loop. Adapted from Robo-Poet's
+  ``src/legacy/robo-poet-pytorch/src/training/train.py``. Changes:
+  GPU-only (fails fast with a clear ``RuntimeError`` on no CUDA — no
+  CPU or MPS path), config-driven optimizer (``optimizer_cls`` +
+  ``optimizer_kwargs``, default falls back to
+  ``model.configure_optimizers`` if available), TensorBoard stripped
+  in favor of structlog events, ``torch.amp.GradScaler('cuda')`` API.
+  Features mixed precision, gradient accumulation, linear warmup →
+  cosine decay LR schedule, gradient clipping, best-loss checkpoint
+  tracking, early stopping.
+
+### Changed
+
+- `pyproject.toml`: new ``[training]`` optional extra
+  (``torch>=2.0``, ``tiktoken>=0.7``, ``tokenizers>=0.20``). ``[all]``
+  and ``[dev]`` updated.
+- `fi_core/__init__.py`: lists the new ``fi_core.training`` path.
+
+### Narrative
+
+V2 preserved: training is a utility surface, NOT a closed loop. The
+patterns shipped by ``fi_core.persona`` are NOT derived from any
+corpus a consumer trains on with this module — they remain
+human-distilled from production failure modes. ``fi_core.training``
+ships the pipes (read chunks that ``fi_core.stores`` wrote, tokenize,
+embed, run a small GPT loop); the closed loop, if a consumer wants
+one, is their assembly.
+
+### Honest reuse notes
+
+- ``TinyGPT`` model code was written for fi-core (Robo-Poet referenced
+  a ``models.gpt_model`` that never existed in the repo — Bernard's
+  comment ``tu PyTorch existe; tu loop no`` was literal: only the
+  trainer was real).
+- ``PyTorchTrainer`` is a near-verbatim adaptation of Robo-Poet's
+  ``GPTTrainer`` class, with the changes documented above.
+- Generation sampling (temperature / top-k / top-p / repetition
+  penalty) is adapted from Robo-Poet's ``TextGenerator``.
+- Tokenizers are thin wrappers over ``tiktoken`` and HuggingFace
+  ``tokenizers`` — no point reinventing what those libraries already
+  do well.
+
 ## [0.5.1] — 2026-05-19
 
 ### Added
