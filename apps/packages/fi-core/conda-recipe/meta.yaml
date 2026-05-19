@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
-{% set version = "0.4.0" %}
-{% set sha256 = "4718e221ec48c5aecf8ff299607d3739b03ea28f85b53b5ccaa8da0b076917ca" %}
+{% set version = "0.5.1" %}
+{% set sha256 = "TBD_AFTER_RELEASE" %}
 
 package:
   name: {{ name }}
@@ -32,11 +32,11 @@ requirements:
     # single conda package — conda's strength is exactly the kind of
     # compiled binary deps that h5py + numpy carry.
     - h5py >=3.10
-    - numpy >=1.24
+    - numpy >=1.24,<3
     # MCP SDK for the persona MCP server (`fi_core.persona.mcp_server`).
     # Bundled by default since the MCP server is the headline integration
     # path for this release.
-    - mcp >=1.4
+    - mcp >=1.4,<2
 
 test:
   imports:
@@ -60,6 +60,12 @@ test:
     - python -c "from fi_core.persona import BreakDetector, packs; d=BreakDetector(patterns=packs.GENERIC_AI_DISCLOSURE_EN); assert d.detect('As an AI, I cannot') != []; print('persona smoke test passed')"
     # Smoke test the MCP server atomic loop tool (no transport, direct call).
     - python -c "import asyncio; from fi_core.persona import mcp_server; r=asyncio.run(mcp_server.validate_and_retry_prompt(response='As an AI, I cannot help.', system_prompt='You are a friend.')); assert r['retry_needed'] is True; assert r['reinforced_system_prompt'] is not None; print('mcp server smoke test passed')"
+    # Smoke test optional surfaces are importable when extras are pip-installed
+    # (NOT in conda's run deps — verifies the modules exist and raise the
+    # expected ImportError when the extras package is missing).
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.stores.pgvector') is not None, 'pgvector module file missing from build'; print('pgvector module file present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.embeddings.azure_openai') is not None, 'azure_openai module file missing from build'; print('azure_openai module file present')"
+    - python -c "from importlib.util import find_spec; assert find_spec('fi_core.embeddings.sentence_transformers') is not None, 'sentence_transformers module file missing from build'; print('sentence_transformers module file present')"
 
 about:
   home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
@@ -67,33 +73,51 @@ about:
   license_family: MIT
   license_file: LICENSE
   summary: >
-    Shared LLM primitives — RAG chunking + Embedder/ChunkStore protocols,
-    HDF5-backed document chunk store, persona character-integrity detection.
+    Shared LLM primitives — RAG chunking + protocols, HDF5 + pgvector
+    document stores, Azure OpenAI + sentence-transformers embedders,
+    persona character-integrity detection with MCP server.
   description: |
     fi-core ships reusable primitives for building production LLM applications,
     extracted from real production consumers (AURITY medical RAG platform,
     Insult Discord AI persona bot).
 
-    Three product surfaces in one package:
+    Four product surfaces in one package:
 
     - **fi_core.rag** — chunking algorithms (paragraph-aware, sentence-aware,
       fixed-size) plus Protocol classes for Embedder / ChunkStore /
       DocumentChunkStore. Zero-deps core.
-    - **fi_core.stores.hdf5** — h5py-backed reference implementation of
-      DocumentChunkStore. Per-namespace document tree with in-memory cosine
-      similarity index, idempotent bulk save_chunks, status auto-promotion
-      (pending → indexed), cascading delete. Async canonical API + public
-      sync facades for legacy adapter consumers.
+    - **fi_core.stores** — two reference DocumentChunkStore implementations.
+      `fi_core.stores.hdf5` (h5py-backed, per-namespace document tree, in-memory
+      cosine similarity index, idempotent bulk save_chunks, async + sync facades)
+      bundled in this conda package by default. `fi_core.stores.pgvector`
+      (asyncpg + pgvector, IVFFlat index, multi-tenant chat substrate ready)
+      module ships in the package; install its runtime deps via pip extras
+      `fi-core[stores-pgvector]` when needed.
+    - **fi_core.embeddings** — two reference Embedder implementations.
+      `fi_core.embeddings.azure_openai` (Azure OpenAI Embeddings via openai
+      SDK's AsyncAzureOpenAI client) and
+      `fi_core.embeddings.sentence_transformers` (local sentence-transformers,
+      lazy-loaded, asyncio.to_thread bridge, cuda > mps > cpu auto-detect).
+      Both modules ship in the package; install runtime deps via pip extras
+      `fi-core[embeddings-azure]` / `fi-core[embeddings-st]` when needed.
     - **fi_core.persona** — anti-drift detectors (BreakDetector,
       AntiPatternMonitor, ClarificationDumpDetector, sanitize) with bilingual
       English + Spanish pattern packs (AI disclosure, assistant tone,
       therapy-speak, summarizing, stage directions, markdown drift,
       moralizing, over-validation, clarification dump). Pure regex,
       zero LLM calls at detection time.
+    - **fi_core.persona.mcp_server** — MCP (Model Context Protocol) server
+      exposing the persona detectors as tools any MCP-compatible AI (Claude
+      Code, Cursor, Anthropic API with MCP enabled) can call directly. The
+      killer-feature tool is `validate_and_retry_prompt` — one-shot atomic
+      validation + retry reinforcement, no client-side orchestration needed.
+      Bundled in this conda package via the `mcp` runtime dep.
 
-    Use cases include medical RAG with clinic-scoped namespacing, conversational
-    AI personas with character integrity hardening, longitudinal scientific
-    data layers, and training-corpus reading for LLM fine-tuning pipelines.
+    The persona detectors and store schemas were not derived from a training
+    corpus. They are distilled from observed production failure modes in
+    real consumers (Insult Discord bot, AURITY medical RAG). Semi-closed
+    loop: human pattern recognition over production failures → library →
+    consumers, not corpus → model → patterns.
   doc_url: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
   dev_url: https://github.com/BernardUriza/free-intelligence
 

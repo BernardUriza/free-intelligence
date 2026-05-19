@@ -5,6 +5,39 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] — 2026-05-19
+
+### Added
+
+- `fi_core.persona.mcp_server.build_consolidation_prompt(facts, max_tokens_hint)`
+  and `fi_core.persona.mcp_server.parse_consolidation_result(raw_response, facts)`
+  — Shape B tools (per the canonical MCP pattern: server returns
+  prompt + parser, NEVER executes LLM). Mem0-style judge consolidation
+  ported verbatim from discord-bot's `insult/core/memory_consolidator.py`.
+  Pairs so any consumer (insult-runner via Claude Code SDK + OAuth Max,
+  AURITY's curator, fi-monitor) can run the judge call with its own
+  credentials. The system prompt is byte-identical to discord-bot's
+  `insult/prompts/memory_consolidator_judge.md`. Parser strips markdown
+  fences, validates op shape against the input facts list, backfills
+  implicit NOOPs for ids the judge omitted (never silently lose a row).
+- `fi_core.persona.MCP_SERVER_NAME` and `fi_core.persona.MCP_TOOLS` —
+  explicit MCP contract constants that v0.4.0 forgot to export. Lists
+  all 7 tools (5 from 0.4.0 + 2 new consolidation tools). Re-exported
+  from `fi_core.persona` so consumers can do
+  `from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS` without
+  digging into `mcp_server` internals. This closes the gap that forced
+  discord-bot's `scripts/sync_capabilities.py` to AST-walk
+  `mcp_server.py` as a fallback in 0.4.0.
+
+### Notes
+
+- 0.5.0 shipped to GitHub + anaconda.org before these two persona
+  additions landed on `main`. 0.5.1 is a fast follow that bundles the
+  consolidation tools + MCP contract constants into the same release
+  cycle; nothing else changed (same pgvector store, same embedders).
+  Downstream consumers should target `fi-core>=0.5.1` to unlock the
+  consolidation pair and the explicit `MCP_TOOLS` discovery path.
+
 ## [0.5.0] — 2026-05-19
 
 ### Added
