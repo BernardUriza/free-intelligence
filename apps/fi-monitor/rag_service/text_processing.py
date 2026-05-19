@@ -1,10 +1,22 @@
-"""Text extraction and chunking utilities."""
+"""Text extraction (PDF) + query preprocessing.
+
+Chunking lives in ``fi_core.rag`` now (see ``apps/packages/fi-core``).
+Pre-2026-05-19 this module also had its own char-based ``chunk_text``;
+that algorithm was distinct from the token-based one in
+``backend/services/document/services/chunking_strategy.py``. Both got
+unified into ``fi_core.rag.chunk_document`` so fi-monitor and the
+backend now share a single chunking implementation.
+
+This module keeps only the PDF/encoding extraction and the Spanish
+query preprocessor — both still rag-service-local.
+"""
 
 from __future__ import annotations
 
 import io
 import re
 
+from fi_core.rag import ChunkConfig, ChunkingStrategy, chunk_document
 from PyPDF2 import PdfReader
 
 
@@ -32,65 +44,46 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     except Exception:
         # If PDF parsing fails, assume it's plain text
         try:
-            return pdf_bytes.decode('utf-8').strip()
+            return pdf_bytes.decode("utf-8").strip()
         except Exception:
             # Last resort: try latin-1 encoding
-            return pdf_bytes.decode('latin-1').strip()
+            return pdf_bytes.decode("latin-1").strip()
 
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-    """Split text into semantic chunks (paragraph-aware).
+    """Split text into semantic chunks via ``fi_core.rag.chunk_document``.
+
+    Backwards-compatible signature: ``chunk_size`` and ``overlap`` are
+    expressed in CHARACTERS (legacy semantic), translated to tokens
+    (~4 chars/token average for English/Spanish) before being passed
+    to fi-core.
+
+    The pre-2026-05-19 implementation was a hand-rolled paragraph-then-
+    sentence splitter. fi-core's PARAGRAPH_AWARE strategy is the same
+    idea, more thoroughly tested, and shared across AURITY/Insult so
+    upgrades land in one place.
 
     Args:
         text: Text to chunk
-        chunk_size: Target size of each chunk in characters (soft limit)
-        overlap: Number of characters to overlap between chunks
+        chunk_size: Target chunk size in characters (soft limit)
+        overlap: Overlap between chunks in characters
 
     Returns:
-        List of text chunks (respects paragraph boundaries)
+        List of chunks, paragraph-respecting where possible.
     """
-    # Split by double newlines (paragraphs) first
-    paragraphs = text.split('\n\n')
-
-    chunks = []
-    current_chunk = ""
-
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-
-        # If paragraph fits in current chunk, add it
-        if len(current_chunk) + len(para) + 2 <= chunk_size:
-            current_chunk += para + "\n\n"
-        else:
-            # Save current chunk if not empty
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-
-            # If paragraph itself is too large, split it by sentences
-            if len(para) > chunk_size:
-                sentences = para.replace('. ', '.|').replace('? ', '?|').replace('! ', '!|').split('|')
-                temp_chunk = ""
-                for sent in sentences:
-                    if len(temp_chunk) + len(sent) <= chunk_size:
-                        temp_chunk += sent + " "
-                    else:
-                        if temp_chunk:
-                            chunks.append(temp_chunk.strip())
-                        temp_chunk = sent + " "
-                if temp_chunk:
-                    current_chunk = temp_chunk
-                else:
-                    current_chunk = ""
-            else:
-                current_chunk = para + "\n\n"
-
-    # Add remaining chunk
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-
-    return chunks
+    # Char -> token conversion (avg 4 chars/token for es/en). The
+    # 500-char default lands at 125 tokens; the legacy code returned
+    # ~500-char chunks, so this preserves the visible behavior of
+    # existing call sites without forcing them to learn token units.
+    return chunk_document(
+        text,
+        strategy=ChunkingStrategy.PARAGRAPH_AWARE,
+        config=ChunkConfig(
+            chunk_size=max(chunk_size // 4, 50),
+            overlap=max(overlap // 4, 5),
+            min_chunk_size=20,
+        ),
+    )
 
 
 def preprocess_query(query: str) -> str:
