@@ -154,6 +154,21 @@ class TextHandler(_Handler):
     }
 
     def build_block(self, data: bytes, filename: str) -> tuple[dict | None, str | None]:
+        """Return an Anthropic ``document`` block — NOT a text block.
+
+        Pre-v3.9.59 this returned ``{type: "text", text: "[Archivo: ...]\\n..."}``
+        which got concatenated into the agent runner's ``user_text`` field and
+        blew its 8000-char cap with even modest attachments (Bernard 21KB
+        message.txt incident, 2026-05-19 07:06 → 422 → ALICE failover with no
+        attachment context).
+
+        Returning a proper document block routes the file through the same
+        dedicated ``attachments`` channel that images use (REWRITE-B1,
+        v3.9.43). The agent sees a real document the LLM can choose to
+        process. The Anthropic API supports text-source documents natively
+        (matching the PDFHandler shape below, just with `type: "text"`
+        instead of base64).
+        """
         try:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
@@ -161,7 +176,16 @@ class TextHandler(_Handler):
                 text = data.decode("latin-1")
             except Exception:
                 return None, "No pude leer el archivo. Parece que no es texto."
-        return {"type": "text", "text": f"[Archivo: {filename}]\n```\n{text}\n```"}, None
+        return {
+            "type": "document",
+            "source": {
+                "type": "text",
+                "media_type": "text/plain",
+                "data": text,
+            },
+            "title": filename,
+            "context": f"File the user attached in chat: {filename}",
+        }, None
 
 
 class PDFHandler(_Handler):

@@ -105,13 +105,18 @@ class TestProcessAttachment:
         assert result.error is None
 
     async def test_process_text(self):
+        """v3.9.59 fix: text files emit a `document` block (not `text`)
+        so they don't get concatenated into the agent runner's user_text
+        (which had an 8000-char cap; Bernard 21KB paste hit 422)."""
         att = _mock_attachment("hello.py", "text/plain", 20, b"print('hello')")
         result = await process_attachment(att)
         assert result.attachment_type == AttachmentType.TEXT
         assert result.content_block is not None
-        assert result.content_block["type"] == "text"
-        assert "hello.py" in result.content_block["text"]
-        assert "print('hello')" in result.content_block["text"]
+        assert result.content_block["type"] == "document"
+        assert result.content_block["source"]["type"] == "text"
+        assert result.content_block["source"]["media_type"] == "text/plain"
+        assert result.content_block["source"]["data"] == "print('hello')"
+        assert result.content_block["title"] == "hello.py"
 
     async def test_process_pdf(self):
         att = _mock_attachment("doc.pdf", "application/pdf", 100, b"%PDF-1.4 fake")
@@ -145,7 +150,9 @@ class TestProcessAttachment:
         att = _mock_attachment("legacy.txt", "text/plain", 10, "café".encode("latin-1"))
         result = await process_attachment(att)
         assert result.content_block is not None
-        assert "café" in result.content_block["text"]
+        assert result.content_block["type"] == "document"
+        # The decoded text now lives in source.data (v3.9.59).
+        assert "café" in result.content_block["source"]["data"]
 
 
 def _build_real_jpeg(width: int, height: int) -> bytes:
