@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
 {% set version = "0.5.1" %}
-{% set sha256 = "TBD_AFTER_RELEASE" %}
+{% set sha256 = "343ac38af5b4a19e51e6fc12adeab81adee297a59fd8008b4465fbf778a53985" %}
 
 package:
   name: {{ name }}
