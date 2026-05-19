@@ -93,7 +93,12 @@ SESSION_IDLE_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_SESSION_IDLE_TIMEOUT
 class TurnRequest(BaseModel):
     channel_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
-    user_text: str = Field(..., min_length=1, max_length=8000)
+    # v3.9.58: raised from 8000 -> 256000 chars. Bernard 2026-05-19 07:06
+    # pasted `message.txt` (21KB) and the runner rejected with 422, falling
+    # over to ALICE who never saw the attachment content. The Claude Agent
+    # SDK handles long inputs fine; the previous cap was arbitrary Pydantic
+    # constraint with no upstream justification.
+    user_text: str = Field(..., min_length=1, max_length=256000)
     # session_uuid kept in the schema for caller backward-compat but ignored —
     # the per-channel client owns continuity now.
     session_uuid: str | None = None
