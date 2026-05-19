@@ -65,8 +65,15 @@ class RunnerJudgeClient:
         runner_url: str,
         token: str,
         *,
-        timeout_s: float = 60.0,
+        timeout_s: float = 240.0,
     ) -> None:
+        # Default 240s (4 min). The consolidator's judge call against
+        # Haiku with 80+ facts measured 61s in the first prod test
+        # (2026-05-19); a too-tight default produced
+        # httpx.ClosedResourceError when the runner responded *after*
+        # the client gave up. 4 min covers the worst observed case +
+        # 4x slack for cold runner + large user fact sets. Tighten
+        # later if turn-around matters more than survival.
         if not runner_url:
             raise ValueError("RunnerJudgeClient: runner_url is required")
         if not token:
