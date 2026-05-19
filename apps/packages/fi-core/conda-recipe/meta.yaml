@@ -13,7 +13,10 @@ source:
 build:
   number: 0
   noarch: python
-  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  # PIP_USER=0 overrides any user-site-packages setting in the build env.
+  # Without it, pip can fall back to --user install which breaks conda-build's
+  # prefix-relative install path.
+  script: PIP_USER=0 {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
 
 requirements:
   host:
