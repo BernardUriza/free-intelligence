@@ -64,7 +64,64 @@ def detect_modules() -> dict[str, bool]:
         "summaries": (INSULT / "core" / "summaries.py").exists(),
         "vectors": (INSULT / "core" / "vectors.py").exists(),
         "web_search": (INSULT / "core" / "llm.py").exists(),
+        # Newer capabilities (2026-05) — detect by module presence
+        "deep_memory": (INSULT / "core" / "deep_memory.py").exists(),
+        "html_artifacts": (INSULT / "core" / "html_artifacts.py").exists(),
+        "agent_runner_mcp": (INSULT / "agent" / "mcp_tools.py").exists(),
     }
+
+
+def detect_fi_core() -> bool:
+    """True iff fi-core (shared RAG primitives) is a declared dependency.
+
+    Pre-DM-5 the chunker lived in this codebase; now it's imported from
+    the fi-core workspace package in the free-intelligence monorepo
+    Bernard maintains. The capability summary should say so — otherwise
+    callers asking 'where do you chunk?' get a misleading answer.
+    """
+    req = ROOT / "requirements.txt"
+    if not req.exists():
+        return False
+    return "fi-core" in req.read_text()
+
+
+def extract_mcp_tool_names() -> list[dict]:
+    """Pull tool names from @tool-decorated functions in mcp_tools.py.
+
+    Each @tool decorator's first positional arg is the tool name; the
+    second is its description. Returns names prefixed with
+    `mcp__insult_db__` so they match the wire name the agent sees.
+    """
+    mcp = INSULT / "agent" / "mcp_tools.py"
+    if not mcp.exists():
+        return []
+    try:
+        tree = ast.parse(mcp.read_text())
+    except SyntaxError:
+        return []
+
+    tools: list[dict] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AsyncFunctionDef):
+            for dec in node.decorator_list:
+                if (
+                    isinstance(dec, ast.Call)
+                    and isinstance(dec.func, ast.Name)
+                    and dec.func.id == "tool"
+                ):
+                    name = ""
+                    desc = ""
+                    if dec.args:
+                        name = _extract_string(dec.args[0])
+                        if len(dec.args) >= 2:
+                            desc = _extract_string(dec.args[1])
+                    if name:
+                        first_sentence = desc.split(". ")[0] + "." if desc else ""
+                        tools.append({
+                            "name": f"mcp__insult_db__{name}",
+                            "desc": first_sentence,
+                        })
+    return tools
 
 
 def build_capabilities_block() -> str:
@@ -120,17 +177,62 @@ def build_capabilities_block() -> str:
     if modules["vectors"]:
         lines.append("- **Semantic memory**: You search user facts by meaning, not just keywords.")
 
+    if modules["deep_memory"]:
+        lines.append(
+            "- **Deep vector memory**: Beyond the structured fact digest, you can vector-recall "
+            "the actual chunks of past conversation that semantically match a query. "
+            "Powered by `mcp__insult_db__deep_memory(user_id, query, top_k)`. "
+            "Backed by Azure OpenAI ada-002 embeddings + Postgres pgvector."
+        )
+
+    if modules["html_artifacts"]:
+        lines.append(
+            "- **HTML artifact publishing**: You can mint shareable HTML pages "
+            "(reports, mini-apps, snapshots) served at `bot.bernarduriza.com/a/{id}`. "
+            "Powered by `mcp__insult_db__publish_html_artifact(title, html_content, user_id)`. "
+            "Use for content that wouldn't fit in chat or that renders better as a page."
+        )
+
     lines.append(
         "- **DMs**: Users can DM you directly by clicking on your profile in Discord. "
         'Encourage them: "Dime por DM si quieres hablar en privado."'
     )
 
+    # MCP tools come from the agent runner side (registered in
+    # insult/agent/mcp_tools.py via @tool decorators).
+    mcp_tools = extract_mcp_tool_names() if modules.get("agent_runner_mcp") else []
+
     # Add tool-specific capabilities
-    if all_tools:
+    if all_tools or mcp_tools:
         lines.append("")
         lines.append("### Available Tools")
         for tool in all_tools:
             lines.append(f"- `{tool['name']}`: {tool['desc']}")
+        for tool in mcp_tools:
+            lines.append(f"- `{tool['name']}`: {tool['desc']}")
+
+    # Origins — credit + provenance.
+    if detect_fi_core():
+        lines.append("")
+        lines.append("### Origins / Where Your Building Blocks Come From")
+        lines.append(
+            "- **`fi-core`** — your chunking algorithm and (when integrated) anti-drift "
+            "detectors come from the `fi-core` package, which lives in the "
+            "[free-intelligence](https://github.com/BernardUriza/free-intelligence) "
+            "monorepo Bernard maintains. AURITY (Bernard's HIPAA on-prem medical RAG, live "
+            "at app.aurity.io) and `fi-monitor` (the GPU RAG service) share the same "
+            "`fi-core` chunker — you literally chunk text the same way the medical product "
+            "does. If a user asks where your RAG smarts come from: it's Bernard's own work, "
+            "extracted into a shared package."
+        )
+        lines.append(
+            "- **Azure OpenAI `text-embedding-ada-002`** — 1536-dim embeddings for "
+            "`deep_memory`. Same `insult-openai` cognitive account ALICE uses for chat."
+        )
+        lines.append(
+            "- **Azure Database for PostgreSQL + pgvector** — your data plane. "
+            "Cero blob, cero on-prem dependency."
+        )
 
     # What you CAN'T do
     cant = []
