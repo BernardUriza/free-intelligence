@@ -1,14 +1,14 @@
 [project]
 name = "fi-core"
-version = "0.3.0"
-description = "Free Intelligence core — shared LLM primitives (RAG chunking + Embedder/ChunkStore protocols, HDF5 store, persona character-integrity detection) used by AURITY and Insult"
+version = "0.4.0"
+description = "Free Intelligence core — shared LLM primitives (RAG chunking + Embedder/ChunkStore protocols, HDF5 store, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     { name = "Bernard Uriza Orozco" },
 ]
 license = { text = "MIT" }
-keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store"]
+keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store", "mcp", "model-context-protocol"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -28,10 +28,17 @@ stores-hdf5 = [
     "numpy>=1.24",
 ]
 
+# MCP server exposing fi_core.persona detectors as tools for AI agents.
+# Required for `python -m fi_core.persona.mcp_server`.
+mcp = [
+    "mcp>=1.4",
+]
+
 # Convenience: install everything available so far.
 all = [
     "h5py>=3.10",
     "numpy>=1.24",
+    "mcp>=1.4",
 ]
 
 dev = [
@@ -40,6 +47,7 @@ dev = [
     "ruff>=0.11",
     "h5py>=3.10",
     "numpy>=1.24",
+    "mcp>=1.4",
 ]
 
 [build-system]

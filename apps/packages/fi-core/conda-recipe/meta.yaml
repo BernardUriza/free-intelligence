@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
-{% set version = "0.3.0" %}
-{% set sha256 = "96b4cb38c7a3b61afdf6aa0860f108e5ed11874225cb76cf9ab23d9fb41ff3a1" %}
+{% set version = "0.4.0" %}
+{% set sha256 = "4718e221ec48c5aecf8ff299607d3739b03ea28f85b53b5ccaa8da0b076917ca" %}
 
 package:
   name: {{ name }}
@@ -27,12 +27,16 @@ requirements:
   run:
     - python >=3.12
     # Optional deps for fi_core.stores.hdf5 are included by default in the
-    # conda-forge build so that consumers get a fully functional package.
-    # The original PyPI extras (`fi-core[stores-hdf5]`) collapse here into
-    # a single package — conda's strength is exactly the kind of compiled
-    # binary deps that h5py + numpy carry.
+    # conda build so consumers get a fully functional package out of the
+    # box. The PyPI extras (`fi-core[stores-hdf5]`) collapse here into a
+    # single conda package — conda's strength is exactly the kind of
+    # compiled binary deps that h5py + numpy carry.
     - h5py >=3.10
     - numpy >=1.24
+    # MCP SDK for the persona MCP server (`fi_core.persona.mcp_server`).
+    # Bundled by default since the MCP server is the headline integration
+    # path for this release.
+    - mcp >=1.4
 
 test:
   imports:
@@ -43,6 +47,7 @@ test:
     - fi_core.persona
     - fi_core.persona.detect
     - fi_core.persona.packs
+    - fi_core.persona.mcp_server
     - fi_core.stores
     - fi_core.stores.hdf5
   requires:
@@ -53,6 +58,8 @@ test:
     - python -c "import asyncio; from fi_core.stores.hdf5 import HDF5ChunkStore; from fi_core.rag import Chunk, ChunkWithEmbedding; import tempfile, os; tf=tempfile.NamedTemporaryFile(suffix='.h5', delete=False); tf.close(); s=HDF5ChunkStore(tf.name); asyncio.run(s.create_document(namespace='t', document_id='d', content='c')); asyncio.run(s.save_chunks(namespace='t', document_id='d', chunks=[ChunkWithEmbedding(chunk=Chunk(text='x', source_type='t', source_ref='r'), embedding=[1.0,0.0])])); r=asyncio.run(s.query(namespace='t', query_embedding=[1.0,0.0], top_k=1)); assert len(r)==1; os.unlink(tf.name); print('smoke test passed')"
     # Smoke test the persona module (deterministic regex, no deps).
     - python -c "from fi_core.persona import BreakDetector, packs; d=BreakDetector(patterns=packs.GENERIC_AI_DISCLOSURE_EN); assert d.detect('As an AI, I cannot') != []; print('persona smoke test passed')"
+    # Smoke test the MCP server atomic loop tool (no transport, direct call).
+    - python -c "import asyncio; from fi_core.persona import mcp_server; r=asyncio.run(mcp_server.validate_and_retry_prompt(response='As an AI, I cannot help.', system_prompt='You are a friend.')); assert r['retry_needed'] is True; assert r['reinforced_system_prompt'] is not None; print('mcp server smoke test passed')"
 
 about:
   home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
