@@ -26,6 +26,75 @@ def test_module_imports_clean():
     assert mod.EMBEDDING_DEPLOYMENT  # default or env-overridden
 
 
+def test_azure_openai_embedder_satisfies_fi_core_protocol():
+    """DM-5: AzureOpenAIEmbedder is a structural Embedder.
+
+    The fi_core.rag.Embedder Protocol is @runtime_checkable, so
+    isinstance() against an unrelated class succeeds as long as the
+    `embed` method exists with the right async signature. This pins
+    that our class stays compatible without coupling on inheritance.
+    """
+    from fi_core.rag import Embedder
+
+    from insult.core.deep_memory import AzureOpenAIEmbedder
+
+    emb = AzureOpenAIEmbedder()
+    assert isinstance(emb, Embedder)
+
+
+def test_azure_openai_embedder_construction_is_lazy():
+    """Constructing must not contact Azure / open HTTP connections.
+
+    The runner imports this at module load. If `__init__` eagerly built
+    an openai client and the env vars were unset, every import in CI
+    would crash. Construction stores config; `_get_client()` is what
+    actually builds the SDK client (and only on first embed call).
+    """
+    from insult.core.deep_memory import AzureOpenAIEmbedder
+
+    emb = AzureOpenAIEmbedder(endpoint="https://example.invalid/", api_key="fake", deployment="x")
+    assert emb._client is None
+    assert emb.endpoint == "https://example.invalid"
+    assert emb.api_key == "fake"
+    assert emb.deployment == "x"
+
+
+@pytest.mark.asyncio
+async def test_azure_openai_embedder_rejects_empty_text():
+    """Protocol contract: empty input is a programmer error, raise loudly."""
+    from insult.core.deep_memory import AzureOpenAIEmbedder
+
+    emb = AzureOpenAIEmbedder(endpoint="https://x/", api_key="k", deployment="d")
+    with pytest.raises(ValueError, match="non-empty"):
+        await emb.embed("")
+    with pytest.raises(ValueError, match="non-empty"):
+        await emb.embed("   ")
+
+
+@pytest.mark.asyncio
+async def test_azure_openai_embedder_raises_when_unconfigured():
+    """Embedder with no endpoint/key raises RuntimeError on first embed.
+
+    Construction stays cheap (no env check), but the first attempt to
+    actually embed fails fast with a clear message rather than letting
+    the openai SDK produce its own less-actionable error.
+    """
+    import os
+
+    from insult.core.deep_memory import AzureOpenAIEmbedder
+
+    # Clear env so the embedder has nothing to fall back on
+    saved = {k: os.environ.pop(k, None) for k in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY")}
+    try:
+        emb = AzureOpenAIEmbedder()
+        with pytest.raises(RuntimeError, match="AZURE_OPENAI_ENDPOINT"):
+            await emb.embed("hello")
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+
 def test_chunk_text_for_embedding_short_text_returns_empty_or_single():
     """Tiny text falls under min_chunk_size — drop it, don't index noise.
 

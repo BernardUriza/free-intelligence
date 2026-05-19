@@ -49,42 +49,121 @@ EMBEDDING_API_VERSION = os.environ.get(
 # ─── Embeddings ────────────────────────────────────────────────────────
 
 
-async def embed_text(text: str) -> list[float] | None:
-    """Generate one 1536-dim embedding via Azure OpenAI. None on failure.
+class EmbeddingDimensionError(RuntimeError):
+    """The Azure deployment returned a vector whose dim doesn't match EMBEDDING_DIM.
 
-    Uses the same `insult-openai` cognitive account ALICE uses for chat
-    completions. The `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_KEY` env
-    vars are already set on the discord-bot and insult-runner
-    Container Apps (added 2026-05-19 for this feature).
+    Raised by `AzureOpenAIEmbedder.embed()` instead of silently returning
+    None — the embedder Protocol contract is "raise on failure". A
+    dimension mismatch is almost always a deployment misconfiguration
+    (someone pointed the env var at `text-embedding-3-large` which is
+    3072 dims) and should fail loud, not corrupt the index silently.
+    """
+
+
+class AzureOpenAIEmbedder:
+    """`fi_core.rag.Embedder` Protocol implementation for Azure OpenAI.
+
+    Implements the structural contract (`async def embed(self, text: str)
+    -> list[float]`) defined in `fi_core.rag.protocols.Embedder`. Duck-
+    typed: `isinstance(emb, Embedder)` returns True via @runtime_checkable.
+
+    Holds endpoint/key/deployment as instance state and reuses the
+    AsyncAzureOpenAI client across calls. Constructing one embedder
+    per worker (rather than per call) avoids re-opening the HTTP
+    connection pool for every embed.
+
+    Configuration precedence: explicit constructor args > env vars >
+    module defaults. Most consumers just call `AzureOpenAIEmbedder()`
+    and let the env vars do the work — same env vars the discord-bot
+    and insult-runner Container Apps already have set.
+    """
+
+    def __init__(
+        self,
+        *,
+        endpoint: str | None = None,
+        api_key: str | None = None,
+        deployment: str | None = None,
+        api_version: str | None = None,
+    ) -> None:
+        self.endpoint = (endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT", "")).rstrip("/")
+        self.api_key = api_key or os.environ.get("AZURE_OPENAI_KEY", "")
+        self.deployment = deployment or EMBEDDING_DEPLOYMENT
+        self.api_version = api_version or EMBEDDING_API_VERSION
+        self._client: object | None = None  # lazy AsyncAzureOpenAI
+
+    def _get_client(self):
+        """Lazily build the Azure client. Reused across embed() calls."""
+        if self._client is not None:
+            return self._client
+        if not self.endpoint or not self.api_key:
+            raise RuntimeError(
+                "AzureOpenAIEmbedder requires AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_KEY "
+                "(env vars or constructor args)"
+            )
+        from openai import AsyncAzureOpenAI
+
+        self._client = AsyncAzureOpenAI(
+            azure_endpoint=self.endpoint,
+            api_key=self.api_key,
+            api_version=self.api_version,
+        )
+        return self._client
+
+    async def embed(self, text: str) -> list[float]:
+        """Return a `EMBEDDING_DIM`-element vector for ``text``.
+
+        Raises (per Protocol contract):
+        - `ValueError` if ``text`` is empty / whitespace-only.
+        - `RuntimeError` if endpoint/key aren't configured.
+        - `EmbeddingDimensionError` if the deployment returns a
+          wrong-sized vector (deployment misconfiguration).
+        - Whatever the openai SDK raises (auth, rate-limit, etc.) —
+          surfaced unwrapped so the caller can branch on `RateLimitError`,
+          `APITimeoutError`, etc. without parsing strings.
+        """
+        if not text or not text.strip():
+            raise ValueError("AzureOpenAIEmbedder.embed: text must be non-empty")
+        client = self._get_client()
+        resp = await client.embeddings.create(model=self.deployment, input=text)
+        vec = resp.data[0].embedding
+        if len(vec) != EMBEDDING_DIM:
+            raise EmbeddingDimensionError(
+                f"Expected {EMBEDDING_DIM}-dim vector, got {len(vec)} from "
+                f"deployment '{self.deployment}'"
+            )
+        return vec
+
+
+# Module-level singleton built lazily on first use. Avoids paying the
+# openai client construction cost on every embed_text() call.
+_default_embedder: AzureOpenAIEmbedder | None = None
+
+
+def _get_default_embedder() -> AzureOpenAIEmbedder:
+    global _default_embedder
+    if _default_embedder is None:
+        _default_embedder = AzureOpenAIEmbedder()
+    return _default_embedder
+
+
+async def embed_text(text: str) -> list[float] | None:
+    """Back-compat convenience: embed `text`, return None on failure.
+
+    Pre-DM-5 callers used this function directly; it survives so the
+    backfill script and the MCP tool don't have to change. New code
+    should prefer constructing an `AzureOpenAIEmbedder` explicitly and
+    handling its exceptions, which gives the caller real failure-mode
+    granularity instead of a binary None / not-None.
+
+    Catches and swallows all exceptions, logging each via structlog.
+    Callers who need to distinguish auth-failure from rate-limit from
+    dim-mismatch should use `AzureOpenAIEmbedder.embed` directly.
     """
     if not text or not text.strip():
         return None
-    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").rstrip("/")
-    api_key = os.environ.get("AZURE_OPENAI_KEY", "")
-    if not endpoint or not api_key:
-        log.error("deep_memory_azure_openai_not_configured")
-        return None
     try:
-        from openai import AsyncAzureOpenAI
-
-        client = AsyncAzureOpenAI(
-            azure_endpoint=endpoint,
-            api_key=api_key,
-            api_version=EMBEDDING_API_VERSION,
-        )
-        resp = await client.embeddings.create(
-            model=EMBEDDING_DEPLOYMENT,
-            input=text,
-        )
-        vec = resp.data[0].embedding
-        if len(vec) != EMBEDDING_DIM:
-            log.error(
-                "deep_memory_embedding_dim_mismatch",
-                expected=EMBEDDING_DIM,
-                got=len(vec),
-            )
-            return None
-        return vec
+        return await _get_default_embedder().embed(text)
     except Exception:
         log.exception("deep_memory_embed_failed", text_len=len(text))
         return None
