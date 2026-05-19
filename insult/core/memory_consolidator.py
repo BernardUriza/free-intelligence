@@ -30,7 +30,6 @@ the prompt fits comfortably in Haiku's context window and one call is
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -96,71 +95,6 @@ class ConsolidationReport:
         return out
 
 
-def _build_user_prompt(facts: list[dict]) -> str:
-    """Render the user's fact set as a numbered list for the judge."""
-    lines = []
-    for f in facts:
-        # updated_at is unix-seconds; format as ISO date for the model
-        # so age comparisons are easier to reason about than raw floats.
-        ts = f.get("updated_at") or 0
-        when = time.strftime("%Y-%m-%d", time.gmtime(ts)) if ts else "unknown"
-        lines.append(
-            f'{{"id": {f["id"]}, "fact": {json.dumps(f["fact"], ensure_ascii=False)}, '
-            f'"category": "{f.get("category", "general")}", "updated_at": "{when}"}}'
-        )
-    return "Current facts:\n[\n  " + ",\n  ".join(lines) + "\n]"
-
-
-def _parse_judge_response(raw: str) -> list[dict] | None:
-    """Strip markdown fences, parse JSON, return list[dict] or None on error."""
-    raw = raw.strip()
-    if raw.startswith("```"):
-        # Markdown fence: drop opening fence + optional language tag, drop closing.
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    try:
-        plan = json.loads(raw)
-    except json.JSONDecodeError as e:
-        log.warning("consolidator_judge_parse_failed", error=str(e), raw=raw[:200])
-        return None
-    if not isinstance(plan, list):
-        log.warning("consolidator_judge_not_array", raw=raw[:200])
-        return None
-    return plan
-
-
-def _validate_plan(plan: list[dict], facts: list[dict]) -> list[dict]:
-    """Drop malformed ops and warn. Every input fact must be referenced exactly once."""
-    valid_ids = {f["id"] for f in facts}
-    seen: set[int] = set()
-    valid_ops: list[dict] = []
-    for op in plan:
-        if not isinstance(op, dict) or "op" not in op:
-            continue
-        kind = op["op"]
-        if kind in ("NOOP", "DELETE"):
-            fid = op.get("id")
-            if fid not in valid_ids or fid in seen:
-                continue
-            seen.add(fid)
-            valid_ops.append(op)
-        elif kind == "UPDATE":
-            ids = op.get("merge_ids") or []
-            new_text = op.get("new_fact")
-            if not isinstance(ids, list) or not new_text:
-                continue
-            ids_int = [i for i in ids if isinstance(i, int) and i in valid_ids and i not in seen]
-            if not ids_int:
-                continue
-            seen.update(ids_int)
-            op["merge_ids"] = ids_int
-            valid_ops.append(op)
-    # Any fact id the judge ignored gets an implicit NOOP — never silently lose a row.
-    for f in facts:
-        if f["id"] not in seen:
-            valid_ops.append({"op": "NOOP", "id": f["id"], "reason": "implicit (judge omitted)"})
-    return valid_ops
-
-
 async def _call_judge(
     llm,
     model: str,
@@ -168,17 +102,12 @@ async def _call_judge(
 ) -> tuple[list[dict] | None, int, int]:
     """Single Haiku call. Returns (plan, input_tokens, output_tokens).
 
-    v3.9.82: refactored to Shape B per memory:[[mcp-shape-b-canonical]].
-    fi-core (`build_consolidation_prompt` + `parse_consolidation_result`)
-    owns the prompt content and the JSON parser. This function only
-    orchestrates: build → execute via `llm.utility_call` (which can be
-    either the legacy LLMClient OR the new RunnerJudgeClient — both
-    quack the same) → parse.
-
-    `_build_user_prompt`, `_parse_judge_response`, `_validate_plan` are
-    no longer called here; they live in fi-core 0.5.1+. They remain in
-    this file as dead code until the next deletion wave so existing
-    tests don't break.
+    Shape B per memory:[[mcp-shape-b-canonical]]. fi-core
+    (`build_consolidation_prompt` + `parse_consolidation_result`) owns
+    the prompt content, the JSON parser, op-shape validation, and
+    implicit-NOOP backfill. This function only orchestrates: build →
+    execute via `llm.utility_call` (RunnerJudgeClient in prod, mock in
+    tests) → parse.
 
     Logs a warning when stop_reason is ``max_tokens`` — that's the
     canary for "bump JUDGE_MAX_OUTPUT_TOKENS or chunk the input".
@@ -292,7 +221,10 @@ async def consolidate_user_facts(
         log.warning("consolidator_user_failed", user_id=user_id, reason="judge_failed")
         return report
 
-    valid_plan = _validate_plan(plan, facts)
+    # fi-core's parse_consolidation_result already validated op shape,
+    # dropped malformed ops, and backfilled implicit NOOPs — `plan` is
+    # ready to apply as-is.
+    valid_plan = plan
 
     if dry_run:
         # Build the report without touching the DB.

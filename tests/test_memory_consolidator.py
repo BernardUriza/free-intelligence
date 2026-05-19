@@ -1,6 +1,12 @@
 """Tests for the Mem0-style memory consolidator (Phase 1, v3.6.0).
 
-Pure-function tests (JSON parsing, plan validation) run anywhere.
+JSON parsing + plan validation now live in fi-core 0.5.1
+(`fi_core.persona.mcp_server.parse_consolidation_result`). The
+pure-function tests that previously exercised the local
+`_parse_judge_response` / `_validate_plan` were removed when those
+functions were deleted in the post-Shape-B cleanup; coverage of that
+behavior lives in fi-core's own test suite.
+
 DB-touching tests use the `pg_memory_store` fixture from
 `tests/_pg_fixture.py` — they exercise the consolidator end-to-end
 against a real PG17 + pgvector so the asyncpg transaction wrapping
@@ -17,83 +23,11 @@ import pytest
 
 from insult.core.memory_consolidator import (
     SOFT_DELETE_RETENTION_SECONDS,
-    _parse_judge_response,
-    _validate_plan,
     consolidate_all_users,
     consolidate_user_facts,
     hard_purge_soft_deleted,
 )
 from tests._pg_fixture import REQUIRES_PG
-
-# ---------------------------------------------------------------------------
-# Pure-function tests (no DB, no LLM)
-# ---------------------------------------------------------------------------
-
-
-class TestParseJudgeResponse:
-    def test_raw_json_array(self):
-        plan = _parse_judge_response('[{"op": "NOOP", "id": 1}]')
-        assert plan == [{"op": "NOOP", "id": 1}]
-
-    def test_markdown_fenced(self):
-        raw = '```json\n[{"op": "NOOP", "id": 1}]\n```'
-        plan = _parse_judge_response(raw)
-        assert plan == [{"op": "NOOP", "id": 1}]
-
-    def test_markdown_no_lang(self):
-        raw = '```\n[{"op": "DELETE", "id": 5}]\n```'
-        assert _parse_judge_response(raw) == [{"op": "DELETE", "id": 5}]
-
-    def test_invalid_json_returns_none(self):
-        assert _parse_judge_response("{not valid") is None
-
-    def test_object_instead_of_array_returns_none(self):
-        assert _parse_judge_response('{"op": "NOOP"}') is None
-
-
-class TestValidatePlan:
-    def _facts(self, *ids: int) -> list[dict]:
-        return [{"id": i, "fact": f"fact-{i}", "category": "general", "updated_at": 0} for i in ids]
-
-    def test_keeps_well_formed_ops(self):
-        facts = self._facts(1, 2, 3)
-        plan = [
-            {"op": "NOOP", "id": 1},
-            {"op": "DELETE", "id": 2},
-            {"op": "UPDATE", "merge_ids": [3], "new_fact": "merged"},
-        ]
-        valid = _validate_plan(plan, facts)
-        assert len(valid) == 3
-
-    def test_drops_op_with_unknown_id(self):
-        plan = [{"op": "DELETE", "id": 999}]
-        valid = _validate_plan(plan, self._facts(1, 2))
-        # 999 dropped; 1 and 2 omitted by judge → implicit NOOP each
-        assert len(valid) == 2
-        assert all(op["op"] == "NOOP" for op in valid)
-
-    def test_drops_op_with_duplicate_id(self):
-        plan = [{"op": "NOOP", "id": 1}, {"op": "DELETE", "id": 1}]
-        valid = _validate_plan(plan, self._facts(1, 2))
-        # Second op on id=1 dropped; id=2 → implicit NOOP
-        ops_by_kind = [op["op"] for op in valid]
-        assert ops_by_kind.count("DELETE") == 0
-        assert ops_by_kind.count("NOOP") == 2
-
-    def test_implicit_noop_for_omitted_ids(self):
-        # Judge returns plan covering only id=1 — id=2 must get implicit NOOP
-        plan = [{"op": "NOOP", "id": 1}]
-        valid = _validate_plan(plan, self._facts(1, 2))
-        assert {op["id"] for op in valid if op["op"] == "NOOP"} == {1, 2}
-
-    def test_update_merge_ids_filtered_to_known_only(self):
-        plan = [{"op": "UPDATE", "merge_ids": [1, 2, 999], "new_fact": "x"}]
-        valid = _validate_plan(plan, self._facts(1, 2, 3))
-        update = next(op for op in valid if op["op"] == "UPDATE")
-        assert update["merge_ids"] == [1, 2]
-        # id=3 not consumed → implicit NOOP
-        assert any(op["op"] == "NOOP" and op["id"] == 3 for op in valid)
-
 
 # ---------------------------------------------------------------------------
 # DB-touching integration tests with mocked LLM
