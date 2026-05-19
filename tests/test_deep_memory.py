@@ -140,6 +140,34 @@ async def test_query_user_memory_empty_args_returns_empty():
 
 
 @pytest.mark.asyncio
+async def test_ingest_new_user_messages_empty_user_returns_zero():
+    """DM-6: defensive — bad user_id returns 0, never raises."""
+    from insult.core.deep_memory import ingest_new_user_messages
+
+    assert await ingest_new_user_messages("") == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_new_user_messages_without_pg_returns_zero():
+    """DM-6: no PG configured → log + return 0, never raises.
+
+    The siesta consolidator calls this in a fire-and-forget context;
+    a missing POSTGRES_URL should NOT bubble up and crash the
+    consolidator's main loop. The error is logged for ops visibility.
+    """
+    import os
+
+    from insult.core.deep_memory import ingest_new_user_messages
+
+    saved = os.environ.pop("POSTGRES_URL", None)
+    try:
+        assert await ingest_new_user_messages("907264175246569543") == 0
+    finally:
+        if saved is not None:
+            os.environ["POSTGRES_URL"] = saved
+
+
+@pytest.mark.asyncio
 async def test_insert_chunks_empty_inputs_returns_zero():
     """Same defensive shape on the insert side."""
     from insult.core.deep_memory import insert_chunks

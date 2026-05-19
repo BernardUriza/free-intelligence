@@ -29,7 +29,7 @@ Public API:
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import asyncpg
@@ -304,6 +304,111 @@ async def query_user_memory(
             "deep_memory_query_failed", user_id=user_id, query_len=len(query)
         )
         return []
+    finally:
+        await conn.close()
+
+
+# ─── Incremental ingest (siesta consolidator hook, DM-6) ──────────────
+
+
+async def ingest_new_user_messages(user_id: str, *, lookback_days_initial: int = 180) -> int:
+    """Incrementally ingest a user's new messages into deep_memory_chunks.
+
+    Designed to be called from the siesta consolidator after the user's
+    fact consolidation completes. Behavior:
+
+    1. Look up the most recent ``created_at`` for this user's chunks in
+       ``deep_memory_chunks``. That's our cutoff — anything older has
+       already been embedded.
+    2. If no prior chunks exist for the user, treat them as new and
+       backfill ``lookback_days_initial`` days (default 180) — same
+       window the standalone ``scripts/backfill_deep_memory.py`` uses.
+    3. Pull ``role='user'`` messages after the cutoff, format them
+       chronologically, chunk via fi_core, embed via the module-level
+       Azure embedder, INSERT with the schema's ON CONFLICT DO NOTHING.
+
+    Returns the number of newly inserted chunks. Errors are logged but
+    NOT raised — the consolidator should never fail because the
+    incremental ingest hiccuped (consolidation success is the more
+    important commit, ingest is best-effort enrichment).
+
+    Idempotent on re-run: if no new messages arrived since the last
+    cutoff, returns 0.
+    """
+    if not user_id:
+        return 0
+    conn = await _connect()
+    if conn is None:
+        log.warning("deep_memory_ingest_no_pg", user_id=user_id)
+        return 0
+    try:
+        cutoff_row = await conn.fetchrow(
+            "SELECT MAX(created_at) AS last_at FROM deep_memory_chunks WHERE user_id = $1",
+            user_id,
+        )
+        last_at = cutoff_row["last_at"] if cutoff_row else None
+        if last_at is None:
+            # No prior chunks — seed with the standard initial window.
+            since_epoch = (datetime.now(UTC).timestamp()) - lookback_days_initial * 86400
+            window_label = f"seed-{lookback_days_initial}d"
+        else:
+            # Tiny safety margin so we don't miss a message whose
+            # timestamp equals the cutoff (insertion order != message ts).
+            since_epoch = last_at.timestamp() - 1.0
+            window_label = "incremental"
+
+        rows = await conn.fetch(
+            """
+            SELECT id, channel_id, user_name, content, timestamp
+            FROM messages
+            WHERE user_id = $1
+              AND timestamp >= $2
+              AND role = 'user'
+            ORDER BY timestamp ASC
+            """,
+            user_id,
+            since_epoch,
+        )
+        if not rows:
+            log.info("deep_memory_ingest_no_new_messages", user_id=user_id, window=window_label)
+            return 0
+
+        first_ts = rows[0]["timestamp"]
+        last_ts = rows[-1]["timestamp"]
+        doc = "\n\n".join(
+            f"[{datetime.fromtimestamp(r['timestamp'], tz=UTC).strftime('%Y-%m-%d %H:%M')}] "
+            f"{r['user_name']}: {r['content']}"
+            for r in rows
+        )
+        chunks = chunk_text_for_embedding(doc, chunk_size=400, overlap=50)
+        if not chunks:
+            log.info(
+                "deep_memory_ingest_no_chunks_after_filter",
+                user_id=user_id,
+                msg_count=len(rows),
+            )
+            return 0
+        # source_ref encodes the time window so re-runs of the same
+        # cutoff don't collide on the dedupe index (idx_deep_memory_dedupe).
+        source_ref = f"messages:{window_label}:{int(first_ts)}-{int(last_ts)}"
+        inserted = await insert_chunks(
+            user_id=user_id,
+            source_type="message",
+            source_ref=source_ref,
+            chunks=chunks,
+        )
+        log.info(
+            "deep_memory_ingest_complete",
+            user_id=user_id,
+            window=window_label,
+            msg_count=len(rows),
+            chunks_produced=len(chunks),
+            chunks_inserted=inserted,
+        )
+        return inserted
+    except Exception:
+        log.exception("deep_memory_ingest_failed", user_id=user_id)
+        return 0
     finally:
         await conn.close()
 

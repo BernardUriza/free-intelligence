@@ -414,6 +414,24 @@ async def consolidate_all_users(
             report = await consolidate_user_facts(uid, memory=memory, llm=llm, model=model, dry_run=dry_run)
             reports.append(report)
 
+            # DM-6: incremental deep_memory ingest. Runs AFTER fact
+            # consolidation succeeds, so the embedding budget only gets
+            # spent on users whose facts the judge accepted. Best-effort —
+            # the helper logs and returns 0 on any failure, never raises,
+            # so a flaky Azure OpenAI call can't poison the consolidator
+            # run. Skipped on dry_run for cost parity with the rest of
+            # the dry path.
+            if not dry_run:
+                from insult.core.deep_memory import ingest_new_user_messages
+
+                inserted = await ingest_new_user_messages(uid)
+                if inserted:
+                    log.info(
+                        "consolidator_deep_memory_ingested",
+                        user_id=uid,
+                        new_chunks=inserted,
+                    )
+
         if not dry_run:
             if started_at is not None:
                 await mark_progress(
