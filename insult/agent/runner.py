@@ -314,6 +314,40 @@ async def health() -> dict:
     }
 
 
+@app.delete("/v1/session/{channel_id}")
+async def reset_session(channel_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Force-close a channel's long-lived ClaudeSDKClient.
+
+    The next `/v1/turn` for this channel re-creates a fresh session — new
+    session_uuid, no prior turn history, persona + CLAUDE.md re-cached on
+    first turn. Idempotent: calling on a channel with no open client
+    returns `existed=false` and does not raise.
+
+    Use when a session gets stuck in a wrong belief (a tool call failed
+    and the agent now thinks the tool does not exist, a confabulated
+    fact got baked in, etc.). Without this endpoint the only options
+    were waiting `SESSION_IDLE_TIMEOUT_S` for the reaper or hitting from
+    a different channel_id — both bad UX during incident response.
+
+    Discovered 2026-05-19 during the F+C smoke test: a tool call against
+    `publish_html_artifact` failed because the html_artifacts table was
+    missing; the agent received the error and from that point on
+    insisted the tool was unavailable even after the table was created
+    and tools were verified registered. The poisoned belief stayed in
+    session history for as long as the client lived.
+    """
+    _check_auth(authorization)
+    existed = channel_id in _pool
+    await _close_client(channel_id)
+    log.info(
+        "agent_runner_session_reset",
+        channel_id=channel_id,
+        existed=existed,
+        pool_size=len(_pool),
+    )
+    return {"channel_id": channel_id, "existed": existed, "pool_size": len(_pool)}
+
+
 @app.post("/v1/turn", response_model=TurnResponse)
 async def turn(req: TurnRequest, authorization: str | None = Header(default=None)) -> TurnResponse:
     """Run one Agent SDK turn against the workspace, reusing the per-channel
