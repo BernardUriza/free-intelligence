@@ -118,17 +118,26 @@ def consolidate_facts(
         # SQLite single-writer race is gone.
         store = MemoryStore(settings.postgres_url.get_secret_value())
         await store.connect()
-        # Wrap the SDK client in an LLMClient so consolidator goes through
-        # utility_call (retry policy + cache_control). cure_model="" keeps
-        # language_cure off — judge output is JSON, not user-facing text.
-        from insult.core.llm import LLMClient
+        # v3.9.82: consolidator delegates LLM execution to the runner's
+        # /v1/judge endpoint instead of holding its own Anthropic API
+        # key. Shape B per memory:[[mcp-shape-b-canonical]] — fi-core
+        # builds + parses, the runner executes, this job orchestrates.
+        # No ANTHROPIC_API_KEY needed; OAuth Max lives ONLY in the runner.
+        from insult.core.llm.runner_judge_client import RunnerJudgeClient
 
-        llm = LLMClient(
-            api_key=settings.anthropic_api_key.get_secret_value(),
-            model=settings.summary_model,
-            max_tokens=4096,
-            cure_model="",
-        )
+        runner_url = settings.insult_agent_runner_url
+        runner_token = settings.insult_agent_runner_token.get_secret_value()
+        if not runner_url or not runner_token:
+            raise RuntimeError(
+                "Consolidator requires INSULT_AGENT_RUNNER_URL + "
+                "INSULT_AGENT_RUNNER_TOKEN env vars. Set them on the job:\n"
+                "  az containerapp job secret set -n fact-consolidation -g insult-rg \\\n"
+                "      --secrets agent-runner-token=<TOKEN>\n"
+                "  az containerapp job update -n fact-consolidation -g insult-rg \\\n"
+                "      --set-env-vars INSULT_AGENT_RUNNER_URL=https://insult-runner... \\\n"
+                "                     INSULT_AGENT_RUNNER_TOKEN=secretref:agent-runner-token"
+            )
+        llm = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
         try:
             if user_id:
                 report = await consolidate_user_facts(
@@ -151,6 +160,7 @@ def consolidate_facts(
                     name_resolver=name_resolver,
                 )
         finally:
+            await llm.aclose()
             await store.close()
 
         return reports

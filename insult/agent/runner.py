@@ -121,6 +121,34 @@ class TurnResponse(BaseModel):
     tool_calls: list[dict] = Field(default_factory=list)
 
 
+class JudgeRequest(BaseModel):
+    """One-shot utility request — runs an SDK call with arbitrary system
+    prompt + user text, no session pool, no persona.md. Used by the
+    consolidator job (and any future utility caller) so OAuth Max stays
+    centralized in the runner. Memory: [[mcp-shape-b-canonical]].
+
+    The judge prompt + user text shape mirrors the legacy
+    LLMClient.utility_call signature so the consolidator can swap out
+    LLMClient with a RunnerJudgeClient with minimal churn.
+    """
+
+    system_prompt: str = Field(..., min_length=1, max_length=256000)
+    user_text: str = Field(..., min_length=1, max_length=256000)
+    max_tokens: int = Field(default=4096, ge=1, le=64000)
+    model: str | None = Field(
+        default=None,
+        description="Override AGENT_RUNNER_JUDGE_MODEL. Defaults to Haiku.",
+    )
+
+
+class JudgeResponse(BaseModel):
+    text: str
+    model: str = ""
+    stop_reason: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
 def _load_persona() -> str:
     """Read persona.md from disk on first session creation only.
 
@@ -454,6 +482,89 @@ async def reset_session(channel_id: str, authorization: str | None = Header(defa
         pool_size=len(_pool),
     )
     return {"channel_id": channel_id, "existed": existed, "pool_size": len(_pool)}
+
+
+@app.post("/v1/judge", response_model=JudgeResponse)
+async def judge(req: JudgeRequest, authorization: str | None = Header(default=None)) -> JudgeResponse:
+    """One-shot utility call against the SDK with arbitrary system prompt.
+
+    Designed for the fact-consolidation job (and any future utility
+    consumer) to delegate LLM execution to the runner instead of holding
+    its own Anthropic API key. The runner already has OAuth Max wired
+    via CLAUDE_CODE_OAUTH_TOKEN — this endpoint exposes it as a generic
+    utility surface.
+
+    NOT a chat turn:
+    - Does NOT load persona.md (caller supplies the full system_prompt)
+    - Does NOT use the session pool (no continuity, fresh client per call)
+    - Does NOT register fi-core / insult_db MCP servers (the prompt does
+      what it does, no tool use needed)
+    - Does NOT route via the 3-tier model router (caller picks model)
+
+    Shape B per [[mcp-shape-b-canonical]]: this is the runtime that
+    EXECUTES what fi-core's build_consolidation_prompt + similar tools
+    BUILD. fi-core stays LLM-agnostic; the runner is the auth holder.
+    """
+    _check_auth(authorization)
+    from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
+
+    chosen_model = req.model or os.environ.get("AGENT_RUNNER_JUDGE_MODEL", "claude-haiku-4-5-20251001")
+    start = time.monotonic()
+    options = ClaudeAgentOptions(
+        system_prompt=req.system_prompt,
+        model=chosen_model,
+        # No tools, no MCP servers — pure text-in, text-out utility.
+        allowed_tools=[],
+        mcp_servers={},
+        permission_mode="bypassPermissions",
+        # No project context — the caller's prompt is the entire instruction.
+        setting_sources=[],
+    )
+
+    accumulated_text = ""
+    model_used = chosen_model
+    stop_reason = "end_turn"
+    input_tokens = 0
+    output_tokens = 0
+
+    try:
+        async with ClaudeSDKClient(options=options) as client:
+            await client.query(req.user_text)
+            async for message in client.receive_response():
+                mtype = type(message).__name__
+                if mtype == "AssistantMessage":
+                    for block in getattr(message, "content", []) or []:
+                        btype = type(block).__name__
+                        if btype == "TextBlock":
+                            accumulated_text += getattr(block, "text", "") or ""
+                elif mtype == "ResultMessage":
+                    usage = getattr(message, "usage", None) or {}
+                    input_tokens = usage.get("input_tokens", 0)
+                    output_tokens = usage.get("output_tokens", 0)
+                    stop_reason = getattr(message, "stop_reason", "end_turn") or "end_turn"
+                    model_used = getattr(message, "model", chosen_model) or chosen_model
+    except Exception as e:
+        log.exception("agent_runner_judge_failed", error=str(e), model=chosen_model)
+        raise HTTPException(500, f"judge call failed: {e}") from e
+
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+    log.info(
+        "agent_runner_judge_complete",
+        model=model_used,
+        text_len=len(accumulated_text),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        stop_reason=stop_reason,
+        elapsed_ms=elapsed_ms,
+    )
+
+    return JudgeResponse(
+        text=accumulated_text,
+        model=model_used,
+        stop_reason=stop_reason,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
 
 
 @app.post("/v1/turn", response_model=TurnResponse)

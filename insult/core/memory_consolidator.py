@@ -38,8 +38,6 @@ from typing import TYPE_CHECKING
 import anthropic
 import structlog
 
-from insult.core.prompts_loader import load_prompt
-
 if TYPE_CHECKING:
     from insult.core.memory import MemoryStore
 
@@ -170,26 +168,43 @@ async def _call_judge(
 ) -> tuple[list[dict] | None, int, int]:
     """Single Haiku call. Returns (plan, input_tokens, output_tokens).
 
-    Routes through LLMClient.utility_call — utility-grade because the
-    output is a JSON plan parsed downstream, not user-facing text.
-    Cache + retry policy apply; character_break / language_cure don't.
-    Token counts are no longer returned (utility_call doesn't expose
-    them per-call yet); we return zeros and the caller already accepts
-    that as best-effort accounting.
+    v3.9.82: refactored to Shape B per memory:[[mcp-shape-b-canonical]].
+    fi-core (`build_consolidation_prompt` + `parse_consolidation_result`)
+    owns the prompt content and the JSON parser. This function only
+    orchestrates: build → execute via `llm.utility_call` (which can be
+    either the legacy LLMClient OR the new RunnerJudgeClient — both
+    quack the same) → parse.
 
-    Logs a warning when the response stop_reason is ``max_tokens`` —
-    that's the canary for "we need to bump JUDGE_MAX_OUTPUT_TOKENS or
-    chunk the input". Without it, truncation looks identical to a
-    normal model output to ``_parse_judge_response`` and surfaces only
-    as a downstream JSON parse failure.
+    `_build_user_prompt`, `_parse_judge_response`, `_validate_plan` are
+    no longer called here; they live in fi-core 0.5.1+. They remain in
+    this file as dead code until the next deletion wave so existing
+    tests don't break.
+
+    Logs a warning when stop_reason is ``max_tokens`` — that's the
+    canary for "bump JUDGE_MAX_OUTPUT_TOKENS or chunk the input".
     """
-    user_prompt = _build_user_prompt(facts)
+    from fi_core.persona.mcp_server import (
+        build_consolidation_prompt,
+        parse_consolidation_result,
+    )
+
+    # Shape B step 1: fi-core builds the prompt + user_text + suggested
+    # model. We ignore model_hint here because the caller already picked
+    # `model` (settings.summary_model — Haiku by default).
+    prompt_spec = await build_consolidation_prompt(
+        facts=facts,
+        max_tokens_hint=JUDGE_MAX_OUTPUT_TOKENS,
+    )
+
+    # Shape B step 2: consumer (this function via the `llm` adapter)
+    # executes the LLM call. `llm` is RunnerJudgeClient in prod, a mock
+    # in tests; both implement utility_call(system, messages, model, max_tokens).
     try:
         response = await llm.utility_call(
-            load_prompt("memory_consolidator_judge"),
-            [{"role": "user", "content": user_prompt}],
+            prompt_spec["system_prompt"],
+            [{"role": "user", "content": prompt_spec["user_text"]}],
             model=model,
-            max_tokens=JUDGE_MAX_OUTPUT_TOKENS,
+            max_tokens=prompt_spec["max_tokens"],
         )
     except (anthropic.APIError, anthropic.APIConnectionError) as e:
         log.warning("consolidator_judge_call_failed", error=str(e))
@@ -198,14 +213,27 @@ async def _call_judge(
         log.warning(
             "consolidator_judge_truncated",
             facts_in=len(facts),
-            max_tokens=JUDGE_MAX_OUTPUT_TOKENS,
+            max_tokens=prompt_spec["max_tokens"],
         )
-    plan = _parse_judge_response(response.text)
+
+    # Shape B step 3: fi-core parses + validates the raw response.
+    # Returns dict with ok/ops/error fields.
+    parsed = await parse_consolidation_result(
+        raw_response=response.text,
+        facts=facts,
+    )
+    if not parsed["ok"]:
+        log.warning(
+            "consolidator_judge_parse_failed",
+            error=parsed["error"],
+            raw_len=parsed["raw_len"],
+        )
+        return None, 0, 0
     # Token counts now live in get_usage_report() (per-family); the per-
     # call accounting that used to flow back through this return is no
     # longer needed by the caller. Return zeros so the call signature
     # stays the same for backwards compat.
-    return plan, 0, 0
+    return parsed["ops"], 0, 0
 
 
 def _op_factory(
