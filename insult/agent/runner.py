@@ -155,6 +155,38 @@ _pool_lock = asyncio.Lock()
 _reaper_task: asyncio.Task | None = None
 
 
+# fi-core MCP server is registered as a stdio subprocess (the standard MCP
+# protocol pattern). The SDK spawns `python -m fi_core.persona.mcp_server`
+# and talks JSON-RPC over stdin/stdout. Tool names are imported from
+# `fi_core.persona.MCP_TOOLS` when fi-core>=0.4.1 (the explicit-contract
+# release); for fi-core 0.4.0 the contract was missing so we fall back to
+# a static list mirrored from mcp_server.py. Remove the fallback when
+# 0.4.1+ is the floor everywhere.
+_FI_CORE_SERVER_NAME = "fi-core-persona"
+_FI_CORE_TOOLS_FALLBACK = [
+    "check_drift",
+    "list_packs",
+    "sanitize_response",
+    "get_reinforcement",
+    "validate_and_retry_prompt",
+]
+
+
+def _fi_core_tool_names() -> list[str]:
+    """Return fully-qualified MCP tool names for the fi-core persona server.
+
+    Prefers the explicit contract (fi_core.persona.MCP_TOOLS) when fi-core
+    exports it; otherwise mirrors the known tool list. The fallback path
+    becomes dead when fi-core 0.4.1 lands.
+    """
+    try:
+        from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS
+
+        return [f"mcp__{MCP_SERVER_NAME}__{t['name']}" for t in MCP_TOOLS]
+    except ImportError:
+        return [f"mcp__{_FI_CORE_SERVER_NAME}__{n}" for n in _FI_CORE_TOOLS_FALLBACK]
+
+
 async def _build_options(persona: str, model: str | None = None) -> Any:
     """Construct ClaudeAgentOptions for a new channel session.
 
@@ -169,6 +201,11 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     Opus). Falls back to DEFAULT_MODEL when None — that path is what the
     earlier (router-less) code did, so behavior is preserved if the
     caller skips routing.
+
+    v3.9.73: registers the fi-core persona MCP server (anti-drift detectors)
+    alongside the insult_db in-process server. fi-core lives in a sibling
+    Python package and ships its own FastMCP-over-stdio server; the SDK
+    spawns it on session creation.
     """
     from claude_agent_sdk import ClaudeAgentOptions
 
@@ -179,14 +216,24 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     )
 
     insult_db_server = build_insult_db_server()
-    mcp_tool_names = [f"mcp__{INSULT_DB_SERVER_NAME}__{t.name}" for t in INSULT_DB_TOOLS]
+    insult_tool_names = [f"mcp__{INSULT_DB_SERVER_NAME}__{t.name}" for t in INSULT_DB_TOOLS]
+    fi_core_tool_names = _fi_core_tool_names()
 
     return ClaudeAgentOptions(
         system_prompt=persona,
         cwd=str(WORKSPACE_ROOT),
         model=model or DEFAULT_MODEL,
-        allowed_tools=list(mcp_tool_names),
-        mcp_servers={INSULT_DB_SERVER_NAME: insult_db_server},
+        allowed_tools=[*insult_tool_names, *fi_core_tool_names],
+        mcp_servers={
+            INSULT_DB_SERVER_NAME: insult_db_server,
+            # stdio subprocess — SDK spawns + manages lifecycle. The
+            # `python` here resolves to the env-active Python which
+            # MUST have fi-core installed (it does, via environment.yml).
+            _FI_CORE_SERVER_NAME: {
+                "command": "python",
+                "args": ["-m", "fi_core.persona.mcp_server"],
+            },
+        },
         permission_mode="bypassPermissions",
         # Project-only filesystem settings: load <cwd>/CLAUDE.md as project
         # context (the operating contract for the MCP tools). The agent does

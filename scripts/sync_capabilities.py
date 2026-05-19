@@ -78,11 +78,16 @@ def detect_fi_core() -> bool:
     the fi-core workspace package in the free-intelligence monorepo
     Bernard maintains. The capability summary should say so — otherwise
     callers asking 'where do you chunk?' get a misleading answer.
+
+    v3.9.73: requirements.txt was deleted in the conda migration
+    (v3.9.72); now we read environment.yml. Falls back to requirements.txt
+    if both exist during a hypothetical reversal — defensive, not expected.
     """
+    env = ROOT / "environment.yml"
+    if env.exists() and "fi-core" in env.read_text():
+        return True
     req = ROOT / "requirements.txt"
-    if not req.exists():
-        return False
-    return "fi-core" in req.read_text()
+    return req.exists() and "fi-core" in req.read_text()
 
 
 def extract_mcp_tool_names() -> list[dict]:
@@ -104,11 +109,7 @@ def extract_mcp_tool_names() -> list[dict]:
     for node in ast.walk(tree):
         if isinstance(node, ast.AsyncFunctionDef):
             for dec in node.decorator_list:
-                if (
-                    isinstance(dec, ast.Call)
-                    and isinstance(dec.func, ast.Name)
-                    and dec.func.id == "tool"
-                ):
+                if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "tool":
                     name = ""
                     desc = ""
                     if dec.args:
@@ -117,10 +118,98 @@ def extract_mcp_tool_names() -> list[dict]:
                             desc = _extract_string(dec.args[1])
                     if name:
                         first_sentence = desc.split(". ")[0] + "." if desc else ""
-                        tools.append({
-                            "name": f"mcp__insult_db__{name}",
-                            "desc": first_sentence,
-                        })
+                        tools.append(
+                            {
+                                "name": f"mcp__insult_db__{name}",
+                                "desc": first_sentence,
+                            }
+                        )
+    return tools
+
+
+def extract_fi_core_mcp_tools() -> list[dict]:
+    """Detect fi-core's persona MCP tools and return them in the same shape
+    as insult-side tools, so build_capabilities_block can interleave them.
+
+    Strategy (hybrid, per the 2026-05-19 contract negotiation):
+
+    1. Preferred path — `from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS`.
+       When fi-core>=0.4.1 exports the explicit contract, this is THE source
+       of truth. Fi-core controls the public surface; if Bernard renames a
+       tool or adds a new one in fi-core, this auto-picks it up on next
+       pre-commit run without discord-bot touching anything.
+
+    2. Fallback path — AST-walk fi-core's installed mcp_server.py for
+       `@mcp.tool()` decorators. Used while fi-core 0.4.0 (the release
+       that shipped the MCP server but forgot the contract constants) is
+       the highest-pinned version. Brittle: it parses fi-core internals
+       to extract docstrings and function names. Delete when 0.4.1+ is
+       the floor.
+
+    Returns [] if fi-core isn't installed at all (e.g. pre-commit running
+    in an environment without the conda deps materialized). That's fine —
+    sync_capabilities just leaves the fi-core tools out of persona.md
+    until the next commit from a properly set-up env.
+    """
+    # Path 1: explicit contract (fi-core>=0.4.1)
+    try:
+        from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS  # type: ignore
+
+        return [
+            {
+                "name": f"mcp__{MCP_SERVER_NAME}__{t['name']}",
+                "desc": (t.get("description") or "").split(". ")[0] + "." if t.get("description") else "",
+            }
+            for t in MCP_TOOLS
+        ]
+    except ImportError:
+        pass
+
+    # Path 2: AST fallback against fi-core 0.4.0's mcp_server.py
+    try:
+        import fi_core.persona.mcp_server as fi_mcp  # type: ignore
+    except ImportError:
+        return []
+
+    if not fi_mcp.__file__:
+        return []
+    src_path = Path(fi_mcp.__file__)
+    try:
+        tree = ast.parse(src_path.read_text())
+    except (SyntaxError, OSError):
+        return []
+
+    server_name = "fi-core-persona"  # Known constant for 0.4.0; matches runner.py
+    tools: list[dict] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
+            continue
+        for dec in node.decorator_list:
+            # Match `@mcp.tool()` (a Call to an Attribute named "tool")
+            is_mcp_tool_dec = (
+                isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) and dec.func.attr == "tool"
+            )
+            if not is_mcp_tool_dec:
+                continue
+            # Pull the first sentence of the function's docstring as desc.
+            # MCP tool docstrings tend to be multi-paragraph (overview
+            # line followed by rST-style 'Returned shape::' blocks).
+            # We want only the first paragraph's first sentence — anything
+            # past a blank line OR a literal period+space is noise for
+            # persona.md.
+            raw_doc = ast.get_docstring(node) or ""
+            first_paragraph = raw_doc.split("\n\n", 1)[0].replace("\n", " ").strip()
+            first_sentence = first_paragraph.split(". ", 1)[0].strip()
+            if first_sentence and not first_sentence.endswith("."):
+                first_sentence += "."
+            tools.append(
+                {
+                    "name": f"mcp__{server_name}__{node.name}",
+                    "desc": first_sentence,
+                }
+            )
+            break  # one @mcp.tool() per function
+
     return tools
 
 
@@ -198,18 +287,30 @@ def build_capabilities_block() -> str:
         'Encourage them: "Dime por DM si quieres hablar en privado."'
     )
 
-    # MCP tools come from the agent runner side (registered in
-    # insult/agent/mcp_tools.py via @tool decorators).
-    mcp_tools = extract_mcp_tool_names() if modules.get("agent_runner_mcp") else []
+    # MCP tools come from two sources at runtime:
+    #   1. insult/agent/mcp_tools.py — DB-access tools in-process
+    #   2. fi-core's mcp_server.py — anti-drift detectors via stdio subprocess
+    # Both are registered in insult/agent/runner.py:_build_options and the
+    # agent sees them with the same wire-name shape: mcp__<server>__<tool>.
+    insult_mcp_tools = extract_mcp_tool_names() if modules.get("agent_runner_mcp") else []
+    fi_core_mcp_tools = extract_fi_core_mcp_tools() if detect_fi_core() else []
 
     # Add tool-specific capabilities
-    if all_tools or mcp_tools:
+    if all_tools or insult_mcp_tools or fi_core_mcp_tools:
         lines.append("")
         lines.append("### Available Tools")
         for tool in all_tools:
             lines.append(f"- `{tool['name']}`: {tool['desc']}")
-        for tool in mcp_tools:
+        for tool in insult_mcp_tools:
             lines.append(f"- `{tool['name']}`: {tool['desc']}")
+        if fi_core_mcp_tools:
+            lines.append("")
+            lines.append(
+                "**fi-core persona detectors** (use these to self-check responses "
+                "before sending — character integrity / anti-drift):"
+            )
+            for tool in fi_core_mcp_tools:
+                lines.append(f"- `{tool['name']}`: {tool['desc']}")
 
     # Origins — credit + provenance.
     if detect_fi_core():
@@ -230,8 +331,7 @@ def build_capabilities_block() -> str:
             "`deep_memory`. Same `insult-openai` cognitive account ALICE uses for chat."
         )
         lines.append(
-            "- **Azure Database for PostgreSQL + pgvector** — your data plane. "
-            "Cero blob, cero on-prem dependency."
+            "- **Azure Database for PostgreSQL + pgvector** — your data plane. Cero blob, cero on-prem dependency."
         )
 
     # What you CAN'T do

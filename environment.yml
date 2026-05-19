@@ -34,7 +34,7 @@ dependencies:
   # fi-core ships the chunking algorithm + Embedder/ChunkStore protocols
   # + DocumentChunkStore (HDF5-backed). HDF5 is the data-pipeline
   # justification for going conda in the first place.
-  - fi-core>=0.3.0
+  - fi-core>=0.4.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
