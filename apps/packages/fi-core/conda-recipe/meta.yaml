@@ -1,0 +1,92 @@
+{% set name = "fi-core" %}
+{% set version = "0.3.0" %}
+{% set sha256 = "96b4cb38c7a3b61afdf6aa0860f108e5ed11874225cb76cf9ab23d9fb41ff3a1" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/BernardUriza/free-intelligence/releases/download/fi-core-v{{ version }}/fi_core-{{ version }}.tar.gz
+  sha256: {{ sha256 }}
+
+build:
+  number: 0
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+
+requirements:
+  host:
+    - python >=3.12
+    - pip
+    - setuptools >=64
+    - wheel
+  run:
+    - python >=3.12
+    # Optional deps for fi_core.stores.hdf5 are included by default in the
+    # conda-forge build so that consumers get a fully functional package.
+    # The original PyPI extras (`fi-core[stores-hdf5]`) collapse here into
+    # a single package — conda's strength is exactly the kind of compiled
+    # binary deps that h5py + numpy carry.
+    - h5py >=3.10
+    - numpy >=1.24
+
+test:
+  imports:
+    - fi_core
+    - fi_core.rag
+    - fi_core.rag.protocols
+    - fi_core.rag.types
+    - fi_core.persona
+    - fi_core.persona.detect
+    - fi_core.persona.packs
+    - fi_core.stores
+    - fi_core.stores.hdf5
+  requires:
+    - pip
+  commands:
+    - pip check
+    # Smoke test the HDF5 store creates + queries (no LLM, no network).
+    - python -c "import asyncio; from fi_core.stores.hdf5 import HDF5ChunkStore; from fi_core.rag import Chunk, ChunkWithEmbedding; import tempfile, os; tf=tempfile.NamedTemporaryFile(suffix='.h5', delete=False); tf.close(); s=HDF5ChunkStore(tf.name); asyncio.run(s.create_document(namespace='t', document_id='d', content='c')); asyncio.run(s.save_chunks(namespace='t', document_id='d', chunks=[ChunkWithEmbedding(chunk=Chunk(text='x', source_type='t', source_ref='r'), embedding=[1.0,0.0])])); r=asyncio.run(s.query(namespace='t', query_embedding=[1.0,0.0], top_k=1)); assert len(r)==1; os.unlink(tf.name); print('smoke test passed')"
+    # Smoke test the persona module (deterministic regex, no deps).
+    - python -c "from fi_core.persona import BreakDetector, packs; d=BreakDetector(patterns=packs.GENERIC_AI_DISCLOSURE_EN); assert d.detect('As an AI, I cannot') != []; print('persona smoke test passed')"
+
+about:
+  home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: >
+    Shared LLM primitives — RAG chunking + Embedder/ChunkStore protocols,
+    HDF5-backed document chunk store, persona character-integrity detection.
+  description: |
+    fi-core ships reusable primitives for building production LLM applications,
+    extracted from real production consumers (AURITY medical RAG platform,
+    Insult Discord AI persona bot).
+
+    Three product surfaces in one package:
+
+    - **fi_core.rag** — chunking algorithms (paragraph-aware, sentence-aware,
+      fixed-size) plus Protocol classes for Embedder / ChunkStore /
+      DocumentChunkStore. Zero-deps core.
+    - **fi_core.stores.hdf5** — h5py-backed reference implementation of
+      DocumentChunkStore. Per-namespace document tree with in-memory cosine
+      similarity index, idempotent bulk save_chunks, status auto-promotion
+      (pending → indexed), cascading delete. Async canonical API + public
+      sync facades for legacy adapter consumers.
+    - **fi_core.persona** — anti-drift detectors (BreakDetector,
+      AntiPatternMonitor, ClarificationDumpDetector, sanitize) with bilingual
+      English + Spanish pattern packs (AI disclosure, assistant tone,
+      therapy-speak, summarizing, stage directions, markdown drift,
+      moralizing, over-validation, clarification dump). Pure regex,
+      zero LLM calls at detection time.
+
+    Use cases include medical RAG with clinic-scoped namespacing, conversational
+    AI personas with character integrity hardening, longitudinal scientific
+    data layers, and training-corpus reading for LLM fine-tuning pipelines.
+  doc_url: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-core
+  dev_url: https://github.com/BernardUriza/free-intelligence
+
+extra:
+  recipe-maintainers:
+    - BernardUriza
