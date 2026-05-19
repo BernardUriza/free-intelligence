@@ -1,14 +1,14 @@
 [project]
 name = "fi-core"
-version = "0.2.0"
-description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, persona character-integrity detection) used by AURITY and Insult"
+version = "0.3.0"
+description = "Free Intelligence core — shared LLM primitives (RAG chunking + Embedder/ChunkStore protocols, HDF5 store, persona character-integrity detection) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     { name = "Bernard Uriza Orozco" },
 ]
 license = { text = "MIT" }
-keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift"]
+keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -21,10 +21,25 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
+# HDF5-backed DocumentChunkStore implementation.
+# Required for fi_core.stores.hdf5.HDF5ChunkStore.
+stores-hdf5 = [
+    "h5py>=3.10",
+    "numpy>=1.24",
+]
+
+# Convenience: install everything available so far.
+all = [
+    "h5py>=3.10",
+    "numpy>=1.24",
+]
+
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.11",
+    "h5py>=3.10",
+    "numpy>=1.24",
 ]
 
 [build-system]

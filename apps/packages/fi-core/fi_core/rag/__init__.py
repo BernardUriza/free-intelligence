@@ -14,14 +14,24 @@ from fi_core.rag.chunking import (
     chunk_document,
     estimate_tokens,
 )
-from fi_core.rag.protocols import ChunkStore, Embedder
-from fi_core.rag.types import Chunk, RetrievedChunk
+from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
+from fi_core.rag.types import (
+    Chunk,
+    ChunkWithEmbedding,
+    DocumentMetadata,
+    DocumentRecord,
+    RetrievedChunk,
+)
 
 __all__ = [
     "Chunk",
     "ChunkConfig",
     "ChunkStore",
+    "ChunkWithEmbedding",
     "ChunkingStrategy",
+    "DocumentChunkStore",
+    "DocumentMetadata",
+    "DocumentRecord",
     "Embedder",
     "RetrievedChunk",
     "chunk_by_fixed_size",
