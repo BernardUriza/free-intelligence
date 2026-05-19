@@ -21,25 +21,22 @@ structured output is easier to read than the markdown projection:
 The `user_id` and `channel_id` are always injected by the host in the
 `<turn_context>` block at the top of your prompt. Do not invent them.
 
-## Fallback: markdown projection (legacy, being decommissioned)
+## The markdown projection is FROZEN (F4 phase 3, v3.9.56)
 
-This directory is the older periodic projection (~60 s lag). It still
-exists during the F4 phase-1→phase-3 transition. Prefer the MCP tools
-above unless you have a specific reason — and never `Grep` the whole
-workspace "for context".
+The `facts/`, `messages/` and `disclosure_log.md` files you may see in
+this directory are **stale leftovers** from before F4. The renderer
+that updated them every 60s was decommissioned. `Read`, `Grep`, `Glob`
+have been removed from your `allowed_tools`. Use the MCP tools above
+for all state queries — the markdown will lie to you.
 
-- `facts/{user_id}.md` — same data as `get_user_facts`
-- `messages/{channel_id}.md` — same data as `get_recent_messages`
-- `disclosure_log.md` — same data as `get_disclosure_log` (no user_id
-  filter — the markdown version is global)
+The only file here that is still authoritative is `CLAUDE.md` (this
+file). It is your operating contract, not data.
 
 ## Hard Rules
 
-- DO NOT call `Write`, `Edit`, or `Bash`. Only `Read`, `Grep`, `Glob`
-  and the `mcp__insult_db__*` tools are available — using anything else
-  means you misread the available tool set.
-- DO NOT grep the whole workspace "for context". Hit the specific tool
-  with the specific user_id / channel_id the host injected.
-- DO NOT invent user_ids or channel_ids. The host always injects them.
-- DO trust the live conversation over either the projection or the tool
-  output if they disagree — your most recent message context wins.
+- ONLY the `mcp__insult_db__*` tools are available. Calls to `Read`,
+  `Grep`, `Glob`, `Write`, `Edit`, `Bash` will be denied.
+- DO NOT invent user_ids or channel_ids. The host always injects them
+  in the `<turn_context>` block at the top of your prompt.
+- DO trust the live conversation over the tool output if they disagree
+  — your most recent message context wins.

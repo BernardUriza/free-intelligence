@@ -37,17 +37,24 @@ else
   echo "[entrypoint] WARN: CLAUDE_CODE_OAUTH_TOKEN not set — agent loop will 401"
 fi
 
-# --- Workspace renderer (background) ----------------------------------------
-
-# Renderer logs go to /tmp because /var/log is root-owned and the
-# `runner` user can't write there. Trade: log file gets wiped on
-# every restart, but stdout of the FastAPI side (the only thing
-# Azure Log Analytics streams) still tells the full deploy story.
+# --- Workspace renderer (DISABLED in F4 phase 3, v3.9.56) -------------------
+#
+# The renderer projected Postgres -> markdown every 60 s so the agent's
+# Read/Grep/Glob tools could see PG state. F4 replaced that with
+# in-process MCP tools (`mcp__insult_db__*`) that query PG directly,
+# making the projection redundant. Read/Grep/Glob were also removed from
+# allowed_tools in runner.py so the markdown files are no longer consulted.
+#
+# The Azure Files mount at /data/insult-workspace is still mounted —
+# the agent reads CLAUDE.md from there via setting_sources=["project"].
+# The facts/messages/disclosure_log.md files in that mount are now
+# FROZEN at whatever the last render left behind. Fase 4 will unmount
+# the share entirely once CLAUDE.md is moved into the container image.
+#
+# To re-enable for debugging only: uncomment the python3 line below.
+# python3 -m insult.agent.workspace_renderer > /tmp/insult-logs/renderer.log 2>&1 &
 mkdir -p /tmp/insult-logs
-echo "[entrypoint] starting workspace_renderer in background"
-python3 -m insult.agent.workspace_renderer > /tmp/insult-logs/renderer.log 2>&1 &
-RENDERER_PID=$!
-echo "[entrypoint] renderer pid=$RENDERER_PID"
+echo "[entrypoint] workspace_renderer DISABLED (F4 phase 3) — MCP tools query PG directly"
 
 # --- FastAPI Agent SDK runner (foreground) ----------------------------------
 
