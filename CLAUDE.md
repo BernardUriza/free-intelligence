@@ -3,6 +3,16 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
+
+This project is **conda-managed** (memory: `feedback_no_pypi_only_conda`).
+Local setup:
+```bash
+conda env create -f environment.yml -n discord-bot   # first time only
+conda activate discord-bot                            # every shell
+```
+
+All commands below assume the `discord-bot` env is active.
+
 ```bash
 # Run
 python -m insult run              # Start the bot
@@ -21,6 +31,11 @@ ruff check --fix .                # Auto-fix lint issues
 # Full CI locally
 ruff check . && ruff format --check . && pytest -v --cov --cov-fail-under=80 && bandit -r insult/ -c pyproject.toml && pip-audit
 ```
+
+**Dependency changes**: edit `environment.yml`, then `mamba env update -f environment.yml`.
+Never use `pip install <pkg>` outside the explicit pip subsection — the rule
+is conda-first (see memory). `fi-core` lives on the `bernardurizaorozco`
+Anaconda.org channel, declared in environment.yml's channels list.
 
 ## Architecture
 

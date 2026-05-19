@@ -6,6 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# Conda-native CI per memory feedback_no_pypi_only_conda.
+# All jobs install from environment.yml via `setup-micromamba`.
+# environment.yml channels: bernardurizaorozco (for fi-core) →
+# conda-forge (everything else).
+#
+# The micromamba action handles caching automatically via cache-environment
+# and cache-downloads, keyed on the env file's hash. First run on a new
+# environment.yml pays ~3-5 min of resolve+download; subsequent runs hit
+# the cache and start in ~30s.
+
 jobs:
   # --- Layer 1: Lint & Format (fastest, runs first) ---
   lint:
@@ -14,19 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v2
         with:
-          python-version: "3.14"
-          allow-prereleases: true
-
-      - name: Install ruff
-        run: pip install ruff==0.11.12
+          environment-file: environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
 
       - name: Ruff lint
+        shell: bash -leo pipefail {0}
         run: ruff check --output-format=github .
 
       - name: Ruff format check
+        shell: bash -leo pipefail {0}
         run: ruff format --check .
 
   # --- Layer 2: Unit Tests + Coverage ---
@@ -43,16 +55,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v2
         with:
-          python-version: "3.14"
-          allow-prereleases: true
+          environment-file: environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
 
-      - name: Install PostgreSQL 17 + pgvector
+      - name: Install PostgreSQL 17 + pgvector (system, for pg_ctl)
         # Adds the upstream PGDG apt repo, installs postgresql-17 server bin
         # + the matching pgvector. We stop the auto-started service because
         # `pytest-postgresql` owns the lifecycle of the test instance.
+        # NOTE: this is SYSTEM postgres for pg_ctl/server binaries, NOT a
+        # conda dep — pytest-postgresql shells out to pg_ctl directly and
+        # the conda postgresql package's bins are pathed for activated envs.
         run: |
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
@@ -60,12 +78,8 @@ jobs:
           sudo apt-get install -y -qq postgresql-17 postgresql-17-pgvector
           sudo systemctl stop postgresql || true
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Run tests with coverage
+        shell: bash -leo pipefail {0}
         env:
           # Tells `tests/_pg_fixture.py` where the postgres-17 pg_ctl lives so
           # the asyncpg-backed tests run against a real PG instead of skipping.
@@ -80,18 +94,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v2
         with:
-          python-version: "3.14"
-          allow-prereleases: true
+          environment-file: environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run pip-audit
+      - name: Run pip-audit against the conda env
+        shell: bash -leo pipefail {0}
+        # pip-audit scans whatever's installed in the active env (conda + pip).
         # CVE-2026-3219 (GHSA-58qw-9mgm-455v): pip <= 26.0.1 treats concatenated
         # tar+ZIP archives as ZIP regardless of filename. MEDIUM (CVSS 4.6).
         # Disclosed 2026-04-20. GitHub Advisory API reports patched_versions=None
@@ -109,14 +123,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v2
         with:
-          python-version: "3.14"
-          allow-prereleases: true
-
-      - name: Install bandit
-        run: pip install bandit>=1.8.0
+          environment-file: environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
 
       - name: Run bandit
+        shell: bash -leo pipefail {0}
         run: bandit -r insult/ -c pyproject.toml

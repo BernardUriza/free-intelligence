@@ -3,7 +3,7 @@
 # 1. Auto-sync persona.md capabilities from code
 # 2. Ruff lint gate on staged Python files (matches CI)
 # 3. Ruff format check gate on staged Python files (matches CI)
-# 4. requirements.txt resolver check when staged (catches duplicate deps)
+# 4. environment.yml resolver check when staged (catches duplicate deps)
 # 5. Version bump enforcement (at least one of the 3 version files must change)
 #
 # Why this hook exists:
@@ -13,15 +13,23 @@
 #   branches. Both broke CI, both broke CD, both stalled the runner on
 #   an old sha for hours. This hook would have blocked both.
 # - All bypasses are explicit (--no-verify), so emergencies still work.
+#
+# Post-conda migration (v3.9.72+): requirements.txt is gone; dependency
+# dup detection now scans environment.yml. The pattern that bit us
+# (fi-core declared twice) translates 1:1 — conda's resolver fails on
+# duplicates with a similar ResolutionImpossible-style error.
 
 set -e
 
-# Pick ruff: prefer .venv (matches CI version 0.11.12) over PATH ruff.
+# Pick ruff: prefer .venv (legacy local), fall back to conda env on PATH.
+# Conda env activation is the user's responsibility (`conda activate
+# discord-bot`); when active, `ruff` is on PATH directly.
 if [ -x .venv/bin/ruff ]; then
     RUFF=.venv/bin/ruff
 elif command -v ruff >/dev/null; then
     RUFF=ruff
-    echo "pre-commit WARN: using PATH ruff; .venv/bin/ruff (CI version) recommended"
+else
+    echo "pre-commit WARN: no ruff found in .venv or PATH. Activate conda env: conda activate discord-bot"
 fi
 
 # --- Step 1: Auto-sync capabilities ---
@@ -52,18 +60,36 @@ if [ -n "$staged_py" ] && [ -n "$RUFF" ]; then
     fi
 fi
 
-# --- Step 3: requirements.txt resolver check when staged ---
-# Cheap defense: when requirements.txt changes, make sure no package is
-# declared twice (most common failure mode — what bit us 2026-05-19 with
-# fi-core@main + fi-core@dev). Doesn't catch deeper resolver conflicts.
-if echo "$(git diff --cached --name-only)" | grep -q "^requirements.txt$"; then
-    dup=$(grep -v '^#\|^$' requirements.txt | awk '{print tolower($1)}' \
-        | sed -E 's/[<>=!~ ].*//;s/@.*//' | sort | uniq -d || true)
+# --- Step 3: environment.yml duplicate-package check when staged ---
+# Cheap defense: when environment.yml changes, ensure no package is
+# declared twice in the conda dependencies section. Maps the
+# 2026-05-19 fi-core@main+fi-core@dev failure into the conda world.
+# Skips comments, blanks, the YAML structural keys, and pip subsection
+# entries (those start with -- after the inner `pip:` block).
+if echo "$(git diff --cached --name-only)" | grep -q "^environment.yml$"; then
+    dup=$(awk '
+        /^[[:space:]]*-[[:space:]]+[a-zA-Z]/ {
+            # Strip leading dash + whitespace
+            line = $0
+            sub(/^[[:space:]]*-[[:space:]]+/, "", line)
+            # Drop comments
+            sub(/#.*$/, "", line)
+            # Skip pip: section markers (they look like "pip:" not "pkg>=v")
+            if (line ~ /:$/) next
+            # Extract package name (strip version specifiers + channel/build)
+            name = line
+            sub(/[<>=!~ ].*$/, "", name)
+            sub(/::.*$/, "", name)
+            # Normalize lowercase
+            name = tolower(name)
+            if (name != "") print name
+        }
+    ' environment.yml | sort | uniq -d || true)
     if [ -n "$dup" ]; then
         echo ""
-        echo "ERROR: requirements.txt declares the same package twice:"
+        echo "ERROR: environment.yml declares the same package twice:"
         echo "$dup" | sed 's/^/  - /'
-        echo "  Pip's resolver will fail in CI. Consolidate to one entry per package."
+        echo "  Conda's resolver will fail in CI. Consolidate to one entry per package."
         exit 1
     fi
 fi

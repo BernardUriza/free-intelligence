@@ -1,8 +1,15 @@
 # Insult Agent SDK Runner — Container Apps image.
 #
+# Conda-native base (memory: feedback_no_pypi_only_conda). Uses Quay.io
+# to dodge the Docker Hub anonymous-pull rate limit (same reason MCR
+# replaced python:3.14-slim originally — see reference_dockerfile_base_mcr).
+#
 # Runs:
-#   - Node 22 + @anthropic-ai/claude-code CLI (for the Agent SDK loop)
-#   - Python 3.14 + uv (for the FastAPI service that Insult Container App calls)
+#   - Node 22 + @anthropic-ai/claude-code CLI (for the Agent SDK loop) —
+#     Node installed via conda-forge, not apt, so the whole stack is
+#     conda-managed.
+#   - Python 3.14 + the env from environment.yml (FastAPI runner +
+#     workspace_renderer + asyncpg + the shared deps).
 #
 # Workspace state is NOT in the image. It comes from an Azure Files mount at
 # /data/insult-workspace populated by the workspace_renderer (Postgres -> markdown).
@@ -11,24 +18,25 @@
 # is a single co-located process. Splitting Node and Python would mean inter-container
 # IPC which is overkill at this scale.
 
-FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
+FROM quay.io/condaforge/miniforge3:26.1.1-3
 
+SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
 
-# Install Node 22 (NodeSource repo, Bookworm has 18 by default)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
- && apt-get install -y --no-install-recommends nodejs \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+# Install the conda env into `base`, then add Node 22 from conda-forge.
+# Node-from-conda avoids the NodeSource apt repo + the OS-version-specific
+# Bookworm-has-18 dance — everything stays inside one package manager.
+COPY environment.yml .
+RUN mamba env update -n base -f environment.yml \
+ && mamba install -n base -c conda-forge -y 'nodejs>=22,<23' \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.a' -delete \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
-# Install Claude Code CLI globally. OAuth Max credentials get mounted at runtime
-# via /home/runner/.claude/.credentials.json (NOT baked into the image).
+# Install Claude Code CLI globally via npm (npm comes from the conda
+# nodejs package). OAuth Max credentials get mounted at runtime via
+# /home/runner/.claude/.credentials.json (NOT baked into the image).
 RUN npm install -g --silent @anthropic-ai/claude-code
-
-# Install Python deps. requirements.txt is the same one Insult uses; the runner
-# pulls in asyncpg/structlog/fastapi/uvicorn from there.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared/ and insult/ — runner needs:
 #   - shared/* for chunking, retry, logging setup

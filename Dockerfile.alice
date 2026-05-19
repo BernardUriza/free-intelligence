@@ -1,12 +1,14 @@
 # ALICE — Artificial Lucid Intelligence for Cognitive Empathy.
 #
-# Same base image as Insult (MCR Python 3.14 bookworm) for two reasons:
-# 1. ACR layer cache reuse — the OS + Python install layer is identical
-#    so the first ALICE build after an Insult build is fast.
-# 2. Operational parity — when something breaks at the runtime layer
-#    (TLS cert, glibc, asyncpg wheel), the fix lives in one Dockerfile,
-#    not two. MCR avoids the Docker Hub anonymous-pull rate limit that
-#    bit us on 2026-05-05 (see Insult's Dockerfile comment).
+# Conda base shared with Insult's Dockerfile (memory:
+# feedback_no_pypi_only_conda). Same image, same channel order, same
+# environment.yml — keeps both bots on one dependency tree so a
+# pip-audit / bandit scan covers both at once and ACR layer cache
+# kicks in on the second build of any given commit.
+#
+# Quay.io chosen over Docker Hub to avoid the anonymous-pull rate
+# limit (same reason MCR replaced python:3.14-slim historically;
+# memory: reference_dockerfile_base_mcr).
 #
 # Differences from Insult's image:
 # - Only copies the `alice/` package + persona, not `insult/`. ALICE
@@ -17,18 +19,18 @@
 # - Entrypoint runs `python -m alice run` which boots Discord + the
 #   FastAPI server in the same asyncio loop.
 
-FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
+FROM quay.io/condaforge/miniforge3:26.1.1-3
 
+SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
 
-# Install Python deps (cached layer). Reuses the shared requirements.txt
-# because both bots share asyncpg, structlog, discord.py, etc. The OpenAI
-# SDK is already declared there for voice. Adding alice-specific deps
-# (fastapi, uvicorn, httpx) at the requirements.txt level rather than a
-# separate file keeps both images on the same dependency tree, so a
-# Snyk/pip-audit scan covers both bots at once.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Same env install pattern as the Insult Dockerfile. The environment.yml
+# is shared so both images pin identical versions.
+COPY environment.yml .
+RUN mamba env update -n base -f environment.yml \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.a' -delete \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
 # Copy ALICE's code + persona AND the shared/ package. Since v3.9.8
 # `alice/__main__.py` and `alice/cogs/chat.py` import from `shared.*`
