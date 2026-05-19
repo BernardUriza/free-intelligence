@@ -61,6 +61,13 @@ dependencies = [
     "psutil>=6.1.1",
     "filelock>=3.12.0",
     "prometheus-client>=0.19.0",
+    # === Shared RAG primitives (workspace package) ===
+    # Lives in apps/packages/fi-core. Holds the chunking algorithm and
+    # the Embedder/ChunkStore Protocol classes that both this backend
+    # and the Insult discord-bot consume. 2026-05-19 extraction —
+    # eliminates duplicate chunking code between backend, fi-monitor's
+    # rag_service, and external consumers.
+    "fi-core",
 ]
 
 [project.optional-dependencies]
@@ -251,3 +258,17 @@ typing-modules = ["typing"]
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
 sections = { "FUTURE" = ["future"], "STANDARD_LIBRARY" = ["sys", "os", "pathlib"], "THIRD_PARTY" = ["h5py", "structlog", "PyYAML", "pydantic", "fastapi", "uvicorn", "anthropic", "ollama", "sentence-transformers", "torch", "transformers", "jsonschema", "python-dateutil", "py-trello", "pyarrow", "httpx", "aiohttp", "pdfplumber", "python-docx"], "FIRST_PARTY" = ["backend"], "LOCAL_FOLDER" = ["."] }
+
+# === uv workspace ===
+# Declares the in-tree packages so `uv sync` resolves `fi-core` from
+# `apps/packages/fi-core` instead of trying to fetch from PyPI (it's
+# not published yet, will be when stable). Add other future workspace
+# packages (fi-auth, fi-observability) here when they grow Python deps
+# of their own; today they're only consumed by frontend / not via uv.
+[tool.uv.workspace]
+members = [
+    "apps/packages/fi-core",
+]
+
+[tool.uv.sources]
+fi-core = { workspace = true }

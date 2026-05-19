@@ -17,6 +17,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { backendHealth } from '@/lib/api/backend-health';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Personas');
 
 export interface PersonaOption {
   id: string;
@@ -134,10 +137,9 @@ export function usePersonas(): UsePersonasReturn {
   const { getAccessTokenSilently, isAuthenticated } = useAuth();
 
   const fetchPersonas = async () => {
-    console.debug('[usePersonas] fetchPersonas called, backend available?', backendHealth.isAvailable());
     // Use fallback personas if backend is known to be unavailable
     if (!backendHealth.isAvailable()) {
-      console.debug('[usePersonas] backend unavailable, using FALLBACK_PERSONAS');
+      log.debug('Backend unavailable, using fallback personas');
       setLoading(false);
       setPersonas(FALLBACK_PERSONAS);
       return;
@@ -153,7 +155,7 @@ export function usePersonas(): UsePersonasReturn {
           token = await getAccessTokenSilently();
         } catch (tokenErr) {
           // Do not fail personas fetch solely due to token issues; fallback below
-          console.warn('[usePersonas] getAccessTokenSilently failed:', tokenErr);
+          log.warn('getAccessTokenSilently failed', { error: String(tokenErr) });
         }
       }
 
@@ -168,7 +170,7 @@ export function usePersonas(): UsePersonasReturn {
       if (!response.ok) {
         // 401/403 = not authenticated, use fallback silently (expected in onboarding)
         if (response.status === 401 || response.status === 403) {
-          console.debug('[usePersonas] Not authenticated, using FALLBACK_PERSONAS');
+          log.debug('Not authenticated, using fallback personas');
           setPersonas(FALLBACK_PERSONAS);
           setLoading(false);
           return;
@@ -191,7 +193,7 @@ export function usePersonas(): UsePersonasReturn {
       }));
 
       setPersonas(transformedPersonas);
-      console.debug('[usePersonas] fetched personas, count=', transformedPersonas.length);
+      log.debug('Fetched personas', { count: transformedPersonas.length });
       // Report success to circuit breaker
       backendHealth.reportSuccess();
     } catch (err) {
@@ -206,15 +208,14 @@ export function usePersonas(): UsePersonasReturn {
         errorStr.includes('NetworkError');
 
       if (!isConnectionError) {
-        console.error('[usePersonas] Error fetching personas:', err);
+        log.error('Error fetching personas', { error: String(err) });
       }
       setError(err instanceof Error ? err.message : 'Unknown error');
 
       // Fallback to default personas on error (offline mode)
-      console.debug('[usePersonas] fetch error, using FALLBACK_PERSONAS');
+      log.debug('Using fallback personas (offline mode)');
       setPersonas(FALLBACK_PERSONAS);
     } finally {
-      console.debug('[usePersonas] fetchPersonas finally, setting loading=false');
       setLoading(false);
     }
   };

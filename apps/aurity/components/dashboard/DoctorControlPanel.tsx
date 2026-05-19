@@ -85,13 +85,11 @@ export function DoctorControlPanel({
     }, 500);
   };
 
-  const handleMediaUpload = useCallback((media: UploadedMedia) => {
-    console.log('Media uploaded:', media);
-    // TODO: Add to carousel rotation
+  const handleMediaUpload = useCallback((_media: UploadedMedia) => {
+    // Media upload handled by MediaUploader component
   }, []);
 
   const handleAIContentGenerated = useCallback((content: GeneratedContent) => {
-    console.log('AI content generated:', content);
     // Send the content as a message to the TV display
     // Note: TV display uses text-only messages, icons rendered separately
     if (content.type === 'tip') {
@@ -303,9 +301,7 @@ export function DoctorControlPanel({
               <ReceptionistChatWidget
                 clinicId={clinicId || 'demo-clinic'}
                 clinicName={clinicName}
-                onCheckinComplete={(result) => {
-                  console.log('[DoctorControlPanel] Check-in demo completed:', result);
-                }}
+                onCheckinComplete={() => {}}
               />
             </div>
           </div>

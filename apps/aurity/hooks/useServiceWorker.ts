@@ -5,6 +5,9 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ServiceWorker');
 
 interface UseServiceWorkerReturn {
   /** Whether the service worker is registered */
@@ -38,7 +41,7 @@ export function useServiceWorker(): UseServiceWorkerReturn {
         setRegistration(reg);
         setIsRegistered(true);
 
-        console.log('[SW] Registered with scope:', reg.scope);
+        log.info('Registered', { scope: reg.scope });
 
         // Check for updates
         reg.addEventListener('updatefound', () => {
@@ -53,13 +56,13 @@ export function useServiceWorker(): UseServiceWorkerReturn {
               if (navigator.serviceWorker.controller) {
                 // New update available
                 setUpdateAvailable(true);
-                console.log('[SW] New version available');
+                log.info('New version available');
               }
             }
           });
         });
       } catch (error) {
-        console.error('[SW] Registration failed:', error);
+        log.error('Registration failed', { error: String(error) });
       }
     };
 
@@ -75,7 +78,7 @@ export function useServiceWorker(): UseServiceWorkerReturn {
 
     // Listen for controller change (new SW activated)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('[SW] Controller changed, reloading...');
+      log.info('Controller changed, reloading');
       window.location.reload();
     });
   }, []);

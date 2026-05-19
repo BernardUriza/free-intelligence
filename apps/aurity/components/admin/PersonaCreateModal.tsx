@@ -10,11 +10,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { createLogger } from '@/lib/internal/logger';
 import {
   X,
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
+
+const log = createLogger('PersonaCreate');
 import type { Persona, PersonaCreateRequest } from '@aurity-standalone/types/persona';
 import { createPersona } from '@aurity-standalone/api-client/personas';
 
@@ -123,7 +126,7 @@ export function PersonaCreateModal({
       onSuccess(persona);
       handleClose();
     } catch (err) {
-      console.error('Failed to create persona:', err);
+      log.error('Failed to create persona', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al crear la persona');
     } finally {
       setCreating(false);

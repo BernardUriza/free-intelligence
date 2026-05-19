@@ -13,6 +13,9 @@
 import type { FIMessage, FITone, OnboardingPhase } from '@aurity-standalone/types/assistant';
 import { backendHealth } from '@aurity-standalone/api-client/backend-health';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('WebSocket');
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -106,9 +109,8 @@ export class BackendSyncStrategy implements IBackendSync {
         // Preserve persona from backend, only fallback for legacy messages without persona
         const persona = interaction.persona || 'general_assistant';
         if (!interaction.persona && interaction.role === 'assistant') {
-          console.debug('[sync-strategy] Legacy message without persona, using fallback:', {
+          log.debug('Legacy message without persona, using fallback', {
             timestamp: interaction.timestamp,
-            preview: interaction.content?.slice(0, 50),
           });
         }
         return {
@@ -131,7 +133,7 @@ export class BackendSyncStrategy implements IBackendSync {
       // Don't log connection errors (expected when backend is down)
       const isConnectionError = err instanceof TypeError && String(err).includes('fetch');
       if (!isConnectionError) {
-        console.error('Backend sync failed (non-critical):', err);
+        log.warn('Backend sync failed (non-critical)', { error: String(err) });
       }
       return []; // Return empty array on failure (localStorage is still valid)
     }
@@ -162,9 +164,8 @@ export class BackendSyncStrategy implements IBackendSync {
       const olderMessages: FIMessage[] = data.interactions.map((interaction: any) => {
         const persona = interaction.persona || 'general_assistant';
         if (!interaction.persona && interaction.role === 'assistant') {
-          console.debug('[sync-strategy] Legacy message without persona, using fallback:', {
+          log.debug('Legacy message without persona, using fallback', {
             timestamp: interaction.timestamp,
-            preview: interaction.content?.slice(0, 50),
           });
         }
         return {
@@ -184,7 +185,7 @@ export class BackendSyncStrategy implements IBackendSync {
         hasMore: data.has_more,
       };
     } catch (err) {
-      console.error('Failed to load older messages:', err);
+      log.error('Failed to load older messages', { error: String(err) });
       throw err;
     }
   }
@@ -248,13 +249,13 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
     try {
       // SINGLETON PATTERN: Close previous instance if exists
       if (WebSocketSyncStrategy.activeInstance && WebSocketSyncStrategy.activeInstance !== this) {
-        console.log('[WebSocket] Closing previous instance (hot-reload detected)');
+        log.debug('Closing previous instance (hot-reload detected)');
         WebSocketSyncStrategy.activeInstance.disconnect();
       }
 
       // If already connected to same doctor, don't reconnect
       if (this.ws?.readyState === WebSocket.OPEN && this.currentDoctorId === doctorId) {
-        console.log('[WebSocket] Already connected to same doctor, skipping');
+        log.debug('Already connected to same doctor, skipping');
         return;
       }
 
@@ -279,7 +280,7 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
       );
 
       this.ws.onopen = () => {
-        console.log('[WebSocket] Connected');
+        log.info('Connected');
         this.reconnectAttempts = 0; // Reset reconnect attempts
         backendHealth.reportSuccess();
       };
@@ -298,7 +299,7 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
             // Preserve persona from WebSocket, fallback for legacy only
             const persona = data.persona || 'general_assistant';
             if (!data.persona && data.role === 'assistant') {
-              console.debug('[WebSocket] Message without persona, using fallback');
+              log.debug('Message without persona, using fallback');
             }
 
             // Convert WebSocket message to FIMessage
@@ -314,10 +315,10 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
 
             onMessage(message);
           } else if (data.type === 'connected') {
-            console.log('[WebSocket] Connection confirmed:', data);
+            log.info('Connection confirmed', data);
           }
         } catch (err) {
-          console.error('[WebSocket] Failed to parse message:', err);
+          log.error('Failed to parse message', { error: String(err) });
         }
       };
 
@@ -325,14 +326,14 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
         backendHealth.reportFailure();
         // Only log first error as warning to reduce console noise when backend is down
         if (this.reconnectAttempts === 0) {
-          console.warn('[WebSocket] Backend unavailable (this is normal if backend is not running)');
+          log.warn('Backend unavailable (normal if backend is not running)');
         }
       };
 
       this.ws.onclose = () => {
         // Only log first disconnect as info
         if (this.reconnectAttempts === 0) {
-          console.info('[WebSocket] Disconnected from backend');
+          log.info('Disconnected from backend');
         }
 
         // Only auto-reconnect if NOT an intentional disconnect
@@ -364,7 +365,7 @@ export class WebSocketSyncStrategy implements IRealtimeSync {
       // Store cleanup function
       (this.ws as any)._pingInterval = pingInterval;
     } catch (err) {
-      console.error('[WebSocket] Connection failed:', err);
+      log.error('Connection failed', { error: String(err) });
     }
   }
 

@@ -17,6 +17,9 @@ import { X, UserPlus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PatientForm } from './PatientForm';
 import { createPatient, updatePatient, type PatientCreate, type Patient } from '@/lib/api/patients';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PatientModal');
 
 export interface PatientModalProps {
   /** Whether modal is open */
@@ -64,7 +67,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       onSuccess(result);
       onClose();
     } catch (err) {
-      console.error(`Failed to ${mode} patient:`, err);
+      log.error(`Failed to ${mode} patient`, { error: String(err) });
       setError(err instanceof Error ? err.message : `Error al ${mode === 'edit' ? 'actualizar' : 'crear'} paciente`);
     } finally {
       setLoading(false);

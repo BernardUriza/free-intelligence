@@ -6,7 +6,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { fetchDoctors, type Doctor } from '@/lib/api/clinics';
+
+const log = createLogger('ClinicDoctors');
 
 interface UseClinicDoctorsResult {
   doctors: Doctor[];
@@ -33,7 +36,7 @@ export function useClinicDoctors(clinicId: string | undefined): UseClinicDoctors
       const data = await fetchDoctors(clinicId);
       setDoctors(data);
     } catch (err) {
-      console.error('[useClinicDoctors] Error:', err);
+      log.error('Failed to load doctors', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al cargar doctores');
     } finally {
       setLoading(false);

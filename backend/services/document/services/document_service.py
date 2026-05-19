@@ -28,7 +28,7 @@ from backend.domain.document.models import (
     DocumentType,
     SearchResult,
 )
-from backend.services.document.services.chunking_strategy import (
+from fi_core.rag import (
     ChunkConfig,
     ChunkingStrategy,
     chunk_document,

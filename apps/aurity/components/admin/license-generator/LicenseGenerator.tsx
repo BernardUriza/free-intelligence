@@ -35,6 +35,9 @@ import {
   Download,
   Users,
 } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('LicenseGenerator');
 
 interface LicenseGeneratorProps {
   className?: string;
@@ -77,8 +80,6 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
         }
       } catch (err) {
         // Silently fail - use default features
-        // This commonly happens with refresh token issues
-        console.debug('[LicenseGenerator] Using default features (token unavailable)');
       }
     };
     loadFeatures();
@@ -116,7 +117,7 @@ export function LicenseGenerator({ className = '' }: LicenseGeneratorProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('[LicenseGenerator] Failed to copy:', err);
+      log.error('Failed to copy license key', { error: String(err) });
     }
   }, [result]);
 

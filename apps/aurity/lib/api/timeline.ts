@@ -9,6 +9,9 @@
 
 import { api } from './client';
 import { ROUTES } from './routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Timeline');
 
 const CACHE_KEY_SUMMARIES = 'fi_timeline_summaries';
 const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
@@ -175,7 +178,7 @@ export async function getSessionSummaries(params?: {
     // Fallback to cache on error
     const cached = getCachedData<SessionSummary[]>(CACHE_KEY_SUMMARIES);
     if (cached) {
-      console.warn('Using cached session summaries due to error:', error);
+      log.warn('Using cached session summaries due to error', { error: String(error) });
       return cached;
     }
 

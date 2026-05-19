@@ -5,10 +5,13 @@
 
 import { contentCache } from './content-cache';
 import type { ContentItem } from '../types';
-import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
+import { generateTip, generateTrivia, type TipCategory } from '@/lib/api/waiting-room';
 import { api } from '@/lib/api/client';
 import { buildMediaFileUrl } from '@/lib/api/clinic-media';
 import { ROUTES } from '@/lib/api/routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ContentAPI');
 
 /**
  * Fetch FI content seeds from backend API
@@ -36,7 +39,7 @@ export async function fetchContentSeeds(): Promise<ContentItem[]> {
 
     return seeds;
   } catch (error) {
-    console.error('Failed to fetch content seeds, using fallback:', error);
+    log.error('Failed to fetch content seeds, using fallback', { error: String(error) });
 
     // Fallback to minimal static content if API fails
     return [
@@ -70,7 +73,7 @@ export async function fetchDynamicTip(category: TipCategory): Promise<string> {
 
   // Fetch from API
   try {
-    const response = await waitingRoomAPI.generateTip({ category });
+    const response = await generateTip({ category });
     const tip = response.tip;
 
     // Cache for 30 minutes
@@ -78,7 +81,7 @@ export async function fetchDynamicTip(category: TipCategory): Promise<string> {
 
     return tip;
   } catch (error) {
-    console.error('Failed to fetch dynamic tip:', error);
+    log.error('Failed to fetch dynamic tip', { error: String(error) });
     // Fallback to static content
     return 'Mantenerse activo y comer balanceado son pilares de una vida saludable.';
   }
@@ -108,7 +111,7 @@ export async function fetchDynamicTrivia(): Promise<TriviaData> {
 
   // Fetch from API
   try {
-    const response = await waitingRoomAPI.generateTrivia({ difficulty: 'easy' });
+    const response = await generateTrivia({ difficulty: 'easy' });
 
     const triviaData: TriviaData = {
       question: response.question,
@@ -122,7 +125,7 @@ export async function fetchDynamicTrivia(): Promise<TriviaData> {
 
     return triviaData;
   } catch (error) {
-    console.error('Failed to fetch dynamic trivia:', error);
+    log.error('Failed to fetch dynamic trivia', { error: String(error) });
     // Fallback to static content
     return {
       question: '¿Cuántos vasos de agua se recomienda beber al día?',

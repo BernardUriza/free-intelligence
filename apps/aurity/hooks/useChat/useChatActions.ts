@@ -335,14 +335,6 @@ export function useChatActions({
       let finalContent = '';
       let finalThinking = '';
 
-      console.log('[useChatActions.sendMessageStream] Starting stream with context:', {
-        persona: context?.persona,
-        phase,
-        messages: messages.length,
-      });
-
-      console.log('[useChatActions] Starting stream with sendMessageStream');
-
       streamControllerRef.current = assistantApi.chatStream(
         {
           message: userMessage,
@@ -356,41 +348,26 @@ export function useChatActions({
         },
         {
           onThinking: (thinking) => {
-            console.log('[useChatActions] [THINK] onThinking callback called:', thinking.substring(0, 50));
             finalThinking = thinking;
-            setStreamUpdateCounter(c => c + 1);  // Increment to ensure re-render
-            setStreaming(prev => {
-              const updated: StreamingState = {
-                ...prev,
-                status: 'thinking' as const,
-                thinking,
-                isStreaming: true,
-              };
-              console.log('[useChatActions] [THINK] Updated streaming state:', { isStreaming: updated.isStreaming, thinkingLength: updated.thinking.length });
-              return updated;
-            });
+            setStreamUpdateCounter(c => c + 1);
+            setStreaming(prev => ({
+              ...prev,
+              status: 'thinking' as const,
+              thinking,
+              isStreaming: true,
+            }));
           },
           onContent: (content) => {
-            console.log('[useChatActions] [CONTENT] onContent callback called:', content.substring(0, 50), '| Length:', content.length);
             finalContent = content;
-            setStreamUpdateCounter(c => c + 1);  // Increment to ensure re-render (fixes React batching)
-            setStreaming(prev => {
-              const updated: StreamingState = {
-                ...prev,
-                status: 'streaming' as const,
-                content,
-                isStreaming: true,
-              };
-              console.log('[useChatActions] [CONTENT] Updated streaming state:', { isStreaming: updated.isStreaming, contentLength: updated.content.length });
-              return updated;
-            });
+            setStreamUpdateCounter(c => c + 1);
+            setStreaming(prev => ({
+              ...prev,
+              status: 'streaming' as const,
+              content,
+              isStreaming: true,
+            }));
           },
           onComplete: (response) => {
-            console.log('[useChatActions] [OK] onComplete callback called:', {
-              messageLength: response.message.length,
-              hasThinking: !!response.thinking,
-              model: (response as any).model,
-            });
             streamControllerRef.current = null;
 
             // Create final message with thinking at root level (2025-2026 best practice)

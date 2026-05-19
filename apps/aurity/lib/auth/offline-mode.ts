@@ -18,7 +18,10 @@
  * - Check status: await isOfflineModeEnabled()
  */
 
+import { createLogger } from '@/lib/internal/logger';
 import { ROUTES } from '@/lib/api/routes';
+
+const log = createLogger('OfflineMode');
 
 export interface OfflineModeConfig {
   enabled: boolean;
@@ -45,7 +48,7 @@ export async function isOfflineModeEnabled(): Promise<boolean> {
     // Check if expired
     if (config.expiresAt && Date.now() > config.expiresAt) {
       await disableOfflineMode();
-      console.info('[OfflineMode] Session expired, disabled');
+      log.info('Session expired, disabled');
       return false;
     }
 
@@ -89,10 +92,7 @@ export async function enableOfflineMode(
   localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(config));
 
   // Log for audit (no PHI - just the event)
-  console.info('[OfflineMode] Enabled', {
-    reason,
-    expiresAt: new Date(config.expiresAt!).toISOString(),
-  });
+  log.info('Enabled', { reason, expiresAt: new Date(config.expiresAt!).toISOString() });
 }
 
 /**
@@ -100,7 +100,7 @@ export async function enableOfflineMode(
  */
 export async function disableOfflineMode(): Promise<void> {
   localStorage.removeItem(OFFLINE_STORAGE_KEY);
-  console.info('[OfflineMode] Disabled');
+  log.info('Disabled');
 }
 
 /**

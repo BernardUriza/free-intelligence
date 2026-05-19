@@ -306,12 +306,8 @@ export function CalendarView({
             sessionId={auditSessionId}
             isOpen={true}
             onClose={() => setAuditSessionId(null)}
-            onApprove={() => {
-              console.log('[MedicalAI] Session approved:', auditSessionId);
-            }}
-            onReject={() => {
-              console.log('[MedicalAI] Session rejected:', auditSessionId);
-            }}
+            onApprove={() => {}}
+            onReject={() => {}}
           />
         )}
 

@@ -104,10 +104,10 @@ function toFrontendPatient(p: PatientResponse): Patient {
     fechaNacimiento: p.fecha_nacimiento,
     createdAt: p.created_at,
     updatedAt: p.updated_at || undefined,
-    medicalHistory: [], // TODO: Implement in future
-    allergies: [], // TODO: Implement in future
-    chronicConditions: [], // TODO: Implement in future
-    currentMedications: [], // TODO: Implement in future
+    medicalHistory: [],
+    allergies: [],
+    chronicConditions: [],
+    currentMedications: [],
   };
 }
 

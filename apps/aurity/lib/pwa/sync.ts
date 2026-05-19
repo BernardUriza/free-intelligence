@@ -5,6 +5,9 @@
 // =============================================================================
 
 import { getQueuedActions, removeQueuedAction, QueuedAction } from './storage';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Sync');
 
 type SyncHandler = (action: QueuedAction) => Promise<boolean>;
 
@@ -15,7 +18,7 @@ const syncHandlers = new Map<string, SyncHandler>();
  */
 export function registerSyncHandler(type: string, handler: SyncHandler): void {
   syncHandlers.set(type, handler);
-  console.log('[Sync] Registered handler for:', type);
+  log.debug('Registered handler', { type });
 }
 
 /**
@@ -26,13 +29,13 @@ export async function processQueue(): Promise<{ success: number; failed: number 
   let success = 0;
   let failed = 0;
 
-  console.log('[Sync] Processing queue:', actions.length, 'actions');
+  log.debug('Processing queue', { count: actions.length });
 
   for (const action of actions) {
     const handler = syncHandlers.get(action.type);
 
     if (!handler) {
-      console.warn('[Sync] No handler for action type:', action.type);
+      log.warn('No handler for action type', { type: action.type });
       failed++;
       continue;
     }
@@ -43,17 +46,16 @@ export async function processQueue(): Promise<{ success: number; failed: number 
       if (result && action.id) {
         await removeQueuedAction(action.id);
         success++;
-        console.log('[Sync] Action synced:', action.type);
       } else {
         failed++;
       }
     } catch (error) {
-      console.error('[Sync] Failed to sync action:', action.type, error);
+      log.error('Failed to sync action', { type: action.type, error: String(error) });
       failed++;
     }
   }
 
-  console.log('[Sync] Queue processed. Success:', success, 'Failed:', failed);
+  log.info('Queue processed', { success, failed });
   return { success, failed };
 }
 
@@ -62,7 +64,7 @@ export async function processQueue(): Promise<{ success: number; failed: number 
  */
 export function initSyncManager(): () => void {
   const handleOnline = async () => {
-    console.log('[Sync] Device online, processing queue...');
+    log.info('Device online, processing queue');
     await processQueue();
   };
 
@@ -90,11 +92,11 @@ export async function requestBackgroundSync(tag: string = 'sync-queue'): Promise
 
     if ('sync' in registration) {
       await (registration as any).sync.register(tag);
-      console.log('[Sync] Background sync registered:', tag);
+      log.debug('Background sync registered', { tag });
       return true;
     }
   } catch (error) {
-    console.error('[Sync] Background sync registration failed:', error);
+    log.error('Background sync registration failed', { error: String(error) });
   }
 
   return false;

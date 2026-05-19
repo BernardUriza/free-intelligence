@@ -8,8 +8,11 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { fetchClinics, type Doctor, type Clinic } from '@/lib/api/clinics';
 import { useClinicDoctors } from './useClinicDoctors';
+
+const log = createLogger('ClinicManagement');
 
 interface UseClinicManagementArgs {
   isSuperAdmin: boolean;
@@ -48,7 +51,7 @@ export function useClinicManagement({
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error('[MedicalAI] Error fetching clinics:', err);
+          log.error('Failed to fetch clinics', { error: String(err) });
         }
       })
       .finally(() => {

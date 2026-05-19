@@ -14,6 +14,8 @@
  * Created: 2025-12-11
  */
 
+import { createLogger } from '@/lib/internal/logger';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -100,8 +102,7 @@ function loadCSS(href: string, nonce?: string): Promise<void> {
  * Load Bryntum UMD/ESM module dynamically
  * Uses dynamic import with webpackIgnore for Next.js compatibility
  * 
- * Note: Currently uses inline script + window global as temp solution.
- * TODO: Replace with proper npm import when Bryntum package is configured.
+ * Uses inline script + window global (Bryntum requires UMD loading in Next.js).
  */
 function loadModule(umdPath: string, nonce?: string): Promise<any> {
   const existing = loadedResources.get(umdPath);
@@ -253,13 +254,12 @@ export async function loadBryntumOnce(options: LoadBryntumOptions): Promise<void
   // Detect version mismatch and optionally align CSS
   const vm = versionsMismatch(cssHref, umdPath);
   if (vm.mismatch) {
-    // eslint-disable-next-line no-console
-    console.warn('[BryntumLoader] CSS/JS version mismatch detected', { cssVersion: vm.css, jsVersion: vm.js, cssHref, umdPath });
+    const loaderLog = createLogger('BryntumLoader');
+    loaderLog.warn('CSS/JS version mismatch detected', { cssVersion: vm.css, jsVersion: vm.js, cssHref, umdPath });
     if (strictVersionMatch) {
       const alignedCss = tryAlignCssVersion(cssHref, umdPath);
       if (alignedCss !== cssHref) {
-        // eslint-disable-next-line no-console
-        console.info('[BryntumLoader] Aligning CSS href to JS version', { from: cssHref, to: alignedCss });
+        loaderLog.info('Aligning CSS href to JS version', { from: cssHref, to: alignedCss });
         cssHref = alignedCss;
       }
     }
@@ -277,8 +277,8 @@ export async function loadBryntumOnce(options: LoadBryntumOptions): Promise<void
       // eslint-disable-next-line no-await-in-loop
       await loadCSS(href, nonce);
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('[BryntumLoader] Failed to load extra CSS', { href, error: e });
+      const loaderLog = createLogger('BryntumLoader');
+      loaderLog.warn('Failed to load extra CSS', { href, error: String(e) });
     }
   }
 }

@@ -85,9 +85,8 @@ export default function OnboardingPage() {
   }, [router]);
 
   const handleComplete = useCallback(
-    (userData: OnboardingUserData) => {
-      console.log("[Onboarding] Complete with data:", userData);
-      // Could send analytics here
+    (_userData: OnboardingUserData) => {
+      // Onboarding complete — analytics could be sent here
     },
     []
   );
@@ -110,8 +109,6 @@ export default function OnboardingPage() {
     };
     localStorage.setItem("aurity_onboarding_profile", JSON.stringify(profileData));
     localStorage.setItem("aurity_onboarding_completed", "true");
-
-    console.log("[Onboarding] Saved profile, redirecting to login:", profileData);
 
     // Redirect to login
     await loginWithRedirect({

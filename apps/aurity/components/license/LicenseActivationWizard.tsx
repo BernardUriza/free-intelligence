@@ -17,7 +17,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { useLicense, LicenseValidationResult, LicensePayload } from '@/hooks/useLicense';
+
+const log = createLogger('LicenseWizard');
 
 // Tauri imports (optional - only available in desktop)
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
@@ -97,7 +100,7 @@ export function LicenseActivationWizard({
         onActivated?.();
       }, 1500);
     } catch (err) {
-      console.error('[LicenseWizard] File import error:', err);
+      log.error('File import error', { error: String(err) });
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsImportingFile(false);

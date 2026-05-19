@@ -12,6 +12,9 @@
 import type { Session, SessionsListResponse } from "../../types/session";
 import { api } from "./client";
 import { ROUTES } from "./routes";
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ApiClient');
 
 const CACHE_KEY_SESSIONS = "fi_sessions_cache";
 const CACHE_TTL_MS = 30000; // 30 seconds cache TTL
@@ -80,7 +83,7 @@ export async function getSessions(params?: {
     // Fallback to cache on error
     const cached = getCachedData<SessionsListResponse>(CACHE_KEY_SESSIONS);
     if (cached) {
-      console.warn("Using cached sessions data due to error:", error);
+      log.warn('Using cached sessions data due to error', { error: String(error) });
       return cached;
     }
 

@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('DesktopReady');
 
 /**
  * DesktopReadySignal - Shows splash overlay until Tauri is ready
@@ -26,21 +29,20 @@ export function DesktopReadySignal() {
 
           // Listen for when splash actually closes (then hide overlay)
           const unlisten = await listen('splash-closed', () => {
-            console.log('[Layout] Splash closed - hiding overlay');
+            log.info('Splash closed');
             setShowOverlay(false);
             unlisten();
           });
 
-          // Emit to 'main' window specifically (where the listener is)
           await emitTo('main', 'frontend-ready', {});
-          console.log('[Layout] Frontend ready signal emitted to main window');
+          log.info('Frontend ready signal emitted');
 
           // Fallback: hide overlay after 20s if splash-closed never fires
           setTimeout(() => {
             setShowOverlay(false);
           }, 20000);
         } catch (e) {
-          console.error('[Layout] Failed to emit frontend-ready:', e);
+          log.error('Failed to emit frontend-ready', { error: String(e) });
           // Hide overlay on error so app is usable
           setShowOverlay(false);
         }

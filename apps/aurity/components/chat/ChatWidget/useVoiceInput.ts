@@ -6,8 +6,11 @@
  */
 
 import { useRef, useMemo, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { useChatVoiceRecorder } from '@/hooks/useChatVoiceRecorder';
 import type { VoiceRecordingState } from './types';
+
+const log = createLogger('VoiceInput');
 
 export interface UseVoiceInputOptions {
   userId: string;
@@ -48,7 +51,7 @@ export function useVoiceInput({
       setMessage(combined);
     },
     onError: (error) => {
-      console.error('[VoiceInput] Error:', error);
+      log.error('Voice input error', { error: String(error) });
     },
   });
 

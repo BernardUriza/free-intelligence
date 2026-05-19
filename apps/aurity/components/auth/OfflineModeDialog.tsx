@@ -17,6 +17,9 @@ import {
   enableOfflineMode,
   getOfflineModeLimitations,
 } from '@/lib/auth/offline-mode';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('OfflineMode');
 
 interface OfflineModeDialogProps {
   /**
@@ -56,7 +59,7 @@ export function OfflineModeDialog({
       await enableOfflineMode(reason);
       onConfirm();
     } catch (error) {
-      console.error('[OfflineModeDialog] Failed to enable offline mode:', error);
+      log.error('Failed to enable offline mode', { error: String(error) });
     } finally {
       setIsConfirming(false);
     }

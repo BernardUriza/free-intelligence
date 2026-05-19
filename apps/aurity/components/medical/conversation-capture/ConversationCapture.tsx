@@ -10,7 +10,10 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { AlertCircle } from 'lucide-react';
+
+const log = createLogger('ConversationCapture');
 import { useClipboard } from '@/hooks/useClipboard';
 import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { useChunkProcessor } from '@/hooks/useChunkProcessor';
@@ -74,9 +77,9 @@ export function ConversationCapture({
     onRecordingStart: () => setExternalIsRecording?.(true),
     onRecordingStop: () => setExternalIsRecording?.(false),
     onSessionCreated: (sid) => onSessionCreated?.(sid),
-    onDiarizationStart: (jobId) => console.log('[Orchestrator] Diarization started:', jobId),
-    onSOAPStart: (jobId) => console.log('[Orchestrator] SOAP started:', jobId),
-    onWorkflowComplete: () => { console.log('[Orchestrator] Complete'); onNext?.(); },
+    onDiarizationStart: () => {},
+    onSOAPStart: () => {},
+    onWorkflowComplete: () => { onNext?.(); },
   });
 
   // ========== UI State ==========
@@ -216,7 +219,6 @@ export function ConversationCapture({
     pollInterval: POLLING_CONFIG.INITIAL_INTERVAL,
     maxInterval: POLLING_CONFIG.MAX_INTERVAL,
     onComplete: async () => {
-      console.log('[Diarization] Completed');
       metrics.addLog('[OK] Diarización completada');
       session.setIsFinalized(true);
 
@@ -231,7 +233,7 @@ export function ConversationCapture({
             await orchestrator.startSOAPGeneration();
             metrics.addLog('[OK] Generación SOAP iniciada');
           } catch (error) {
-            console.error('[SOAP] Failed:', error);
+            log.error('SOAP generation failed', { error: String(error) });
             metrics.addLog('[WARN] Error al generar SOAP');
           }
         }
@@ -241,7 +243,7 @@ export function ConversationCapture({
       }, 2000);
     },
     onError: (error) => {
-      console.error('[Diarization] Error:', error);
+      log.error('Diarization error', { error: String(error) });
       session.setShowDiarizationModal(false);
       session.setDiarizationJobId(null);
       session.sessionIdRef.current = '';

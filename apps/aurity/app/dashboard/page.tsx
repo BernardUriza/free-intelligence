@@ -21,7 +21,10 @@
  */
 
 import React, { useEffect, useState, Suspense, memo } from "react"
+import { createLogger } from '@/lib/internal/logger'
 import { useSearchParams } from "next/navigation"
+
+const log = createLogger('Dashboard')
 import Image from "next/image"
 import Link from "next/link"
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute"
@@ -137,7 +140,7 @@ const TVModeDisplay = memo(function TVModeDisplay() {
         const media = await listClinicMedia({ activeOnly: true })
         setSlides(media)
       } catch (error) {
-        console.error("Failed to fetch slides:", error)
+        log.error('Failed to fetch slides', { error: String(error) })
       }
     }
     fetchSlides()

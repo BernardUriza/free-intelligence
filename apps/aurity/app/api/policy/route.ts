@@ -9,7 +9,10 @@
  */
 
 import { NextResponse } from 'next/server';
+import { createLogger } from '@/lib/internal/logger';
 import { ROUTES } from '@/lib/api/routes';
+
+const log = createLogger('PolicyAPI');
 
 // Required for static export (Next.js 16 with output: 'export')
 export const dynamic = 'force-static';
@@ -46,7 +49,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[Policy API] Failed to fetch policy:', error);
+    log.error('Failed to fetch policy', { error: String(error) });
 
     return NextResponse.json(
       {

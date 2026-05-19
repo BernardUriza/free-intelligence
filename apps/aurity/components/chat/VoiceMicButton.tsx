@@ -87,16 +87,10 @@ export function VoiceMicButton({
   const isDisabled = isTranscribing && !isRecording;
 
   const handleClick = () => {
-    console.log('[VoiceMicButton] Click!', { isRecording, isTranscribing });
-
     if (isRecording) {
-      console.log('[VoiceMicButton] Stopping recording...');
       onStop();
     } else if (!isTranscribing) {
-      console.log('[VoiceMicButton] Starting recording...');
       onStart();
-    } else {
-      console.log('[VoiceMicButton] Transcribing, ignoring click');
     }
   };
 

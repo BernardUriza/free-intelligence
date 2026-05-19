@@ -13,6 +13,9 @@ import type { FIMessage, OnboardingPhase } from '@aurity-standalone/types/assist
 import type { IMessageStorage } from '@/lib/chat/storage';
 import type { IBackendSync, IRealtimeSync } from '@/lib/chat/sync-strategy';
 import { INITIAL_MESSAGES_LIMIT, isConnectionError } from './utils';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ChatSync');
 
 export interface UseChatSyncOptions {
   storageKey?: string;
@@ -77,7 +80,7 @@ export function useChatSync({
       const loaded = storage.load(storageKey);
       if (loaded.length > 0) {
         const deduped = mergeMessages(loaded, []);
-        console.log('[Chat:Load] Loaded', loaded.length, '→ Deduped to', deduped.length);
+        log.debug('Storage loaded', { loaded: loaded.length, deduped: deduped.length });
 
         if (deduped.length > INITIAL_MESSAGES_LIMIT) {
           const visibleMessages = deduped.slice(-INITIAL_MESSAGES_LIMIT);
@@ -138,7 +141,7 @@ export function useChatSync({
         });
       } catch (err) {
         if (!isConnectionError(err)) {
-          console.error('[Chat:Sync] Backend sync failed:', err);
+          log.error('Backend sync failed', { error: String(err) });
         }
       }
     };
@@ -159,10 +162,9 @@ export function useChatSync({
     const enabled = !!doctorId && !!storageKey;
     if (!enabled || loadingInitial) return;
 
-    console.log('[Chat:WS] Connecting...');
+    log.debug('WebSocket connecting');
 
     realtimeSync.connect(doctorId, (message) => {
-      console.log('[Chat:WS] Received message');
 
       setMessages(prev => {
         const exists = prev.some(m => {
@@ -178,7 +180,6 @@ export function useChatSync({
     });
 
     return () => {
-      console.log('[Chat:WS] Disconnecting...');
       realtimeSync.disconnect();
     };
   }, [doctorId, storageKey, realtimeSync, loadingInitial, setMessages]);

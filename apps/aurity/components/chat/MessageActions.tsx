@@ -11,6 +11,9 @@ import { useState } from 'react';
 import { Copy, Check, MoreVertical, Trash2, Pin, Reply, Volume2 } from 'lucide-react';
 import { confirmDelete } from '@/lib/swal';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('MessageActions');
 
 export interface MessageActionsProps {
   /** Message content to copy */
@@ -46,7 +49,7 @@ export function CopyButton({ content, size = 'sm' }: { content: string; size?: '
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to copy', { error: String(err) });
     }
   };
 
@@ -165,7 +168,7 @@ export function MessageActions({
       setTimeout(() => setCopied(false), 2000);
       setIsOpen(false);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to copy', { error: String(err) });
     }
   };
 
@@ -248,7 +251,7 @@ export function CodeBlockWithCopy({ code, language }: { code: string; language?:
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy code:', err);
+      log.error('Failed to copy code', { error: String(err) });
     }
   };
 

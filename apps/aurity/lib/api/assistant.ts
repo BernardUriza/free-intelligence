@@ -12,6 +12,9 @@ import { api, getBackendUrl } from './client';
 import { ROUTES } from './routes';
 import { getRoles, type TokenClaims } from '@aurity-standalone/auth';
 import { sanitizeMessagePreview, hash8 } from '@aurity-standalone/observability';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AssistantAPI');
 
 // ============================================================================
 // Errors
@@ -210,7 +213,7 @@ function extractAssistantMessage(response: {
 }): string {
   const content = response.choices?.[0]?.message?.content;
   if (typeof content !== 'string') {
-    console.warn('[assistantApi] Missing or invalid message content', { response });
+    log.warn('Missing or invalid message content');
     return '';
   }
   return content;
@@ -298,14 +301,6 @@ export const assistantApi = {
       const maybeId = rawPersona.id || rawPersona.value || rawPersona.name;
       if (typeof maybeId === 'string' && maybeId.trim()) personaFromContext = maybeId;
     }
-    console.log('[assistantApi.chat]', {
-      doctor_id_present: Boolean(request.doctor_id),
-      session_id_present: Boolean(request.session_id),
-      message_len: request.message.length,
-      preview_hash8: previewHash,
-      persona: personaFromContext, // DEBUG: Log persona being sent
-      context_keys: Object.keys(request.context || {}), // DEBUG: Log context structure
-    });
     const payload = {
       messages,
       user: request.doctor_id, // OpenAI 'user' field = our doctor_id
@@ -315,11 +310,6 @@ export const assistantApi = {
       response_mode: request.response_mode ?? 'explanatory', // Default explanatory
       persona: personaFromContext, // Extract persona from context
     };
-
-    console.log('[assistantApi.chat] Payload being sent:', {
-      ...payload,
-      messages: `[${payload.messages.length} messages]`, // Don't log full messages
-    });
 
     // Add onboarding mode header for onboarding_guide persona (bypasses auth)
     const customHeaders: Record<string, string> = {};
@@ -352,13 +342,6 @@ export const assistantApi = {
     // Extract and sanitize assistant's response
     const assistantMessage = extractAssistantMessage(response);
     const safeMsg = sanitizeMessagePreview(assistantMessage, 10_000);
-
-    // DEBUG: Log backend response model
-    console.log('[assistantApi.chat] Backend response:', {
-      model: response.model,
-      hasModel: Boolean(response.model),
-      persona: response.persona,
-    });
 
     // Return structured response with defaults
     return {
@@ -495,14 +478,6 @@ export const assistantApi = {
           streamHeaders['X-Onboarding-Mode'] = 'true';
         }
 
-        console.log('[assistantApi.chatStream] [REQUEST] Sending request to backend:', {
-          url: `${backendUrl}${ROUTES.assistant}/chat/stream`,
-          persona: requestBody.persona,
-          messages: messages.length,
-          lastMessage: messages[messages.length - 1]?.content?.substring(0, 50),
-          hasOnboardingHeader: requestBody.persona === 'onboarding_guide',
-        });
-
         const response = await fetch(
           `${backendUrl}${ROUTES.assistant}/chat/stream`,
           {
@@ -514,10 +489,7 @@ export const assistantApi = {
         );
 
         if (!response.ok) {
-          console.error('[assistantApi.chatStream] [ERROR] Response not OK:', {
-            status: response.status,
-            statusText: response.statusText,
-          });
+          log.error('Stream request failed', { status: response.status });
           throw new Error(`Stream request failed: ${response.status}`);
         }
 
@@ -525,22 +497,14 @@ export const assistantApi = {
           throw new Error('Response body is null');
         }
 
-        console.log('[assistantApi.chatStream] [OK] Response OK, starting to read stream...');
-
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let chunkCount = 0;
-        let dataLineCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            console.log('[assistantApi.chatStream] [DONE] Stream reading done');
-            break;
-          }
+          if (done) break;
 
-          chunkCount++;
           const decodedValue = decoder.decode(value, { stream: true });
           buffer += decodedValue;
           const lines = buffer.split('\n');
@@ -549,45 +513,28 @@ export const assistantApi = {
           for (const line of lines) {
             if (!line.trim()) continue;
 
-            // DEBUG: Log every non-empty line received
-            console.log('[assistantApi.chatStream] [RAW] RAW LINE:', line.substring(0, 80));
-
             if (line.startsWith('event:')) {
               currentEvent = line.slice(6).trim();
-              console.log('[assistantApi.chatStream] [EVENT] Event type SET TO:', currentEvent);
               continue;
             }
 
             if (line.startsWith('data:')) {
-              console.log('[assistantApi.chatStream] [DATA] Processing data line, currentEvent=', currentEvent);
-              dataLineCount++;
               const data = line.slice(5).trim();
-              if (data === '[DONE]') {
-                console.log('[assistantApi.chatStream] [COMPLETE] Received [DONE]');
-                continue;
-              }
+              if (data === '[DONE]') continue;
 
               try {
                 const jsonData = JSON.parse(data);
 
                 // Capture model and persona if present (sent by backend in done event)
-                if (jsonData.model) {
-                  model = jsonData.model;
-                  console.log('[assistantApi.chatStream] [MODEL] Model:', model);
-                }
-                if (jsonData.persona) {
-                  persona = jsonData.persona;
-                  console.log('[assistantApi.chatStream] [PERSONA] Persona:', persona);
-                }
+                if (jsonData.model) model = jsonData.model;
+                if (jsonData.persona) persona = jsonData.persona;
 
                 if (currentEvent === 'meta' && jsonData.thinking) {
                   thinking += jsonData.thinking;
-                  console.log('[assistantApi.chatStream] [THINK] Thinking chunk:', jsonData.thinking.substring(0, 30) + '...');
                   onThinking?.(thinking);
                 } else if (jsonData.choices?.[0]?.delta?.content) {
                   const deltaContent = jsonData.choices[0].delta.content;
                   content += deltaContent;
-                  console.log('[assistantApi.chatStream] [CONTENT] Content delta:', deltaContent, '| Total length:', content.length);
                   // Call onContent immediately, then yield to ensure React commits this update
                   // before processing the next chunk (prevents React 18+ batching)
                   onContent?.(sanitizeMessagePreview(content, 10_000));
@@ -596,7 +543,6 @@ export const assistantApi = {
 
                 currentEvent = 'message';
               } catch {
-                console.warn('[assistantApi.chatStream] [WARN] Failed to parse JSON:', data.substring(0, 50));
                 // Non-JSON data
                 if (currentEvent === 'meta') {
                   thinking += data;
@@ -610,13 +556,6 @@ export const assistantApi = {
           }
         }
 
-        console.log('[assistantApi.chatStream] [STATS] Stream complete:', {
-          totalChunks: chunkCount,
-          dataLines: dataLineCount,
-          contentLength: content.length,
-          thinkingLength: thinking.length,
-        });
-
         // Stream complete - use persona from backend or fallback to request persona
         onComplete?.({
           message: sanitizeMessagePreview(content, 10_000),
@@ -626,9 +565,7 @@ export const assistantApi = {
           thinking: sanitizeMessagePreview(thinking, 10_000) || undefined,
         });
       } catch (error) {
-        console.error('[assistantApi.chatStream] [FATAL] Stream error:', error);
         if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[assistantApi.chatStream] [ABORT] Stream aborted');
           onAbort?.();
           return;
         }

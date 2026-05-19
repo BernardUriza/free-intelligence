@@ -25,6 +25,9 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
 import ulid
+from fi_core.persona import BreakDetector
+from fi_core.persona import packs as _persona_packs
+
 from backend.services.audit.services.audit_service import AuditService
 from backend.infrastructure.observability.hooks import log_llm_call, log_llm_error
 from backend.policy.policy_loader import PolicyLoader
@@ -33,6 +36,16 @@ from backend.services.llm.services.conversation_memory import get_memory_manager
 from backend.services.llm.services.persona.manager import PersonaManager
 from backend.infrastructure.interfaces.ilogger import ILogger
 from backend.utils.common.logging.logger import get_logger
+
+# Persona character-integrity detector — bilingual (EN + ES) AI-disclosure patterns.
+# Used in audit-only mode: detects when the LLM breaks the configured medical
+# persona (e.g. emits "As an AI" or "Soy un bot" in response to a clinical
+# query). We log the occurrence for observability but do NOT retry or sanitize,
+# since clinicians prefer raw model output over silently filtered responses.
+_PERSONA_BREAK_DETECTOR = BreakDetector(
+    patterns=_persona_packs.GENERIC_AI_DISCLOSURE_EN + _persona_packs.GENERIC_AI_DISCLOSURE_ES,
+    reinforcement="",  # audit-only mode — caller decides whether to retry
+)
 
 # In-memory trace store for request tracing
 class InMemoryTraceStore:
@@ -335,6 +348,23 @@ class DIChatService:
 
             response_text = llm_response.content.strip()
             response_hash = hashlib.sha256(response_text.encode()).hexdigest()
+
+            # Persona character-integrity check (audit-only).
+            # Logs a warning if the model broke the configured medical persona
+            # by emitting AI-disclosure patterns. Does NOT retry or sanitize —
+            # clinicians get the raw output and the observability layer captures
+            # the drift for later review.
+            persona_break_matches = _PERSONA_BREAK_DETECTOR.detect(response_text)
+            if persona_break_matches:
+                self.logger.warning(
+                    "PERSONA_CHARACTER_BREAK",
+                    request_id=request_id,
+                    trace_id=trace_id,
+                    persona=effective_persona,
+                    matched_patterns=persona_break_matches,
+                    response_hash=response_hash[:12],
+                    session_id=session_id,
+                )
 
             latency_ms = int((time.time() - start_time) * 1000)
 

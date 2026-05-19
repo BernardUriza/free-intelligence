@@ -113,14 +113,19 @@ export function useEmotionalContext(
   const lastMessageRef = useRef<string>('');
   const lastClickTimeRef = useRef<number>(0);
 
-  // Debug logger
+  // Debug logger (uses createLogger internally)
+  const emotionalLog = useMemo(() => {
+    const { createLogger } = require('@/lib/internal/logger');
+    return createLogger('EmotionalContext');
+  }, []);
+
   const log = useCallback(
     (message: string, data?: any) => {
       if (debug) {
-        console.log(`[EmotionalContext] ${message}`, data || '');
+        emotionalLog.debug(message, data || {});
       }
     },
-    [debug]
+    [debug, emotionalLog]
   );
 
   // Recalculate emotional state

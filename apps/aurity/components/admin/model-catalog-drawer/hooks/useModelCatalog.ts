@@ -16,6 +16,9 @@ import type { LLMModelCreate } from '@aurity-standalone/types/llm';
 import { toastSuccess, toastError, confirmDialog } from '@/lib/swal';
 import type { SourceState, SourceFilter } from '../types';
 import { SOURCES, INITIAL_SOURCE_STATES, FEATURED_MODEL_IDS } from '../constants';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ModelCatalog');
 
 interface UseModelCatalogOptions {
   isOpen: boolean;
@@ -118,7 +121,7 @@ export function useModelCatalog({ isOpen, onModelInstalled }: UseModelCatalogOpt
       }));
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      console.error(`Failed to load ${source}:`, err);
+      log.error(`Failed to load source`, { source, error: String(err) });
       setSourceStates((prev) => ({
         ...prev,
         [source]: {
@@ -133,7 +136,7 @@ export function useModelCatalog({ isOpen, onModelInstalled }: UseModelCatalogOpt
   // Load catalog progressively
   const loadCatalog = useCallback(async () => {
     setSourceStates(INITIAL_SOURCE_STATES as Record<CatalogSource, SourceState>);
-    fetchSourcesStatus().then(setSourcesStatus).catch(console.error);
+    fetchSourcesStatus().then(setSourcesStatus).catch((err) => log.error('Failed to fetch sources status', { error: String(err) }));
 
     if (sourceFilter !== 'all' && sourceFilter !== 'installed') {
       const source = sourceFilter as CatalogSource;

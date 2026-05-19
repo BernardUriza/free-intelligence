@@ -18,6 +18,7 @@ Requirements:
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 
 import httpx
@@ -30,7 +31,7 @@ import numpy as np
 
 RAG_SERVICE_URL = "http://localhost:11435"
 GATEWAY_URL = "http://localhost:11400"
-RAG_API_KEY = "change-me-in-production"  # TODO: From env
+RAG_API_KEY = os.environ.get("RAG_API_KEY", "change-me-in-production")
 
 
 # ============================================================================

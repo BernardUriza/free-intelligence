@@ -7,6 +7,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchPatients, createPatient, type Patient } from '@/lib/api/patients';
 import type { NewPatientForm } from '../types';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PatientSearch');
 
 interface UsePatientSearchProps {
   onPatientSelect: (patientId: string, patientName: string) => void;
@@ -45,7 +48,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          console.error('[usePatientSearch] Search failed:', err);
+          log.error('Search failed', { error: String(err) });
           setResults([]);
         }
       } finally {
@@ -104,7 +107,7 @@ export function usePatientSearch({ onPatientSelect }: UsePatientSearchProps) {
       setShowDropdown(false);
       setNewPatient({ nombre: '', apellido: '', email: '', phone: '' });
     } catch (err) {
-      console.error('[usePatientSearch] Create patient failed:', err);
+      log.error('Create patient failed', { error: String(err) });
       const errorMessage = err instanceof Error ? err.message : 'Error al crear paciente';
       alert(errorMessage);
     } finally {

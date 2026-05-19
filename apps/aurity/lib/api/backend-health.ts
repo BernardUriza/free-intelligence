@@ -25,6 +25,10 @@
  * Created: 2025-11-26
  */
 
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('BackendHealth');
+
 // How long to wait before trying again after failures (circuit breaker)
 const COOLDOWN_AFTER_FAILURE_MS = 60000; // 60 seconds
 // How many failures before entering cooldown
@@ -79,7 +83,7 @@ class BackendHealthService {
         return false;
       }
       // Cooldown expired - reset and allow one attempt
-      console.log('[BackendHealth] Cooldown expired, allowing retry');
+      log.info('Cooldown expired, allowing retry');
       this.consecutiveFailures = 0;
     }
     return true;
@@ -95,7 +99,7 @@ class BackendHealthService {
     this.lastFailureTime = 0;
 
     if (wasUnavailable) {
-      console.log('[BackendHealth] Backend is now available');
+      log.info('Backend is now available');
       this.notifySubscribers();
     }
   }
@@ -110,7 +114,7 @@ class BackendHealthService {
     // After threshold failures, mark as unavailable
     if (this.consecutiveFailures >= FAILURE_THRESHOLD && this.available) {
       this.available = false;
-      console.log(`[BackendHealth] Backend unavailable after ${this.consecutiveFailures} failures (cooldown: ${COOLDOWN_AFTER_FAILURE_MS / 1000}s)`);
+      log.warn('Backend unavailable', { failures: this.consecutiveFailures, cooldownSec: COOLDOWN_AFTER_FAILURE_MS / 1000 });
       this.notifySubscribers();
     }
   }
@@ -145,7 +149,7 @@ class BackendHealthService {
       try {
         callback(this.available);
       } catch (err) {
-        console.error('[BackendHealth] Subscriber error:', err);
+        log.error('Subscriber error', { error: String(err) });
       }
     });
   }

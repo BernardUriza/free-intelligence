@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import type {
   BryntumSchedulerInstance,
   BryntumSchedulerConfig,
@@ -52,7 +53,7 @@ function loadBryntumCSS(): void {
  * Load Bryntum JS module dynamically
  * Returns SchedulerPro constructor
  * 
- * TODO: Replace with proper npm import once Bryntum package is installed
+ * Loads Bryntum JS module via UMD script (required for Next.js compatibility)
  */
 async function loadBryntumModule(): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -125,10 +126,6 @@ export function useSchedulerLifecycle({
         throw new Error('Container ref lost during async load');
       }
 
-      // Debug: Verify resources in config
-      console.error('[useSchedulerLifecycle] Initializing with resources:', config.resources);
-      console.warn('[useSchedulerLifecycle] Events count:', Array.isArray(config.events) ? config.events.length : 0);
-
       // Instantiate scheduler
       // @ts-expect-error - SchedulerPro constructor (typed in config)
       const instance = new SchedulerPro({
@@ -139,15 +136,13 @@ export function useSchedulerLifecycle({
       instanceRef.current = instance as BryntumSchedulerInstance;
       isInitializedRef.current = true;
 
-      // Debug: Verify resources were loaded
-      console.error('[useSchedulerLifecycle] Scheduler created with resourceStore:', instance.resourceStore?.count || 0, 'resources');
-
       if (onReady) {
         onReady(instance as BryntumSchedulerInstance);
       }
     } catch (error) {
-      console.error('Failed to initialize Bryntum SchedulerPro:', error);
-      
+      const log = createLogger('SchedulerLifecycle');
+      log.error('Failed to initialize Bryntum SchedulerPro', { error: String(error) });
+
       if (onError) {
         onError(error as Error);
       }

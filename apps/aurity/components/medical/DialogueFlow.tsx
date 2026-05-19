@@ -17,6 +17,9 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('DialogueFlow');
 import {
   ChevronRight,
   Loader2,
@@ -112,7 +115,7 @@ export function DialogueFlow({
         setProvider(response.provider);
         setCompletedAt(response.completed_at);
       } catch (err: any) {
-        console.error('[DialogueFlow] Failed to load segments:', err);
+        log.error('Failed to load segments', { error: String(err) });
 
         // Check if 404 - diarization doesn't exist yet
         const is404 = (err instanceof APIError && err.status === 404) ||
@@ -120,7 +123,6 @@ export function DialogueFlow({
                       err?.message?.includes('Diarization task not found');
 
         if (is404) {
-          console.log('[DialogueFlow] Diarization not found, starting automatically...');
           await startDiarizationAutomatically();
         } else {
           setError(err instanceof Error ? err.message : 'Failed to load segments');
@@ -157,13 +159,13 @@ export function DialogueFlow({
               setError('Diarization failed: ' + (status.error || 'Unknown error'));
             }
           } catch (pollErr) {
-            console.error('[DialogueFlow] Polling error:', pollErr);
+            log.error('Diarization polling error', { error: String(pollErr) });
           }
         }, 3000);
 
         return () => clearInterval(pollInterval);
       } catch (err) {
-        console.error('[DialogueFlow] Failed to start diarization:', err);
+        log.error('Failed to start diarization', { error: String(err) });
         setIsProcessing(false);
         setError('Failed to start diarization automatically');
       }
@@ -239,7 +241,7 @@ export function DialogueFlow({
 
         setEditingId(null);
       } catch (err) {
-        console.error('[DialogueFlow] Failed to save segment edit:', err);
+        log.error('Failed to save segment edit', { error: String(err) });
         toastError('Error al guardar la edición');
       }
     },

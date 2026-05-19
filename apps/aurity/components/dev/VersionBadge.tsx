@@ -42,7 +42,7 @@ export function VersionBadge() {
             releaseVersion = releasesData.releases?.[0]?.version || null;
           }
         } catch {
-          console.debug('VersionBadge: Could not fetch release info');
+          // Silent fail - release info is non-critical
         }
 
         // Fetch backend info (environment, build_timestamp, etc.)
@@ -55,9 +55,8 @@ export function VersionBadge() {
           version: releaseVersion || data.version,
           backend_port: backendPort,
         });
-      } catch (err) {
+      } catch {
         // Silently fail - version badge is non-critical
-        console.debug('VersionBadge: Could not fetch version', err);
       }
     };
 

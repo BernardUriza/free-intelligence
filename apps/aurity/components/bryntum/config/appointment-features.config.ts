@@ -120,7 +120,6 @@ export const APPOINTMENT_FEATURES: SchedulerFeatures = {
         icon: 'b-fa b-fa-check',
         weight: 100,
         onItem: ({ eventRecord }: { eventRecord: any }) => {
-          // TODO: Update appointment status via API
           eventRecord.status = 'confirmed';
         },
       },

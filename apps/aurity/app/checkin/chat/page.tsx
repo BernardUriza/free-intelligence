@@ -119,9 +119,8 @@ function ChatCheckinContent() {
         <ReceptionistChatWidget
           clinicId={clinicId}
           patientName={patientName || undefined}
-          onCheckinComplete={(result) => {
-            console.log('[ChatCheckin] Check-in completed:', result);
-            // Could show success overlay or redirect
+          onCheckinComplete={() => {
+            // Check-in completed — success handled by ReceptionistChatWidget UI
           }}
         />
       </main>

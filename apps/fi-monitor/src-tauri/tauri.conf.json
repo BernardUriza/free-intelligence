@@ -34,7 +34,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,6 +43,10 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/fi-backend"],
+    "resources": {
+      "binaries/OllamaSetup-x86_64-pc-windows-msvc.exe": "OllamaSetup.exe",
+      "binaries/python-3.14.0-amd64-x86_64-pc-windows-msvc.exe": "python-3.14.0-amd64.exe"
+    },
     "category": "DeveloperTool",
     "shortDescription": "Ollama Tunnel Manager for Aurity",
     "longDescription": "FI Monitor manages the Cloudflare tunnel that exposes your local Ollama instance to the Aurity cloud backend.",

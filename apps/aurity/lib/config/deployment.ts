@@ -16,6 +16,7 @@ import {
   isDesktop,
   isCloud,
 } from '@/lib/environment';
+import { createLogger } from '@/lib/internal/logger';
 
 // Re-export types and functions for backward compatibility
 export type { DeploymentTarget } from '@/lib/environment';
@@ -140,7 +141,8 @@ export function logDeploymentConfig(): void {
   const isDev = process.env.NODE_ENV === 'development';
   if (!isDev) return;
 
-  console.log('[Deployment Config]', {
+  const deployLog = createLogger('Deployment');
+  deployLog.debug('Config', {
     target: getDeploymentTarget(),
     isTauri: detectTauri(),
     backendUrl: getBackendUrl(),

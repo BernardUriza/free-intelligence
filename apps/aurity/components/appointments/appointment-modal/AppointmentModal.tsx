@@ -10,6 +10,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { X, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AppointmentModal');
 
 import type { AppointmentModalProps } from './types';
 import { usePatientSearch, useAppointmentForm } from './hooks';
@@ -72,7 +75,7 @@ export function AppointmentModal({
       await onDelete(initialData.appointment_id);
       onClose();
     } catch (err) {
-      console.error('[AppointmentModal] delete failed:', err);
+      log.error('Delete failed', { error: String(err) });
     } finally {
       setDeleting(false);
     }

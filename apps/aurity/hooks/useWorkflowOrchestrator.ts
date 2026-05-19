@@ -14,7 +14,10 @@
  */
 
 import { useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('WorkflowOrchestrator');
 import { getBackendUrl } from '@/lib/config/deployment';
 import { ROUTES } from '@/lib/api/routes';
 import type { WorkflowSessionState } from './useWorkflowSession';
@@ -175,7 +178,7 @@ export function useWorkflowOrchestrator(
       const audioUrl = `${getBackendUrl()}${ROUTES.medicalAi}/sessions/${session.sessionId}/audio`;
       session.setPausedAudioUrl(audioUrl);
     } catch (error) {
-      console.error('Checkpoint creation failed:', error);
+      log.error('Checkpoint creation failed', { error: String(error) });
       session.setCheckpointState({
         isCreating: false,
         lastCheckpoint: null,
@@ -209,7 +212,7 @@ export function useWorkflowOrchestrator(
 
       return response.job_id;
     } catch (error) {
-      console.error('Diarization start failed:', error);
+      log.error('Diarization start failed', { error: String(error) });
       session.setError(error instanceof Error ? error.message : 'Error al iniciar diarización');
       metrics.addLog('Error al iniciar diarización');
       return null;
@@ -234,7 +237,7 @@ export function useWorkflowOrchestrator(
         onSOAPStart(response.job_id);
       }
     } catch (error) {
-      console.error('SOAP generation start failed:', error);
+      log.error('SOAP generation start failed', { error: String(error) });
       session.setError(error instanceof Error ? error.message : 'Error al generar SOAP');
       metrics.addLog('Error al generar SOAP');
     }

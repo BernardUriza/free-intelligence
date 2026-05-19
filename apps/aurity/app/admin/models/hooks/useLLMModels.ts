@@ -18,6 +18,9 @@ import {
   deleteLLMModel,
 } from '@aurity-standalone/api-client/llm-models';
 import { confirmDialog, toastSuccess, toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('LLMModels');
 
 export function useLLMModels() {
   const [models, setModels] = useState<LLMModel[]>([]);
@@ -39,7 +42,7 @@ export function useLLMModels() {
       });
       setModels(data);
     } catch (err) {
-      console.error('Failed to load LLM models:', err);
+      log.error('Failed to load models', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al cargar los modelos');
     } finally {
       setLoading(false);
@@ -56,7 +59,7 @@ export function useLLMModels() {
       setModels((prev) => [...prev, newModel]);
       toastSuccess('Modelo creado correctamente');
     } catch (err) {
-      console.error('Failed to create model:', err);
+      log.error('Failed to create model', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al crear el modelo');
       throw err;
     }
@@ -68,7 +71,7 @@ export function useLLMModels() {
       setModels((prev) => prev.map((m) => (m.id === modelId ? updated : m)));
       toastSuccess('Modelo actualizado correctamente');
     } catch (err) {
-      console.error('Failed to update model:', err);
+      log.error('Failed to update model', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al actualizar el modelo');
       throw err;
     }
@@ -91,7 +94,7 @@ export function useLLMModels() {
       }
       toastSuccess('Modelo desactivado correctamente');
     } catch (err) {
-      console.error('Failed to delete model:', err);
+      log.error('Failed to delete model', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al eliminar el modelo');
     }
   }, [selectedModel]);
@@ -102,7 +105,7 @@ export function useLLMModels() {
       setModels((prev) => prev.map((m) => (m.id === model.id ? updated : m)));
       toastSuccess(updated.is_active ? 'Modelo activado' : 'Modelo desactivado');
     } catch (err) {
-      console.error('Failed to toggle model:', err);
+      log.error('Failed to toggle model', { error: String(err) });
       toastError(err instanceof Error ? err.message : 'Error al cambiar estado del modelo');
     }
   }, []);

@@ -2,7 +2,7 @@
  * AIContentGenerator - Generate AI-powered health content for TV display
  *
  * Card: FI-UI-FEAT-TVD-002
- * Uses waitingRoomAPI to generate health tips and trivia questions
+ * Uses waiting-room API functions to generate health tips and trivia questions
  * that can be added to the TV display rotation.
  */
 
@@ -11,9 +11,12 @@
 import { useState, useCallback } from 'react';
 import { Sparkles, Lightbulb, HelpCircle, RefreshCw, Send, Check, Copy, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { waitingRoomAPI, type TipCategory } from '@/lib/api/waiting-room';
+import { generateTip, generateTrivia, type TipCategory } from '@/lib/api/waiting-room';
 import { AI_CONTENT_CATEGORIES, AI_TRIVIA_DIFFICULTIES } from '@/lib/dashboard/constants';
 import { getDynamicIcon } from '@/lib/icons';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AIContentGenerator');
 
 interface AIContentGeneratorProps {
   /** Callback when content is ready to be added to TV */
@@ -51,7 +54,7 @@ export function AIContentGenerator({
     setGeneratedContent(null);
 
     try {
-      const response = await waitingRoomAPI.generateTip({ category: selectedCategory });
+      const response = await generateTip({ category: selectedCategory });
 
       const content: GeneratedContent = {
         type: 'tip',
@@ -63,7 +66,7 @@ export function AIContentGenerator({
 
       setGeneratedContent(content);
     } catch (err) {
-      console.error('Failed to generate tip:', err);
+      log.error('Failed to generate tip', { category: selectedCategory, error: String(err) });
       setError('Error al generar el tip. Intenta de nuevo.');
     } finally {
       setIsGenerating(false);
@@ -76,7 +79,7 @@ export function AIContentGenerator({
     setGeneratedContent(null);
 
     try {
-      const response = await waitingRoomAPI.generateTrivia({ difficulty: selectedDifficulty });
+      const response = await generateTrivia({ difficulty: selectedDifficulty });
 
       const content: GeneratedContent = {
         type: 'trivia',
@@ -91,7 +94,7 @@ export function AIContentGenerator({
 
       setGeneratedContent(content);
     } catch (err) {
-      console.error('Failed to generate trivia:', err);
+      log.error('Failed to generate trivia', { difficulty: selectedDifficulty, error: String(err) });
       setError('Error al generar la trivia. Intenta de nuevo.');
     } finally {
       setIsGenerating(false);

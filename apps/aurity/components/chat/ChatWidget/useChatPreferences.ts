@@ -82,20 +82,17 @@ export function useChatPreferences(): UseChatPreferencesReturn {
   const setPersona = useCallback((newPersona: PersonaType) => {
     if (newPersona === selectedPersona) return;
 
-    console.log(`[ChatPreferences] Persona: ${selectedPersona} → ${newPersona}`);
     setSelectedPersona(newPersona);
     localStorage.setItem(STORAGE_KEYS.PERSONA, newPersona);
   }, [selectedPersona]);
 
   const toggleShowThinking = useCallback(() => {
     const newValue = !showThinking;
-    console.log(`[ChatPreferences] ShowThinking: ${showThinking} → ${newValue}`);
     setShowThinking(newValue);
     localStorage.setItem(STORAGE_KEYS.SHOW_THINKING, String(newValue));
   }, [showThinking]);
 
   const setAudioInputDevice = useCallback((deviceId: string | null) => {
-    console.log(`[ChatPreferences] AudioInputDevice: ${audioInputDevice} → ${deviceId}`);
     setAudioInputDeviceState(deviceId);
     if (deviceId === null) {
       localStorage.removeItem(STORAGE_KEYS.AUDIO_INPUT_DEVICE);

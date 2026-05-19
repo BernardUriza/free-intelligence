@@ -18,6 +18,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('OnboardingChat');
 import {
   Bot,
   Sparkles,
@@ -334,7 +337,7 @@ export function useOnboardingChat(
         if (data.userData) setUserData(data.userData);
       }
     } catch (e) {
-      console.error("[useOnboardingChat] Failed to load progress:", e);
+      log.error('Failed to load progress', { error: String(e) });
     }
   }, []);
 
@@ -343,7 +346,7 @@ export function useOnboardingChat(
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ phase, userData }));
     } catch (e) {
-      console.error("[useOnboardingChat] Failed to save progress:", e);
+      log.error('Failed to save progress', { error: String(e) });
     }
   }, [phase, userData]);
 
@@ -382,12 +385,6 @@ export function useOnboardingChat(
       const field = parsed.question.field as keyof OnboardingUserData;
       const options = convertPillsToOptions(parsed.question.pills);
 
-      console.log("[useOnboardingChat] Parsed dynamic pills:", {
-        field,
-        header: parsed.question.header,
-        pillCount: options.length,
-      });
-
       setCurrentQuestion({
         field,
         prompt: parsed.question.header,
@@ -399,9 +396,6 @@ export function useOnboardingChat(
         setPhase("personalization");
       }
     } else if (parsed && !parsed.question) {
-      // LLM response without pills (final message or intro)
-      console.log("[useOnboardingChat] Response without pills (final or intro)");
-
       // Check if we're done with all questions
       if (
         phase === "personalization" &&
@@ -421,7 +415,7 @@ export function useOnboardingChat(
       }
     } else {
       // Failed to parse JSON - use fallback questions
-      console.warn("[useOnboardingChat] Failed to parse JSON, using fallback");
+      log.warn('Failed to parse JSON response, using fallback questions');
 
       // Show personalization questions if:
       // 1. Already in personalization phase, OR
@@ -432,25 +426,21 @@ export function useOnboardingChat(
       if (shouldShowPersonalizationQuestions) {
         // Determine which question to show based on collected data
         if (!userData.userRole) {
-          console.log("[useOnboardingChat] Setting userRole question (fallback)");
           setCurrentQuestion({
             field: "userRole",
             ...FALLBACK_QUESTIONS.userRole,
           });
         } else if (!userData.clinicType) {
-          console.log("[useOnboardingChat] Setting clinicType question (fallback)");
           setCurrentQuestion({
             field: "clinicType",
             ...FALLBACK_QUESTIONS.clinicType,
           });
         } else if (!userData.consultasPerDay) {
-          console.log("[useOnboardingChat] Setting consultasPerDay question (fallback)");
           setCurrentQuestion({
             field: "consultasPerDay",
             ...FALLBACK_QUESTIONS.consultasPerDay,
           });
         } else {
-          console.log("[useOnboardingChat] All questions answered, moving to demo");
           setPhase("demo");
           setCurrentQuestion(null);
         }
@@ -470,8 +460,6 @@ export function useOnboardingChat(
     if (phase !== "personalization") return;
     if (chatHook.isTyping || chatHook.loading) return;
     if (currentQuestion !== null) return;
-
-    console.log("[useOnboardingChat] Fallback check - setting question for personalization phase");
 
     // Determine which question to show based on collected data
     if (!userData.userRole) {

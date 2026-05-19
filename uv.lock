@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "fi-core",
+    "free-intelligence",
+]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -488,6 +494,26 @@ wheels = [
 ]
 
 [[package]]
+name = "fi-core"
+version = "0.1.0"
+source = { editable = "apps/packages/fi-core" }
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "filelock"
 version = "3.20.0"
 source = { registry = "https://pypi.org/simple" }
@@ -498,7 +524,7 @@ wheels = [
 
 [[package]]
 name = "free-intelligence"
-version = "0.3.0"
+version = "1.0.19"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -506,6 +532,7 @@ dependencies = [
     { name = "bcrypt" },
     { name = "email-validator" },
     { name = "fastapi" },
+    { name = "fi-core" },
     { name = "filelock" },
     { name = "h5py" },
     { name = "httpx" },
@@ -574,6 +601,7 @@ requires-dist = [
     { name = "elasticsearch", marker = "extra == 'cloud'", specifier = ">=8.11.0" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "fi-core", editable = "apps/packages/fi-core" },
     { name = "filelock", specifier = ">=3.12.0" },
     { name = "h5py", specifier = ">=3.14.0" },
     { name = "httpx", specifier = ">=0.27.0" },

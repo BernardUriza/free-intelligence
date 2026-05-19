@@ -18,6 +18,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 
 // Bryntum unified modules
 import {
@@ -28,6 +29,8 @@ import {
   VIEW_PRESETS,
   type UnifiedEvent,
 } from '@/components/bryntum';
+
+const log = createLogger('TimelineScheduler');
 
 // UI Components
 import { TimelineToolbar } from './TimelineToolbar';
@@ -114,7 +117,7 @@ export function TimelineScheduler({
   }, [schedulerState]);
 
   const handleError = useCallback((error: unknown) => {
-    console.error('[TimelineScheduler] Scheduler error:', error);
+    log.error('Scheduler error', { error: String(error) });
   }, []);
 
   // Keyboard shortcuts and event handling

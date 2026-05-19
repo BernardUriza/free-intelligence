@@ -19,6 +19,9 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('WebSpeech');
 
 interface UseWebSpeechConfig {
   onTranscript?: (transcript: string, isFinal: boolean) => void;
@@ -78,7 +81,7 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
-      console.log('[WebSpeech] Started');
+      log.debug('Started');
       setIsListening(true);
       setError(null);
     };
@@ -93,7 +96,7 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
 
         if (result.isFinal) {
           final += transcript + ' ';
-          console.log('[WebSpeech] Final:', transcript);
+          log.debug('Final transcript received');
           // Use ref to avoid stale closure and dependency array issues
           if (onTranscriptRef.current) {
             onTranscriptRef.current(transcript, true);
@@ -123,15 +126,12 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
 
       // Only log first few errors to avoid spam
       if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
-        console.warn(
-          `[WebSpeech] Error ${consecutiveErrorsRef.current}/${MAX_CONSECUTIVE_ERRORS}:`,
-          event.error,
-          '(using backend transcription)'
-        );
+        log.warn('Recognition error (using backend transcription)', {
+          attempt: consecutiveErrorsRef.current,
+          error: event.error,
+        });
       } else if (consecutiveErrorsRef.current === MAX_CONSECUTIVE_ERRORS + 1) {
-        console.warn(
-          '[WebSpeech] Too many errors - suppressing further logs. Backend transcription active.'
-        );
+        log.warn('Too many errors, suppressing further logs');
       }
 
       setError(event.error);
@@ -144,22 +144,15 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
       if (continuous && !isStoppingRef.current) {
         // Stop auto-restart after too many errors
         if (consecutiveErrorsRef.current > MAX_CONSECUTIVE_ERRORS) {
-          console.warn(
-            '[WebSpeech] Auto-restart disabled after multiple failures. Backend transcription active.'
-          );
+          log.warn('Auto-restart disabled after multiple failures');
           return;
-        }
-
-        // Only log restart on first few attempts
-        if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
-          console.log('[WebSpeech] Auto-restarting...');
         }
 
         try {
           recognition.start();
         } catch (err) {
           if (consecutiveErrorsRef.current <= MAX_CONSECUTIVE_ERRORS) {
-            console.error('[WebSpeech] Restart failed:', err);
+            log.error('Restart failed', { error: String(err) });
           }
         }
       }
@@ -194,9 +187,8 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
       isStoppingRef.current = false;
       consecutiveErrorsRef.current = 0; // Reset error counter on manual start
       recognitionRef.current.start();
-      console.log('[WebSpeech] Start requested');
     } catch (err) {
-      console.error('[WebSpeech] Start error:', err);
+      log.error('Start error', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al iniciar Web Speech');
     }
   }, [isSupported]);
@@ -208,9 +200,8 @@ export function useWebSpeech(config: UseWebSpeechConfig = {}): UseWebSpeechRetur
       isStoppingRef.current = true;
       recognitionRef.current.stop();
       setInterimTranscript('');
-      console.log('[WebSpeech] Stop requested');
     } catch (err) {
-      console.error('[WebSpeech] Stop error:', err);
+      log.error('Stop error', { error: String(err) });
     }
   }, []);
 

@@ -125,7 +125,6 @@ export async function queueAction(type: string, payload: unknown): Promise<void>
     retries: 0,
   };
   await dbSet(STORES.OFFLINE_QUEUE, action);
-  console.log('[PWA] Action queued for sync:', type);
 }
 
 export async function getQueuedActions(): Promise<QueuedAction[]> {

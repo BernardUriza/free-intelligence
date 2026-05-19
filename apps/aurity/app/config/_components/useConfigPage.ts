@@ -15,6 +15,9 @@ import { useAuth } from '@aurity-standalone/hooks/useAuth';
 import { useRBAC } from '@aurity-standalone/hooks/useRBAC';
 import { confirmDanger, showSuccess, showError } from '@/lib/swal';
 import { ONBOARDING_STORAGE_KEYS } from './constants';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ConfigPage');
 
 export function useConfigPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -33,7 +36,7 @@ export function useConfigPage() {
   // --- Access guard ---
   useEffect(() => {
     if (!isLoading && isAuthenticated && !isSuperAdmin) {
-      console.warn('[ConfigPage] Access denied - not superadmin');
+      log.warn('Access denied - not superadmin');
       router.push('/unauthorized');
     }
   }, [isLoading, isAuthenticated, isSuperAdmin, router]);
@@ -54,11 +57,11 @@ export function useConfigPage() {
         localStorage.removeItem(key);
       }
 
-      console.log('[OK] Onboarding reset successfully');
+      log.info('Onboarding reset successfully');
       await showSuccess('Onboarding reiniciado', 'Redirigiendo...');
       router.push('/onboarding');
     } catch (error) {
-      console.error('Failed to reset onboarding:', error);
+      log.error('Failed to reset onboarding', { error: String(error) });
       await showError('Error', 'No se pudo reiniciar el onboarding');
     } finally {
       setResettingOnboarding(false);

@@ -109,7 +109,6 @@ export function useChatVoiceRecorder(
   // ========================================================================
   const handleChunk = useCallback(
     async (blob: Blob, chunkNumber: number) => {
-      console.log(`[Chat Voice] Chunk ${chunkNumber} captured (${blob.size} bytes)`);
       setChunkCount((prev) => prev + 1);
       setIsTranscribing(true);
 
@@ -129,15 +128,12 @@ export function useChatVoiceRecorder(
           status?: string;
         }>(ROUTES.stream, formData);
 
-        console.log(`[Chat Voice] Chunk ${chunkNumber} uploaded, polling job ${result.session_id}...`);
         addLog(`Chunk ${chunkNumber} uploaded (${(blob.size / 1024).toFixed(1)}KB)`);
 
         // Poll for transcription result (immediate for chat mode)
         const transcript = await pollJobStatus(sessionId, chunkNumber);
 
         if (transcript) {
-          console.log(`[Chat Voice] Chunk ${chunkNumber} transcribed: "${transcript}"`);
-
           // Append to live transcript
           setLiveTranscript((prev) => {
             const updated = prev ? `${prev} ${transcript}` : transcript;
@@ -147,7 +143,7 @@ export function useChatVoiceRecorder(
             return updated;
           });
         } else {
-          console.warn(`[Chat Voice] Chunk ${chunkNumber} returned empty transcript`);
+          // Empty transcript for chunk — not unusual for silence segments
           addLog(`[WARN] Chunk ${chunkNumber} sin transcripción`);
         }
       } catch (err) {
@@ -193,8 +189,6 @@ export function useChatVoiceRecorder(
 
   // Start recording
   const startRecording = useCallback(async () => {
-    console.log(`[Chat Voice] Starting recording for session: ${sessionId}`);
-
     // Reset state
     setLiveTranscript('');
     setChunkCount(0);
@@ -207,15 +201,7 @@ export function useChatVoiceRecorder(
   // Stop recording and return full transcript
   // CRITICAL: Returns immediately - microphone released synchronously
   const stopRecording = useCallback(async (): Promise<string> => {
-    console.log('[Chat Voice] Stopping recording...');
-
-    // Stop recorder (microphone released immediately, processing continues in background)
     await stopRecorderRecording();
-
-    // Return current transcript immediately (final chunk processes in background)
-    // No artificial delays - user sees immediate response
-    console.log(`[Chat Voice] Recording stopped. Current transcript: "${liveTranscript}"`);
-
     return liveTranscript;
   }, [stopRecorderRecording, liveTranscript]);
 

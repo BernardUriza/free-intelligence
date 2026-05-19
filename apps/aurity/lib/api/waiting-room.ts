@@ -80,38 +80,3 @@ export async function generateTrivia(request: GenerateTriviaRequest = {}): Promi
   });
 }
 
-// ============================================================================
-// Legacy Class API (Deprecated - use functions directly)
-// ============================================================================
-
-/**
- * @deprecated Use `generateTip()` and `generateTrivia()` functions directly.
- * This class is kept for backwards compatibility only.
- */
-export class WaitingRoomAPI {
-  /** @deprecated Use generateTip() function directly */
-  async generateTip(request: GenerateTipRequest): Promise<GenerateTipResponse> {
-    return generateTip(request);
-  }
-
-  /** @deprecated Use generateTrivia() function directly */
-  async generateTrivia(request: GenerateTriviaRequest = {}): Promise<GenerateTriviaResponse> {
-    return generateTrivia(request);
-  }
-
-  /** @deprecated No longer needed - api client handles config automatically */
-  updateConfig(): void {
-    console.warn('[WaitingRoomAPI] updateConfig() is deprecated - config is handled automatically');
-  }
-
-  /** @deprecated No longer needed */
-  getConfig(): Record<string, unknown> {
-    console.warn('[WaitingRoomAPI] getConfig() is deprecated');
-    return {};
-  }
-}
-
-/**
- * @deprecated Use `generateTip()` and `generateTrivia()` functions directly
- */
-export const waitingRoomAPI = new WaitingRoomAPI();

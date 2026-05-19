@@ -37,6 +37,9 @@ import type {
 
 import { api, getBackendUrl } from './client';
 import { ROUTES } from './routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('CheckinAPI');
 
 // =============================================================================
 // API BASE
@@ -186,12 +189,12 @@ export class CheckinAPI {
         const state: WaitingRoomState = JSON.parse(event.data);
         onUpdate(state);
       } catch (error) {
-        console.error('Failed to parse waiting room update:', error);
+        log.error('Failed to parse waiting room update', { error: String(error) });
       }
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      log.error('WebSocket error', { error: String(error) });
     };
 
     return () => {
@@ -199,20 +202,6 @@ export class CheckinAPI {
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // DEPRECATED UTILITY
-  // ---------------------------------------------------------------------------
-
-  /** @deprecated Config is now handled automatically by api client */
-  updateConfig(): void {
-    console.warn('[CheckinAPI] updateConfig() is deprecated - config is handled automatically');
-  }
-
-  /** @deprecated Config is now handled automatically by api client */
-  getConfig(): Record<string, unknown> {
-    console.warn('[CheckinAPI] getConfig() is deprecated');
-    return {};
-  }
 }
 
 // =============================================================================

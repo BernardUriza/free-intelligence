@@ -17,8 +17,11 @@
  */
 
 import { memo, useState, useCallback, type ReactNode } from 'react';
-import { Copy, Check, MoreHorizontal } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
 import { messageStyles } from '../styles/message-styles';
+
+const log = createLogger('MessageActions');
 
 export interface MessageActionsProps {
   /** Is this a user message */
@@ -29,8 +32,6 @@ export interface MessageActionsProps {
   children?: ReactNode;
   /** Optional audio player slot (rendered below actions) */
   audioPlayer?: ReactNode;
-  /** Show more options button */
-  showMoreButton?: boolean;
 }
 
 export const MessageActions = memo(function MessageActions({
@@ -38,7 +39,6 @@ export const MessageActions = memo(function MessageActions({
   content,
   children,
   audioPlayer,
-  showMoreButton = true,
 }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
   const { actions } = messageStyles;
@@ -49,7 +49,7 @@ export const MessageActions = memo(function MessageActions({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('[MessageActions] Copy failed:', err);
+      log.error('Copy failed', { error: String(err) });
     }
   }, [content]);
 
@@ -73,19 +73,7 @@ export const MessageActions = memo(function MessageActions({
         {/* TTS - injected by consumer (ChatMessage, etc.) */}
         {children}
 
-        {/* More options */}
-        {showMoreButton && (
-          <button
-            onClick={() => {
-              /* TODO: dropdown menu */
-            }}
-            className={`${actions.button.base} ${actions.button.idle}`}
-            title="Más opciones"
-            aria-label="Más opciones"
-          >
-            <MoreHorizontal className={actions.icon} />
-          </button>
-        )}
+
       </div>
 
       {/* Audio Player slot - injected by consumer */}

@@ -6,7 +6,10 @@
  */
 
 import { useCallback, useRef } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
+
+const log = createLogger('ChunkHandler');
 import { AUDIO_CONFIG } from '@/lib/audio/constants';
 import { guessExt } from '@/lib/recording/makeRecorder';
 import type { PatientInfo } from '../../../medical/PatientInfoModal';
@@ -51,7 +54,6 @@ export function useChunkHandler({
       const currentIsSilent = isSilentRef.current;
 
       if (currentIsSilent) {
-        console.log(`[CHUNK ${chunkNumber}] [SKIP] Silence detected`);
         return;
       }
 
@@ -61,7 +63,6 @@ export function useChunkHandler({
       // Deduplication
       const key = `${sessionIdRef.current}:${chunkNumber}`;
       if (inflightRef.current.has(key)) {
-        console.warn(`[CHUNK ${chunkNumber}] [WARN] Already processing, skipping duplicate`);
         return;
       }
       inflightRef.current.add(key);
@@ -70,8 +71,6 @@ export function useChunkHandler({
         const timeSlice = AUDIO_CONFIG.TIME_SLICE;
         const timestampStart = chunkNumber * (timeSlice / 1000);
         const timestampEnd = timestampStart + timeSlice / 1000;
-
-        console.log(`[CHUNK ${chunkNumber}] [UPLOAD] ${(blob.size / 1024).toFixed(1)}KB`);
 
         // Track chunk as uploading
         setChunkStatuses((prev) => [
@@ -107,10 +106,10 @@ export function useChunkHandler({
             addTranscriptionChunk(transcript);
           }
         } else {
-          console.warn(`[CHUNK ${chunkNumber}] [WARN] Unexpected response format:`, result);
+          log.warn('Unexpected chunk response format', { chunk: chunkNumber });
         }
       } catch (err) {
-        console.error(`[CHUNK ${chunkNumber}] [ERROR] Processing failed:`, err);
+        log.error('Chunk processing failed', { chunk: chunkNumber, error: String(err) });
       } finally {
         inflightRef.current.delete(key);
       }

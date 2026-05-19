@@ -9,6 +9,9 @@ import { useState, useCallback } from 'react';
 import type { FIMessage, OnboardingPhase } from '@aurity-standalone/types/assistant';
 import type { IBackendSync } from '@/lib/chat/sync-strategy';
 import { INITIAL_MESSAGES_LIMIT, deduplicateMessages } from './utils';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Chat:Pagination');
 
 export interface UsePaginationOptions {
   doctorId?: string;
@@ -53,8 +56,6 @@ export function usePagination({
         const bufferChunk = olderMessagesBufferRef.current.slice(-INITIAL_MESSAGES_LIMIT);
         const remaining = olderMessagesBufferRef.current.slice(0, -INITIAL_MESSAGES_LIMIT);
 
-        console.log('[Chat:Pagination] From buffer:', bufferChunk.length, '| Remaining:', remaining.length);
-
         setMessages(prev => {
           const newMessages = deduplicateMessages(prev, bufferChunk);
           return [...newMessages, ...prev];
@@ -82,8 +83,6 @@ export function usePagination({
       setMessages(prev => {
         const newMessages = deduplicateMessages(prev, result.messages);
 
-        console.log('[Chat:Pagination] Backend returned:', result.messages.length, '| New:', newMessages.length);
-
         if (newMessages.length === 0) {
           setHasMoreMessages(false);
           return prev;
@@ -95,7 +94,7 @@ export function usePagination({
       setPaginationOffset(prev => prev + result.messages.length);
       setHasMoreMessages(result.hasMore);
     } catch (err) {
-      console.error('[Chat:Pagination] Failed to load older messages:', err);
+      log.error('Failed to load older messages', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Failed to load history');
     } finally {
       setLoadingOlder(false);

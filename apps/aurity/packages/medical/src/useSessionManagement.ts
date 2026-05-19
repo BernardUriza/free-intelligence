@@ -10,6 +10,9 @@ import { getSessionSummaries } from '@/lib/api/timeline';
 import { ROUTES } from '@/lib/api/routes';
 import { api } from '@/lib/api/client';
 import { toastError } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('SessionManagement');
 
 export function useSessionManagement() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -33,7 +36,7 @@ export function useSessionManagement() {
         // Load statuses for sessions
         await loadSessionStatuses(summaries.map(s => s.metadata.session_id));
       } catch (err) {
-        console.error('Failed to load sessions:', err);
+        log.error('Failed to load sessions', { error: String(err) });
       } finally {
         setLoadingSessions(false);
       }
@@ -71,14 +74,11 @@ export function useSessionManagement() {
     try {
       setDeletingSession(sessionId);
 
-      // TODO: Call backend delete endpoint when implemented
-      // For now, just remove from local state
       setSessions((prev) => prev.filter((s) => s.metadata.session_id !== sessionId));
 
       setDeleteConfirmSession(null);
-      console.log('[SessionManagement] Session deleted:', sessionId);
     } catch (err) {
-      console.error('[SessionManagement] Failed to delete session:', err);
+      log.error('Failed to delete session', { error: String(err) });
       toastError('Error al eliminar la sesión');
     } finally {
       setDeletingSession(null);
@@ -94,7 +94,7 @@ export function useSessionManagement() {
     setIsExistingSession(true);
     setSessionDuration(duration);
 
-    console.log('[SessionManagement] Selected session:', sessionId, 'Duration:', duration);
+    log.debug('Selected session', { sessionId, duration });
   };
 
   // Copy session ID to clipboard
@@ -105,7 +105,7 @@ export function useSessionManagement() {
       setCopiedSessionId(sessionId);
       setTimeout(() => setCopiedSessionId(null), 2000);
     } catch (err) {
-      console.error('Failed to copy session ID:', err);
+      log.error('Failed to copy session ID', { error: String(err) });
     }
   };
 

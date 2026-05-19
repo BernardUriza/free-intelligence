@@ -11,6 +11,9 @@
 import { useState } from 'react';
 import { Search, Clock, TrendingUp, X, Lightbulb } from 'lucide-react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('HistorySearch');
 
 export interface InteractionResult {
   session_id: string;
@@ -79,7 +82,7 @@ export function HistorySearch({ onSelectResult, mode = 'panel', onClose }: Histo
       setResults(transformedResults);
       setTotalInteractions(data.total_interactions ?? data.total);
     } catch (err) {
-      console.error('History search error:', err);
+      log.error('Search failed', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al buscar historial');
       setResults([]);
     } finally {

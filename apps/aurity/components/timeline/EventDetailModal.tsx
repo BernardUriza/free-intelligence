@@ -13,7 +13,10 @@
 import React, { useState } from 'react';
 import { X, Clock, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
 import { getEventColor, getEventTypeLabel, type UnifiedEvent } from '@/components/bryntum';
+
+const log = createLogger('EventDetail');
 
 interface EventDetailModalProps {
   event: UnifiedEvent | null;
@@ -35,7 +38,7 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      log.error('Failed to copy', { error: String(err) });
     }
   };
 

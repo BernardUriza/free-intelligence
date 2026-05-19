@@ -26,10 +26,6 @@ export function concatenateAudioBlobs(blobs: Blob[]): ConcatenationResult | null
 
   const sizeMB = concatenatedBlob.size / 1024 / 1024;
 
-  console.log(
-    `[AudioConcat] [OK] Concatenated ${blobs.length} segments: ${sizeMB.toFixed(2)} MB`
-  );
-
   return {
     blob: concatenatedBlob,
     sizeMB,
@@ -44,6 +40,5 @@ export function concatenateAudioBlobs(blobs: Blob[]): ConcatenationResult | null
 export function revokeAudioUrl(url: string | null): void {
   if (url) {
     URL.revokeObjectURL(url);
-    console.log('[AudioConcat] Cleaned up audio URL');
   }
 }

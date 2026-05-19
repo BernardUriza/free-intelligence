@@ -18,25 +18,27 @@ import { detectTauri, isBrowser } from '@/lib/environment';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Download, Cloud, Shield, AlertTriangle, Lightbulb, Rocket, ShieldAlert, WifiOff, FolderLock, SkipForward } from 'lucide-react';
 import { useWizardState, resetWizardState } from './hooks/useWizardState';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('DesktopWizard');
 
 // Export function to reset wizard (for use in settings/menu)
 export { resetWizardState as resetDesktopSetupWizard };
 
 // Tauri invoke helper - only available in desktop mode
 const invokeTauri = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T | null> => {
-  console.log(`[DesktopWizard] Invoking Tauri command: ${cmd}`, args);
+  log.debug('Invoking Tauri command', { cmd });
   if (typeof window !== 'undefined' && '__TAURI__' in window) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const result = await invoke<T>(cmd, args);
-      console.log(`[DesktopWizard] Command ${cmd} result:`, result);
       return result;
     } catch (error) {
-      console.error(`[DesktopWizard] Command ${cmd} failed:`, error);
+      log.error('Tauri command failed', { cmd, error: String(error) });
       throw error;
     }
   }
-  console.warn(`[DesktopWizard] Tauri not available, command ${cmd} skipped`);
+  log.warn('Tauri not available, command skipped', { cmd });
   return null;
 };
 
@@ -72,7 +74,7 @@ export function DesktopSetupWizard() {
           const version = await getVersion();
           setAppVersion(version);
         } catch (e) {
-          console.warn('[DesktopWizard] Could not get version:', e);
+          log.warn('Could not get version', { error: String(e) });
         }
       }
     }
@@ -130,7 +132,7 @@ export function DesktopSetupWizard() {
         setScreen('NOT_INSTALLED');
       }
     } catch (err) {
-      console.error('[DesktopWizard] Failed to check FI Monitor:', err);
+      log.error('Failed to check FI Monitor', { error: String(err) });
       const errorMsg = extractErrorMessage(err);
       // Only treat as "not installed" if the error is clearly about absence.
       // Any other Tauri error (permissions, crash) must surface to the user.
@@ -185,7 +187,7 @@ export function DesktopSetupWizard() {
         }
       }
     } catch (err) {
-      console.error('[DesktopWizard] Installation failed:', err);
+      log.error('Installation failed', { error: String(err) });
       // Tauri invoke errors can be strings, Error objects, or objects with message property
       const errorMsg = extractErrorMessage(err);
       setError(errorMsg);
@@ -197,9 +199,9 @@ export function DesktopSetupWizard() {
   const launchFiMonitor = async () => {
     try {
       await invokeTauri<boolean>('launch_fi_monitor');
-      console.log('[DesktopWizard] FI Monitor launched');
+      log.info('FI Monitor launched');
     } catch (err) {
-      console.error('[DesktopWizard] Failed to launch FI Monitor:', err);
+      log.error('Failed to launch FI Monitor', { error: String(err) });
     }
   };
 
@@ -217,12 +219,11 @@ export function DesktopSetupWizard() {
 
   // Mark setup as complete using the hook (persists to filesystem on desktop)
   const markSetupComplete = async (fiMonitorInstalled: boolean = true) => {
-    console.log('[DesktopWizard] Marking setup complete, fiMonitorInstalled:', fiMonitorInstalled);
     try {
       await markComplete(fiMonitorInstalled);
-      console.log('[DesktopWizard] Setup marked complete successfully');
+      log.info('Setup marked complete', { fiMonitorInstalled });
     } catch (err) {
-      console.error('[DesktopWizard] Failed to mark setup complete:', err);
+      log.error('Failed to mark setup complete', { error: String(err) });
     }
     setTimeout(() => setShowWizard(false), 2000);
   };

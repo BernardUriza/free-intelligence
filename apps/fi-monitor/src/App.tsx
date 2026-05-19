@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { getVersion, isTauriContext } from './lib/tauri-adapter'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { getVersion, invoke, isTauriContext } from './lib/tauri-adapter'
 import { useServiceStatus } from './hooks/useServiceStatus'
 import { useTunnelConfig } from './hooks/useTunnelConfig'
 import { useBenchmarks } from './hooks/useBenchmarks'
@@ -20,6 +20,8 @@ export default function App({ setupState }: AppProps) {
   const [showModelManager, setShowModelManager] = useState(false)
   const [appVersion, setAppVersion] = useState('1.0.0')
   const [activeTab, setActiveTab] = useState<TabId>('services')
+  const [serviceToast, setServiceToast] = useState<string | null>(null)
+  const prevStatus = useRef<{ rag: boolean; gateway: boolean } | null>(null)
 
   // Hooks
   const {
@@ -71,6 +73,36 @@ export default function App({ setupState }: AppProps) {
     getVersion().then(v => setAppVersion(v)).catch(() => {})
   }, [])
 
+  // Detect service transitions (off -> on) and show toast
+  useEffect(() => {
+    const ragOn = status?.rag_service_running ?? false
+    const gatewayOn = status?.gateway_running ?? false
+
+    if (prevStatus.current !== null) {
+      const msgs: string[] = []
+      if (ragOn && !prevStatus.current.rag) msgs.push('RAG Service')
+      if (gatewayOn && !prevStatus.current.gateway) msgs.push('Gateway')
+      if (msgs.length > 0) {
+        setServiceToast(`${msgs.join(' + ')} online`)
+        setTimeout(() => setServiceToast(null), 4000)
+      }
+    }
+    prevStatus.current = { rag: ragOn, gateway: gatewayOn }
+  }, [status?.rag_service_running, status?.gateway_running])
+
+  // Open in Browser handler
+  const handleOpenInBrowser = useCallback(async () => {
+    if (isTauriContext()) {
+      try {
+        const url = await invoke<string | null>('get_browser_url')
+        if (url) window.open(url, '_blank')
+      } catch {
+        // Fallback: if the command fails, try localhost:1430
+        window.open('http://localhost:1430', '_blank')
+      }
+    }
+  }, [])
+
   // Redirect to services if Tunnel tab disappears (Local mode)
   useEffect(() => {
     const isCloudflared = status?.tunnel_url?.startsWith('https://') ?? false
@@ -117,10 +149,20 @@ export default function App({ setupState }: AppProps) {
         </div>
         <div className="system-info">
           <span className="host">{status?.system_info.hostname}</span>
+          {isTauriContext() && (
+            <button
+              className="browser-btn"
+              onClick={handleOpenInBrowser}
+              title="Open in Chrome (DevTools available)"
+            >
+              {'\u{1F310}'} Browser
+            </button>
+          )}
         </div>
       </header>
 
       {error && <div className="toast error" onClick={() => setError(null)}>{'\u26A0\uFE0F'} {error}</div>}
+      {serviceToast && <div className="toast success">{'\u2705'} {serviceToast}</div>}
 
       {setupState.skipped && (!setupState.ollamaInstalled || !setupState.pythonInstalled) && (
         <div className="toast warning" style={{ cursor: 'default' }}>
@@ -213,7 +255,12 @@ export default function App({ setupState }: AppProps) {
       </div>
 
       <footer className="statusbar">
-        <span className={`dot ${ollamaOn ? 'green' : 'gray'}`} />
+        <span className={`dot ${ollamaOn ? 'green' : 'gray'}`} title="Ollama" />
+        <span className="status-label">Ollama</span>
+        <span className={`dot ${(status?.rag_service_running ?? false) ? 'green' : 'gray'}`} title="RAG" />
+        <span className="status-label">RAG</span>
+        <span className={`dot ${(status?.gateway_running ?? false) ? 'green' : 'gray'}`} title="Gateway" />
+        <span className="status-label">GW</span>
         <span className="status-text">
           {ollamaOn
             ? isCloudflaredMode

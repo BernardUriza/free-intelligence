@@ -8,6 +8,9 @@ import { useState, useEffect } from 'react';
 import { Patient } from '@aurity-standalone/types/patient';
 import { Patient as MedicalPatient } from '@aurity-standalone/types/medical';
 import { fetchPatients } from '@/lib/api/patients';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('PatientManagement');
 
 export function usePatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -26,7 +29,7 @@ export function usePatientManagement() {
         const fetchedPatients = await fetchPatients({ limit: 100 });
         setPatients(fetchedPatients);
       } catch (err) {
-        console.error('Failed to load patients:', err);
+        log.error('Failed to load patients', { error: String(err) });
         setPatientsError(err instanceof Error ? err.message : 'Error al cargar pacientes');
       } finally {
         setLoadingPatients(false);

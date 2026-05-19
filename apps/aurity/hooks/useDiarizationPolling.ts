@@ -13,6 +13,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('DiarizationPolling');
 import { POLLING_CONFIG, BACKOFF_MULTIPLIER } from '@/lib/constants/polling';
 import { api } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
@@ -128,7 +131,7 @@ export function useDiarizationPolling(
       if (error instanceof Error && error.name === 'AbortError') {
         return null;
       }
-      console.warn('[Polling] Request failed:', error);
+      log.warn('Request failed', { error: String(error) });
       return null;
     }
   }, [sessionId, jobId]);

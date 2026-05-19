@@ -23,6 +23,10 @@
  * @see /apps/aurity/docs/audio/STATE_MACHINE.md
  */
 
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('AudioStateMachine');
+
 export type AudioState =
   | 'initialized'
   | 'ready'
@@ -99,17 +103,13 @@ export class AudioStateMachine {
     );
 
     if (!validTransition) {
-      console.warn(
-        `[AudioStateMachine] Invalid transition: ${this.currentState} + ${event}`
-      );
+      log.warn('Invalid transition', { from: this.currentState, event });
       return false;
     }
 
     // Check guard if present
     if (validTransition.guard && !validTransition.guard()) {
-      console.warn(
-        `[AudioStateMachine] Guard failed for transition: ${this.currentState} → ${validTransition.to}`
-      );
+      log.warn('Guard failed', { from: this.currentState, to: validTransition.to });
       return false;
     }
 
@@ -119,9 +119,6 @@ export class AudioStateMachine {
     // Notify listeners
     this.listeners.forEach(listener => listener(this.currentState));
 
-    console.log(
-      `[AudioStateMachine] ${previousState} → ${this.currentState} (via ${event})`
-    );
     return true;
   }
 

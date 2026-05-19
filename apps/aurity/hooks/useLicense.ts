@@ -10,6 +10,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('License');
 
 // License validation result from Rust backend
 export interface LicenseValidationResult {
@@ -120,7 +123,7 @@ export function useLicense(): UseLicenseReturn {
 
         setError(null);
       } catch (err) {
-        console.error('[useLicense] Check error:', err);
+        log.error('License check failed', { error: String(err) });
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         setIsLoading(false);
@@ -137,7 +140,7 @@ export function useLicense(): UseLicenseReturn {
         const renewal = await invoke<RenewalStatus>('check_license_renewal_status');
         setRenewalStatus(renewal);
       } catch (err) {
-        console.error('[useLicense] Periodic renewal check error:', err);
+        log.error('Periodic renewal check failed', { error: String(err) });
       }
     }, 24 * 60 * 60 * 1000); // 24 hours
 

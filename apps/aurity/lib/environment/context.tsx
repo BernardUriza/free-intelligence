@@ -69,16 +69,7 @@ export function EnvironmentProvider({ children }: EnvironmentProviderProps) {
       });
     }
 
-    // Log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Environment]', {
-        platform: env.platform,
-        target: env.target,
-        device: env.device,
-        isTauri: env.isTauri,
-        isReady: true,
-      });
-    }
+    // Environment detection complete — no logging needed
   }, []);
 
   // Memoize to prevent unnecessary re-renders

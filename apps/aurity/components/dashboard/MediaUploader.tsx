@@ -9,6 +9,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('MediaUploader');
 import { Trash2, Eye, EyeOff, CloudUpload, Send, Layers, Loader2, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { confirmDelete, toastError, toastSuccess, showWarning } from '@/lib/swal';
@@ -131,7 +134,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
         setUploadProgress(0);
       }, 1000);
     } catch (error) {
-      console.error('Upload failed:', error);
+      log.error('File upload failed', { error: String(error) });
       toastError('Error al subir archivo');
       setIsUploading(false);
       setUploadProgress(0);
@@ -176,7 +179,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
 
       setIsUploading(false);
     } catch (error) {
-      console.error('Upload failed:', error);
+      log.error('Message upload failed', { error: String(error) });
       toastError('Error al enviar mensaje');
       setIsUploading(false);
     }
@@ -188,7 +191,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       const media = await listClinicMedia({ activeOnly: false, clinicId });
       setMediaList(media as MediaItem[]);
     } catch (error) {
-      console.error('Failed to fetch media list:', error);
+      log.error('Failed to fetch media list', { error: String(error) });
     } finally {
       setIsLoadingList(false);
     }
@@ -205,7 +208,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       await fetchMediaList();
       toastSuccess('Contenido eliminado');
     } catch (error) {
-      console.error('Failed to delete media:', error);
+      log.error('Failed to delete media', { error: String(error) });
       toastError('Error al eliminar');
     }
   };
@@ -218,7 +221,7 @@ export function MediaUploader({ onMediaUpload, clinicId, doctorId }: MediaUpload
       await fetchMediaList();
       toastSuccess(currentState ? 'Contenido desactivado' : 'Contenido activado');
     } catch (error) {
-      console.error('Failed to update media:', error);
+      log.error('Failed to update media', { error: String(error) });
       toastError('Error al actualizar');
     }
   };

@@ -5,8 +5,11 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { getClinicTimeZone, TemporalAPI } from '@/lib/temporal';
 import type { AppointmentDraft, AppointmentId } from '../types';
+
+const log = createLogger('AppointmentForm');
 
 interface UseAppointmentFormProps {
   mode: 'create' | 'edit';
@@ -148,7 +151,7 @@ export function useAppointmentForm({
       onAfterSubmit?.();
       onClose();
     } catch (err) {
-      console.error('[AppointmentModal] submit failed:', err);
+      log.error('Submit failed', { error: String(err) });
       const msg = err instanceof Error ? err.message : 'No se pudo crear la cita';
       alert(msg);
     } finally {

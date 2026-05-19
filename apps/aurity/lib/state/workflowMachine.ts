@@ -230,18 +230,3 @@ export function getNextState(
   return transition?.target || null;
 }
 
-// TODO: When XState v5 is installed, uncomment this:
-/*
-import { createMachine, interpret } from 'xstate';
-
-export const workflowMachine = createMachine({
-  id: 'medicalRecording',
-  initial: WorkflowState.IDLE,
-  context: initialContext,
-  states: {
-    // ... convert workflowMachineConfig to XState format
-  },
-});
-
-export const workflowService = interpret(workflowMachine);
-*/

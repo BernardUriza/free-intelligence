@@ -16,6 +16,9 @@ import { useState, useCallback, useRef } from 'react';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
 import { ROUTES } from '@/lib/api/routes';
 import { api } from '@/lib/api/client';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('CheckinConversation');
 
 // =============================================================================
 // TYPES
@@ -208,7 +211,7 @@ async function* apiChatCompletionStreaming(
               yield chunk;
             }
           } catch (error) {
-            console.warn('Failed to parse SSE chunk:', data, error);
+            log.warn('Failed to parse SSE chunk', { error: String(error) });
           }
         }
       }
@@ -288,7 +291,7 @@ export function useCheckinConversation({
         onComplete(finalResponse);
       }
     } catch (error) {
-      console.error('[useCheckinConversation] Streaming failed:', error);
+      log.error('Streaming failed', { error: String(error) });
       throw error;
     } finally {
       setIsTyping(false);
@@ -384,7 +387,7 @@ export function useCheckinConversation({
         });
       }
     } catch (error) {
-      console.error('[useCheckinConversation] Start failed:', error);
+      log.error('Start failed', { error: String(error) });
       onError?.(error instanceof Error ? error.message : 'Failed to start');
     } finally {
       setLoading(false);
@@ -468,7 +471,7 @@ export function useCheckinConversation({
           }
         }
       } catch (error) {
-        console.error('[useCheckinConversation] Send failed:', error);
+        log.error('Send failed', { error: String(error) });
         addMessage(
           'assistant',
           'Lo siento, hubo un error. Por favor intente de nuevo o solicite ayuda en recepción.'

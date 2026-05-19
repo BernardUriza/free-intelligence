@@ -83,6 +83,10 @@ export const DEFAULT_CONFIG: EmotionalDetectionConfig = {
 // Storage Keys
 // ============================================================================
 
+import { createLogger } from '@/lib/internal/logger';
+
+const emotionLog = createLogger('EmotionalDetection');
+
 const STORAGE_KEY = 'fi_emotional_events';
 const STATE_KEY = 'fi_emotional_state';
 const METRICS_KEY = 'fi_emotional_metrics';
@@ -313,7 +317,7 @@ export function saveEvent(event: InteractionEvent): void {
     const trimmedEvents = events.slice(-100);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmedEvents));
   } catch (error) {
-    console.warn('[EmotionalDetection] Failed to save event:', error);
+    emotionLog.warn('Failed to save event', { error: String(error) });
   }
 }
 
@@ -327,7 +331,7 @@ export function getEvents(): InteractionEvent[] {
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.warn('[EmotionalDetection] Failed to get events:', error);
+    emotionLog.warn('Failed to get events', { error: String(error) });
     return [];
   }
 }
@@ -343,7 +347,7 @@ export function clearEvents(): void {
     localStorage.removeItem(STATE_KEY);
     localStorage.removeItem(METRICS_KEY);
   } catch (error) {
-    console.warn('[EmotionalDetection] Failed to clear events:', error);
+    emotionLog.warn('Failed to clear events', { error: String(error) });
   }
 }
 
@@ -356,7 +360,7 @@ export function saveState(state: EmotionalState): void {
   try {
     localStorage.setItem(STATE_KEY, state);
   } catch (error) {
-    console.warn('[EmotionalDetection] Failed to save state:', error);
+    emotionLog.warn('Failed to save state', { error: String(error) });
   }
 }
 

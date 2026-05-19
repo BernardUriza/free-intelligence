@@ -272,8 +272,7 @@ export function ChatContent({
         {isHistoryOpen && (
           <HistorySearch
             onClose={onHistoryClose}
-            onSelectResult={(result: InteractionResult) => {
-              console.log('Selected from history:', result);
+            onSelectResult={(_result: InteractionResult) => {
               onHistoryClose();
             }}
           />

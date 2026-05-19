@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@aurity-standalone/hooks/useAuth';
+import { createLogger } from '@/lib/internal/logger';
 import {
   getClinicMembership,
   fetchDoctor,
@@ -15,6 +16,8 @@ import {
   type DoctorUpdate,
   type ClinicMembership,
 } from '@/lib/api/clinics';
+
+const log = createLogger('CurrentDoctor');
 
 interface UseCurrentDoctorResult {
   doctor: Doctor | null;
@@ -62,7 +65,7 @@ export function useCurrentDoctor(): UseCurrentDoctorResult {
 
       setDoctor(doctorData);
     } catch (err) {
-      console.error('[useCurrentDoctor] Error:', err);
+      log.error('Failed to load doctor profile', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al cargar perfil');
     } finally {
       setLoading(false);

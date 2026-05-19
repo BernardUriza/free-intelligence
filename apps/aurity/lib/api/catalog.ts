@@ -9,6 +9,9 @@
 
 import { api, getBackendUrl } from './client';
 import { ROUTES } from './routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Catalog');
 
 // =============================================================================
 // Types
@@ -171,7 +174,7 @@ export function installModelWithProgress(
         onError(progress.error || 'Error desconocido');
       }
     } catch (parseErr) {
-      console.warn('[SSE] Parse error:', parseErr, 'Data:', event.data);
+      log.warn('SSE parse error', { error: String(parseErr) });
       // Continue listening - parse errors are recoverable
     }
   };
@@ -179,7 +182,7 @@ export function installModelWithProgress(
   eventSource.onerror = (err) => {
     if (timeoutId) clearTimeout(timeoutId);
     eventSource.close();
-    console.error('[SSE] Connection error:', err);
+    log.error('SSE connection error', { error: String(err) });
     onError('Conexión perdida con el servidor');
   };
 

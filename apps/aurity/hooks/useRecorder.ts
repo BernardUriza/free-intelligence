@@ -19,6 +19,9 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { makeRecorder } from '@/lib/recording/makeRecorder';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Recorder');
 
 interface UseRecorderConfig {
   onChunk: (blob: Blob, chunkNumber: number) => Promise<void> | void;
@@ -86,12 +89,8 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
       // Use external stream (demo mode) OR request microphone access
       let stream: MediaStream;
       if (externalStream) {
-        console.log('[Recorder] Using external stream (demo mode)');
         stream = externalStream;
       } else {
-        console.log('[Recorder] Requesting microphone access...');
-        console.log('[Recorder] [WARN] If this hangs, check macOS System Preferences → Privacy & Security → Microphone → Enable for your browser');
-
         try {
           // Add timeout - getUserMedia can hang forever if user ignores prompt or macOS blocks
           const timeoutMs = 15000;
@@ -112,26 +111,22 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
             timeoutPromise
           ]);
-          console.log('[Recorder] [OK] Microphone access granted', stream.getTracks());
         } catch (micError) {
-          console.error('[Recorder] [ERROR] Microphone access FAILED:', micError);
+          log.error('Microphone access failed', { error: String(micError) });
           throw micError;
         }
       }
       currentStreamRef.current = stream;
       setCurrentStream(stream);
-      console.log('[Recorder] Stream set, creating recorders...');
 
       // ========================================================================
       // CHUNKED RECORDER: For real-time transcription (3s chunks)
       // ========================================================================
-      console.log('[Recorder] Creating chunked recorder...');
       const chunkedRecorder = await makeRecorder(
         stream,
         async (blob: Blob) => {
           // Capture chunk number and increment IMMEDIATELY (atomic operation)
           const chunkNumber = chunkNumberRef.current++;
-          console.log(`[Recorder] [CHUNK] ${chunkNumber} received: ${blob.size} bytes`);
 
           // Call user-provided chunk handler
           await onChunk(blob, chunkNumber);
@@ -144,9 +139,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
       );
 
       recorderRef.current = chunkedRecorder;
-      console.log(`[Recorder] [OK] Using ${chunkedRecorder.kind} mode (chunked)`);
       chunkedRecorder.start();
-      console.log('[Recorder] [START] Recording started!');
 
       // ========================================================================
       // CONTINUOUS RECORDER: For full audio without chunks
@@ -165,7 +158,6 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
 
       continuousRecorderRef.current = continuousRecorder;
       continuousRecorder.start();
-      console.log('[Continuous Recorder] Started (no chunking)');
 
       // Update state
       setIsRecording(true);
@@ -179,7 +171,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
         err instanceof Error
           ? err.message
           : 'No se pudo acceder al micrófono. Por favor, verifica los permisos.';
-      console.error('[Recorder] Start error:', err);
+      log.error('Start failed', { error: String(err) });
       if (onError) {
         onError(errorMessage);
       }
@@ -208,10 +200,8 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
       // ========================================================================
       // This MUST happen before any await to release the microphone icon in browser
       if (currentStreamRef.current) {
-        console.log('[Recorder] Stopping microphone stream IMMEDIATELY');
         currentStreamRef.current.getTracks().forEach((track) => {
           track.stop();
-          console.log(`[Recorder] Track stopped: ${track.kind} (${track.label})`);
         });
         currentStreamRef.current = null;
         setCurrentStream(null);
@@ -226,9 +216,6 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
       if (continuousRecorderRef.current) {
         try {
           fullBlob = await continuousRecorderRef.current.stop();
-          console.log(
-            `[Continuous Recorder] Stopped - full audio blob: ${fullBlob?.size || 0} bytes`
-          );
 
           if (fullBlob && fullBlob.size > 0) {
             // Create local URL for immediate playback
@@ -241,7 +228,7 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
             setFullAudioBlob(fullBlob);
           }
         } catch (err) {
-          console.warn('[Continuous Recorder] Stop error (non-critical):', err);
+          log.warn('Continuous recorder stop error (non-critical)', { error: String(err) });
         }
         continuousRecorderRef.current = null;
       }
@@ -255,33 +242,28 @@ export function useRecorder(config: UseRecorderConfig): UseRecorderReturn {
           // Don't await - user already sees recording as stopped
           if (lastChunk && lastChunk.size > 0) {
             const finalChunkNumber = chunkNumberRef.current++;
-            console.log(
-              `[Chunked Recorder] Processing final chunk ${finalChunkNumber} in background`
-            );
             // Fire and forget - don't block the stop
             // Handle both sync and async onChunk handlers
             try {
               const result = onChunk(lastChunk, finalChunkNumber);
               if (result instanceof Promise) {
                 result.catch((err: Error) => {
-                  console.error('[Chunked Recorder] Final chunk processing failed:', err);
+                  log.error('Final chunk processing failed', { error: String(err) });
                 });
               }
             } catch (err) {
-              console.error('[Chunked Recorder] Final chunk processing failed:', err);
+              log.error('Final chunk processing failed', { error: String(err) });
             }
           }
         } catch (err) {
-          console.warn('[Chunked Recorder] Stop error (non-critical):', err);
+          log.warn('Chunked recorder stop error (non-critical)', { error: String(err) });
         }
         recorderRef.current = null;
       }
 
-      console.log('[Recorder] [OK] Recording stopped, microphone released');
-
       return fullBlob;
     } catch (err) {
-      console.error('[Recorder] Stop error:', err);
+      log.error('Stop failed', { error: String(err) });
 
       // Even on error, ensure microphone is released
       if (currentStreamRef.current) {

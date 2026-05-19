@@ -11,6 +11,9 @@
 
 import { api } from './client';
 import { ROUTES } from './routes';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('ChatHistoryAPI');
 
 const API_BASE = ROUTES.assistantHistory;
 
@@ -77,7 +80,7 @@ export async function getChatHistory(params: {
   try {
     return await api.get<PaginatedHistoryResponse>(`${API_BASE}/paginated?${queryParams}`);
   } catch (error) {
-    console.error('[ChatHistory API] Failed to fetch history:', error);
+    log.error('Failed to fetch history', { error: String(error) });
     // Return empty on error (graceful degradation)
     return {
       interactions: [],
@@ -108,7 +111,7 @@ export async function searchChatHistory(params: {
       session_id: sessionId,
     });
   } catch (error) {
-    console.error('[ChatHistory API] Search failed:', error);
+    log.error('Search failed', { error: String(error) });
     return { results: [], total_interactions: 0, query };
   }
 }
@@ -120,7 +123,7 @@ export async function getChatHistoryStats(doctorId: string): Promise<HistoryStat
   try {
     return await api.get<HistoryStatsResponse>(`${API_BASE}/stats?doctor_id=${doctorId}`);
   } catch (error) {
-    console.error('[ChatHistory API] Failed to fetch stats:', error);
+    log.error('Failed to fetch stats', { error: String(error) });
     return {
       total_interactions: 0,
       unique_sessions: 0,

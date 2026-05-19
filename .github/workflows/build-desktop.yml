@@ -232,6 +232,31 @@ jobs:
           Copy-Item apps/fi-monitor/pyinstaller/dist/fi-backend-x86_64-pc-windows-msvc.exe `
                     apps/fi-monitor/src-tauri/binaries/fi-backend-x86_64-pc-windows-msvc.exe
 
+      - name: Cache bundled installers (Ollama + Python)
+        id: cache-installers
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/fi-monitor/src-tauri/binaries/OllamaSetup-x86_64-pc-windows-msvc.exe
+            apps/fi-monitor/src-tauri/binaries/python-3.14.0-amd64-x86_64-pc-windows-msvc.exe
+          key: fi-monitor-installers-ollama-latest-python-3.14.0
+
+      - name: Download bundled installers (Ollama + Python)
+        if: steps.cache-installers.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $binDir = "apps/fi-monitor/src-tauri/binaries"
+
+          echo "Downloading OllamaSetup..."
+          Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" `
+            -OutFile "$binDir/OllamaSetup-x86_64-pc-windows-msvc.exe" -UseBasicParsing
+          echo "✅ OllamaSetup: $([Math]::Round((Get-Item "$binDir/OllamaSetup-x86_64-pc-windows-msvc.exe").Length / 1MB, 1)) MB"
+
+          echo "Downloading Python 3.14 installer..."
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.14.0/python-3.14.0-amd64.exe" `
+            -OutFile "$binDir/python-3.14.0-amd64-x86_64-pc-windows-msvc.exe" -UseBasicParsing
+          echo "✅ Python: $([Math]::Round((Get-Item "$binDir/python-3.14.0-amd64-x86_64-pc-windows-msvc.exe").Length / 1MB, 1)) MB"
+
       - name: Build FI Monitor
         uses: nick-fields/retry@v3
         with:

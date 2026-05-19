@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import { medicalWorkflowApi } from '@aurity-standalone/api-client/medical-workflow';
 import { concatenateAudioBlobs, revokeAudioUrl } from '@/lib/audio/concatenation';
 import type { PatientInfo } from '../../../medical/PatientInfoModal';
@@ -81,6 +82,8 @@ interface RecordingHandlersResult {
   performFinalization: () => Promise<void>;
 }
 
+const log = createLogger('Recording');
+
 export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHandlersResult {
   const {
     session,
@@ -108,7 +111,6 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
   // Start recording
   const handleStartRecording = useCallback(async () => {
     if (!session.patientInfo) {
-      console.log('[Recording] Patient info required - showing modal');
       session.setShowPatientInfoModal(true);
       return;
     }
@@ -127,10 +129,9 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
 
       if (isWebSpeechSupported) {
         startWebSpeech();
-        console.log('[WebSpeech] Started instant preview');
       }
     } catch (err) {
-      console.error('Error starting recording:', err);
+      log.error('Failed to start recording', { error: String(err) });
       session.setError('No se pudo acceder al micrófono. Por favor, verifica los permisos.');
     }
   }, [
@@ -148,7 +149,6 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
 
   // Handle patient info submission
   const handlePatientInfoSubmit = useCallback((info: PatientInfo) => {
-    console.log('[PatientInfo] Received patient info:', info);
     session.setPatientInfo(info);
     session.setShowPatientInfoModal(false);
 
@@ -163,7 +163,6 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
       const capturedBlob = await hookStopRecording();
       if (capturedBlob) {
         audioUpload.fullAudioBlobsRef.current.push(capturedBlob);
-        console.log(`[Pause] Stored segment ${audioUpload.fullAudioBlobsRef.current.length}: ${(capturedBlob.size / 1024).toFixed(1)}KB`);
       }
 
       await orchestrator.pauseRecording();
@@ -204,7 +203,7 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
             }, 3000);
           }
         }).catch((err) => {
-          console.error('[Pause] Checkpoint error:', err);
+          log.error('Checkpoint error on pause', { error: String(err) });
           session.setCheckpointState(prev => ({
             ...prev,
             isCreating: false,
@@ -214,7 +213,7 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
         });
       }
     } catch (err) {
-      console.error('[Recorder] Pause error:', err);
+      log.error('Pause error', { error: String(err) });
     }
   }, [hookStopRecording, audioUpload, session, checkpoint, orchestrator, isWebSpeechActive, stopWebSpeech]);
 
@@ -237,15 +236,13 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
         setExternalIsRecording(true);
       }
     } catch (err) {
-      console.error('[Recorder] Resume error:', err);
+      log.error('Resume error', { error: String(err) });
     }
   }, [session, orchestrator, hookStartRecording, isWebSpeechSupported, startWebSpeech, setExternalIsRecording]);
 
   // Perform finalization
   const performFinalization = useCallback(async () => {
     try {
-      console.log('[Session End] [START] Finalization process');
-
       session.setShowDiarizationModal(false);
 
       revokeAudioUrl(session.pausedAudioUrl);
@@ -257,35 +254,28 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
       const finalText = getTranscriptionText();
 
       if (finalAudioBlob && session.sessionIdRef.current) {
-        console.log(
-          `[Session End] Preparing full audio blob: ${(finalAudioBlob.size / 1024 / 1024).toFixed(2)} MB`
-        );
-
         try {
           const result = await medicalWorkflowApi.endSession(
             session.sessionIdRef.current,
             finalAudioBlob,
             webSpeechTranscripts
           );
-          console.log('[Session End] [OK] Full audio + webspeech saved:', result);
-          console.log('[Session End] [INFO] WebSpeech transcripts sent:', webSpeechTranscripts.length);
-
           try {
             const diarizationJobId = await orchestrator.startDiarization();
 
             if (diarizationJobId) {
-              console.log('[DIARIZATION] [START] Diarization job:', diarizationJobId);
+              log.debug('Diarization started', { jobId: diarizationJobId.slice(0, 8) });
               session.setIsWaitingForChunks(false);
               session.setShowDiarizationModal(true);
               metrics.addLog(`Iniciando diarización (Job: ${diarizationJobId.slice(0, 8)}...)`);
             }
           } catch (diarizationErr) {
-            console.error('[Session End] [ERROR] Diarization error:', diarizationErr);
+            log.error('Diarization error', { error: String(diarizationErr) });
             metrics.addLog(`Error de diarización: ${diarizationErr}`);
             session.setShowDiarizationModal(false);
           }
         } catch (err) {
-          console.warn('[Session End] [WARN] Upload skipped (streaming mode):', err);
+          log.warn('Upload skipped (streaming mode)', { error: String(err) });
         }
       }
 
@@ -298,7 +288,7 @@ export function useRecordingHandlers(deps: RecordingHandlersDeps): RecordingHand
       session.setIsPaused(false);
       audioUpload.chunkNumberRef.current = 0;
     } catch (err) {
-      console.error('[Session] End error:', err);
+      log.error('Session end error', { error: String(err) });
     }
   }, [
     session,

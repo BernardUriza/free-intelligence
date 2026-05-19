@@ -289,7 +289,7 @@ export function getMicrocopy(path: string): string | ((...args: any[]) => string
 
   for (const part of parts) {
     if (current[part] === undefined) {
-      console.warn(`Microcopy not found: ${path}`);
+      // Microcopy not found — return path as fallback
       return path; // Fallback to path itself
     }
     current = current[part];

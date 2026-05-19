@@ -13,6 +13,9 @@ import { useState, useCallback } from 'react';
 import type { Clinic, ClinicCreate } from '@/lib/api/clinics';
 import { fetchClinics, createClinic, deleteClinic } from '@/lib/api/clinics';
 import { confirmDialog } from '@/lib/swal';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Clinics');
 
 export function useClinics() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -27,7 +30,7 @@ export function useClinics() {
       const data = await fetchClinics(false);
       setClinics(data);
     } catch (err) {
-      console.error('Failed to load clinics:', err);
+      log.error('Failed to load clinics', { error: String(err) });
       setError(err instanceof Error ? err.message : 'Error al cargar las clínicas');
     } finally {
       setLoading(false);
@@ -39,7 +42,7 @@ export function useClinics() {
       const newClinic = await createClinic(data);
       setClinics((prev) => [...prev, newClinic]);
     } catch (err) {
-      console.error('Failed to create clinic:', err);
+      log.error('Failed to create clinic', { error: String(err) });
       throw err;
     }
   }, []);
@@ -62,7 +65,7 @@ export function useClinics() {
         setSelectedClinic(null);
       }
     } catch (err) {
-      console.error('Failed to delete clinic:', err);
+      log.error('Failed to delete clinic', { error: String(err) });
     }
   }, [selectedClinic?.clinic_id]);
 

@@ -76,10 +76,7 @@ export function mergeMessages(
     return timeA - timeB;
   });
 
-  // Only log if there were actual changes (reduce spam)
-  if (skippedCount > 0 || backendMessages.length > 0) {
-    console.log(`[Merge] ${localMessages.length} local + ${backendMessages.length} backend → ${deduped.length} (skipped ${skippedCount} duplicates)`);
-  }
+  // Merge stats tracked internally — no console output needed
 
   return deduped;
 }

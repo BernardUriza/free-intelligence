@@ -12,6 +12,9 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('Clipboard');
 
 interface UseClipboardReturn {
   copiedId: string | null;
@@ -28,7 +31,7 @@ export function useClipboard(timeout = 2000): UseClipboardReturn {
         setCopiedId(label);
         setTimeout(() => setCopiedId(null), timeout);
       } catch (err) {
-        console.error('Failed to copy:', err);
+        log.error('Failed to copy', { error: String(err) });
       }
     },
     [timeout]

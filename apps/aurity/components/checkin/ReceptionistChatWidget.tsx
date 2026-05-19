@@ -17,7 +17,10 @@ import { Building2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { useCheckinConversation } from '@aurity-standalone/hooks/useCheckinConversation';
+import { createLogger } from '@/lib/internal/logger';
 import { receptionistChatConfig } from '@/config/chat.config';
+
+const log = createLogger('ReceptionistChat');
 import {
   receptionistEmptyStateConfig,
   receptionistQuickActions,
@@ -156,7 +159,7 @@ export function ReceptionistChatWidget({
       });
     },
     onError: (error) => {
-      console.error('[ReceptionistChatWidget] Error:', error);
+      log.error('Conversation error', { error: String(error) });
     },
   });
 

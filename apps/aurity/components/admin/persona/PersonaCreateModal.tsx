@@ -13,7 +13,10 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, Sparkles, AlertCircle } from 'lucide-react';
+import { createLogger } from '@/lib/internal/logger';
 import { PersonaForm } from './PersonaForm';
+
+const log = createLogger('PersonaCreate');
 import {
   DEFAULT_PERSONA_VALUES,
   validatePersonaCreate,
@@ -85,7 +88,7 @@ export function PersonaCreateModal({
       resetForm();
       onOpenChange(false);
     } catch (err) {
-      console.error('Failed to create persona:', err);
+      log.error('Failed to create persona', { error: String(err) });
 
       if (err instanceof PersonaServiceError) {
         setApiError(err.message);

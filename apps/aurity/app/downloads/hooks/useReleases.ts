@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 
 import type { Release, ReleasesData } from '../types';
+
+const log = createLogger('Releases');
 
 export interface UseReleasesReturn {
   releases: Release[];
@@ -37,7 +40,7 @@ export function useReleases(skipFetch: boolean): UseReleasesReturn {
         setError('No hay releases disponibles');
       }
     } catch (err) {
-      console.error('Error fetching releases:', err);
+      log.error('Failed to fetch releases', { error: String(err) });
       setError('Error al cargar releases. Por favor intenta más tarde.');
     } finally {
       setLoading(false);

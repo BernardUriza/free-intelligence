@@ -10,6 +10,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { QrCode, RefreshCw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createLogger } from '@/lib/internal/logger';
+
+const log = createLogger('CheckinQR');
 
 interface CheckinQRDisplayProps {
   clinicId: string;
@@ -57,7 +60,7 @@ async function generateQRCode(clinicId: string): Promise<QRData> {
 
     return { qrDataUrl, expiresAt };
   } catch (error) {
-    console.error('QR generation failed:', error);
+    log.error('QR generation failed', { error: String(error) });
     // Return placeholder if QRCode library not available
     return {
       qrDataUrl: '',
@@ -87,7 +90,7 @@ export function CheckinQRDisplay({
       setTimeLeft(Math.floor((data.expiresAt.getTime() - Date.now()) / 1000));
     } catch (err) {
       setError('Error generando código QR');
-      console.error('QR generation error:', err);
+      log.error('QR refresh failed', { error: String(err) });
     } finally {
       setIsLoading(false);
     }

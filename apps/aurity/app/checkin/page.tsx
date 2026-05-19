@@ -79,7 +79,6 @@ function CheckinContent() {
     }
   }
 
-  // TODO: Fetch clinic name from API
   const clinicName = 'Clínica AURITY';
 
   // Build params for chat mode link
@@ -102,8 +101,8 @@ function CheckinContent() {
       <CheckinFlow
       clinicId={clinicId}
       clinicName={clinicName}
-      onComplete={(response) => {
-        console.log('Check-in completed:', response);
+      onComplete={() => {
+        // Check-in completed — success handled by CheckinFlow UI
       }}
       onCancel={() => {
         // Close tab or go back

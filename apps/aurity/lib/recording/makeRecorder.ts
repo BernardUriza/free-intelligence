@@ -94,8 +94,6 @@ export async function makeRecorder(
 
           if (blob && blob.size > 0) {
             onChunk(blob);
-          } else {
-            console.warn('[RecordRTC] Empty blob, skipping');
           }
 
           if (isActive) {

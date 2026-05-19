@@ -13,9 +13,12 @@
  */
 
 import { useCallback, useRef, useEffect } from 'react';
+import { createLogger } from '@/lib/internal/logger';
 import type { Doctor } from '@/components/bryntum/utils/appointment-transform.utils';
 import { resolveWorkingDay } from '@/components/bryntum/utils/working-hours.resolver';
 import { getClinicTimeZone, TemporalAPI } from '@/lib/temporal';
+
+const log = createLogger('VirtualizedTimeRanges');
 
 const Temporal = TemporalAPI;
 
@@ -147,7 +150,7 @@ export function useVirtualizedTimeRanges({
         // Force scheduler refresh
         scheduler.refresh?.();
       } else {
-        console.warn('[useVirtualizedTimeRanges] No resourceTimeRangeStore found on scheduler');
+        log.warn('No resourceTimeRangeStore found on scheduler');
       }
     },
     [generateRanges, enabled]
