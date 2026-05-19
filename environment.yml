@@ -38,6 +38,14 @@ dependencies:
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
+  # Python 3.13+ removed the `audioop` stdlib module that discord.py
+  # 2.3.x imports unconditionally for voice/audio support.
+  # `audioop-lts` is the official backport — installs a module named
+  # `audioop` that discord.py's import resolves to. Without this,
+  # `import discord` crashes on py314 with ModuleNotFoundError.
+  # Drop when discord.py 2.5+ lands on conda-forge (upstream made the
+  # import conditional).
+  - audioop-lts
   - anthropic>=0.42.0
   - claude-agent-sdk>=0.1.81
   - python-dotenv>=1.0.0
