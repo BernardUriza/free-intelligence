@@ -48,9 +48,7 @@ def _new_id() -> str:
     return secrets.token_urlsafe(8)
 
 
-async def insert_artifact(
-    *, title: str, html_content: str, created_by_user_id: str | None = None
-) -> str | None:
+async def insert_artifact(*, title: str, html_content: str, created_by_user_id: str | None = None) -> str | None:
     """Insert a new artifact, return the generated id (or None on failure).
 
     Title and html_content are mandatory; created_by_user_id is optional
@@ -103,8 +101,7 @@ async def get_artifact(artifact_id: str) -> dict | None:
         return None
     try:
         row = await conn.fetchrow(
-            "SELECT id, title, html_content, created_at, view_count "
-            "FROM html_artifacts WHERE id = $1",
+            "SELECT id, title, html_content, created_at, view_count FROM html_artifacts WHERE id = $1",
             artifact_id,
         )
         if row is None:

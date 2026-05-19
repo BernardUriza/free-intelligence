@@ -245,9 +245,7 @@ async def deep_memory(args: dict) -> dict:
     lines = [f"# {len(results)} deep-memory chunks for user {user_id} matching '{query}'"]
     for r in results:
         ts_iso = r["created_at"].strftime("%Y-%m-%dT%H:%M:%SZ") if r["created_at"] else "?"
-        lines.append(
-            f"\n## sim={r['similarity']:.3f} | source={r['source_type']}/{r['source_ref']} | {ts_iso}"
-        )
+        lines.append(f"\n## sim={r['similarity']:.3f} | source={r['source_type']}/{r['source_ref']} | {ts_iso}")
         lines.append(r["chunk_text"])
     return _text("\n".join(lines))
 
@@ -278,9 +276,7 @@ async def publish_html_artifact(args: dict) -> dict:
         return _error("html_content is required")
     if len(html_content) > 1_000_000:
         return _error("html_content too large (max 1MB)")
-    artifact_id = await insert_artifact(
-        title=title, html_content=html_content, created_by_user_id=user_id
-    )
+    artifact_id = await insert_artifact(title=title, html_content=html_content, created_by_user_id=user_id)
     if artifact_id is None:
         return _error("Failed to persist artifact (Postgres unreachable or insert failed)")
     base = os.environ.get(

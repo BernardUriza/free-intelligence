@@ -38,12 +38,8 @@ import structlog
 log = structlog.get_logger()
 
 EMBEDDING_DIM = 1536
-EMBEDDING_DEPLOYMENT = os.environ.get(
-    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002"
-)
-EMBEDDING_API_VERSION = os.environ.get(
-    "AZURE_OPENAI_EMBEDDING_API_VERSION", "2024-02-01"
-)
+EMBEDDING_DEPLOYMENT = os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
+EMBEDDING_API_VERSION = os.environ.get("AZURE_OPENAI_EMBEDDING_API_VERSION", "2024-02-01")
 
 
 # ─── Embeddings ────────────────────────────────────────────────────────
@@ -98,8 +94,7 @@ class AzureOpenAIEmbedder:
             return self._client
         if not self.endpoint or not self.api_key:
             raise RuntimeError(
-                "AzureOpenAIEmbedder requires AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_KEY "
-                "(env vars or constructor args)"
+                "AzureOpenAIEmbedder requires AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_KEY (env vars or constructor args)"
             )
         from openai import AsyncAzureOpenAI
 
@@ -129,8 +124,7 @@ class AzureOpenAIEmbedder:
         vec = resp.data[0].embedding
         if len(vec) != EMBEDDING_DIM:
             raise EmbeddingDimensionError(
-                f"Expected {EMBEDDING_DIM}-dim vector, got {len(vec)} from "
-                f"deployment '{self.deployment}'"
+                f"Expected {EMBEDDING_DIM}-dim vector, got {len(vec)} from deployment '{self.deployment}'"
             )
         return vec
 
@@ -254,9 +248,7 @@ async def insert_chunks(
 # ─── Query ─────────────────────────────────────────────────────────────
 
 
-async def query_user_memory(
-    *, user_id: str, query: str, top_k: int = 5
-) -> list[dict[str, Any]]:
+async def query_user_memory(*, user_id: str, query: str, top_k: int = 5) -> list[dict[str, Any]]:
     """Embed `query` and return the top-k closest chunks for `user_id`.
 
     Cosine distance via `embedding <=> $1` (pgvector's smaller-is-closer
@@ -300,9 +292,7 @@ async def query_user_memory(
             for r in rows
         ]
     except Exception:
-        log.exception(
-            "deep_memory_query_failed", user_id=user_id, query_len=len(query)
-        )
+        log.exception("deep_memory_query_failed", user_id=user_id, query_len=len(query))
         return []
     finally:
         await conn.close()

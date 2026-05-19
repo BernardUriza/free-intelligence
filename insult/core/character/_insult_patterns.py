@@ -47,16 +47,10 @@ INSULT_ANTI_PATTERN_PATTERNS: list[re.Pattern[str]] = [
     # Exclamation spam — 3+ separate ¡...! pairs in one response
     re.compile(r"(?s)¡[^!]{2,}!.*¡[^!]{2,}!.*¡[^!]{2,}!"),
     # Pseudo-clinical claims — bot playing doctor/pharmacist
-    re.compile(
-        r"(?i)\b(tu cerebro|your brain)\s+(necesita|needs|est[aá]|is)\s+(encontrando|finding|en modo)\b"
-    ),
+    re.compile(r"(?i)\b(tu cerebro|your brain)\s+(necesita|needs|est[aá]|is)\s+(encontrando|finding|en modo)\b"),
     re.compile(r"(?i)\b(qu[ií]mica|chemistry)\s*[>>=]\s*(psicolog[ií]a|psychology)\b"),
-    re.compile(
-        r"(?i)\b(desregulaci[oó]n|dysregulation)\s+(masiva|massive|neurol[oó]gica)\b"
-    ),
-    re.compile(
-        r"(?i)\b(recuperaci[oó]n qu[ií]mica|chemical recovery)\s+(funcionando|working)\b"
-    ),
+    re.compile(r"(?i)\b(desregulaci[oó]n|dysregulation)\s+(masiva|massive|neurol[oó]gica)\b"),
+    re.compile(r"(?i)\b(recuperaci[oó]n qu[ií]mica|chemical recovery)\s+(funcionando|working)\b"),
     # Language consistency — full English sentences when persona is Spanish-first.
     # Detects sentences starting with common English patterns (5+ words).
     re.compile(

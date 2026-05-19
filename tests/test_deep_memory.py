@@ -115,13 +115,7 @@ def test_chunk_text_for_embedding_long_text_produces_multiple_chunks():
     from insult.core.deep_memory import chunk_text_for_embedding
 
     # ~800 tokens of representative conversation text
-    text = (
-        "\n\n".join(
-            f"[2026-05-{day:02d} 10:00] bernard: "
-            + " ".join(["palabra"] * 30)
-            for day in range(1, 21)
-        )
-    )
+    text = "\n\n".join(f"[2026-05-{day:02d} 10:00] bernard: " + " ".join(["palabra"] * 30) for day in range(1, 21))
     chunks = chunk_text_for_embedding(text, chunk_size=200, overlap=20)
     assert len(chunks) >= 2
     # No chunk should be empty
@@ -172,19 +166,7 @@ async def test_insert_chunks_empty_inputs_returns_zero():
     """Same defensive shape on the insert side."""
     from insult.core.deep_memory import insert_chunks
 
-    assert (
-        await insert_chunks(user_id="", source_type="message", source_ref="r", chunks=["x"])
-        == 0
-    )
-    assert (
-        await insert_chunks(user_id="u", source_type="invalid_type", source_ref="r", chunks=["x"])
-        == 0
-    )
-    assert (
-        await insert_chunks(user_id="u", source_type="message", source_ref="r", chunks=[])
-        == 0
-    )
-    assert (
-        await insert_chunks(user_id="u", source_type="message", source_ref="r", chunks=["", "  "])
-        == 0
-    )
+    assert await insert_chunks(user_id="", source_type="message", source_ref="r", chunks=["x"]) == 0
+    assert await insert_chunks(user_id="u", source_type="invalid_type", source_ref="r", chunks=["x"]) == 0
+    assert await insert_chunks(user_id="u", source_type="message", source_ref="r", chunks=[]) == 0
+    assert await insert_chunks(user_id="u", source_type="message", source_ref="r", chunks=["", "  "]) == 0

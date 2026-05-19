@@ -39,9 +39,7 @@ async def _clean_table():
 
 
 async def test_insert_returns_short_id():
-    aid = await html_artifacts.insert_artifact(
-        title="hello", html_content="<h1>hi</h1>"
-    )
+    aid = await html_artifacts.insert_artifact(title="hello", html_content="<h1>hi</h1>")
     assert aid is not None
     # 11 chars from token_urlsafe(8); URL-safe alphabet only.
     assert 8 <= len(aid) <= 22
@@ -49,9 +47,7 @@ async def test_insert_returns_short_id():
 
 
 async def test_get_returns_inserted_artifact():
-    aid = await html_artifacts.insert_artifact(
-        title="hello", html_content="<h1>hi</h1>", created_by_user_id="u1"
-    )
+    aid = await html_artifacts.insert_artifact(title="hello", html_content="<h1>hi</h1>", created_by_user_id="u1")
     assert aid is not None
     got = await html_artifacts.get_artifact(aid)
     assert got is not None
@@ -88,9 +84,7 @@ async def test_ids_are_unique_across_inserts():
     but pin the invariant so a future change to _new_id is caught."""
     ids = set()
     for i in range(20):
-        aid = await html_artifacts.insert_artifact(
-            title=f"t{i}", html_content=f"<p>{i}</p>"
-        )
+        aid = await html_artifacts.insert_artifact(title=f"t{i}", html_content=f"<p>{i}</p>")
         assert aid is not None
         assert aid not in ids
         ids.add(aid)

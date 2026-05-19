@@ -57,11 +57,7 @@ from insult.core.character._insult_patterns import (
 # Composed pattern lists (preserve original public names + semantics)
 # ============================================================
 
-CHARACTER_BREAK_PATTERNS = (
-    _packs.GENERIC_AI_DISCLOSURE_EN
-    + _packs.GENERIC_AI_DISCLOSURE_ES
-    + INSULT_BREAK_PATTERNS
-)
+CHARACTER_BREAK_PATTERNS = _packs.GENERIC_AI_DISCLOSURE_EN + _packs.GENERIC_AI_DISCLOSURE_ES + INSULT_BREAK_PATTERNS
 
 ANTI_PATTERN_CHECKS = (
     _packs.ASSISTANT_TONE_EN
