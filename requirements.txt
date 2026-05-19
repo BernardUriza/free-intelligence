@@ -50,14 +50,6 @@ numpy
 # (azure.extensions=VECTOR).
 pgvector>=0.2.5
 
-# fi-core: shared RAG primitives (chunking + Embedder/ChunkStore Protocols).
-# Lives in the free-intelligence monorepo at apps/packages/fi-core. Both
-# AURITY and Insult import from it so the chunking layer doesn't drift.
-# Bernard's call 2026-05-19: publish to PyPI + make free-intelligence
-# public. Until 0.1.0 is on PyPI the dep is sourced from the git subdir
-# of the now-public monorepo — pip handles subdirectory installs natively.
-fi-core @ git+https://github.com/BernardUriza/free-intelligence.git@dev#subdirectory=apps/packages/fi-core
-
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
