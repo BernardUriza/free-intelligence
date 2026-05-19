@@ -5,6 +5,61 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-05-19
+
+### Added
+
+- `fi_core.persona.mcp_server` — MCP (Model Context Protocol) server
+  exposing the persona detectors as tools that any MCP-compatible AI
+  (Claude Code, Cursor, Anthropic API with MCP enabled) can call
+  directly, without depending on `fi-core` as a Python package in
+  its own process.
+- Five tools shipped on the server:
+  - `list_packs()` — discovery of atomic + composite packs with
+    severity, language, and pattern count metadata.
+  - `check_drift(text, packs)` — detect persona drift with matches
+    grouped by severity tier (break / soft_drift / clarification_dump).
+  - `sanitize_response(text, packs)` — last-resort sentence-level
+    cleanup for break-severity matches.
+  - `get_reinforcement(pack_name)` — return the reinforcement string
+    associated with a pack. Auto-maps `clarification_dump_*` to
+    `CONTEXT_REINFORCEMENT`, everything else to `GENERIC_REINFORCEMENT`.
+  - `validate_and_retry_prompt(response, system_prompt, packs)` —
+    one-shot atomic loop. The killer-feature tool: validates the
+    response, decides per-severity whether retry is needed, and
+    returns the reinforced system prompt if so. Zero client-side
+    orchestration; the AI does not need a state machine.
+- Composite packs (`default_bilingual`, `all_ai_disclosure`, etc.) now
+  expand to their atomic components when processed by the MCP server,
+  preserving per-pattern severity tier end-to-end. A hard break inside
+  `default_bilingual` is routed through the break-tier detector, not
+  the soft-drift one.
+- 21 new tests in `test_persona_mcp.py` covering all five tools, the
+  atomic-vs-composite expansion contract, unknown-pack graceful
+  fallback, severity-precedence rules, and the no-retry-on-soft-drift
+  decision rule.
+
+### Changed
+
+- `fi-core` now ships an optional `[mcp]` extra (depends on `mcp>=1.4`).
+  Install as `pip install 'fi-core[mcp]'` to enable the server.
+- Anaconda conda recipe `meta.yaml` keeps `mcp` as a non-required
+  dependency since the base package remains usable without it; the
+  conda-forge submission will declare it as optional output.
+
+### Install + register
+
+```bash
+pip install 'fi-core[mcp]'
+claude mcp add fi-core-persona -- python -m fi_core.persona.mcp_server
+```
+
+After registration, any MCP client (Claude Code, Cursor) can invoke the
+five tools directly. The killer use case is the meta-validation loop:
+the AI checks its own output for persona drift via `validate_and_retry_prompt`
+before sending the response to the user, and retries with the right
+reinforcement automatically if drift is detected.
+
 ## [0.3.0] — 2026-05-19
 
 ### Added

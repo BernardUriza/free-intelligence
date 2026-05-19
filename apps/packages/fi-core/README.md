@@ -234,6 +234,60 @@ complementary, not competitors: a production deployment can ship both
 (regex first for sub-millisecond no-cost checks, embeddings second for
 the long tail), and the two will catch different things.
 
+## Use as an MCP server (for AI agents)
+
+`fi_core.persona` ships an MCP (Model Context Protocol) server so that any
+MCP-compatible AI — Claude Code, Cursor, the Anthropic API with MCP enabled —
+can call into the detectors directly, without the AI's host process needing
+to install `fi-core` as a Python dependency. The MCP transport handles
+cross-process invocation; the AI invokes the tools as if they were native.
+
+Install and register:
+
+```bash
+pip install 'fi-core[mcp]'
+claude mcp add fi-core-persona -- python -m fi_core.persona.mcp_server
+```
+
+Five tools exposed:
+
+| Tool | Use it when |
+|------|-------------|
+| `list_packs()` | Discovery — list atomic + composite packs with severity, language, pattern count |
+| `check_drift(text, packs)` | Granular inspection — get matches grouped by severity tier |
+| `sanitize_response(text, packs)` | Last-resort cleanup — drop sentences with break-severity matches |
+| `get_reinforcement(pack_name)` | Get the reinforcement string for a pack (auto-maps clarification-dump packs → `CONTEXT_REINFORCEMENT`, otherwise → `GENERIC_REINFORCEMENT`) |
+| `validate_and_retry_prompt(response, system_prompt, packs)` | **Atomic loop** — validates response, decides per-severity whether to retry, returns reinforced system prompt if so. Zero client-side orchestration |
+
+The killer feature is the atomic loop. An AI that wants to self-validate its
+output before sending it to the user can call `validate_and_retry_prompt` in a
+single round-trip. The server applies the severity decision rules — hard
+break → retry with `GENERIC_REINFORCEMENT`, clarification dump → retry with
+`CONTEXT_REINFORCEMENT`, soft drift only → no retry — and returns either the
+reinforced system prompt (if retry is warranted) or `None` (if the response
+is good to send). The AI does not need to interpret severity itself, does
+not need to know which reinforcement applies to which detection mode, and
+does not need to maintain a state machine.
+
+Example loop, as the AI sees it:
+
+```
+User: "Tell me about quantum entanglement, brand voice = friendly mentor"
+[AI generates draft response]
+[AI → MCP: validate_and_retry_prompt(draft, system_prompt, packs=["default_bilingual"])]
+[Server returns: retry_needed=true, reinforced_system_prompt="...you are a friendly mentor..."]
+[AI regenerates with reinforced prompt]
+[AI → MCP: validate_and_retry_prompt(retry, system_prompt, ...)]
+[Server returns: retry_needed=false]
+[AI sends response to user]
+```
+
+The library form of `fi_core.persona` remains the right choice when the LLM
+runtime and the validator can share a process (AURITY, the Insult Discord
+bot, anything running `fi-core` natively). The MCP server is the right
+choice when the AI lives in a separate process — i.e. when the AI itself is
+the consumer, not the app.
+
 ## Origin
 
 The `rag` chunking module was extracted verbatim from `free-intelligence/backend/services/document/services/chunking_strategy.py` (created 2026-01-29 by Bernard + Claude Sonnet 4.5). The `rag` protocols were added when extracting (2026-05-19) to break the AURITY-specific coupling to `monitor_client` + `IDocumentRepository`.
