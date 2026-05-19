@@ -9,6 +9,7 @@ Sub-packages:
 - ``fi_core.persona``                      — character-integrity / anti-drift detectors and packs
 - ``fi_core.persona.mcp_server``           — MCP server exposing persona detectors as AI tools (extras: mcp)
 - ``fi_core.training``                     — training pipes (datasets, tokenizers, TinyGPT, PyTorchTrainer) (extras: training)
+- ``fi_core.memory``                       — long-term fact memory + Mem0-style consolidator (extras: memory)
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"

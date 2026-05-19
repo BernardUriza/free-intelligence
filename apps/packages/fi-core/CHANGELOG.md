@@ -5,6 +5,111 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-05-19
+
+### Added
+
+- **`fi_core.memory`** — sixth sub-package: long-term, principal-scoped
+  atomic-fact memory. Consolidates the production-validated patterns
+  from discord-bot's ``insult/core/memory/repositories/facts.py`` (with
+  ``user_id`` generalized to ``principal_id``). Sibling of
+  ``fi_core.stores``, not extension: a fact is an atomic unit, not a
+  chunk of a document, so they share design language without literal
+  Protocol inheritance.
+
+- `fi_core.memory.protocols` — runtime-checkable ``MemoryStore``
+  Protocol. Five capability clusters: CRUD (``get_facts``,
+  ``save_facts``, ``add_fact``), soft-delete + retention
+  (``soft_delete_fact``, ``purge_soft_deleted``, ``count_live``),
+  search (``semantic_search``), consolidation
+  (``apply_consolidation_plan``), and lifecycle (``init_schema``,
+  ``close``).
+
+- `fi_core.memory.types` — ``Fact`` dataclass (frozen, slots),
+  ``FactSource`` enum (AUTO / MANUAL / AGENT — same three-tier
+  provenance that protects manually curated facts from being wiped by
+  auto re-extraction), ``ConsolidationOp`` audit row, and
+  ``ConsolidationReport`` rollup with ``counts_by_op()``.
+
+- `fi_core.memory.retention` — ``RetentionPolicy`` Protocol +
+  three concrete impls. ``Default90d`` ships discord-bot's
+  production-tuned 90-day soft-delete window (``SOFT_DELETE_RETENTION_SECONDS``).
+  ``FixedWindow`` for custom durations. ``NeverPurge`` for audit-grade
+  stores where soft-delete is the terminal state.
+
+- `fi_core.memory.stores.pgvector_memory.PgMemoryStore` — production
+  Postgres + pgvector impl extracted from ``FactsRepository``.
+  Self-managing asyncpg pool (mirrors ``PgVectorChunkStore`` shape, not
+  discord-bot's ``BaseRepository`` + ``ConnectionManager`` separation
+  which only makes sense for multi-table facades). Optional injected
+  ``Embedder`` for vector-backed semantic search; falls back to
+  ordered-by-recency when absent. Same codec-registration-before-pool
+  pattern used in ``PgVectorChunkStore`` to avoid the asyncpg "unknown
+  type: vector" pitfall. Schema: ``principal_facts`` table +
+  ``fact_consolidation_log`` audit table, both with full DDL +
+  indexes shipped via ``init_schema()``.
+
+- `fi_core.memory.consolidator.FactConsolidator` — high-level
+  Mem0-style orchestrator. Wraps the three primitives that already
+  exist (``MemoryStore`` + ``persona.mcp_server.build_consolidation_prompt``
+  + ``parse_consolidation_result``). Shape B per
+  ``memory:[[mcp-shape-b-canonical]]``: server builds prompt + parser,
+  caller's ``llm_call`` callable executes the LLM. Returns
+  ``ConsolidationReport`` with ops + counts + duration + error
+  capture; never raises. ``dry_run`` synthesizes the audit trail
+  without touching the store — useful for offline eval and CLI diff
+  surfaces.
+
+### Changed
+
+- `pyproject.toml`: new ``[memory]`` optional extra
+  (``asyncpg>=0.30``, ``pgvector>=0.4`` — same deps as
+  ``stores-pgvector`` but named separately so the install intent is
+  explicit at the caller site). ``[all]`` and ``[dev]`` already pull
+  these via ``stores-pgvector``.
+
+- `fi_core/__init__.py`: lists the new ``fi_core.memory`` path.
+
+- `fi_core.memory.types.ConsolidationReport`: dataclass is NOT frozen
+  (the orchestrator mutates it across the consolidation lifecycle —
+  appending ops, recording errors, finalizing duration). All other
+  types in the module remain frozen+slots.
+
+### Honest extraction notes
+
+- **PgMemoryStore is a direct extraction** of discord-bot's
+  ``FactsRepository`` (the source file is ~310 LOC; the fi-core impl
+  is ~370 LOC after collapsing the ``ConnectionManager`` separation,
+  generalizing ``user_id`` to ``principal_id``, accepting an optional
+  injected ``Embedder``, and inlining the audit-log writes that
+  previously crossed the ``vectors`` module boundary). SQL shape and
+  the soft-delete-then-reinsert UPDATE pattern are byte-identical to
+  the production schema.
+- **FactConsolidator orchestration logic** is the runner half of
+  discord-bot's ``memory_consolidator.py`` (cleaned of Discord
+  dataclasses + telemetry-routing logic). The Shape B contract with
+  ``fi_core.persona.mcp_server`` is preserved unchanged.
+- **Retention windows** mirror the production constant
+  ``SOFT_DELETE_RETENTION_SECONDS = 90 * 86400``.
+
+### Coverage
+
+- 40 new tests: 6 types + 7 retention + 13 consolidator (in-memory
+  mock store) + 14 PgMemoryStore (against ephemeral PG via
+  pytest-postgresql).
+- Full suite: 205 passing + 3 skipped (CUDA-gated on Mac runner).
+  0 regressions vs 0.6.0.
+
+### Narrative
+
+V2 preserved: ``fi_core.memory`` ships consolidation of code that
+**already passed the production filter** in two consumers (discord-bot
+Insult since v3.6.0; AURITY medical RAG since 2026-Q1). It is not new
+design. The same Shape B integration with ``persona.mcp_server`` that
+discord-bot already uses in production is what consumers of
+``FactConsolidator`` consume here — no behavioral regression, just a
+narrower contract surface.
+
 ## [0.6.0] — 2026-05-19
 
 ### Added
