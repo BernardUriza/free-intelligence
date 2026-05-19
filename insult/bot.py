@@ -13,7 +13,6 @@ from insult.app import Container, create_app
 from insult.cogs import ChatCog, UtilityCog
 from insult.cogs.voice import VoiceCog
 from insult.core.backup import is_azure_configured
-from insult.core.character import _get_current_time_context
 from insult.core.debug_server import MoltbookDebugContext, start_debug_server, stop_debug_server
 from insult.core.delivery import MESSAGE_DELIMITER, split_response
 from insult.core.errors import ErrorType, get_error_response
@@ -44,6 +43,7 @@ from insult.core.reminders import ACK_MAX_RETRIES, ACK_TIMEOUT_SECONDS, compute_
 from insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from insult.core.snooze import SNOOZE_EMOJIS, snooze_delta_for_emoji
 from insult.core.sources.moltbook import MoltbookSource
+from shared.time_context import _get_current_time_context
 
 log = structlog.get_logger()
 

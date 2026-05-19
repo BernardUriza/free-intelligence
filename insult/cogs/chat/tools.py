@@ -217,7 +217,7 @@ async def inaugurate_channel(
     is a far better failure mode than crashing the channel creation.
     """
     from insult.cogs.chat.context import load_facts
-    from insult.core.character import _get_current_time_context
+    from shared.time_context import _get_current_time_context
 
     time_ctx = _get_current_time_context()
 
