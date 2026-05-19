@@ -74,3 +74,12 @@ ruff>=0.11.0
 # Security
 pip-audit>=2.7.0
 bandit>=1.8.0
+
+# Internal packages — extracted from the discord-bot codebase + AURITY for shared use.
+# Lives at apps/packages/fi-core inside the free-intelligence monorepo. Provides:
+#   - fi_core.rag      (chunking algorithm + Embedder/ChunkStore protocols)
+#   - fi_core.persona  (anti-drift detectors + pattern packs — what used to be
+#                       insult/core/character/detection.py inline)
+# For local development override:
+#   pip install -e ~/Documents/free-intelligence/apps/packages/fi-core
+fi-core @ git+https://github.com/BernardUriza/free-intelligence.git@main#subdirectory=apps/packages/fi-core

@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "3.9.60"
+version = "3.9.61"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -62,6 +62,7 @@ omit = [
     "insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
     "insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
     "insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
+    "insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
 ]
 
 [tool.coverage.report]

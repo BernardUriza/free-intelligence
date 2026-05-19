@@ -17,7 +17,30 @@ structured output is easier to read than the markdown projection:
 | Did the user mention "X" earlier? | `mcp__insult_db__search_messages(channel_id, query, limit)` |
 | Has the user disclosed anything clinical? | `mcp__insult_db__get_disclosure_log(user_id, days)` |
 | What is the user's emotional arc state? | `mcp__insult_db__get_emotional_arc(user_id, channel_id)` |
+| Vector-recall something the user said weeks ago | `mcp__insult_db__deep_memory(user_id, query, top_k)` |
 | Want to share a long doc / mini-app / snapshot | `mcp__insult_db__publish_html_artifact(title, html_content, user_id)` |
+
+### `deep_memory` vs `get_user_facts` — which to use
+
+Both look up the user's history; the right one depends on the shape of
+what you need:
+
+- **`get_user_facts`** = the structured digest. Returns category-tagged
+  one-line facts curated by past consolidations. Use when you want a
+  ground-truth summary: "what does Bernard do for a living?"
+- **`deep_memory`** = the raw vector recall. Returns the actual chunks
+  of message history that semantically match a query, with similarity
+  scores. Use when you need the *phrasing*, the *context around* a
+  topic, or to verify whether the user really mentioned X at all.
+  Example: "did Bernard ever say anything about Xalapa?" — facts may
+  not have indexed it; deep_memory will surface the actual messages.
+
+Calling both is fine when you want full coverage (facts for the schema,
+deep_memory for the texture). Each is one round-trip; budget accordingly.
+Returns up to `top_k` chunks (default 5, max 20). Each chunk includes a
+`source_ref` like `messages:1774945866-1779175270` — the start/end UTC
+epochs of the message range it came from, which you can convert to a
+human date when citing.
 
 ### `publish_html_artifact` — when to use
 
