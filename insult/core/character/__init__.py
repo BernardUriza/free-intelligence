@@ -10,7 +10,6 @@ focused submodules:
 - ``formatting``   — post-generation mutators: normalize_formatting,
                      strip_echoed_quotes, strip_lists, enforce_length_variation,
                      deduplicate_opener, get_length_hint, strip_metadata.
-- ``time_context`` — Mexico City wall-clock context for the prompt.
 - ``prompts``      — `build_adaptive_prompt`: layered system-prompt builder.
 
 External callers keep importing names directly from
@@ -50,7 +49,6 @@ from insult.core.character.pipeline import (
     run_pipeline,
 )
 from insult.core.character.prompts import build_adaptive_prompt, compose_extra_layers
-from insult.core.character.time_context import _get_current_time_context
 
 __all__ = [
     "ANTI_PATTERN_CHECKS",
@@ -63,7 +61,6 @@ __all__ = [
     "IDENTITY_REINFORCE_THRESHOLD",
     "MutationStage",
     "PipelineViolationError",
-    "_get_current_time_context",
     "build_adaptive_prompt",
     "compose_extra_layers",
     "deduplicate_opener",
