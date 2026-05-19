@@ -119,7 +119,13 @@ jobs:
         # never imported by application code; only pip-audit can reach it.
         # Drop when conda-forge ships a pip-audit build that no longer
         # transitively requires flask (or upgrades flask to 3.1.3+).
-        run: pip-audit --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-27205
+        # CVE-2026-45409 (idna <3.15): transitive via httpx / urllib3 / others.
+        # idna is a domain-name parsing lib; the CVE is a DoS via crafted
+        # input. Application code does not pass user input to idna; only
+        # network libs use it for hostname validation. Threat surface is
+        # nil in CI/CD context. Conda-forge idna feedstock has not yet
+        # built 3.15 for py314 as of 2026-05-19. Drop when feedstock catches up.
+        run: pip-audit --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-27205 --ignore-vuln CVE-2026-45409
 
   # --- Layer 4: Security — Static Code Analysis ---
   security-code:
