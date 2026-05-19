@@ -1,6 +1,6 @@
 [project]
 name = "fi-core"
-version = "0.6.0"
+version = "0.7.0"
 description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -65,6 +65,14 @@ training = [
     "torch>=2.0",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
+]
+
+# Long-term memory primitives: PgMemoryStore + FactConsolidator + retention.
+# Same deps as stores-pgvector (asyncpg + pgvector) — separate extra so the
+# semantic install intent is explicit at the caller site.
+memory = [
+    "asyncpg>=0.30",
+    "pgvector>=0.4",
 ]
 
 # Convenience: install everything available so far.
