@@ -155,7 +155,7 @@ _pool_lock = asyncio.Lock()
 _reaper_task: asyncio.Task | None = None
 
 
-async def _build_options(persona: str) -> Any:
+async def _build_options(persona: str, model: str | None = None) -> Any:
     """Construct ClaudeAgentOptions for a new channel session.
 
     F4 phase 3 (v3.9.56): only the `mcp__insult_db__*` tools are allowed.
@@ -164,6 +164,11 @@ async def _build_options(persona: str) -> Any:
     `CLAUDE.md` via `setting_sources=["project"]`, but the projected
     facts/messages/disclosure markdown is no longer written (the
     workspace_renderer process was removed from the entrypoint).
+
+    v3.9.71: `model` parameter accepts a router decision (Haiku/Sonnet/
+    Opus). Falls back to DEFAULT_MODEL when None — that path is what the
+    earlier (router-less) code did, so behavior is preserved if the
+    caller skips routing.
     """
     from claude_agent_sdk import ClaudeAgentOptions
 
@@ -179,7 +184,7 @@ async def _build_options(persona: str) -> Any:
     return ClaudeAgentOptions(
         system_prompt=persona,
         cwd=str(WORKSPACE_ROOT),
-        model=DEFAULT_MODEL,
+        model=model or DEFAULT_MODEL,
         allowed_tools=list(mcp_tool_names),
         mcp_servers={INSULT_DB_SERVER_NAME: insult_db_server},
         permission_mode="bypassPermissions",
@@ -190,10 +195,27 @@ async def _build_options(persona: str) -> Any:
     )
 
 
-async def _get_or_create_client(channel_id: str) -> Any:
+_pool_models: dict[str, str] = {}  # channel_id → model id chosen at session creation
+
+
+async def _get_or_create_client(
+    channel_id: str,
+    *,
+    user_id: str | None = None,
+    user_text: str | None = None,
+) -> Any:
     """Return a ClaudeSDKClient for this channel, creating + entering it
     if absent. Caller MUST hold the per-channel lock before calling query
     on the returned client.
+
+    v3.9.71: when a new client is created, runs the 3-tier router
+    (Haiku/Sonnet/Opus) using `user_id` + `user_text` + disclosure
+    severity from Postgres. The chosen model sticks for the session's
+    lifetime — see router_runtime.py for the rationale on per-session
+    stickiness vs per-turn rerouting.
+
+    When user_id/user_text are not provided (e.g. legacy callers, tests),
+    falls back to DEFAULT_MODEL — same behavior as before v3.9.71.
     """
     from claude_agent_sdk import ClaudeSDKClient
 
@@ -203,17 +225,55 @@ async def _get_or_create_client(channel_id: str) -> Any:
             _pool_last_used[channel_id] = time.time()
             return existing
 
-        # First turn for this channel — build + enter a new client.
+        # First turn for this channel — route, then build + enter client.
+        chosen_model = DEFAULT_MODEL
+        route_meta: dict[str, Any] = {"routed": False}
+        if user_id and user_text:
+            from insult.agent.router_runtime import route_for_session
+
+            pg_conn = None
+            try:
+                from insult.agent.mcp_tools import _connect as _pg_connect
+
+                pg_conn = await _pg_connect()
+                decision = await route_for_session(
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    user_text=user_text,
+                    pg_conn=pg_conn,
+                )
+                chosen_model = decision.model
+                route_meta = {
+                    "routed": True,
+                    "tier": decision.tier,
+                    "reason": decision.reason,
+                    "preset_mode": decision.preset_mode,
+                    "preset_modifiers": decision.preset_modifiers,
+                    "disclosure_severity": decision.disclosure_severity,
+                    "forced": decision.forced,
+                }
+            except Exception:
+                log.exception("agent_runner_router_failed", channel_id=channel_id)
+                chosen_model = DEFAULT_MODEL
+                route_meta = {"routed": False, "reason": "exception_fallback"}
+            finally:
+                if pg_conn is not None:
+                    with contextlib.suppress(Exception):
+                        await pg_conn.close()
+
         persona = _load_persona()
-        options = await _build_options(persona)
+        options = await _build_options(persona, model=chosen_model)
         client = ClaudeSDKClient(options=options)
         await client.__aenter__()
         _pool[channel_id] = client
+        _pool_models[channel_id] = chosen_model
         _pool_last_used[channel_id] = time.time()
         log.info(
             "agent_runner_session_created",
             channel_id=channel_id,
+            model=chosen_model,
             pool_size=len(_pool),
+            **route_meta,
         )
         return client
 
@@ -224,6 +284,7 @@ async def _close_client(channel_id: str) -> None:
         client = _pool.pop(channel_id, None)
         _pool_last_used.pop(channel_id, None)
         _channel_locks.pop(channel_id, None)
+        _pool_models.pop(channel_id, None)
     if client is not None:
         try:
             await client.__aexit__(None, None, None)
@@ -399,12 +460,18 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     output_tokens = 0
     stop_reason = ""
     session_uuid: str | None = None
-    model = DEFAULT_MODEL
     is_first_turn = req.channel_id not in _pool
+    # Best-known model for this turn: prefer the per-session decision
+    # picked at create-time (set by the router), fall back to DEFAULT_MODEL
+    # for legacy callers and the synthetic logging path before client open.
+    model = _pool_models.get(req.channel_id, DEFAULT_MODEL)
 
     try:
         async with lock:
-            client = await _get_or_create_client(req.channel_id)
+            client = await _get_or_create_client(req.channel_id, user_id=req.user_id, user_text=req.user_text)
+            # After create the chosen model is in the pool. Refresh local
+            # binding so the response payload reports what was actually used.
+            model = _pool_models.get(req.channel_id, DEFAULT_MODEL)
             await client.query(query_input)
             async for message in client.receive_response():
                 mtype = type(message).__name__
