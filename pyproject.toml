@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "3.9.56"
+version = "3.9.57"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -61,6 +61,7 @@ omit = [
     "insult/core/siesta/coordination/pg_state.py",  # F4: Siesta coordination via PG (live PG required, tests in test_siesta_pg_state.py skip without POSTGRES_URL)
     "insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
     "insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
+    "insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
 ]
 
 [tool.coverage.report]

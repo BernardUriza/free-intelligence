@@ -17,6 +17,31 @@ structured output is easier to read than the markdown projection:
 | Did the user mention "X" earlier? | `mcp__insult_db__search_messages(channel_id, query, limit)` |
 | Has the user disclosed anything clinical? | `mcp__insult_db__get_disclosure_log(user_id, days)` |
 | What is the user's emotional arc state? | `mcp__insult_db__get_emotional_arc(user_id, channel_id)` |
+| Want to share a long doc / mini-app / snapshot | `mcp__insult_db__publish_html_artifact(title, html_content, user_id)` |
+
+### `publish_html_artifact` — when to use
+
+The tool returns a permanent shareable URL of the form `bot.bernarduriza.com/a/{id}`.
+The HTML you pass is served verbatim — include DOCTYPE, head, body,
+all inline CSS/JS. NO external assets are fetched server-side.
+
+Use it when:
+- Your reply would not fit in chat (full report, structured doc, ADR).
+- The user asks for a visualization, chart, table, or interactive widget.
+- The user asks for a snapshot of the current conversation as a link.
+- The structured output would render dramatically better as a page than
+  as raw markdown in Discord.
+
+Do NOT use it for:
+- A normal short reply that fits in chat (artifact is overkill).
+- Anything containing secrets, tokens, internal URLs, or content the
+  user wouldn't share publicly (the URL is unguessable but the page
+  itself is public — anyone with the link views it).
+- Sensitive disclosure content (medical, crisis, identity) — stays in
+  Discord where the channel ACL protects it.
+
+When you use it: include the URL in your chat reply so the user can click.
+Keep your chat reply itself short (just a one-line intro to the artifact).
 
 The `user_id` and `channel_id` are always injected by the host in the
 `<turn_context>` block at the top of your prompt. Do not invent them.

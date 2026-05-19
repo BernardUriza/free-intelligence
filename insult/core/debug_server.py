@@ -68,6 +68,13 @@ async def _auth_middleware(request: web.Request, handler):
     if request.path == "/debug/health":
         return await handler(request)
 
+    # /a/{id} is the public HTML artifact viewer. Anyone with the link
+    # views the page. The artifact author (Insult agent) controls what
+    # gets published; the link is itself the unguessable credential
+    # (11 url-safe chars, ~64 bits). See html_artifacts.py.
+    if request.path.startswith("/a/"):
+        return await handler(request)
+
     # /sync/* uses per-user bearer tokens resolved against user_sync_tokens.
     # The handler does its own auth + stamps `request["sync_user_id"]` so
     # downstream code knows which Discord user is pushing data. This middleware
@@ -975,6 +982,38 @@ async def _handle_facts(request: web.Request) -> web.Response:
     return web.json_response({"user_id": user_id, "count": len(facts), "facts": facts})
 
 
+async def _handle_artifact_view(request: web.Request) -> web.Response:
+    """Public viewer for agent-published HTML artifacts.
+
+    No auth — the unguessable 11-char id IS the credential. See
+    `_auth_middleware` for the /a/ bypass and `html_artifacts.py` for
+    the storage layer.
+    """
+    from insult.core.html_artifacts import get_artifact
+
+    artifact_id = request.match_info.get("id", "")
+    if not artifact_id or len(artifact_id) > 64 or "/" in artifact_id:
+        return web.Response(
+            text="<!DOCTYPE html><title>404</title><h1>Not found</h1>",
+            content_type="text/html",
+            status=404,
+        )
+    artifact = await get_artifact(artifact_id)
+    if artifact is None:
+        return web.Response(
+            text="<!DOCTYPE html><title>404</title><h1>Not found</h1><p>This artifact does not exist or was removed.</p>",
+            content_type="text/html",
+            status=404,
+        )
+    # Stream the stored HTML verbatim. The agent owns the full document
+    # (DOCTYPE, head, body) — we don't wrap or transform anything.
+    return web.Response(
+        text=artifact["html_content"],
+        content_type="text/html",
+        charset="utf-8",
+    )
+
+
 def build_app(
     memory: MemoryStore,
     debug_token: str,
@@ -1009,6 +1048,8 @@ def build_app(
     app.router.add_get("/debug/costs", _handle_costs)
     app.router.add_get("/debug/facts", _handle_facts)
     app.router.add_post("/sync/serenityops", _handle_sync_serenityops)
+    # Public HTML artifact viewer (no auth — id is the credential).
+    app.router.add_get("/a/{id}", _handle_artifact_view)
     return app
 
 

@@ -182,6 +182,22 @@ CREATE TABLE IF NOT EXISTS siesta_state (
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── html_artifacts ────────────────────────────────────────────────────
+-- HTML artifacts the agent publishes via `publish_html_artifact`. Served
+-- by `discord-bot`'s public GET /a/{id} endpoint — no auth, anyone with
+-- the short id can view. v3.9.57 (HTML artifacts feature).
+-- `id` is a short URL-safe slug (12 chars from secrets.token_urlsafe);
+-- collision is statistically irrelevant for this volume.
+CREATE TABLE IF NOT EXISTS html_artifacts (
+    id                   TEXT PRIMARY KEY,
+    title                TEXT NOT NULL,
+    html_content         TEXT NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by_user_id   TEXT,
+    view_count           INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_html_artifacts_created_at ON html_artifacts(created_at DESC);
+
 -- ─── fact_consolidation_log ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS fact_consolidation_log (
     id                BIGSERIAL PRIMARY KEY,

@@ -24,7 +24,7 @@ log = structlog.get_logger()
 TYPING_CHARS_PER_SECOND = 50  # ~250 CPM, fast mobile typing speed
 MIN_TYPING_DELAY = 0.8
 MAX_TYPING_DELAY = 5.0
-VERSION_TAG = "ᵛ³·⁹·⁵⁶"  # superscript unicode — visible but unobtrusive
+VERSION_TAG = "ᵛ³·⁹·⁵⁷"  # superscript unicode — visible but unobtrusive
 
 
 # Preserve the legacy module-level name so existing Insult callers and
