@@ -94,8 +94,20 @@ class AliceMemory:
         out: list[dict] = []
         for r in reversed(rows):
             label = r["user_name"] or "?"
-            content = f"{label}: {r['content']}" if r["role"] == "user" else r["content"]
-            out.append({"role": r["role"], "content": content})
+            # ALICE's own past replies are the ONLY genuine assistant turns
+            # from her point of view. Everyone else — humans AND the sibling
+            # bot Insult (which also writes role='assistant' into this shared
+            # table, distinguished only by user_name) — must become role='user'
+            # with a speaker label. If Insult's row stays role='assistant' and
+            # it is the LAST message, gpt-4.1 treats it as an assistant prefill
+            # and continues its sentence instead of replying — the mid-word
+            # "gar con la película" bug (2026-05-20), which fired because
+            # Insult's last chunk had been truncated at "...necesitas lle".
+            is_alice_own = r["role"] == "assistant" and label == "ALICE"
+            if is_alice_own:
+                out.append({"role": "assistant", "content": r["content"]})
+            else:
+                out.append({"role": "user", "content": f"{label}: {r['content']}"})
         return out
 
     async def store_user_message(

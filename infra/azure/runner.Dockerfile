@@ -38,6 +38,16 @@ RUN mamba env update -n base -f environment.yml \
 # /home/runner/.claude/.credentials.json (NOT baked into the image).
 RUN npm install -g --silent @anthropic-ai/claude-code
 
+# Playwright MCP server + headless Chromium for scraping JS-heavy / social-media
+# sites (IG/FB/TikTok/X) that web_search cannot reach. Chromium lives at
+# PLAYWRIGHT_BROWSERS_PATH so the non-root runner user can read it. apt deps
+# (libnss3, libgbm, libxcomposite, libxdamage, libasound, etc.) are pulled in
+# by `--with-deps`, which needs root — done here before the USER switch below.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+RUN npm install -g --silent @playwright/mcp \
+ && npx -y playwright install --with-deps chromium \
+ && chmod -R a+rX /opt/playwright-browsers
+
 # Copy shared/ and insult/ — runner needs:
 #   - shared/* for chunking, retry, logging setup
 #   - insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner

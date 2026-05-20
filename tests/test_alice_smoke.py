@@ -245,3 +245,50 @@ def _build_test_container(*, token: str):
     container.bot = MagicMock()
     container.bot._alice_chat_cog = None  # tests override per case
     return container
+
+
+# ---------------------------------------------------------------------------
+# alice.core.memory — role mapping in get_recent_messages
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_recent_maps_sibling_bot_to_user_not_assistant():
+    """Insult's rows (role='assistant', user_name='Insult') must come back as
+    role='user' with a speaker label.
+
+    Regression for the mid-word "gar con la película" bug (2026-05-20): the
+    shared Postgres table stores BOTH bots' replies as role='assistant',
+    distinguished only by user_name. If Insult's row stays assistant and is
+    the last message, gpt-4.1 treats it as an assistant prefill and continues
+    its sentence instead of replying.
+    """
+    from alice.core.memory import AliceMemory
+
+    mem = AliceMemory(postgres_url="postgresql://test")
+    # fetch returns DESC (newest first); the method reverses to chronological.
+    mem._pool = MagicMock()
+    mem._pool.fetch = AsyncMock(
+        return_value=[
+            {"user_name": "ALICE", "role": "assistant", "content": "ya lo vi", "timestamp": 3.0},
+            {"user_name": "Insult", "role": "assistant", "content": "necesitas lle", "timestamp": 2.0},
+            {"user_name": "Alex", "role": "user", "content": "hola", "timestamp": 1.0},
+        ]
+    )
+
+    out = await mem.get_recent_messages("chan", limit=10)
+
+    # Positive case: Insult is user-with-label, NOT assistant (no prefill).
+    insult_msg = next(m for m in out if "necesitas lle" in m["content"])
+    assert insult_msg["role"] == "user"
+    assert insult_msg["content"].startswith("Insult:")
+
+    # Resistance case: ALICE's own reply stays assistant, no label.
+    alice_msg = next(m for m in out if "ya lo vi" in m["content"])
+    assert alice_msg["role"] == "assistant"
+    assert alice_msg["content"] == "ya lo vi"
+
+    # Human stays user-with-label, as before.
+    human_msg = next(m for m in out if "hola" in m["content"])
+    assert human_msg["role"] == "user"
+    assert human_msg["content"].startswith("Alex:")

@@ -28,6 +28,21 @@ SPEAK_EMOJI = "🔊"
 _VERSION_TAG_RE = re.compile(r"\n-#\s*ᵛ.+$", re.UNICODE)
 
 
+def pick_tts_voice(author_id: int | str, settings) -> tuple[str, bool]:
+    """Choose the TTS voice for a message by its author.
+
+    The VoiceCog speaks ANY 🔊'd message. ALICE-authored messages get her
+    female tts-1 voice; everyone else (Insult, humans) gets the default
+    male voice. Returns ``(voice, is_alice)`` — ``is_alice`` is logged so
+    voice mismatches are debuggable. When ``alice_bot_user_id`` is empty the
+    feature is off and everything uses the default voice.
+    """
+    alice_id = getattr(settings, "alice_bot_user_id", "")
+    is_alice = bool(alice_id) and str(author_id) == str(alice_id)
+    voice = settings.alice_tts_voice if is_alice else settings.tts_voice
+    return voice, is_alice
+
+
 async def resolve_full_response(
     memory,
     channel_id: str,
@@ -165,12 +180,16 @@ class VoiceCog(commands.Cog):
             log.warning("tts_not_configured")
             return
 
+        # Pick the voice by message author — ALICE's messages get her female
+        # voice, everyone else (Insult, humans) gets onyx. See pick_tts_voice.
+        voice, is_alice = pick_tts_voice(message.author.id, self.settings)
+
         # Generate TTS audio
         try:
             async with channel.typing():
                 tts_response = await client.audio.speech.create(
                     model=self.settings.azure_openai_tts_deployment,
-                    voice=self.settings.tts_voice,
+                    voice=voice,
                     input=text[:4096],
                     response_format="mp3",
                 )
@@ -181,6 +200,8 @@ class VoiceCog(commands.Cog):
                     chunk_len=original_chunk_len,
                     reassembled=reassembled,
                     audio_bytes=len(audio_bytes),
+                    voice=voice,
+                    is_alice=is_alice,
                 )
         except Exception:
             log.exception("tts_generation_failed")

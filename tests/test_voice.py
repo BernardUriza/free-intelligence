@@ -8,11 +8,45 @@ pulls the full pre-chunk text from memory so TTS speaks the whole thing.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.cogs.voice import _VERSION_TAG_RE, resolve_full_response
+from insult.cogs.voice import _VERSION_TAG_RE, pick_tts_voice, resolve_full_response
+
+
+class TestPickTtsVoice:
+    """The VoiceCog speaks ANY 🔊'd message. ALICE must sound female; Insult
+    and humans stay onyx. Regression for the 'ALICE habla con voz de hombre'
+    bug (2026-05-20)."""
+
+    @staticmethod
+    def _settings(alice_id="1503983124982534284"):
+        return SimpleNamespace(tts_voice="onyx", alice_tts_voice="nova", alice_bot_user_id=alice_id)
+
+    def test_alice_message_gets_female_voice(self):
+        voice, is_alice = pick_tts_voice(1503983124982534284, self._settings())
+        assert voice == "nova"
+        assert is_alice is True
+
+    def test_alice_id_as_string_also_matches(self):
+        """message.author.id is an int; the setting is a str. Comparison must
+        be type-agnostic."""
+        voice, is_alice = pick_tts_voice("1503983124982534284", self._settings())
+        assert voice == "nova"
+        assert is_alice is True
+
+    def test_insult_or_human_keeps_default_voice(self):
+        voice, is_alice = pick_tts_voice(907264175246569543, self._settings())
+        assert voice == "onyx"
+        assert is_alice is False
+
+    def test_empty_alice_id_disables_feature(self):
+        """No configured ALICE id → everything uses the default voice."""
+        voice, is_alice = pick_tts_voice(1503983124982534284, self._settings(alice_id=""))
+        assert voice == "onyx"
+        assert is_alice is False
 
 
 class TestResolveFullResponse:

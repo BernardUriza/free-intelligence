@@ -1,35 +1,53 @@
 """Extract and manage persistent user facts via LLM.
 
-**DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the persona's
-in-band ``[REMEMBER: <fact>]`` marker (`insult/core/remembers.py`).
-The agent runner decides what's worth remembering during the turn
-and emits the marker; ``stages.py`` parses it and persists via
-``memory.add_remember_fact()`` (source='agent'). With
-``LEGACY_LLM_ENABLED=false`` the call here returns empty and the
-legacy batch path silently no-ops. Module retained for: the prompt
-format if we need a batch re-extraction script, and backwards-compat
-for callers that still import. Safe to delete once `user_facts`
-shows source='agent' rows for all active users for ≥1 week.
+**Safety-net path alongside the persona's in-band ``[REMEMBER: <fact>]``
+marker (`insult/core/remembers.py`).** The agent runner decides what's
+worth remembering during the turn and emits the marker (source='agent');
+``stages.py`` parses + persists it. This module is the AUTOMATIC backstop
+that catches facts the model did *not* mark explicitly (source='auto').
 
-After each conversation exchange, we ask the LLM to extract/update
-interesting facts about the user. Facts are stored in SQLite and
-injected into the system prompt so Insult always knows who it's
-talking to — even across sessions.
+History: from v3.9.25 (2026-05-14) this rode ``LLMClient.utility_call``,
+which became a no-op once ``LEGACY_LLM_ENABLED=false`` + the Anthropic
+key died — so it logged ``facts_extraction_failed`` every turn and the
+safety net was silently gone. As of v3.9.92 ``stages.py`` injects a
+``RunnerJudgeClient`` (OAuth Max via the runner's /v1/judge) when legacy
+is off, so the backstop is alive again. The marker path is primary; this
+catches what the model forgets to mark.
+
+The injected client only needs a ``utility_call`` returning an object
+with ``.text`` + ``.stop_reason`` — both ``LLMClient`` and
+``RunnerJudgeClient`` satisfy that contract.
 """
 
 import json
+from typing import Any, Protocol
 
 import anthropic
+import httpx
 import structlog
 
-from insult.core.llm import LLMClient
 from insult.core.prompts_loader import load_prompt
 
 log = structlog.get_logger()
 
 
+class _UtilityClient(Protocol):
+    """The minimal surface extract_facts needs. Both LLMClient and
+    RunnerJudgeClient satisfy this — the function is agnostic to which
+    one stages.py injects (legacy direct-Anthropic vs OAuth Max runner)."""
+
+    async def utility_call(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = ...,
+        max_tokens: int = ...,
+    ) -> Any: ...
+
+
 async def extract_facts(
-    llm: LLMClient,
+    llm: _UtilityClient,
     model: str,
     user_name: str,
     existing_facts: list[dict],
@@ -39,10 +57,10 @@ async def extract_facts(
 
     Returns a list of fact dicts with 'fact' and 'category' keys.
 
-    Uses LLMClient.utility_call (not chat) because the output is
-    structured JSON parsed downstream — character_break detection +
-    language_cure are wrong tools for that path. Cache hits still apply
-    when the system prompt is stable across users.
+    ``llm`` is any client exposing ``utility_call`` (the real LLMClient or
+    a RunnerJudgeClient) — the output is structured JSON parsed downstream,
+    so character_break detection + language_cure are the wrong tools here.
+    Cache hits still apply when the system prompt is stable across users.
     """
     existing_str = "\n".join(f"- [{f['category']}] {f['fact']}" for f in existing_facts) if existing_facts else "(none)"
 
@@ -81,8 +99,11 @@ async def extract_facts(
         log.info("facts_extracted", user_name=user_name, count=len(valid))
         return valid
 
-    except (json.JSONDecodeError, anthropic.APIError, KeyError, IndexError) as e:
-        log.warning("facts_extraction_failed", error=str(e), user_name=user_name)
+    except (json.JSONDecodeError, anthropic.APIError, httpx.HTTPError, KeyError, IndexError) as e:
+        # httpx.HTTPError covers the RunnerJudgeClient transport path (timeout,
+        # 5xx from /v1/judge). On any failure we keep existing_facts untouched
+        # so a flaky extraction never erases what the marker path already saved.
+        log.warning("facts_extraction_failed", error=str(e), error_type=type(e).__name__, user_name=user_name)
         return existing_facts
 
 

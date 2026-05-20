@@ -948,9 +948,19 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
 
 async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
     ch_name = getattr(ctx.message.channel, "name", "")
+    # Fact extraction rides utility_call. When the legacy LLMClient is
+    # disabled (LEGACY_LLM_ENABLED=false + dead Anthropic key), it returns
+    # empty and extraction fails every turn (`facts_extraction_failed:
+    # Expecting value: line 1 column 1`). Route through the RunnerJudgeClient
+    # (OAuth Max via /v1/judge) instead — same migration the consolidator got.
+    # The [REMEMBER:] marker path is unaffected; this restores the automatic
+    # extraction safety net that catches facts the model didn't mark.
+    extraction_llm = ctx.llm
+    if not ctx.settings.legacy_llm_enabled and ctx.judge_client is not None:
+        extraction_llm = ctx.judge_client
     ctx.spawn_task(
         extract_user_facts(
-            ctx.llm,
+            extraction_llm,
             ctx.settings.summary_model,
             ctx.memory,
             ctx.bot,

@@ -199,6 +199,22 @@ _FI_CORE_TOOLS_FALLBACK = [
     "validate_and_retry_prompt",
 ]
 
+# Playwright MCP — stdio subprocess spawned by the SDK on session creation.
+# Lets the agent scrape JS-heavy / social-media sites (IG/FB/TikTok/X) that
+# Anthropic's `web_search` server tool cannot reach (no SERP coverage, JS
+# rendering required, anti-bot). `--isolated` keeps cookies in memory so the
+# bot never logs in with a real account. `--headless` mandatory in container.
+# Chromium binary at PLAYWRIGHT_BROWSERS_PATH (set in runner.Dockerfile).
+_PLAYWRIGHT_SERVER_NAME = "playwright"
+_PLAYWRIGHT_ALLOWED_TOOLS = [
+    "browser_navigate",
+    "browser_snapshot",
+    "browser_take_screenshot",
+    "browser_wait_for",
+    "browser_click",
+    "browser_evaluate",
+]
+
 
 def _fi_core_tool_names() -> list[str]:
     """Return fully-qualified MCP tool names for the fi-core persona server.
@@ -246,12 +262,13 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     insult_db_server = build_insult_db_server()
     insult_tool_names = [f"mcp__{INSULT_DB_SERVER_NAME}__{t.name}" for t in INSULT_DB_TOOLS]
     fi_core_tool_names = _fi_core_tool_names()
+    playwright_tool_names = [f"mcp__{_PLAYWRIGHT_SERVER_NAME}__{n}" for n in _PLAYWRIGHT_ALLOWED_TOOLS]
 
     return ClaudeAgentOptions(
         system_prompt=persona,
         cwd=str(WORKSPACE_ROOT),
         model=model or DEFAULT_MODEL,
-        allowed_tools=[*insult_tool_names, *fi_core_tool_names],
+        allowed_tools=[*insult_tool_names, *fi_core_tool_names, *playwright_tool_names],
         mcp_servers={
             INSULT_DB_SERVER_NAME: insult_db_server,
             # stdio subprocess — SDK spawns + manages lifecycle. The
@@ -260,6 +277,13 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
             _FI_CORE_SERVER_NAME: {
                 "command": "python",
                 "args": ["-m", "fi_core.persona.mcp_server"],
+            },
+            # Playwright MCP — see _PLAYWRIGHT_SERVER_NAME comment above.
+            # `--isolated` is non-negotiable: never log in with a real
+            # account from prod. `--headless` is mandatory in container.
+            _PLAYWRIGHT_SERVER_NAME: {
+                "command": "npx",
+                "args": ["@playwright/mcp@latest", "--headless", "--isolated"],
             },
         },
         permission_mode="bypassPermissions",

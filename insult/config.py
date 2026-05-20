@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     azure_openai_tts_deployment: str = "tts"
     azure_openai_whisper_deployment: str = "whisper"
     tts_voice: str = "onyx"  # alloy, echo, fable, onyx, nova, shimmer
+    # The VoiceCog (🔊 reaction) reads ANY message, including ALICE's. Insult
+    # is male (onyx); ALICE is female. When the 🔊'd message was authored by
+    # the ALICE bot, speak it with a female tts-1 voice instead. Identified by
+    # ALICE's Discord user id (snowflake from prod logs). Empty = feature off.
+    alice_bot_user_id: str = "1503983124982534284"
+    alice_tts_voice: str = "nova"  # female tts-1 voice for ALICE's messages
 
     # Channel summaries (cross-channel awareness)
     summary_model: str = "claude-haiku-4-5-20251001"

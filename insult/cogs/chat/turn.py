@@ -63,6 +63,7 @@ async def run_turn(
     spawn_task: Callable[..., None],
     all_tools: list,
     agent_client=None,
+    judge_client=None,
 ) -> str:
     """Execute one full turn. Returns an outcome string for
     ``chat_turn_end``. See module docstring for the outcome vocabulary."""
@@ -79,6 +80,7 @@ async def run_turn(
         spawn_task=spawn_task,
         all_tools=all_tools,
         agent_client=agent_client,
+        judge_client=judge_client,
     )
 
     result = await run_pipeline(ctx, DEFAULT_STAGES)
