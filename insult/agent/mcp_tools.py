@@ -85,8 +85,8 @@ async def get_user_facts(args: dict) -> dict:
         return _error("Postgres unreachable")
     try:
         rows = await conn.fetch(
-            "SELECT category, fact, updated_at FROM user_facts "
-            "WHERE user_id = $1 AND deleted_at IS NULL "
+            "SELECT category, fact, updated_at FROM principal_facts "
+            "WHERE principal_id = $1 AND deleted_at IS NULL "
             "ORDER BY updated_at DESC",
             user_id,
         )

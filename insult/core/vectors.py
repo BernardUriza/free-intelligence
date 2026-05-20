@@ -98,7 +98,7 @@ async def upsert_fact_vectors(pool: asyncpg.Pool, user_id: str, facts: list[dict
     async with pool.acquire() as conn:
         # Pull all live facts for this user (post-INSERT) so we have ids.
         rows = await conn.fetch(
-            "SELECT id, fact FROM user_facts WHERE user_id = $1 AND deleted_at IS NULL ORDER BY id",
+            "SELECT id, fact FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL ORDER BY id",
             user_id,
         )
         if not rows:
@@ -113,7 +113,7 @@ async def upsert_fact_vectors(pool: asyncpg.Pool, user_id: str, facts: list[dict
         # previous run's ids are gone before this call lands).
         await conn.execute(
             "DELETE FROM fact_embeddings WHERE fact_id NOT IN ("
-            "SELECT id FROM user_facts WHERE user_id = $1 AND deleted_at IS NULL"
+            "SELECT id FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL"
             ")",
             user_id,
         )
@@ -153,10 +153,10 @@ async def search_facts_hybrid(
     query_embedding = model.embed(query)
 
     rows = await pool.fetch(
-        "SELECT uf.id, uf.fact, uf.category, uf.updated_at, "
+        "SELECT pf.id, pf.fact, pf.category, pf.updated_at, "
         "(fe.embedding <=> $2::vector) AS distance "
-        "FROM user_facts uf JOIN fact_embeddings fe ON fe.fact_id = uf.id "
-        "WHERE uf.user_id = $1 AND uf.deleted_at IS NULL "
+        "FROM principal_facts pf JOIN fact_embeddings fe ON fe.fact_id = pf.id "
+        "WHERE pf.principal_id = $1 AND pf.deleted_at IS NULL "
         "ORDER BY fe.embedding <=> $2::vector "
         "LIMIT $3",
         user_id,

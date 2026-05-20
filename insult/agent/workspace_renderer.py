@@ -94,8 +94,9 @@ async def render_facts(pool: asyncpg.Pool) -> int:
         - [profession] AI engineer at VisaLaw...
     """
     rows = await pool.fetch(
-        "SELECT user_id, id, fact, category, updated_at FROM user_facts "
-        "WHERE deleted_at IS NULL ORDER BY user_id, updated_at DESC"
+        "SELECT principal_id AS user_id, id, fact, category, updated_at "
+        "FROM principal_facts "
+        "WHERE deleted_at IS NULL ORDER BY principal_id, updated_at DESC"
     )
     by_user: dict[str, list[asyncpg.Record]] = {}
     for row in rows:

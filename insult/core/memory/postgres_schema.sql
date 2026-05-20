@@ -15,6 +15,44 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- ─── MIGRATION v3.10.0: user_facts → principal_facts ───────────────────
+-- One-shot idempotent rename for the fi_core.memory integration.
+-- The fi-core extraction (PgMemoryStore, 0.7.0) uses generic
+-- `principal_facts(principal_id, ...)` instead of Discord-specific
+-- `user_facts(user_id, ...)`. We migrate to the fi-core naming so the
+-- same DAL serves Insult, AURITY, and any future consumer.
+--
+-- Runs BEFORE the CREATE TABLE IF NOT EXISTS blocks below so that an
+-- existing user_facts deployment is renamed in place; on a fresh
+-- deploy the rename is a no-op (user_facts doesn't exist) and the
+-- CREATE TABLE IF NOT EXISTS principal_facts block does the work.
+DO $$
+BEGIN
+    -- Rename principal table + column, only if old exists and new doesn't.
+    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'user_facts')
+       AND NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'principal_facts') THEN
+        ALTER TABLE user_facts RENAME TO principal_facts;
+        ALTER TABLE principal_facts RENAME COLUMN user_id TO principal_id;
+        -- Drop old-name indexes; new ones get created by the CREATE INDEX
+        -- IF NOT EXISTS block below.
+        DROP INDEX IF EXISTS idx_user_facts;
+        DROP INDEX IF EXISTS idx_user_facts_deleted_at;
+    END IF;
+
+    -- Rename audit log column too. The table name stays
+    -- fact_consolidation_log; only the user_id column needs to be
+    -- principal_id to match fi-core.
+    IF EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_name = 'fact_consolidation_log'
+          AND column_name = 'user_id'
+    ) THEN
+        ALTER TABLE fact_consolidation_log RENAME COLUMN user_id TO principal_id;
+        DROP INDEX IF EXISTS idx_fcl_user_id;
+    END IF;
+END
+$$;
+
 -- ─── messages ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS messages (
     id              BIGSERIAL PRIMARY KEY,
@@ -40,18 +78,23 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     updated_at   DOUBLE PRECISION NOT NULL
 );
 
--- ─── user_facts ────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS user_facts (
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     TEXT NOT NULL,
-    fact        TEXT NOT NULL,
-    category    TEXT NOT NULL DEFAULT 'general',
-    updated_at  DOUBLE PRECISION NOT NULL,
-    source      TEXT NOT NULL DEFAULT 'auto',
-    deleted_at  DOUBLE PRECISION DEFAULT NULL
+-- ─── principal_facts (formerly user_facts) ────────────────────────────
+-- Renamed in v3.10.0 to align with fi_core.memory.PgMemoryStore.
+-- Discord-bot keeps using string user IDs as principal_id values — the
+-- column name change is cosmetic at the data level, semantic at the
+-- abstraction layer (any tenant key works now, not just Discord users).
+CREATE TABLE IF NOT EXISTS principal_facts (
+    id            BIGSERIAL PRIMARY KEY,
+    principal_id  TEXT NOT NULL,
+    fact          TEXT NOT NULL,
+    category      TEXT NOT NULL DEFAULT 'general',
+    updated_at    DOUBLE PRECISION NOT NULL,
+    source        TEXT NOT NULL DEFAULT 'auto',
+    deleted_at    DOUBLE PRECISION DEFAULT NULL,
+    embedding     vector
 );
-CREATE INDEX IF NOT EXISTS idx_user_facts ON user_facts(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_facts_deleted_at ON user_facts(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pf_principal ON principal_facts(principal_id);
+CREATE INDEX IF NOT EXISTS idx_pf_deleted_at ON principal_facts(deleted_at) WHERE deleted_at IS NOT NULL;
 
 -- ─── world_scans ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS world_scans (
@@ -234,10 +277,11 @@ CREATE TABLE IF NOT EXISTS html_artifacts (
 CREATE INDEX IF NOT EXISTS idx_html_artifacts_created_at ON html_artifacts(created_at DESC);
 
 -- ─── fact_consolidation_log ────────────────────────────────────────────
+-- principal_id column renamed in v3.10.0 (was user_id).
 CREATE TABLE IF NOT EXISTS fact_consolidation_log (
     id                BIGSERIAL PRIMARY KEY,
     run_ts            DOUBLE PRECISION NOT NULL,
-    user_id           TEXT NOT NULL,
+    principal_id      TEXT NOT NULL,
     fact_id_before    BIGINT,
     fact_id_after     BIGINT,
     op                TEXT NOT NULL CHECK(op IN ('ADD','UPDATE','DELETE','NOOP')),
@@ -246,7 +290,7 @@ CREATE TABLE IF NOT EXISTS fact_consolidation_log (
     fact_text_after   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_fcl_run_ts ON fact_consolidation_log(run_ts);
-CREATE INDEX IF NOT EXISTS idx_fcl_user_id ON fact_consolidation_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_fcl_principal ON fact_consolidation_log(principal_id);
 
 -- ─── dream_diary ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS dream_diary (
@@ -271,7 +315,7 @@ CREATE INDEX IF NOT EXISTS idx_dream_diary_run_ts ON dream_diary(run_ts DESC);
 -- the model dimension exactly or asyncpg/pgvector will reject inserts with
 -- "expected N dimensions, got M".
 CREATE TABLE IF NOT EXISTS fact_embeddings (
-    fact_id   BIGINT PRIMARY KEY REFERENCES user_facts(id) ON DELETE CASCADE,
+    fact_id   BIGINT PRIMARY KEY REFERENCES principal_facts(id) ON DELETE CASCADE,
     embedding VECTOR(384) NOT NULL,
     updated_at DOUBLE PRECISION NOT NULL
 );

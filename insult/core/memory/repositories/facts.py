@@ -27,7 +27,7 @@ log = structlog.get_logger()
 
 
 class FactsRepository(BaseRepository):
-    """Owns the `user_facts` table. Semantic search integrates `core/vectors`."""
+    """Owns the `principal_facts` table. Semantic search integrates `core/vectors`."""
 
     async def get_facts(self, user_id: str) -> list[dict]:
         """All live facts for a user, newest-updated first.
@@ -37,8 +37,8 @@ class FactsRepository(BaseRepository):
         DELETE, so live SELECTs must filter them out.
         """
         rows = await self._fetch(
-            "SELECT id, fact, category, updated_at FROM user_facts "
-            "WHERE user_id = $1 AND deleted_at IS NULL "
+            "SELECT id, fact, category, updated_at FROM principal_facts "
+            "WHERE principal_id = $1 AND deleted_at IS NULL "
             "ORDER BY updated_at DESC",
             user_id,
         )
@@ -48,10 +48,15 @@ class FactsRepository(BaseRepository):
 
     async def get_all_facts(self) -> list[dict]:
         """Every live fact for every user — used by cross-user prompt injection."""
+        # Schema column is principal_id post-v3.10.0; alias to user_id for caller
+        # compat (every ~25 callsite in bot.py + memory_consolidator expects the
+        # dict key "user_id"). Column rename is at the storage layer, NOT the
+        # consumer-facing dict shape.
         rows = await self._fetch(
-            "SELECT user_id, id, fact, category, updated_at FROM user_facts "
+            "SELECT principal_id AS user_id, id, fact, category, updated_at "
+            "FROM principal_facts "
             "WHERE deleted_at IS NULL "
-            "ORDER BY user_id, updated_at DESC",
+            "ORDER BY principal_id, updated_at DESC",
         )
         return [
             {
@@ -79,12 +84,12 @@ class FactsRepository(BaseRepository):
         try:
             async with self._tx() as conn:
                 await conn.execute(
-                    "DELETE FROM user_facts WHERE user_id = $1 AND source = 'auto'",
+                    "DELETE FROM principal_facts WHERE principal_id = $1 AND source = 'auto'",
                     user_id,
                 )
                 if facts:
                     await conn.executemany(
-                        "INSERT INTO user_facts (user_id, fact, category, updated_at, source) "
+                        "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
                         "VALUES ($1, $2, $3, $4, 'auto')",
                         [(user_id, f["fact"], f.get("category", "general"), now) for f in facts],
                     )
@@ -114,7 +119,7 @@ class FactsRepository(BaseRepository):
         callers that care about dedup must do their own check."""
         now = time.time()
         row_id = await self._fetchval(
-            "INSERT INTO user_facts (user_id, fact, category, updated_at, source) "
+            "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
             "VALUES ($1, $2, $3, $4, 'manual') RETURNING id",
             user_id,
             fact,
@@ -140,7 +145,7 @@ class FactsRepository(BaseRepository):
         distinguishable from operator-curated source='manual' rows."""
         now = time.time()
         row_id = await self._fetchval(
-            "INSERT INTO user_facts (user_id, fact, category, updated_at, source) "
+            "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
             "VALUES ($1, $2, $3, $4, 'agent') RETURNING id",
             user_id,
             fact,
@@ -153,7 +158,7 @@ class FactsRepository(BaseRepository):
 
     # -- Consolidator-facing primitives --
     # These methods are used by `core/memory_consolidator` to apply a
-    # judge-produced plan over user_facts. Kept in the repo so SQL stays
+    # judge-produced plan over principal_facts. Kept in the repo so SQL stays
     # owned by the table-owner; the consolidator orchestrates the plan but
     # never writes raw SQL.
 
@@ -162,7 +167,7 @@ class FactsRepository(BaseRepository):
         end-of-consolidation for one report metric."""
         return int(
             await self._fetchval(
-                "SELECT COUNT(*) FROM user_facts WHERE user_id = $1 AND deleted_at IS NULL",
+                "SELECT COUNT(*) FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL",
                 user_id,
             )
             or 0
@@ -174,7 +179,7 @@ class FactsRepository(BaseRepository):
         Returns the number of rows removed. Called once per consolidation
         run; rows that survive the retention window are gone forever."""
         tag = await self._execute(
-            "DELETE FROM user_facts WHERE deleted_at IS NOT NULL AND deleted_at < $1",
+            "DELETE FROM principal_facts WHERE deleted_at IS NOT NULL AND deleted_at < $1",
             cutoff,
         )
         try:
@@ -193,7 +198,7 @@ class FactsRepository(BaseRepository):
         """Translate the judge's plan into SQL operations + audit log rows.
 
         Wrapped in a single transaction so a crash mid-plan leaves
-        user_facts in a coherent state (no soft-delete without its replacement,
+        principal_facts in a coherent state (no soft-delete without its replacement,
         no audit row without its op). `op_factory` builds the caller's
         FactOperation dataclass so this repo doesn't import the consolidator
         symbol — avoids a circular dep between two packages that already
@@ -225,7 +230,7 @@ class FactsRepository(BaseRepository):
                 if kind == "DELETE":
                     fid = op["id"]
                     await conn.execute(
-                        "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+                        "UPDATE principal_facts SET deleted_at = $1 WHERE id = $2",
                         run_ts,
                         fid,
                     )
@@ -238,12 +243,12 @@ class FactsRepository(BaseRepository):
                     category = op.get("category", "general")
                     for fid in ids:
                         await conn.execute(
-                            "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+                            "UPDATE principal_facts SET deleted_at = $1 WHERE id = $2",
                             run_ts,
                             fid,
                         )
                     new_id = await conn.fetchval(
-                        "INSERT INTO user_facts (user_id, fact, category, updated_at, source) "
+                        "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
                         "VALUES ($1, $2, $3, $4, 'auto') RETURNING id",
                         user_id,
                         new_text,
@@ -264,11 +269,11 @@ class FactsRepository(BaseRepository):
                         )
 
             # Audit log rows — one per applied op. Written inside the same
-            # transaction so the audit table and user_facts can never disagree.
+            # transaction so the audit table and principal_facts can never disagree.
             for o in applied:
                 await conn.execute(
                     "INSERT INTO fact_consolidation_log "
-                    "(run_ts, user_id, fact_id_before, fact_id_after, op, reason, "
+                    "(run_ts, principal_id, fact_id_before, fact_id_after, op, reason, "
                     "fact_text_before, fact_text_after) "
                     "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
                     run_ts,

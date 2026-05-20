@@ -182,7 +182,8 @@ class AliceMemory:
         Insult's `FactsRepository.get_facts`).
         """
         rows = await self.pool.fetch(
-            "SELECT fact, category FROM user_facts WHERE user_id = $1 AND deleted_at IS NULL ORDER BY updated_at DESC",
+            "SELECT fact, category FROM principal_facts "
+            "WHERE principal_id = $1 AND deleted_at IS NULL ORDER BY updated_at DESC",
             user_id,
         )
         return [{"fact": r["fact"], "category": r["category"]} for r in rows]

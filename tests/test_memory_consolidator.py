@@ -101,7 +101,7 @@ class TestConsolidateUserFactsApply:
         # row state. This is the only spot that reaches behind the facade —
         # everywhere else uses the repository API.
         pool = store._manager.pool
-        row = await pool.fetchrow("SELECT id, deleted_at FROM user_facts WHERE id = $1", ids[2])
+        row = await pool.fetchrow("SELECT id, deleted_at FROM principal_facts WHERE id = $1", ids[2])
         assert row is not None
         assert row["deleted_at"] is not None  # deleted_at populated
 
@@ -172,12 +172,12 @@ class TestHardPurge:
         recent_deleted_at = time.time() - 3600  # 1h ago, well within retention
         pool = store._manager.pool
         await pool.execute(
-            "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+            "UPDATE principal_facts SET deleted_at = $1 WHERE id = $2",
             old_deleted_at,
             rows[0]["id"],
         )
         await pool.execute(
-            "UPDATE user_facts SET deleted_at = $1 WHERE id = $2",
+            "UPDATE principal_facts SET deleted_at = $1 WHERE id = $2",
             recent_deleted_at,
             rows[1]["id"],
         )
@@ -185,7 +185,7 @@ class TestHardPurge:
         purged = await hard_purge_soft_deleted(store)
         assert purged == 1  # only the old one
 
-        remaining = await pool.fetchval("SELECT COUNT(*) FROM user_facts WHERE user_id = 'u1'")
+        remaining = await pool.fetchval("SELECT COUNT(*) FROM principal_facts WHERE principal_id = 'u1'")
         assert remaining == 2  # 1 still soft-deleted + 1 live remain
         # The "still live" row is unaffected
         live = await store.get_facts("u1")
