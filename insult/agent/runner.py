@@ -109,6 +109,17 @@ class TurnRequest(BaseModel):
     # Bug origin: 2026-05-18 Alex sent text+2 images, runner only saw
     # text → bot ignored images entirely.
     attachments: list[dict] | None = None
+    # v3.9.94: per-turn behavioral guidance (preset + vulnerability overlay)
+    # computed by discord-bot's classifier. Pre-F3 the legacy LLM path baked
+    # this into the system prompt; the runner-extracted architecture dropped
+    # it (agent_client discarded `system_prompt`), so Insult responded with
+    # the raw persona.md base tone regardless of what the classifier decided.
+    # Symptom 2026-05-22: classifier picked relational_probe + vulnerability
+    # overlay (score 11) for a user hours after suicidal ideation, but Insult
+    # stayed abrasive. We inject this into the USER message (not the system
+    # prompt) so persona.md stays cache-stable while the guidance varies
+    # per turn. Capped to keep the turn payload bounded.
+    behavioral_guidance: str | None = Field(default=None, max_length=16000)
 
 
 class TurnResponse(BaseModel):
@@ -147,6 +158,31 @@ class JudgeResponse(BaseModel):
     stop_reason: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+
+
+def _frame_turn_text(
+    *,
+    channel_id: str,
+    user_id: str,
+    user_text: str,
+    behavioral_guidance: str | None = None,
+) -> str:
+    """Assemble the user-message text the SDK sees for one turn.
+
+    Order matters: `<turn_context>` (who/where) → optional
+    `<behavioral_guidance>` (how to respond, computed per turn by the
+    caller's classifier) → the actual user text. The guidance lives here in
+    the user message, NOT in the cached system prompt, so it can vary per
+    turn without invalidating persona.md's prompt cache. Returns the bare
+    framed text when no guidance is supplied — byte-identical to the
+    pre-v3.9.94 behavior.
+    """
+    guidance_block = ""
+    if behavioral_guidance:
+        guidance_block = f"<behavioral_guidance>\n{behavioral_guidance}\n</behavioral_guidance>\n\n"
+    return (
+        f"<turn_context>\nchannel_id: {channel_id}\nuser_id: {user_id}\n</turn_context>\n\n{guidance_block}{user_text}"
+    )
 
 
 def _load_persona() -> str:
@@ -610,8 +646,13 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     # in parallel.
     lock = _channel_locks.setdefault(req.channel_id, asyncio.Lock())
 
-    framed_text = (
-        f"<turn_context>\nchannel_id: {req.channel_id}\nuser_id: {req.user_id}\n</turn_context>\n\n{req.user_text}"
+    # Per-turn behavioral guidance goes BEFORE the user text so the model
+    # reads "how to respond" before "what to respond to". See _frame_turn_text.
+    framed_text = _frame_turn_text(
+        channel_id=req.channel_id,
+        user_id=req.user_id,
+        user_text=req.user_text,
+        behavioral_guidance=req.behavioral_guidance,
     )
 
     # When the turn has image/document attachments we build a multimodal

@@ -39,6 +39,14 @@ in-character error text; the caller surfaces it normally.
 - `max_tokens` is forwarded only in metrics — runner uses its own cap.
 - `on_timeout`: fires once after the HTTP read timeout fires the first
   time — same UX as legacy LLMClient's retry_notice.
+- `behavioral_guidance` (v3.9.94): the per-turn preset + vulnerability
+  overlay the caller computed. Forwarded to the runner, which injects it
+  into the user message (NOT the cached system prompt). This is the
+  one piece of `system_prompt`'s former payload that DOES survive — it
+  carries the classifier's tone decision the runner would otherwise be
+  blind to. The rest of `system_prompt` (persona.md, facts) is still
+  ignored because the runner reconstructs those from its own filesystem
+  + Postgres.
 """
 
 from __future__ import annotations
@@ -139,6 +147,7 @@ class AgentRunnerClient:
         user_id: str | None = None,
         session_uuid: str | None = None,
         fallback_model: str | None = None,
+        behavioral_guidance: str | None = None,
     ) -> LLMResponse:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
@@ -162,6 +171,18 @@ class AgentRunnerClient:
                 "agent_runner_client_attachments_forwarded",
                 count=len(attachments),
                 types=[a.get("type") for a in attachments],
+            )
+        # v3.9.94: forward the per-turn behavioral guidance (preset +
+        # vulnerability overlay) the caller computed. The runner injects it
+        # into the user message so persona.md's tone is modulated per turn
+        # again — closing the gap where the classifier's decision (e.g.
+        # RESPECTFUL_SERIOUS / vulnerability overlay) was computed and then
+        # discarded with `system_prompt`.
+        if behavioral_guidance:
+            payload["behavioral_guidance"] = behavioral_guidance
+            log.info(
+                "agent_runner_client_guidance_forwarded",
+                guidance_chars=len(behavioral_guidance),
             )
         if session_uuid:
             payload["session_uuid"] = session_uuid

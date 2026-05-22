@@ -39,6 +39,7 @@ from alice.config import settings as alice_settings
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
+from shared.corpus import animal_liberation_guidance
 from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
@@ -305,6 +306,23 @@ class AliceChatCog(commands.Cog):
                 recent.append({"role": "user", "content": user_msg})
 
         system_prompt = self.persona.load()
+
+        # Universal values corpus (shared with Insult): the animal-liberation
+        # frame activates by TOPIC, identical source for both bots — ALICE just
+        # voices it with her own calm. Detect on the freshest user text: the
+        # current message on the mention path, else the last user line in the
+        # thread (invite / failover path, where user_msg is None). The corpus
+        # itself yields to ALICE's existing acute-distress handling.
+        topic_text = user_msg
+        if not topic_text:
+            topic_text = next(
+                (m.get("content", "") for m in reversed(recent) if m.get("role") == "user"),
+                "",
+            )
+        corpus = animal_liberation_guidance(topic_text)
+        if corpus:
+            system_prompt = f"{system_prompt}\n\n{corpus}"
+            log.info("alice_animal_corpus_injected", corpus_chars=len(corpus))
 
         try:
             response = await self.llm.chat(system_prompt, recent)

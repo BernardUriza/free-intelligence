@@ -72,7 +72,12 @@ from insult.core.errors import ErrorType, classify_error, get_error_response
 from insult.core.facts import build_facts_prompt
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
-from insult.core.presets import PresetModifier
+from insult.core.presets import (
+    PresetModifier,
+    build_preset_prompt,
+    build_vulnerable_overlay_prompt,
+    is_vulnerable_overlay_selection,
+)
 from insult.core.presets_llm import classify_preset_llm
 from insult.core.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
 from insult.core.remembers import parse_remembers, persist_remembers, strip_remembers
@@ -80,6 +85,7 @@ from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
+from shared.corpus import animal_liberation_guidance
 
 log = structlog.get_logger()
 
@@ -438,6 +444,38 @@ def _pick_llm_for_turn(ctx: TurnCtx) -> tuple[Any, str]:
     return ctx.llm, "legacy"
 
 
+def _build_behavioral_guidance(ctx: TurnCtx) -> str:
+    """Rebuild the per-turn behavioral layer for the agent runner.
+
+    The legacy path baked preset + vulnerability overlay into the system
+    prompt; the runner path discards `system_prompt`, so without this the
+    classifier's tone decision never reaches the model — Insult answers in
+    the raw persona.md base tone (the 2026-05-22 "muy agresivo" bug, where
+    a vulnerable user's relational_probe + overlay was computed and dropped).
+
+    We reconstruct ONLY the behavioral layer (not persona/facts, which the
+    runner already has) from the same public builders `build_adaptive_prompt`
+    uses, so the two paths can't drift. Returns "" when there's nothing to
+    add — the runner then behaves exactly as before.
+    """
+    parts = [build_preset_prompt(ctx.preset)]
+    if is_vulnerable_overlay_selection(ctx.preset):
+        parts.append(build_vulnerable_overlay_prompt())
+    if ctx.flow_analysis is not None:
+        flow_prompt = build_flow_prompt(ctx.flow_analysis)
+        if flow_prompt:
+            parts.append(flow_prompt)
+    # Universal values corpus (shared with ALICE): the animal-liberation frame
+    # activates by TOPIC, not by user. Appended LAST and AFTER the vulnerability
+    # overlay on purpose — the corpus itself yields to safety, so safety
+    # guidance must already be in `parts` above it. Empty string when the topic
+    # is absent → no-op.
+    corpus = animal_liberation_guidance(ctx.text)
+    if corpus:
+        parts.append(corpus)
+    return "\n\n".join(p for p in parts if p)
+
+
 async def _stage_call_llm(ctx: TurnCtx) -> None:
     async def _notify_retry() -> None:
         notify_start = time.monotonic()
@@ -480,6 +518,16 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         if backend == "agent_runner":
             llm_kwargs["channel_id"] = ctx.channel_id
             llm_kwargs["user_id"] = ctx.user_id
+            guidance = _build_behavioral_guidance(ctx)
+            if guidance:
+                llm_kwargs["behavioral_guidance"] = guidance
+                log.info(
+                    "agent_behavioral_guidance_built",
+                    preset=ctx.preset.display_label,
+                    modifiers=[m.value for m in ctx.preset.modifiers],
+                    vulnerable_overlay=is_vulnerable_overlay_selection(ctx.preset),
+                    guidance_chars=len(guidance),
+                )
         ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):
