@@ -32,6 +32,17 @@ RUN mamba env update -n base -f environment.yml \
  && find /opt/conda/ -follow -type f -name '*.a' -delete \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
+# ALICE's LLM path runs through fi_runner.CodexBackend, which shells out to the
+# `codex` CLI pointed at the shared Azure OpenAI endpoint (no ChatGPT login —
+# just the Azure key bridged into AZURE_OPENAI_API_KEY at runtime). codex is an
+# npm binary, so add Node.js to the conda base and install it globally. This is
+# an ALICE-only layer: Insult's image runs ClaudeCodeBackend and skips it, so it
+# stays out of the shared environment.yml.
+RUN mamba install -n base -y nodejs \
+ && npm i -g @openai/codex \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
+
 # Copy ALICE's code + persona AND the shared/ package. Since v3.9.8
 # `alice/__main__.py` and `alice/cogs/chat.py` import from `shared.*`
 # (logging_setup, text chunking, llm retry). Insult's code is NOT
