@@ -58,17 +58,27 @@ def test_image_turn_increments_counter():
 
 
 def test_unrelated_event_does_not_touch_ops_counters():
-    """A common event shouldn't bump any of the new ops counters."""
-    metrics.record_event({"event": "health_check"})
-    for k in (
+    """A common event shouldn't bump any of the new ops counters.
+
+    Asserts each counter is UNCHANGED across one health_check event, not
+    equal to zero. The original `== 0` form was flaky under non-default
+    test order: when another module-level test ran first it bumped a
+    counter, the autouse `_reset_counters` snapshot captured the bumped
+    value (not zero), and this test then failed at assertion time. Same
+    intent ("unrelated event must not touch these counters"), correctly
+    expressed as a delta against the pre-event snapshot."""
+    keys = (
         "gateway_zombie_restarts",
         "gateway_heartbeat_dead_restarts",
         "alice_failovers",
         "invoke_alice_calls",
         "remember_facts_added",
         "agent_runner_image_turns",
-    ):
-        assert metrics._counters[k] == 0, f"{k} bumped by health_check"
+    )
+    before = {k: metrics._counters[k] for k in keys}
+    metrics.record_event({"event": "health_check"})
+    for k in keys:
+        assert metrics._counters[k] == before[k], f"{k} bumped by health_check"
 
 
 def test_metrics_snapshot_includes_ops_counters():
