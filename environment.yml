@@ -42,7 +42,10 @@ dependencies:
   # fi-runner — the backend-agnostic runner framework. insult's runner now
   # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
   # MUST be published to the bernardurizaorozco channel for the prod build.
-  - fi-runner>=0.1.0
+  # Floor raised to 0.2.0 (alice 0.1.19): CodexBackend gained azure_endpoint +
+  # azure_api_key_env kwargs that alice/core/llm.py invokes; 0.1.0 lacks them
+  # and crashes ALICE at boot with TypeError on those keywords.
+  - fi-runner>=0.2.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
