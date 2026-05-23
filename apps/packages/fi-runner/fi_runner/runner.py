@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from . import capabilities as _capabilities
-from .backend import AgentBackend, ToolPolicy, TurnResult
+from .backend import AgentBackend, MCPServerSpec, ToolPolicy, TurnResult
 
 
 @dataclass
@@ -20,13 +20,15 @@ class Runner:
 
     backend: AgentBackend
     persona: str  # the system prompt
-    capabilities: list[str] = field(default_factory=list)  # e.g. ["cognitive", "persona"]
+    capabilities: list[str] = field(default_factory=list)  # fi-core, e.g. ["cognitive", "persona"]
+    # Runner-specific MCP servers not in fi-core (e.g. insult's insult_db, playwright).
+    extra_mcp_servers: list[MCPServerSpec] = field(default_factory=list)
     tool_policy: ToolPolicy = field(default_factory=ToolPolicy)
     model: str | None = None
 
     async def run(self, user_message: str) -> TurnResult:
-        """Run one turn through the backend with the resolved capabilities."""
-        mcp_servers = _capabilities.resolve(self.capabilities)
+        """Run one turn: fi-core capabilities + extra MCP servers, through the backend."""
+        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         return await self.backend.run_turn(
             system_prompt=self.persona,
             user_message=user_message,
