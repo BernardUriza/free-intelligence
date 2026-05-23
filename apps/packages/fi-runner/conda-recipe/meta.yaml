@@ -1,6 +1,6 @@
 {% set name = "fi-runner" %}
-{% set version = "0.1.0" %}
-{% set sha256 = "38a52eca91e3b588706c5bfa73a6385d2008caca57d9cbf5ae9990e3e93d6615" %}
+{% set version = "0.2.0" %}
+{% set sha256 = "659b0814ab551f0b6135ad77239995e5612ace589c82aa9847895174b7120d57" %}
 
 package:
   name: {{ name }}
