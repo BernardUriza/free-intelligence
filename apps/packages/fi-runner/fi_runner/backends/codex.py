@@ -108,28 +108,25 @@ class CodexBackend:
 
     @staticmethod
     def _extract_text(events: list[dict]) -> str:
-        """Pull the assistant text out of the JSONL event stream (defensive).
+        """Pull the assistant text out of the JSONL event stream.
 
-        Codex emits ``item.*`` events (agent messages, reasoning, …) plus
-        ``turn.completed``. Schema is still moving, so we accept any event whose
-        type mentions an agent/assistant message and read common text fields.
+        Verified against the codex exec --json schema (OpenAI docs): the final
+        message is ``{"type":"item.completed","item":{"type":"agent_message",
+        "text":"..."}}``. The text lives in the item, NOT the top-level type, and
+        ``turn.completed`` carries only usage (no text). We take the text of every
+        completed ``agent_message`` item (not item.started — that's the streaming
+        partial — to avoid duplication).
         """
         parts: list[str] = []
         for ev in events:
-            etype = str(ev.get("type", "")).lower()
-            if "agent" in etype or "assistant" in etype or "message" in etype:
-                item = ev.get("item", ev)
-                text = item.get("text") or item.get("content") or item.get("message")
+            if ev.get("type") != "item.completed":
+                continue
+            item = ev.get("item") or {}
+            if item.get("type") == "agent_message":
+                text = item.get("text")
                 if isinstance(text, str):
                     parts.append(text)
-        if parts:
-            return "".join(parts)
-        # Fallback: a turn.completed carrying a final response.
-        for ev in reversed(events):
-            fr = ev.get("final_response") or (ev.get("turn") or {}).get("final_response")
-            if isinstance(fr, str):
-                return fr
-        return ""
+        return "".join(parts)
 
     async def run_turn(
         self,
