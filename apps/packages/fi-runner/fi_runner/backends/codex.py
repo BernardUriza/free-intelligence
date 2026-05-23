@@ -104,7 +104,10 @@ class CodexBackend:
         mcp_servers: list[MCPServerSpec],
         tool_policy: ToolPolicy,
         model: str | None = None,
+        session_id: str | None = None,  # noqa: ARG002 - Codex session resume is a v2 TODO
     ) -> TurnResult:
+        # NOTE: codex exec can resume a previous session; wiring session_id ->
+        # `codex exec resume <id>` is a v2 TODO. For now each turn is one-shot.
         if shutil.which("codex") is None:
             raise RuntimeError(
                 "CodexBackend requires the `codex` CLI on PATH. "

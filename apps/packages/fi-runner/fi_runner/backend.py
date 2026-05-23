@@ -28,17 +28,27 @@ class PermissionMode(str, Enum):
 
 @dataclass(frozen=True)
 class MCPServerSpec:
-    """How to spawn an MCP server over stdio, plus the tools it exposes."""
+    """An MCP server: either a stdio subprocess (command+args) or an in-process
+    server object (``server``), plus the tools it exposes."""
 
     name: str
-    command: str
-    args: list[str]
+    # stdio transport: the executable + args. Left empty when ``server`` is set.
+    command: str = ""
+    args: list[str] = field(default_factory=list)
     # Explicit tool names, used to build the allowlist. Empty = allow the whole
     # server (``mcp__<name>``).
     tools: tuple[str, ...] = ()
     # Inherit the parent process env into the subprocess (needed so the server
     # can import its package + read credentials).
     env_passthrough: bool = True
+    # A pre-built IN-PROCESS MCP server object (e.g. an SDK SdkMcpServer like
+    # insult's insult_db). When set, it is passed straight to the harness and
+    # ``command``/``args`` are ignored.
+    server: Any = None
+
+    @property
+    def is_in_process(self) -> bool:
+        return self.server is not None
 
 
 @dataclass
@@ -72,4 +82,8 @@ class AgentBackend(Protocol):
         mcp_servers: list[MCPServerSpec],
         tool_policy: ToolPolicy,
         model: str | None = None,
-    ) -> TurnResult: ...
+        session_id: str | None = None,
+    ) -> TurnResult:
+        """Run one turn. If ``session_id`` is given, a backend that supports it
+        keeps a stateful session (conversation continuity) keyed by that id."""
+        ...

@@ -26,8 +26,12 @@ class Runner:
     tool_policy: ToolPolicy = field(default_factory=ToolPolicy)
     model: str | None = None
 
-    async def run(self, user_message: str) -> TurnResult:
-        """Run one turn: fi-core capabilities + extra MCP servers, through the backend."""
+    async def run(self, user_message: str, *, session_id: str | None = None) -> TurnResult:
+        """Run one turn: fi-core capabilities + extra MCP servers, through the backend.
+
+        Pass ``session_id`` (e.g. a Discord channel id) for conversation
+        continuity on backends that support stateful sessions.
+        """
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         return await self.backend.run_turn(
             system_prompt=self.persona,
@@ -35,4 +39,11 @@ class Runner:
             mcp_servers=mcp_servers,
             tool_policy=self.tool_policy,
             model=self.model,
+            session_id=session_id,
         )
+
+    async def aclose(self) -> None:
+        """Release backend resources (pooled sessions, etc.), if any."""
+        close = getattr(self.backend, "aclose", None)
+        if close is not None:
+            await close()
