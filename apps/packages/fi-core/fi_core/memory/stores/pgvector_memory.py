@@ -37,23 +37,23 @@ fact mutation.
 
 from __future__ import annotations
 
+import re
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 try:
     import asyncpg
 except ImportError as e:  # pragma: no cover - import-time error path
     raise ImportError(
-        "fi_core.memory.stores.pgvector_memory requires asyncpg. "
-        "Install with: pip install 'fi-core[memory]'"
+        "fi_core.memory.stores.pgvector_memory requires asyncpg. Install with: pip install 'fi-core[memory]'"
     ) from e
 
 try:
-    import pgvector.asyncpg as _pgvector_asyncpg  # noqa: F401 - registered for side effect
+    import pgvector.asyncpg as _pgvector_asyncpg
     from pgvector import Vector
 except ImportError as e:  # pragma: no cover
     raise ImportError(
-        "fi_core.memory.stores.pgvector_memory requires pgvector. "
-        "Install with: pip install 'fi-core[memory]'"
+        "fi_core.memory.stores.pgvector_memory requires pgvector. Install with: pip install 'fi-core[memory]'"
     ) from e
 
 from fi_core.memory.types import ConsolidationOp, Fact, FactSource
@@ -81,8 +81,7 @@ CREATE TABLE IF NOT EXISTS principal_facts (
 
 _DDL_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_pf_principal ON principal_facts(principal_id);",
-    "CREATE INDEX IF NOT EXISTS idx_pf_deleted_at ON principal_facts(deleted_at) "
-    "WHERE deleted_at IS NOT NULL;",
+    "CREATE INDEX IF NOT EXISTS idx_pf_deleted_at ON principal_facts(deleted_at) WHERE deleted_at IS NOT NULL;",
 ]
 
 _DDL_AUDIT = """
@@ -116,6 +115,62 @@ def _row_to_fact(row: asyncpg.Record, principal_id: str | None = None) -> Fact:
         updated_at=row["updated_at"],
         deleted_at=row.get("deleted_at"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Hybrid search helpers (Reciprocal Rank Fusion: vector + keyword)
+# ---------------------------------------------------------------------------
+
+# RRF constant. 60 is the value from the original Cormack et al. paper and the
+# de-facto default in Elastic / OpenSearch / pgvector hybrid recipes — large
+# enough that no single ranking dominates, small enough that top ranks still
+# matter.
+_RRF_K = 60
+# Tokens shorter than this are dropped from keyword matching (articles,
+# pronouns, "de"/"el"/"is") — they add noise, not signal.
+_KW_MIN_TERM_LEN = 3
+
+
+def _tokenize(text: str) -> list[str]:
+    """Lowercased word tokens >= _KW_MIN_TERM_LEN. Language-agnostic: plain
+    `\\w+` over the lowercased string, no stemming or stopword list, so it
+    works the same for Spanish, English, or a mix (the discord-bot reality)."""
+    return [t for t in re.findall(r"\w+", text.lower()) if len(t) >= _KW_MIN_TERM_LEN]
+
+
+def _keyword_rank(query: str, facts: list[Fact]) -> list[Fact]:
+    """Rank ``facts`` by how many distinct query terms appear in each, best
+    first; facts with zero hits are dropped.
+
+    Pure-Python on already-fetched rows: no ``tsvector`` column, no GIN index,
+    no pg_trgm extension — fi-core stays consumer-agnostic. For the fact
+    volumes this store targets (tens-hundreds per principal) the linear scan is
+    negligible; a consumer with millions of facts can override with an indexed
+    SQL arm later (the public ``semantic_search`` contract is unchanged)."""
+    terms = set(_tokenize(query))
+    if not terms:
+        return []
+    scored: list[tuple[int, Fact]] = []
+    for f in facts:
+        hits = len(terms & set(_tokenize(f.fact)))
+        if hits:
+            scored.append((hits, f))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [f for _, f in scored]
+
+
+def _rrf_fuse(rankings: list[list[int]], *, k: int = _RRF_K) -> dict[int, float]:
+    """Reciprocal Rank Fusion over several ranked id-lists. Each list
+    contributes ``1 / (k + rank)`` per id (rank is 1-based). An id present in
+    multiple rankings accumulates — so a fact that's both vector-near AND a
+    keyword hit floats to the top, while a strong signal in either arm alone
+    still surfaces it. Order-only: needs no comparable score scales across arms
+    (the reason RRF beats naive weighted-sum of cosine + ts_rank)."""
+    scores: dict[int, float] = defaultdict(float)
+    for ranking in rankings:
+        for rank, fid in enumerate(ranking, start=1):
+            scores[fid] += 1.0 / (k + rank)
+    return scores
 
 
 # ---------------------------------------------------------------------------
@@ -198,9 +253,7 @@ class PgMemoryStore:
     @property
     def _p(self) -> asyncpg.Pool:
         if self._pool is None:
-            raise RuntimeError(
-                "PgMemoryStore is not connected — call init_schema() first"
-            )
+            raise RuntimeError("PgMemoryStore is not connected — call init_schema() first")
         return self._pool
 
     # ------------------------------------------------------------------
@@ -246,8 +299,7 @@ class PgMemoryStore:
         now = time.time()
         async with self._p.acquire() as conn, conn.transaction():
             await conn.execute(
-                "DELETE FROM principal_facts "
-                "WHERE principal_id = $1 AND source = 'auto'",
+                "DELETE FROM principal_facts WHERE principal_id = $1 AND source = 'auto'",
                 principal_id,
             )
             if not facts:
@@ -258,7 +310,7 @@ class PgMemoryStore:
                     try:
                         vec = await self._embedder.embed(f.fact)
                         embedding_vec = Vector(vec)
-                    except Exception:  # noqa: BLE001 - failure isolated per row
+                    except Exception:
                         embedding_vec = None
                 await conn.execute(
                     "INSERT INTO principal_facts "
@@ -289,7 +341,7 @@ class PgMemoryStore:
             try:
                 vec = await self._embedder.embed(fact)
                 embedding_vec = Vector(vec)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 embedding_vec = None
         row_id = await self._p.fetchval(
             "INSERT INTO principal_facts "
@@ -333,8 +385,7 @@ class PgMemoryStore:
     async def count_live(self, principal_id: str) -> int:
         return int(
             await self._p.fetchval(
-                "SELECT COUNT(*) FROM principal_facts "
-                "WHERE principal_id = $1 AND deleted_at IS NULL",
+                "SELECT COUNT(*) FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL",
                 principal_id,
             )
             or 0
@@ -351,23 +402,36 @@ class PgMemoryStore:
         *,
         limit: int = 10,
     ) -> list[Fact]:
-        """Hybrid vector + fallback semantic search.
+        """Hybrid Reciprocal-Rank-Fusion search: pgvector cosine + keyword
+        term-overlap, fused via RRF.
 
-        If an Embedder is wired AND the query produces an embedding,
-        do cosine similarity (``<=>``) on the ``embedding`` column.
-        Otherwise fall back to ``get_facts`` (unranked, newest-first).
+        Two arms, fused order-only (see ``_rrf_fuse``):
+
+        - **Vector** — cosine (``<=>``) over the ``embedding`` column, top
+          ``limit``. Catches paraphrase / semantic matches.
+        - **Keyword** — distinct query-term overlap over the principal's live
+          facts (``_keyword_rank``). Catches EXACT tokens a vector ranks low
+          (proper names, IDs, rare jargon — e.g. "Larisa", where the embedding
+          of a chatty question buries the one fact that names her).
+
+        Degrades gracefully:
+        - No embedder / query won't embed → ``get_facts`` (unranked).
+        - Embedder present but no embedded rows yet → keyword arm still works
+          (so search is useful before the embedding backfill completes).
+        - No hits in either arm → ``get_facts`` fallback.
+        - Keyword arm empty (no term match) → result is the pure vector order.
         """
         if self._embedder is None:
             return await self.get_facts(principal_id)
 
         try:
             query_vec = await self._embedder.embed(query)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return await self.get_facts(principal_id)
 
-        rows = await self._p.fetch(
-            "SELECT id, fact, category, updated_at, source, deleted_at, "
-            "(embedding <=> $1) AS distance "
+        # Vector arm — top `limit` by cosine distance.
+        vec_rows = await self._p.fetch(
+            "SELECT id, fact, category, updated_at, source, deleted_at "
             "FROM principal_facts "
             "WHERE principal_id = $2 AND deleted_at IS NULL AND embedding IS NOT NULL "
             "ORDER BY embedding <=> $1 "
@@ -376,9 +440,25 @@ class PgMemoryStore:
             principal_id,
             limit,
         )
-        if not rows:
+        vec_facts = [_row_to_fact(r, principal_id) for r in vec_rows]
+
+        # Keyword arm — over ALL live facts, because a keyword hit is exactly
+        # the case the vector top-K MISSES (that's the point of going hybrid).
+        live = await self.get_facts(principal_id)
+        kw_facts = _keyword_rank(query, live)[:limit]
+
+        if not vec_facts and not kw_facts:
             return await self.get_facts(principal_id)
-        return [_row_to_fact(r, principal_id) for r in rows]
+
+        id_to_fact: dict[int, Fact] = {f.id: f for f in (*vec_facts, *kw_facts) if f.id is not None}
+        fused = _rrf_fuse(
+            [
+                [f.id for f in vec_facts if f.id is not None],
+                [f.id for f in kw_facts if f.id is not None],
+            ]
+        )
+        ordered = sorted(fused, key=lambda fid: fused[fid], reverse=True)[:limit]
+        return [id_to_fact[fid] for fid in ordered]
 
     # ------------------------------------------------------------------
     # Consolidation
@@ -458,7 +538,7 @@ class PgMemoryStore:
                         try:
                             vec = await self._embedder.embed(new_text)
                             embedding_vec = Vector(vec)
-                        except Exception:  # noqa: BLE001
+                        except Exception:
                             embedding_vec = None
 
                     for fid in merge_ids:

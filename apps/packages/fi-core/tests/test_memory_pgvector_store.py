@@ -14,6 +14,7 @@ Auto-skip behavior matches the chunk store tests:
 from __future__ import annotations
 
 import shutil
+from typing import ClassVar
 
 import pytest
 
@@ -22,11 +23,10 @@ pytest.importorskip("asyncpg")
 pytest.importorskip("pgvector")
 pytest.importorskip("pytest_postgresql")
 
-import asyncpg  # noqa: E402
+import asyncpg
 
-from fi_core.memory import Fact, FactSource, MemoryStore  # noqa: E402
-from fi_core.memory.stores.pgvector_memory import PgMemoryStore  # noqa: E402
-
+from fi_core.memory import Fact, FactSource, MemoryStore
+from fi_core.memory.stores.pgvector_memory import PgMemoryStore
 
 # ---------------------------------------------------------------------
 # pytest-postgresql configuration (mirrors test_stores_pgvector.py)
@@ -74,9 +74,7 @@ _PG_CTL = _detect_postgres_executable()
 if _PG_CTL is not None:
     from pytest_postgresql import factories
 
-    memory_postgresql_proc = factories.postgresql_proc(
-        executable=_PG_CTL, port=None
-    )
+    memory_postgresql_proc = factories.postgresql_proc(executable=_PG_CTL, port=None)
 else:
 
     @pytest.fixture(scope="session")
@@ -100,9 +98,7 @@ async def memory_pg_dsn(memory_postgresql_proc) -> str:
     target_db = proc.dbname
     conn = await asyncpg.connect(admin_dsn)
     try:
-        exists = await conn.fetchval(
-            "SELECT 1 FROM pg_database WHERE datname = $1", target_db
-        )
+        exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", target_db)
         if not exists:
             await conn.execute(f'CREATE DATABASE "{target_db}"')
     finally:
@@ -123,7 +119,7 @@ async def store(memory_pg_dsn):
     except asyncpg.UndefinedFileError:
         pytest.skip("pgvector extension not available in this Postgres install")
     # Clean tables before each test (init_schema is idempotent).
-    pool = s._p  # noqa: SLF001 - test setup
+    pool = s._p
     async with pool.acquire() as conn:
         await conn.execute("TRUNCATE principal_facts RESTART IDENTITY")
         await conn.execute("TRUNCATE fact_consolidation_log RESTART IDENTITY")
@@ -156,9 +152,7 @@ class TestCRUD:
         assert facts[0].id == fid
 
     async def test_add_fact_with_agent_source(self, store):
-        await store.add_fact(
-            "u1", "remembers Bernard's birthday", source=FactSource.AGENT
-        )
+        await store.add_fact("u1", "remembers Bernard's birthday", source=FactSource.AGENT)
         facts = await store.get_facts("u1")
         assert facts[0].source == FactSource.AGENT
 
@@ -272,7 +266,7 @@ class TestConsolidationApply:
         plan = [{"op": "NOOP", "id": fid}]
         await store.apply_consolidation_plan("u1", plan, run_ts=1000.0)
         # Audit row should exist
-        pool = store._p  # noqa: SLF001 - test inspection
+        pool = store._p
         count = await pool.fetchval(
             "SELECT COUNT(*) FROM fact_consolidation_log WHERE principal_id = $1",
             "u1",
@@ -286,6 +280,71 @@ class TestSemanticSearchWithoutEmbedder:
         await store.add_fact("u1", "b")
         results = await store.semantic_search("u1", "anything")
         assert len(results) == 2
+
+
+class _FakeEmbedder:
+    """Deterministic 2-D embedder for hybrid tests — maps known texts to chosen
+    vectors so we control exactly which facts are vector-near vs vector-far.
+    Everything unknown lands orthogonal to the [1,0] query axis."""
+
+    _MAP: ClassVar[dict[str, list[float]]] = {
+        # facts
+        "el clima de hoy hace calor": [0.99, 0.14],  # vector-NEAR [1,0], no keyword
+        "le gusta el cafe de especialidad": [0.95, 0.31],  # vector-near-ish, no keyword
+        "su contacto es larisa la terapeuta": [0.0, 1.0],  # vector-FAR, has "larisa"
+        # queries
+        "larisa": [1.0, 0.0],
+        "dame algo random sin coincidencias": [1.0, 0.0],
+    }
+
+    async def embed(self, text: str) -> list[float]:
+        return self._MAP.get(text, [0.0, 1.0])
+
+
+@pytest.fixture
+async def hybrid_store(memory_pg_dsn):
+    """Like ``store`` but with an Embedder wired, so semantic_search runs the
+    full RRF hybrid path instead of the no-embedder fallback."""
+    s = PgMemoryStore(dsn=memory_pg_dsn, embedder=_FakeEmbedder())
+    try:
+        await s.init_schema()
+    except asyncpg.UndefinedFileError:
+        pytest.skip("pgvector extension not available in this Postgres install")
+    async with s._p.acquire() as conn:
+        await conn.execute("TRUNCATE principal_facts RESTART IDENTITY")
+        await conn.execute("TRUNCATE fact_consolidation_log RESTART IDENTITY")
+    yield s
+    await s.close()
+
+
+class TestSemanticSearchHybrid:
+    _FACTS: ClassVar[list[str]] = [
+        "el clima de hoy hace calor",
+        "le gusta el cafe de especialidad",
+        "su contacto es larisa la terapeuta",
+    ]
+
+    async def _seed(self, store):
+        for text in self._FACTS:
+            await store.add_fact("u1", text)
+
+    async def test_keyword_match_outranks_vector_closest(self, hybrid_store):
+        """Positive: 'larisa' embeds NEAR the chatty facts and FAR from the one
+        fact that names her — pure vector would bury it. RRF's keyword arm lifts
+        the exact-token match to the top. This is the 'Larisa' miss, fixed."""
+        await self._seed(hybrid_store)
+        results = await hybrid_store.semantic_search("u1", "larisa", limit=3)
+        assert results, "hybrid search must return ranked facts"
+        assert results[0].fact == "su contacto es larisa la terapeuta"
+
+    async def test_no_keyword_overlap_falls_back_to_vector_order(self, hybrid_store):
+        """Resistance: a query with NO term overlap → keyword arm is empty →
+        result is the pure vector order (the vector-closest fact first), NOT a
+        random keyword injection."""
+        await self._seed(hybrid_store)
+        results = await hybrid_store.semantic_search("u1", "dame algo random sin coincidencias", limit=3)
+        assert results
+        assert results[0].fact == "el clima de hoy hace calor"
 
 
 if __name__ == "__main__":
