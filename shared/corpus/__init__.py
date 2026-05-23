@@ -113,3 +113,21 @@ def animal_liberation_guidance(text: str | None) -> str:
     if not detect_animal_topic(text):
         return ""
     return load_animal_liberation_values()
+
+
+def animal_tactics_guidance(text: str | None, *, embed=None, top_k: int = 2) -> str:
+    """Phase B: return relevant fine-tactic blocks iff the topic is detected.
+
+    Combines the topic gate with semantic/lexical retrieval (see
+    `shared.corpus.rag`). `embed` is the caller's sentence-transformers
+    `EmbeddingModel.embed` (Insult) — omit for lexical fallback (ALICE).
+    Returns "" when off-topic OR when nothing clears the relevance floor.
+    """
+    if not detect_animal_topic(text):
+        return ""
+    from shared.corpus.rag import retrieve_tactics
+
+    blocks = retrieve_tactics(text, embed=embed, top_k=top_k)
+    if not blocks:
+        return ""
+    return "Tácticas relevantes para este punto (úsalas en tu voz, no las cites literal):\n\n" + "\n\n".join(blocks)

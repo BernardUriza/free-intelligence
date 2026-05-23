@@ -85,7 +85,7 @@ from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
-from shared.corpus import animal_liberation_guidance
+from shared.corpus import animal_liberation_guidance, animal_tactics_guidance
 
 log = structlog.get_logger()
 
@@ -473,6 +473,17 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     corpus = animal_liberation_guidance(ctx.text)
     if corpus:
         parts.append(corpus)
+        # Phase B: fine tactics via semantic retrieval. discord-bot already has
+        # the sentence-transformers EmbeddingModel loaded (used for fact search),
+        # so reusing it here is ~free. Only runs when the topic is present.
+        try:
+            from insult.core.vectors import get_embedding_model
+
+            tactics = animal_tactics_guidance(ctx.text, embed=get_embedding_model().embed)
+            if tactics:
+                parts.append(tactics)
+        except Exception:
+            log.exception("animal_tactics_retrieval_failed")
     return "\n\n".join(p for p in parts if p)
 
 

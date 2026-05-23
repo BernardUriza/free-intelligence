@@ -39,7 +39,7 @@ from alice.config import settings as alice_settings
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
-from shared.corpus import animal_liberation_guidance
+from shared.corpus import animal_liberation_guidance, animal_tactics_guidance
 from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
@@ -323,6 +323,13 @@ class AliceChatCog(commands.Cog):
         if corpus:
             system_prompt = f"{system_prompt}\n\n{corpus}"
             log.info("alice_animal_corpus_injected", corpus_chars=len(corpus))
+            # Phase B: fine tactics via LEXICAL retrieval — ALICE runs at 1Gi
+            # with no embedder wired, so we don't load sentence-transformers
+            # here (would risk OOM). Same corpus as Insult, lexical fallback.
+            tactics = animal_tactics_guidance(topic_text)
+            if tactics:
+                system_prompt = f"{system_prompt}\n\n{tactics}"
+                log.info("alice_animal_tactics_injected", tactics_chars=len(tactics))
 
         try:
             response = await self.llm.chat(system_prompt, recent)
