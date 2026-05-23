@@ -113,12 +113,20 @@ class CodexBackend:
         Verified against the codex exec --json schema (OpenAI docs): the final
         message is ``{"type":"item.completed","item":{"type":"agent_message",
         "text":"..."}}``. The text lives in the item, NOT the top-level type, and
-        ``turn.completed`` carries only usage (no text). We take the text of every
-        completed ``agent_message`` item (not item.started — that's the streaming
-        partial — to avoid duplication).
+        ``turn.completed`` carries only usage (no text).
+
+        Codex RETRIES after an ``error``/``turn.failed`` (e.g. an Azure
+        ``content_filter`` stream-disconnect), so a turn can contain an aborted
+        partial message THEN the real one. We keep only the ``agent_message``
+        items that come AFTER the last error — those belong to the successful
+        attempt. No error → take them all (a legit multi-part answer).
         """
+        last_error_idx = -1
+        for i, ev in enumerate(events):
+            if ev.get("type") in ("error", "turn.failed"):
+                last_error_idx = i
         parts: list[str] = []
-        for ev in events:
+        for ev in events[last_error_idx + 1 :]:
             if ev.get("type") != "item.completed":
                 continue
             item = ev.get("item") or {}
