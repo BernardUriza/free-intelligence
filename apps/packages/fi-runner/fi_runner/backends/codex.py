@@ -36,14 +36,21 @@ class CodexBackend:
         *,
         azure_endpoint: str | None = None,
         azure_api_key_env: str = "AZURE_OPENAI_API_KEY",
+        azure_wire_api: str = "responses",
     ) -> None:
         self.default_model = default_model
         self.default_sandbox = default_sandbox
         # When azure_endpoint is set, Codex is pointed at an Azure OpenAI
         # deployment (official MS support) — no ChatGPT subscription, just the
         # API key in `azure_api_key_env`. Reuse your existing AZURE_OPENAI_*.
+        # Codex works with general models (gpt-4o/gpt-4.1), not only codex/
+        # reasoning ones — for a chat/companion runner (alice) a general model
+        # is the right call. `wire_api` defaults to "responses" (the "chat"
+        # wire API is deprecated in Codex); gpt-4o/gpt-4.1 are supported on the
+        # Azure Responses API (legacy "gpt-4" is not — use a 4o/4.1 deployment).
         self.azure_endpoint = azure_endpoint
         self.azure_api_key_env = azure_api_key_env
+        self.azure_wire_api = azure_wire_api
 
     def _provider_args(self) -> list[str]:
         """`-c` overrides that point Codex at an Azure OpenAI provider."""
@@ -57,7 +64,7 @@ class CodexBackend:
             "-c", 'model_providers.azure.name="Azure OpenAI"',
             "-c", f'model_providers.azure.base_url="{base}"',
             "-c", f'model_providers.azure.env_key="{self.azure_api_key_env}"',
-            "-c", 'model_providers.azure.wire_api="responses"',
+            "-c", f'model_providers.azure.wire_api="{self.azure_wire_api}"',
         ]
 
     def _sandbox_for(self, tool_policy: ToolPolicy) -> str:
