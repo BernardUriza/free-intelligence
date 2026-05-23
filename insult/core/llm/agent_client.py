@@ -148,6 +148,7 @@ class AgentRunnerClient:
         session_uuid: str | None = None,
         fallback_model: str | None = None,
         behavioral_guidance: str | None = None,
+        relevant_memory: str | None = None,
     ) -> LLMResponse:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
@@ -157,13 +158,20 @@ class AgentRunnerClient:
             log.warning("agent_runner_client_empty_user_text", message_count=len(messages))
             return LLMResponse(text="", model_used="agent-runner", stop_reason="empty_input")
 
+        # v4.3.0: prepend deterministically pre-fetched history (deep_memory
+        # auto-retrieval) so the agent ALWAYS sees relevant past context
+        # instead of relying on the opt-in `deep_memory` tool (which fired on
+        # ~1% of turns). Framed as a labeled block so the agent reads it as
+        # retrieved context, not as the user's own words. The STORED message is
+        # unaffected — storage runs upstream, before this call.
+        effective_user_text = user_text or "[adjuntó solo imagen]"
+        if relevant_memory:
+            effective_user_text = f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>\n\n{effective_user_text}"
+
         payload: dict[str, Any] = {
             "channel_id": channel_id or "0",
             "user_id": user_id or "0",
-            # Force a placeholder when the message is image-only (rare but
-            # legal — drag-and-drop with no caption). Pydantic min_length=1
-            # would reject empty string on the runner side.
-            "user_text": user_text or "[adjuntó solo imagen]",
+            "user_text": effective_user_text,
         }
         if attachments:
             payload["attachments"] = attachments
@@ -183,6 +191,11 @@ class AgentRunnerClient:
             log.info(
                 "agent_runner_client_guidance_forwarded",
                 guidance_chars=len(behavioral_guidance),
+            )
+        if relevant_memory:
+            log.info(
+                "agent_runner_client_memory_forwarded",
+                memory_chars=len(relevant_memory),
             )
         if session_uuid:
             payload["session_uuid"] = session_uuid
