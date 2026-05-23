@@ -1,0 +1,52 @@
+[project]
+name = "fi-runner"
+version = "0.1.0"
+description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Bernard Uriza Orozco" },
+]
+license = { text = "MIT" }
+keywords = ["agent", "runner", "mcp", "claude-code", "codex", "fi-core", "backend-agnostic"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# The port + Runner + capability wiring are zero-dep (only fi-core for the
+# capability contracts). Backends pull their harness SDK via the extras below.
+dependencies = [
+    "fi-core",
+]
+
+[project.optional-dependencies]
+# Claude Code backend — the Claude Agent SDK (runs on a Max subscription via
+# OAuth; full Claude Code toolset + deep MCP).
+claude = [
+    "claude-agent-sdk>=0.1",
+]
+# Codex backend — OpenAI Codex headless / SDK (v2).
+codex = [
+    "openai-codex>=0.1",
+]
+# Raw-API backend (no subscription) via Pydantic AI — optional 3rd backend.
+api = [
+    "pydantic-ai>=0.0.14",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.11",
+]
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fi_runner*"]
+exclude = ["tests*"]
