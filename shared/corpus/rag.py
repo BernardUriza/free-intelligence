@@ -1,17 +1,22 @@
 """In-memory retrieval over the fine animal-liberation tactics (Phase B).
 
 Bernard's call: in-memory, no store, no migration — the tactics corpus is small
-and static (~12 objection blocks). Chunking uses `fi_core.rag` (the reason this
-is "RAG con fi_core"); the embedder is INJECTED by the caller, never imported
-here, so `shared/` keeps zero dependency on `insult/` or `alice/`.
+and static (13 objection blocks). The embedder is INJECTED by the caller, never
+imported here, so `shared/` keeps zero dependency on `insult/` or `alice/`.
 
-Two retrieval modes, picked by what the caller can provide:
-- **Semantic** when an `embed` callable is passed (Insult/discord-bot has the
-  sentence-transformers `EmbeddingModel`). Cosine over cached chunk embeddings.
-- **Lexical** fallback when `embed` is None (ALICE runs at 1Gi with no embedder
-  wired — loading sentence-transformers there risks the very OOM we just fixed
-  on the runner). Term-overlap scoring. Same corpus, retrieval degrades, never
-  breaks.
+Chunking is structure-aware (split per `## ` objection header), NOT fi_core's
+token-based chunk_by_paragraphs — the /histerical-search of 2026-05-22 proved
+the latter fused objections and added retrieval noise on this header-structured
+corpus. See `_load_chunks`.
+
+Two retrieval modes:
+- **Lexical** (the default both bots use as of the post-histerical-search pulido):
+  term-overlap with es/en stopwords stripped. On a corpus of distinct objections
+  with sharp keywords (welfarism, omnívoro, granja…) it scored 6/6 — and it's
+  free, model-less, identical in Insult and ALICE.
+- **Semantic** still available when an `embed` callable is passed (cosine over
+  cached chunk embeddings), but unused by default: all-MiniLM-L6-v2 is
+  English-centric (weak in Spanish) and added nothing over lexical here.
 
 The retrieved tactic blocks are appended UNDER the always-on values frame
 (animal_liberation.md, Phase A) so values lead and tactics support.
@@ -22,6 +27,7 @@ from __future__ import annotations
 import math
 import re
 import threading
+import unicodedata
 from pathlib import Path
 from typing import Protocol
 
@@ -30,9 +36,6 @@ import structlog
 log = structlog.get_logger()
 
 _TACTICS_PATH = Path(__file__).parent / "animal_liberation_tactics.md"
-# chunk_size tuned small so each objection block stays its own retrievable unit
-# instead of three objections fused into one fuzzy chunk.
-_CHUNK_SIZE = 120
 _SEMANTIC_MIN = 0.25  # cosine floor for all-MiniLM (normalized) relevance
 _LEXICAL_MIN = 0.12  # query-term overlap fraction floor
 
@@ -50,16 +53,25 @@ def _strip_comment(raw: str) -> str:
 
 
 def _load_chunks() -> list[str]:
-    """Chunk the tactics doc once (via fi_core), cache for the process."""
+    """Split the tactics doc into one chunk per `## ` objection block.
+
+    Structure-aware chunking. The /histerical-search of 2026-05-22 proved
+    fi_core.chunk_by_paragraphs (token-based, built for prose) was the WRONG
+    tool for this corpus: at chunk_size=120 it fused two objections per chunk
+    (the neighbor objection became retrieval noise) and let the leading H1
+    contaminate the first block — retrieval looked ~50% wrong. This corpus is a
+    flat list of `## ` objections, so splitting on those headers gives 13
+    self-contained, single-objection chunks — the "align chunking with document
+    structure" best practice (extend.ai, 2026). The H1/preamble before the
+    first `## ` is dropped: it's not an objection.
+    """
     global _chunks
     with _lock:
         if _chunks is None:
             try:
-                from fi_core.rag import ChunkConfig, chunk_by_paragraphs
-
                 raw = _strip_comment(_TACTICS_PATH.read_text(encoding="utf-8"))
-                cfg = ChunkConfig(chunk_size=_CHUNK_SIZE, overlap=0, min_chunk_size=10)
-                _chunks = chunk_by_paragraphs(raw, cfg)
+                blocks = re.split(r"(?m)^(?=## )", raw)
+                _chunks = [b.strip() for b in blocks if b.strip().startswith("## ")]
                 log.info("tactics_corpus_chunked", chunks=len(_chunks))
             except Exception:
                 log.exception("tactics_corpus_chunk_failed")
@@ -159,12 +171,24 @@ _STOPWORDS = frozenset(
 )
 
 
+def _norm(text: str) -> str:
+    """Lowercase + strip accents. Spanish users type "religion"/"omnivoros"
+    without tildes constantly, while the corpus is correctly accented — without
+    folding, "religion" (query) never matches "religión" (chunk) and recall
+    collapses. NFKD + drop combining marks folds áéíóúñ→aeioun (ñ→n is fine for
+    keyword overlap)."""
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch))
+
+
+def _terms(text: str) -> set[str]:
+    return set(re.findall(r"\w+", _norm(text)))
+
+
 def _lexical_score(query: str, chunk: str) -> float:
-    q = {w for w in re.findall(r"\w+", query.lower()) if w not in _STOPWORDS}
+    q = {w for w in _terms(query) if w not in _STOPWORDS}
     if not q:
         return 0.0
-    c = set(re.findall(r"\w+", chunk.lower()))
-    return len(q & c) / len(q)
+    return len(q & _terms(chunk)) / len(q)
 
 
 def retrieve_tactics(

@@ -473,17 +473,13 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     corpus = animal_liberation_guidance(ctx.text)
     if corpus:
         parts.append(corpus)
-        # Phase B: fine tactics via semantic retrieval. discord-bot already has
-        # the sentence-transformers EmbeddingModel loaded (used for fact search),
-        # so reusing it here is ~free. Only runs when the topic is present.
-        try:
-            from insult.core.vectors import get_embedding_model
-
-            tactics = animal_tactics_guidance(ctx.text, embed=get_embedding_model().embed)
-            if tactics:
-                parts.append(tactics)
-        except Exception:
-            log.exception("animal_tactics_retrieval_failed")
+        # Phase B: fine tactics via LEXICAL retrieval (post-histerical-search
+        # pulido). Lexical scored 6/6 on this objection corpus, is model-less,
+        # and matches ALICE's path exactly — semantic (all-MiniLM) added nothing
+        # and is weak in Spanish. Only runs when the topic is present.
+        tactics = animal_tactics_guidance(ctx.text)
+        if tactics:
+            parts.append(tactics)
     return "\n\n".join(p for p in parts if p)
 
 

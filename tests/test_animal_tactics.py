@@ -12,9 +12,21 @@ from shared.corpus import animal_tactics_guidance
 from shared.corpus.rag import _load_chunks, retrieve_tactics
 
 
-def test_corpus_chunks_into_multiple_blocks():
+def test_corpus_chunks_one_per_objection():
+    """Structure-aware split: one ## objection block per chunk, none fused
+    (the post-histerical-search pulido — fi_core token chunking fused 2/chunk)."""
     chunks = _load_chunks()
-    assert len(chunks) >= 4  # fi_core chunked the tactics doc
+    assert len(chunks) >= 10
+    assert all(c.count("## ") == 1 for c in chunks)  # no fused objections
+
+
+def test_lexical_folds_accents():
+    """Spanish users type without tildes: 'religion'/'omnivoros' must still hit
+    the accented chunks ('religión'/'omnívoros'). This was 5/6 before folding."""
+    rel = retrieve_tactics("y la religion? Dios puso a los animales", top_k=1)
+    assert rel and "religi" in rel[0].lower()
+    omn = retrieve_tactics("dicen que somos omnivoros", top_k=1)
+    assert omn and "omn" in omn[0].lower()
 
 
 # --- lexical retrieval (ALICE path: embed=None) ----------------------------
