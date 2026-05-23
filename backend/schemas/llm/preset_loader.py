@@ -17,6 +17,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
+import fi_core
 import jsonschema
 import yaml
 from backend.models.llm_model import LLMProvider
@@ -120,12 +121,11 @@ class PresetLoader(IPresetLoader):
             presets_dir: Directory with YAML presets (default: backend/prompts)
             schemas_dir: Directory with JSON schemas (default: backend/schemas)
         """
-        # Default to backend/prompts and backend/schemas (absolute paths)
-        # Check new location first, fallback to old for backward compatibility
+        # Presets are the single source of truth in fi_core.cognitive;
+        # JSON schemas stay local to the backend.
         if presets_dir is None:
-            # backend/utils/prompts/yaml_presets/
             presets_dir = str(
-                Path(__file__).parent.parent.parent / "utils" / "prompts" / "yaml_presets"
+                Path(fi_core.__file__).parent / "cognitive" / "presets"
             )
         if schemas_dir is None:
             schemas_dir = str(Path(__file__).parent)

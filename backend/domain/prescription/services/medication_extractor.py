@@ -29,16 +29,15 @@ from backend.domain.prescription.models.medication import (
     MedicationFrequency,
     MedicationRoute,
 )
-from backend.utils.prompts.yaml_provider import YAMLPromptProvider
+from backend.schemas.llm.preset_loader import get_preset_loader
 
 logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
 def _load_medication_prompt() -> str:
-    """Load medication extraction prompt from fi_prompts (cached)."""
-    provider = YAMLPromptProvider(yaml_dir="backend/src/fi_prompts/yaml_presets")
-    prompt = provider.get_yaml_system_prompt("medication_extractor")
+    """Load the medication-extraction system prompt (cached)."""
+    prompt = get_preset_loader().load_preset("medication_extractor").system_prompt
     if not prompt:
         raise ValueError("medication_extractor prompt not found")
     return prompt
