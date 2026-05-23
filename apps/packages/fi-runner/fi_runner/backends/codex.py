@@ -29,9 +29,36 @@ from ..backend import MCPServerSpec, PermissionMode, ToolPolicy, TurnResult
 class CodexBackend:
     """Agent backend backed by OpenAI Codex (`codex exec --json`)."""
 
-    def __init__(self, default_model: str | None = None, default_sandbox: str = "read-only") -> None:
+    def __init__(
+        self,
+        default_model: str | None = None,
+        default_sandbox: str = "read-only",
+        *,
+        azure_endpoint: str | None = None,
+        azure_api_key_env: str = "AZURE_OPENAI_API_KEY",
+    ) -> None:
         self.default_model = default_model
         self.default_sandbox = default_sandbox
+        # When azure_endpoint is set, Codex is pointed at an Azure OpenAI
+        # deployment (official MS support) — no ChatGPT subscription, just the
+        # API key in `azure_api_key_env`. Reuse your existing AZURE_OPENAI_*.
+        self.azure_endpoint = azure_endpoint
+        self.azure_api_key_env = azure_api_key_env
+
+    def _provider_args(self) -> list[str]:
+        """`-c` overrides that point Codex at an Azure OpenAI provider."""
+        if not self.azure_endpoint:
+            return []
+        base = self.azure_endpoint.rstrip("/")
+        if not base.endswith("/openai/v1"):
+            base = f"{base}/openai/v1"
+        return [
+            "-c", "model_provider=azure",
+            "-c", 'model_providers.azure.name="Azure OpenAI"',
+            "-c", f'model_providers.azure.base_url="{base}"',
+            "-c", f'model_providers.azure.env_key="{self.azure_api_key_env}"',
+            "-c", 'model_providers.azure.wire_api="responses"',
+        ]
 
     def _sandbox_for(self, tool_policy: ToolPolicy) -> str:
         """Map the ToolPolicy to a Codex sandbox policy."""
@@ -63,6 +90,7 @@ class CodexBackend:
         model: str | None,
     ) -> list[str]:
         argv = ["codex", "exec", "--json", "--sandbox", self._sandbox_for(tool_policy)]
+        argv += self._provider_args()  # Azure OpenAI provider, if configured
         chosen_model = model or self.default_model
         if chosen_model:
             argv += ["--model", chosen_model]
