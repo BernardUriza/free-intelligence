@@ -89,6 +89,28 @@ TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 # next turn after this re-opens with a fresh cache window anyway.
 SESSION_IDLE_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_SESSION_IDLE_TIMEOUT_S", "900"))
 
+# Max concurrent /v1/judge SDK calls. Default 1 — the judge spawns a FRESH
+# Node subprocess per call (no session pool) and generates thousands of tokens
+# (the SDK has no max_tokens cap). On 2026-05-22 a consolidator backlog fired
+# ~25 judges at once on a 1-CPU/2Gi runner: the subprocess pile-up OOM-killed
+# the chat turns' SDK and starved their CPU (p50 turn latency 27-53s). Judges
+# are background utility work (consolidator, fact-extraction, summaries) — the
+# user is NOT waiting on them — so serializing them protects the interactive
+# turns. Override via env for a bigger runner.
+JUDGE_MAX_CONCURRENCY = int(os.environ.get("AGENT_RUNNER_JUDGE_MAX_CONCURRENCY", "1"))
+# Lazy-initialized inside the running loop (a module-level asyncio.Semaphore can
+# bind to the wrong/closed loop under some test + uvicorn-reload setups).
+_judge_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_judge_semaphore() -> asyncio.Semaphore:
+    """Return the process-wide judge concurrency gate, creating it on first use
+    inside the active event loop."""
+    global _judge_semaphore
+    if _judge_semaphore is None:
+        _judge_semaphore = asyncio.Semaphore(JUDGE_MAX_CONCURRENCY)
+    return _judge_semaphore
+
 
 class TurnRequest(BaseModel):
     channel_id: str = Field(..., min_length=1)
@@ -579,6 +601,10 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
         permission_mode="bypassPermissions",
         # No project context — the caller's prompt is the entire instruction.
         setting_sources=[],
+        # One shot. The judge never needs a tool-use loop; capping turns stops
+        # the SDK from ever spending extra round-trips (the SDK has no
+        # max_tokens knob, so max_turns is the only structural bound we get).
+        max_turns=1,
     )
 
     accumulated_text = ""
@@ -587,27 +613,39 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     input_tokens = 0
     output_tokens = 0
 
-    try:
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(req.user_text)
-            async for message in client.receive_response():
-                mtype = type(message).__name__
-                if mtype == "AssistantMessage":
-                    for block in getattr(message, "content", []) or []:
-                        btype = type(block).__name__
-                        if btype == "TextBlock":
-                            accumulated_text += getattr(block, "text", "") or ""
-                elif mtype == "ResultMessage":
-                    usage = getattr(message, "usage", None) or {}
-                    input_tokens = usage.get("input_tokens", 0)
-                    output_tokens = usage.get("output_tokens", 0)
-                    stop_reason = getattr(message, "stop_reason", "end_turn") or "end_turn"
-                    model_used = getattr(message, "model", chosen_model) or chosen_model
-    except Exception as e:
-        log.exception("agent_runner_judge_failed", error=str(e), model=chosen_model)
-        raise HTTPException(500, f"judge call failed: {e}") from e
+    # Concurrency gate: serialize judge SDK calls so a consolidator backlog
+    # can't spawn a pile of Node subprocesses that OOM-kill / starve the
+    # interactive chat turns sharing this container. When the gate is held,
+    # the extra judges queue here instead of all launching at once.
+    semaphore = _get_judge_semaphore()
+    if semaphore.locked():
+        log.info("agent_runner_judge_queued", model=chosen_model)
+    queue_start = time.monotonic()
+    async with semaphore:
+        queued_ms = int((time.monotonic() - queue_start) * 1000)
+        sdk_start = time.monotonic()
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(req.user_text)
+                async for message in client.receive_response():
+                    mtype = type(message).__name__
+                    if mtype == "AssistantMessage":
+                        for block in getattr(message, "content", []) or []:
+                            btype = type(block).__name__
+                            if btype == "TextBlock":
+                                accumulated_text += getattr(block, "text", "") or ""
+                    elif mtype == "ResultMessage":
+                        usage = getattr(message, "usage", None) or {}
+                        input_tokens = usage.get("input_tokens", 0)
+                        output_tokens = usage.get("output_tokens", 0)
+                        stop_reason = getattr(message, "stop_reason", "end_turn") or "end_turn"
+                        model_used = getattr(message, "model", chosen_model) or chosen_model
+        except Exception as e:
+            log.exception("agent_runner_judge_failed", error=str(e), model=chosen_model)
+            raise HTTPException(500, f"judge call failed: {e}") from e
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
+    sdk_ms = int((time.monotonic() - sdk_start) * 1000)
     log.info(
         "agent_runner_judge_complete",
         model=model_used,
@@ -616,6 +654,12 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
         output_tokens=output_tokens,
         stop_reason=stop_reason,
         elapsed_ms=elapsed_ms,
+        # queued_ms = time spent waiting on the concurrency gate; sdk_ms = the
+        # actual SDK call. A growing queued_ms means judge demand exceeds
+        # JUDGE_MAX_CONCURRENCY (expected during consolidator bursts; the point
+        # is that the wait lands here, not on the chat turns).
+        queued_ms=queued_ms,
+        sdk_ms=sdk_ms,
     )
 
     return JudgeResponse(
