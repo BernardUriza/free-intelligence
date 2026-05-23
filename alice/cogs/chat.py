@@ -36,6 +36,7 @@ import structlog
 from discord.ext import commands
 
 from alice.config import settings as alice_settings
+from alice.core.clinical_reflection import ClinicalReflector
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
@@ -117,11 +118,21 @@ class AliceChatCog(commands.Cog):
         memory: AliceMemory,
         llm: AliceLLMClient,
         persona: PersonaLoader,
+        clinical: ClinicalReflector | None = None,
+        clinical_channel_id: str = "",
     ):
         self.bot = bot
         self.memory = memory
         self.llm = llm
         self.persona = persona
+        # Clinical Reflection Layer (backend clínico). When both are set, after the
+        # presence reply ALICE posts a metacognitive observation to the
+        # clinician-only channel — NEVER to the patient.
+        self.clinical = clinical
+        self.clinical_channel_id = clinical_channel_id
+        # Keep strong refs to fire-and-forget reflection tasks so the event loop
+        # doesn't garbage-collect them mid-flight (RUF006).
+        self._bg_tasks: set[asyncio.Task[None]] = set()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -181,6 +192,18 @@ class AliceChatCog(commands.Cog):
                 invited_by = f"alias:{mentioned_as_alias}"
             elif intrusive_match:
                 invited_by = f"intrusive:{intrusive_match.lower()[:40]}"
+            elif alice_settings.open_gate_enabled:
+                # Failover override (alice 0.1.19): Insult is down for some
+                # reason and ALICE has to cover the channel solo. Treat any
+                # non-bot guild message like a DM — respond unconditionally.
+                # Logged distinctly so KQL can count how long the override is
+                # on; turn it back off the moment Insult is healthy again.
+                invited_by = "open_gate_failover"
+                log.warning(
+                    "alice_open_gate_responding",
+                    channel_id=str(message.channel.id),
+                    user_id=str(message.author.id),
+                )
             else:
                 log.debug(
                     "alice_skip_no_mention",
@@ -189,6 +212,7 @@ class AliceChatCog(commands.Cog):
                     mentioned_as_role=mentioned_as_role,
                     mentioned_as_alias=mentioned_as_alias,
                     intrusive_mode_enabled=alice_settings.intrusive_mode_enabled,
+                    open_gate_enabled=alice_settings.open_gate_enabled,
                 )
                 return
         log.info(
@@ -372,6 +396,18 @@ class AliceChatCog(commands.Cog):
         except Exception as e:
             log.warning("alice_persist_failed", error=str(e))
 
+        # Clinical Reflection Layer (backend clínico): metacognitive, clinician-only.
+        # Fire-and-forget so it never delays the patient's reply, and it posts ONLY
+        # to the clinician channel — never to `channel` (the patient).
+        if self.clinical and self.clinical_channel_id:
+            convo = [m for m in recent if m.get("role") in ("user", "assistant")]
+            reflection_msgs = [*convo, {"role": "assistant", "content": text}]
+            task = asyncio.create_task(
+                self._post_clinical_reflection(reflection_msgs, origin=channel_name or channel_id)
+            )
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
+
         log.info(
             "alice_turn_complete",
             invited_by=invited_by,
@@ -381,3 +417,56 @@ class AliceChatCog(commands.Cog):
             chars=len(text),
         )
         return text
+
+    async def _post_clinical_reflection(self, messages: list[dict[str, str]], *, origin: str) -> None:
+        """Run the clinical reflection and post it to the clinician-only channel.
+
+        This is the metacognitive backend: the output is for the clinician, NEVER
+        the patient. Fire-and-forget — failures are logged, never surfaced to the
+        user, and we NEVER fall back to the patient's channel if the clinician
+        channel is missing (a leak would break the whole design).
+        """
+        if self.clinical is None:
+            return
+        try:
+            reflection = await self.clinical.reflect(messages)
+        except Exception as e:  # broad on purpose: never let the backend layer crash a turn
+            log.exception("alice_clinical_reflection_failed", error=str(e))
+            return
+
+        channel = self.bot.get_channel(int(self.clinical_channel_id))
+        if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(int(self.clinical_channel_id))
+            except (discord.HTTPException, ValueError) as e:
+                log.error(
+                    "alice_clinical_channel_unavailable",
+                    channel_id=self.clinical_channel_id,
+                    error=str(e),
+                )
+                return  # never leak the reflection to the patient
+        if not isinstance(channel, discord.abc.Messageable):
+            log.error("alice_clinical_channel_not_messageable", channel_id=self.clinical_channel_id)
+            return
+
+        triage = reflection.triage
+        level = triage.level.value if triage else "n/a"
+        header = f"**Reflexión clínica** · origen: `{origin}` · TRIAGE: **{level}**"
+        if triage is not None and triage.level.value == "CRITICAL":
+            header = f"**!!! RIESGO CRÍTICO !!!**\n{header}"
+        body = f"{header}\n{reflection.text}"
+
+        for chunk in chunk_paragraph_aware(body, max_chars=1900):
+            try:
+                await channel.send(chunk)
+            except discord.HTTPException as e:
+                log.exception("alice_clinical_post_failed", error=str(e))
+                return
+        log.info(
+            "alice_clinical_posted",
+            origin=origin,
+            triage_level=level,
+            input_tokens=reflection.input_tokens,
+            output_tokens=reflection.output_tokens,
+            latency_ms=reflection.latency_ms,
+        )

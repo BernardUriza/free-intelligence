@@ -90,6 +90,20 @@ class AliceSettings(BaseSettings):
         default=True,
         description="Allow ALICE to respond without explicit @mention when clinical-disclosure keywords appear.",
     )
+    # Failover escape hatch (alice 0.1.19, 2026-05-23): when Insult is down
+    # for any reason (billing exhausted, Anthropic outage, deploy churn,
+    # rate-limit storm) and ALICE has to cover the channel solo. With this
+    # ON, ALICE drops the mention/alias/intrusive gate in guild channels and
+    # responds to EVERY non-bot message (same shape as a DM). Default off so
+    # the normal sibling-coexistence behavior is unchanged; flip via
+    # ALICE_OPEN_GATE_ENABLED=true on the Container App when needed, then
+    # back to false once Insult is healthy. Keep this short-lived — running
+    # both bots wide-open at once is the "duplicate replies" footgun the
+    # passive design exists to prevent.
+    open_gate_enabled: bool = Field(
+        default=False,
+        description="Failover override: ALICE responds to every non-bot guild message (like a DM) — use only when Insult is down.",
+    )
     alice_aliases: list[str] = Field(
         default=["amix", "ali", "alicia"],
         description="Lowercase aliases that count as addressing ALICE. 'alice' is implicit.",
@@ -97,6 +111,12 @@ class AliceSettings(BaseSettings):
     insult_bot_user_id: str = Field(
         default="",
         description="Insult's Discord bot user ID. Used to filter cross-sibling listener so ALICE only reacts to Insult's messages, not to all bots in the channel.",
+    )
+    clinical_channel_id: str = Field(
+        default="",
+        description="Discord channel ID (clinician-only) where ALICE posts her Clinical "
+        "Reflection Layer output. Empty disables the clinical layer. This output is "
+        "metacognitive and MUST stay clinician-only — it is never sent to the patient.",
     )
 
 
