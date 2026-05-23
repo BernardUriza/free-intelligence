@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS principal_facts (
     deleted_at    DOUBLE PRECISION DEFAULT NULL,
     embedding     vector
 );
+-- MIGRATION v4.1.0: inline embedding column for fi_core.memory.PgMemoryStore.
+-- The `embedding` column above only lands on FRESH databases (CREATE TABLE IF
+-- NOT EXISTS skips existing tables). Prod's principal_facts predates the
+-- column — it was carried by the standalone `fact_embeddings` table before.
+-- The fi-core hot path (semantic_search + inline write) reads/writes THIS
+-- column, so existing deployments must gain it via ALTER. Idempotent: a no-op
+-- where the column already exists (fresh DBs, re-runs). connect() applies this
+-- on every boot, so the column exists before the first facts turn.
+ALTER TABLE principal_facts ADD COLUMN IF NOT EXISTS embedding vector;
 CREATE INDEX IF NOT EXISTS idx_pf_principal ON principal_facts(principal_id);
 CREATE INDEX IF NOT EXISTS idx_pf_deleted_at ON principal_facts(deleted_at) WHERE deleted_at IS NOT NULL;
 
