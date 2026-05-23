@@ -274,21 +274,6 @@ _PLAYWRIGHT_ALLOWED_TOOLS = [
 ]
 
 
-def _fi_core_tool_names() -> list[str]:
-    """Return fully-qualified MCP tool names for the fi-core persona server.
-
-    Prefers the explicit contract (fi_core.persona.MCP_TOOLS) when fi-core
-    exports it; otherwise mirrors the known tool list. The fallback path
-    becomes dead when fi-core 0.4.1 lands.
-    """
-    try:
-        from fi_core.persona import MCP_SERVER_NAME, MCP_TOOLS
-
-        return [f"mcp__{MCP_SERVER_NAME}__{t['name']}" for t in MCP_TOOLS]
-    except ImportError:
-        return [f"mcp__{_FI_CORE_SERVER_NAME}__{n}" for n in _FI_CORE_TOOLS_FALLBACK]
-
-
 async def _build_options(persona: str, model: str | None = None) -> Any:
     """Construct ClaudeAgentOptions for a new channel session.
 
@@ -309,7 +294,15 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     Python package and ships its own FastMCP-over-stdio server; the SDK
     spawns it on session creation.
     """
-    from claude_agent_sdk import ClaudeAgentOptions
+    # v4.0 (fi-runner): option assembly is delegated to fi_runner — the
+    # backend-agnostic runner framework. insult declares its MCP servers as
+    # MCPServerSpecs (insult_db in-process; fi-core persona + playwright stdio)
+    # and the ToolPolicy; fi_runner builds the ClaudeAgentOptions (allowlist,
+    # mcp_servers, cwd, setting_sources, permission mode). The per-channel pool
+    # and turn loop below stay in insult — fi_runner owns option/capability
+    # wiring, insult owns orchestration. env_passthrough=False keeps the stdio
+    # entries byte-identical to the pre-fi-runner behavior.
+    from fi_runner import ClaudeCodeBackend, MCPServerSpec, PermissionMode, ToolPolicy
 
     from insult.agent.mcp_tools import (
         INSULT_DB_SERVER_NAME,
@@ -317,38 +310,43 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
         build_insult_db_server,
     )
 
-    insult_db_server = build_insult_db_server()
-    insult_tool_names = [f"mcp__{INSULT_DB_SERVER_NAME}__{t.name}" for t in INSULT_DB_TOOLS]
-    fi_core_tool_names = _fi_core_tool_names()
-    playwright_tool_names = [f"mcp__{_PLAYWRIGHT_SERVER_NAME}__{n}" for n in _PLAYWRIGHT_ALLOWED_TOOLS]
+    try:
+        from fi_core.persona import MCP_TOOLS as _FI_CORE_MCP_TOOLS
 
-    return ClaudeAgentOptions(
+        fi_core_tools = tuple(t["name"] for t in _FI_CORE_MCP_TOOLS)
+    except ImportError:
+        fi_core_tools = tuple(_FI_CORE_TOOLS_FALLBACK)
+
+    specs = [
+        MCPServerSpec(
+            name=INSULT_DB_SERVER_NAME,
+            server=build_insult_db_server(),  # in-process MCP server
+            tools=tuple(t.name for t in INSULT_DB_TOOLS),
+        ),
+        MCPServerSpec(
+            name=_FI_CORE_SERVER_NAME,
+            command="python",
+            args=["-m", "fi_core.persona.mcp_server"],
+            tools=fi_core_tools,
+            env_passthrough=False,
+        ),
+        # `--isolated`: never log in with a real account from prod. `--headless`
+        # mandatory in container.
+        MCPServerSpec(
+            name=_PLAYWRIGHT_SERVER_NAME,
+            command="npx",
+            args=["@playwright/mcp@latest", "--headless", "--isolated"],
+            tools=tuple(_PLAYWRIGHT_ALLOWED_TOOLS),
+            env_passthrough=False,
+        ),
+    ]
+
+    backend = ClaudeCodeBackend(cwd=str(WORKSPACE_ROOT), setting_sources=["project"])
+    return backend.build_options(
         system_prompt=persona,
-        cwd=str(WORKSPACE_ROOT),
+        mcp_servers=specs,
+        tool_policy=ToolPolicy(permission_mode=PermissionMode.BYPASS),
         model=model or DEFAULT_MODEL,
-        allowed_tools=[*insult_tool_names, *fi_core_tool_names, *playwright_tool_names],
-        mcp_servers={
-            INSULT_DB_SERVER_NAME: insult_db_server,
-            # stdio subprocess — SDK spawns + manages lifecycle. The
-            # `python` here resolves to the env-active Python which
-            # MUST have fi-core installed (it does, via environment.yml).
-            _FI_CORE_SERVER_NAME: {
-                "command": "python",
-                "args": ["-m", "fi_core.persona.mcp_server"],
-            },
-            # Playwright MCP — see _PLAYWRIGHT_SERVER_NAME comment above.
-            # `--isolated` is non-negotiable: never log in with a real
-            # account from prod. `--headless` is mandatory in container.
-            _PLAYWRIGHT_SERVER_NAME: {
-                "command": "npx",
-                "args": ["@playwright/mcp@latest", "--headless", "--isolated"],
-            },
-        },
-        permission_mode="bypassPermissions",
-        # Project-only filesystem settings: load <cwd>/CLAUDE.md as project
-        # context (the operating contract for the MCP tools). The agent does
-        # NOT read ~/.claude/ from the runner user.
-        setting_sources=["project"],
     )
 
 
