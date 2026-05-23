@@ -128,6 +128,26 @@ class CodexBackend:
                     parts.append(text)
         return "".join(parts)
 
+    @staticmethod
+    def _extract_usage(events: list[dict]) -> dict | None:
+        """Token usage from the final ``turn.completed`` event, if present."""
+        for ev in reversed(events):
+            if ev.get("type") == "turn.completed":
+                usage = ev.get("usage")
+                if isinstance(usage, dict):
+                    return usage
+        return None
+
+    @staticmethod
+    def _extract_thread_id(events: list[dict]) -> str | None:
+        """The Codex thread id (from ``thread.started``) — usable to resume."""
+        for ev in events:
+            if ev.get("type") == "thread.started":
+                tid = ev.get("thread_id")
+                if isinstance(tid, str):
+                    return tid
+        return None
+
     async def run_turn(
         self,
         *,
@@ -171,4 +191,9 @@ class CodexBackend:
                 events.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
-        return TurnResult(text=self._extract_text(events), raw=events)
+        return TurnResult(
+            text=self._extract_text(events),
+            raw=events,
+            usage=self._extract_usage(events),
+            session_id=self._extract_thread_id(events),
+        )

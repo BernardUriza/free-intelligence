@@ -68,6 +68,10 @@ class TurnResult:
 
     text: str
     raw: Any = None
+    # Token usage when the backend reports it (e.g. Codex turn.completed.usage).
+    usage: dict[str, Any] | None = None
+    # Backend session/thread id for continuity (e.g. Codex thread_id).
+    session_id: str | None = None
 
 
 @runtime_checkable
