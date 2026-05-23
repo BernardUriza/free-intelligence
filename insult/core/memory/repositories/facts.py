@@ -8,50 +8,190 @@ Two provenance tiers coexist in the same table, distinguished by `source`:
   wiped. This distinction exists because before the `source` column was
   introduced, every re-extraction nuked manual injections — the bot would
   forget anything a teammate contributed within one turn.
+- `'agent'`: produced in-band by the persona's `[REMEMBER:]` marker.
+  Survives `save_facts` (which only wipes `'auto'`) but stays distinct
+  from operator-curated `'manual'` rows.
 
-Migrated to asyncpg on 2026-05-12 PG migration. `cursor.lastrowid` →
-`RETURNING id` + `_fetchval`. Vector path now hits pgvector through
-the rewritten `core/vectors` module — same signature, pool-based.
+## fi-core migration (2026-05-22)
+
+The hot path (get / save / add / count / purge / semantic_search) now
+delegates to `fi_core.memory.PgMemoryStore` — the production-validated
+store fi-core extracted FROM this very repo, now shared with AURITY.
+Embeddings moved from the standalone `fact_embeddings` table to the inline
+`principal_facts.embedding` column that `PgMemoryStore` self-manages; the
+embedder is the local MiniLM model (`MiniLMEmbedder`, 384d) wired in only
+when pgvector loaded at boot.
+
+`PgMemoryStore` normally owns its own asyncpg pool, but the bot already
+runs ONE shared pool (with the pgvector codec registered per-connection in
+`connection.py`) and owns the schema. `_SharedPoolMemoryStore` injects that
+pool and bypasses `init_schema()` so there is no second pool and no extra
+lifecycle to manage.
+
+Two methods stay on hand-rolled SQL on purpose:
+- `get_all_facts()` — a cross-principal query that `MemoryStore` explicitly
+  leaves out of scope (do cross-tenant reads at the SQL layer).
+- `apply_consolidation_plan()` — keeps the bot's `op_factory` / `by_id`
+  contract so the consolidator stays untouched; it now also writes the
+  inline embedding for merged facts so semantic search stays consistent
+  with the `PgMemoryStore` write path.
 """
 
 from __future__ import annotations
 
-import time
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
 import structlog
 
 from insult.core.memory.base import BaseRepository
+from insult.core.memory.minilm_embedder import MiniLMEmbedder
+
+if TYPE_CHECKING:
+    from fi_core.memory.types import Fact
+
+    from insult.core.memory.connection import ConnectionManager
 
 log = structlog.get_logger()
 
 
+def _fact_to_dict(f: Fact) -> dict:
+    """Translate a fi-core ``Fact`` back into the legacy dict shape the
+    bot's ~30 fact consumers expect (``{id, fact, category, updated_at}``).
+
+    The `source` / `deleted_at` fields the dataclass also carries are
+    intentionally dropped — no caller reads them off the dict, and adding
+    them would silently change the shape every consumer pattern-matches."""
+    return {"id": f.id, "fact": f.fact, "category": f.category, "updated_at": f.updated_at}
+
+
+def _build_shared_pool_store(manager: ConnectionManager, embedder: MiniLMEmbedder | None):
+    """Construct a ``PgMemoryStore`` bound to the bot's shared pool.
+
+    Subclassing and overriding ``_p`` lets every inherited method
+    (`get_facts`, `save_facts`, `add_fact`, `semantic_search`, …) run
+    against the bot's `ConnectionManager` pool — which already registers the
+    pgvector codec per connection, so the `Vector(...)` parameters the
+    parent passes work without a second `register_vector` setup. We never
+    call `init_schema()` (the bot owns the schema) or `close()` (the bot
+    owns the pool lifecycle).
+
+    Done as a factory so importing this module never hard-requires fi-core
+    at import time — the fi-core import happens on first facts use."""
+    from fi_core.memory.stores.pgvector_memory import PgMemoryStore
+
+    class _Bound(PgMemoryStore):
+        def __init__(self) -> None:
+            self._manager = manager
+            self._embedder = embedder
+
+        @property
+        def _p(self) -> asyncpg.Pool:
+            pool = self._manager.pool
+            if pool is None:
+                raise RuntimeError("ConnectionManager is not connected — call connect() first")
+            return pool
+
+    return _Bound()
+
+
 class FactsRepository(BaseRepository):
-    """Owns the `principal_facts` table. Semantic search integrates `core/vectors`."""
+    """Owns the `principal_facts` table. Hot path delegates to fi-core's
+    `PgMemoryStore`; cross-user + consolidation SQL stays local."""
+
+    def __init__(self, manager: ConnectionManager):
+        super().__init__(manager)
+        self._store: Any = None  # lazy PgMemoryStore over the shared pool
+
+    def _get_store(self) -> Any:
+        """Lazily build the shared-pool PgMemoryStore.
+
+        The embedder is wired only when pgvector loaded at boot — matching
+        the pre-migration behavior where `vectors_available=False` meant
+        save_facts skipped the vector upsert and search fell back to
+        unranked `get_facts`. With no embedder, `PgMemoryStore` writes a
+        NULL embedding and `semantic_search` returns `get_facts`."""
+        if self._store is None:
+            embedder = MiniLMEmbedder() if self.vectors_available else None
+            self._store = _build_shared_pool_store(self._manager, embedder)
+        return self._store
+
+    # ------------------------------------------------------------------
+    # Hot path — delegated to fi_core.memory.PgMemoryStore
+    # ------------------------------------------------------------------
 
     async def get_facts(self, user_id: str) -> list[dict]:
-        """All live facts for a user, newest-updated first.
+        """All live facts for a user, newest-updated first."""
+        facts = await self._get_store().get_facts(user_id)
+        return [_fact_to_dict(f) for f in facts]
 
-        Soft-deleted rows (`deleted_at IS NOT NULL`) are excluded — the
-        Mem0-style consolidator marks rows for delayed purge instead of
-        DELETE, so live SELECTs must filter them out.
-        """
-        rows = await self._fetch(
-            "SELECT id, fact, category, updated_at FROM principal_facts "
-            "WHERE principal_id = $1 AND deleted_at IS NULL "
-            "ORDER BY updated_at DESC",
-            user_id,
-        )
-        return [
-            {"id": r["id"], "fact": r["fact"], "category": r["category"], "updated_at": r["updated_at"]} for r in rows
-        ]
+    async def save_facts(self, user_id: str, facts: list[dict]) -> None:
+        """Replace AUTO-extracted facts for a user with a new snapshot.
+
+        Rows with source='manual' / 'agent' are PRESERVED (the store's
+        DELETE is scoped to source='auto'). Embeddings are written inline
+        by the store using the MiniLM embedder — no separate
+        `fact_embeddings` upsert anymore. A failed embed degrades a single
+        row to a NULL embedding; it never rolls back the SQL."""
+        from fi_core.memory.types import Fact
+
+        fact_objs = [Fact(fact=f["fact"], principal_id=user_id, category=f.get("category", "general")) for f in facts]
+        try:
+            await self._get_store().save_facts(user_id, fact_objs)
+            log.info("facts_saved", user_id=user_id, count=len(fact_objs))
+        except asyncpg.PostgresError as e:
+            log.error("facts_save_failed", user_id=user_id, error=str(e))
+
+    async def add_manual_fact(self, user_id: str, fact: str, category: str = "general") -> int:
+        """Insert a curated fact marked source='manual' so extract_facts can't wipe it."""
+        from fi_core.memory.types import FactSource
+
+        row_id = await self._get_store().add_fact(user_id, fact, category=category, source=FactSource.MANUAL)
+        log.info("manual_fact_added", user_id=user_id, fact_id=row_id, category=category)
+        return row_id
+
+    async def add_remember_fact(self, user_id: str, fact: str, category: str = "general") -> int:
+        """Insert a fact produced in-band by the agent's `[REMEMBER:]` marker (source='agent')."""
+        from fi_core.memory.types import FactSource
+
+        row_id = await self._get_store().add_fact(user_id, fact, category=category, source=FactSource.AGENT)
+        log.info("remember_fact_added", user_id=user_id, fact_id=row_id, category=category)
+        return row_id
+
+    async def count_live(self, user_id: str) -> int:
+        """Live (non-soft-deleted) facts for a user."""
+        return await self._get_store().count_live(user_id)
+
+    async def purge_soft_deleted(self, cutoff: float) -> int:
+        """Hard-delete rows whose soft-delete is older than `cutoff`."""
+        return await self._get_store().purge_soft_deleted(cutoff)
+
+    async def search_facts_semantic(self, user_id: str, query: str, limit: int = 10) -> list[dict]:
+        """Relevance-ranked facts via inline-embedding cosine search.
+
+        `PgMemoryStore.semantic_search` already falls back to unranked
+        `get_facts` when no embedder is wired, the query can't embed, or
+        the user has zero embedded rows — so this stays a single safe
+        entry point regardless of pgvector state."""
+        try:
+            facts = await self._get_store().semantic_search(user_id, query, limit=limit)
+            log.info("facts_semantic_search", user_id=user_id, query=query[:50], results=len(facts))
+            return [_fact_to_dict(f) for f in facts]
+        except Exception as e:
+            log.warning("facts_semantic_search_failed", user_id=user_id, error=str(e))
+            return await self.get_facts(user_id)
+
+    # ------------------------------------------------------------------
+    # Local SQL — out of MemoryStore scope (cross-user) or consolidator-owned
+    # ------------------------------------------------------------------
 
     async def get_all_facts(self) -> list[dict]:
-        """Every live fact for every user — used by cross-user prompt injection."""
-        # Schema column is principal_id post-v3.10.0; alias to user_id for caller
-        # compat (every ~25 callsite in bot.py + memory_consolidator expects the
-        # dict key "user_id"). Column rename is at the storage layer, NOT the
-        # consumer-facing dict shape.
+        """Every live fact for every user — used by cross-user prompt injection.
+
+        Cross-principal by design; `MemoryStore` deliberately scopes every
+        method to one principal, so this stays raw SQL on the shared pool.
+        Aliases `principal_id` → `user_id` for caller-dict compat (~25
+        callsites in bot.py + memory_consolidator expect the key)."""
         rows = await self._fetch(
             "SELECT principal_id AS user_id, id, fact, category, updated_at "
             "FROM principal_facts "
@@ -69,124 +209,6 @@ class FactsRepository(BaseRepository):
             for r in rows
         ]
 
-    async def save_facts(self, user_id: str, facts: list[dict]) -> None:
-        """Replace AUTO-extracted facts for a user with a new snapshot.
-
-        Rows with source='manual' are PRESERVED. This is the critical
-        invariant: before it existed, any curated fact died on the next
-        conversation turn because the LLM extractor only sees ~10 messages
-        and routinely omits older facts from its output. The DELETE below
-        is scoped to source='auto' precisely to protect manual entries.
-
-        Wrapped in a single transaction so partial INSERTs don't leave the
-        DB in a half-wiped state if the connection drops mid-loop."""
-        now = time.time()
-        try:
-            async with self._tx() as conn:
-                await conn.execute(
-                    "DELETE FROM principal_facts WHERE principal_id = $1 AND source = 'auto'",
-                    user_id,
-                )
-                if facts:
-                    await conn.executemany(
-                        "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
-                        "VALUES ($1, $2, $3, $4, 'auto')",
-                        [(user_id, f["fact"], f.get("category", "general"), now) for f in facts],
-                    )
-            log.info("facts_saved", user_id=user_id, count=len(facts))
-
-            # Update vector embeddings if available. Swallow per-call errors —
-            # a failed vector upsert must not break the primary SQL commit.
-            if self.vectors_available:
-                try:
-                    from insult.core.vectors import upsert_fact_vectors
-
-                    await upsert_fact_vectors(self._pool, user_id, facts)
-                except Exception as ve:
-                    log.warning("facts_vector_upsert_failed", user_id=user_id, error=str(ve))
-        except asyncpg.PostgresError as e:
-            log.error("facts_save_failed", user_id=user_id, error=str(e))
-
-    async def add_manual_fact(
-        self,
-        user_id: str,
-        fact: str,
-        category: str = "general",
-    ) -> int:
-        """Insert a curated fact marked source='manual' so extract_facts can't wipe it.
-
-        Returns the inserted row id. This is an append, not an upsert —
-        callers that care about dedup must do their own check."""
-        now = time.time()
-        row_id = await self._fetchval(
-            "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
-            "VALUES ($1, $2, $3, $4, 'manual') RETURNING id",
-            user_id,
-            fact,
-            category,
-            now,
-        )
-        row_id = int(row_id or 0)
-        log.info("manual_fact_added", user_id=user_id, fact_id=row_id, category=category)
-        return row_id
-
-    async def add_remember_fact(
-        self,
-        user_id: str,
-        fact: str,
-        category: str = "general",
-    ) -> int:
-        """Insert a fact produced in-band by the agent's `[REMEMBER:]` marker.
-
-        Replaces the legacy `core/facts.py` batch Haiku extraction. The
-        agent persona decides what's durable, emits the marker, and the
-        delivery pipeline persists it. Source='agent' so it survives any
-        future `save_facts` (which only wipes source='auto'), but stays
-        distinguishable from operator-curated source='manual' rows."""
-        now = time.time()
-        row_id = await self._fetchval(
-            "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
-            "VALUES ($1, $2, $3, $4, 'agent') RETURNING id",
-            user_id,
-            fact,
-            category,
-            now,
-        )
-        row_id = int(row_id or 0)
-        log.info("remember_fact_added", user_id=user_id, fact_id=row_id, category=category)
-        return row_id
-
-    # -- Consolidator-facing primitives --
-    # These methods are used by `core/memory_consolidator` to apply a
-    # judge-produced plan over principal_facts. Kept in the repo so SQL stays
-    # owned by the table-owner; the consolidator orchestrates the plan but
-    # never writes raw SQL.
-
-    async def count_live(self, user_id: str) -> int:
-        """Live (non-soft-deleted) facts for a user. O(n) but only used at
-        end-of-consolidation for one report metric."""
-        return int(
-            await self._fetchval(
-                "SELECT COUNT(*) FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL",
-                user_id,
-            )
-            or 0
-        )
-
-    async def purge_soft_deleted(self, cutoff: float) -> int:
-        """Hard-delete rows whose soft-delete is older than `cutoff`.
-
-        Returns the number of rows removed. Called once per consolidation
-        run; rows that survive the retention window are gone forever."""
-        tag = await self._execute(
-            "DELETE FROM principal_facts WHERE deleted_at IS NOT NULL AND deleted_at < $1",
-            cutoff,
-        )
-        try:
-            return int(tag.rsplit(" ", 1)[-1])
-        except (ValueError, AttributeError):
-            return 0
-
     async def apply_consolidation_plan(
         self,
         user_id: str,
@@ -197,16 +219,16 @@ class FactsRepository(BaseRepository):
     ) -> list:
         """Translate the judge's plan into SQL operations + audit log rows.
 
-        Wrapped in a single transaction so a crash mid-plan leaves
-        principal_facts in a coherent state (no soft-delete without its replacement,
-        no audit row without its op). `op_factory` builds the caller's
-        FactOperation dataclass so this repo doesn't import the consolidator
-        symbol — avoids a circular dep between two packages that already
-        depend on each other through MemoryStore.
+        Kept on local SQL so the consolidator's `by_id` / `op_factory`
+        contract is untouched. Single transaction so a crash mid-plan
+        leaves principal_facts coherent (no soft-delete without its
+        replacement, no audit row without its op).
 
-        Returns the list of applied operations (op_factory return values),
-        in plan order.
-        """
+        Merged (UPDATE) facts are inserted WITH an inline embedding when
+        pgvector is available, so consolidation output stays searchable —
+        matching `PgMemoryStore`'s write path. Embed failure degrades to a
+        NULL embedding, never aborts the transaction."""
+        embedder = MiniLMEmbedder() if self.vectors_available else None
         applied: list = []
         async with self._tx() as conn:
             for op in plan:
@@ -215,16 +237,7 @@ class FactsRepository(BaseRepository):
 
                 if kind == "NOOP":
                     fid = op["id"]
-                    applied.append(
-                        op_factory(
-                            "NOOP",
-                            fid,
-                            fid,
-                            by_id[fid]["fact"],
-                            by_id[fid]["fact"],
-                            reason,
-                        )
-                    )
+                    applied.append(op_factory("NOOP", fid, fid, by_id[fid]["fact"], by_id[fid]["fact"], reason))
                     continue
 
                 if kind == "DELETE":
@@ -241,6 +254,16 @@ class FactsRepository(BaseRepository):
                     ids = op["merge_ids"]
                     new_text = op["new_fact"]
                     category = op.get("category", "general")
+
+                    embedding_vec = None
+                    if embedder is not None:
+                        try:
+                            from pgvector import Vector
+
+                            embedding_vec = Vector(await embedder.embed(new_text))
+                        except Exception:
+                            embedding_vec = None
+
                     for fid in ids:
                         await conn.execute(
                             "UPDATE principal_facts SET deleted_at = $1 WHERE id = $2",
@@ -248,28 +271,21 @@ class FactsRepository(BaseRepository):
                             fid,
                         )
                     new_id = await conn.fetchval(
-                        "INSERT INTO principal_facts (principal_id, fact, category, updated_at, source) "
-                        "VALUES ($1, $2, $3, $4, 'auto') RETURNING id",
+                        "INSERT INTO principal_facts "
+                        "(principal_id, fact, category, updated_at, source, embedding) "
+                        "VALUES ($1, $2, $3, $4, 'auto', $5) RETURNING id",
                         user_id,
                         new_text,
                         category,
                         run_ts,
+                        embedding_vec,
                     )
                     new_id = int(new_id or 0)
                     for fid in ids:
-                        applied.append(
-                            op_factory(
-                                "UPDATE",
-                                fid,
-                                new_id,
-                                by_id[fid]["fact"],
-                                new_text,
-                                reason,
-                            )
-                        )
+                        applied.append(op_factory("UPDATE", fid, new_id, by_id[fid]["fact"], new_text, reason))
 
-            # Audit log rows — one per applied op. Written inside the same
-            # transaction so the audit table and principal_facts can never disagree.
+            # Audit log rows — one per applied op, same transaction so the
+            # audit table and principal_facts can never disagree.
             for o in applied:
                 await conn.execute(
                     "INSERT INTO fact_consolidation_log "
@@ -286,30 +302,3 @@ class FactsRepository(BaseRepository):
                     o.fact_text_after,
                 )
         return applied
-
-    async def search_facts_semantic(self, user_id: str, query: str, limit: int = 10) -> list[dict]:
-        """Hybrid vector + fallback-keyword search for relevance-ranked facts.
-
-        Falls back to `get_facts()` (unranked) when vectors are unavailable
-        OR when the vector search returns zero hits so callers can treat
-        this as a single entry point regardless of pgvector initialization
-        state."""
-        if not self.vectors_available:
-            return await self.get_facts(user_id)
-
-        try:
-            from insult.core.vectors import search_facts_hybrid
-
-            results = await search_facts_hybrid(self._pool, user_id, query, limit=limit)
-            if results:
-                log.info(
-                    "facts_semantic_search",
-                    user_id=user_id,
-                    query=query[:50],
-                    results=len(results),
-                )
-                return results
-            return await self.get_facts(user_id)
-        except Exception as e:
-            log.warning("facts_semantic_search_failed", user_id=user_id, error=str(e))
-            return await self.get_facts(user_id)

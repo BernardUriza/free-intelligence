@@ -34,7 +34,11 @@ dependencies:
   # fi-core ships the chunking algorithm + Embedder/ChunkStore protocols
   # + DocumentChunkStore (HDF5-backed). HDF5 is the data-pipeline
   # justification for going conda in the first place.
-  - fi-core>=0.5.1
+  # Floor raised to 0.7.0 (v4.1.0): the facts layer now uses
+  # fi_core.memory.PgMemoryStore, which FIRST shipped in 0.7.0. A build that
+  # resolved to 0.5.x/0.6.x (which lack fi_core.memory) would crash facts at
+  # import — pin the floor so the conda solver can't cache an older version.
+  - fi-core>=0.7.0
   # fi-runner — the backend-agnostic runner framework. insult's runner now
   # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
   # MUST be published to the bernardurizaorozco channel for the prod build.

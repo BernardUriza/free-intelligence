@@ -94,3 +94,54 @@ async def test_manual_fact_isolation_between_users(pg_memory_store):
     await pg_memory_store.save_facts("u1", [])
     assert any(f["fact"] == "u1 private detail" for f in await pg_memory_store.get_facts("u1"))
     assert any(f["fact"] == "u2 private detail" for f in await pg_memory_store.get_facts("u2"))
+
+
+# --- fi-core migration (2026-05-22): agent tier + inline-embedding search ---
+# The contract above (manual preserved, auto replaced, isolation) now runs
+# through `fi_core.memory.PgMemoryStore`. These add the two paths the
+# migration newly delegates: the `[REMEMBER:]` agent tier and the inline
+# semantic search that replaced the standalone `fact_embeddings` join.
+
+
+@pytest.mark.asyncio
+async def test_add_remember_fact_inserts_with_agent_source(pg_memory_store):
+    row_id = await pg_memory_store.add_remember_fact("u1", "Larisa es la terapeuta de Alex", "personal")
+    assert row_id > 0
+    facts = await pg_memory_store.get_facts("u1")
+    assert any(f["fact"] == "Larisa es la terapeuta de Alex" for f in facts)
+
+
+@pytest.mark.asyncio
+async def test_save_facts_preserves_agent_rows(pg_memory_store):
+    """`[REMEMBER:]` (source='agent') facts survive auto re-extraction — the
+    resistance case for the agent tier, mirroring the manual guarantee.
+
+    Without the source-scoped DELETE, an agent-marked fact would die on the
+    next auto extraction (the exact regression the source column prevents)."""
+    await pg_memory_store.add_remember_fact("u1", "Recuerda este detalle clave", "personal")
+    await pg_memory_store.save_facts("u1", [{"fact": "auto fact nueva", "category": "general"}])
+    texts = {f["fact"] for f in await pg_memory_store.get_facts("u1")}
+    assert "Recuerda este detalle clave" in texts, "agent fact must survive an auto save"
+    assert "auto fact nueva" in texts
+
+
+@pytest.mark.asyncio
+async def test_search_facts_semantic_ranks_relevant_first(pg_memory_store):
+    """Inline-embedding cosine search surfaces the relevant fact first.
+
+    Exercises the full migrated path: save_facts embeds each fact inline via
+    MiniLM, semantic_search embeds the query and orders by `embedding <=> $1`
+    on the inline column (no `fact_embeddings` join anymore)."""
+    await pg_memory_store.save_facts(
+        "u1",
+        [
+            {"fact": "Vive en la Ciudad de México", "category": "location"},
+            {"fact": "Le encanta programar en Python", "category": "interests"},
+            {"fact": "Tiene un gato llamado Mango", "category": "personal"},
+        ],
+    )
+    results = await pg_memory_store.search_facts_semantic("u1", "¿en qué ciudad vive?", limit=3)
+    assert results, "semantic search should return ranked facts"
+    assert results[0]["fact"] == "Vive en la Ciudad de México"
+    # Legacy dict shape preserved for the ~30 consumers.
+    assert set(results[0].keys()) == {"id", "fact", "category", "updated_at"}
