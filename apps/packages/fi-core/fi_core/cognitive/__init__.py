@@ -40,6 +40,7 @@ from .events import (
     validate_redux_action,
 )
 from .loader import available_presets, load_all, load_preset
+from .mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from .soap import (
     COMMIT_COMPLETENESS_THRESHOLD,
     COMMIT_NOM_THRESHOLD,
@@ -127,4 +128,7 @@ __all__ = [
     "action_to_event_type",
     "validate_redux_action",
     "sha256_payload",
+    # mcp contract (server lives in fi_core.cognitive.mcp_server, needs [mcp])
+    "MCP_SERVER_NAME",
+    "MCP_TOOLS",
 ]
