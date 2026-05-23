@@ -5,6 +5,25 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-05-22
+
+### Added
+- `fi_core.cognitive` — clinical cognitive-flow primitives extracted from the
+  Redux-Claude medical flow (zero-dep core; YAML preset loading via the new
+  `cognitive` extra):
+  - `presets` / `loader` / `types` — 7 medical prompt presets as typed `CognitivePreset`.
+  - `state_machine` — the clinical consultation FSM (14 states + transition table).
+  - `urgency` — gravity scoring / triage (1-10 score, modifiers, widow-maker override).
+  - `extraction` — extraction iteration loop (completeness %, max 5 iterations, focus).
+  - `soap` — SOAP progression (section weights, NOM-004 compliance, commit gate).
+  - `events` — Redux→domain-event mapping (`EventType`, `ReduxEventAdapter`, audit hash).
+- `cognitive` optional extra (`pyyaml`).
+
+### Changed
+- AURITY backend now sources its prompt presets from `fi_core.cognitive`
+  (single source of truth); the duplicated YAMLs and the legacy `yaml_provider`
+  were removed.
+
 ## [0.7.0] — 2026-05-19
 
 ### Added

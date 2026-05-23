@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
-{% set version = "0.7.0" %}
-{% set sha256 = "04fa7004546f2a200ff625b19af68187208dabe367ea3a1063b7f01993612918" %}
+{% set version = "0.8.0" %}
+{% set sha256 = "efca27446ff113b80a7b9bff25121a5963c48e8a1e829458e5eb840908ab77fa" %}
 
 package:
   name: {{ name }}
