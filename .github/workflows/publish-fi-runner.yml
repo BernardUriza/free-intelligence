@@ -111,5 +111,8 @@ jobs:
           echo "Uploading: $PKG"
           USER_FLAG=""
           [ -n "$ANACONDA_CHANNEL" ] && USER_FLAG="-u $ANACONDA_CHANNEL"
+          # `conda run -n base` so the anaconda-client binary (installed into the
+          # base env) is on PATH regardless of which env the login shell activated
+          # — a bare `anaconda` was "command not found" (exit 127) otherwise.
           # --skip-existing so re-running a tag doesn't 409 on an already-uploaded build.
-          anaconda -t "$ANACONDA_TOKEN" upload $USER_FLAG --skip-existing "$PKG"
+          conda run -n base anaconda -t "$ANACONDA_TOKEN" upload $USER_FLAG --skip-existing "$PKG"
