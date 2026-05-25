@@ -27,6 +27,7 @@ from fi_core.rag.retrieval import (
     fold_accents,
     tokenize,
 )
+from fi_core.rag.store_retrieval import StoreBackedRetriever
 from fi_core.rag.types import (
     Chunk,
     ChunkWithEmbedding,
@@ -54,6 +55,7 @@ __all__ = [
     "RetrievedChunk",
     "ScoredText",
     "SemanticRetriever",
+    "StoreBackedRetriever",
     "chunk_by_fixed_size",
     "chunk_by_paragraphs",
     "chunk_by_sentences",

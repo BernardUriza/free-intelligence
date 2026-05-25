@@ -17,4 +17,5 @@ MCP_TOOLS: list[dict[str, str]] = [
     {"name": "lexical_search", "description": "Rank candidate texts against a query by accent-folded term overlap (zero-model, ES+EN stopwords)."},
     {"name": "semantic_search", "description": "Rank candidate texts by cosine over caller-supplied embedding vectors."},
     {"name": "cosine_similarity", "description": "Cosine similarity of two equal-length vectors (0..1; 0 for a zero vector)."},
+    {"name": "search_documents", "description": "Semantic search over a PERSISTENT vector store: embeds the query and returns top-k stored chunks (needs FI_RAG_EMBEDDER + FI_RAG_STORE config)."},
 ]
