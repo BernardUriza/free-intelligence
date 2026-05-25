@@ -106,3 +106,31 @@ async def test_pgvector_query_filters_by_document_attributes():
         close = getattr(store, "close", None)
         if close is not None:
             await close()
+
+
+@pytest.mark.asyncio
+async def test_ragstore_swappable_over_pgvector():
+    """P1.4: the same RagStore service runs over pgvector (the 'Pinecone' axis) —
+    ingest → search → stats → delete_corpus, end-to-end against a real DB."""
+    from fi_core.embeddings.hashing import HashingEmbedder
+    from fi_core.rag import RagStore
+    from fi_core.stores.pgvector import PgVectorChunkStore
+
+    store = PgVectorChunkStore(dsn=_DSN, embedding_dim=64, table_prefix="fi_rag_svc")
+    await store.init_schema()
+    rag = RagStore.from_components(store=store, embedder=HashingEmbedder(dim=64))
+    ns = f"svc-{uuid.uuid4().hex[:8]}"
+    try:
+        n = await rag.ingest(ns, "d1", "dolor toracico opresivo del paciente con diabetes cronica grave",
+                             chunk_size=12, overlap=0, min_chunk_size=2)
+        assert n >= 1
+        hits = await rag.search(ns, "dolor toracico", top_k=3)
+        assert hits and "dolor" in hits[0].chunk.text
+        st = await rag.stats(ns)
+        assert st["n_docs"] == 1 and st["n_chunks"] >= 1 and st["bytes"] > 0
+        assert await rag.delete_corpus(ns) == 1
+        assert (await rag.stats(ns)) == {"n_docs": 0, "n_chunks": 0, "bytes": 0}
+    finally:
+        close = getattr(store, "close", None)
+        if close is not None:
+            await close()

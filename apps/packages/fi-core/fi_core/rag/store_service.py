@@ -130,5 +130,27 @@ class RagStore:
         """Delete ``doc_id`` (and its chunks) from ``corpus_id``; True if it existed."""
         return await self.store.delete_document(namespace=corpus_id, document_id=doc_id)
 
+    async def delete_corpus(self, corpus_id: str) -> int:
+        """Delete EVERY document (and its chunks) in ``corpus_id``. Returns the
+        number of documents deleted — the tenant-teardown / GDPR-erase op."""
+        deleted = 0
+        for doc in await self.store.list_documents(namespace=corpus_id):
+            if await self.store.delete_document(namespace=corpus_id, document_id=doc.document_id):
+                deleted += 1
+        return deleted
+
+    async def stats(self, corpus_id: str) -> dict:
+        """Usage for ``corpus_id``: ``{n_docs, n_chunks, bytes}``. ``bytes`` is the
+        UTF-8 size of the stored chunk text (the embedded/stored unit) — a
+        backend-agnostic, billable measure (the P2 metering base)."""
+        docs = await self.store.list_documents(namespace=corpus_id)
+        n_chunks = 0
+        nbytes = 0
+        for doc in docs:
+            for chunk in await self.store.get_chunks_by_document(namespace=corpus_id, document_id=doc.document_id):
+                n_chunks += 1
+                nbytes += len(chunk.text.encode("utf-8"))
+        return {"n_docs": len(docs), "n_chunks": n_chunks, "bytes": nbytes}
+
 
 __all__ = ["RagStore", "build_embedder_from_env", "build_store_from_env"]

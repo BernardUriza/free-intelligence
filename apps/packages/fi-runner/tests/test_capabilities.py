@@ -59,10 +59,9 @@ def test_resolve_rag_store_points_at_stateful_server():
     (spec,) = capabilities.resolve(["rag_store"])
     assert spec.name == "fi-core-rag-store"
     assert spec.args == ["-m", "fi_core.rag.store_mcp_server"]
-    # the stateful CRUD tools, read from fi-core's zero-dep store contract
-    assert "ingest_document" in spec.tools
-    assert "search_documents" in spec.tools
-    assert "list_documents" in spec.tools and "delete_document" in spec.tools
+    # the stateful CRUD + lifecycle tools, read from fi-core's zero-dep store contract
+    for tool in ("ingest_document", "search_documents", "list_documents", "delete_document", "delete_corpus", "stats"):
+        assert tool in spec.tools, f"rag_store capability missing tool {tool!r}"
 
 
 def test_resolve_multiple_capabilities_preserves_order():

@@ -80,6 +80,17 @@ async def test_ingest_text_file(env, tmp_path):
     assert hits and hits[0]["doc_id"] == "notes.md"  # doc_id defaults to filename
 
 
+@pytest.mark.asyncio
+async def test_stats_and_delete_corpus(env):
+    rag = RagStoreClient()
+    await rag.ingest("t1", "d1", _DOC, **_CHUNK)
+    await rag.ingest("t1", "d2", "otro dolor diabetes del paciente grave", **_CHUNK)
+    st = await rag.stats("t1")
+    assert st["n_docs"] == 2 and st["n_chunks"] >= 2 and st["bytes"] > 0
+    assert await rag.delete_corpus("t1") == 2
+    assert await rag.stats("t1") == {"n_docs": 0, "n_chunks": 0, "bytes": 0}
+
+
 def test_read_text_file(tmp_path):
     p = tmp_path / "a.md"
     p.write_text("hola mundo", encoding="utf-8")

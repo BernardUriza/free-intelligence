@@ -15,4 +15,6 @@ MCP_TOOLS: list[dict[str, str]] = [
     {"name": "search_documents", "description": "Retrieve the top-k stored chunks for a query within a corpus (persistent vector search; lexical/zero-model by default)."},
     {"name": "list_documents", "description": "List the documents stored in a corpus (doc_id, chunk_count, status, attributes)."},
     {"name": "delete_document", "description": "Delete a document and all its chunks from a corpus (cascading)."},
+    {"name": "delete_corpus", "description": "Delete every document (and chunks) in a corpus — tenant teardown / erase."},
+    {"name": "stats", "description": "Usage for a corpus: {n_docs, n_chunks, bytes} — the metering base."},
 ]
