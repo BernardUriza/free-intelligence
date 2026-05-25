@@ -19,6 +19,11 @@ from fi_core.rag.contextual import (
     Contextualizer,
     build_contextual_prompt,
 )
+from fi_core.rag.hybrid import (
+    DEFAULT_RRF_K,
+    HybridRetriever,
+    reciprocal_rank_fusion,
+)
 from fi_core.rag.mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
 from fi_core.rag.retrieval import (
@@ -64,6 +69,9 @@ __all__ = [
     "Contextualizer",
     "CallableContextualizer",
     "build_contextual_prompt",
+    "HybridRetriever",
+    "reciprocal_rank_fusion",
+    "DEFAULT_RRF_K",
     "chunk_by_fixed_size",
     "chunk_by_paragraphs",
     "chunk_by_sentences",

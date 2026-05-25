@@ -51,6 +51,7 @@ from fi_core.rag.retrieval import (
 from fi_core.rag.retrieval import (
     cosine_similarity as _cosine_similarity,
 )
+from fi_core.rag.hybrid import HybridRetriever
 from fi_core.rag.store_retrieval import StoreBackedRetriever
 
 mcp = FastMCP(
@@ -260,6 +261,37 @@ async def search_documents(
     hits = await retriever.retrieve(
         query, namespace=namespace, top_k=top_k, min_similarity=min_similarity or None
     )
+    return {
+        "hits": [
+            {
+                "text": h.chunk.text,
+                "similarity": h.similarity,
+                "source_type": h.chunk.source_type,
+                "source_ref": h.chunk.source_ref,
+            }
+            for h in hits
+        ]
+    }
+
+
+@mcp.tool()
+async def hybrid_search(
+    query: str,
+    namespace: str,
+    top_k: int = 5,
+    candidate_k: int = 50,
+) -> dict:
+    """Hybrid search over the PERSISTENT store: dense vector recall + lexical
+    (accent-folded, Spanish-tuned) re-ranking fused by Reciprocal Rank Fusion.
+    Catches exact-keyword / proper-noun matches that pure semantic under-weights.
+    Over-fetches ``candidate_k`` dense candidates, fuses, returns ``top_k``. Needs
+    the same config as ``search_documents``; returns an ``error`` when unconfigured."""
+    try:
+        retriever = _get_retriever()
+    except Exception as e:  # noqa: BLE001 - unconfigured/missing-extra → graceful error
+        return {"error": f"store-backed RAG not configured: {e}", "hits": []}
+    hybrid = HybridRetriever(dense=retriever, candidate_k=candidate_k)
+    hits = await hybrid.retrieve(query, namespace=namespace, top_k=top_k, candidate_k=candidate_k)
     return {
         "hits": [
             {

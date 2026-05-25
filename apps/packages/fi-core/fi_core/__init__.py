@@ -12,4 +12,4 @@ Sub-packages:
 - ``fi_core.memory``                       — long-term fact memory + Mem0-style consolidator (extras: memory)
 """
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
