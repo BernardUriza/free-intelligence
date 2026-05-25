@@ -14,6 +14,7 @@ from fi_core.rag.chunking import (
     chunk_document,
     estimate_tokens,
 )
+from fi_core.rag.mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
 from fi_core.rag.retrieval import (
     DEFAULT_LEXICAL_MIN,
@@ -37,6 +38,8 @@ from fi_core.rag.types import (
 __all__ = [
     "DEFAULT_LEXICAL_MIN",
     "DEFAULT_SEMANTIC_MIN",
+    "MCP_SERVER_NAME",
+    "MCP_TOOLS",
     "SPANISH_ENGLISH_STOPWORDS",
     "Chunk",
     "ChunkConfig",
