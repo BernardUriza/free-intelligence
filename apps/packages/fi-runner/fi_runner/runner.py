@@ -112,13 +112,7 @@ class Runner:
             model = self.retry_policy.fallback_model or model
 
         assert result is not None  # the loop runs at least once
-        # Post-processors run ONCE on the settled text, with per-stage invariants.
-        if self.post_processors:
-            mutated = await run_pipeline(
-                self.post_processors, result.text, context or {}, on_event=self.on_event
-            )
-            result = replace(result, text=mutated)
-        return result
+        return await self._apply_post_processors(result, context)
 
     def _run_guards(
         self, text: str, user_message: str, *, final: bool
@@ -140,6 +134,18 @@ class Runner:
                 if outcome.reinforcement:
                     reinforcement_parts.append(outcome.reinforcement)
         return text, outcomes, wants_retry, "\n\n".join(reinforcement_parts)
+
+    async def _apply_post_processors(
+        self, result: TurnResult, context: dict[str, Any] | None
+    ) -> TurnResult:
+        """Run post-processors ONCE on the settled text, with per-stage invariants.
+        No-op when none are declared."""
+        if not self.post_processors:
+            return result
+        mutated = await run_pipeline(
+            self.post_processors, result.text, context or {}, on_event=self.on_event
+        )
+        return replace(result, text=mutated)
 
     async def aclose(self) -> None:
         """Release backend resources (pooled sessions, etc.), if any."""
