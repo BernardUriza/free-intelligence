@@ -1,7 +1,7 @@
 {% set name = "fi-runner" %}
-{% set version = "0.2.2" %}
-{# sha256 MUST be regenerated from the fi-runner-v0.2.2 release tarball at release time #}
-{% set sha256 = "e7aa2b74e1952e94158803fc768ea903a73f647eb2b415ae7e27aa806d25877d" %}
+{% set version = "0.3.0" %}
+{# sha256 MUST be regenerated from the fi-runner-v0.3.0 release tarball at release time #}
+{% set sha256 = "0000000000000000000000000000000000000000000000000000000000000000" %}
 
 package:
   name: {{ name }}
@@ -27,9 +27,9 @@ requirements:
   run:
     - python >=3.12
     - fi-core >=0.5.1
-    # Harness SDKs (claude-agent-sdk, codex) and pydantic-ai are pip-only and
-    # installed per-deployment via the [claude] / [codex] / [api] extras — they
-    # are intentionally NOT conda run deps (the core import is dep-free).
+    # Harness SDKs (claude-agent-sdk, codex) are pip-only and installed
+    # per-deployment via the [claude] / [codex] extras — they are intentionally
+    # NOT conda run deps (the core import is dep-free).
 
 test:
   imports:
@@ -44,7 +44,7 @@ test:
     - pip check
     # Zero-dep smoke: the port + Runner + capability wiring import without any
     # harness SDK present.
-    - python -c "from fi_runner import AgentBackend, Runner, ToolPolicy, MCPServerSpec, PermissionMode, ClaudeCodeBackend, CodexBackend; print('fi-runner import ok')"
+    - python -c "from fi_runner import AgentBackend, Runner, ToolPolicy, MCPServerSpec, PermissionMode, ClaudeCodeBackend, CodexBackend, ProviderConfig; print('fi-runner import ok')"
 
 about:
   home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-runner
@@ -62,7 +62,9 @@ about:
 
     - **AgentBackend** (port) with ClaudeCodeBackend (claude_agent_sdk; Max
       subscription via OAuth; stateful pooled sessions; in-process + stdio MCP;
-      cwd/setting_sources) and CodexBackend (codex exec --json).
+      cwd/setting_sources) and CodexBackend (codex exec --json) — the latter
+      runs either on a ChatGPT login OR, via a ProviderConfig, as an API motor
+      against any OpenAI-compatible endpoint (Azure, OpenAI, OpenRouter, ...).
     - **Runner**(backend, persona, capabilities, extra_mcp_servers, tool_policy,
       model) — capabilities (e.g. "cognitive", "persona") resolve to fi-core MCP
       servers; extra_mcp_servers carries runner-specific MCP servers.

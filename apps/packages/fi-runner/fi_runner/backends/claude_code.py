@@ -6,6 +6,19 @@ has the deepest MCP integration. The turn loop mirrors the proven pattern in
 the insult runner (``type(message).__name__`` checks for resilience across SDK
 versions).
 
+Like Codex, this backend has two modes — but the Claude Agent SDK selects them
+from the ENVIRONMENT, not from CLI args, so the duality is mostly automatic:
+- **Subscription**: a Claude Max/Pro OAuth login (the default — what insult uses).
+- **API motor**: ``ANTHROPIC_API_KEY`` set → direct Anthropic API; or
+  ``CLAUDE_CODE_USE_BEDROCK=1`` / ``CLAUDE_CODE_USE_VERTEX=1`` → Bedrock / Vertex;
+  ``ANTHROPIC_BASE_URL`` points at a proxy/custom endpoint.
+
+Pass ``env=`` (constructor) to declare any of those explicitly on the backend
+instead of relying on the ambient process env. The SDK MERGES ``options.env`` on
+top of the inherited ``os.environ`` (it does not replace it), so a partial dict
+like ``{"ANTHROPIC_API_KEY": "..."}`` overrides only that key and leaves PATH,
+the OAuth config dir, etc. intact.
+
 Supports what a real runner needs:
 - **Stateful sessions** (``session_id``): keeps a long-lived, pooled
   ``ClaudeSDKClient`` per session for conversation continuity (the client
@@ -39,10 +52,15 @@ class ClaudeCodeBackend:
         *,
         cwd: str | None = None,
         setting_sources: list[str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> None:
         self.default_model = default_model
         self.cwd = cwd
         self.setting_sources = setting_sources
+        # Explicit provider/auth env (merged on top of os.environ by the SDK).
+        # e.g. {"ANTHROPIC_API_KEY": "..."} for API mode, or
+        # {"CLAUDE_CODE_USE_BEDROCK": "1"} for Bedrock. None = ambient env only.
+        self.env = env
         self._pool: dict[str, Any] = {}  # session_id -> entered ClaudeSDKClient
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._pool_lock = asyncio.Lock()
@@ -97,6 +115,8 @@ class ClaudeCodeBackend:
             kwargs["cwd"] = str(self.cwd)
         if self.setting_sources is not None:
             kwargs["setting_sources"] = list(self.setting_sources)
+        if self.env is not None:
+            kwargs["env"] = dict(self.env)  # SDK merges this over os.environ
         return ClaudeAgentOptions(**kwargs)
 
     @staticmethod

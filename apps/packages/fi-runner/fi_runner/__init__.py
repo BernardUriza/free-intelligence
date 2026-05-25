@@ -33,8 +33,10 @@ from .backend import (
     ToolPolicy,
     TurnResult,
 )
-from .backends import ClaudeCodeBackend, CodexBackend
+from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
 from .runner import Runner
+
+__version__ = "0.3.0"
 
 __all__ = [
     "AgentBackend",
@@ -44,6 +46,7 @@ __all__ = [
     "TurnResult",
     "ClaudeCodeBackend",
     "CodexBackend",
+    "ProviderConfig",
     "Runner",
     "capabilities",
 ]

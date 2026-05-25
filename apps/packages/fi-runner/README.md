@@ -9,8 +9,9 @@ fi-core      primitives (cognitive, persona, rag, memory) — Python API + MCP s
    ▼
 fi-runner    THE FRAMEWORK — abstracts the agent HARNESS
    │   AgentBackend (port) ─► ClaudeCodeBackend (claude_agent_sdk · Max sub · MCP)
-   │                          CodexBackend       (codex exec / SDK · v2)
-   │                          [api]              (raw API via Pydantic AI · optional)
+   │                          CodexBackend       (codex exec --json)
+   │                            ├─ ChatGPT login          → subscription mode
+   │                            └─ ProviderConfig         → API motor (Azure/OpenAI/…)
    │   Runner: backend + persona + capabilities (fi-core MCP servers)
    │   ToolPolicy: per-runner security (built-in tools allow/deny, permission mode)
    ▼
@@ -23,7 +24,10 @@ runners      insult · alice · fi-medic   (config + composition; live in their 
 Both re-implement the runner scaffolding. fi-runner extracts the **harness
 abstraction**: a runner declares *what* it wants (a persona, fi-core
 capabilities, a tool policy) and picks a backend — the same runner code runs on
-**Claude Code (Max subscription)** or **Codex (ChatGPT)** by swapping the backend.
+**Claude Code (Max subscription)** or **Codex** by swapping the backend. And
+Codex itself runs in two modes: a **ChatGPT login**, or — via a `ProviderConfig`
+— as an **API motor** against any OpenAI-compatible endpoint (Azure, OpenAI,
+OpenRouter, a local vLLM, …), no subscription, just the key in the environment.
 
 The unifier: both harnesses are **MCP clients**, so fi-core capabilities
 (`cognitive`, `persona`) plug into either via their MCP servers. fi-runner just
@@ -32,8 +36,8 @@ maps `capabilities=["cognitive"]` → `python -m fi_core.cognitive.mcp_server`.
 ## Install
 
 ```bash
-pip install 'fi-runner[claude]'   # Claude Code backend
-pip install 'fi-runner[codex]'    # Codex backend (v2)
+pip install 'fi-runner[claude]'   # Claude Code backend (claude_agent_sdk)
+pip install 'fi-runner[codex]'    # Codex backend (codex exec --json)
 ```
 
 ## Usage
@@ -51,4 +55,27 @@ medic = Runner(
 print(asyncio.run(medic.run("70yo male, chest pain + dyspnea, HTN/DM")).text)
 ```
 
-Status: **alpha** — `ClaudeCodeBackend` works; `CodexBackend` is a v2 skeleton.
+Same runner, no subscription — point Codex at any OpenAI-compatible API with a
+`ProviderConfig` (the key is read from the environment, never passed inline):
+
+```python
+from fi_runner import Runner, CodexBackend, ProviderConfig
+
+companion = Runner(
+    backend=CodexBackend(
+        default_model="gpt-4.1",
+        provider=ProviderConfig(
+            id="azure",
+            base_url="https://<res>.openai.azure.com/openai/v1",
+            env_key="AZURE_OPENAI_API_KEY",
+            name="Azure OpenAI",
+        ),
+    ),
+    persona="You are a warm, attentive companion. ...",
+    capabilities=["cognitive"],
+)
+print(asyncio.run(companion.run("how are you?")).text)
+```
+
+Status: **alpha** — `ClaudeCodeBackend` (pooled sessions) and `CodexBackend`
+(`codex exec --json`, subscription + API-motor modes) are in production.

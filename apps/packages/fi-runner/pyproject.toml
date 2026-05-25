@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.2.2"
+version = "0.3.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,13 +28,11 @@ dependencies = [
 claude = [
     "claude-agent-sdk>=0.1",
 ]
-# Codex backend — OpenAI Codex headless / SDK (v2).
+# Codex backend — OpenAI Codex headless CLI (`codex exec --json`). Drives the
+# `codex` binary as a subprocess; in API-motor mode (ProviderConfig) it needs no
+# ChatGPT login, just the provider key in the environment.
 codex = [
     "openai-codex>=0.1",
-]
-# Raw-API backend (no subscription) via Pydantic AI — optional 3rd backend.
-api = [
-    "pydantic-ai>=0.0.14",
 ]
 dev = [
     "pytest>=8.0",
