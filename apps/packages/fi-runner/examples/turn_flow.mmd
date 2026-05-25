@@ -1,0 +1,18 @@
+flowchart TD
+    %% fi_runner turn — psychiatry, triage CRITICAL
+    start(["run · request_id=demo-mermaid"])
+    validate["validate input"]
+    resolve["resolve capabilities<br/>2 MCP server(s)"]
+    backend["backend.run_turn<br/>model=None · attempts=1"]
+    start --> validate --> resolve --> backend
+    g0["guard: triage → CRITICAL"]
+    backend --> g0
+    g1["guard: antidrift → ok"]
+    g0 --> g1
+    pp0["post: strip<br/>79→75 chars"]
+    g1 --> pp0
+    done(["turn_completed<br/>425.9 ms · 142 out tok · $0.0119"])
+    pp0 --> done
+    classDef crit fill:#fdd,stroke:#c00,stroke-width:2px;
+    classDef err fill:#fee,stroke:#e60,stroke-dasharray:4 2;
+    class g0 crit;
