@@ -52,6 +52,7 @@ from fi_core.rag.retrieval import (
     cosine_similarity as _cosine_similarity,
 )
 from fi_core.rag.hybrid import HybridRetriever
+from fi_core.rag.rerank import BgeReranker, Reranker
 from fi_core.rag.store_retrieval import StoreBackedRetriever
 
 mcp = FastMCP(
@@ -139,6 +140,28 @@ def _get_retriever() -> StoreBackedRetriever:
     if _retriever is None:
         _retriever = _build_retriever_from_env()
     return _retriever
+
+
+# --- reranker (cross-encoder) ----------------------------------------------
+#
+# The `rerank` tool reorders candidates the agent already holds (no store/embed),
+# so it just needs a model. Lazy + cached (the model is ~600MB). FI_RAG_RERANKER_
+# MODEL overrides the default; injectable via set_reranker for tests/in-process.
+
+_reranker: Reranker | None = None
+
+
+def set_reranker(reranker: Reranker | None) -> None:
+    """Inject the reranker (in-process wiring / tests)."""
+    global _reranker
+    _reranker = reranker
+
+
+def _get_reranker() -> Reranker:
+    global _reranker
+    if _reranker is None:
+        _reranker = BgeReranker(model_name=os.getenv("FI_RAG_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"))
+    return _reranker
 
 
 # ---------------------------------------------------------------------------
@@ -303,6 +326,22 @@ async def hybrid_search(
             for h in hits
         ]
     }
+
+
+@mcp.tool()
+async def rerank(query: str, documents: list[str], top_k: int = 5) -> dict:
+    """Rerank candidate texts the agent already holds with a cross-encoder (reads
+    query+doc together → far more calibrated than bi-encoder cosine). Returns the
+    top_k texts best-first with scores. Needs ``fi-core[rerank]`` (loads a ~600MB
+    model on first use); returns an ``error`` when the model isn't available."""
+    docs = list(documents or [])
+    if not docs:
+        return {"hits": []}
+    try:
+        results = await _get_reranker().rerank(query, docs)
+    except Exception as e:  # noqa: BLE001 - model/extra missing → graceful error
+        return {"error": f"reranker not available: {e}", "hits": []}
+    return {"hits": [{"text": docs[r.index], "score": r.score} for r in results[:top_k]]}
 
 
 # ---------------------------------------------------------------------------

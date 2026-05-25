@@ -1,6 +1,6 @@
 [project]
 name = "fi-core"
-version = "0.16.0"
+version = "0.17.0"
 description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -48,6 +48,14 @@ embeddings-azure = [
 # when device=None. Required for
 # fi_core.embeddings.sentence_transformers.SentenceTransformersEmbedder.
 embeddings-st = [
+    "sentence-transformers>=2.5",
+    "torch>=2.0",
+]
+
+# Cross-encoder reranker (BAAI/bge-reranker-v2-m3, multilingual, Apache-2.0).
+# Required for fi_core.rag.rerank.BgeReranker. Same backend as embeddings-st
+# (sentence-transformers CrossEncoder) — separate extra for explicit intent.
+rerank = [
     "sentence-transformers>=2.5",
     "torch>=2.0",
 ]
