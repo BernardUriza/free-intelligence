@@ -64,11 +64,31 @@ def rag(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
+def rag_store(*, env_passthrough: bool = True) -> MCPServerSpec:
+    """The fi-core STATEFUL retrieval MCP server — persist documents and query
+    them later (ingest/search/list/delete, namespaced by corpus_id). Backend +
+    path via env (FI_RAG_BACKEND, FI_RAG_STORE_PATH); lexical/zero-model default."""
+    try:
+        from fi_core.rag import STORE_MCP_SERVER_NAME, STORE_MCP_TOOLS  # zero-dep contract
+
+        name, tools = STORE_MCP_SERVER_NAME, tuple(t["name"] for t in STORE_MCP_TOOLS)
+    except Exception:  # noqa: BLE001 - best-effort contract read; fall back to whole-server allow
+        name, tools = "fi-core-rag-store", ()
+    return MCPServerSpec(
+        name=name,
+        command=sys.executable,
+        args=["-m", "fi_core.rag.store_mcp_server"],
+        tools=tools,
+        env_passthrough=env_passthrough,
+    )
+
+
 #: capability name → factory.
 REGISTRY = {
     "cognitive": cognitive,
     "persona": persona,
     "rag": rag,
+    "rag_store": rag_store,
 }
 
 
