@@ -27,7 +27,7 @@ import os
 import shutil
 from dataclasses import dataclass
 
-from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult
+from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult, mcp_tool_id
 
 
 @dataclass(frozen=True)
@@ -246,7 +246,7 @@ class CodexBackend:
             return ToolCall.make("shell", input={"command": item.get("command")}, id=item_id, is_error=is_error)
         if itype == "mcp_tool_call":
             server, tool = item.get("server"), item.get("tool")
-            name = f"mcp__{server}__{tool}" if server and tool else (tool or "mcp_tool")
+            name = mcp_tool_id(server, tool) if server and tool else (tool or "mcp_tool")
             return ToolCall.make(name, id=item_id, is_error=is_error)
         if itype == "function_call":
             return ToolCall.make(item.get("name") or "function_call", id=item_id, is_error=is_error)

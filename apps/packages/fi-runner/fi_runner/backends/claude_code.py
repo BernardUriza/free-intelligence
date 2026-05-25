@@ -41,7 +41,7 @@ import os
 from dataclasses import replace
 from typing import Any
 
-from ..backend import MCPServerSpec, ToolCall, ToolPolicy, TurnResult
+from ..backend import MCPServerSpec, ToolCall, ToolPolicy, TurnResult, mcp_server_token, mcp_tool_id
 
 
 class ClaudeCodeBackend:
@@ -72,9 +72,9 @@ class ClaudeCodeBackend:
         allowed = list(tool_policy.builtin_allowed)
         for spec in mcp_servers:
             if spec.tools:
-                allowed.extend(f"mcp__{spec.name}__{tool}" for tool in spec.tools)
+                allowed.extend(mcp_tool_id(spec.name, tool) for tool in spec.tools)
             else:
-                allowed.append(f"mcp__{spec.name}")
+                allowed.append(mcp_server_token(spec.name))
         return allowed
 
     def _mcp_dict(self, mcp_servers: list[MCPServerSpec]) -> dict[str, Any]:

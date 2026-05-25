@@ -70,6 +70,35 @@ class ToolPolicy:
     permission_mode: PermissionMode = PermissionMode.DEFAULT
 
 
+# --- MCP tool-id convention (single source of truth) -------------------------
+#
+# Every backend AND the tool-trace identify MCP tools the same way:
+# ``mcp__<server>__<tool>`` for one tool, ``mcp__<server>`` to allow a whole
+# server. Build and parse it ONLY through these helpers — never hand-roll the
+# ``mcp__`` / ``__`` strings in a backend, so the convention lives in one place.
+
+_MCP_PREFIX = "mcp__"
+_MCP_SEP = "__"
+
+
+def mcp_tool_id(server: str, tool: str) -> str:
+    """The allowlist id for one MCP tool: ``mcp__<server>__<tool>``."""
+    return f"{_MCP_PREFIX}{server}{_MCP_SEP}{tool}"
+
+
+def mcp_server_token(server: str) -> str:
+    """The token that allows a WHOLE MCP server: ``mcp__<server>``."""
+    return f"{_MCP_PREFIX}{server}"
+
+
+def mcp_server_of(tool_name: str) -> str | None:
+    """The MCP server a tool name belongs to, or ``None`` for a built-in tool
+    (e.g. ``Bash``). Inverse of :func:`mcp_tool_id` / :func:`mcp_server_token`."""
+    if not tool_name.startswith(_MCP_PREFIX):
+        return None
+    return tool_name[len(_MCP_PREFIX) :].split(_MCP_SEP, 1)[0] or None
+
+
 @dataclass(frozen=True)
 class ToolCall:
     """One tool invocation the agent made during a turn (the tool-trace).
@@ -98,8 +127,7 @@ class ToolCall:
     ) -> ToolCall:
         """Build a ToolCall, parsing the MCP ``server`` out of an
         ``mcp__<server>__<tool>`` name (``None`` for built-in tools)."""
-        server = name.split("__")[1] if name.startswith("mcp__") and "__" in name[5:] else None
-        return cls(name=name, server=server, input=input, id=id, is_error=is_error)
+        return cls(name=name, server=mcp_server_of(name), input=input, id=id, is_error=is_error)
 
 
 @dataclass(frozen=True)

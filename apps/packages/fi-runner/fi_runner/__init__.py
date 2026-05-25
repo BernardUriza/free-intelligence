@@ -36,6 +36,9 @@ from .backend import (
     ToolCall,
     ToolPolicy,
     TurnResult,
+    mcp_server_of,
+    mcp_server_token,
+    mcp_tool_id,
 )
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
 from .flow import Event, events_to_mermaid
@@ -71,6 +74,9 @@ __all__ = [
     "ToolCall",
     "ToolPolicy",
     "TurnResult",
+    "mcp_tool_id",
+    "mcp_server_token",
+    "mcp_server_of",
     "ClaudeCodeBackend",
     "CodexBackend",
     "ProviderConfig",
