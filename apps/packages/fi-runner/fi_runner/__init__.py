@@ -25,7 +25,9 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
     print(asyncio.run(medic.run("70yo male, chest pain + dyspnea, HTN/DM")).text)
 """
 
-from . import capabilities
+from typing import Any
+
+from . import capabilities, guards
 from .backend import (
     AgentBackend,
     MCPServerSpec,
@@ -34,9 +36,17 @@ from .backend import (
     TurnResult,
 )
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
+from .guards import (
+    AntiDriftGuard,
+    Guard,
+    GuardOutcome,
+    TriageGuard,
+    antidrift_guard,
+    triage_guard,
+)
 from .runner import Runner
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "AgentBackend",
@@ -49,4 +59,29 @@ __all__ = [
     "ProviderConfig",
     "Runner",
     "capabilities",
+    "guards",
+    "Guard",
+    "GuardOutcome",
+    "TriageGuard",
+    "AntiDriftGuard",
+    "triage_guard",
+    "antidrift_guard",
+    "packs",
+    "GravityScore",
 ]
+
+
+# Re-export the fi-core surface a runner needs to USE guards without importing
+# fi-core itself (fi_runner is the single boundary): the persona pattern `packs`
+# (compose anti-drift patterns) and `GravityScore` (the triage_guard's result
+# type). Lazy via PEP 562 so plain `import fi_runner` stays free of fi-core.
+def __getattr__(name: str) -> Any:
+    if name == "packs":
+        from fi_core.persona import packs
+
+        return packs
+    if name == "GravityScore":
+        from fi_core.cognitive import GravityScore
+
+        return GravityScore
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

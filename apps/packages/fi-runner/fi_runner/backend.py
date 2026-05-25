@@ -72,6 +72,10 @@ class TurnResult:
     usage: dict[str, Any] | None = None
     # Backend session/thread id for continuity (e.g. Codex thread_id).
     session_id: str | None = None
+    # Outcome of each guard the Runner ran post-turn, keyed by guard name. Values
+    # are fi_runner.guards.GuardOutcome (kept as Any to avoid coupling the port to
+    # the guards module). Empty when the runner declared no guards.
+    guard_outcomes: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable

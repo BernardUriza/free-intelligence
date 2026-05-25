@@ -1,0 +1,201 @@
+"""Tests for fi_runner.guards — deterministic safety nets backed by fi-core.
+
+The headline contract: a runner gets fi-core grounding (triage, anti-drift)
+WITHOUT importing fi-core — it declares a guard, fi_runner imports fi-core.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+import pytest
+
+from fi_runner import Runner, TurnResult
+from fi_runner.guards import (
+    AntiDriftGuard,
+    GuardOutcome,
+    TriageGuard,
+    antidrift_guard,
+    triage_guard,
+)
+
+
+# ---------------------------------------------------------------------------
+# GuardOutcome
+# ---------------------------------------------------------------------------
+
+
+def test_guard_outcome_clean_by_default():
+    o = GuardOutcome()
+    assert o.clean is True
+    assert o.metadata == {}
+
+
+def test_guard_outcome_not_clean_when_retry_or_override():
+    assert GuardOutcome(retry=True).clean is False
+    assert GuardOutcome(text_override="x").clean is False
+
+
+# ---------------------------------------------------------------------------
+# triage_guard (observational, fi_core.cognitive PSYCHIATRY)
+# ---------------------------------------------------------------------------
+
+
+def test_triage_guard_builds_for_known_domain():
+    g = triage_guard("psychiatry")
+    assert isinstance(g, TriageGuard)
+    assert g.name == "triage"
+
+
+def test_triage_guard_unknown_domain_raises():
+    with pytest.raises(KeyError, match="unknown clinical domain"):
+        triage_guard("astrology")
+
+
+def test_triage_guard_escalates_suicide_plan_to_critical():
+    g = triage_guard("psychiatry")
+    out = g.inspect(response_text="el paciente refiere plan suicida")
+    assert out.clean is True  # observational — never edits/retries
+    assert out.metadata["level"] == "CRITICAL"
+    assert out.metadata["critical"] is True
+    assert out.text_override is None
+
+
+def test_triage_guard_considers_context_user_words():
+    g = triage_guard("psychiatry")
+    # The crisis marker is in the patient's words (context), not the LLM text.
+    out = g.inspect(response_text="resumen neutro", context=("ya no quiero seguir viviendo",))
+    assert out.metadata["level"] == "CRITICAL"
+
+
+def test_triage_guard_calm_text_is_low_urgency():
+    g = triage_guard("psychiatry")
+    out = g.inspect(response_text="el paciente reporta ánimo estable y buen sueño")
+    assert out.metadata["level"] != "CRITICAL"
+
+
+# ---------------------------------------------------------------------------
+# antidrift_guard (transformational, fi_core.persona)
+# ---------------------------------------------------------------------------
+
+
+def _break_pat():
+    return [re.compile(r"(?i)\bas an AI\b")]
+
+
+def test_antidrift_guard_builds():
+    g = antidrift_guard(break_patterns=_break_pat(), reinforcement="STAY IN CHARACTER")
+    assert isinstance(g, AntiDriftGuard)
+    assert g.name == "antidrift"
+
+
+def test_antidrift_guard_break_requests_retry_with_reinforcement():
+    g = antidrift_guard(break_patterns=_break_pat(), reinforcement="STAY IN CHARACTER")
+    out = g.inspect(response_text="As an AI, I cannot do that.")
+    assert out.retry is True
+    assert out.reinforcement == "STAY IN CHARACTER"
+    assert out.metadata["severity"] == "break"
+    assert out.clean is False
+
+
+def test_antidrift_guard_clean_text_passes():
+    g = antidrift_guard(break_patterns=_break_pat())
+    out = g.inspect(response_text="Órale, claro que sí güey.")
+    assert out.clean is True
+    assert out.metadata == {}
+
+
+def test_antidrift_guard_clarification_dump_retries_with_context_cue():
+    g = antidrift_guard(
+        break_patterns=_break_pat(),
+        clarification_patterns=[re.compile(r"(?i)dime qué busc")],
+        context_reinforcement="USE THE CONTEXT",
+    )
+    out = g.inspect(response_text="Dime qué buscas exactamente.")
+    assert out.retry is True
+    assert out.reinforcement == "USE THE CONTEXT"
+    assert out.metadata["severity"] == "clarification_dump"
+
+
+def test_antidrift_guard_soft_drift_logs_no_retry():
+    g = antidrift_guard(
+        break_patterns=_break_pat(),
+        soft_patterns=[re.compile(r"(?i)great question")],
+    )
+    out = g.inspect(response_text="Great question! Let me help.")
+    assert out.retry is False  # soft drift never retries
+    assert out.metadata["severity"] == "soft_drift"
+
+
+def test_antidrift_guard_break_precedes_clarification():
+    g = antidrift_guard(
+        break_patterns=_break_pat(),
+        clarification_patterns=[re.compile(r"(?i)dime qué busc")],
+        reinforcement="BREAK",
+        context_reinforcement="CLAR",
+    )
+    out = g.inspect(response_text="As an AI, dime qué buscas.")
+    assert out.metadata["severity"] == "break"  # break wins priority
+    assert out.reinforcement == "BREAK"
+
+
+def test_antidrift_guard_sanitize_drops_break_sentence():
+    g = antidrift_guard(break_patterns=_break_pat())
+    cleaned = g.sanitize("Hola amigo. As an AI, I cannot. Pero está bien.")
+    assert "As an AI" not in cleaned
+    assert "Hola amigo" in cleaned
+
+
+# ---------------------------------------------------------------------------
+# Runner integration — guards run in-process post-turn
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeBackend:
+    """Minimal AgentBackend that returns a fixed text (no SDK, no network)."""
+
+    text: str
+
+    async def run_turn(self, **kwargs) -> TurnResult:  # noqa: ANN003
+        return TurnResult(text=self.text)
+
+
+@dataclass
+class _UppercaseGuard:
+    """A transformational guard that rewrites the text (tests text_override)."""
+
+    name: str = "upper"
+
+    def inspect(self, *, response_text: str, context: tuple[str, ...] = ()) -> GuardOutcome:
+        return GuardOutcome(text_override=response_text.upper())
+
+
+@pytest.mark.asyncio
+async def test_runner_with_no_guards_passes_through():
+    runner = Runner(backend=_FakeBackend("hola"), persona="p")
+    result = await runner.run("x")
+    assert result.text == "hola"
+    assert result.guard_outcomes == {}
+
+
+@pytest.mark.asyncio
+async def test_runner_runs_triage_guard_and_collects_outcome():
+    runner = Runner(
+        backend=_FakeBackend("el paciente menciona plan suicida"),
+        persona="clinical",
+        guards=[triage_guard("psychiatry")],
+    )
+    result = await runner.run("hola doc")
+    assert "triage" in result.guard_outcomes
+    assert result.guard_outcomes["triage"].metadata["level"] == "CRITICAL"
+    assert result.text == "el paciente menciona plan suicida"  # observational: unchanged
+
+
+@pytest.mark.asyncio
+async def test_runner_applies_guard_text_override():
+    runner = Runner(backend=_FakeBackend("hola"), persona="p", guards=[_UppercaseGuard()])
+    result = await runner.run("x")
+    assert result.text == "HOLA"
+    assert "upper" in result.guard_outcomes
