@@ -19,6 +19,8 @@ WHAT each guard does.
 from __future__ import annotations
 
 import logging
+import time
+import uuid
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -29,6 +31,13 @@ from .pipeline import EventSink, MutationStage, run_pipeline
 from .router import ModelRouter
 
 _log = logging.getLogger("fi_runner.runner")
+
+
+def _guard_level(metadata: dict[str, Any]) -> str:
+    """A single representative level for a guard outcome, for telemetry."""
+    if metadata.get("guard_failed"):
+        return "error"
+    return metadata.get("level") or metadata.get("severity") or "ok"
 
 
 @dataclass(frozen=True)
@@ -92,6 +101,7 @@ class Runner:
         *,
         session_id: str | None = None,
         context: dict[str, Any] | None = None,
+        request_id: str | None = None,
     ) -> TurnResult:
         """Run the turn pipeline: backend → guards → retry → post-processors.
 
@@ -100,12 +110,18 @@ class Runner:
         turn with accumulated reinforcement appended to the persona; the final
         attempt lets transformational guards sanitize instead of retrying.
         ``context`` is forwarded to each post-processor stage (per-turn side data).
+        ``request_id`` correlates every event from this turn (a fresh short id is
+        generated when omitted): a ``turn_completed`` event (latency, tokens,
+        model, mcp_count, guard levels) is emitted at the end, and
+        ``guard_critical`` whenever a guard flags a CRITICAL outcome.
 
         Raises ``ValueError`` on empty ``user_message`` and :class:`BackendError`
         if the backend fails (the original exception is chained as ``__cause__``).
         """
         if not user_message or not user_message.strip():
             raise ValueError("user_message must be non-empty")
+        request_id = request_id or uuid.uuid4().hex[:12]
+        t0 = time.perf_counter()
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         attempts = max(1, self.retry_policy.max_attempts)
         reinforcement = ""
@@ -117,6 +133,7 @@ class Runner:
             if chosen:
                 model = chosen
         result: TurnResult | None = None
+        attempt = 0
 
         for attempt in range(attempts):
             is_last = attempt == attempts - 1
@@ -150,7 +167,7 @@ class Runner:
                 break
 
             text, outcomes, wants_retry, added = self._run_guards(
-                result.text, user_message, final=is_last
+                result.text, user_message, final=is_last, request_id=request_id
             )
             result = replace(result, text=text, guard_outcomes=outcomes)
             if is_last or not wants_retry:
@@ -160,15 +177,29 @@ class Runner:
             model = self.retry_policy.fallback_model or model
 
         assert result is not None  # the loop runs at least once
-        return await self._apply_post_processors(result, context)
+        result = await self._apply_post_processors(result, context, request_id=request_id)
+        self._emit(
+            "turn_completed",
+            {
+                "request_id": request_id,
+                "model": model,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+                "tokens": result.usage,
+                "mcp_count": len(mcp_servers),
+                "attempts": attempt + 1,
+                "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
+            },
+        )
+        return result
 
     def _run_guards(
-        self, text: str, user_message: str, *, final: bool
+        self, text: str, user_message: str, *, final: bool, request_id: str | None = None
     ) -> tuple[str, dict[str, GuardOutcome], bool, str]:
         """Run each guard over the turn text once. Returns the (possibly
         sanitized) text, the per-guard outcomes, whether any guard wants a retry,
         and the combined reinforcement to append. ``text_override`` is applied
-        sequentially so a later guard sees the cleaned text."""
+        sequentially so a later guard sees the cleaned text. Emits
+        ``guard_critical`` when a guard flags a CRITICAL outcome."""
         outcomes: dict[str, GuardOutcome] = {}
         reinforcement_parts: list[str] = []
         wants_retry = False
@@ -186,6 +217,20 @@ class Runner:
                 outcomes[name] = GuardOutcome(metadata={"guard_failed": True, "error": str(exc)})
                 continue
             outcomes[name] = outcome
+            if outcome.metadata.get("critical") is True or outcome.metadata.get("level") == "CRITICAL":
+                # A guaranteed safety signal (e.g. triage escalating a suicide
+                # plan) must SURFACE as telemetry so a consumer can alert/escalate,
+                # even for an observational guard that never edits the text.
+                self._emit(
+                    "guard_critical",
+                    {
+                        "guard": name,
+                        "request_id": request_id,
+                        "level": outcome.metadata.get("level"),
+                        "gravity": outcome.metadata.get("gravity"),
+                        "reasons": outcome.metadata.get("reasons"),
+                    },
+                )
             if outcome.text_override is not None:
                 text = outcome.text_override
             if outcome.retry:
@@ -195,14 +240,14 @@ class Runner:
         return text, outcomes, wants_retry, "\n\n".join(reinforcement_parts)
 
     async def _apply_post_processors(
-        self, result: TurnResult, context: dict[str, Any] | None
+        self, result: TurnResult, context: dict[str, Any] | None, *, request_id: str | None = None
     ) -> TurnResult:
         """Run post-processors ONCE on the settled text, with per-stage invariants.
         No-op when none are declared."""
         if not self.post_processors:
             return result
         mutated = await run_pipeline(
-            self.post_processors, result.text, context or {}, on_event=self.on_event
+            self.post_processors, result.text, context or {}, request_id=request_id, on_event=self.on_event
         )
         return replace(result, text=mutated)
 
