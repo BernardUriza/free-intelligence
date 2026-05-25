@@ -38,7 +38,6 @@ fact mutation.
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -57,6 +56,7 @@ except ImportError as e:  # pragma: no cover
     ) from e
 
 from fi_core.memory.types import ConsolidationOp, Fact, FactSource
+from fi_core.rag.hybrid import reciprocal_rank_fusion  # single RRF impl (dep-free)
 
 if TYPE_CHECKING:
     from fi_core.rag.protocols import Embedder
@@ -160,17 +160,10 @@ def _keyword_rank(query: str, facts: list[Fact]) -> list[Fact]:
 
 
 def _rrf_fuse(rankings: list[list[int]], *, k: int = _RRF_K) -> dict[int, float]:
-    """Reciprocal Rank Fusion over several ranked id-lists. Each list
-    contributes ``1 / (k + rank)`` per id (rank is 1-based). An id present in
-    multiple rankings accumulates — so a fact that's both vector-near AND a
-    keyword hit floats to the top, while a strong signal in either arm alone
-    still surfaces it. Order-only: needs no comparable score scales across arms
-    (the reason RRF beats naive weighted-sum of cosine + ts_rank)."""
-    scores: dict[int, float] = defaultdict(float)
-    for ranking in rankings:
-        for rank, fid in enumerate(ranking, start=1):
-            scores[fid] += 1.0 / (k + rank)
-    return scores
+    """Reciprocal Rank Fusion over ranked fact-id lists — a fact that's both
+    vector-near AND a keyword hit floats to the top. Delegates to the single
+    implementation in :func:`fi_core.rag.hybrid.reciprocal_rank_fusion`."""
+    return reciprocal_rank_fusion(rankings, k=k)
 
 
 # ---------------------------------------------------------------------------
