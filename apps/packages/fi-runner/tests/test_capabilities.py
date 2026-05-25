@@ -47,9 +47,17 @@ def test_resolve_cognitive_points_at_cognitive_server():
     assert "classify_urgency" in spec.tools
 
 
+def test_resolve_rag_points_at_rag_server():
+    (spec,) = capabilities.resolve(["rag"])
+    assert spec.name == "fi-core-rag"
+    assert spec.args == ["-m", "fi_core.rag.mcp_server"]
+    assert "lexical_search" in spec.tools
+    assert "chunk_document" in spec.tools
+
+
 def test_resolve_multiple_capabilities_preserves_order():
-    specs = capabilities.resolve(["cognitive", "persona"])
-    assert [s.name for s in specs] == ["fi-core-cognitive", "fi-core-persona"]
+    specs = capabilities.resolve(["cognitive", "persona", "rag"])
+    assert [s.name for s in specs] == ["fi-core-cognitive", "fi-core-persona", "fi-core-rag"]
 
 
 def test_resolve_unknown_capability_raises():

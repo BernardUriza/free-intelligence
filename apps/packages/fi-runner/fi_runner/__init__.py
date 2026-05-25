@@ -36,7 +36,7 @@ from .backend import (
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
 from .runner import Runner
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "AgentBackend",

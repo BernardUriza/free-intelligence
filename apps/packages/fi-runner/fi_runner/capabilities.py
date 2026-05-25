@@ -47,10 +47,28 @@ def persona(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
+def rag(*, env_passthrough: bool = True) -> MCPServerSpec:
+    """The fi-core retrieval MCP server (chunking + lexical/semantic search)."""
+    try:
+        from fi_core.rag import MCP_SERVER_NAME, MCP_TOOLS  # zero-dep contract
+
+        name, tools = MCP_SERVER_NAME, tuple(t["name"] for t in MCP_TOOLS)
+    except Exception:  # noqa: BLE001 - best-effort contract read; fall back to whole-server allow
+        name, tools = "fi-core-rag", ()
+    return MCPServerSpec(
+        name=name,
+        command=sys.executable,
+        args=["-m", "fi_core.rag.mcp_server"],
+        tools=tools,
+        env_passthrough=env_passthrough,
+    )
+
+
 #: capability name → factory.
 REGISTRY = {
     "cognitive": cognitive,
     "persona": persona,
+    "rag": rag,
 }
 
 

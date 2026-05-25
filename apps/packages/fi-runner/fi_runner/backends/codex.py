@@ -11,9 +11,11 @@ Mapping to the port:
 - system_prompt → prepended to the prompt (codex exec takes a single PROMPT arg;
   persistent instructions normally live in AGENTS.md).
 
-Caveats (Codex maturity, 2026): the ``codex`` CLI must be on PATH; ``--json`` +
-active MCP servers has a known interaction bug (openai/codex#15451) — verify the
-JSONL on first integration. Requires the ``codex`` extra.
+Caveats (Codex maturity, 2026): the ``codex`` CLI must be on PATH. A past bug
+(openai/codex#15451, now closed) dropped ``--output-schema`` (strict structured
+output) when MCP servers were active — it did NOT affect the plain ``--json``
+JSONL event stream this backend parses, so MCP capabilities work fine over Codex.
+Requires the ``codex`` extra.
 """
 
 from __future__ import annotations
