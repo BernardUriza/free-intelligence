@@ -18,6 +18,7 @@ via the injected `transcribe_voice` callable before batching.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -32,6 +33,51 @@ log = structlog.get_logger()
 MAX_MESSAGE_LENGTH = 4000
 BATCH_WAIT_SECONDS = 3.0  # Wait this long after last message before responding
 MIN_RESPONSE_GAP = 5.0  # Minimum seconds between bot responses to same user (token protection)
+
+
+def addressed_to_alice(message: discord.Message, settings) -> bool:
+    """True when this message DIRECTLY addresses ALICE — so Insult should stay
+    silent and let her answer (no double-reply).
+
+    Mirrors ALICE's own direct-address triggers (alice/cogs/chat.py) so the two
+    bots stay in lockstep: every signal that makes ALICE respond also makes
+    Insult suppress, which means suppression never produces dead air. Three
+    signals, in order of reliability:
+
+    1. **User-mention** — the ``@A.L.I.C.E.`` pill resolves to ``<@id>`` /
+       ``<@!id>`` in content (and to ``message.mentions``).
+    2. **Role-mention** — Discord's autocomplete often inserts ALICE's managed
+       role ``<@&roleid>`` instead of the user pill; match it via the role whose
+       ``tags.bot_id`` is ALICE (same trick ALICE uses for inbound).
+    3. **Text alias** — plain-text ``@alice`` / ``alice`` / ``amix`` / ``ali`` /
+       ``alicia`` as a whole word.
+
+    Intrusive clinical keywords are intentionally excluded: those are shared
+    context both bots may address; this gate is only "I'm talking to ALICE."
+    """
+    aid = (getattr(settings, "alice_bot_user_id", "") or "").strip()
+    content = message.content or ""
+
+    if aid:
+        if aid in {str(u.id) for u in message.mentions}:
+            return True
+        if re.search(rf"<@!?{re.escape(aid)}>", content):
+            return True
+        if message.guild is not None:
+            raw_role_ids = set(re.findall(r"<@&(\d+)>", content))
+            if raw_role_ids:
+                for role in message.guild.roles:
+                    tags = getattr(role, "tags", None)
+                    if (
+                        tags is not None
+                        and str(getattr(tags, "bot_id", "") or "") == aid
+                        and str(role.id) in raw_role_ids
+                    ):
+                        return True
+
+    low = content.lower()
+    aliases = [*getattr(settings, "alice_aliases", []), "alice"]
+    return any(re.search(rf"\b{re.escape(a.lower())}\b", low) for a in aliases if a)
 
 
 @dataclass
@@ -82,6 +128,33 @@ class BatchManager:
 
         # Ignore !ping, !memoria, etc. — handled by other cogs as commands
         if message.content.startswith(settings.command_prefix):
+            return
+
+        # Directly addressed to ALICE → Insult stays silent (she answers). We
+        # still PERSIST the message so the shared `messages` table keeps full
+        # context for both bots (Insult is the gateway that stores #general;
+        # an early return without storing would blind ALICE's own context read).
+        if addressed_to_alice(message, settings):
+            log.info(
+                "msg_skipped_addressed_to_alice",
+                message_id=message.id,
+                user_id=message.author.id,
+                channel_id=message.channel.id,
+            )
+            stored_text = message.content.strip()
+            if stored_text:
+                try:
+                    await memory.store(
+                        str(message.channel.id),
+                        str(message.author.id),
+                        message.author.display_name,
+                        "user",
+                        stored_text,
+                        guild_id=str(message.guild.id) if message.guild else None,
+                        channel_name=message.channel.name if hasattr(message.channel, "name") else None,
+                    )
+                except Exception:
+                    log.exception("chat_store_alice_addressed_failed")
             return
 
         # Voice transcription

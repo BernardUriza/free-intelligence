@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     # ALICE's Discord user id (snowflake from prod logs). Empty = feature off.
     alice_bot_user_id: str = "1503983124982534284"
     alice_tts_voice: str = "nova"  # female tts-1 voice for ALICE's messages
+    # Sibling-coexistence (v4.7.0): when a message DIRECTLY addresses ALICE
+    # (her @mention, her managed-role mention, "@alice" text, or one of these
+    # aliases), Insult stays silent so the two bots don't both answer. Mirror
+    # of ALICE's own direct-address triggers (alice/cogs/chat.py) so suppression
+    # and ALICE-responds fire on the SAME signals — no dead air. Intrusive
+    # clinical keywords are deliberately NOT here: those are shared context both
+    # may weigh in on; this gate is only for "I'm talking to ALICE, not you".
+    alice_aliases: list[str] = ["amix", "ali", "alicia"]
 
     # Channel summaries (cross-channel awareness)
     summary_model: str = "claude-haiku-4-5-20251001"
