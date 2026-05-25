@@ -9,9 +9,14 @@ continuity. Frontend emocional / backend clínico — both are ALICE.
 
 It is NOT a therapist replacement: it organizes the emotional/cognitive chaos into
 something a clinician can act on. Routes through `fi_runner` over the SAME Azure
-deployment as presence (no second account, same GPT-4.1). Designed to later mount
-`fi_core.cognitive` (urgency / SOAP) and `fi_core.memory` (clinical continuity)
-as MCP capabilities — the clinical layer is exactly their use case.
+deployment as presence (no second account, same GPT-4.1), with `fi_core.cognitive`
+(SOAP scoring / consultation state-machine) and `fi_core.rag` (in-context recall)
+mounted as MCP capabilities so the LLM can structure and ground its reflection.
+
+The PSYCHIATRY urgency triage stays IN-PROCESS by design — it is a deterministic
+safety net that MUST run every turn, never an optional MCP tool the LLM could
+choose to skip. So fi-core grounds this layer two ways at once: an unskippable
+in-process triage, plus opt-in cognitive/rag tools the model reaches for.
 """
 
 from __future__ import annotations
@@ -108,6 +113,11 @@ class ClinicalReflector:
         runner = Runner(
             backend=self._backend,
             persona=self._persona,
+            # cognitive (score_soap, advance_consultation) + rag (lexical/semantic
+            # recall over in-context text) as OPTIONAL MCP tools the LLM may call
+            # while reasoning. The PSYCHIATRY triage below stays in-process — a
+            # safety net, not an optional tool.
+            capabilities=["cognitive", "rag"],
             tool_policy=ToolPolicy(permission_mode=PermissionMode.DEFAULT),
             model=chosen_model,
         )
