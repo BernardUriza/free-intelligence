@@ -14,6 +14,11 @@ from fi_core.rag.chunking import (
     chunk_document,
     estimate_tokens,
 )
+from fi_core.rag.contextual import (
+    CallableContextualizer,
+    Contextualizer,
+    build_contextual_prompt,
+)
 from fi_core.rag.mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
 from fi_core.rag.retrieval import (
@@ -56,6 +61,9 @@ __all__ = [
     "ScoredText",
     "SemanticRetriever",
     "StoreBackedRetriever",
+    "Contextualizer",
+    "CallableContextualizer",
+    "build_contextual_prompt",
     "chunk_by_fixed_size",
     "chunk_by_paragraphs",
     "chunk_by_sentences",
