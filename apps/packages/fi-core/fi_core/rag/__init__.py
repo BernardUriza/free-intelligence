@@ -24,6 +24,12 @@ from fi_core.rag.hybrid import (
     HybridRetriever,
     reciprocal_rank_fusion,
 )
+from fi_core.rag.rerank import (
+    BgeReranker,
+    Reranker,
+    RerankingRetriever,
+    RerankResult,
+)
 from fi_core.rag.mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
 from fi_core.rag.retrieval import (
@@ -72,6 +78,10 @@ __all__ = [
     "HybridRetriever",
     "reciprocal_rank_fusion",
     "DEFAULT_RRF_K",
+    "Reranker",
+    "RerankResult",
+    "BgeReranker",
+    "RerankingRetriever",
     "chunk_by_fixed_size",
     "chunk_by_paragraphs",
     "chunk_by_sentences",

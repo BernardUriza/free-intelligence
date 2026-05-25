@@ -19,4 +19,5 @@ MCP_TOOLS: list[dict[str, str]] = [
     {"name": "cosine_similarity", "description": "Cosine similarity of two equal-length vectors (0..1; 0 for a zero vector)."},
     {"name": "search_documents", "description": "Semantic search over a PERSISTENT vector store: embeds the query and returns top-k stored chunks (needs FI_RAG_EMBEDDER + FI_RAG_STORE config)."},
     {"name": "hybrid_search", "description": "Hybrid search over the PERSISTENT store: dense vector recall + lexical re-ranking fused by RRF (catches exact keywords pure semantic misses)."},
+    {"name": "rerank", "description": "Rerank candidate texts the agent holds with a cross-encoder (reads query+doc jointly; needs fi-core[rerank]). Returns top-k best-first with scores."},
 ]
