@@ -15,6 +15,17 @@ from fi_core.rag.chunking import (
     estimate_tokens,
 )
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
+from fi_core.rag.retrieval import (
+    DEFAULT_LEXICAL_MIN,
+    DEFAULT_SEMANTIC_MIN,
+    SPANISH_ENGLISH_STOPWORDS,
+    LexicalRetriever,
+    ScoredText,
+    SemanticRetriever,
+    cosine_similarity,
+    fold_accents,
+    tokenize,
+)
 from fi_core.rag.types import (
     Chunk,
     ChunkWithEmbedding,
@@ -24,6 +35,9 @@ from fi_core.rag.types import (
 )
 
 __all__ = [
+    "DEFAULT_LEXICAL_MIN",
+    "DEFAULT_SEMANTIC_MIN",
+    "SPANISH_ENGLISH_STOPWORDS",
     "Chunk",
     "ChunkConfig",
     "ChunkStore",
@@ -33,10 +47,16 @@ __all__ = [
     "DocumentMetadata",
     "DocumentRecord",
     "Embedder",
+    "LexicalRetriever",
     "RetrievedChunk",
+    "ScoredText",
+    "SemanticRetriever",
     "chunk_by_fixed_size",
     "chunk_by_paragraphs",
     "chunk_by_sentences",
     "chunk_document",
+    "cosine_similarity",
     "estimate_tokens",
+    "fold_accents",
+    "tokenize",
 ]

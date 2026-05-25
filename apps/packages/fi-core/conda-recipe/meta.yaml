@@ -1,6 +1,6 @@
 {% set name = "fi-core" %}
-{% set version = "0.10.0" %}
-{# sha256 MUST be regenerated from the fi-core-v0.10.0 release tarball at release time #}
+{% set version = "0.11.0" %}
+{# sha256 MUST be regenerated from the fi-core-v0.11.0 release tarball at release time #}
 {% set sha256 = "0000000000000000000000000000000000000000000000000000000000000000" %}
 
 package:
