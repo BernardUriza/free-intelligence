@@ -118,7 +118,10 @@ async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
     assert out is not None
     assert "- Larisa es la terapeuta de Alex" in out
     assert "- Voces neurodivergentes es su libro" in out
-    assert "contexto recuperado" in out  # framed as context, not instruction
+    # v4.8.2: authoritative framing — the block asserts the bot KNOWS this and
+    # must not deny it (replaced the dismissable "úsalo solo si aplica").
+    assert "MEMORIA RECUPERADA" in out
+    assert "NUNCA digas que no lo tienes" in out
 
 
 async def test_prefetch_skips_trivial_message(monkeypatch):
