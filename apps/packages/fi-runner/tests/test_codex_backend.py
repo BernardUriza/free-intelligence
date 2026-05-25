@@ -8,6 +8,11 @@ importantly the API-motor provider config and the content-filter retry bug.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+
+import pytest
+
 from fi_runner import CodexBackend, MCPServerSpec, PermissionMode, ProviderConfig, ToolPolicy
 
 AZURE_ENDPOINT = "https://northcentralus.api.cognitive.microsoft.com/"
@@ -169,3 +174,115 @@ def test_extract_thread_id_from_thread_started():
 
 def test_extract_thread_id_none_when_absent():
     assert CodexBackend._extract_thread_id([{"type": "turn.started"}]) is None
+
+
+# --- _extract_tool_calls: the tool-trace -----------------------------------
+
+
+def test_extract_tool_calls_maps_item_types_and_status():
+    events = [
+        {"type": "thread.started", "thread_id": "t"},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "ls", "exit_code": 0}},
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "cognitive", "tool": "assess"}},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "boom", "exit_code": 2}},
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "done"}},  # not a tool
+        {"type": "turn.completed", "usage": {}},
+    ]
+    calls = CodexBackend._extract_tool_calls(events)
+    assert [c.name for c in calls] == ["shell", "mcp__cognitive__assess", "shell"]
+    assert calls[0].is_error is None  # exit 0 → no failure signal
+    assert calls[1].server == "cognitive"
+    assert calls[2].is_error is True  # non-zero exit
+
+
+def test_extract_tool_calls_drops_tools_from_aborted_attempt():
+    # Tools before the last error belong to the aborted attempt; only post-error
+    # tools (the successful retry) count — same rule as _extract_text.
+    events = [
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "aborted", "exit_code": 0}},
+        {"type": "turn.failed"},
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "s", "tool": "ok"}},
+    ]
+    calls = CodexBackend._extract_tool_calls(events)
+    assert [c.name for c in calls] == ["mcp__s__ok"]
+
+
+def test_extract_tool_calls_empty_when_no_tools():
+    assert CodexBackend._extract_tool_calls([{"type": "turn.completed", "usage": {}}]) == []
+
+
+# --- session resume (the vertical capability the base threads) --------------
+
+
+def _argv(session_id=None):
+    return CodexBackend()._build_argv(
+        system_prompt="sys",
+        user_message="hola",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        model=None,
+        session_id=session_id,
+    )
+
+
+def test_build_argv_resumes_when_session_id_given():
+    argv = _argv(session_id="thread_abc")
+    assert argv[:3] == ["codex", "exec", "resume"]
+    # resume REJECTS --sandbox (inherits the thread's policy) — verified vs the CLI
+    assert "--sandbox" not in argv
+    # id + prompt are the trailing positionals, options before them
+    assert argv[-2:] == ["thread_abc", "sys\n\n---\n\nhola"]
+
+
+def test_build_argv_no_resume_without_session_id():
+    argv = _argv(session_id=None)
+    assert "resume" not in argv
+    assert argv[:3] == ["codex", "exec", "--json"]
+    assert "--sandbox" in argv  # a fresh turn sets the sandbox
+
+
+# --- output schema (JSONL) is Codex's, not the base's -----------------------
+
+
+def test_json_lines_skips_blank_and_invalid():
+    text = '{"a": 1}\n\n   \nnot json\n{"b": 2}\n'
+    assert CodexBackend._json_lines(text) == [{"a": 1}, {"b": 2}]
+
+
+def test_parse_output_builds_turn_result_from_stdout():
+    stdout = (
+        '{"type": "thread.started", "thread_id": "t9"}\n'
+        '{"type": "item.completed", "item": {"type": "agent_message", "text": "hola"}}\n'
+        '{"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "s", "tool": "go"}}\n'
+        '{"type": "turn.completed", "usage": {"output_tokens": 3}}\n'
+    )
+    result = CodexBackend()._parse_output(stdout)
+    assert result.text == "hola"
+    assert result.session_id == "t9"
+    assert result.usage == {"output_tokens": 3}
+    assert [t.name for t in result.tool_calls] == ["mcp__s__go"]
+
+
+# --- integration: resume argv against the REAL codex (grammar smoke test) ----
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("codex") is None, reason="needs the codex CLI on PATH")
+def test_resume_argv_parses_against_real_codex():
+    """Grammar-only smoke test (no auth, no turn): the resume argv must get PAST
+    the real codex arg-parser. A bogus id fails with 'no rollout found' (a local
+    lookup), NEVER 'unexpected argument' — which is exactly what `--sandbox` on
+    resume used to produce. Guards against a flag drift between codex versions.
+    Full end-to-end continuity is NOT covered here (it needs a logged-in codex and
+    persistent ~/.codex storage — see _build_argv's caveat)."""
+    argv = CodexBackend()._build_argv(
+        system_prompt="",
+        user_message="hi",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        model=None,
+        session_id="00000000-0000-0000-0000-000000000000",
+    )
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    combined = proc.stdout + proc.stderr
+    assert "unexpected argument" not in combined, combined  # every flag is valid for `resume`

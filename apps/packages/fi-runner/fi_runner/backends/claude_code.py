@@ -38,9 +38,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+from dataclasses import replace
 from typing import Any
 
-from ..backend import MCPServerSpec, ToolPolicy, TurnResult
+from ..backend import MCPServerSpec, ToolCall, ToolPolicy, TurnResult, mcp_server_token, mcp_tool_id
 
 
 class ClaudeCodeBackend:
@@ -71,9 +72,9 @@ class ClaudeCodeBackend:
         allowed = list(tool_policy.builtin_allowed)
         for spec in mcp_servers:
             if spec.tools:
-                allowed.extend(f"mcp__{spec.name}__{tool}" for tool in spec.tools)
+                allowed.extend(mcp_tool_id(spec.name, tool) for tool in spec.tools)
             else:
-                allowed.append(f"mcp__{spec.name}")
+                allowed.append(mcp_server_token(spec.name))
         return allowed
 
     def _mcp_dict(self, mcp_servers: list[MCPServerSpec]) -> dict[str, Any]:
@@ -120,14 +121,59 @@ class ClaudeCodeBackend:
         return ClaudeAgentOptions(**kwargs)
 
     @staticmethod
-    async def _collect(client: Any) -> str:
+    async def _collect(
+        client: Any,
+    ) -> tuple[str, dict[str, Any] | None, str | None, list[ToolCall]]:
+        """Drain the SDK response: assistant text, the tool-trace, plus the final
+        ResultMessage's token usage / cost / session id, so a turn reports what it
+        spent AND what it did (the gaps a Claude-backed run otherwise leaves in
+        turn telemetry). Tool calls arrive as ``ToolUseBlock``s in an
+        ``AssistantMessage``; their success/failure comes back as
+        ``ToolResultBlock``s in the following ``UserMessage`` — matched by id."""
         parts: list[str] = []
+        usage: dict[str, Any] | None = None
+        session_id: str | None = None
+        tool_calls: list[ToolCall] = []
+        by_id: dict[str, int] = {}  # tool_use_id -> index in tool_calls
         async for message in client.receive_response():
-            if type(message).__name__ == "AssistantMessage":
-                for block in getattr(message, "content", []) or []:
-                    if type(block).__name__ == "TextBlock":
+            kind = type(message).__name__
+            content = getattr(message, "content", None)
+            if kind == "AssistantMessage" and isinstance(content, list):
+                for block in content:
+                    btype = type(block).__name__
+                    if btype == "TextBlock":
                         parts.append(getattr(block, "text", ""))
-        return "".join(parts)
+                    elif btype == "ToolUseBlock":
+                        tc = ToolCall.make(
+                            getattr(block, "name", "") or "",
+                            input=getattr(block, "input", None),
+                            id=getattr(block, "id", None),
+                        )
+                        if tc.id is not None:
+                            by_id[tc.id] = len(tool_calls)
+                        tool_calls.append(tc)
+            elif kind == "UserMessage" and isinstance(content, list):
+                for block in content:  # tool RESULTS feed back as ToolResultBlocks
+                    if type(block).__name__ != "ToolResultBlock":
+                        continue
+                    idx = by_id.get(getattr(block, "tool_use_id", None))
+                    if idx is not None:
+                        # Respect the contract: None = unknown. A missing is_error
+                        # stays None (don't claim success); only a present value coerces.
+                        raw_err = getattr(block, "is_error", None)
+                        tool_calls[idx] = replace(
+                            tool_calls[idx], is_error=None if raw_err is None else bool(raw_err)
+                        )
+            elif kind == "ResultMessage":
+                # Final message of a turn — carries usage, cost and session id.
+                raw = getattr(message, "usage", None)
+                if raw is not None:
+                    usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
+                    cost = getattr(message, "total_cost_usd", None)
+                    if cost is not None:
+                        usage["total_cost_usd"] = cost
+                session_id = getattr(message, "session_id", None) or session_id
+        return "".join(parts), usage, session_id, tool_calls
 
     async def run_turn(
         self,
@@ -158,7 +204,8 @@ class ClaudeCodeBackend:
         if session_id is None:
             async with ClaudeSDKClient(options=options) as client:
                 await client.query(user_message)
-                return TurnResult(text=await self._collect(client))
+                text, usage, sess, tools = await self._collect(client)
+                return TurnResult(text=text, usage=usage, session_id=sess, tool_calls=tools)
 
         # Stateful: reuse a pooled, long-lived client for this session.
         async with self._pool_lock:
@@ -170,7 +217,8 @@ class ClaudeCodeBackend:
             lock = self._session_locks.setdefault(session_id, asyncio.Lock())
         async with lock:  # serialize turns on the same client (not concurrency-safe)
             await client.query(user_message)
-            return TurnResult(text=await self._collect(client))
+            text, usage, sess, tools = await self._collect(client)
+            return TurnResult(text=text, usage=usage, session_id=sess or session_id, tool_calls=tools)
 
     async def aclose(self) -> None:
         """Close all pooled clients (call on shutdown / idle reap)."""

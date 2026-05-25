@@ -27,15 +27,23 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
 
 from typing import Any
 
-from . import capabilities, guards, pipeline, router
+from . import capabilities, conversation, flow, guards, narrate, pipeline, router
 from .backend import (
     AgentBackend,
+    BackendError,
     MCPServerSpec,
     PermissionMode,
+    ToolCall,
     ToolPolicy,
     TurnResult,
+    mcp_server_of,
+    mcp_server_token,
+    mcp_tool_id,
 )
-from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
+from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
+from .conversation import ConversationStore, InMemoryConversationStore, Message, render_transcript
+from .flow import Event, events_to_mermaid
+from .narrate import FlowNarrationError, narrate_flow
 from .guards import (
     AntiDriftGuard,
     Guard,
@@ -55,23 +63,41 @@ from .pipeline import (
     run_pipeline_sync,
 )
 from .router import ModelRouter
-from .runner import RetryPolicy, Runner
+from .runner import FlowNarrator, RetryPolicy, Runner
 
 __version__ = "0.8.0"
 
 __all__ = [
     "AgentBackend",
+    "BackendError",
     "MCPServerSpec",
     "PermissionMode",
+    "ToolCall",
     "ToolPolicy",
     "TurnResult",
+    "mcp_tool_id",
+    "mcp_server_token",
+    "mcp_server_of",
     "ClaudeCodeBackend",
     "CodexBackend",
     "ProviderConfig",
+    "SubprocessCLIBackend",
     "Runner",
     "RetryPolicy",
+    "FlowNarrator",
     "ModelRouter",
     "capabilities",
+    "conversation",
+    "ConversationStore",
+    "InMemoryConversationStore",
+    "Message",
+    "render_transcript",
+    "flow",
+    "Event",
+    "events_to_mermaid",
+    "narrate",
+    "narrate_flow",
+    "FlowNarrationError",
     "guards",
     "router",
     "Guard",

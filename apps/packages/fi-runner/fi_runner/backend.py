@@ -16,6 +16,14 @@ from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
 
+class BackendError(RuntimeError):
+    """Raised when a backend's ``run_turn`` fails (SDK error, CLI non-zero exit,
+    missing dependency, timeout). The Runner wraps any backend exception in this
+    type with the original chained as ``__cause__`` — a consumer catches one
+    error class and still has the root cause. A crash becomes a legible,
+    typed failure instead of a backend-specific traceback leaking out."""
+
+
 class PermissionMode(str, Enum):
     """Permission behavior for a turn (maps to each harness's own modes)."""
 
@@ -62,6 +70,68 @@ class ToolPolicy:
     permission_mode: PermissionMode = PermissionMode.DEFAULT
 
 
+# --- MCP tool-id convention (single source of truth) -------------------------
+#
+# Every backend AND the tool-trace identify MCP tools the same way:
+# ``mcp__<server>__<tool>`` for one tool, ``mcp__<server>`` to allow a whole
+# server. Build and parse it ONLY through these helpers — never hand-roll the
+# ``mcp__`` / ``__`` strings in a backend, so the convention lives in one place.
+
+_MCP_PREFIX = "mcp__"
+_MCP_SEP = "__"
+
+
+def mcp_tool_id(server: str, tool: str) -> str:
+    """The allowlist id for one MCP tool: ``mcp__<server>__<tool>``."""
+    return f"{_MCP_PREFIX}{server}{_MCP_SEP}{tool}"
+
+
+def mcp_server_token(server: str) -> str:
+    """The token that allows a WHOLE MCP server: ``mcp__<server>``."""
+    return f"{_MCP_PREFIX}{server}"
+
+
+def mcp_server_of(tool_name: str) -> str | None:
+    """The MCP server a tool name belongs to, or ``None`` for a built-in tool
+    (e.g. ``Bash``). Recovers the server from :func:`mcp_tool_id` /
+    :func:`mcp_server_token` output — round-trips exactly as long as the server
+    name has no ``__`` (true for MCP server names; the separator is reserved)."""
+    if not tool_name.startswith(_MCP_PREFIX):
+        return None
+    return tool_name[len(_MCP_PREFIX) :].split(_MCP_SEP, 1)[0] or None
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    """One tool invocation the agent made during a turn (the tool-trace).
+
+    Backend-agnostic: ClaudeCodeBackend builds these from the SDK's
+    ``ToolUseBlock`` / ``ToolResultBlock``, CodexBackend from ``item.completed``
+    events. ``server`` is the MCP server parsed from an ``mcp__<server>__<tool>``
+    name (``None`` for a built-in tool like ``Bash``). ``is_error`` is the result
+    status when the backend reports it (``None`` = unknown). ``input`` is kept for
+    the consumer but is NEVER put into telemetry/diagrams — it may carry PHI."""
+
+    name: str
+    server: str | None = None
+    input: dict[str, Any] | None = None
+    id: str | None = None
+    is_error: bool | None = None
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        input: dict[str, Any] | None = None,
+        id: str | None = None,
+        is_error: bool | None = None,
+    ) -> ToolCall:
+        """Build a ToolCall, parsing the MCP ``server`` out of an
+        ``mcp__<server>__<tool>`` name (``None`` for built-in tools)."""
+        return cls(name=name, server=mcp_server_of(name), input=input, id=id, is_error=is_error)
+
+
 @dataclass(frozen=True)
 class TurnResult:
     """The result of one turn."""
@@ -76,6 +146,9 @@ class TurnResult:
     # are fi_runner.guards.GuardOutcome (kept as Any to avoid coupling the port to
     # the guards module). Empty when the runner declared no guards.
     guard_outcomes: dict[str, Any] = field(default_factory=dict)
+    # The tool-trace: every tool the agent called this turn, in order. Empty when
+    # the agent used no tools (or a backend can't report them).
+    tool_calls: list[ToolCall] = field(default_factory=list)
 
 
 @runtime_checkable

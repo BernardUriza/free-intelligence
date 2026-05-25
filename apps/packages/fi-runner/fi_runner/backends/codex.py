@@ -15,18 +15,17 @@ Caveats (Codex maturity, 2026): the ``codex`` CLI must be on PATH. A past bug
 (openai/codex#15451, now closed) dropped ``--output-schema`` (strict structured
 output) when MCP servers were active — it did NOT affect the plain ``--json``
 JSONL event stream this backend parses, so MCP capabilities work fine over Codex.
-Requires the ``codex`` extra.
+Requires the ``codex`` CLI on PATH (``npm i -g @openai/codex``) — there is no
+Python dependency (the ``codex`` extra is empty, kept only to document this).
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
-import shutil
 from dataclasses import dataclass
 
-from ..backend import MCPServerSpec, PermissionMode, ToolPolicy, TurnResult
+from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult, mcp_tool_id
+from ._subprocess_cli import SubprocessCLIBackend
 
 
 @dataclass(frozen=True)
@@ -54,7 +53,7 @@ class ProviderConfig:
     wire_api: str = "responses"
 
 
-class CodexBackend:
+class CodexBackend(SubprocessCLIBackend):
     """Agent backend backed by OpenAI Codex (`codex exec --json`).
 
     Codex runs in one of two modes depending on config:
@@ -149,27 +148,36 @@ class CodexBackend:
         mcp_servers: list[MCPServerSpec],
         tool_policy: ToolPolicy,
         model: str | None,
+        session_id: str | None = None,
     ) -> list[str]:
         # `--skip-git-repo-check`: the runner cwd is NOT a git repo (containerized
-        # service, no working tree), and `codex exec` refuses to run outside one
-        # by default ("Not inside a trusted directory and --skip-git-repo-check
-        # was not specified" → exit 1). This flag lets codex run anywhere.
-        argv = [
-            "codex",
-            "exec",
-            "--json",
-            "--skip-git-repo-check",
-            "--sandbox",
-            self._sandbox_for(tool_policy),
-        ]
-        argv += self._provider_args()  # Azure OpenAI provider, if configured
-        chosen_model = model or self.default_model
-        if chosen_model:
-            argv += ["--model", chosen_model]
-        argv += self._mcp_config_args(mcp_servers)
+        # service, no working tree), and codex refuses to run outside one by
+        # default ("Not inside a trusted directory ..." → exit 1). Both `exec` and
+        # `exec resume` accept it.
         prompt = f"{system_prompt}\n\n---\n\n{user_message}" if system_prompt else user_message
-        argv.append(prompt)
-        return argv
+        chosen_model = model or self.default_model
+        model_args = ["--model", chosen_model] if chosen_model else []
+        # `-c` provider overrides + `--model` + `-c` mcp overrides are accepted by
+        # BOTH `exec` and `exec resume`.
+        common = self._provider_args() + model_args + self._mcp_config_args(mcp_servers)
+        if session_id:
+            # `codex exec resume [OPTIONS] <SESSION_ID> <PROMPT>` — VERIFIED against
+            # codex-cli 0.133.0: resume does NOT accept --sandbox (it inherits the
+            # thread's policy; passing it errors "unexpected argument"); the id +
+            # prompt are trailing positionals. CAVEAT: codex stores threads LOCALLY
+            # (~/.codex/sessions), so resume only works where that store persists —
+            # in an ephemeral container the prior turn's thread is gone ("no rollout
+            # found"); continuity there needs history replay, not resume.
+            return [
+                "codex", "exec", "resume", "--json", "--skip-git-repo-check",
+                *common, session_id, prompt,
+            ]
+        # Fresh turn: --sandbox applies (no thread to inherit a policy from).
+        return [
+            "codex", "exec", "--json", "--skip-git-repo-check",
+            "--sandbox", self._sandbox_for(tool_policy),
+            *common, prompt,
+        ]
 
     @staticmethod
     def _extract_text(events: list[dict]) -> str:
@@ -221,52 +229,95 @@ class CodexBackend:
                     return tid
         return None
 
-    async def run_turn(
-        self,
-        *,
-        system_prompt: str,
-        user_message: str,
-        mcp_servers: list[MCPServerSpec],
-        tool_policy: ToolPolicy,
-        model: str | None = None,
-        session_id: str | None = None,  # noqa: ARG002 - Codex session resume is a v2 TODO
-    ) -> TurnResult:
-        # NOTE: codex exec can resume a previous session; wiring session_id ->
-        # `codex exec resume <id>` is a v2 TODO. For now each turn is one-shot.
-        if shutil.which("codex") is None:
-            raise RuntimeError(
-                "CodexBackend requires the `codex` CLI on PATH. "
-                "Install it (e.g. `npm i -g @openai/codex`) and sign in with your ChatGPT plan."
-            )
-        argv = self._build_argv(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            mcp_servers=mcp_servers,
-            tool_policy=tool_policy,
-            model=model,
-        )
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=os.environ.copy(),
-        )
-        out, err = await proc.communicate()
-        if proc.returncode != 0:
-            raise RuntimeError(f"codex exec failed (exit {proc.returncode}): {err.decode()[:500]}")
+    @staticmethod
+    def _item_is_error(item: dict) -> bool | None:
+        """Best-effort tool-result status: True on a failed status / non-zero
+        exit code, None (unknown) when the item carries no failure signal."""
+        if item.get("status") in ("failed", "error"):
+            return True
+        exit_code = item.get("exit_code")
+        if isinstance(exit_code, int) and exit_code != 0:
+            return True
+        return None
 
+    @classmethod
+    def _tool_call_from_item(cls, item: dict) -> ToolCall | None:
+        """Map one ``item.completed`` item to a :class:`ToolCall`, or ``None`` if
+        it isn't a tool action (e.g. agent_message, reasoning). Item shapes follow
+        the codex exec --json schema (command_execution / mcp_tool_call /
+        function_call / web_search / file_change)."""
+        itype = item.get("type")
+        is_error = cls._item_is_error(item)
+        item_id = item.get("id")
+        if itype == "command_execution":
+            return ToolCall.make("shell", input={"command": item.get("command")}, id=item_id, is_error=is_error)
+        if itype == "mcp_tool_call":
+            server, tool = item.get("server"), item.get("tool")
+            name = mcp_tool_id(server, tool) if server and tool else (tool or "mcp_tool")
+            return ToolCall.make(name, id=item_id, is_error=is_error)
+        if itype == "function_call":
+            return ToolCall.make(item.get("name") or "function_call", id=item_id, is_error=is_error)
+        if itype == "web_search":
+            return ToolCall.make("web_search", id=item_id, is_error=is_error)
+        if itype in ("file_change", "patch", "apply_patch"):
+            return ToolCall.make("file_change", id=item_id, is_error=is_error)
+        return None
+
+    @classmethod
+    def _extract_tool_calls(cls, events: list[dict]) -> list[ToolCall]:
+        """Tool-trace from the JSONL stream: each ``item.completed`` that is a tool
+        action. Like :meth:`_extract_text`, only items AFTER the last error count
+        (they belong to the successful attempt after a Codex retry)."""
+        last_error_idx = -1
+        for i, ev in enumerate(events):
+            if ev.get("type") in ("error", "turn.failed"):
+                last_error_idx = i
+        calls: list[ToolCall] = []
+        for ev in events[last_error_idx + 1 :]:
+            if ev.get("type") != "item.completed":
+                continue
+            tc = cls._tool_call_from_item(ev.get("item") or {})
+            if tc is not None:
+                calls.append(tc)
+        return calls
+
+    # --- SubprocessCLIBackend hooks -----------------------------------------
+    #
+    # Session continuity: a non-None session_id resumes a thread (see _build_argv).
+    # The argv grammar is verified against codex-cli 0.133.0; end-to-end continuity
+    # is NOT unit-covered (needs a live logged-in codex) and is unreliable on
+    # ephemeral storage (threads live in ~/.codex/sessions). Treat as experimental.
+
+    def _cli_binary(self) -> str:
+        return "codex"
+
+    def _not_found_message(self) -> str:
+        return (
+            "CodexBackend requires the `codex` CLI on PATH. "
+            "Install it (e.g. `npm i -g @openai/codex`) and sign in with your ChatGPT plan."
+        )
+
+    @staticmethod
+    def _json_lines(stdout: str) -> list[dict]:
+        """Codex's output schema: one JSON event per non-blank line of stdout;
+        skip unparseable lines. This is Codex's contract, not the base's."""
         events: list[dict] = []
-        for line in out.decode().splitlines():
-            line = line.strip()
+        for raw in stdout.splitlines():
+            line = raw.strip()
             if not line:
                 continue
             try:
                 events.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
+        return events
+
+    def _parse_output(self, stdout: str) -> TurnResult:
+        events = self._json_lines(stdout)
         return TurnResult(
             text=self._extract_text(events),
             raw=events,
             usage=self._extract_usage(events),
             session_id=self._extract_thread_id(events),
+            tool_calls=self._extract_tool_calls(events),
         )

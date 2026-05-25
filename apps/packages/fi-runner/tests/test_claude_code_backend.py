@@ -83,3 +83,122 @@ def test_build_options_reflects_model_and_permission_mode():
     )
     assert opts.model == "claude-sonnet-4-5"
     assert opts.permission_mode == "acceptEdits"
+
+
+# --- _collect: text + usage/cost/session extraction (SDK-free duck types) ---
+#
+# _collect dispatches on ``type(message).__name__``, so these fakes are named
+# exactly as the SDK's message/block classes — no SDK or network needed.
+
+
+class AssistantMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class TextBlock:
+    def __init__(self, text):
+        self.text = text
+
+
+class ResultMessage:
+    def __init__(self, *, usage, total_cost_usd=None, session_id=None):
+        self.usage = usage
+        self.total_cost_usd = total_cost_usd
+        self.session_id = session_id
+
+
+class ToolUseBlock:
+    def __init__(self, name, input, id):  # noqa: A002 - mirrors the SDK block field
+        self.name = name
+        self.input = input
+        self.id = id
+
+
+class UserMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class ToolResultBlock:
+    def __init__(self, tool_use_id, is_error=False):
+        self.tool_use_id = tool_use_id
+        self.is_error = is_error
+
+
+class _FakeClient:
+    def __init__(self, messages):
+        self._messages = messages
+
+    async def receive_response(self):
+        for m in self._messages:
+            yield m
+
+
+@pytest.mark.asyncio
+async def test_collect_extracts_text_usage_and_session():
+    client = _FakeClient(
+        [
+            AssistantMessage([TextBlock("Hola "), TextBlock("mundo")]),
+            ResultMessage(
+                usage={"input_tokens": 10, "output_tokens": 5},
+                total_cost_usd=0.0012,
+                session_id="sdk-123",
+            ),
+        ]
+    )
+    text, usage, session_id, tools = await ClaudeCodeBackend._collect(client)
+    assert text == "Hola mundo"
+    assert usage == {"input_tokens": 10, "output_tokens": 5, "total_cost_usd": 0.0012}
+    assert session_id == "sdk-123"
+    assert tools == []
+
+
+@pytest.mark.asyncio
+async def test_collect_handles_turn_without_result_message():
+    client = _FakeClient([AssistantMessage([TextBlock("solo texto")])])
+    text, usage, session_id, tools = await ClaudeCodeBackend._collect(client)
+    assert text == "solo texto"
+    assert usage is None
+    assert session_id is None
+    assert tools == []
+
+
+@pytest.mark.asyncio
+async def test_collect_captures_tool_trace_with_result_status():
+    # An MCP tool that succeeded + a built-in that failed; results feed back as
+    # ToolResultBlocks in a following UserMessage, matched by id.
+    client = _FakeClient(
+        [
+            AssistantMessage(
+                [
+                    ToolUseBlock("mcp__cognitive__assess", {"q": "phi"}, "t1"),
+                    TextBlock("pensando..."),
+                    ToolUseBlock("Bash", {"command": "ls"}, "t2"),
+                ]
+            ),
+            UserMessage([ToolResultBlock("t1", is_error=False), ToolResultBlock("t2", is_error=True)]),
+            AssistantMessage([TextBlock("listo")]),
+        ]
+    )
+    text, _usage, _sess, tools = await ClaudeCodeBackend._collect(client)
+    assert text == "pensando...listo"
+    assert [t.name for t in tools] == ["mcp__cognitive__assess", "Bash"]
+    assert tools[0].server == "cognitive" and tools[0].is_error is False
+    assert tools[1].server is None and tools[1].is_error is True  # built-in, failed
+    assert tools[0].input == {"q": "phi"}  # input kept on the object (not in telemetry)
+
+
+@pytest.mark.asyncio
+async def test_collect_unknown_tool_result_stays_none():
+    # Contract: None = unknown. A result with no status, or no result at all,
+    # must NOT be coerced to False (claiming success).
+    client = _FakeClient(
+        [
+            AssistantMessage([ToolUseBlock("Bash", {}, "t1"), ToolUseBlock("Read", {}, "t2")]),
+            UserMessage([ToolResultBlock("t1", is_error=None)]),  # t2 gets no result block
+        ]
+    )
+    _text, _usage, _sess, tools = await ClaudeCodeBackend._collect(client)
+    assert tools[0].is_error is None  # present result, unknown status
+    assert tools[1].is_error is None  # never saw a result
