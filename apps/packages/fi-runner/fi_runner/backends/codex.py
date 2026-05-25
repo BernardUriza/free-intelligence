@@ -26,7 +26,7 @@ import os
 import shutil
 from dataclasses import dataclass
 
-from ..backend import MCPServerSpec, PermissionMode, ToolPolicy, TurnResult
+from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult
 
 
 @dataclass(frozen=True)
@@ -221,6 +221,58 @@ class CodexBackend:
                     return tid
         return None
 
+    @staticmethod
+    def _item_is_error(item: dict) -> bool | None:
+        """Best-effort tool-result status: True on a failed status / non-zero
+        exit code, None (unknown) when the item carries no failure signal."""
+        if item.get("status") in ("failed", "error"):
+            return True
+        exit_code = item.get("exit_code")
+        if isinstance(exit_code, int) and exit_code != 0:
+            return True
+        return None
+
+    @classmethod
+    def _tool_call_from_item(cls, item: dict) -> ToolCall | None:
+        """Map one ``item.completed`` item to a :class:`ToolCall`, or ``None`` if
+        it isn't a tool action (e.g. agent_message, reasoning). Item shapes follow
+        the codex exec --json schema (command_execution / mcp_tool_call /
+        function_call / web_search / file_change)."""
+        itype = item.get("type")
+        is_error = cls._item_is_error(item)
+        item_id = item.get("id")
+        if itype == "command_execution":
+            return ToolCall.make("shell", input={"command": item.get("command")}, id=item_id, is_error=is_error)
+        if itype == "mcp_tool_call":
+            server, tool = item.get("server"), item.get("tool")
+            name = f"mcp__{server}__{tool}" if server and tool else (tool or "mcp_tool")
+            return ToolCall.make(name, id=item_id, is_error=is_error)
+        if itype == "function_call":
+            return ToolCall.make(item.get("name") or "function_call", id=item_id, is_error=is_error)
+        if itype == "web_search":
+            return ToolCall.make("web_search", id=item_id, is_error=is_error)
+        if itype in ("file_change", "patch", "apply_patch"):
+            return ToolCall.make("file_change", id=item_id, is_error=is_error)
+        return None
+
+    @classmethod
+    def _extract_tool_calls(cls, events: list[dict]) -> list[ToolCall]:
+        """Tool-trace from the JSONL stream: each ``item.completed`` that is a tool
+        action. Like :meth:`_extract_text`, only items AFTER the last error count
+        (they belong to the successful attempt after a Codex retry)."""
+        last_error_idx = -1
+        for i, ev in enumerate(events):
+            if ev.get("type") in ("error", "turn.failed"):
+                last_error_idx = i
+        calls: list[ToolCall] = []
+        for ev in events[last_error_idx + 1 :]:
+            if ev.get("type") != "item.completed":
+                continue
+            tc = cls._tool_call_from_item(ev.get("item") or {})
+            if tc is not None:
+                calls.append(tc)
+        return calls
+
     async def run_turn(
         self,
         *,
@@ -269,4 +321,5 @@ class CodexBackend:
             raw=events,
             usage=self._extract_usage(events),
             session_id=self._extract_thread_id(events),
+            tool_calls=self._extract_tool_calls(events),
         )

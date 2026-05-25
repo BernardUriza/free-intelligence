@@ -24,7 +24,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # noqa: E402
 
-from fi_runner import MutationStage, Runner, TurnResult, antidrift_guard, triage_guard  # noqa: E402
+from fi_runner import (  # noqa: E402
+    MutationStage,
+    Runner,
+    ToolCall,
+    TurnResult,
+    antidrift_guard,
+    triage_guard,
+)
 
 _OUT_DIR = Path(__file__).parent / "turns"
 _NARRATION_MARKER = "annotating one of your OWN"  # present in the narration system prompt
@@ -44,7 +51,9 @@ class _FakeBackend:
             if crisis
             else "  Bien: mantén el seguimiento y refuerza hábitos de sueño.  "
         )
-        return TurnResult(text=reply, usage={"output_tokens": 142, "total_cost_usd": 0.0119})
+        # The agent called a cognitive MCP tool to assess gravity → tool-trace.
+        tools = [ToolCall.make("mcp__cognitive__assess", input={"text": user_message}, is_error=False)]
+        return TurnResult(text=reply, usage={"output_tokens": 142, "total_cost_usd": 0.0119}, tool_calls=tools)
 
     @staticmethod
     def _narrate(payload: str) -> str:
@@ -57,13 +66,15 @@ class _FakeBackend:
                 "flowchart TD\n"
                 f"    {_NARRATED_TAG}\n"
                 f'    start(["run · request_id={rid}"])\n'
+                '    tool["tool: mcp__cognitive__assess → medí gravedad = alta"]\n'
+                "    start --> tool\n"
                 '    subgraph reasoning["lo que procesé"]\n'
                 '      r1["detecté un marcador de crisis en el mensaje"]\n'
                 '      r2["prioricé seguridad sobre matices clínicos"]\n'
                 '      r3["triage escaló a CRITICAL → lo trato como señal a devs"]\n'
                 "      r1 --> r2 --> r3\n"
                 "    end\n"
-                "    start --> reasoning\n"
+                "    tool --> reasoning\n"
                 '    reasoning --> out["respuesta: derivar a urgencias + contención"]\n'
                 "    classDef crit fill:#fdd,stroke:#c00,stroke-width:2px;\n"
                 "    class r3 crit;"
@@ -72,12 +83,14 @@ class _FakeBackend:
             "flowchart TD\n"
             f"    {_NARRATED_TAG}\n"
             f'    start(["run · request_id={rid}"])\n'
+            '    tool["tool: mcp__cognitive__assess → medí gravedad = baja"]\n'
+            "    start --> tool\n"
             '    subgraph reasoning["lo que procesé"]\n'
             '      r1["mensaje estable, sin señales de riesgo"]\n'
             '      r2["triage se mantuvo en LOW"]\n'
             "      r1 --> r2\n"
             "    end\n"
-            "    start --> reasoning\n"
+            "    tool --> reasoning\n"
             '    reasoning --> out["respuesta: reforzar seguimiento y hábitos"]'
         )
 

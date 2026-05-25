@@ -23,6 +23,7 @@ from fi_runner import (
     FlowNarrator,
     MutationStage,
     Runner,
+    ToolCall,
     TurnResult,
     events_to_mermaid,
     narrate_flow,
@@ -124,6 +125,18 @@ def test_events_to_mermaid_failed_turn_has_error_node_no_completion():
     assert "turn_completed" not in mmd  # no completion node on a crash
 
 
+def test_events_to_mermaid_renders_tool_nodes_chained_after_backend():
+    events = [
+        ("tool_called", {"index": 0, "name": "mcp__cognitive__assess", "server": "cognitive", "is_error": False}),
+        ("tool_called", {"index": 1, "name": "Bash", "server": None, "is_error": True}),
+        ("turn_completed", {"request_id": "r1", "mcp_count": 1, "attempts": 1, "guard_levels": {}}),
+    ]
+    mmd = events_to_mermaid(events)
+    assert "tool: mcp__cognitive__assess" in mmd and "tool: Bash" in mmd
+    assert "backend --> tool0" in mmd and "tool0 --> tool1" in mmd  # chained in order
+    assert "class tool1 err;" in mmd  # the failed tool is highlighted
+
+
 # --- mechanical diagram: always published -------------------------------------
 
 
@@ -169,6 +182,34 @@ async def test_mechanical_flow_reflects_guards_and_post_processors():
     assert "guard: triage → CRITICAL" in mmd
     assert "post: strip" in mmd
     assert "crit;" in mmd
+
+
+@pytest.mark.asyncio
+async def test_runner_emits_tool_trace_phi_safe_and_diagram_shows_tools():
+    @dataclass
+    class _ToolBackend:
+        async def run_turn(self, **kwargs) -> TurnResult:  # noqa: ANN003
+            return TurnResult(
+                text="ok",
+                tool_calls=[
+                    ToolCall.make("mcp__cognitive__assess", input={"q": "phi"}, is_error=False),
+                    ToolCall.make("Bash", input={"command": "ls"}, is_error=True),
+                ],
+            )
+
+    events, event_sink = _event_sink()
+    flows, flow_sink = _flow_sink()
+    runner = Runner(
+        backend=_ToolBackend(), persona="p", on_event=event_sink, on_turn_flow=flow_sink, flow_narrator=None
+    )
+    await runner.run("hi", request_id="t-tools")
+    tool_events = [f for e, f in events if e == "tool_called"]
+    assert [t["name"] for t in tool_events] == ["mcp__cognitive__assess", "Bash"]
+    assert tool_events[0]["server"] == "cognitive" and tool_events[1]["is_error"] is True
+    assert "input" not in tool_events[0]  # PHI-safe: tool input never reaches telemetry
+    assert [f for e, f in events if e == "turn_completed"][0]["tool_count"] == 2
+    _, mmd = flows[0]
+    assert "tool: mcp__cognitive__assess" in mmd and "tool: Bash" in mmd
 
 
 @pytest.mark.asyncio

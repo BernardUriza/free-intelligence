@@ -234,6 +234,19 @@ class Runner:
                 model = self.retry_policy.fallback_model or model
 
             assert result is not None  # the loop runs at least once
+            # Tool-trace → telemetry. PHI-safe: only name/server/status reach the
+            # event stream (and the diagram), never the tool input/args.
+            for i, call in enumerate(result.tool_calls):
+                emit(
+                    "tool_called",
+                    {
+                        "request_id": request_id,
+                        "index": i,
+                        "name": call.name,
+                        "server": call.server,
+                        "is_error": call.is_error,
+                    },
+                )
             result = await self._apply_post_processors(result, context, request_id=request_id, emit=emit)
             emit(
                 "turn_completed",
@@ -243,6 +256,7 @@ class Runner:
                     "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
                     "tokens": result.usage,
                     "mcp_count": len(mcp_servers),
+                    "tool_count": len(result.tool_calls),
                     "attempts": attempt + 1,
                     "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
                 },

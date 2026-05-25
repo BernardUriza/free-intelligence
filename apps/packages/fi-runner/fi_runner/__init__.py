@@ -33,6 +33,7 @@ from .backend import (
     BackendError,
     MCPServerSpec,
     PermissionMode,
+    ToolCall,
     ToolPolicy,
     TurnResult,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "BackendError",
     "MCPServerSpec",
     "PermissionMode",
+    "ToolCall",
     "ToolPolicy",
     "TurnResult",
     "ClaudeCodeBackend",

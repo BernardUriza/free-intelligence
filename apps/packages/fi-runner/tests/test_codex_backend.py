@@ -169,3 +169,38 @@ def test_extract_thread_id_from_thread_started():
 
 def test_extract_thread_id_none_when_absent():
     assert CodexBackend._extract_thread_id([{"type": "turn.started"}]) is None
+
+
+# --- _extract_tool_calls: the tool-trace -----------------------------------
+
+
+def test_extract_tool_calls_maps_item_types_and_status():
+    events = [
+        {"type": "thread.started", "thread_id": "t"},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "ls", "exit_code": 0}},
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "cognitive", "tool": "assess"}},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "boom", "exit_code": 2}},
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "done"}},  # not a tool
+        {"type": "turn.completed", "usage": {}},
+    ]
+    calls = CodexBackend._extract_tool_calls(events)
+    assert [c.name for c in calls] == ["shell", "mcp__cognitive__assess", "shell"]
+    assert calls[0].is_error is None  # exit 0 → no failure signal
+    assert calls[1].server == "cognitive"
+    assert calls[2].is_error is True  # non-zero exit
+
+
+def test_extract_tool_calls_drops_tools_from_aborted_attempt():
+    # Tools before the last error belong to the aborted attempt; only post-error
+    # tools (the successful retry) count — same rule as _extract_text.
+    events = [
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "aborted", "exit_code": 0}},
+        {"type": "turn.failed"},
+        {"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "s", "tool": "ok"}},
+    ]
+    calls = CodexBackend._extract_tool_calls(events)
+    assert [c.name for c in calls] == ["mcp__s__ok"]
+
+
+def test_extract_tool_calls_empty_when_no_tools():
+    assert CodexBackend._extract_tool_calls([{"type": "turn.completed", "usage": {}}]) == []

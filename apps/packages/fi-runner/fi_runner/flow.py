@@ -30,6 +30,7 @@ def events_to_mermaid(events: list[Event], *, title: str | None = None) -> str:
     node is highlighted instead of a completion node carrying latency/cost.
     """
     completed = next((f for e, f in events if e == "turn_completed"), {})
+    tools = [f for e, f in events if e == "tool_called"]
     mutations = [f for e, f in events if e == "mutation_applied"]
     violations = [f for e, f in events if e == "pipeline_violation"]
     criticals = {f.get("guard") for e, f in events if e == "guard_critical"}
@@ -62,6 +63,17 @@ def events_to_mermaid(events: list[Event], *, title: str | None = None) -> str:
         lines.append(f'    berr["backend_error<br/>{be.get("backend")}"]')
         lines.append("    backend -.raises.-> berr")
         err_nodes.append("berr")
+
+    # Tool-trace: each tool the agent called this turn, chained after the backend
+    # (a failed tool is highlighted). Names already carry the mcp__server__tool
+    # form; inputs are never rendered (they may carry PHI).
+    for i, t in enumerate(tools):
+        nid = f"tool{i}"
+        lines.append(f'    {nid}["tool: {t.get("name", "?")}"]')
+        lines.append(f"    {prev} --> {nid}")
+        if t.get("is_error") is True:
+            err_nodes.append(nid)
+        prev = nid
 
     for i, (name, level) in enumerate(completed.get("guard_levels", {}).items()):
         nid = f"g{i}"

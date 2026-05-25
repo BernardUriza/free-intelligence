@@ -71,6 +71,38 @@ class ToolPolicy:
 
 
 @dataclass(frozen=True)
+class ToolCall:
+    """One tool invocation the agent made during a turn (the tool-trace).
+
+    Backend-agnostic: ClaudeCodeBackend builds these from the SDK's
+    ``ToolUseBlock`` / ``ToolResultBlock``, CodexBackend from ``item.completed``
+    events. ``server`` is the MCP server parsed from an ``mcp__<server>__<tool>``
+    name (``None`` for a built-in tool like ``Bash``). ``is_error`` is the result
+    status when the backend reports it (``None`` = unknown). ``input`` is kept for
+    the consumer but is NEVER put into telemetry/diagrams — it may carry PHI."""
+
+    name: str
+    server: str | None = None
+    input: dict[str, Any] | None = None
+    id: str | None = None
+    is_error: bool | None = None
+
+    @classmethod
+    def make(
+        cls,
+        name: str,
+        *,
+        input: dict[str, Any] | None = None,
+        id: str | None = None,
+        is_error: bool | None = None,
+    ) -> ToolCall:
+        """Build a ToolCall, parsing the MCP ``server`` out of an
+        ``mcp__<server>__<tool>`` name (``None`` for built-in tools)."""
+        server = name.split("__")[1] if name.startswith("mcp__") and "__" in name[5:] else None
+        return cls(name=name, server=server, input=input, id=id, is_error=is_error)
+
+
+@dataclass(frozen=True)
 class TurnResult:
     """The result of one turn."""
 
@@ -84,6 +116,9 @@ class TurnResult:
     # are fi_runner.guards.GuardOutcome (kept as Any to avoid coupling the port to
     # the guards module). Empty when the runner declared no guards.
     guard_outcomes: dict[str, Any] = field(default_factory=dict)
+    # The tool-trace: every tool the agent called this turn, in order. Empty when
+    # the agent used no tools (or a backend can't report them).
+    tool_calls: list[ToolCall] = field(default_factory=list)
 
 
 @runtime_checkable
