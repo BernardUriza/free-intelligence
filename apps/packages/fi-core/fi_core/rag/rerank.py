@@ -46,7 +46,14 @@ class Reranker(Protocol):
 class SupportsRetrieve(Protocol):
     """Anything with the retriever shape (StoreBackedRetriever, HybridRetriever)."""
 
-    async def retrieve(self, query: str, *, namespace: str, top_k: int = 5) -> list[RetrievedChunk]:
+    async def retrieve(
+        self,
+        query: str,
+        *,
+        namespace: str,
+        top_k: int = 5,
+        filters: dict[str, Any] | None = None,
+    ) -> list[RetrievedChunk]:
         ...
 
 
@@ -101,10 +108,13 @@ class RerankingRetriever:
         namespace: str,
         top_k: int = 5,
         candidate_k: int | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         if not query or not query.strip():
             return []
-        pool = await self.base.retrieve(query, namespace=namespace, top_k=candidate_k or self.candidate_k)
+        pool = await self.base.retrieve(
+            query, namespace=namespace, top_k=candidate_k or self.candidate_k, filters=filters
+        )
         if not pool:
             return []
         ranked = await self.reranker.rerank(query, [h.chunk.text for h in pool])

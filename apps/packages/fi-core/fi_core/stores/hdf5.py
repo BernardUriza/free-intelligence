@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid as _uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -175,14 +174,17 @@ class HDF5ChunkStore:
         namespace: str,
         query_embedding: list[float],
         top_k: int = 5,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         """ChunkStore.query — cosine similarity top-k across namespace.
 
         Uses the in-memory index. O(N) per call where N is total chunks
         in the namespace. For >100k chunks consider sharding namespaces
-        or migrating to a vector DB.
+        or migrating to a vector DB. ``filters`` restricts to chunks whose
+        parent document's ``attributes`` contain the given pairs (flat
+        containment, the HDF5 analogue of Postgres ``@>``).
         """
-        return await asyncio.to_thread(self._query_sync, namespace, query_embedding, top_k)
+        return await asyncio.to_thread(self._query_sync, namespace, query_embedding, top_k, filters)
 
     async def create_document(
         self,
@@ -619,16 +621,28 @@ class HDF5ChunkStore:
         return True
 
     def _query_sync(
-        self, namespace: str, query_embedding: list[float], top_k: int
+        self,
+        namespace: str,
+        query_embedding: list[float],
+        top_k: int,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         idx = self._index.get(namespace)
         if not idx or not idx.entries:
             return []
+        entries = idx.entries
+        if filters:
+            # Restrict to chunks whose parent document's attributes match BEFORE
+            # top-k (post-filtering would starve the floor).
+            allowed = self._documents_matching(namespace, filters)
+            entries = [e for e in entries if e.document_id in allowed]
+            if not entries:
+                return []
         q = np.asarray(query_embedding, dtype=np.float32)
         q_norm = float(np.linalg.norm(q))
         if q_norm == 0.0:
             return []
-        embeddings = np.stack([e.embedding for e in idx.entries])
+        embeddings = np.stack([e.embedding for e in entries])
         norms = np.linalg.norm(embeddings, axis=1)
         # Avoid division by zero for any zero-vector chunk.
         norms[norms == 0.0] = 1.0
@@ -642,7 +656,7 @@ class HDF5ChunkStore:
         # Hydrate chunks from disk (in-memory index only carries embeddings).
         with h5py.File(self.file_path, "r") as f:
             for i in top_sorted:
-                entry = idx.entries[int(i)]
+                entry = entries[int(i)]
                 chunk_path = (
                     f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/"
                     f"{entry.document_id}/{_CHUNKS_GROUP}/{entry.chunk_id}"
@@ -655,6 +669,25 @@ class HDF5ChunkStore:
                     RetrievedChunk(chunk=chunk, similarity=float(sims[int(i)]))
                 )
         return results
+
+    def _documents_matching(self, namespace: str, filters: dict[str, Any]) -> set[str]:
+        """Document ids in ``namespace`` whose attributes contain every key/value
+        in ``filters`` (flat equality — the HDF5 analogue of Postgres ``@>``)."""
+        matched: set[str] = set()
+        docs_path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}"
+        with h5py.File(self.file_path, "r") as f:
+            if docs_path not in f:
+                return matched
+            docs_group = f[docs_path]
+            for doc_id in docs_group:
+                raw = docs_group[doc_id].attrs.get(_ATTR_ATTRIBUTES, "{}")
+                try:
+                    attrs = json.loads(raw)
+                except (TypeError, ValueError):
+                    attrs = {}
+                if isinstance(attrs, dict) and all(attrs.get(k) == v for k, v in filters.items()):
+                    matched.add(doc_id)
+        return matched
 
     # ------------------------------------------------------------------
     # Index bootstrap

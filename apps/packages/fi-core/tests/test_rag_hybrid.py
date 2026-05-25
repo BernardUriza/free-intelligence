@@ -19,7 +19,7 @@ class _FakeDense:
 
     pool: list[RetrievedChunk]
 
-    async def retrieve(self, query, *, namespace, top_k=5, min_similarity=None):  # noqa: ANN001
+    async def retrieve(self, query, *, namespace, top_k=5, min_similarity=None, filters=None):  # noqa: ANN001
         return self.pool[:top_k]
 
 

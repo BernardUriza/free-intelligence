@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from fi_core.rag.chunking import ChunkConfig, ChunkingStrategy, chunk_document
 from fi_core.rag.contextual import Contextualizer
@@ -49,15 +50,20 @@ class StoreBackedRetriever:
         namespace: str,
         top_k: int = 5,
         min_similarity: float | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         """Embed ``query`` and return the top-k most similar chunks in ``namespace``.
 
         Empty/blank query → empty list (no embedder call). Results keep the
-        store's similarity-descending order; a positive floor drops weak hits."""
+        store's similarity-descending order; a positive floor drops weak hits.
+        ``filters`` restricts to chunks whose parent document's attributes match
+        (forwarded to the store)."""
         if not query or not query.strip():
             return []
         query_embedding = await self.embedder.embed(query)
-        hits = await self.store.query(namespace=namespace, query_embedding=query_embedding, top_k=top_k)
+        hits = await self.store.query(
+            namespace=namespace, query_embedding=query_embedding, top_k=top_k, filters=filters
+        )
         floor = self.min_similarity if min_similarity is None else min_similarity
         if floor > 0:
             return [h for h in hits if h.similarity >= floor]

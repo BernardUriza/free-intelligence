@@ -23,7 +23,7 @@ class _FakeBase:
     pool: list[RetrievedChunk]
     seen_top_k: int | None = None
 
-    async def retrieve(self, query, *, namespace, top_k=5):  # noqa: ANN001
+    async def retrieve(self, query, *, namespace, top_k=5, filters=None):  # noqa: ANN001
         self.seen_top_k = top_k
         return self.pool[:top_k]
 

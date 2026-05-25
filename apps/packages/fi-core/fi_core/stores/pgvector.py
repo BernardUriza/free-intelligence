@@ -318,13 +318,16 @@ class PgVectorChunkStore:
         namespace: str,
         query_embedding: list[float],
         top_k: int = 5,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         """ChunkStore.query — top-k cosine similarity within ``namespace``.
 
         Uses pgvector's ``<=>`` cosine distance operator. Returned
         ``similarity`` is ``1 - distance`` so 1.0 means identical, 0.0
         means orthogonal. Zero-norm query vectors return ``[]`` rather
-        than NaN — matches the HDF5 sibling's behavior.
+        than NaN — matches the HDF5 sibling's behavior. ``filters`` restricts
+        to chunks whose parent document's ``attributes`` contain the given pairs
+        (Postgres ``@>`` JSONB containment).
         """
         await self._ensure_schema()
         if top_k <= 0:
@@ -339,19 +342,38 @@ class PgVectorChunkStore:
             )
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                f"""
-                SELECT text, source_type, source_ref, created_at,
-                       1 - (embedding <=> $1) AS similarity
-                FROM {self._chunks_table}
-                WHERE namespace = $2
-                ORDER BY embedding <=> $1
-                LIMIT $3
-                """,
-                query_embedding,
-                namespace,
-                top_k,
-            )
+            if filters:
+                # Join to documents and filter by JSONB containment on attributes.
+                rows = await conn.fetch(
+                    f"""
+                    SELECT c.text, c.source_type, c.source_ref, c.created_at,
+                           1 - (c.embedding <=> $1) AS similarity
+                    FROM {self._chunks_table} c
+                    JOIN {self._docs_table} d
+                      ON d.namespace = c.namespace AND d.document_id = c.document_id
+                    WHERE c.namespace = $2 AND d.attributes @> $4::jsonb
+                    ORDER BY c.embedding <=> $1
+                    LIMIT $3
+                    """,
+                    query_embedding,
+                    namespace,
+                    top_k,
+                    json.dumps(filters),
+                )
+            else:
+                rows = await conn.fetch(
+                    f"""
+                    SELECT text, source_type, source_ref, created_at,
+                           1 - (embedding <=> $1) AS similarity
+                    FROM {self._chunks_table}
+                    WHERE namespace = $2
+                    ORDER BY embedding <=> $1
+                    LIMIT $3
+                    """,
+                    query_embedding,
+                    namespace,
+                    top_k,
+                )
         return [
             RetrievedChunk(
                 chunk=Chunk(

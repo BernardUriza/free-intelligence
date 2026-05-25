@@ -74,3 +74,35 @@ async def test_pgvector_ingest_then_semantic_retrieve():
         close = getattr(store, "close", None)
         if close is not None:
             await close()
+
+
+@pytest.mark.asyncio
+async def test_pgvector_query_filters_by_document_attributes():
+    """The `attributes @> $jsonb` path against a real DB: two docs, different
+    clinic_id, identical embeddings → only the filter separates them."""
+    from fi_core.rag import Chunk, ChunkWithEmbedding, DocumentMetadata
+    from fi_core.stores.pgvector import PgVectorChunkStore
+
+    store = PgVectorChunkStore(dsn=_DSN, embedding_dim=len(_VOCAB), table_prefix="fi_rag_test")
+    await store.init_schema()
+    ns = f"smoke-flt-{uuid.uuid4().hex[:8]}"
+    emb = [1.0, *([0.0] * (len(_VOCAB) - 1))]
+    try:
+        for doc_id, clinic in (("dA", "A"), ("dB", "B")):
+            await store.create_document(
+                namespace=ns, document_id=doc_id, content=doc_id,
+                metadata=DocumentMetadata(attributes={"clinic_id": clinic}),
+            )
+            await store.save_chunks(
+                namespace=ns, document_id=doc_id,
+                chunks=[ChunkWithEmbedding(Chunk(f"texto {clinic}", "document", doc_id), emb)],
+            )
+        only_a = await store.query(namespace=ns, query_embedding=emb, top_k=10, filters={"clinic_id": "A"})
+        assert [h.chunk.source_ref for h in only_a] == ["dA"]  # @> filtered to clinic A
+        both = await store.query(namespace=ns, query_embedding=emb, top_k=10)
+        assert {h.chunk.source_ref for h in both} == {"dA", "dB"}  # no filter → both
+        assert await store.query(namespace=ns, query_embedding=emb, top_k=10, filters={"clinic_id": "Z"}) == []
+    finally:
+        close = getattr(store, "close", None)
+        if close is not None:
+            await close()

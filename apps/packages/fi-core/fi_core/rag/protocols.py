@@ -26,7 +26,7 @@ composition time.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from fi_core.rag.types import (
     Chunk,
@@ -92,11 +92,18 @@ class ChunkStore(Protocol):
         namespace: str,
         query_embedding: list[float],
         top_k: int = 5,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         """Return the top-k chunks closest to `query_embedding` in `namespace`.
 
         Results sorted by similarity descending (most similar first).
         Returns empty list when the namespace has no chunks, NOT an error.
+
+        ``filters`` restricts results to chunks whose PARENT DOCUMENT's
+        ``DocumentMetadata.attributes`` contain every given key/value (flat
+        containment, like Postgres ``@>``) — e.g. ``{"clinic_id": "c1"}`` for a
+        multi-tenant medical store. ``None``/empty = no filter. The match is
+        applied BEFORE top-k so the floor isn't starved by post-filtering.
         """
         ...
 

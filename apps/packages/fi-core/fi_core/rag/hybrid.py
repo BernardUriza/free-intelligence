@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from fi_core.rag.retrieval import LexicalRetriever
 from fi_core.rag.store_retrieval import StoreBackedRetriever
@@ -61,13 +61,15 @@ class HybridRetriever:
         namespace: str,
         top_k: int = 5,
         candidate_k: int | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         """Over-fetch the dense pool, re-rank it lexically, fuse with RRF, return
-        the top-k. Empty/blank query or empty pool → empty list."""
+        the top-k. Empty/blank query or empty pool → empty list. ``filters`` is
+        forwarded to the dense store query (metadata containment)."""
         if not query or not query.strip():
             return []
         pool = await self.dense.retrieve(
-            query, namespace=namespace, top_k=candidate_k or self.candidate_k, min_similarity=0.0
+            query, namespace=namespace, top_k=candidate_k or self.candidate_k, min_similarity=0.0, filters=filters
         )
         if not pool:
             return []
