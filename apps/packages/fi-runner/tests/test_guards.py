@@ -287,3 +287,50 @@ async def test_no_retry_when_first_attempt_clean():
     result = await runner.run("x")
     assert len(be.calls) == 1  # clean → no retry even with attempts available
     assert result.guard_outcomes["antidrift"].clean is True
+
+
+# ---------------------------------------------------------------------------
+# Post-processors — run once after guards/retry settle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_runner_runs_post_processors():
+    from fi_runner import MutationStage
+
+    runner = Runner(
+        backend=_FakeBackend("  hola mundo  "),
+        persona="p",
+        post_processors=[MutationStage(name="strip", apply=lambda t, ctx: t.strip(), max_shrink_pct=None)],
+    )
+    result = await runner.run("x")
+    assert result.text == "hola mundo"
+
+
+@pytest.mark.asyncio
+async def test_post_processor_invariant_rejects_oversized_deletion():
+    from fi_runner import MutationStage
+
+    text = "this is a long substantive reply to the user"
+    runner = Runner(
+        backend=_FakeBackend(text),
+        persona="p",
+        post_processors=[MutationStage(name="nuke", apply=lambda t, ctx: t[:2], max_shrink_pct=0.40)],
+    )
+    result = await runner.run("x")
+    assert result.text == text  # mutation rejected by the invariant
+
+
+@pytest.mark.asyncio
+async def test_post_processors_run_after_guard_sanitize():
+    from fi_runner import MutationStage
+
+    runner = Runner(
+        backend=_FakeBackend("As an AI. Hola mundo."),
+        persona="p",
+        guards=[_antidrift()],  # sanitizes the "As an AI" sentence on final attempt
+        post_processors=[MutationStage(name="up", apply=lambda t, ctx: t.upper(), max_shrink_pct=None)],
+    )
+    result = await runner.run("x")
+    assert "AS AN AI" not in result.text  # guard sanitized first
+    assert "HOLA MUNDO" in result.text  # then post-processor uppercased

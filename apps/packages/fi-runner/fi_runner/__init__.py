@@ -27,7 +27,7 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
 
 from typing import Any
 
-from . import capabilities, guards
+from . import capabilities, guards, pipeline
 from .backend import (
     AgentBackend,
     MCPServerSpec,
@@ -44,9 +44,19 @@ from .guards import (
     antidrift_guard,
     triage_guard,
 )
+from .pipeline import (
+    EventSink,
+    MutationStage,
+    OnViolation,
+    PipelineViolationError,
+    preserve_min_length,
+    preserve_question_marks,
+    run_pipeline,
+    run_pipeline_sync,
+)
 from .runner import RetryPolicy, Runner
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "AgentBackend",
@@ -67,6 +77,15 @@ __all__ = [
     "AntiDriftGuard",
     "triage_guard",
     "antidrift_guard",
+    "pipeline",
+    "MutationStage",
+    "OnViolation",
+    "PipelineViolationError",
+    "EventSink",
+    "preserve_min_length",
+    "preserve_question_marks",
+    "run_pipeline",
+    "run_pipeline_sync",
     "packs",
     "GravityScore",
 ]

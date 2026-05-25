@@ -19,10 +19,12 @@ WHAT each guard does.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 from . import capabilities as _capabilities
 from .backend import AgentBackend, MCPServerSpec, ToolPolicy, TurnResult
 from .guards import Guard, GuardOutcome
+from .pipeline import EventSink, MutationStage, run_pipeline
 
 
 @dataclass(frozen=True)
@@ -58,14 +60,26 @@ class Runner:
     guards: list[Guard] = field(default_factory=list)
     # Retry behavior when a guard requests it (default: no retry).
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
+    # Cosmetic/normalizing text mutations run AFTER guards+retry settle, once, each
+    # with invariants (max_shrink_pct, must_preserve). See fi_runner.pipeline.
+    post_processors: list[MutationStage] = field(default_factory=list)
+    # Telemetry sink for the post-processor pipeline (default: stdlib logging).
+    on_event: EventSink | None = None
 
-    async def run(self, user_message: str, *, session_id: str | None = None) -> TurnResult:
-        """Run the turn pipeline: backend → guards → (retry on guard request).
+    async def run(
+        self,
+        user_message: str,
+        *,
+        session_id: str | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> TurnResult:
+        """Run the turn pipeline: backend → guards → retry → post-processors.
 
         Pass ``session_id`` (e.g. a Discord channel id) for conversation
         continuity on backends that support stateful sessions. Retries re-run the
         turn with accumulated reinforcement appended to the persona; the final
         attempt lets transformational guards sanitize instead of retrying.
+        ``context`` is forwarded to each post-processor stage (per-turn side data).
         """
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         attempts = max(1, self.retry_policy.max_attempts)
@@ -85,19 +99,26 @@ class Runner:
                 session_id=session_id,
             )
             if not self.guards:
-                return result
+                break
 
             text, outcomes, wants_retry, added = self._run_guards(
                 result.text, user_message, final=is_last
             )
             result = replace(result, text=text, guard_outcomes=outcomes)
             if is_last or not wants_retry:
-                return result
+                break
             # A guard asked to retry and attempts remain: reinforce + (maybe) escalate model.
             reinforcement = f"{reinforcement}\n\n{added}".strip()
             model = self.retry_policy.fallback_model or model
 
-        return result  # type: ignore[return-value]  # loop runs >=1 time
+        assert result is not None  # the loop runs at least once
+        # Post-processors run ONCE on the settled text, with per-stage invariants.
+        if self.post_processors:
+            mutated = await run_pipeline(
+                self.post_processors, result.text, context or {}, on_event=self.on_event
+            )
+            result = replace(result, text=mutated)
+        return result
 
     def _run_guards(
         self, text: str, user_message: str, *, final: bool
