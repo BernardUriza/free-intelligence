@@ -476,6 +476,10 @@ async def generate_world_scan_message(
     )
 
     try:
+        # Telemetry: make the degradation explicit. /v1/judge is text-only, so
+        # this "scan" is knowledge-grounded, NOT a live web search like the
+        # legacy path. Reviving real search needs a tool-capable runner endpoint.
+        log.info("world_scan_knowledge_only", search_topic=search_topic, has_web_search=False)
         response = await judge.utility_call(
             load_prompt("proactive_world_scan"),
             [{"role": "user", "content": user_prompt}],

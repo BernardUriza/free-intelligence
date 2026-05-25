@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 
+from insult.core.patterns import count_pattern_hits as _count_pattern_hits
 from insult.core.presets.patterns import (
     _ACTION_INTENT_PATTERNS,
     _ARC_PATTERNS,
@@ -27,11 +28,6 @@ from insult.core.vulnerability import (
     is_acute_crisis,
     matched_signal_groups,
 )
-
-
-def _count_pattern_hits(text: str, patterns: list[re.Pattern]) -> int:
-    """Count how many patterns match in the text."""
-    return sum(1 for p in patterns if p.search(text))
 
 
 def _analyze_window(messages: list[dict], patterns: list[re.Pattern]) -> int:

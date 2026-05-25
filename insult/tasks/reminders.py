@@ -69,9 +69,10 @@ def build_reminder_tasks(bot, container, memory) -> tuple[tasks.Loop, tasks.Loop
                             reminder_prompt,
                             [{"role": "user", "content": f"Recordatorio: {reminder['description']}"}],
                         )
-                        text = (response.text or "").strip() or fallback_text
-                        if text is fallback_text:
+                        text = (response.text or "").strip()
+                        if not text:
                             log.info("reminder_llm_empty_fallback", reminder_id=reminder["id"])
+                            text = fallback_text
                     except Exception:
                         log.exception("reminder_llm_failed", reminder_id=reminder["id"])
                         text = fallback_text

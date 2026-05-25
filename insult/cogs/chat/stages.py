@@ -46,7 +46,6 @@ from insult.cogs.chat.context import (
     load_server_pulse,
     store_assistant_message,
     store_user_message,
-    summarize_user_images_into_text,
     update_style_profile,
 )
 from insult.cogs.chat.pipeline import Stage, TurnCtx
@@ -159,15 +158,12 @@ async def _stage_process_attachments(ctx: TurnCtx) -> None:
 
 
 async def _stage_memory_store(ctx: TurnCtx) -> None:
-    image_blocks = [b for b in ctx.attachment_blocks if isinstance(b, dict) and b.get("type") == "image"]
-    # NOTE: /v1/judge is text-only, so image summarization no longer reaches a
-    # vision model — summarize_images degrades to a no-op (returns base text)
-    # when handed image blocks. The agent runner has native vision in the turn
-    # itself and the workspace renderer writes its image-describing reply to
-    # markdown, so the future-turn trace this fed is now covered there.
-    ctx.text_for_memory = await summarize_user_images_into_text(
-        image_blocks, ctx.judge_client, ctx.settings.summary_model, ctx.text
-    )
+    # Image summarization was removed: /v1/judge is text-only (can't see images),
+    # and the agent runner has native vision in the turn itself + the workspace
+    # renderer writes its image-describing reply to markdown — so the future-turn
+    # trace the old [Imagen: ...] annotation provided is already covered. The
+    # raw user text is what we persist.
+    ctx.text_for_memory = ctx.text
 
     await store_user_message(
         ctx.memory,

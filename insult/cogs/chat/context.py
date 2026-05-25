@@ -13,12 +13,9 @@ with reduced context.
 
 from __future__ import annotations
 
-import time
-
 import discord
 import structlog
 
-from insult.core.image_summary import summarize_images
 from insult.core.summaries import build_server_pulse, filter_by_permissions
 
 log = structlog.get_logger()
@@ -138,43 +135,6 @@ async def store_assistant_message(
         )
     except Exception:
         log.exception("chat_store_response_failed", channel_id=channel_id)
-
-
-async def summarize_user_images_into_text(
-    image_blocks: list,
-    llm,
-    summary_model: str,
-    base_text: str,
-) -> str:
-    """Run image summarization and return the augmented text-for-memory.
-
-    On success returns ``base_text + [Imagen: <summary>]`` (or just the
-    image suffix when ``base_text`` is empty). On failure returns
-    ``base_text`` unchanged so the turn keeps moving — image-summary is
-    best-effort context, not load-bearing.
-    """
-    if not image_blocks:
-        return base_text
-    started = time.monotonic()
-    try:
-        summary = await summarize_images(image_blocks, llm=llm, model=summary_model)
-        log.info(
-            "image_summary_ok",
-            duration_ms=int((time.monotonic() - started) * 1000),
-            image_count=len(image_blocks),
-            summary_len=len(summary or ""),
-            summary_preview=(summary or "")[:120],
-        )
-        if summary:
-            return f"{base_text}\n[Imagen: {summary}]" if base_text else f"[Imagen: {summary}]"
-        return base_text
-    except Exception:
-        log.exception(
-            "image_summary_wrapper_failed",
-            duration_ms=int((time.monotonic() - started) * 1000),
-            image_count=len(image_blocks),
-        )
-        return base_text
 
 
 async def update_style_profile(memory, user_id: str, text: str):

@@ -138,11 +138,14 @@ class Settings(BaseSettings):
     # user sees a continuation in voice B instead of a canned error.
     alice_failover_enabled: bool = True
 
-    # ``extra="ignore"`` so retired env vars don't crash startup. The legacy
-    # direct-Anthropic settings (ANTHROPIC_API_KEY, LLM_MAX_TOKENS, LLM_TIMEOUT,
-    # LLM_MAX_RETRIES) were removed when the legacy direct-Anthropic client died, but they still live in
-    # prod's Container App env + local .env files. Ignoring extras lets the bot
-    # boot against those leftovers instead of erroring on extra_forbidden.
+    # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
+    # Container App's environment always carries vars this model doesn't model
+    # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,
+    # LLM_TIMEOUT, LLM_MAX_RETRIES — that outlived the direct-Anthropic client in
+    # prod env + local .env). ``forbid`` would crash startup on any of those.
+    # Trade-off accepted: a typo'd known field is silently dropped rather than
+    # caught — acceptable since the fields that matter have explicit defaults and
+    # are exercised by the test suite.
     model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @classmethod

@@ -19,8 +19,6 @@ keeps working unchanged for every caller.
 
 from insult.core.presets.classifier import classify_preset
 from insult.core.presets.guidance import (
-    MODIFIER_GUIDANCE,
-    PRESET_GUIDANCE,
     build_preset_prompt,
     build_vulnerable_overlay_prompt,
     is_vulnerable_overlay_selection,
@@ -28,9 +26,9 @@ from insult.core.presets.guidance import (
 from insult.core.presets.patterns import has_channel_noun
 from insult.core.presets.types import PresetMode, PresetModifier, PresetSelection
 
+# Only the symbols callers actually import. PRESET_GUIDANCE / MODIFIER_GUIDANCE
+# stay internal to the `guidance` module — no one imports them from the barrel.
 __all__ = [
-    "MODIFIER_GUIDANCE",
-    "PRESET_GUIDANCE",
     "PresetMode",
     "PresetModifier",
     "PresetSelection",
