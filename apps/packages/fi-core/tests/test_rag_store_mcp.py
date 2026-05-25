@@ -121,3 +121,26 @@ async def test_concurrent_ingests_do_not_corrupt(configured):
     listed = await store_mcp.list_documents("c1")
     assert sorted(d["doc_id"] for d in listed["documents"]) == sorted(docs)  # all present, file intact
     assert (await store_mcp.search_documents("c1", "dolor", top_k=20))["hits"]  # still queryable
+
+
+# --- P2: per-tenant quotas ----------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_quota_max_docs_rejects_over_limit(tmp_path, monkeypatch):
+    monkeypatch.setenv("FI_RAG_BACKEND", "hdf5")
+    monkeypatch.setenv("FI_RAG_STORE_PATH", str(tmp_path / "q.h5"))
+    monkeypatch.setenv("FI_RAG_EMBEDDER", "hashing")
+    monkeypatch.setenv("FI_RAG_EMBED_DIM", "64")
+    monkeypatch.setenv("FI_RAG_MAX_DOCS", "1")  # one doc per corpus
+    store_mcp._reset()
+    try:
+        assert (await store_mcp.ingest_document("c1", "d1", _DOC, **_CHUNK))["chunks"] >= 1
+        over = await store_mcp.ingest_document("c1", "d2", _DOC, **_CHUNK)
+        assert over.get("quota_exceeded") is True and "error" in over  # clear over-quota signal
+        # re-ingesting d1 is a REPLACE (not a new doc) → allowed
+        assert (await store_mcp.ingest_document("c1", "d1", _DOC, **_CHUNK))["chunks"] >= 1
+        # a different corpus is unaffected (per-tenant)
+        assert (await store_mcp.ingest_document("c2", "d1", _DOC, **_CHUNK))["chunks"] >= 1
+    finally:
+        store_mcp._reset()

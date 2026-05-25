@@ -190,6 +190,26 @@ async def test_collect_captures_tool_trace_with_result_status():
 
 
 @pytest.mark.asyncio
+async def test_iter_events_streams_tool_call_text_then_result():
+    # _iter_events is the streaming counterpart of _collect: live events, then result.
+    client = _FakeClient(
+        [
+            AssistantMessage([ToolUseBlock("mcp__cognitive__assess", {"q": "x"}, "t1"), TextBlock("hola ")]),
+            AssistantMessage([TextBlock("mundo")]),
+            UserMessage([ToolResultBlock("t1", is_error=False)]),
+            ResultMessage(usage={"input_tokens": 1, "output_tokens": 2}, session_id="s"),
+        ]
+    )
+    events = [ev async for ev in ClaudeCodeBackend._iter_events(client)]
+    assert events[0]["type"] == "tool_call" and events[0]["tool"].name == "mcp__cognitive__assess"
+    assert "".join(ev["text"] for ev in events if ev["type"] == "text") == "hola mundo"  # live deltas
+    assert events[-1]["type"] == "result"
+    res = events[-1]["result"]
+    assert res.text == "hola mundo" and res.session_id == "s"
+    assert res.tool_calls[0].is_error is False  # result status folded in
+
+
+@pytest.mark.asyncio
 async def test_collect_unknown_tool_result_stays_none():
     # Contract: None = unknown. A result with no status, or no result at all,
     # must NOT be coerced to False (claiming success).

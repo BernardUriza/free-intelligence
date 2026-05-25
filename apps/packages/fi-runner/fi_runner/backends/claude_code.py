@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from dataclasses import replace
 from typing import Any
 
@@ -219,6 +220,104 @@ class ClaudeCodeBackend:
             await client.query(user_message)
             text, usage, sess, tools = await self._collect(client)
             return TurnResult(text=text, usage=usage, session_id=sess or session_id, tool_calls=tools)
+
+    @staticmethod
+    async def _iter_events(client: Any) -> AsyncIterator[dict[str, Any]]:
+        """Stream the SDK response as events AS THEY ARRIVE, then a final result.
+
+        Mirrors :meth:`_collect` but YIELDS live: ``{"type":"text","text":delta}``
+        per TextBlock, ``{"type":"tool_call","tool":ToolCall}`` per ToolUseBlock,
+        and a closing ``{"type":"result","result":TurnResult}`` with the full text,
+        tool-trace (with result status), usage and session id."""
+        parts: list[str] = []
+        usage: dict[str, Any] | None = None
+        session_id: str | None = None
+        tool_calls: list[ToolCall] = []
+        by_id: dict[str, int] = {}
+        async for message in client.receive_response():
+            kind = type(message).__name__
+            content = getattr(message, "content", None)
+            if kind == "AssistantMessage" and isinstance(content, list):
+                for block in content:
+                    btype = type(block).__name__
+                    if btype == "TextBlock":
+                        text = getattr(block, "text", "") or ""
+                        if text:
+                            parts.append(text)
+                            yield {"type": "text", "text": text}
+                    elif btype == "ToolUseBlock":
+                        tc = ToolCall.make(
+                            getattr(block, "name", "") or "",
+                            input=getattr(block, "input", None),
+                            id=getattr(block, "id", None),
+                        )
+                        if tc.id is not None:
+                            by_id[tc.id] = len(tool_calls)
+                        tool_calls.append(tc)
+                        yield {"type": "tool_call", "tool": tc}
+            elif kind == "UserMessage" and isinstance(content, list):
+                for block in content:
+                    if type(block).__name__ != "ToolResultBlock":
+                        continue
+                    idx = by_id.get(getattr(block, "tool_use_id", None))
+                    if idx is not None:
+                        raw_err = getattr(block, "is_error", None)
+                        tool_calls[idx] = replace(tool_calls[idx], is_error=None if raw_err is None else bool(raw_err))
+            elif kind == "ResultMessage":
+                raw = getattr(message, "usage", None)
+                if raw is not None:
+                    usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
+                    cost = getattr(message, "total_cost_usd", None)
+                    if cost is not None:
+                        usage["total_cost_usd"] = cost
+                session_id = getattr(message, "session_id", None) or session_id
+        yield {
+            "type": "result",
+            "result": TurnResult(text="".join(parts), usage=usage, session_id=session_id, tool_calls=tool_calls),
+        }
+
+    async def run_turn_stream(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        mcp_servers: list[MCPServerSpec],
+        tool_policy: ToolPolicy,
+        model: str | None = None,
+        session_id: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Live-streaming counterpart of :meth:`run_turn`: yields tool_call / text
+        events as the turn unfolds, then a final result event. run_turn is
+        unchanged."""
+        try:
+            from claude_agent_sdk import ClaudeSDKClient
+        except ImportError as exc:  # pragma: no cover - exercised only without extra
+            raise ImportError(
+                "ClaudeCodeBackend requires the Claude Agent SDK. Install via: pip install 'fi-runner[claude]'"
+            ) from exc
+        options = self.build_options(
+            system_prompt=system_prompt, mcp_servers=mcp_servers, tool_policy=tool_policy, model=model
+        )
+        if session_id is None:
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(user_message)
+                async for event in self._iter_events(client):
+                    yield event
+            return
+        # Stateful: reuse a pooled client (same pool + lock as run_turn).
+        async with self._pool_lock:
+            client = self._pool.get(session_id)
+            if client is None:
+                client = ClaudeSDKClient(options=options)
+                await client.__aenter__()
+                self._pool[session_id] = client
+            lock = self._session_locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            await client.query(user_message)
+            async for event in self._iter_events(client):
+                if event.get("type") == "result" and event["result"].session_id is None:
+                    event = {"type": "result", "result": replace(event["result"], session_id=session_id)}
+                yield event
 
     async def aclose(self) -> None:
         """Close all pooled clients (call on shutdown / idle reap)."""

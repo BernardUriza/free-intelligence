@@ -26,6 +26,8 @@ import asyncio
 import os
 import shutil
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
+from typing import Any
 
 from ..backend import BackendError, MCPServerSpec, ToolPolicy, TurnResult
 
@@ -62,6 +64,26 @@ class SubprocessCLIBackend(ABC):
         )
         stdout = await self._run_cli(argv)
         return self._parse_output(stdout)
+
+    async def run_turn_stream(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        mcp_servers: list[MCPServerSpec],
+        tool_policy: ToolPolicy,
+        model: str | None = None,
+        session_id: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Result-only streaming: a CLI is invoked non-incrementally, so this yields
+        a single final ``{"type":"result","result":TurnResult}`` — enough for a
+        consumer to use one streaming API across backends. Incremental token
+        streaming (reading stdout as it's produced) is a per-backend v2 override."""
+        result = await self.run_turn(
+            system_prompt=system_prompt, user_message=user_message, mcp_servers=mcp_servers,
+            tool_policy=tool_policy, model=model, session_id=session_id,
+        )
+        yield {"type": "result", "result": result}
 
     async def _run_cli(self, argv: list[str]) -> str:
         """Spawn the CLI, await it, fail on a non-zero exit, return decoded stdout.

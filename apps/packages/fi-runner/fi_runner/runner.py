@@ -22,7 +22,7 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -304,6 +304,97 @@ class Runner:
             # (error node, no completion) is as useful as a clean one. Guarded so a
             # raising renderer/callback can never mask the turn's own outcome.
             self._deliver_turn_flow(request_id, turn_events)
+
+    async def run_stream(
+        self,
+        user_message: str,
+        *,
+        session_id: str | None = None,
+        context: dict[str, Any] | None = None,
+        request_id: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Live-streaming turn: yields backend events AS THEY HAPPEN —
+        ``{"type":"tool_call","tool":ToolCall}`` per tool call,
+        ``{"type":"text","text":delta}`` per text delta — then a final
+        ``{"type":"result","result":TurnResult}`` once guards + post-processors
+        settle. Additive: :meth:`run` is unchanged.
+
+        Single attempt (the text is already streamed, so no retry); guards run with
+        ``final=True`` so a transformational guard sanitizes the final result text
+        (the live text may differ from the sanitized final — reconcile on result).
+        Backends without ``run_turn_stream`` fall back to one result event. Telemetry
+        (turn_completed, tool_called, guard_critical) still fires via on_event; the
+        flow diagram + narration are run()-only (not produced for streamed turns)."""
+        if not user_message or not user_message.strip():
+            raise ValueError("user_message must be non-empty")
+        request_id = request_id or uuid.uuid4().hex[:12]
+        t0 = time.perf_counter()
+        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
+        model = self.model
+        if self.model_router is not None:
+            chosen = await self.model_router.choose(user_message=user_message, default=self.model, context=context or {})
+            if chosen:
+                model = chosen
+
+        # Container-safe continuity (same as run): fold the transcript into the
+        # backend message; guards still see the ORIGINAL user_message.
+        backend_message = user_message
+        backend_session_id = session_id
+        if self.conversation_store is not None and session_id is not None:
+            history = await self.conversation_store.load(session_id)
+            backend_message = render_transcript(history, user_message)
+            backend_session_id = None
+            if history:
+                self._emit("history_replayed", {"request_id": request_id, "session_id": session_id, "messages": len(history)})
+
+        result: TurnResult | None = None
+        try:
+            if hasattr(self.backend, "run_turn_stream"):
+                async for event in self.backend.run_turn_stream(
+                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
+                ):
+                    if event.get("type") == "result":
+                        result = event["result"]
+                    else:
+                        yield event  # tool_call / text — live, before the turn ends
+            else:
+                # Backend can't stream → one-shot, surfaced as a single result event.
+                result = await self.backend.run_turn(
+                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
+                )
+        except BackendError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
+            self._emit("backend_error", {"backend": type(self.backend).__name__, "model": model, "attempt": 1, "error": str(exc)})
+            raise BackendError(f"{type(self.backend).__name__} failed (stream): {exc}") from exc
+
+        assert result is not None  # the backend always emits a result
+        if self.guards:
+            text, outcomes, _retry, _added = self._run_guards(
+                result.text, user_message, final=True, request_id=request_id, emit=self._emit
+            )
+            result = replace(result, text=text, guard_outcomes=outcomes)
+        for i, call in enumerate(result.tool_calls):
+            self._emit("tool_called", {
+                "request_id": request_id, "index": i, "name": call.name,
+                "server": call.server, "is_error": call.is_error,
+            })
+        result = await self._apply_post_processors(result, context, request_id=request_id, emit=self._emit)
+        self._emit("turn_completed", {
+            "request_id": request_id, "model": model,
+            "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+            "tokens": result.usage, "mcp_count": len(mcp_servers),
+            "tool_count": len(result.tool_calls), "attempts": 1, "streamed": True,
+            "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
+        })
+        if self.conversation_store is not None and session_id is not None:
+            await self.conversation_store.append(
+                session_id,
+                [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
+            )
+        yield {"type": "result", "result": result}
 
     def _deliver_turn_flow(self, request_id: str, events: list[Event]) -> None:
         """Publish this turn's MECHANICAL flow diagram: always as a ``turn_flow``

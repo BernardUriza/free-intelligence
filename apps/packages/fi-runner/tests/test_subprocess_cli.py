@@ -78,3 +78,14 @@ async def test_session_id_is_threaded_to_build_argv():
 def test_abstract_base_cannot_be_instantiated():
     with pytest.raises(TypeError):
         SubprocessCLIBackend()  # type: ignore[abstract]
+
+
+@pytest.mark.asyncio
+async def test_run_turn_stream_yields_one_result():
+    # The base provides result-only streaming (a CLI is invoked non-incrementally).
+    cli = _PrintfCLI()
+    events = [ev async for ev in cli.run_turn_stream(
+        system_prompt="s", user_message="hola-stream", mcp_servers=[], tool_policy=ToolPolicy(),
+    )]
+    assert [e["type"] for e in events] == ["result"]
+    assert events[0]["result"].text == "hola-stream"
