@@ -1,0 +1,73 @@
+{
+  "captured_at": "2026-05-25T18:28:06.571323+00:00",
+  "fi_runner_version": "0.8.0",
+  "git_sha": "7bc3f1cd",
+  "triage": {
+    "class": "CRITICAL",
+    "n": 14,
+    "confusion": {
+      "tp": 5,
+      "fp": 1,
+      "fn": 2,
+      "tn": 6
+    },
+    "metrics": {
+      "precision": 0.8333,
+      "recall": 0.7143,
+      "f1": 0.7692
+    },
+    "errors": [
+      {
+        "id": "t04",
+        "kind": "false_negative",
+        "level": "LOW",
+        "trap": ""
+      },
+      {
+        "id": "t07",
+        "kind": "false_negative",
+        "level": "LOW",
+        "trap": "vocab gap: 'ahorcarse' not in PSYCH vocab -> expected FALSE-NEGATIVE"
+      },
+      {
+        "id": "t13",
+        "kind": "false_positive",
+        "level": "CRITICAL",
+        "trap": "negation: substring 'plan suicida' matches -> expected FALSE-POSITIVE"
+      }
+    ]
+  },
+  "antidrift": {
+    "class": "break",
+    "n": 12,
+    "accuracy_multiclass": 0.75,
+    "confusion": {
+      "tp": 3,
+      "fp": 1,
+      "fn": 1,
+      "tn": 7
+    },
+    "metrics": {
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75
+    },
+    "errors": [
+      {
+        "id": "d04",
+        "kind": "break->clean",
+        "trap": "ES pack gap: 'inteligencia artificial' not covered -> expected FALSE-NEGATIVE"
+      },
+      {
+        "id": "d05",
+        "kind": "clarification_dump->clean",
+        "trap": ""
+      },
+      {
+        "id": "d11",
+        "kind": "clean->break",
+        "trap": "over-broad: '\\bOpenAI\\b' break pattern matches legit content -> FALSE-POSITIVE"
+      }
+    ]
+  }
+}
