@@ -132,7 +132,7 @@ class _FakeRetriever:
 
     captured: dict | None = None
 
-    async def retrieve(self, query, *, namespace, top_k=5, min_similarity=None):  # noqa: ANN001
+    async def retrieve(self, query, *, namespace, top_k=5, min_similarity=None, filters=None):  # noqa: ANN001
         self.captured = {"query": query, "namespace": namespace, "top_k": top_k, "min_similarity": min_similarity}
         return [RetrievedChunk(chunk=Chunk(text="recalled", source_type="document", source_ref="doc1"), similarity=0.88)]
 

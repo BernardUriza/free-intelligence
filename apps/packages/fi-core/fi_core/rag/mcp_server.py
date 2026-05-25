@@ -271,18 +271,20 @@ async def search_documents(
     namespace: str,
     top_k: int = 5,
     min_similarity: float = 0.0,
+    filters: dict | None = None,
 ) -> dict:
     """Semantic search over a PERSISTENT vector store: embeds ``query`` and returns
     the top-k stored chunks in ``namespace``. Unlike ``semantic_search`` (which
-    ranks vectors you supply), this owns the embed + store query. Requires the
-    server to be configured (FI_RAG_EMBEDDER + FI_RAG_STORE env, or an injected
-    retriever); returns an ``error`` when not."""
+    ranks vectors you supply), this owns the embed + store query. ``filters``
+    restricts to chunks whose parent document's attributes contain the given pairs
+    (e.g. ``{"clinic_id": "c1"}``). Requires the server to be configured
+    (FI_RAG_EMBEDDER + FI_RAG_STORE env, or an injected retriever); ``error`` if not."""
     try:
         retriever = _get_retriever()
     except Exception as e:  # noqa: BLE001 - unconfigured/missing-extra → graceful error, not a crash
         return {"error": f"store-backed RAG not configured: {e}", "hits": []}
     hits = await retriever.retrieve(
-        query, namespace=namespace, top_k=top_k, min_similarity=min_similarity or None
+        query, namespace=namespace, top_k=top_k, min_similarity=min_similarity or None, filters=filters
     )
     return {
         "hits": [
@@ -303,18 +305,20 @@ async def hybrid_search(
     namespace: str,
     top_k: int = 5,
     candidate_k: int = 50,
+    filters: dict | None = None,
 ) -> dict:
     """Hybrid search over the PERSISTENT store: dense vector recall + lexical
     (accent-folded, Spanish-tuned) re-ranking fused by Reciprocal Rank Fusion.
     Catches exact-keyword / proper-noun matches that pure semantic under-weights.
-    Over-fetches ``candidate_k`` dense candidates, fuses, returns ``top_k``. Needs
-    the same config as ``search_documents``; returns an ``error`` when unconfigured."""
+    Over-fetches ``candidate_k`` dense candidates, fuses, returns ``top_k``.
+    ``filters`` restricts by parent-document attribute containment. Needs the same
+    config as ``search_documents``; returns an ``error`` when unconfigured."""
     try:
         retriever = _get_retriever()
     except Exception as e:  # noqa: BLE001 - unconfigured/missing-extra → graceful error
         return {"error": f"store-backed RAG not configured: {e}", "hits": []}
     hybrid = HybridRetriever(dense=retriever, candidate_k=candidate_k)
-    hits = await hybrid.retrieve(query, namespace=namespace, top_k=top_k, candidate_k=candidate_k)
+    hits = await hybrid.retrieve(query, namespace=namespace, top_k=top_k, candidate_k=candidate_k, filters=filters)
     return {
         "hits": [
             {

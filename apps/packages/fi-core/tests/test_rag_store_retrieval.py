@@ -33,7 +33,7 @@ class _FakeStore:
     async def add(self, *, namespace: str, chunk: Chunk, embedding: list[float]) -> None:
         self.added.append((namespace, chunk, embedding))
 
-    async def query(self, *, namespace: str, query_embedding: list[float], top_k: int) -> list[RetrievedChunk]:
+    async def query(self, *, namespace: str, query_embedding: list[float], top_k: int, filters=None) -> list[RetrievedChunk]:  # noqa: ANN001
         self.last_query = {"namespace": namespace, "embedding": query_embedding, "top_k": top_k}
         return self.hits[:top_k]
 
@@ -134,7 +134,7 @@ class _CosineStore:
     async def add(self, *, namespace: str, chunk: Chunk, embedding: list[float]) -> None:
         self.items.setdefault(namespace, []).append((chunk, embedding))
 
-    async def query(self, *, namespace: str, query_embedding: list[float], top_k: int) -> list[RetrievedChunk]:
+    async def query(self, *, namespace: str, query_embedding: list[float], top_k: int, filters=None) -> list[RetrievedChunk]:  # noqa: ANN001
         from fi_core.rag import cosine_similarity
 
         scored = [
