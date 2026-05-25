@@ -15,8 +15,9 @@ real store can do I/O.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,78 @@ class InMemoryConversationStore:
             del convo[: len(convo) - self._max_messages]  # keep the most recent window
 
 
+class RedisConversationStore:
+    """Durable, container-safe :class:`ConversationStore` over Redis.
+
+    Each session is a Redis LIST of JSON messages under ``<key_prefix><session_id>``;
+    ``append`` RPUSHes, an optional ``max_messages`` LTRIMs the replay window, and
+    an optional ``ttl_seconds`` expires idle conversations. Because the transcript
+    lives in Redis (not the process), ANY Runner/container continues the convo —
+    the real fix for an ephemeral deploy.
+
+    Pass a ``redis.asyncio.Redis`` ``client`` (preferred — the caller owns the
+    connection pool) OR a ``url`` to build one. Requires the ``redis`` extra::
+
+        pip install 'fi-runner[redis]'
+    """
+
+    def __init__(
+        self,
+        client: Any = None,
+        *,
+        url: str | None = None,
+        key_prefix: str = "fi:conv:",
+        ttl_seconds: int | None = None,
+        max_messages: int | None = None,
+    ) -> None:
+        if client is None:
+            if url is None:
+                raise ValueError("RedisConversationStore needs a `client` or a `url`")
+            try:
+                from redis.asyncio import Redis
+            except ImportError as exc:  # pragma: no cover - exercised only without the extra
+                raise ImportError(
+                    "RedisConversationStore requires the redis extra: pip install 'fi-runner[redis]'"
+                ) from exc
+            client = Redis.from_url(url)
+            self._owns_client = True
+        else:
+            self._owns_client = False
+        self._client = client
+        self._key_prefix = key_prefix
+        self._ttl = ttl_seconds
+        self._max_messages = max_messages
+
+    def _key(self, session_id: str) -> str:
+        return f"{self._key_prefix}{session_id}"
+
+    async def load(self, session_id: str) -> list[Message]:
+        start = -self._max_messages if self._max_messages is not None else 0
+        raw = await self._client.lrange(self._key(session_id), start, -1)
+        out: list[Message] = []
+        for item in raw:
+            if isinstance(item, bytes):
+                item = item.decode()
+            data = json.loads(item)
+            out.append(Message(role=data["role"], content=data["content"]))
+        return out
+
+    async def append(self, session_id: str, messages: list[Message]) -> None:
+        key = self._key(session_id)
+        payloads = [json.dumps({"role": m.role, "content": m.content}) for m in messages]
+        await self._client.rpush(key, *payloads)
+        if self._max_messages is not None:
+            await self._client.ltrim(key, -self._max_messages, -1)  # keep the recent window
+        if self._ttl is not None:
+            await self._client.expire(key, self._ttl)  # refresh idle expiry on each turn
+
+    async def aclose(self) -> None:
+        """Close the Redis connection IF this store created it (url path). A
+        caller-provided client is the caller's to close."""
+        if self._owns_client:
+            await self._client.aclose()
+
+
 def render_transcript(
     history: list[Message],
     current_message: str,
@@ -89,5 +162,6 @@ __all__ = [
     "Message",
     "ConversationStore",
     "InMemoryConversationStore",
+    "RedisConversationStore",
     "render_transcript",
 ]

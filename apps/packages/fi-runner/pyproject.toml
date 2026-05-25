@@ -35,6 +35,11 @@ claude = [
 # CLI separately (`npm i -g @openai/codex`) and sign in (or set a provider key
 # for API-motor mode). The extra exists only to document this install path.
 codex = []
+# Redis-backed conversation continuity (RedisConversationStore) — container-safe
+# history replay. Just the async client; the deploy runs the Redis instance.
+redis = [
+    "redis>=5,<7",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
