@@ -1,11 +1,12 @@
 """Detection of identity-leak and assistant-drift patterns + reinforcement constants.
 
-This module is a **composition layer** over ``fi_core.persona``:
+This module is a **composition layer** over ``fi_runner`` (the single boundary to
+fi-core's persona primitives — insult imports no fi_core directly):
 
 - Generic patterns (English + Spanish AI disclosure, assistant tone,
   therapy-speak, summarizing, stage directions, markdown drift, moralizing,
-  over-validation, clarification dump) live in ``fi_core.persona.packs`` and
-  are imported here.
+  over-validation, clarification dump) live in fi-core's persona packs, re-exported
+  as ``fi_runner.packs`` and imported here.
 - Insult-persona-specific patterns and reinforcement strings live in
   ``_insult_patterns.py`` (private) and are merged on top.
 
@@ -33,17 +34,8 @@ builder both consume them.
 
 from __future__ import annotations
 
-from fi_core.persona import (
-    AntiPatternMonitor as _AntiPatternMonitor,
-)
-from fi_core.persona import (
-    BreakDetector as _BreakDetector,
-)
-from fi_core.persona import (
-    ClarificationDumpDetector as _ClarificationDumpDetector,
-)
-from fi_core.persona import packs as _packs
-from fi_core.persona import sanitize as _sanitize
+from fi_runner import antidrift_guard as _antidrift_guard
+from fi_runner import packs as _packs
 
 from insult.core.character._insult_patterns import (
     INSULT_ANTI_PATTERN_PATTERNS,
@@ -100,20 +92,21 @@ CACHE_BOUNDARY = "\n<<<CACHE_BOUNDARY>>>\n"
 # Detection functions — wrap fi_core.persona detectors with composed patterns
 # ============================================================
 
-_break_detector = _BreakDetector(
-    patterns=CHARACTER_BREAK_PATTERNS,
+# All three detectors + sanitize come from fi_runner's anti-drift guard, built
+# with Insult's composed pattern packs. insult imports fi_runner, not fi_core —
+# fi_runner is the single boundary to fi-core's persona primitives.
+_guard = _antidrift_guard(
+    break_patterns=CHARACTER_BREAK_PATTERNS,
+    soft_patterns=ANTI_PATTERN_CHECKS,
+    clarification_patterns=CLARIFICATION_DUMP_PATTERNS,
     reinforcement=CHARACTER_REINFORCEMENT,
-)
-_anti_monitor = _AntiPatternMonitor(patterns=ANTI_PATTERN_CHECKS)
-_clarification_detector = _ClarificationDumpDetector(
-    patterns=CLARIFICATION_DUMP_PATTERNS,
     context_reinforcement=CONTEXT_REINFORCEMENT,
 )
 
 
 def detect_break(text: str) -> list[str]:
     """Returns list of matched break patterns found in text."""
-    return _break_detector.detect(text)
+    return _guard.break_detector.detect(text)
 
 
 def detect_anti_patterns(text: str) -> list[str]:
@@ -122,7 +115,7 @@ def detect_anti_patterns(text: str) -> list[str]:
     These are softer violations than character breaks — they indicate
     drift toward generic assistant behavior rather than identity leaks.
     """
-    return _anti_monitor.detect(text)
+    return _guard.anti_monitor.detect(text)
 
 
 def detect_clarification_dump(text: str) -> list[str]:
@@ -131,14 +124,14 @@ def detect_clarification_dump(text: str) -> list[str]:
     An empty list means the response did NOT deflect the task back to the user.
     A non-empty list means at least one deflection pattern matched.
     """
-    return _clarification_detector.detect(text)
+    return _guard.clarification_detector.detect(text)
 
 
 def sanitize(text: str) -> str:
     """Remove sentences that contain character breaks as a last resort.
 
-    Wraps ``fi_core.persona.sanitize`` with this module's composed
-    ``CHARACTER_BREAK_PATTERNS`` so callsites can keep the parameter-less
-    signature they already use.
+    Delegates to the fi_runner anti-drift guard (which wraps fi-core's
+    ``sanitize`` with this module's composed ``CHARACTER_BREAK_PATTERNS``) so
+    callsites keep the parameter-less signature they already use.
     """
-    return _sanitize(text, patterns=CHARACTER_BREAK_PATTERNS)
+    return _guard.sanitize(text)

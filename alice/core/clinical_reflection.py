@@ -9,14 +9,14 @@ continuity. Frontend emocional / backend clínico — both are ALICE.
 
 It is NOT a therapist replacement: it organizes the emotional/cognitive chaos into
 something a clinician can act on. Routes through `fi_runner` over the SAME Azure
-deployment as presence (no second account, same GPT-4.1), with `fi_core.cognitive`
-(SOAP scoring / consultation state-machine) and `fi_core.rag` (in-context recall)
-mounted as MCP capabilities so the LLM can structure and ground its reflection.
+deployment as presence (no second account, same GPT-4.1). fi_runner is the single
+boundary to fi-core — alice imports NO fi-core. Grounding comes two ways at once:
 
-The PSYCHIATRY urgency triage stays IN-PROCESS by design — it is a deterministic
-safety net that MUST run every turn, never an optional MCP tool the LLM could
-choose to skip. So fi-core grounds this layer two ways at once: an unskippable
-in-process triage, plus opt-in cognitive/rag tools the model reaches for.
+- `capabilities=["cognitive", "rag"]` — OPT-IN MCP tools (SOAP scoring, in-context
+  recall) the LLM may reach for while reasoning.
+- `guards=[triage_guard("psychiatry")]` — a GUARANTEED in-process safety net
+  fi_runner runs every turn, so a suicide-plan mention escalates to CRITICAL
+  regardless of the LLM's phrasing (never an optional tool it could skip).
 """
 
 from __future__ import annotations
@@ -27,8 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-from fi_core.cognitive import PSYCHIATRY, GravityScore, PatientContext
-from fi_runner import CodexBackend, PermissionMode, Runner, ToolPolicy
+from fi_runner import CodexBackend, GravityScore, PermissionMode, Runner, ToolPolicy, triage_guard
 
 from alice.config import settings
 
@@ -41,8 +40,8 @@ _CLINICAL_PERSONA_PATH = Path(__file__).resolve().parent.parent / "persona_clini
 class ClinicalReflection:
     """A structured clinical observation FOR THE CLINICIAN (never the patient).
 
-    ``triage`` is a deterministic, explainable risk score from fi_core.cognitive's
-    PSYCHIATRY domain — a non-LLM safety net that runs alongside the narrative so a
+    ``triage`` is a deterministic, explainable risk score from fi_runner's PSYCHIATRY
+    triage guard — a non-LLM safety net that runs alongside the narrative so a
     suicide-plan mention escalates to CRITICAL regardless of the LLM's phrasing.
     """
 
@@ -84,9 +83,6 @@ class ClinicalReflector:
             azure_endpoint=self.endpoint,
             azure_api_key_env=self._key_env,
         )
-        # fi_core.cognitive PSYCHIATRY domain — deterministic mental-health triage
-        # to run alongside the LLM narrative (the clinical layer's fi-core grounding).
-        self._urgency = PSYCHIATRY.urgency_classifier()
 
     @staticmethod
     def _flatten(messages: list[dict[str, str]]) -> str:
@@ -115,9 +111,12 @@ class ClinicalReflector:
             persona=self._persona,
             # cognitive (score_soap, advance_consultation) + rag (lexical/semantic
             # recall over in-context text) as OPTIONAL MCP tools the LLM may call
-            # while reasoning. The PSYCHIATRY triage below stays in-process — a
-            # safety net, not an optional tool.
+            # while reasoning.
             capabilities=["cognitive", "rag"],
+            # PSYCHIATRY triage as a GUARANTEED in-process guard fi_runner runs every
+            # turn — a safety net, not an optional tool. alice imports no fi-core;
+            # fi_runner owns the boundary (guard + capabilities).
+            guards=[triage_guard("psychiatry")],
             tool_policy=ToolPolicy(permission_mode=PermissionMode.DEFAULT),
             model=chosen_model,
         )
@@ -129,13 +128,10 @@ class ClinicalReflector:
         input_tokens = int(usage.get("input_tokens", 0))
         output_tokens = int(usage.get("output_tokens", 0))
 
-        # Deterministic triage (fi_core.cognitive PSYCHIATRY): match the LLM's
-        # clinical indicators + the patient's own words against the domain
-        # vocabularies. A non-LLM safety net so a "plan suicida" escalates to
-        # CRITICAL even if the narrative is gently phrased.
-        triage = self._urgency.classify(
-            PatientContext(symptoms=[result.text, *(m.get("content", "") for m in messages)])
-        )
+        # The triage guard ran in-process inside runner.run (guaranteed). Its
+        # GravityScore is the deterministic safety net: a "plan suicida" escalates
+        # to CRITICAL regardless of the LLM's phrasing.
+        triage: GravityScore = result.guard_outcomes["triage"].metadata["score"]
 
         log.info(
             "alice_clinical_reflection",
