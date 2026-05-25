@@ -119,13 +119,27 @@ class AliceMemory:
         (or None) means Insult is silent / down and ALICE should cover; a small
         value means Insult is actively answering and ALICE should stand down.
 
-        The signal is exactly the inverse of the `is_alice_own` filter in
+        The signal is the inverse of the `is_alice_own` filter in
         get_recent_messages: ALICE's own rows carry user_name='ALICE'; every
-        other assistant row in this shared table is Insult's. A failed Insult
-        turn writes NO row, so 'recent Insult assistant row' == 'Insult healthy'.
+        other assistant row in this shared table is Insult's.
+
+        HARD-DOWN exclusion (v4.8.x): a billing/subscription outage doesn't
+        leave Insult silent — the runner's raw failure leaks through as the
+        turn text ("Your organization has disabled Claude subscription
+        access…", "credit balance too low") and gets STORED as an Insult
+        assistant row. Counting that as "Insult alive" defeats the whole
+        failover: ALICE would stand back during the exact outage she exists to
+        cover (observed 2026-05-23). So we exclude rows matching hard-failure
+        signatures — those mean Insult is DOWN, not answering. In-character
+        soft errors still count as alive (Insult's process IS responding then).
         """
         last_ts = await self.pool.fetchval(
-            "SELECT MAX(timestamp) FROM messages WHERE channel_id = $1 AND role = 'assistant' AND user_name <> 'ALICE'",
+            "SELECT MAX(timestamp) FROM messages "
+            "WHERE channel_id = $1 AND role = 'assistant' AND user_name <> 'ALICE' "
+            "AND content NOT ILIKE '%subscription access%' "
+            "AND content NOT ILIKE '%credit balance%' "
+            "AND content NOT ILIKE '%insufficient_quota%' "
+            "AND content NOT ILIKE '%anthropic api key%'",
             channel_id,
         )
         if last_ts is None:
