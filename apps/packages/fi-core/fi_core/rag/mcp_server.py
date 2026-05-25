@@ -24,6 +24,8 @@ Requires the `mcp` extra::
 
 from __future__ import annotations
 
+import os
+
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError as e:
@@ -49,6 +51,7 @@ from fi_core.rag.retrieval import (
 from fi_core.rag.retrieval import (
     cosine_similarity as _cosine_similarity,
 )
+from fi_core.rag.store_retrieval import StoreBackedRetriever
 
 mcp = FastMCP(
     "fi-core-rag",
@@ -65,6 +68,76 @@ mcp = FastMCP(
 
 _LEXICAL = LexicalRetriever()
 _SEMANTIC = SemanticRetriever()
+
+# --- store-backed (persistent) retriever -----------------------------------
+#
+# `search_documents` needs a CONFIGURED embedder + vector store (unlike the
+# zero-DB tools above). In the stdio-subprocess model the only way to configure
+# a spawned server is the environment, so it is built lazily from env vars and
+# cached. A deploy that builds its own retriever in-process can inject it with
+# `set_retriever(...)` (also the test seam). Unconfigured → the tool returns a
+# clear error dict instead of failing the whole server.
+
+_retriever: StoreBackedRetriever | None = None
+
+
+def set_retriever(retriever: StoreBackedRetriever | None) -> None:
+    """Inject the store-backed retriever (deploy in-process wiring / tests)."""
+    global _retriever
+    _retriever = retriever
+
+
+def _build_retriever_from_env() -> StoreBackedRetriever:
+    """Build a StoreBackedRetriever from env. Raises RuntimeError (with what's
+    missing) when unconfigured, or ImportError if the chosen extra isn't installed.
+
+    Embedder (FI_RAG_EMBEDDER):
+      - ``azure``: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT,
+        FI_RAG_AZURE_DEPLOYMENT, FI_RAG_EMBED_DIM (default 1536)
+      - ``sentence_transformers``: FI_RAG_ST_MODEL
+    Store (FI_RAG_STORE):
+      - ``pgvector``: FI_RAG_PGVECTOR_DSN, FI_RAG_EMBED_DIM (default 1536)
+      - ``hdf5``: FI_RAG_HDF5_PATH
+    """
+    embedder_kind = os.getenv("FI_RAG_EMBEDDER", "").lower()
+    dim = int(os.getenv("FI_RAG_EMBED_DIM", "1536"))
+    if embedder_kind == "azure":
+        from fi_core.embeddings.azure_openai import AzureOpenAIEmbedder
+
+        embedder = AzureOpenAIEmbedder(
+            api_key=os.environ["AZURE_OPENAI_API_KEY"],
+            endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            deployment=os.environ["FI_RAG_AZURE_DEPLOYMENT"],
+            dim=dim,
+        )
+    elif embedder_kind in ("sentence_transformers", "st"):
+        from fi_core.embeddings.sentence_transformers import SentenceTransformersEmbedder
+
+        embedder = SentenceTransformersEmbedder(model_name=os.environ["FI_RAG_ST_MODEL"])
+    else:
+        raise RuntimeError("set FI_RAG_EMBEDDER to 'azure' or 'sentence_transformers'")
+
+    store_kind = os.getenv("FI_RAG_STORE", "").lower()
+    if store_kind == "pgvector":
+        from fi_core.stores.pgvector import PgVectorChunkStore
+
+        store = PgVectorChunkStore(dsn=os.environ["FI_RAG_PGVECTOR_DSN"], embedding_dim=dim)
+    elif store_kind == "hdf5":
+        from fi_core.stores.hdf5 import HDF5ChunkStore
+
+        store = HDF5ChunkStore(file_path=os.environ["FI_RAG_HDF5_PATH"])
+    else:
+        raise RuntimeError("set FI_RAG_STORE to 'pgvector' or 'hdf5'")
+
+    return StoreBackedRetriever(embedder=embedder, store=store)
+
+
+def _get_retriever() -> StoreBackedRetriever:
+    """Return the injected retriever, else build + cache one from env."""
+    global _retriever
+    if _retriever is None:
+        _retriever = _build_retriever_from_env()
+    return _retriever
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +234,43 @@ async def cosine_similarity(a: list[float], b: list[float]) -> dict:
     if len(a) != len(b):
         return {"error": "vectors must have the same length", "len_a": len(a), "len_b": len(b)}
     return {"similarity": _cosine_similarity(a, b)}
+
+
+# ---------------------------------------------------------------------------
+# Persistent document RAG (embed query -> vector store -> chunks)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def search_documents(
+    query: str,
+    namespace: str,
+    top_k: int = 5,
+    min_similarity: float = 0.0,
+) -> dict:
+    """Semantic search over a PERSISTENT vector store: embeds ``query`` and returns
+    the top-k stored chunks in ``namespace``. Unlike ``semantic_search`` (which
+    ranks vectors you supply), this owns the embed + store query. Requires the
+    server to be configured (FI_RAG_EMBEDDER + FI_RAG_STORE env, or an injected
+    retriever); returns an ``error`` when not."""
+    try:
+        retriever = _get_retriever()
+    except Exception as e:  # noqa: BLE001 - unconfigured/missing-extra → graceful error, not a crash
+        return {"error": f"store-backed RAG not configured: {e}", "hits": []}
+    hits = await retriever.retrieve(
+        query, namespace=namespace, top_k=top_k, min_similarity=min_similarity or None
+    )
+    return {
+        "hits": [
+            {
+                "text": h.chunk.text,
+                "similarity": h.similarity,
+                "source_type": h.chunk.source_type,
+                "source_ref": h.chunk.source_ref,
+            }
+            for h in hits
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------
