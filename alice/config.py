@@ -102,7 +102,25 @@ class AliceSettings(BaseSettings):
     # passive design exists to prevent.
     open_gate_enabled: bool = Field(
         default=False,
-        description="Failover override: ALICE responds to every non-bot guild message (like a DM) — use only when Insult is down.",
+        description="DEPRECATED manual override (alice 0.1.19). Kept for backward compat: when open_gate_mode='off' AND this is True, treated as mode='on'. Prefer ALICE_OPEN_GATE_MODE.",
+    )
+    # Self-governing failover (alice 0.1.21, 2026-05-24): instead of a human
+    # flipping open_gate on/off around Insult's billing, ALICE decides per turn
+    # by watching the shared Postgres `messages` table. Three modes:
+    #   - "off":  never open-gate (normal sibling coexistence).
+    #   - "on":   always open-gate (the old manual override).
+    #   - "auto": open-gate ONLY when Insult has produced no assistant message
+    #             in this channel for `open_gate_silence_threshold_s` seconds —
+    #             i.e. he's down. The moment Insult answers again (billing
+    #             recharged, outage over), his row appears and ALICE backs off
+    #             on the very next turn. No restart, no cron, no babysitting.
+    open_gate_mode: str = Field(
+        default="off",
+        description="Open-gate failover mode: off | on | auto. 'auto' = ALICE covers only while Insult is silent past the threshold, and steps back when he recovers.",
+    )
+    open_gate_silence_threshold_s: float = Field(
+        default=300.0,
+        description="In 'auto' mode, how many seconds Insult must be silent (no assistant message in-channel) before ALICE treats him as down and opens the gate.",
     )
     alice_aliases: list[str] = Field(
         default=["amix", "ali", "alicia"],

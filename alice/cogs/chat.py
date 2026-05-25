@@ -192,17 +192,17 @@ class AliceChatCog(commands.Cog):
                 invited_by = f"alias:{mentioned_as_alias}"
             elif intrusive_match:
                 invited_by = f"intrusive:{intrusive_match.lower()[:40]}"
-            elif alice_settings.open_gate_enabled:
-                # Failover override (alice 0.1.19): Insult is down for some
-                # reason and ALICE has to cover the channel solo. Treat any
-                # non-bot guild message like a DM — respond unconditionally.
-                # Logged distinctly so KQL can count how long the override is
-                # on; turn it back off the moment Insult is healthy again.
-                invited_by = "open_gate_failover"
+            elif (open_gate_reason := await self._should_open_gate(str(message.channel.id))) is not None:
+                # Self-governing failover (alice 0.1.21): ALICE covers the
+                # channel only while Insult is down. `_should_open_gate` returns
+                # the reason string when she should step in, or None to stand
+                # back. Logged distinctly so KQL can measure failover coverage.
+                invited_by = open_gate_reason
                 log.warning(
                     "alice_open_gate_responding",
                     channel_id=str(message.channel.id),
                     user_id=str(message.author.id),
+                    reason=open_gate_reason,
                 )
             else:
                 log.debug(
@@ -212,7 +212,7 @@ class AliceChatCog(commands.Cog):
                     mentioned_as_role=mentioned_as_role,
                     mentioned_as_alias=mentioned_as_alias,
                     intrusive_mode_enabled=alice_settings.intrusive_mode_enabled,
-                    open_gate_enabled=alice_settings.open_gate_enabled,
+                    open_gate_mode=alice_settings.open_gate_mode,
                 )
                 return
         log.info(
@@ -255,6 +255,46 @@ class AliceChatCog(commands.Cog):
                 user_msg=message.content,
                 invited_by=invited_by,
             )
+
+    async def _should_open_gate(self, channel_id: str) -> str | None:
+        """Decide whether ALICE should cover this channel via the failover gate.
+
+        Returns a reason string when the gate is OPEN (ALICE responds), or None
+        to stand back. Modes (``alice_settings.open_gate_mode``):
+
+        - ``"on"``   — always open (manual override).
+        - ``"off"``  — never (normal sibling coexistence). The deprecated
+          ``open_gate_enabled=True`` flag is honored here as ``"on"`` for
+          backward compat with the env already set in prod.
+        - ``"auto"`` — open ONLY while Insult is down, judged by his silence in
+          the shared ``messages`` table: no Insult assistant row for longer than
+          ``open_gate_silence_threshold_s``. He recovers → his next row appears
+          → ALICE stands back on the following turn. Self-governing, no restart.
+
+        Fails OPEN if the health query errors: a silent channel is a worse
+        failure than an occasional duplicate, and the query failing is rare.
+        """
+        mode = (alice_settings.open_gate_mode or "off").lower()
+        if mode == "off" and alice_settings.open_gate_enabled:
+            mode = "on"  # deprecated boolean → manual on
+
+        if mode == "on":
+            return "open_gate_on"
+        if mode != "auto":
+            return None
+
+        try:
+            silent_s = await self.memory.seconds_since_insult_reply(channel_id)
+        except Exception as e:  # fail OPEN — cover rather than go silent
+            log.warning("alice_open_gate_healthcheck_failed", error=str(e))
+            return "open_gate_auto_healthcheck_failed"
+
+        threshold = alice_settings.open_gate_silence_threshold_s
+        if silent_s is None:
+            return "open_gate_auto_insult_never_spoke"
+        if silent_s > threshold:
+            return f"open_gate_auto_insult_silent_{int(silent_s)}s"
+        return None  # Insult answered recently — stand back
 
     async def respond_to_invite(
         self,

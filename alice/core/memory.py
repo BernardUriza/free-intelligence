@@ -110,6 +110,28 @@ class AliceMemory:
                 out.append({"role": "user", "content": f"{label}: {r['content']}"})
         return out
 
+    async def seconds_since_insult_reply(self, channel_id: str) -> float | None:
+        """Seconds since the last assistant message in this channel authored by
+        someone OTHER than ALICE (i.e. Insult).
+
+        Returns None when no such message exists (Insult never spoke here, or
+        the channel is empty). Used by the open-gate 'auto' mode: a large value
+        (or None) means Insult is silent / down and ALICE should cover; a small
+        value means Insult is actively answering and ALICE should stand down.
+
+        The signal is exactly the inverse of the `is_alice_own` filter in
+        get_recent_messages: ALICE's own rows carry user_name='ALICE'; every
+        other assistant row in this shared table is Insult's. A failed Insult
+        turn writes NO row, so 'recent Insult assistant row' == 'Insult healthy'.
+        """
+        last_ts = await self.pool.fetchval(
+            "SELECT MAX(timestamp) FROM messages WHERE channel_id = $1 AND role = 'assistant' AND user_name <> 'ALICE'",
+            channel_id,
+        )
+        if last_ts is None:
+            return None
+        return max(0.0, time.time() - float(last_ts))
+
     async def store_user_message(
         self,
         *,
