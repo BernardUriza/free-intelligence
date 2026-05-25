@@ -6,17 +6,13 @@ worth remembering during the turn and emits the marker (source='agent');
 ``stages.py`` parses + persists it. This module is the AUTOMATIC backstop
 that catches facts the model did *not* mark explicitly (source='auto').
 
-History: from v3.9.25 (2026-05-14) this rode ``LLMClient.utility_call``,
-which became a no-op once ``LEGACY_LLM_ENABLED=false`` + the Anthropic
-key died — so it logged ``facts_extraction_failed`` every turn and the
-safety net was silently gone. As of v3.9.92 ``stages.py`` injects a
-``RunnerJudgeClient`` (OAuth Max via the runner's /v1/judge) when legacy
-is off, so the backstop is alive again. The marker path is primary; this
-catches what the model forgets to mark.
+``stages.py`` injects a ``RunnerJudgeClient`` (OAuth Max via the runner's
+/v1/judge); this backstop catches facts the model forgot to mark in-band.
+The marker path is primary; this is the automatic safety net.
 
 The injected client only needs a ``utility_call`` returning an object
-with ``.text`` + ``.stop_reason`` — both ``LLMClient`` and
-``RunnerJudgeClient`` satisfy that contract.
+with ``.text`` + ``.stop_reason`` — ``RunnerJudgeClient`` satisfies that
+contract.
 """
 
 import json
@@ -32,9 +28,9 @@ log = structlog.get_logger()
 
 
 class _UtilityClient(Protocol):
-    """The minimal surface extract_facts needs. Both LLMClient and
-    RunnerJudgeClient satisfy this — the function is agnostic to which
-    one stages.py injects (legacy direct-Anthropic vs OAuth Max runner)."""
+    """The minimal surface extract_facts needs. RunnerJudgeClient satisfies
+    this — the function is agnostic to the concrete client, it only requires
+    a ``utility_call`` returning an object with ``.text`` + ``.stop_reason``."""
 
     async def utility_call(
         self,
@@ -57,8 +53,8 @@ async def extract_facts(
 
     Returns a list of fact dicts with 'fact' and 'category' keys.
 
-    ``llm`` is any client exposing ``utility_call`` (the real LLMClient or
-    a RunnerJudgeClient) — the output is structured JSON parsed downstream,
+    ``llm`` is any client exposing ``utility_call`` (a RunnerJudgeClient in
+    prod, a mock in tests) — the output is structured JSON parsed downstream,
     so character_break detection + language_cure are the wrong tools here.
     Cache hits still apply when the system prompt is stable across users.
     """

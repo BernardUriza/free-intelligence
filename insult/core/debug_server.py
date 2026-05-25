@@ -44,7 +44,7 @@ class MoltbookDebugContext:
     itself is fail-closed; the debug endpoints follow the same posture)."""
 
     source_factory: Any  # Callable[[], MoltbookSource | None]
-    llm: Any
+    judge: Any  # RunnerJudgeClient | None
     settings: Any
 
 
@@ -544,7 +544,7 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
         signal,
         target_submolt,
         persona=ctx.settings.system_prompt,
-        llm=ctx.llm,
+        judge=ctx.judge,
         previous_notes=previous_notes,
         subject_codes=subject_codes,
     )
@@ -556,7 +556,7 @@ async def _handle_moltbook_preview_outbound(request: web.Request) -> web.Respons
         facts = await memory.get_facts(uid)
         all_facts.extend(f["fact"] for f in facts)
     stripped = regex_privacy_strip(draft.content, [{"fact": f} for f in all_facts])
-    redacted = await redact_with_llm(stripped, all_facts, client=ctx.llm.client, model=ctx.settings.summary_model)
+    redacted = await redact_with_llm(stripped, all_facts, judge=ctx.judge, model=ctx.settings.summary_model)
     if redacted is None:
         # Persist the blocked draft for audit even though it won't go out
         await persist_draft(draft, None, memory=memory, extra_notes="preview_redaction_blocked")
@@ -608,7 +608,7 @@ async def _handle_moltbook_engagement_preview(request: web.Request) -> web.Respo
         source=source,
         memory=memory,
         persona=ctx.settings.system_prompt,
-        llm=ctx.llm,
+        judge=ctx.judge,
         summary_model=ctx.settings.summary_model,
         facts_user_ids=user_ids,
         channel_id=channel_id,
@@ -719,7 +719,7 @@ async def _handle_moltbook_engagement_draft(request: web.Request) -> web.Respons
 
     # Force the candidate (skip keyword search + pick_target)
     candidate = EngagementCandidate(post=post, keyword="(forced)")
-    draft = await build_engagement_comment(candidate, persona=ctx.settings.system_prompt, llm=ctx.llm)
+    draft = await build_engagement_comment(candidate, persona=ctx.settings.system_prompt, judge=ctx.judge)
     if not draft:
         return web.json_response({"skipped_reason": "draft_empty"}, status=200)
     final_line = draft.strip().splitlines()[-1].strip().upper() if draft.strip() else ""
@@ -734,7 +734,7 @@ async def _handle_moltbook_engagement_draft(request: web.Request) -> web.Respons
         facts = await memory.get_facts(uid)
         all_facts.extend(f["fact"] for f in facts)
     stripped = regex_privacy_strip(draft, [{"fact": f} for f in all_facts])
-    redacted = await redact_with_llm(stripped, all_facts, client=ctx.llm.client, model=ctx.settings.summary_model)
+    redacted = await redact_with_llm(stripped, all_facts, judge=ctx.judge, model=ctx.settings.summary_model)
     if redacted is None:
         return web.json_response(
             {"skipped_reason": "redaction_blocked", "draft": draft},

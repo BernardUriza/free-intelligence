@@ -9,7 +9,6 @@ import structlog
 from discord.ext import commands
 
 from insult.config import Settings, settings
-from insult.core.llm import LLMClient
 from insult.core.llm.agent_client import AgentRunnerClient
 from insult.core.llm.runner_judge_client import RunnerJudgeClient
 from insult.core.memory import MemoryStore
@@ -20,17 +19,25 @@ log = structlog.get_logger()
 
 @dataclass
 class Container:
-    """Holds all app dependencies. Passed to cogs via constructor injection."""
+    """Holds all app dependencies. Passed to cogs via constructor injection.
+
+    Two LLM surfaces, both backed by the agent runner (OAuth Max), no
+    direct-Anthropic client anywhere:
+      - ``agent_client`` (/v1/turn): the conversational turn engine. Every
+        chat turn rides this.
+      - ``judge_client`` (/v1/judge): one-shot, text-only utility calls
+        (fact extraction, summaries, moltbook drafting/redaction, proactive
+        check-ins, reminders). The caller supplies the system prompt, so
+        persona-flavored aux work routes here too.
+    Both are None only when the runner URL/token aren't configured; aux
+    callers degrade gracefully when ``judge_client`` is None.
+    """
 
     settings: Settings
     memory: MemoryStore
-    llm: LLMClient
     bot: commands.Bot
     siesta: SiestaPoller
     agent_client: AgentRunnerClient | None = None
-    # One-shot utility LLM via the runner's /v1/judge (OAuth Max). Used by
-    # aux paths (fact extraction) that previously rode LLMClient.utility_call,
-    # which is a no-op when legacy_llm_enabled is False.
     judge_client: RunnerJudgeClient | None = None
 
 
@@ -41,46 +48,33 @@ def create_app() -> Container:
 
     bot = commands.Bot(command_prefix=settings.command_prefix, intents=intents)
     memory = MemoryStore(settings.postgres_url.get_secret_value())
-    llm = LLMClient(
-        api_key=settings.anthropic_api_key.get_secret_value(),
-        model=settings.llm_model,
-        max_tokens=settings.llm_max_tokens,
-        timeout=settings.llm_timeout,
-        max_retries=settings.llm_max_retries,
-        cure_model=settings.summary_model,  # Haiku for language cure (step 7c)
-        enabled=settings.legacy_llm_enabled,
-    )
-    if not settings.legacy_llm_enabled:
-        log.info(
-            "llm_client_legacy_disabled",
-            note="LLMClient.chat/utility_call returns empty; aux callers fall back silently",
-        )
     siesta = SiestaPoller()
 
-    # Optional Agent SDK runner — only built when both URL and token are
-    # configured. Caller (stages.py) further gates by user_id flag.
+    # The agent runner is the ONLY LLM surface. Both clients hit the same
+    # Container App (OAuth Max); they only differ in endpoint:
+    #   - agent_client → /v1/turn  (conversational turns)
+    #   - judge_client → /v1/judge (one-shot utility: facts, summaries,
+    #                               moltbook, proactive, reminders)
+    # Built only when both URL and token are configured.
     agent_client: AgentRunnerClient | None = None
+    judge_client: RunnerJudgeClient | None = None
     runner_url = settings.insult_agent_runner_url
     runner_token = settings.insult_agent_runner_token.get_secret_value()
-    judge_client: RunnerJudgeClient | None = None
     if runner_url and runner_token:
         agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)
-        # Same runner, the /v1/judge one-shot surface. Keeps aux LLM work
-        # (fact extraction) alive on OAuth Max while the legacy direct-
-        # Anthropic client is disabled.
         judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
         log.info("agent_runner_client_configured", url=runner_url)
     else:
-        log.info(
+        log.warning(
             "agent_runner_client_disabled",
             has_url=bool(runner_url),
             has_token=bool(runner_token),
+            note="no LLM backend wired — turns and aux LLM work will fail until runner is configured",
         )
 
     return Container(
         settings=settings,
         memory=memory,
-        llm=llm,
         bot=bot,
         siesta=siesta,
         agent_client=agent_client,

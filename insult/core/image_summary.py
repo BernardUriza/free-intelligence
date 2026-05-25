@@ -46,7 +46,7 @@ async def summarize_images(
     """Return a short textual description of the image(s), or None on failure.
 
     Input: list of Claude API image content blocks (type="image"). Packs
-    them into a single Haiku call via LLMClient.utility_call and returns
+    them into a single Haiku call via the injected client's utility_call and returns
     the combined description. Goes through the wrapper for retry policy
     and prompt caching — the system _PROMPT is identical across every
     call, so cache hit pays off after one image-bearing message.

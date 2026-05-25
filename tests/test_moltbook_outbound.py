@@ -473,13 +473,13 @@ def _signal() -> SalienceSignal:
 
 
 async def test_draft_happy_path_parses_json():
-    llm = MagicMock()
-    llm.chat = AsyncMock(
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(
         return_value=MagicMock(
             text='{"title": "Predicción no es consciencia", "content": "El reduccionismo cognitivo..."}'
         )
     )
-    draft = await build_post_draft(_signal(), "m/philosophy", persona="persona", llm=llm)
+    draft = await build_post_draft(_signal(), "m/philosophy", persona="persona", judge=judge)
     assert isinstance(draft, OutboundDraft)
     assert draft.title == "Predicción no es consciencia"
     assert "reduccionismo" in draft.content
@@ -488,55 +488,55 @@ async def test_draft_happy_path_parses_json():
 
 async def test_draft_strips_markdown_fences():
     """LLMs often wrap JSON in ```json ... ```; we tolerate that."""
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='```json\n{"title": "T", "content": "C"}\n```'))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='```json\n{"title": "T", "content": "C"}\n```'))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is not None
     assert draft.title == "T"
 
 
 async def test_draft_returns_none_for_empty_response():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text=""))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text=""))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is None
 
 
 async def test_draft_returns_none_for_invalid_json():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text="not json at all"))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text="not json at all"))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is None
 
 
 async def test_draft_returns_none_when_title_missing():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"content": "body only"}'))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"content": "body only"}'))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is None
 
 
 async def test_draft_truncates_long_titles():
-    llm = MagicMock()
+    judge = MagicMock()
     long_title = "A" * 500
-    llm.chat = AsyncMock(return_value=MagicMock(text=f'{{"title": "{long_title}", "content": "x"}}'))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge.utility_call = AsyncMock(return_value=MagicMock(text=f'{{"title": "{long_title}", "content": "x"}}'))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is not None
     assert len(draft.title) <= 120
 
 
 async def test_draft_includes_persona_in_system_prompt():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"T","content":"C"}'))
-    await build_post_draft(_signal(), "m/x", persona="THIS IS THE PERSONA", llm=llm)
-    system_arg = llm.chat.call_args.args[0]
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"T","content":"C"}'))
+    await build_post_draft(_signal(), "m/x", persona="THIS IS THE PERSONA", judge=judge)
+    system_arg = judge.utility_call.call_args.args[0]
     assert "THIS IS THE PERSONA" in system_arg
 
 
 async def test_draft_returns_none_on_exception():
-    llm = MagicMock()
-    llm.chat = AsyncMock(side_effect=RuntimeError("anthropic dead"))
-    draft = await build_post_draft(_signal(), "m/x", persona="p", llm=llm)
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(side_effect=RuntimeError("anthropic dead"))
+    draft = await build_post_draft(_signal(), "m/x", persona="p", judge=judge)
     assert draft is None
 
 
@@ -580,10 +580,10 @@ def test_assign_subject_codes_empty():
 async def test_draft_first_post_includes_archive_opening_hint():
     """When previous_notes is empty, the user prompt tells the LLM it's
     Sesión 1 and points at the archive-opening template."""
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 1.","content":"abrir archivo"}'))
-    await build_post_draft(_signal(), "m/x", persona="p", llm=llm, previous_notes=None)
-    user_msg = llm.chat.call_args.args[1][0]["content"]
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 1.","content":"abrir archivo"}'))
+    await build_post_draft(_signal(), "m/x", persona="p", judge=judge, previous_notes=None)
+    user_msg = judge.utility_call.call_args.args[1][0]["content"]
     assert "N = 1" in user_msg
     assert "First post" in user_msg or "Session 1" in user_msg
 
@@ -591,15 +591,15 @@ async def test_draft_first_post_includes_archive_opening_hint():
 async def test_draft_continuing_post_includes_previous_notes():
     """When previous_notes has entries, the user prompt cites them so the
     LLM can reference past posts (option B continuity)."""
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 4.","content":"continuo"}'))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"Sesión 4.","content":"continuo"}'))
     previous = [
         {"topic": "Sesión 1. Subject A predictive coding", "findings": "first note content..."},
         {"topic": "Sesión 2. Subject B fixation", "findings": "second note content..."},
         {"topic": "Sesión 3. Subject A again", "findings": "third note content..."},
     ]
-    await build_post_draft(_signal(), "m/x", persona="p", llm=llm, previous_notes=previous)
-    user_msg = llm.chat.call_args.args[1][0]["content"]
+    await build_post_draft(_signal(), "m/x", persona="p", judge=judge, previous_notes=previous)
+    user_msg = judge.utility_call.call_args.args[1][0]["content"]
     assert "N = 4" in user_msg
     assert "Sesión 1. Subject A predictive coding" in user_msg
     assert "Sesión 2. Subject B fixation" in user_msg
@@ -609,8 +609,8 @@ async def test_draft_continuing_post_includes_previous_notes():
 async def test_draft_subject_hint_uses_letter_not_user_id():
     """The user prompt receives the LETTER mapping (Subject A) but never
     the raw user_id. Privacy in the prompt itself."""
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
     sig = SalienceSignal(
         kind="stance",
         seed_text="seed",
@@ -619,8 +619,8 @@ async def test_draft_subject_hint_uses_letter_not_user_id():
         source_user_id="1431300030823927999",  # Alex
     )
     codes = {"1431300030823927999": "A", "907264175246569543": "B"}
-    await build_post_draft(sig, "m/x", persona="p", llm=llm, subject_codes=codes)
-    user_msg = llm.chat.call_args.args[1][0]["content"]
+    await build_post_draft(sig, "m/x", persona="p", judge=judge, subject_codes=codes)
+    user_msg = judge.utility_call.call_args.args[1][0]["content"]
     assert "Subject A" in user_msg
     assert "1431300030823927999" not in user_msg  # the user_id MUST NOT leak
 
@@ -628,11 +628,11 @@ async def test_draft_subject_hint_uses_letter_not_user_id():
 async def test_draft_omits_subject_hint_when_no_source_user_id():
     """If the salience didn't track which user it came from, no hint
     fires — the LLM picks Subject A/B itself."""
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"t","content":"c"}'))
     sig = SalienceSignal(kind="stance", seed_text="seed", topic="topic", confidence=0.8)
-    await build_post_draft(sig, "m/x", persona="p", llm=llm, subject_codes={"u1": "A"})
-    user_msg = llm.chat.call_args.args[1][0]["content"]
+    await build_post_draft(sig, "m/x", persona="p", judge=judge, subject_codes={"u1": "A"})
+    user_msg = judge.utility_call.call_args.args[1][0]["content"]
     assert "Subject del cual viene" not in user_msg
 
 

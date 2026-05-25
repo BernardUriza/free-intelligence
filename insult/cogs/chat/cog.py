@@ -41,7 +41,6 @@ log = structlog.get_logger()
 class ChatCog(commands.Cog):
     def __init__(self, container: Container):
         self.memory = container.memory
-        self.llm = container.llm
         self.agent_client = container.agent_client
         self.judge_client = container.judge_client
         self.settings = container.settings
@@ -110,7 +109,6 @@ class ChatCog(commands.Cog):
                 text,
                 turn_start=turn_start,
                 memory=self.memory,
-                llm=self.llm,
                 settings=self.settings,
                 bot=self.bot,
                 expression_history=self._expression_history,

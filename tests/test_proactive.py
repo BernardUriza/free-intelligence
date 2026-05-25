@@ -281,8 +281,8 @@ class TestProactivePromptShape:
             resp.model_used = "claude-sonnet-4-6"
             return resp
 
-        llm = MagicMock()
-        llm.chat = AsyncMock(side_effect=_fake_chat)
+        judge = MagicMock()
+        judge.utility_call = AsyncMock(side_effect=_fake_chat)
 
         # Literal recent_messages from the bug turn.
         recent = [
@@ -297,7 +297,7 @@ class TestProactivePromptShape:
         user_facts = {"bernard2389": [{"fact": "lives in CDMX"}]}
 
         out = await generate_proactive_message(
-            llm=llm,
+            judge=judge,
             model="claude-sonnet-4-6",
             time_str="2026-05-07 22:28 CDMX",
             user_facts=user_facts,
@@ -343,11 +343,11 @@ class TestProactivePromptShape:
             resp.model_used = "claude-sonnet-4-6"
             return resp
 
-        llm = MagicMock()
-        llm.chat = AsyncMock(side_effect=_fake_chat)
+        judge = MagicMock()
+        judge.utility_call = AsyncMock(side_effect=_fake_chat)
 
         out = await generate_proactive_message(
-            llm=llm,
+            judge=judge,
             model="claude-sonnet-4-6",
             time_str="now",
             user_facts={},

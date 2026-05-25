@@ -126,7 +126,7 @@ async def execute_tool_calls(
     tool_calls: list,
     *,
     memory,
-    llm,
+    judge,
     settings,
     spawn_task: Callable[..., None],
 ) -> None:
@@ -148,7 +148,7 @@ async def execute_tool_calls(
                             tool_call.input.get("name", ""),
                             message.author,
                             memory=memory,
-                            llm=llm,
+                            judge=judge,
                             settings=settings,
                         ),
                         name=f"inaugurate:{channel.name}",
@@ -207,14 +207,16 @@ async def inaugurate_channel(
     creator: discord.Member,
     *,
     memory,
-    llm,
+    judge,
     settings,
 ) -> None:
     """Generate a philosophical opening message for a freshly created channel.
 
     Uses the creator's loaded user facts so the message feels personal.
-    If the LLM call fails for any reason we just log — a missing opener
-    is a far better failure mode than crashing the channel creation.
+    Routes through the runner's one-shot /v1/judge (the full inaugural
+    prompt — persona included — is the system prompt). If the call fails
+    for any reason we just log — a missing opener is a far better failure
+    mode than crashing the channel creation.
     """
     from insult.cogs.chat.context import load_facts
     from shared.time_context import _get_current_time_context
@@ -245,7 +247,7 @@ async def inaugurate_channel(
     )
 
     try:
-        llm_response = await llm.chat(
+        llm_response = await judge.utility_call(
             inaugural_prompt,
             [{"role": "user", "content": f"Inaugura el canal #{channel_name}"}],
         )

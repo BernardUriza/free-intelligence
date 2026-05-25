@@ -104,7 +104,7 @@ async def _call_llm(
     model: str,
     user_prompt: str,
 ) -> tuple[str, str | None]:
-    """Single Haiku call via LLMClient.utility_call. Returns (text, error_or_none).
+    """Single Haiku call via the injected client's utility_call. Returns (text, error_or_none).
 
     The diary system prompt is identical across runs, so prompt cache
     pays off cycle to cycle. utility_call (not chat) is the right

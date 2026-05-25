@@ -68,11 +68,12 @@ def _build(container: Container):
         the weird physics phrasings ('accelerates by', 'velocity loss of',
         etc.) Moltbook keeps inventing."""
         log.info("moltbook_verify_llm_solver_entered", challenge_len=len(challenge_text))
+        if container.judge_client is None:
+            log.info("moltbook_verify_llm_solver_skipped", reason="no_judge_client")
+            return None
         try:
-            resp = await container.llm.client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=512,
-                system=(
+            resp = await container.judge_client.utility_call(
+                (
                     "You decode an obfuscated math word problem and return "
                     "the numeric answer. The text uses doubled letters, "
                     "case-mashing, and junk symbols as anti-bot noise — "
@@ -84,9 +85,11 @@ def _build(container: Container):
                     "DO NOT show your work. DO NOT explain. JUST the line "
                     "starting with 'ANSWER:'."
                 ),
-                messages=[{"role": "user", "content": challenge_text}],
+                [{"role": "user", "content": challenge_text}],
+                model="claude-haiku-4-5-20251001",
+                max_tokens=512,
             )
-            raw = resp.content[0].text.strip() if resp.content else ""
+            raw = (resp.text or "").strip()
             log.info("moltbook_verify_llm_solver_raw", raw=raw[:400])
             import re as _re
 
@@ -236,23 +239,26 @@ def _build(container: Container):
             conversation_state=get_conversation_state(last_user_msg_ts).value,
         )
 
+        if container.judge_client is None:
+            log.info("proactive_skipped", reason="no_judge_client")
+            return
+
         if is_world_scan:
             scan_result = await generate_world_scan_message(
-                container.llm, container.settings.llm_model, time_str, user_facts, recent_msgs
+                container.judge_client, container.settings.llm_model, time_str, user_facts, recent_msgs
             )
             msg = scan_result.commentary if scan_result else None
         else:
             scan_result = None
             msg = await generate_proactive_message(
-                container.llm, container.settings.llm_model, time_str, user_facts, recent_msgs
+                container.judge_client, container.settings.llm_model, time_str, user_facts, recent_msgs
             )
 
         if msg:
-            # LLMClient.chat already ran character_break + anti_pattern +
-            # language_cure + strip_metadata in the generate_* helpers.
-            # No need to re-detect here — if a break survived, .chat()
-            # would have either retried, fallen back, or sanitized the
-            # output. Trust the wrapper.
+            # Proactive output now rides the runner's one-shot /v1/judge,
+            # which applies none of the legacy post-generation guards
+            # (character_break, language_cure, strip_metadata). For a
+            # background check-in we accept the raw text as-is.
 
             try:
                 parts = split_response(msg)
@@ -307,6 +313,9 @@ def _build(container: Container):
     async def _summarize_channels_task():
         from insult.core.summaries import summarize_channel
 
+        if container.judge_client is None:
+            return
+
         try:
             now_ts = __import__("time").time()
             # Summarize channels with 10+ new messages since last summary
@@ -339,7 +348,7 @@ def _build(container: Container):
                         continue
 
                     summary = await summarize_channel(
-                        container.llm,
+                        container.judge_client,
                         container.settings.summary_model,
                         ch_name,
                         messages,
@@ -407,12 +416,15 @@ def _build(container: Container):
             # Build context: every distinct user_id seen in recent_msgs
             user_ids = list({m["user_id"] for m in recent_msgs if m.get("role") == "user" and m.get("user_id")})
 
+            if container.judge_client is None:
+                log.info("moltbook_inbound_skipped", reason="no_judge_client")
+                return
             result = await build_inbound_digest(
                 source,
                 container.settings.moltbook_submolts,
                 user_ids,
                 memory=memory,
-                llm=container.llm,
+                judge=container.judge_client,
                 settings=container.settings,
                 recent_messages=recent_msgs,
             )
@@ -461,9 +473,12 @@ def _build(container: Container):
         if channel is None:
             log.warning("moltbook_narrator_channel_not_found", channel_id=target_id)
             return
+        if container.judge_client is None:
+            log.info("moltbook_narrator_skipped", reason="no_judge_client")
+            return
         try:
             system = f"{container.settings.system_prompt[:1500]}\n\n{load_prompt('moltbook_discord_narrator')}"
-            resp = await container.llm.chat(system, [{"role": "user", "content": summary_seed}])
+            resp = await container.judge_client.utility_call(system, [{"role": "user", "content": summary_seed}])
             text = (resp.text or "").strip()
             if not text:
                 log.info("moltbook_narrator_empty")
@@ -480,6 +495,8 @@ def _build(container: Container):
             return
         source = _get_moltbook_source()
         if source is None:
+            return
+        if container.judge_client is None:
             return
         try:
             target_channel = None
@@ -503,7 +520,7 @@ def _build(container: Container):
                 source=source,
                 memory=memory,
                 persona=container.settings.system_prompt,
-                llm=container.llm,
+                judge=container.judge_client,
                 summary_model=container.settings.summary_model,
                 facts_user_ids=user_ids,
                 channel_id=str(target_channel.id),
@@ -539,7 +556,7 @@ def _build(container: Container):
     # this exact loop — poll /home → reply via the agent's own LLM → mark
     # notifications read — as the canonical heartbeat. Hand-writing replies
     # via raw curl is explicitly named as an anti-pattern there, so this loop
-    # routes through LLMClient.chat + redact_with_llm + the rate-limited
+    # routes through judge.utility_call + redact_with_llm + the rate-limited
     # MoltbookSource.create_comment.
     @tasks.loop(minutes=20)
     async def _moltbook_heartbeat_task():
@@ -547,6 +564,8 @@ def _build(container: Container):
             return
         source = _get_moltbook_source()
         if source is None:
+            return
+        if container.judge_client is None:
             return
         try:
             target_channel = None
@@ -570,7 +589,7 @@ def _build(container: Container):
                 source=source,
                 memory=memory,
                 persona=container.settings.system_prompt,
-                llm=container.llm,
+                judge=container.judge_client,
                 summary_model=container.settings.summary_model,
                 facts_user_ids=user_ids,
                 channel_id=str(target_channel.id),
@@ -603,6 +622,9 @@ def _build(container: Container):
         source = _get_moltbook_source()
         if source is None:
             return  # api_key empty
+        if container.judge_client is None:
+            log.info("moltbook_outbound_skipped", reason="no_judge_client")
+            return
         if not container.settings.moltbook_submolts:
             log.info("moltbook_outbound_skipped", reason="no_submolts_configured")
             return
@@ -662,7 +684,7 @@ def _build(container: Container):
                 signal,
                 target_submolt,
                 persona=container.settings.system_prompt,
-                llm=container.llm,
+                judge=container.judge_client,
                 previous_notes=previous_notes,
                 subject_codes=subject_codes,
             )
@@ -683,7 +705,7 @@ def _build(container: Container):
             redacted = await redact_with_llm(
                 stripped,
                 all_facts,
-                client=container.llm.client,
+                judge=container.judge_client,
                 model=container.settings.summary_model,
             )
             if redacted is None:
@@ -706,7 +728,7 @@ def _build(container: Container):
 
             draft.title = await ensure_title_english(
                 draft.title,
-                client=container.llm.client,
+                judge=container.judge_client,
                 model=container.settings.summary_model,
             )
 
@@ -770,22 +792,24 @@ def _build(container: Container):
                     "1-2 sentences max."
                 )
 
-                try:
-                    response = await container.llm.chat(
-                        reminder_prompt,
-                        [{"role": "user", "content": f"Recordatorio: {reminder['description']}"}],
-                    )
-                    text = response.text.strip()
-                    # Empty response (e.g. LEGACY_LLM_ENABLED=false post-F3) is
-                    # NOT an exception \u2014 collapse to the same hardcoded fallback
-                    # so the user gets actual reminder content instead of just
-                    # a bare mention with no body.
-                    if not text:
-                        log.info("reminder_llm_empty_fallback", reminder_id=reminder["id"])
-                        text = f"\u23f0 Recordatorio: {reminder['description']}"
-                except Exception:
-                    log.exception("reminder_llm_failed", reminder_id=reminder["id"])
-                    text = f"\u23f0 Recordatorio: {reminder['description']}"
+                # Plain hardcoded fallback whenever the runner isn't wired or
+                # the judge call fails/returns empty \u2014 the user must get actual
+                # reminder content, never a bare mention with no body.
+                fallback_text = f"\u23f0 Recordatorio: {reminder['description']}"
+                if container.judge_client is None:
+                    text = fallback_text
+                else:
+                    try:
+                        response = await container.judge_client.utility_call(
+                            reminder_prompt,
+                            [{"role": "user", "content": f"Recordatorio: {reminder['description']}"}],
+                        )
+                        text = (response.text or "").strip() or fallback_text
+                        if text is fallback_text:
+                            log.info("reminder_llm_empty_fallback", reminder_id=reminder["id"])
+                    except Exception:
+                        log.exception("reminder_llm_failed", reminder_id=reminder["id"])
+                        text = fallback_text
 
                 msg = f"{mentions} {text}".strip() if mentions else text
                 sent_msg = None
@@ -1052,7 +1076,7 @@ def _build(container: Container):
                         port=container.settings.debug_port,
                         moltbook_ctx=MoltbookDebugContext(
                             source_factory=_get_moltbook_source,
-                            llm=container.llm,
+                            judge=container.judge_client,
                             settings=container.settings,
                         ),
                     )

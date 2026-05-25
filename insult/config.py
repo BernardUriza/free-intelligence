@@ -23,12 +23,11 @@ class Settings(BaseSettings):
     discord_token: SecretStr
     command_prefix: str = "!"
 
-    # Anthropic
-    anthropic_api_key: SecretStr
+    # LLM model selection. There's no direct-Anthropic client anymore — all
+    # generation goes through the agent runner (OAuth Max). This is just the
+    # model id the runner is asked to use as the DEPTH tier when the router
+    # is enabled (and the default everywhere else).
     llm_model: str = "claude-sonnet-4-6"
-    llm_max_tokens: int = 2048
-    llm_timeout: float = 30.0
-    llm_max_retries: int = 5
     system_prompt: str = "You are a helpful assistant."
     persona_file: Path = _PROJECT_ROOT / "persona.md"
 
@@ -126,21 +125,12 @@ class Settings(BaseSettings):
     # uppercases the field name automatically).
     postgres_url: SecretStr = SecretStr("")
 
-    # Agent SDK runner (Container App insult-runner). When the user_id is in
-    # `insult_agent_sdk_user_ids` (comma-separated, "*" = all), the turn
-    # routes through `AgentRunnerClient` (OAuth Max + workspace-grounded)
-    # instead of the legacy LLMClient (API key + inline-context). Empty list
-    # disables the flag entirely. See .claude/plans/insult_agent_sdk_migration.md
+    # Agent SDK runner (Container App insult-runner). Every chat turn routes
+    # through `AgentRunnerClient` (/v1/turn) and every one-shot utility call
+    # through `RunnerJudgeClient` (/v1/judge) — both on OAuth Max. These two
+    # creds are the bot's ONLY LLM backend.
     insult_agent_runner_url: str = ""
     insult_agent_runner_token: SecretStr = SecretStr("")
-    insult_agent_sdk_user_ids: str = ""
-
-    # Legacy direct-Anthropic kill switch. Set to False once the agent runner
-    # is canonical and the API key is revoked. Every LLMClient.chat()/
-    # utility_call() returns empty fast; each aux caller already has a
-    # fallback path for empty responses. The bot Container becomes pure
-    # plumbing between Discord and the runner.
-    legacy_llm_enabled: bool = True
 
     # When the agent runner times out / 5xx's / rate-limits, invite ALICE to
     # take the turn instead of failing the user-facing message. ALICE reads
@@ -148,7 +138,12 @@ class Settings(BaseSettings):
     # user sees a continuation in voice B instead of a canned error.
     alice_failover_enabled: bool = True
 
-    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
+    # ``extra="ignore"`` so retired env vars don't crash startup. The legacy
+    # direct-Anthropic settings (ANTHROPIC_API_KEY, LLM_MAX_TOKENS, LLM_TIMEOUT,
+    # LLM_MAX_RETRIES) were removed when the legacy direct-Anthropic client died, but they still live in
+    # prod's Container App env + local .env files. Ignoring extras lets the bot
+    # boot against those leftovers instead of erroring on extra_forbidden.
+    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @classmethod
     def settings_customise_sources(

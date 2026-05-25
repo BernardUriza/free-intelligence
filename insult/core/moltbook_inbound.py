@@ -144,12 +144,13 @@ def rank_for_users(
 async def render_digest_message(
     picks: list[Post],
     *,
-    llm,
+    judge,
     settings,
 ) -> str | None:
-    """Send picks through the LLM with the Moltbook overlay on top of the
-    base persona. Returns the in-character commentary, or None if the LLM
-    came back empty / failed (caller should log + skip)."""
+    """Send picks through the runner's one-shot /v1/judge with the Moltbook
+    overlay on top of the base persona (handed in as the system prompt).
+    Returns the in-character commentary, or None if the call came back
+    empty / failed (caller should log + skip)."""
     if not picks:
         return None
     posts_block = "\n\n".join(
@@ -161,7 +162,7 @@ async def render_digest_message(
         f"## Posts encontrados\n{posts_block}"
     )
     try:
-        resp = await llm.chat(prompt, [{"role": "user", "content": "Comenta lo que viste."}])
+        resp = await judge.utility_call(prompt, [{"role": "user", "content": "Comenta lo que viste."}])
         text = (resp.text or "").strip()
         return text or None
     except Exception:
@@ -204,7 +205,7 @@ async def build_inbound_digest(
     user_ids: list[str],
     *,
     memory,
-    llm,
+    judge,
     settings,
     recent_messages: list[dict] | None = None,
 ) -> InboundDigestResult:
@@ -249,7 +250,7 @@ async def build_inbound_digest(
         log.info("moltbook_inbound_skipped", reason="no_relevant_after_rank", candidate_count=len(posts))
         return InboundDigestResult(skipped_reason="no_relevant_after_rank")
 
-    rendered = await render_digest_message(picks, llm=llm, settings=settings)
+    rendered = await render_digest_message(picks, judge=judge, settings=settings)
     if not rendered:
         log.warning("moltbook_inbound_skipped", reason="render_empty", picks=len(picks))
         return InboundDigestResult(picks=picks, skipped_reason="render_empty")

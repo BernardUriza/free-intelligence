@@ -36,7 +36,6 @@ def _mk_ctx(spawn_task: Any = None) -> TurnCtx:
         text="hi",
         turn_start=time.monotonic(),
         memory=MagicMock(),
-        llm=MagicMock(),
         settings=MagicMock(),
         bot=MagicMock(),
         expression_history=MagicMock(),

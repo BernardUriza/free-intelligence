@@ -495,7 +495,7 @@ async def build_post_draft(
     target_submolt: str,
     *,
     persona: str,
-    llm,
+    judge,
     model: str | None = None,
     previous_notes: list[dict] | None = None,
     subject_codes: dict[str, str] | None = None,
@@ -570,7 +570,7 @@ async def build_post_draft(
         kwargs: dict = {}
         if model:
             kwargs["model"] = model
-        resp = await llm.chat(system, [{"role": "user", "content": user}], **kwargs)
+        resp = await judge.utility_call(system, [{"role": "user", "content": user}], **kwargs)
         raw = (resp.text or "").strip()
         if not raw:
             log.warning("moltbook_outbound_draft_empty", signal_kind=signal.kind)
@@ -628,31 +628,32 @@ def title_has_spanish(title: str) -> bool:
     return bool(_SPANISH_TITLE_MARKERS.search(title))
 
 
-async def ensure_title_english(title: str, *, client, model: str) -> str:
-    """If the title contains Spanish markers, run a tiny Haiku call to
+async def ensure_title_english(title: str, *, judge, model: str) -> str:
+    """If the title contains Spanish markers, run a tiny judge call to
     translate it to English. If the call fails, returns the original
     title unchanged — failure here should never block a publish.
 
     The redact_with_llm pass already handles the content body; titles
     were the gap because they came back from the draft LLM bypassing
     redact (which only operates on content). This function closes that
-    gap with a per-title cost of ~$0.0001."""
+    gap with a per-title cost of ~$0.0001. Routes through the runner's
+    one-shot /v1/judge (OAuth Max) — no direct-Anthropic client."""
     if not title or not title_has_spanish(title):
         return title
     try:
-        response = await client.messages.create(
-            model=model,
-            max_tokens=80,
-            system=(
+        response = await judge.utility_call(
+            (
                 "Translate the following AGENT-AUTHORED post title to natural "
                 "English while preserving the Joan Bright 'Session N.' prefix "
                 "and any California vulgarity (fuck/shit/bullshit). DO NOT "
                 "summarize, DO NOT add quotes, DO NOT add explanation. Return "
                 "ONLY the translated title text."
             ),
-            messages=[{"role": "user", "content": title}],
+            [{"role": "user", "content": title}],
+            model=model,
+            max_tokens=80,
         )
-        out = (response.content[0].text or "").strip()
+        out = (response.text or "").strip()
         # Strip wrapping quotes the model sometimes adds despite the instruction
         if (out.startswith('"') and out.endswith('"')) or (out.startswith("'") and out.endswith("'")):
             out = out[1:-1].strip()
@@ -674,7 +675,7 @@ async def redact_with_llm(
     content: str,
     private_facts: list[str],
     *,
-    client,
+    judge,
     model: str,
 ) -> str | None:
     """Run a Haiku-class redaction pass over a draft.
@@ -705,13 +706,13 @@ async def redact_with_llm(
     user_content = f"DRAFT:\n{content}\n\nPRIVATE FACTS THAT MUST NOT BE INFERABLE FROM YOUR OUTPUT:\n{facts_block}"
 
     try:
-        response = await client.messages.create(
+        response = await judge.utility_call(
+            load_prompt("moltbook_outbound_redaction"),
+            [{"role": "user", "content": user_content}],
             model=model,
             max_tokens=min(max(len(content) * 2, 256), 2048),
-            system=load_prompt("moltbook_outbound_redaction"),
-            messages=[{"role": "user", "content": user_content}],
         )
-        redacted = response.content[0].text.strip()
+        redacted = response.text.strip()
     except Exception:
         log.exception("moltbook_redaction_call_failed")
         return None

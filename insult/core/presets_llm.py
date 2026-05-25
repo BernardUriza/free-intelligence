@@ -23,7 +23,7 @@ preset + modifiers from intent, not patterns.
 Architecture (see `.claude/plans/preset_middleware.md` if it exists):
 
 - `classify_preset_llm()` is the happy path: one Haiku call via
-  ``LLMClient.utility_call`` (already pays retry+jitter+caching).
+  the runner's one-shot /v1/judge via ``judge.utility_call``.
 - Output is strict JSON: ``{preset, modifiers[], confidence, reason}``.
 - On JSON parse failure, enum-validation failure, timeout, or API error,
   returns ``None`` — the caller falls back to the regex classifier.
@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING
 
 import structlog
 
@@ -56,9 +55,6 @@ from insult.core.presets import (
     has_channel_noun,
 )
 from insult.core.prompts_loader import load_prompt
-
-if TYPE_CHECKING:
-    from insult.core.llm import LLMClient
 
 log = structlog.get_logger()
 
@@ -201,7 +197,7 @@ async def classify_preset_llm(
     current_message: str,
     recent_messages: list[dict] | None,
     user_facts: list[dict] | None,
-    llm_client: LLMClient,
+    judge,
     *,
     model: str = "claude-haiku-4-5-20251001",
     max_tokens: int = 200,
@@ -217,8 +213,8 @@ async def classify_preset_llm(
         current_message: the user's current message text.
         recent_messages: last 5 turns (role/content dicts).
         user_facts: slim list of stored facts about the user.
-        llm_client: LLMClient instance — uses utility_call (no
-            character-break detection, no language cure).
+        judge: RunnerJudgeClient — uses utility_call against /v1/judge
+            (one-shot, text-only; no character-break / language cure).
         model: Haiku model id. Override per turn if needed.
         max_tokens: cap on output. 200 is plenty for the JSON shape.
     """
@@ -226,7 +222,7 @@ async def classify_preset_llm(
     messages: list[dict] = [{"role": "user", "content": user_block}]
 
     try:
-        response = await llm_client.utility_call(
+        response = await judge.utility_call(
             system_prompt=load_prompt("preset_classifier"),
             messages=messages,  # type: ignore[arg-type]
             model=model,

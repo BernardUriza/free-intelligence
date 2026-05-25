@@ -5,11 +5,10 @@ moltbook_<key>`. Maps Moltbook's JSON onto the platform-neutral `Post`
 and `Comment` dataclasses so the lanes never see Moltbook-specific
 fields.
 
-Retry shape mirrors `LLMClient._send` deliberately — the 30-second
-timeout, exponential backoff on 429/5xx, give-up-on-401-immediately
-behavior is production-tested in llm.py and we want the same posture
-here. Any divergence in behavior between LLM retries and platform
-retries will confuse on-call.
+Retry shape is deliberate and battle-tested — 30-second timeout,
+exponential backoff on 429/5xx, give-up-on-401-immediately. It matches
+the runner's LLM transport posture so on-call sees one consistent retry
+model across LLM and platform requests; divergence would confuse them.
 """
 
 from __future__ import annotations
@@ -502,7 +501,7 @@ class MoltbookSource(Source):
         """Issue a request, applying retry policy and mapping HTTP status to
         typed SourceError subclasses. Returns the parsed JSON body on success.
 
-        Retry posture (matches LLMClient._send):
+        Retry posture (consistent with the runner's LLM transport):
           • 401 / 403 → SourceAuthError, no retry
           • 404       → SourceNotFoundError, no retry
           • 429       → SourceRateLimitError; back off using Retry-After
