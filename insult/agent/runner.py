@@ -241,22 +241,6 @@ _pool_lock = asyncio.Lock()
 _reaper_task: asyncio.Task | None = None
 
 
-# fi-core MCP server is registered as a stdio subprocess (the standard MCP
-# protocol pattern). The SDK spawns `python -m fi_core.persona.mcp_server`
-# and talks JSON-RPC over stdin/stdout. Tool names are imported from
-# `fi_core.persona.MCP_TOOLS` when fi-core>=0.4.1 (the explicit-contract
-# release); for fi-core 0.4.0 the contract was missing so we fall back to
-# a static list mirrored from mcp_server.py. Remove the fallback when
-# 0.4.1+ is the floor everywhere.
-_FI_CORE_SERVER_NAME = "fi-core-persona"
-_FI_CORE_TOOLS_FALLBACK = [
-    "check_drift",
-    "list_packs",
-    "sanitize_response",
-    "get_reinforcement",
-    "validate_and_retry_prompt",
-]
-
 # Playwright MCP — stdio subprocess spawned by the SDK on session creation.
 # Lets the agent scrape JS-heavy / social-media sites (IG/FB/TikTok/X) that
 # Anthropic's `web_search` server tool cannot reach (no SERP coverage, JS
@@ -295,14 +279,18 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     spawns it on session creation.
     """
     # v4.0 (fi-runner): option assembly is delegated to fi_runner — the
-    # backend-agnostic runner framework. insult declares its MCP servers as
-    # MCPServerSpecs (insult_db in-process; fi-core persona + playwright stdio)
-    # and the ToolPolicy; fi_runner builds the ClaudeAgentOptions (allowlist,
+    # backend-agnostic runner framework. insult declares its MCP servers and
+    # the ToolPolicy; fi_runner builds the ClaudeAgentOptions (allowlist,
     # mcp_servers, cwd, setting_sources, permission mode). The per-channel pool
     # and turn loop below stay in insult — fi_runner owns option/capability
-    # wiring, insult owns orchestration. env_passthrough=False keeps the stdio
-    # entries byte-identical to the pre-fi-runner behavior.
-    from fi_runner import ClaudeCodeBackend, MCPServerSpec, PermissionMode, ToolPolicy
+    # wiring, insult owns orchestration.
+    #
+    # The fi-core persona server is wired via fi_runner's CAPABILITY registry
+    # (capabilities.resolve(["persona"])) rather than a hand-built spec — the
+    # registry reads the server name + tool contract from fi_core itself, so
+    # there is no name/tool list to keep in sync here. env_passthrough=False
+    # keeps the stdio entry byte-identical to the pre-capability behavior.
+    from fi_runner import ClaudeCodeBackend, MCPServerSpec, PermissionMode, ToolPolicy, capabilities
 
     from insult.agent.mcp_tools import (
         INSULT_DB_SERVER_NAME,
@@ -310,26 +298,14 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
         build_insult_db_server,
     )
 
-    try:
-        from fi_core.persona import MCP_TOOLS as _FI_CORE_MCP_TOOLS
-
-        fi_core_tools = tuple(t["name"] for t in _FI_CORE_MCP_TOOLS)
-    except ImportError:
-        fi_core_tools = tuple(_FI_CORE_TOOLS_FALLBACK)
-
     specs = [
         MCPServerSpec(
             name=INSULT_DB_SERVER_NAME,
             server=build_insult_db_server(),  # in-process MCP server
             tools=tuple(t.name for t in INSULT_DB_TOOLS),
         ),
-        MCPServerSpec(
-            name=_FI_CORE_SERVER_NAME,
-            command="python",
-            args=["-m", "fi_core.persona.mcp_server"],
-            tools=fi_core_tools,
-            env_passthrough=False,
-        ),
+        # fi-core persona (anti-drift) — resolved from the capability registry.
+        *capabilities.resolve(["persona"], env_passthrough=False),
         # `--isolated`: never log in with a real account from prod. `--headless`
         # mandatory in container.
         MCPServerSpec(

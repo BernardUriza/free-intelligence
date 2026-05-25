@@ -51,7 +51,10 @@ dependencies:
   # Floor raised to 0.2.2: CodexBackend now passes `codex exec --skip-git-repo-check`
   # so it runs in the containerized runner cwd (no git working tree). Without it
   # codex refused to run and ALICE failed EVERY turn ("Not inside a trusted directory").
-  - fi-runner>=0.2.2
+  # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
+  # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
+  # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
+  - fi-runner>=0.3.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
