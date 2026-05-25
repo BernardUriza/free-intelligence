@@ -41,7 +41,13 @@ from .backend import (
     mcp_tool_id,
 )
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
-from .conversation import ConversationStore, InMemoryConversationStore, Message, render_transcript
+from .conversation import (
+    ConversationStore,
+    InMemoryConversationStore,
+    Message,
+    RedisConversationStore,
+    render_transcript,
+)
 from .flow import Event, events_to_mermaid
 from .narrate import FlowNarrationError, narrate_flow
 from .guards import (
@@ -90,6 +96,7 @@ __all__ = [
     "conversation",
     "ConversationStore",
     "InMemoryConversationStore",
+    "RedisConversationStore",
     "Message",
     "render_transcript",
     "flow",
