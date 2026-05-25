@@ -12,4 +12,11 @@ pulls in its own backend dependencies via optional-deps extras:
 Importing the submodule without its backend dependencies raises an
 informative ``ImportError``. The base ``fi-core`` install does NOT
 pull either in — keeps the core package zero-deps.
+
+``HashingEmbedder`` (feature hashing) is the exception: zero-model and
+dep-free, so it lives in the base install and is re-exported here.
 """
+
+from fi_core.embeddings.hashing import HashingEmbedder
+
+__all__ = ["HashingEmbedder"]

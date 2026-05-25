@@ -55,9 +55,24 @@ def test_resolve_rag_points_at_rag_server():
     assert "chunk_document" in spec.tools
 
 
+def test_resolve_rag_store_points_at_stateful_server():
+    (spec,) = capabilities.resolve(["rag_store"])
+    assert spec.name == "fi-core-rag-store"
+    assert spec.args == ["-m", "fi_core.rag.store_mcp_server"]
+    # the stateful CRUD tools, read from fi-core's zero-dep store contract
+    assert "ingest_document" in spec.tools
+    assert "search_documents" in spec.tools
+    assert "list_documents" in spec.tools and "delete_document" in spec.tools
+
+
 def test_resolve_multiple_capabilities_preserves_order():
-    specs = capabilities.resolve(["cognitive", "persona", "rag"])
-    assert [s.name for s in specs] == ["fi-core-cognitive", "fi-core-persona", "fi-core-rag"]
+    specs = capabilities.resolve(["cognitive", "persona", "rag", "rag_store"])
+    assert [s.name for s in specs] == [
+        "fi-core-cognitive",
+        "fi-core-persona",
+        "fi-core-rag",
+        "fi-core-rag-store",
+    ]
 
 
 def test_resolve_unknown_capability_raises():
