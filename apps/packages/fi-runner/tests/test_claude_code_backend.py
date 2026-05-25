@@ -83,3 +83,62 @@ def test_build_options_reflects_model_and_permission_mode():
     )
     assert opts.model == "claude-sonnet-4-5"
     assert opts.permission_mode == "acceptEdits"
+
+
+# --- _collect: text + usage/cost/session extraction (SDK-free duck types) ---
+#
+# _collect dispatches on ``type(message).__name__``, so these fakes are named
+# exactly as the SDK's message/block classes — no SDK or network needed.
+
+
+class AssistantMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class TextBlock:
+    def __init__(self, text):
+        self.text = text
+
+
+class ResultMessage:
+    def __init__(self, *, usage, total_cost_usd=None, session_id=None):
+        self.usage = usage
+        self.total_cost_usd = total_cost_usd
+        self.session_id = session_id
+
+
+class _FakeClient:
+    def __init__(self, messages):
+        self._messages = messages
+
+    async def receive_response(self):
+        for m in self._messages:
+            yield m
+
+
+@pytest.mark.asyncio
+async def test_collect_extracts_text_usage_and_session():
+    client = _FakeClient(
+        [
+            AssistantMessage([TextBlock("Hola "), TextBlock("mundo")]),
+            ResultMessage(
+                usage={"input_tokens": 10, "output_tokens": 5},
+                total_cost_usd=0.0012,
+                session_id="sdk-123",
+            ),
+        ]
+    )
+    text, usage, session_id = await ClaudeCodeBackend._collect(client)
+    assert text == "Hola mundo"
+    assert usage == {"input_tokens": 10, "output_tokens": 5, "total_cost_usd": 0.0012}
+    assert session_id == "sdk-123"
+
+
+@pytest.mark.asyncio
+async def test_collect_handles_turn_without_result_message():
+    client = _FakeClient([AssistantMessage([TextBlock("solo texto")])])
+    text, usage, session_id = await ClaudeCodeBackend._collect(client)
+    assert text == "solo texto"
+    assert usage is None
+    assert session_id is None

@@ -120,14 +120,29 @@ class ClaudeCodeBackend:
         return ClaudeAgentOptions(**kwargs)
 
     @staticmethod
-    async def _collect(client: Any) -> str:
+    async def _collect(client: Any) -> tuple[str, dict[str, Any] | None, str | None]:
+        """Drain the SDK response: assistant text plus the final ResultMessage's
+        token usage / cost / session id, so a turn reports what it spent (the
+        gap a Claude-backed run otherwise leaves in turn_completed telemetry)."""
         parts: list[str] = []
+        usage: dict[str, Any] | None = None
+        session_id: str | None = None
         async for message in client.receive_response():
-            if type(message).__name__ == "AssistantMessage":
+            kind = type(message).__name__
+            if kind == "AssistantMessage":
                 for block in getattr(message, "content", []) or []:
                     if type(block).__name__ == "TextBlock":
                         parts.append(getattr(block, "text", ""))
-        return "".join(parts)
+            elif kind == "ResultMessage":
+                # Final message of a turn — carries usage, cost and session id.
+                raw = getattr(message, "usage", None)
+                if raw is not None:
+                    usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
+                    cost = getattr(message, "total_cost_usd", None)
+                    if cost is not None:
+                        usage["total_cost_usd"] = cost
+                session_id = getattr(message, "session_id", None) or session_id
+        return "".join(parts), usage, session_id
 
     async def run_turn(
         self,
@@ -158,7 +173,8 @@ class ClaudeCodeBackend:
         if session_id is None:
             async with ClaudeSDKClient(options=options) as client:
                 await client.query(user_message)
-                return TurnResult(text=await self._collect(client))
+                text, usage, sess = await self._collect(client)
+                return TurnResult(text=text, usage=usage, session_id=sess)
 
         # Stateful: reuse a pooled, long-lived client for this session.
         async with self._pool_lock:
@@ -170,7 +186,8 @@ class ClaudeCodeBackend:
             lock = self._session_locks.setdefault(session_id, asyncio.Lock())
         async with lock:  # serialize turns on the same client (not concurrency-safe)
             await client.query(user_message)
-            return TurnResult(text=await self._collect(client))
+            text, usage, sess = await self._collect(client)
+            return TurnResult(text=text, usage=usage, session_id=sess or session_id)
 
     async def aclose(self) -> None:
         """Close all pooled clients (call on shutdown / idle reap)."""
