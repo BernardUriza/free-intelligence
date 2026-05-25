@@ -33,7 +33,7 @@ from fi_core.rag.rerank import (
 from fi_core.rag.mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
 from fi_core.rag.store_mcp_contract import MCP_SERVER_NAME as STORE_MCP_SERVER_NAME
 from fi_core.rag.store_mcp_contract import MCP_TOOLS as STORE_MCP_TOOLS
-from fi_core.rag.store_service import RagStore
+from fi_core.rag.store_service import QuotaExceeded, RagStore
 from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
 from fi_core.rag.retrieval import (
     DEFAULT_LEXICAL_MIN,
@@ -62,6 +62,7 @@ __all__ = [
     "STORE_MCP_SERVER_NAME",
     "STORE_MCP_TOOLS",
     "RagStore",
+    "QuotaExceeded",
     "MCP_TOOLS",
     "SPANISH_ENGLISH_STOPWORDS",
     "Chunk",

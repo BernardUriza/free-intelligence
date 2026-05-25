@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 pytest.importorskip("h5py")  # default hdf5 backend
-from fi_runner.rag_store import RagStoreClient, read_text_file  # noqa: E402 - after importorskip
+from fi_runner.rag_store import QuotaExceeded, RagStoreClient, read_text_file  # noqa: E402 - after importorskip
 
 _DOC = (
     "El paciente refiere dolor toracico opresivo e intenso desde hace dos horas.\n\n"
@@ -89,6 +89,15 @@ async def test_stats_and_delete_corpus(env):
     assert st["n_docs"] == 2 and st["n_chunks"] >= 2 and st["bytes"] > 0
     assert await rag.delete_corpus("t1") == 2
     assert await rag.stats("t1") == {"n_docs": 0, "n_chunks": 0, "bytes": 0}
+
+
+@pytest.mark.asyncio
+async def test_quota_raises_clean_error(env, monkeypatch):
+    monkeypatch.setenv("FI_RAG_MAX_DOCS", "1")  # one doc per tenant
+    rag = RagStoreClient()  # reads the quota at construction
+    await rag.ingest("t1", "d1", _DOC, **_CHUNK)
+    with pytest.raises(QuotaExceeded):  # consumer catches it WITHOUT importing fi_core
+        await rag.ingest("t1", "d2", _DOC, **_CHUNK)
 
 
 def test_read_text_file(tmp_path):

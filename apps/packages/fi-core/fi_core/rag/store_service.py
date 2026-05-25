@@ -70,23 +70,52 @@ def build_embedder_from_env() -> Embedder:
     raise RuntimeError(f"FI_RAG_EMBEDDER must be hashing|azure|sentence_transformers (got {kind!r})")
 
 
+class QuotaExceeded(RuntimeError):
+    """An ingest would push a corpus past its document or byte quota (P2 tenancy).
+    The caller should surface this as a 429-style "over quota" to the tenant."""
+
+
 @dataclass
 class RagStore:
-    """Persistent RAG over a DocumentChunkStore + an Embedder, keyed by corpus_id."""
+    """Persistent RAG over a DocumentChunkStore + an Embedder, keyed by corpus_id.
+
+    ``max_docs`` / ``max_bytes`` are per-corpus (= per-tenant) quotas enforced on
+    ingest (None = unlimited) — the multi-tenant guardrail for store-as-a-service."""
 
     store: DocumentChunkStore
     embedder: Embedder
     retriever: StoreBackedRetriever
+    max_docs: int | None = None
+    max_bytes: int | None = None
 
     @classmethod
-    def from_components(cls, *, store: DocumentChunkStore, embedder: Embedder) -> RagStore:
+    def from_components(
+        cls,
+        *,
+        store: DocumentChunkStore,
+        embedder: Embedder,
+        max_docs: int | None = None,
+        max_bytes: int | None = None,
+    ) -> RagStore:
         """Build a RagStore from a store + embedder (wires the retriever)."""
-        return cls(store=store, embedder=embedder, retriever=StoreBackedRetriever(embedder=embedder, store=store))
+        return cls(
+            store=store,
+            embedder=embedder,
+            retriever=StoreBackedRetriever(embedder=embedder, store=store),
+            max_docs=max_docs,
+            max_bytes=max_bytes,
+        )
 
     @classmethod
     def from_env(cls) -> RagStore:
-        """Build a RagStore from the FI_RAG_* environment."""
-        return cls.from_components(store=build_store_from_env(), embedder=build_embedder_from_env())
+        """Build a RagStore from the FI_RAG_* environment (incl. FI_RAG_MAX_DOCS /
+        FI_RAG_MAX_BYTES per-corpus quotas)."""
+        max_docs = int(os.environ["FI_RAG_MAX_DOCS"]) if os.getenv("FI_RAG_MAX_DOCS") else None
+        max_bytes = int(os.environ["FI_RAG_MAX_BYTES"]) if os.getenv("FI_RAG_MAX_BYTES") else None
+        return cls.from_components(
+            store=build_store_from_env(), embedder=build_embedder_from_env(),
+            max_docs=max_docs, max_bytes=max_bytes,
+        )
 
     async def ingest(
         self,
@@ -103,18 +132,46 @@ class RagStore:
         """Chunk + embed + persist ``text`` under ``doc_id`` in ``corpus_id``.
         Re-ingesting an existing ``doc_id`` REPLACES its chunks. Returns the count."""
         strat = ChunkingStrategy(strategy) if isinstance(strategy, str) else strategy
+        pieces = chunk_document(text, strat, ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size))
+        await self._enforce_quota(corpus_id, doc_id, new_bytes=sum(len(p.encode("utf-8")) for p in pieces))
         md = DocumentMetadata(attributes=metadata or {})
         if await self.store.get_document(namespace=corpus_id, document_id=doc_id) is not None:
             await self.store.delete_chunks_by_document(namespace=corpus_id, document_id=doc_id)
             await self.store.update_document(namespace=corpus_id, document_id=doc_id, content=text, metadata=md)
         else:
             await self.store.create_document(namespace=corpus_id, document_id=doc_id, content=text, metadata=md)
-        pieces = chunk_document(text, strat, ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size))
         chunks: list[ChunkWithEmbedding] = []
         for piece in pieces:
             embedding = await self.embedder.embed(piece)
             chunks.append(ChunkWithEmbedding(Chunk(text=piece, source_type="document", source_ref=doc_id), embedding))
         return await self.store.save_chunks(namespace=corpus_id, document_id=doc_id, chunks=chunks) if chunks else 0
+
+    async def _enforce_quota(self, corpus_id: str, doc_id: str, *, new_bytes: int) -> None:
+        """Raise :class:`QuotaExceeded` if ingesting ``new_bytes`` under ``doc_id``
+        would push ``corpus_id`` past its doc/byte quota. A re-ingest counts as a
+        replace (the old doc's bytes are credited), not an addition."""
+        if self.max_docs is None and self.max_bytes is None:
+            return
+        existing = await self.store.list_documents(namespace=corpus_id)
+        is_new = not any(d.document_id == doc_id for d in existing)
+        if self.max_docs is not None and is_new and len(existing) >= self.max_docs:
+            raise QuotaExceeded(f"corpus {corpus_id!r} is at its document quota ({self.max_docs})")
+        if self.max_bytes is not None:
+            total = 0
+            old_doc_bytes = 0
+            for d in existing:
+                db = sum(
+                    len(c.text.encode("utf-8"))
+                    for c in await self.store.get_chunks_by_document(namespace=corpus_id, document_id=d.document_id)
+                )
+                total += db
+                if d.document_id == doc_id:
+                    old_doc_bytes = db
+            if total - old_doc_bytes + new_bytes > self.max_bytes:
+                raise QuotaExceeded(
+                    f"corpus {corpus_id!r} would exceed its byte quota "
+                    f"({total - old_doc_bytes + new_bytes} > {self.max_bytes})"
+                )
 
     async def search(
         self, corpus_id: str, query: str, *, top_k: int = 5, filters: dict | None = None
@@ -153,4 +210,4 @@ class RagStore:
         return {"n_docs": len(docs), "n_chunks": n_chunks, "bytes": nbytes}
 
 
-__all__ = ["RagStore", "build_embedder_from_env", "build_store_from_env"]
+__all__ = ["QuotaExceeded", "RagStore", "build_embedder_from_env", "build_store_from_env"]

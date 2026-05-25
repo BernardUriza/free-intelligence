@@ -28,6 +28,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fi_core.rag import QuotaExceeded  # re-exported so the consumer catches it without importing fi_core
+
 
 def read_text_file(path: str | Path) -> str:
     """Read a UTF-8 text file (txt/md). PDF/DOCX/HTML extraction is the caller's job."""
@@ -98,4 +100,4 @@ class RagStoreClient:
         return await self._rag.stats(corpus_id)
 
 
-__all__ = ["RagStoreClient", "read_text_file"]
+__all__ = ["QuotaExceeded", "RagStoreClient", "read_text_file"]

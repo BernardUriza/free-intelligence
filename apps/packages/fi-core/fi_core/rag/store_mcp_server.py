@@ -36,7 +36,7 @@ except ImportError as e:
 from fi_core.rag.chunking import ChunkingStrategy
 from fi_core.rag.protocols import DocumentChunkStore, Embedder
 from fi_core.rag.store_mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
-from fi_core.rag.store_service import RagStore, build_embedder_from_env, build_store_from_env
+from fi_core.rag.store_service import QuotaExceeded, RagStore, build_embedder_from_env, build_store_from_env
 
 mcp = FastMCP(
     "fi-core-rag-store",
@@ -77,9 +77,12 @@ def _reset() -> None:
 def _get_rag() -> RagStore:
     global _rag
     if _rag is None:
-        store = _store if _store is not None else build_store_from_env()
-        embedder = _embedder if _embedder is not None else build_embedder_from_env()
-        _rag = RagStore.from_components(store=store, embedder=embedder)
+        if _store is None and _embedder is None:
+            _rag = RagStore.from_env()  # reads store/embedder AND quotas from env
+        else:
+            store = _store if _store is not None else build_store_from_env()
+            embedder = _embedder if _embedder is not None else build_embedder_from_env()
+            _rag = RagStore.from_components(store=store, embedder=embedder)
     return _rag
 
 
@@ -107,10 +110,13 @@ async def ingest_document(
         rag = _get_rag()
     except Exception as e:  # noqa: BLE001 - misconfig/missing-extra → graceful error
         return {"error": f"rag store not configured: {e}"}
-    n = await rag.ingest(
-        corpus_id, doc_id, text, metadata=metadata, strategy=strat,
-        chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size,
-    )
+    try:
+        n = await rag.ingest(
+            corpus_id, doc_id, text, metadata=metadata, strategy=strat,
+            chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size,
+        )
+    except QuotaExceeded as e:
+        return {"error": str(e), "quota_exceeded": True}
     return {"corpus_id": corpus_id, "doc_id": doc_id, "chunks": n}
 
 
