@@ -21,13 +21,10 @@ Python dependency (the ``codex`` extra is empty, kept only to document this).
 
 from __future__ import annotations
 
-import asyncio
-import json
-import os
-import shutil
 from dataclasses import dataclass
 
 from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult, mcp_tool_id
+from ._subprocess_cli import SubprocessCLIBackend
 
 
 @dataclass(frozen=True)
@@ -55,7 +52,7 @@ class ProviderConfig:
     wire_api: str = "responses"
 
 
-class CodexBackend:
+class CodexBackend(SubprocessCLIBackend):
     """Agent backend backed by OpenAI Codex (`codex exec --json`).
 
     Codex runs in one of two modes depending on config:
@@ -274,49 +271,21 @@ class CodexBackend:
                 calls.append(tc)
         return calls
 
-    async def run_turn(
-        self,
-        *,
-        system_prompt: str,
-        user_message: str,
-        mcp_servers: list[MCPServerSpec],
-        tool_policy: ToolPolicy,
-        model: str | None = None,
-        session_id: str | None = None,  # noqa: ARG002 - Codex session resume is a v2 TODO
-    ) -> TurnResult:
-        # NOTE: codex exec can resume a previous session; wiring session_id ->
-        # `codex exec resume <id>` is a v2 TODO. For now each turn is one-shot.
-        if shutil.which("codex") is None:
-            raise RuntimeError(
-                "CodexBackend requires the `codex` CLI on PATH. "
-                "Install it (e.g. `npm i -g @openai/codex`) and sign in with your ChatGPT plan."
-            )
-        argv = self._build_argv(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            mcp_servers=mcp_servers,
-            tool_policy=tool_policy,
-            model=model,
-        )
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=os.environ.copy(),
-        )
-        out, err = await proc.communicate()
-        if proc.returncode != 0:
-            raise RuntimeError(f"codex exec failed (exit {proc.returncode}): {err.decode()[:500]}")
+    # --- SubprocessCLIBackend hooks -----------------------------------------
+    #
+    # codex exec CAN resume a previous session (`codex exec resume <id>`); wiring
+    # session_id to it is a v2 TODO, so the base's one-shot run_turn is used.
 
-        events: list[dict] = []
-        for line in out.decode().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                events.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+    def _cli_binary(self) -> str:
+        return "codex"
+
+    def _not_found_message(self) -> str:
+        return (
+            "CodexBackend requires the `codex` CLI on PATH. "
+            "Install it (e.g. `npm i -g @openai/codex`) and sign in with your ChatGPT plan."
+        )
+
+    def _parse_events(self, events: list[dict]) -> TurnResult:
         return TurnResult(
             text=self._extract_text(events),
             raw=events,

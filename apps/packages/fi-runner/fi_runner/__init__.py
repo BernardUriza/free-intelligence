@@ -40,7 +40,7 @@ from .backend import (
     mcp_server_token,
     mcp_tool_id,
 )
-from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
+from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
 from .flow import Event, events_to_mermaid
 from .narrate import FlowNarrationError, narrate_flow
 from .guards import (
@@ -80,6 +80,7 @@ __all__ = [
     "ClaudeCodeBackend",
     "CodexBackend",
     "ProviderConfig",
+    "SubprocessCLIBackend",
     "Runner",
     "RetryPolicy",
     "FlowNarrator",
