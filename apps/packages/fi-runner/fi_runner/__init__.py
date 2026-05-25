@@ -71,7 +71,7 @@ from .pipeline import (
 from .router import ModelRouter
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 __all__ = [
     "AgentBackend",
