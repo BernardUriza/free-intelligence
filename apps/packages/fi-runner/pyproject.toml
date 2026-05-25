@@ -10,7 +10,7 @@ authors = [
 license = { text = "MIT" }
 keywords = ["agent", "runner", "mcp", "claude-code", "codex", "fi-core", "backend-agnostic"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
@@ -19,20 +19,22 @@ classifiers = [
 # The port + Runner + capability wiring are zero-dep (only fi-core for the
 # capability contracts). Backends pull their harness SDK via the extras below.
 dependencies = [
-    "fi-core",
+    # Bounded: pre-1.0 minors of fi-core can break; cap at the next unreleased
+    # minor so a mid-event fi-core bump can't silently break consumers.
+    "fi-core>=0.12,<0.14",
 ]
 
 [project.optional-dependencies]
 # Claude Code backend — the Claude Agent SDK (runs on a Max subscription via
 # OAuth; full Claude Code toolset + deep MCP).
 claude = [
-    "claude-agent-sdk>=0.1",
+    "claude-agent-sdk>=0.1,<1.0",
 ]
 # Codex backend — OpenAI Codex headless CLI (`codex exec --json`). Drives the
 # `codex` binary as a subprocess; in API-motor mode (ProviderConfig) it needs no
 # ChatGPT login, just the provider key in the environment.
 codex = [
-    "openai-codex>=0.1",
+    "openai-codex>=0.1,<1.0",
 ]
 dev = [
     "pytest>=8.0",

@@ -18,14 +18,17 @@ WHAT each guard does.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
-from .backend import AgentBackend, MCPServerSpec, ToolPolicy, TurnResult
+from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
 from .guards import Guard, GuardOutcome
 from .pipeline import EventSink, MutationStage, run_pipeline
 from .router import ModelRouter
+
+_log = logging.getLogger("fi_runner.runner")
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,19 @@ class Runner:
     # A sticky router caches per session internally; the runner stays dumb.
     model_router: ModelRouter | None = None
 
+    def __post_init__(self) -> None:
+        # Fail fast on a misconfigured runner instead of shipping an empty system
+        # prompt to the model (which silently degrades the output).
+        if not self.persona or not self.persona.strip():
+            raise ValueError("Runner.persona must be a non-empty system prompt")
+
+    def _emit(self, event: str, fields: dict[str, Any]) -> None:
+        """Emit a telemetry event through the configured sink (or stdlib log)."""
+        if self.on_event is not None:
+            self.on_event(event, fields)
+        else:
+            _log.info("%s %s", event, fields)
+
     async def run(
         self,
         user_message: str,
@@ -84,7 +100,12 @@ class Runner:
         turn with accumulated reinforcement appended to the persona; the final
         attempt lets transformational guards sanitize instead of retrying.
         ``context`` is forwarded to each post-processor stage (per-turn side data).
+
+        Raises ``ValueError`` on empty ``user_message`` and :class:`BackendError`
+        if the backend fails (the original exception is chained as ``__cause__``).
         """
+        if not user_message or not user_message.strip():
+            raise ValueError("user_message must be non-empty")
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         attempts = max(1, self.retry_policy.max_attempts)
         reinforcement = ""
@@ -100,14 +121,31 @@ class Runner:
         for attempt in range(attempts):
             is_last = attempt == attempts - 1
             system_prompt = f"{self.persona}\n\n{reinforcement}".strip() if reinforcement else self.persona
-            result = await self.backend.run_turn(
-                system_prompt=system_prompt,
-                user_message=user_message,
-                mcp_servers=mcp_servers,
-                tool_policy=self.tool_policy,
-                model=model,
-                session_id=session_id,
-            )
+            try:
+                result = await self.backend.run_turn(
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    mcp_servers=mcp_servers,
+                    tool_policy=self.tool_policy,
+                    model=model,
+                    session_id=session_id,
+                )
+            except BackendError:
+                raise  # already typed — don't double-wrap
+            except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
+                self._emit(
+                    "backend_error",
+                    {
+                        "backend": type(self.backend).__name__,
+                        "model": model,
+                        "attempt": attempt + 1,
+                        "error": str(exc),
+                    },
+                )
+                raise BackendError(
+                    f"{type(self.backend).__name__} failed on attempt "
+                    f"{attempt + 1}/{attempts}: {exc}"
+                ) from exc
             if not self.guards:
                 break
 
@@ -135,8 +173,19 @@ class Runner:
         reinforcement_parts: list[str] = []
         wants_retry = False
         for guard in self.guards:
-            outcome = guard.inspect(response_text=text, context=(user_message,), final=final)
-            outcomes[guard.name] = outcome
+            # `or repr(guard)` is lazy — repr (expensive for guards holding
+            # compiled-pattern lists) only runs if a guard has no `.name`.
+            name = getattr(guard, "name", None) or repr(guard)
+            try:
+                outcome = guard.inspect(response_text=text, context=(user_message,), final=final)
+            except Exception as exc:  # noqa: BLE001 - a guard is a safety NET, not a
+                # single point of failure: if it raises (e.g. a malformed regex),
+                # log + skip it and keep the backend's valid text rather than
+                # crashing the whole turn.
+                self._emit("guard_error", {"guard": name, "error": str(exc)})
+                outcomes[name] = GuardOutcome(metadata={"guard_failed": True, "error": str(exc)})
+                continue
+            outcomes[name] = outcome
             if outcome.text_override is not None:
                 text = outcome.text_override
             if outcome.retry:

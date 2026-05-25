@@ -16,6 +16,14 @@ from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
 
+class BackendError(RuntimeError):
+    """Raised when a backend's ``run_turn`` fails (SDK error, CLI non-zero exit,
+    missing dependency, timeout). The Runner wraps any backend exception in this
+    type with the original chained as ``__cause__`` — a consumer catches one
+    error class and still has the root cause. A crash becomes a legible,
+    typed failure instead of a backend-specific traceback leaking out."""
+
+
 class PermissionMode(str, Enum):
     """Permission behavior for a turn (maps to each harness's own modes)."""
 

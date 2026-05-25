@@ -30,6 +30,7 @@ from typing import Any
 from . import capabilities, guards, pipeline, router
 from .backend import (
     AgentBackend,
+    BackendError,
     MCPServerSpec,
     PermissionMode,
     ToolPolicy,
@@ -61,6 +62,7 @@ __version__ = "0.8.0"
 
 __all__ = [
     "AgentBackend",
+    "BackendError",
     "MCPServerSpec",
     "PermissionMode",
     "ToolPolicy",
