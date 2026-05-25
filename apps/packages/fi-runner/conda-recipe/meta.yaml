@@ -1,7 +1,7 @@
 {% set name = "fi-runner" %}
-{% set version = "0.2.1" %}
-{# sha256 MUST be regenerated from the fi-runner-v0.2.1 release tarball at release time #}
-{% set sha256 = "fd4d7e75c1519a127b21a414d86fdcddd8ea89e40c3f92435242b2c1038129ce" %}
+{% set version = "0.2.2" %}
+{# sha256 MUST be regenerated from the fi-runner-v0.2.2 release tarball at release time #}
+{% set sha256 = "e7aa2b74e1952e94158803fc768ea903a73f647eb2b415ae7e27aa806d25877d" %}
 
 package:
   name: {{ name }}

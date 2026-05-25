@@ -96,7 +96,18 @@ class CodexBackend:
         tool_policy: ToolPolicy,
         model: str | None,
     ) -> list[str]:
-        argv = ["codex", "exec", "--json", "--sandbox", self._sandbox_for(tool_policy)]
+        # `--skip-git-repo-check`: the runner cwd is NOT a git repo (containerized
+        # service, no working tree), and `codex exec` refuses to run outside one
+        # by default ("Not inside a trusted directory and --skip-git-repo-check
+        # was not specified" → exit 1). This flag lets codex run anywhere.
+        argv = [
+            "codex",
+            "exec",
+            "--json",
+            "--skip-git-repo-check",
+            "--sandbox",
+            self._sandbox_for(tool_policy),
+        ]
         argv += self._provider_args()  # Azure OpenAI provider, if configured
         chosen_model = model or self.default_model
         if chosen_model:
