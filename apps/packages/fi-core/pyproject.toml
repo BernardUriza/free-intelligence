@@ -1,6 +1,6 @@
 [project]
 name = "fi-core"
-version = "0.7.0"
+version = "0.13.0"
 description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,8 +52,9 @@ embeddings-st = [
     "torch>=2.0",
 ]
 
-# MCP server exposing fi_core.persona detectors as tools for AI agents.
-# Required for `python -m fi_core.persona.mcp_server`.
+# MCP servers exposing fi-core primitives as tools for AI agents: persona
+# (anti-drift), cognitive (clinical flow), and rag (chunking + retrieval).
+# Required for `python -m fi_core.{persona,cognitive,rag}.mcp_server`.
 mcp = [
     "mcp>=1.4,<2",
 ]
@@ -65,6 +66,7 @@ training = [
     "torch>=2.0",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
+    "pyyaml>=6",
 ]
 
 # Long-term memory primitives: PgMemoryStore + FactConsolidator + retention.
@@ -73,6 +75,13 @@ training = [
 memory = [
     "asyncpg>=0.30",
     "pgvector>=0.4",
+]
+
+# Cognitive flow: YAML prompt presets (intake/SOAP/triage/etc.) as typed
+# CognitivePreset objects. The core (types + discovery) is dep-free; loading
+# a preset's YAML needs PyYAML.
+cognitive = [
+    "pyyaml>=6",
 ]
 
 # Convenience: install everything available so far.
@@ -87,6 +96,7 @@ all = [
     "mcp>=1.4,<2",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
+    "pyyaml>=6",
 ]
 
 dev = [
@@ -105,6 +115,7 @@ dev = [
     "mcp>=1.4,<2",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
+    "pyyaml>=6",
 ]
 
 [build-system]
@@ -115,6 +126,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["fi_core*"]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"fi_core.cognitive" = ["presets/*.yaml"]
 
 [tool.ruff]
 target-version = "py312"

@@ -18,6 +18,8 @@ Origin: extracted from the production Discord persona bot
 deployments.
 """
 
+from typing import Any
+
 from fi_core.persona import packs
 from fi_core.persona.detect import (
     AntiPatternMonitor,
@@ -25,19 +27,28 @@ from fi_core.persona.detect import (
     ClarificationDumpDetector,
     sanitize,
 )
-from fi_core.persona.mcp_server import (
-    MCP_SERVER_NAME,
-    MCP_TOOLS,
-)
+from fi_core.persona.loader import PersonaLoader
 from fi_core.persona.types import DetectionResult
 
 __all__ = [
+    "MCP_SERVER_NAME",
+    "MCP_TOOLS",
     "AntiPatternMonitor",
     "BreakDetector",
     "ClarificationDumpDetector",
     "DetectionResult",
-    "MCP_SERVER_NAME",
-    "MCP_TOOLS",
+    "PersonaLoader",
     "packs",
     "sanitize",
 ]
+
+
+# The MCP server pulls the optional `mcp` extra. Lazy-load its symbols via PEP 562
+# so importing `fi_core.persona` (for the detectors or PersonaLoader) does NOT
+# require the extra — only touching MCP_SERVER_NAME / MCP_TOOLS does.
+def __getattr__(name: str) -> Any:
+    if name in ("MCP_SERVER_NAME", "MCP_TOOLS"):
+        from fi_core.persona import mcp_server
+
+        return getattr(mcp_server, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

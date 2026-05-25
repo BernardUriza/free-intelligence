@@ -28,21 +28,13 @@ from backend.utils.prompts.prompt_provider import (
     PromptType,
     get_available_prompts,
     get_prompt,
-    get_prompt_metadata,
     get_prompt_provider,
-)
-from backend.utils.prompts.yaml_provider import (
-    YAMLPromptProvider,
-    get_enhanced_prompt,
 )
 
 __all__ = [
     "PromptProvider",
     "PromptType",
-    "YAMLPromptProvider",
     "get_available_prompts",
-    "get_enhanced_prompt",
     "get_prompt",
-    "get_prompt_metadata",
     "get_prompt_provider",
 ]

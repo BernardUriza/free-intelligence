@@ -1,0 +1,82 @@
+{% set name = "fi-runner" %}
+{% set version = "0.3.0" %}
+{# sha256 of the fi-runner-v0.3.0 release tarball (fi_runner-0.3.0.tar.gz) #}
+{% set sha256 = "df85cfadefe062bba8613466cd1af289b2c0375f9a1de91262367c454ef423d8" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/BernardUriza/free-intelligence/releases/download/fi-runner-v{{ version }}/fi_runner-{{ version }}.tar.gz
+  sha256: {{ sha256 }}
+
+build:
+  number: 0
+  noarch: python
+  # PIP_USER=0 overrides any user-site setting that breaks conda-build's
+  # prefix-relative install path.
+  script: PIP_USER=0 {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+
+requirements:
+  host:
+    - python >=3.12
+    - pip
+    - setuptools >=64
+    - wheel
+  run:
+    - python >=3.12
+    - fi-core >=0.5.1
+    # Harness SDKs (claude-agent-sdk, codex) are pip-only and installed
+    # per-deployment via the [claude] / [codex] extras — they are intentionally
+    # NOT conda run deps (the core import is dep-free).
+
+test:
+  imports:
+    - fi_runner
+    - fi_runner.backend
+    - fi_runner.runner
+    - fi_runner.capabilities
+    - fi_runner.backends
+  requires:
+    - pip
+  commands:
+    - pip check
+    # Zero-dep smoke: the port + Runner + capability wiring import without any
+    # harness SDK present.
+    - python -c "from fi_runner import AgentBackend, Runner, ToolPolicy, MCPServerSpec, PermissionMode, ClaudeCodeBackend, CodexBackend, ProviderConfig; print('fi-runner import ok')"
+
+about:
+  home: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-runner
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: >
+    Backend-agnostic agent runner framework over fi-core: an AgentBackend port
+    (Claude Code / Codex harnesses) + a Runner composing personas, fi-core
+    capabilities (wired as MCP servers), and a per-runner ToolPolicy.
+  description: |
+    fi-runner is the runner-framework tier of Free Intelligence. It abstracts
+    the agent HARNESS so runners (insult, alice, fi-medic) are not copy-pasted
+    per backend:
+
+    - **AgentBackend** (port) with ClaudeCodeBackend (claude_agent_sdk; Max
+      subscription via OAuth; stateful pooled sessions; in-process + stdio MCP;
+      cwd/setting_sources) and CodexBackend (codex exec --json) — the latter
+      runs either on a ChatGPT login OR, via a ProviderConfig, as an API motor
+      against any OpenAI-compatible endpoint (Azure, OpenAI, OpenRouter, ...).
+    - **Runner**(backend, persona, capabilities, extra_mcp_servers, tool_policy,
+      model) — capabilities (e.g. "cognitive", "persona") resolve to fi-core MCP
+      servers; extra_mcp_servers carries runner-specific MCP servers.
+    - **ToolPolicy** — per-runner security (built-in tools allow/deny + the
+      permission mode), e.g. a medical runner blocks Bash/Write for PHI.
+
+    The unifier: both harnesses are MCP clients, so fi-core capabilities plug
+    into either. Importing the package is dep-free; harness SDKs load lazily
+    through the [claude] / [codex] / [api] extras.
+  doc_url: https://github.com/BernardUriza/free-intelligence/tree/main/apps/packages/fi-runner
+  dev_url: https://github.com/BernardUriza/free-intelligence
+
+extra:
+  recipe-maintainers:
+    - BernardUriza
