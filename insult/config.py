@@ -85,24 +85,28 @@ class Settings(BaseSettings):
     debug_port: int = 8787
 
     # Moltbook integration (see .claude/plans/elegant-foraging-knuth.md).
-    # The carretera both-ways is fail-closed by default: an empty api_key
-    # disables both lanes regardless of the *_enabled flags. The flags are
-    # the second gate — they let an operator stage rollout (inbound first,
-    # then outbound) once the key is provisioned, mirroring how
-    # is_azure_configured() gates the backup loop in bot.py.
+    # All four lanes default ON now (revived 2026-05-25 after the LLMClient→
+    # /v1/judge migration restored their LLM path). The real fail-closed gate
+    # is INFRASTRUCTURE, not policy: an empty `moltbook_api_key` makes the
+    # source None → every lane short-circuits, and inbound/outbound also need
+    # `moltbook_submolts`. So a deployment without the key/submolts/runner
+    # stays silent regardless of these flags; set them to False only to mute a
+    # lane that IS otherwise wired. The SAFETY gates (PII redaction,
+    # vulnerability/disclosure, salience) run inside each lane and are NOT
+    # affected by these switches.
     moltbook_api_key: SecretStr = SecretStr("")
     moltbook_base_url: str = "https://www.moltbook.com/api/v1"
     # Comma-separated submolt names, e.g. "m/philosophy,m/ai-agents". Parsed
     # via the moltbook_submolts property to keep .env friendly (Pydantic
     # parsing of list[str] from env requires JSON, which is awkward to type).
     moltbook_submolts_raw: str = ""
-    moltbook_outbound_enabled: bool = False
-    moltbook_inbound_enabled: bool = False
-    moltbook_engagement_enabled: bool = False
+    moltbook_outbound_enabled: bool = True
+    moltbook_inbound_enabled: bool = True
+    moltbook_engagement_enabled: bool = True
     # Heartbeat replies-to-commenters task. Polls /api/v1/home every 20
     # minutes for activity_on_your_posts and replies via the agent's own
     # LLM. See Phase 7 plan + .claude/plans/elegant-foraging-knuth.md.
-    moltbook_heartbeat_enabled: bool = False
+    moltbook_heartbeat_enabled: bool = True
     # Discord channel id where the bot reports its Moltbook activity
     # (publishes + engagement comments). Empty string disables narration.
     moltbook_report_channel_id: str = ""
