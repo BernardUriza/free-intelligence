@@ -266,21 +266,44 @@ class PgMemoryStore:
         *,
         include_deleted: bool = False,
     ) -> list[Fact]:
-        """All facts for a principal, newest-updated first."""
-        if include_deleted:
-            sql = (
-                "SELECT id, fact, category, updated_at, source, deleted_at "
-                "FROM principal_facts WHERE principal_id = $1 "
-                "ORDER BY updated_at DESC"
-            )
-        else:
-            sql = (
-                "SELECT id, fact, category, updated_at, source, deleted_at "
-                "FROM principal_facts WHERE principal_id = $1 AND deleted_at IS NULL "
-                "ORDER BY updated_at DESC"
-            )
-        rows = await self._p.fetch(sql, principal_id)
-        return [_row_to_fact(r, principal_id) for r in rows]
+        """All facts for a single principal, newest-updated first.
+
+        Thin wrapper over :meth:`get_facts_multi` so the single- and
+        multi-principal paths share one SQL implementation.
+        """
+        return await self.get_facts_multi([principal_id], include_deleted=include_deleted)
+
+    async def get_facts_multi(
+        self,
+        principal_ids: list[str],
+        *,
+        include_deleted: bool = False,
+    ) -> list[Fact]:
+        """All facts across SEVERAL principals, newest-updated first.
+
+        The context-scoped retrieval primitive. ``principal_id`` is a generic
+        TEXT tenant key, so a consumer can namespace it — e.g.
+        ``["user:907...", "channel:1489..."]`` — and this returns the UNION in
+        a single query (``principal_id = ANY($1)``). That is how a group-channel
+        turn pulls "facts about the asker" + "facts shared in this channel"
+        together, while a 1:1 turn passes just the one user key. fi-core stays
+        agnostic about the naming convention; it only unions whatever keys you
+        give it.
+
+        Returns ``[]`` for an empty list. Each Fact carries its own
+        ``principal_id`` (read from the row, since results span principals).
+        """
+        if not principal_ids:
+            return []
+        sql = (
+            "SELECT id, fact, category, updated_at, source, deleted_at, principal_id "
+            "FROM principal_facts WHERE principal_id = ANY($1) "
+        )
+        if not include_deleted:
+            sql += "AND deleted_at IS NULL "
+        sql += "ORDER BY updated_at DESC"
+        rows = await self._p.fetch(sql, list(principal_ids))
+        return [_row_to_fact(r) for r in rows]
 
     async def save_facts(
         self,
@@ -420,35 +443,57 @@ class PgMemoryStore:
           (so search is useful before the embedding backfill completes).
         - No hits in either arm → ``get_facts`` fallback.
         - Keyword arm empty (no term match) → result is the pure vector order.
+
+        Thin wrapper over :meth:`semantic_search_multi` (single principal).
         """
+        return await self.semantic_search_multi([principal_id], query, limit=limit)
+
+    async def semantic_search_multi(
+        self,
+        principal_ids: list[str],
+        query: str,
+        *,
+        limit: int = 10,
+    ) -> list[Fact]:
+        """Hybrid RRF search (vector + keyword) across SEVERAL principals.
+
+        Same fusion as :meth:`semantic_search`, but both arms scope to
+        ``principal_id = ANY(principal_ids)`` so a context-scoped retrieval
+        (user namespace + channel namespace) is ranked as ONE pool — a Larisa
+        fact filed under the channel and a trait filed under the user compete
+        in the same RRF, instead of the caller stitching two separate searches.
+        """
+        if not principal_ids:
+            return []
         if self._embedder is None:
-            return await self.get_facts(principal_id)
+            return await self.get_facts_multi(principal_ids)
 
         try:
             query_vec = await self._embedder.embed(query)
         except Exception:
-            return await self.get_facts(principal_id)
+            return await self.get_facts_multi(principal_ids)
 
-        # Vector arm — top `limit` by cosine distance.
+        ids = list(principal_ids)
+        # Vector arm — top `limit` by cosine distance across all principals.
         vec_rows = await self._p.fetch(
-            "SELECT id, fact, category, updated_at, source, deleted_at "
+            "SELECT id, fact, category, updated_at, source, deleted_at, principal_id "
             "FROM principal_facts "
-            "WHERE principal_id = $2 AND deleted_at IS NULL AND embedding IS NOT NULL "
+            "WHERE principal_id = ANY($2) AND deleted_at IS NULL AND embedding IS NOT NULL "
             "ORDER BY embedding <=> $1 "
             "LIMIT $3",
             Vector(query_vec),
-            principal_id,
+            ids,
             limit,
         )
-        vec_facts = [_row_to_fact(r, principal_id) for r in vec_rows]
+        vec_facts = [_row_to_fact(r) for r in vec_rows]
 
-        # Keyword arm — over ALL live facts, because a keyword hit is exactly
-        # the case the vector top-K MISSES (that's the point of going hybrid).
-        live = await self.get_facts(principal_id)
+        # Keyword arm — over ALL live facts in scope (the exact case the vector
+        # top-K misses: rare proper-name tokens like "Larisa").
+        live = await self.get_facts_multi(ids)
         kw_facts = _keyword_rank(query, live)[:limit]
 
         if not vec_facts and not kw_facts:
-            return await self.get_facts(principal_id)
+            return await self.get_facts_multi(ids)
 
         id_to_fact: dict[int, Fact] = {f.id: f for f in (*vec_facts, *kw_facts) if f.id is not None}
         fused = _rrf_fuse(

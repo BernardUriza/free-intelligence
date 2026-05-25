@@ -347,5 +347,50 @@ class TestSemanticSearchHybrid:
         assert results[0].fact == "el clima de hoy hace calor"
 
 
+class TestMultiPrincipal:
+    """Context-scoped retrieval: union across principal namespaces (the
+    user:<id> + channel:<id> pattern). Single-principal methods delegate here,
+    so these also guard backward compat."""
+
+    async def test_get_facts_multi_unions_principals(self, store):
+        await store.add_fact("user:907", "Bernard programa en Python")
+        await store.add_fact("channel:1489", "En este canal se habló de Larisa")
+        await store.add_fact("user:1431", "Alex toma quetiapina")  # out of scope
+
+        facts = await store.get_facts_multi(["user:907", "channel:1489"])
+        texts = {f.fact for f in facts}
+        assert "Bernard programa en Python" in texts
+        assert "En este canal se habló de Larisa" in texts
+        assert "Alex toma quetiapina" not in texts  # not in the requested scope
+        # each Fact carries its own principal_id (results span principals)
+        assert {f.principal_id for f in facts} == {"user:907", "channel:1489"}
+
+    async def test_get_facts_multi_empty_list_returns_empty(self, store):
+        assert await store.get_facts_multi([]) == []
+
+    async def test_single_get_facts_still_works_via_delegation(self, store):
+        await store.add_fact("user:907", "solo de Bernard")
+        facts = await store.get_facts("user:907")
+        assert len(facts) == 1
+        assert facts[0].fact == "solo de Bernard"
+        assert facts[0].principal_id == "user:907"
+
+    async def test_semantic_search_multi_surfaces_channel_scoped_fact(self, hybrid_store):
+        """The Larisa case: a fact filed under the CHANNEL namespace surfaces
+        when the asker (a different user namespace) queries — exactly what the
+        per-user-only model missed."""
+        # 'larisa' is in _FakeEmbedder's map (vector-far from the query axis),
+        # so the keyword arm is what must lift it across the namespace boundary.
+        await hybrid_store.add_fact("user:907", "le gusta el cafe de especialidad")
+        await hybrid_store.add_fact("channel:1489", "su contacto es larisa la terapeuta")
+
+        results = await hybrid_store.semantic_search_multi(["user:907", "channel:1489"], "larisa", limit=5)
+        assert results, "multi-principal hybrid must return ranked facts"
+        assert results[0].fact == "su contacto es larisa la terapeuta"
+
+    async def test_semantic_search_multi_empty_list_returns_empty(self, hybrid_store):
+        assert await hybrid_store.semantic_search_multi([], "larisa") == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
