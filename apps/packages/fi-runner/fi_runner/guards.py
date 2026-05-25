@@ -59,9 +59,15 @@ class Guard(Protocol):
 
     name: str
 
-    def inspect(self, *, response_text: str, context: tuple[str, ...] = ()) -> GuardOutcome:
+    def inspect(
+        self, *, response_text: str, context: tuple[str, ...] = (), final: bool = False
+    ) -> GuardOutcome:
         """Inspect a turn's ``response_text`` (plus optional ``context`` strings,
-        e.g. the user's own messages) and return a :class:`GuardOutcome`."""
+        e.g. the user's own messages) and return a :class:`GuardOutcome`.
+
+        ``final`` is True on the last allowed attempt (retries exhausted): a
+        transformational guard should stop requesting a retry and instead clean
+        up (e.g. sanitize) so the pipeline can ship a best-effort result."""
         ...
 
 
@@ -84,7 +90,10 @@ class TriageGuard:
     patient_context: Any  # fi_core.cognitive.PatientContext (the class)
     name: str = "triage"
 
-    def inspect(self, *, response_text: str, context: tuple[str, ...] = ()) -> GuardOutcome:
+    def inspect(
+        self, *, response_text: str, context: tuple[str, ...] = (), final: bool = False
+    ) -> GuardOutcome:
+        # `final` is irrelevant to an observational guard — it never retries.
         score = self.classifier.classify(
             self.patient_context(symptoms=[response_text, *context])
         )
@@ -139,9 +148,18 @@ class AntiDriftGuard:
     context_reinforcement: str = ""
     name: str = "antidrift"
 
-    def inspect(self, *, response_text: str, context: tuple[str, ...] = ()) -> GuardOutcome:
+    def inspect(
+        self, *, response_text: str, context: tuple[str, ...] = (), final: bool = False
+    ) -> GuardOutcome:
         breaks = self.break_detector.detect(response_text)
         if breaks:
+            if final:
+                # Retries exhausted — last-resort cleanup: drop the offending
+                # sentences and ship, rather than retry again.
+                return GuardOutcome(
+                    metadata={"severity": "break", "matched": breaks, "sanitized": True},
+                    text_override=self.sanitize(response_text),
+                )
             return GuardOutcome(
                 metadata={"severity": "break", "matched": breaks},
                 retry=True,
@@ -149,6 +167,10 @@ class AntiDriftGuard:
             )
         clar = self.clarification_detector.detect(response_text)
         if clar:
+            # Clarification dump is a SOFT retry: ask once, but on the final
+            # attempt send as-is (the bot is lazy, not character-broken).
+            if final:
+                return GuardOutcome(metadata={"severity": "clarification_dump", "matched": clar})
             return GuardOutcome(
                 metadata={"severity": "clarification_dump", "matched": clar},
                 retry=True,

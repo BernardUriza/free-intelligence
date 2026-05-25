@@ -7,11 +7,11 @@ WITHOUT importing fi-core — it declares a guard, fi_runner imports fi-core.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
-from fi_runner import Runner, TurnResult
+from fi_runner import RetryPolicy, Runner, TurnResult
 from fi_runner.guards import (
     AntiDriftGuard,
     GuardOutcome,
@@ -168,7 +168,9 @@ class _UppercaseGuard:
 
     name: str = "upper"
 
-    def inspect(self, *, response_text: str, context: tuple[str, ...] = ()) -> GuardOutcome:
+    def inspect(
+        self, *, response_text: str, context: tuple[str, ...] = (), final: bool = False
+    ) -> GuardOutcome:
         return GuardOutcome(text_override=response_text.upper())
 
 
@@ -199,3 +201,89 @@ async def test_runner_applies_guard_text_override():
     result = await runner.run("x")
     assert result.text == "HOLA"
     assert "upper" in result.guard_outcomes
+
+
+# ---------------------------------------------------------------------------
+# RetryPolicy — retry-on-guard pipeline in Runner.run
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _ScriptedBackend:
+    """Returns a scripted text per attempt; records the prompt/model each call."""
+
+    texts: list[str]
+    calls: list[dict] = field(default_factory=list)
+
+    async def run_turn(self, *, system_prompt, user_message, model=None, **kwargs):  # noqa: ANN001,ANN003
+        i = len(self.calls)
+        self.calls.append({"system_prompt": system_prompt, "model": model})
+        return TurnResult(text=self.texts[min(i, len(self.texts) - 1)])
+
+
+def _antidrift():
+    return antidrift_guard(break_patterns=_break_pat(), reinforcement="STAY IN CHARACTER")
+
+
+@pytest.mark.asyncio
+async def test_default_policy_no_retry_sanitizes_on_single_attempt():
+    # max_attempts=1 (default): the single attempt is final → break is sanitized,
+    # not retried.
+    be = _ScriptedBackend(texts=["As an AI, I cannot. Hola amigo."])
+    runner = Runner(backend=be, persona="p", guards=[_antidrift()])
+    result = await runner.run("x")
+    assert len(be.calls) == 1  # no retry
+    assert "As an AI" not in result.text
+    assert "Hola amigo" in result.text
+
+
+@pytest.mark.asyncio
+async def test_retry_on_break_then_clean():
+    be = _ScriptedBackend(texts=["As an AI, I cannot.", "Órale, claro güey."])
+    runner = Runner(
+        backend=be, persona="P", guards=[_antidrift()], retry_policy=RetryPolicy(max_attempts=2)
+    )
+    result = await runner.run("x")
+    assert len(be.calls) == 2  # retried once
+    assert result.text == "Órale, claro güey."
+    assert "STAY IN CHARACTER" in be.calls[1]["system_prompt"]  # reinforcement appended
+    assert "STAY IN CHARACTER" not in be.calls[0]["system_prompt"]  # not on first
+
+
+@pytest.mark.asyncio
+async def test_retry_exhausted_sanitizes_on_final():
+    be = _ScriptedBackend(texts=["As an AI, no. Hola.", "As an AI, still broken. Adiós."])
+    runner = Runner(
+        backend=be, persona="P", guards=[_antidrift()], retry_policy=RetryPolicy(max_attempts=2)
+    )
+    result = await runner.run("x")
+    assert len(be.calls) == 2
+    assert "As an AI" not in result.text  # final attempt → sanitized
+    assert "Adiós" in result.text
+    assert result.guard_outcomes["antidrift"].metadata.get("sanitized") is True
+
+
+@pytest.mark.asyncio
+async def test_retry_escalates_to_fallback_model():
+    be = _ScriptedBackend(texts=["As an AI.", "limpio güey"])
+    runner = Runner(
+        backend=be,
+        persona="P",
+        model="primary",
+        guards=[_antidrift()],
+        retry_policy=RetryPolicy(max_attempts=2, fallback_model="fallback"),
+    )
+    await runner.run("x")
+    assert be.calls[0]["model"] == "primary"
+    assert be.calls[1]["model"] == "fallback"
+
+
+@pytest.mark.asyncio
+async def test_no_retry_when_first_attempt_clean():
+    be = _ScriptedBackend(texts=["Órale güey, todo bien."])
+    runner = Runner(
+        backend=be, persona="P", guards=[_antidrift()], retry_policy=RetryPolicy(max_attempts=3)
+    )
+    result = await runner.run("x")
+    assert len(be.calls) == 1  # clean → no retry even with attempts available
+    assert result.guard_outcomes["antidrift"].clean is True

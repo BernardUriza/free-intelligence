@@ -44,9 +44,9 @@ from .guards import (
     antidrift_guard,
     triage_guard,
 )
-from .runner import Runner
+from .runner import RetryPolicy, Runner
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "AgentBackend",
@@ -58,6 +58,7 @@ __all__ = [
     "CodexBackend",
     "ProviderConfig",
     "Runner",
+    "RetryPolicy",
     "capabilities",
     "guards",
     "Guard",
