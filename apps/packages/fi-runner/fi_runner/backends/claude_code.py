@@ -158,7 +158,12 @@ class ClaudeCodeBackend:
                         continue
                     idx = by_id.get(getattr(block, "tool_use_id", None))
                     if idx is not None:
-                        tool_calls[idx] = replace(tool_calls[idx], is_error=bool(getattr(block, "is_error", False)))
+                        # Respect the contract: None = unknown. A missing is_error
+                        # stays None (don't claim success); only a present value coerces.
+                        raw_err = getattr(block, "is_error", None)
+                        tool_calls[idx] = replace(
+                            tool_calls[idx], is_error=None if raw_err is None else bool(raw_err)
+                        )
             elif kind == "ResultMessage":
                 # Final message of a turn — carries usage, cost and session id.
                 raw = getattr(message, "usage", None)

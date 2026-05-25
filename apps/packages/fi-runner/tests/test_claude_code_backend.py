@@ -187,3 +187,18 @@ async def test_collect_captures_tool_trace_with_result_status():
     assert tools[0].server == "cognitive" and tools[0].is_error is False
     assert tools[1].server is None and tools[1].is_error is True  # built-in, failed
     assert tools[0].input == {"q": "phi"}  # input kept on the object (not in telemetry)
+
+
+@pytest.mark.asyncio
+async def test_collect_unknown_tool_result_stays_none():
+    # Contract: None = unknown. A result with no status, or no result at all,
+    # must NOT be coerced to False (claiming success).
+    client = _FakeClient(
+        [
+            AssistantMessage([ToolUseBlock("Bash", {}, "t1"), ToolUseBlock("Read", {}, "t2")]),
+            UserMessage([ToolResultBlock("t1", is_error=None)]),  # t2 gets no result block
+        ]
+    )
+    _text, _usage, _sess, tools = await ClaudeCodeBackend._collect(client)
+    assert tools[0].is_error is None  # present result, unknown status
+    assert tools[1].is_error is None  # never saw a result

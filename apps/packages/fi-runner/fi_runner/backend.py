@@ -93,7 +93,9 @@ def mcp_server_token(server: str) -> str:
 
 def mcp_server_of(tool_name: str) -> str | None:
     """The MCP server a tool name belongs to, or ``None`` for a built-in tool
-    (e.g. ``Bash``). Inverse of :func:`mcp_tool_id` / :func:`mcp_server_token`."""
+    (e.g. ``Bash``). Recovers the server from :func:`mcp_tool_id` /
+    :func:`mcp_server_token` output — round-trips exactly as long as the server
+    name has no ``__`` (true for MCP server names; the separator is reserved)."""
     if not tool_name.startswith(_MCP_PREFIX):
         return None
     return tool_name[len(_MCP_PREFIX) :].split(_MCP_SEP, 1)[0] or None

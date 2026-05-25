@@ -21,6 +21,7 @@ Python dependency (the ``codex`` extra is empty, kept only to document this).
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from ..backend import MCPServerSpec, PermissionMode, ToolCall, ToolPolicy, TurnResult, mcp_tool_id
@@ -147,14 +148,19 @@ class CodexBackend(SubprocessCLIBackend):
         mcp_servers: list[MCPServerSpec],
         tool_policy: ToolPolicy,
         model: str | None,
+        session_id: str | None = None,
     ) -> list[str]:
         # `--skip-git-repo-check`: the runner cwd is NOT a git repo (containerized
         # service, no working tree), and `codex exec` refuses to run outside one
         # by default ("Not inside a trusted directory and --skip-git-repo-check
         # was not specified" → exit 1). This flag lets codex run anywhere.
-        argv = [
-            "codex",
-            "exec",
+        argv = ["codex", "exec"]
+        # Session continuity: `codex exec resume <thread_id>` continues a prior
+        # thread (the id comes from a previous turn's TurnResult.session_id). The
+        # base threads session_id here; the `resume <id>` form is Codex's.
+        if session_id:
+            argv += ["resume", session_id]
+        argv += [
             "--json",
             "--skip-git-repo-check",
             "--sandbox",
@@ -285,7 +291,23 @@ class CodexBackend(SubprocessCLIBackend):
             "Install it (e.g. `npm i -g @openai/codex`) and sign in with your ChatGPT plan."
         )
 
-    def _parse_events(self, events: list[dict]) -> TurnResult:
+    @staticmethod
+    def _json_lines(stdout: str) -> list[dict]:
+        """Codex's output schema: one JSON event per non-blank line of stdout;
+        skip unparseable lines. This is Codex's contract, not the base's."""
+        events: list[dict] = []
+        for raw in stdout.splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return events
+
+    def _parse_output(self, stdout: str) -> TurnResult:
+        events = self._json_lines(stdout)
         return TurnResult(
             text=self._extract_text(events),
             raw=events,

@@ -204,3 +204,51 @@ def test_extract_tool_calls_drops_tools_from_aborted_attempt():
 
 def test_extract_tool_calls_empty_when_no_tools():
     assert CodexBackend._extract_tool_calls([{"type": "turn.completed", "usage": {}}]) == []
+
+
+# --- session resume (the vertical capability the base threads) --------------
+
+
+def _argv(session_id=None):
+    return CodexBackend()._build_argv(
+        system_prompt="sys",
+        user_message="hola",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        model=None,
+        session_id=session_id,
+    )
+
+
+def test_build_argv_resumes_when_session_id_given():
+    argv = _argv(session_id="thread_abc")
+    assert argv[:4] == ["codex", "exec", "resume", "thread_abc"]  # resume right after exec
+    assert argv[-1] == "sys\n\n---\n\nhola"  # prompt still last
+
+
+def test_build_argv_no_resume_without_session_id():
+    argv = _argv(session_id=None)
+    assert "resume" not in argv
+    assert argv[:3] == ["codex", "exec", "--json"]
+
+
+# --- output schema (JSONL) is Codex's, not the base's -----------------------
+
+
+def test_json_lines_skips_blank_and_invalid():
+    text = '{"a": 1}\n\n   \nnot json\n{"b": 2}\n'
+    assert CodexBackend._json_lines(text) == [{"a": 1}, {"b": 2}]
+
+
+def test_parse_output_builds_turn_result_from_stdout():
+    stdout = (
+        '{"type": "thread.started", "thread_id": "t9"}\n'
+        '{"type": "item.completed", "item": {"type": "agent_message", "text": "hola"}}\n'
+        '{"type": "item.completed", "item": {"type": "mcp_tool_call", "server": "s", "tool": "go"}}\n'
+        '{"type": "turn.completed", "usage": {"output_tokens": 3}}\n'
+    )
+    result = CodexBackend()._parse_output(stdout)
+    assert result.text == "hola"
+    assert result.session_id == "t9"
+    assert result.usage == {"output_tokens": 3}
+    assert [t.name for t in result.tool_calls] == ["mcp__s__go"]
