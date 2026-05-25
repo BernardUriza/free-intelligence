@@ -15,7 +15,8 @@ Caveats (Codex maturity, 2026): the ``codex`` CLI must be on PATH. A past bug
 (openai/codex#15451, now closed) dropped ``--output-schema`` (strict structured
 output) when MCP servers were active — it did NOT affect the plain ``--json``
 JSONL event stream this backend parses, so MCP capabilities work fine over Codex.
-Requires the ``codex`` extra.
+Requires the ``codex`` CLI on PATH (``npm i -g @openai/codex``) — there is no
+Python dependency (the ``codex`` extra is empty, kept only to document this).
 """
 
 from __future__ import annotations
