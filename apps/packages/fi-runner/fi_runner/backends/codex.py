@@ -151,29 +151,33 @@ class CodexBackend(SubprocessCLIBackend):
         session_id: str | None = None,
     ) -> list[str]:
         # `--skip-git-repo-check`: the runner cwd is NOT a git repo (containerized
-        # service, no working tree), and `codex exec` refuses to run outside one
-        # by default ("Not inside a trusted directory and --skip-git-repo-check
-        # was not specified" → exit 1). This flag lets codex run anywhere.
-        argv = ["codex", "exec"]
-        # Session continuity: `codex exec resume <thread_id>` continues a prior
-        # thread (the id comes from a previous turn's TurnResult.session_id). The
-        # base threads session_id here; the `resume <id>` form is Codex's.
-        if session_id:
-            argv += ["resume", session_id]
-        argv += [
-            "--json",
-            "--skip-git-repo-check",
-            "--sandbox",
-            self._sandbox_for(tool_policy),
-        ]
-        argv += self._provider_args()  # Azure OpenAI provider, if configured
-        chosen_model = model or self.default_model
-        if chosen_model:
-            argv += ["--model", chosen_model]
-        argv += self._mcp_config_args(mcp_servers)
+        # service, no working tree), and codex refuses to run outside one by
+        # default ("Not inside a trusted directory ..." → exit 1). Both `exec` and
+        # `exec resume` accept it.
         prompt = f"{system_prompt}\n\n---\n\n{user_message}" if system_prompt else user_message
-        argv.append(prompt)
-        return argv
+        chosen_model = model or self.default_model
+        model_args = ["--model", chosen_model] if chosen_model else []
+        # `-c` provider overrides + `--model` + `-c` mcp overrides are accepted by
+        # BOTH `exec` and `exec resume`.
+        common = self._provider_args() + model_args + self._mcp_config_args(mcp_servers)
+        if session_id:
+            # `codex exec resume [OPTIONS] <SESSION_ID> <PROMPT>` — VERIFIED against
+            # codex-cli 0.133.0: resume does NOT accept --sandbox (it inherits the
+            # thread's policy; passing it errors "unexpected argument"); the id +
+            # prompt are trailing positionals. CAVEAT: codex stores threads LOCALLY
+            # (~/.codex/sessions), so resume only works where that store persists —
+            # in an ephemeral container the prior turn's thread is gone ("no rollout
+            # found"); continuity there needs history replay, not resume.
+            return [
+                "codex", "exec", "resume", "--json", "--skip-git-repo-check",
+                *common, session_id, prompt,
+            ]
+        # Fresh turn: --sandbox applies (no thread to inherit a policy from).
+        return [
+            "codex", "exec", "--json", "--skip-git-repo-check",
+            "--sandbox", self._sandbox_for(tool_policy),
+            *common, prompt,
+        ]
 
     @staticmethod
     def _extract_text(events: list[dict]) -> str:
@@ -279,8 +283,10 @@ class CodexBackend(SubprocessCLIBackend):
 
     # --- SubprocessCLIBackend hooks -----------------------------------------
     #
-    # codex exec CAN resume a previous session (`codex exec resume <id>`); wiring
-    # session_id to it is a v2 TODO, so the base's one-shot run_turn is used.
+    # Session continuity: a non-None session_id resumes a thread (see _build_argv).
+    # The argv grammar is verified against codex-cli 0.133.0; end-to-end continuity
+    # is NOT unit-covered (needs a live logged-in codex) and is unreliable on
+    # ephemeral storage (threads live in ~/.codex/sessions). Treat as experimental.
 
     def _cli_binary(self) -> str:
         return "codex"

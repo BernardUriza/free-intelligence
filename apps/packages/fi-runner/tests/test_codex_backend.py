@@ -8,6 +8,11 @@ importantly the API-motor provider config and the content-filter retry bug.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+
+import pytest
+
 from fi_runner import CodexBackend, MCPServerSpec, PermissionMode, ProviderConfig, ToolPolicy
 
 AZURE_ENDPOINT = "https://northcentralus.api.cognitive.microsoft.com/"
@@ -222,14 +227,18 @@ def _argv(session_id=None):
 
 def test_build_argv_resumes_when_session_id_given():
     argv = _argv(session_id="thread_abc")
-    assert argv[:4] == ["codex", "exec", "resume", "thread_abc"]  # resume right after exec
-    assert argv[-1] == "sys\n\n---\n\nhola"  # prompt still last
+    assert argv[:3] == ["codex", "exec", "resume"]
+    # resume REJECTS --sandbox (inherits the thread's policy) — verified vs the CLI
+    assert "--sandbox" not in argv
+    # id + prompt are the trailing positionals, options before them
+    assert argv[-2:] == ["thread_abc", "sys\n\n---\n\nhola"]
 
 
 def test_build_argv_no_resume_without_session_id():
     argv = _argv(session_id=None)
     assert "resume" not in argv
     assert argv[:3] == ["codex", "exec", "--json"]
+    assert "--sandbox" in argv  # a fresh turn sets the sandbox
 
 
 # --- output schema (JSONL) is Codex's, not the base's -----------------------
@@ -252,3 +261,28 @@ def test_parse_output_builds_turn_result_from_stdout():
     assert result.session_id == "t9"
     assert result.usage == {"output_tokens": 3}
     assert [t.name for t in result.tool_calls] == ["mcp__s__go"]
+
+
+# --- integration: resume argv against the REAL codex (grammar smoke test) ----
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("codex") is None, reason="needs the codex CLI on PATH")
+def test_resume_argv_parses_against_real_codex():
+    """Grammar-only smoke test (no auth, no turn): the resume argv must get PAST
+    the real codex arg-parser. A bogus id fails with 'no rollout found' (a local
+    lookup), NEVER 'unexpected argument' — which is exactly what `--sandbox` on
+    resume used to produce. Guards against a flag drift between codex versions.
+    Full end-to-end continuity is NOT covered here (it needs a logged-in codex and
+    persistent ~/.codex storage — see _build_argv's caveat)."""
+    argv = CodexBackend()._build_argv(
+        system_prompt="",
+        user_message="hi",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        model=None,
+        session_id="00000000-0000-0000-0000-000000000000",
+    )
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    combined = proc.stdout + proc.stderr
+    assert "unexpected argument" not in combined, combined  # every flag is valid for `resume`
