@@ -18,6 +18,7 @@ import structlog
 from discord.ext import commands
 
 from alice.config import AliceSettings, settings
+from alice.core.clinical_reflection import ClinicalReflector
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader, get_persona_loader
@@ -34,6 +35,9 @@ class Container:
     llm: AliceLLMClient
     persona: PersonaLoader
     bot: commands.Bot
+    # Clinical Reflection Layer (backend clínico) — only wired when a
+    # clinician-only channel is configured; None disables it.
+    clinical: ClinicalReflector | None = None
 
 
 def create_container() -> Container:
@@ -42,10 +46,15 @@ def create_container() -> Container:
     intents.message_content = True
     bot = commands.Bot(command_prefix="!alice ", intents=intents)
 
+    # The clinical layer is opt-in: only built when a clinician-only channel
+    # exists to receive it (so it never has nowhere safe to go).
+    clinical = ClinicalReflector() if settings.clinical_channel_id else None
+
     return Container(
         settings=settings,
         memory=AliceMemory(),
         llm=AliceLLMClient(),
         persona=get_persona_loader(),
         bot=bot,
+        clinical=clinical,
     )

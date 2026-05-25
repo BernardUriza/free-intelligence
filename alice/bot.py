@@ -86,6 +86,8 @@ async def _main() -> None:
         memory=container.memory,
         llm=container.llm,
         persona=container.persona,
+        clinical=container.clinical,
+        clinical_channel_id=container.settings.clinical_channel_id,
     )
     await container.bot.add_cog(chat_cog)
 

@@ -24,7 +24,11 @@ def test_alice_package_imports_cleanly():
     from alice import bot, config  # noqa: F401
     from alice.api import server  # noqa: F401
     from alice.cogs import chat  # noqa: F401
-    from alice.core import llm, memory, persona_loader  # noqa: F401
+    from alice.core import clinical_reflection, llm, memory, persona_loader  # noqa: F401
+
+    # Guard against the 819f909 breakage: app.py imports ClinicalReflector, so the
+    # symbol must exist or the whole package fails to load at boot.
+    assert clinical_reflection.ClinicalReflector
 
     # __version__ string is a smoke check that the package metadata loads.
     # Use a shape check instead of a hard-coded value so version bumps in
