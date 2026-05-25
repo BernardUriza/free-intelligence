@@ -152,6 +152,27 @@ async def delete_document(corpus_id: str, doc_id: str) -> dict:
     return {"corpus_id": corpus_id, "doc_id": doc_id, "deleted": deleted}
 
 
+@mcp.tool()
+async def delete_corpus(corpus_id: str) -> dict:
+    """Delete EVERY document (and its chunks) in ``corpus_id`` — tenant teardown."""
+    try:
+        rag = _get_rag()
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"rag store not configured: {e}"}
+    n = await rag.delete_corpus(corpus_id)
+    return {"corpus_id": corpus_id, "deleted_documents": n}
+
+
+@mcp.tool()
+async def stats(corpus_id: str) -> dict:
+    """Usage for ``corpus_id``: ``{n_docs, n_chunks, bytes}`` (the metering base)."""
+    try:
+        rag = _get_rag()
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"rag store not configured: {e}"}
+    return await rag.stats(corpus_id)
+
+
 __all__ = ["MCP_SERVER_NAME", "MCP_TOOLS", "main", "mcp"]
 
 

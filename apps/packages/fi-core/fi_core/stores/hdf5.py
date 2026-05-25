@@ -45,10 +45,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    import fcntl  # Unix advisory cross-process file lock
+except ImportError:  # pragma: no cover - Windows dev; degrades to in-process lock only
+    fcntl = None  # type: ignore[assignment]
 
 try:
     import h5py
@@ -129,12 +137,44 @@ class HDF5ChunkStore:
     def __init__(self, file_path: str | Path) -> None:
         self.file_path = Path(file_path)
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        # Corruption safety: serialize ALL file access. _thread_lock (reentrant)
+        # serializes threads within this process (async ops run on to_thread pool
+        # threads); a cross-process advisory flock on a sidecar lock file
+        # serializes separate processes (two workers / containers on the same H5).
+        # Per-thread depth tracking makes the flock reentrant, so nested opens
+        # within one operation don't deadlock. See _open.
+        self._thread_lock = threading.RLock()
+        self._lock_depth = threading.local()
+        self._lock_path = self.file_path.with_name(self.file_path.name + ".lock")
         # Touch + ensure top-level group exists before first read.
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             f.require_group(_NS_GROUP)
         # Per-namespace in-memory index. Rebuilt on construction.
         self._index: dict[str, _NamespaceIndex] = {}
         self._rebuild_full_index()
+
+    @contextmanager
+    def _open(self, mode: str):
+        """Open the H5 file under an exclusive lock (thread + cross-process).
+
+        The flock is acquired only at the OUTERMOST open in this thread (depth 0)
+        and held until it unwinds, so nested opens within one operation reuse it
+        instead of deadlocking on a second flock of the same file."""
+        with self._thread_lock:
+            depth = getattr(self._lock_depth, "n", 0)
+            lock_fd = None
+            if depth == 0 and fcntl is not None:
+                lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            self._lock_depth.n = depth + 1
+            try:
+                with h5py.File(self.file_path, mode) as f:
+                    yield f
+            finally:
+                self._lock_depth.n = depth
+                if lock_fd is not None and fcntl is not None:
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                    os.close(lock_fd)
 
     # ------------------------------------------------------------------
     # Public Protocol methods (ChunkStore + DocumentChunkStore)
@@ -436,7 +476,7 @@ class HDF5ChunkStore:
                 attributes=meta.attributes,
             )
 
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             ns_group = f.require_group(f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}")
             if document_id in ns_group:
                 raise ValueError(
@@ -455,7 +495,7 @@ class HDF5ChunkStore:
     def _get_document_sync(
         self, namespace: str, document_id: str
     ) -> DocumentRecord | None:
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}"
             if path not in f:
                 return None
@@ -466,7 +506,7 @@ class HDF5ChunkStore:
         self, namespace: str, status: str | None, limit: int | None
     ) -> list[DocumentRecord]:
         records: list[DocumentRecord] = []
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             ns_path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}"
             if ns_path not in f:
                 return []
@@ -489,7 +529,7 @@ class HDF5ChunkStore:
         content: str | None,
         metadata: DocumentMetadata | None,
     ) -> bool:
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}"
             if path not in f:
                 return False
@@ -506,7 +546,7 @@ class HDF5ChunkStore:
         return True
 
     def _delete_document_sync(self, namespace: str, document_id: str) -> bool:
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}"
             if path not in f:
                 return False
@@ -524,7 +564,7 @@ class HDF5ChunkStore:
 
         new_entries: list[_IndexEntry] = []
         saved = 0
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             doc_path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}"
             if doc_path not in f:
                 raise ValueError(
@@ -570,7 +610,7 @@ class HDF5ChunkStore:
         self, namespace: str, document_id: str
     ) -> list[Chunk]:
         chunks: list[Chunk] = []
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}/{_CHUNKS_GROUP}"
             if path not in f:
                 return []
@@ -583,7 +623,7 @@ class HDF5ChunkStore:
     def _delete_chunks_by_document_sync(
         self, namespace: str, document_id: str
     ) -> int:
-        with h5py.File(self.file_path, "a") as f:
+        with self._open("a") as f:
             chunks_path = (
                 f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}/{_CHUNKS_GROUP}"
             )
@@ -597,7 +637,7 @@ class HDF5ChunkStore:
         return count
 
     def _reindex_document_sync(self, namespace: str, document_id: str) -> bool:
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             doc_path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}/{document_id}"
             if doc_path not in f:
                 return False
@@ -654,7 +694,7 @@ class HDF5ChunkStore:
 
         results: list[RetrievedChunk] = []
         # Hydrate chunks from disk (in-memory index only carries embeddings).
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             for i in top_sorted:
                 entry = entries[int(i)]
                 chunk_path = (
@@ -675,7 +715,7 @@ class HDF5ChunkStore:
         in ``filters`` (flat equality — the HDF5 analogue of Postgres ``@>``)."""
         matched: set[str] = set()
         docs_path = f"{_NS_GROUP}/{namespace}/{_DOCS_GROUP}"
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             if docs_path not in f:
                 return matched
             docs_group = f[docs_path]
@@ -700,7 +740,7 @@ class HDF5ChunkStore:
         (1-2 seconds per 10k chunks); consumers that need lazy loading
         should subclass and override.
         """
-        with h5py.File(self.file_path, "r") as f:
+        with self._open("r") as f:
             if _NS_GROUP not in f:
                 return
             ns_root = f[_NS_GROUP]

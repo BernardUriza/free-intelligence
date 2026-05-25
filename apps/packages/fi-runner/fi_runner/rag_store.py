@@ -89,5 +89,13 @@ class RagStoreClient:
         """Delete ``doc_id`` (and its chunks) from ``corpus_id``; True if it existed."""
         return await self._rag.delete_document(corpus_id, doc_id)
 
+    async def delete_corpus(self, corpus_id: str) -> int:
+        """Delete EVERY document in ``corpus_id`` (tenant teardown). Returns the count."""
+        return await self._rag.delete_corpus(corpus_id)
+
+    async def stats(self, corpus_id: str) -> dict:
+        """Usage for ``corpus_id``: ``{n_docs, n_chunks, bytes}`` — the metering base."""
+        return await self._rag.stats(corpus_id)
+
 
 __all__ = ["RagStoreClient", "read_text_file"]

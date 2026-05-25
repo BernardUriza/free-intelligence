@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.10.0"
+version = "0.11.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,9 +21,9 @@ classifiers = [
 dependencies = [
     # Bounded: pre-1.0 minors of fi-core can break; cap at the next unreleased
     # minor so a mid-event fi-core bump can't silently break consumers.
-    # Floor 0.20: fi-runner's rag_store capability + fi_runner.rag_store client
-    # use fi-core's store_mcp_server / RagStore (0.20.0); older fi-core lacks them.
-    "fi-core>=0.20,<0.21",
+    # Floor 0.21: fi-runner's rag_store capability + fi_runner.rag_store client
+    # use fi-core's RagStore (delete_corpus/stats + locked HDF5, 0.21.0).
+    "fi-core>=0.21,<0.22",
 ]
 
 [project.optional-dependencies]

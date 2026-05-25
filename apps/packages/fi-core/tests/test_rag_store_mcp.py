@@ -6,6 +6,8 @@ by corpus_id, and list/delete. Direct tool invocation (no stdio transport).
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 pytest.importorskip("h5py")  # the default hdf5 backend
@@ -87,3 +89,35 @@ async def test_reingest_replaces_chunks(configured):
 async def test_unknown_strategy_is_graceful(configured):
     r = await store_mcp.ingest_document("c1", "d1", _DOC, strategy="bogus")
     assert "error" in r
+
+
+# --- P1: lifecycle (delete_corpus + stats) ------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stats_and_delete_corpus(configured):
+    await store_mcp.ingest_document("c1", "d1", _DOC, **_CHUNK)
+    await store_mcp.ingest_document("c1", "d2", "otro dolor diabetes del paciente grave", **_CHUNK)
+    st = await store_mcp.stats("c1")
+    assert st["n_docs"] == 2 and st["n_chunks"] >= 2 and st["bytes"] > 0  # the metering base
+    res = await store_mcp.delete_corpus("c1")
+    assert res["deleted_documents"] == 2
+    assert await store_mcp.list_documents("c1") == {"documents": []}
+    assert await store_mcp.stats("c1") == {"n_docs": 0, "n_chunks": 0, "bytes": 0}
+
+
+# --- P1: HDF5 locking under concurrency ---------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_concurrent_ingests_do_not_corrupt(configured):
+    # 8 concurrent ingests (distinct docs) to one H5 file. The thread/flock lock
+    # serializes file access; without it h5py concurrent writers corrupt the file.
+    docs = [f"doc-{i}" for i in range(8)]
+    await asyncio.gather(
+        *[store_mcp.ingest_document("c1", d, f"contenido {i} dolor diabetes sueno animo", **_CHUNK)
+          for i, d in enumerate(docs)]
+    )
+    listed = await store_mcp.list_documents("c1")
+    assert sorted(d["doc_id"] for d in listed["documents"]) == sorted(docs)  # all present, file intact
+    assert (await store_mcp.search_documents("c1", "dolor", top_k=20))["hits"]  # still queryable
