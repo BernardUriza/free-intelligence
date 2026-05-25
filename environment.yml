@@ -48,7 +48,10 @@ dependencies:
   # Floor raised to 0.2.1 (alice 0.1.20): CodexBackend._extract_text drops
   # aborted-retry partials (Azure content_filter mid-stream); 0.2.0 concatenates
   # them and garbles ALICE's replies. 0.2.0 also has the azure_endpoint kwargs.
-  - fi-runner>=0.2.1
+  # Floor raised to 0.2.2: CodexBackend now passes `codex exec --skip-git-repo-check`
+  # so it runs in the containerized runner cwd (no git working tree). Without it
+  # codex refused to run and ALICE failed EVERY turn ("Not inside a trusted directory").
+  - fi-runner>=0.2.2
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
