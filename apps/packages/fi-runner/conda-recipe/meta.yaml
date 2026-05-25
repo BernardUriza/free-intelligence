@@ -32,8 +32,8 @@ requirements:
     - wheel
   run:
     - python >=3.12
-    # 0.19: the rag_store capability needs fi-core's store_mcp_server (0.19.0).
-    - fi-core >=0.19
+    # 0.20: rag_store capability + RagStore client need fi-core's store service.
+    - fi-core >=0.20
     # Harness SDKs (claude-agent-sdk, codex) are pip-only and installed
     # per-deployment via the [claude] / [codex] extras — they are intentionally
     # NOT conda run deps (the core import is dep-free).
