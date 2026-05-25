@@ -1,15 +1,21 @@
 {% set name = "fi-runner" %}
-{% set version = "0.3.0" %}
-{# sha256 of the fi-runner-v0.3.0 release tarball (fi_runner-0.3.0.tar.gz) #}
-{% set sha256 = "df85cfadefe062bba8613466cd1af289b2c0375f9a1de91262367c454ef423d8" %}
+{# Version is the single source of truth in fi_runner/__init__.py + pyproject.
+   The publish workflow (.github/workflows/publish-fi-runner.yml) seds this from
+   the pushed `fi-runner-v*` tag, so a build always packages the tagged commit.
+   Bump it here too when cutting a release so a manual `conda build` matches. #}
+{% set version = "0.8.0" %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-  url: https://github.com/BernardUriza/free-intelligence/releases/download/fi-runner-v{{ version }}/fi_runner-{{ version }}.tar.gz
-  sha256: {{ sha256 }}
+  # Build from the package source in-tree (the dir above this recipe), not a
+  # pinned release tarball. Kills the version+sha256 drift that left the
+  # Anaconda channel stuck at 0.3.0 while the code moved to 0.8.0 — there's no
+  # tarball URL/hash to keep in sync anymore; CI builds whatever commit the
+  # tag points at.
+  path: ..
 
 build:
   number: 0

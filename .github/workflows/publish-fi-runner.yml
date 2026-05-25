@@ -1,0 +1,115 @@
+name: Publish fi-runner
+
+# Cut a release + publish fi-runner to Anaconda by pushing a tag:
+#   git tag fi-runner-v0.8.0 && git push origin fi-runner-v0.8.0
+#
+# This kills the drift that left the Anaconda channel stuck at 0.3.0 while the
+# code moved to 0.8.0: the conda package is built from the TAGGED source (the
+# recipe uses `source: path: ..`, no pinned tarball/sha256 to keep in sync), and
+# the version is taken from the tag itself.
+#
+# Required once: repo secret ANACONDA_TOKEN (a token from anaconda.org with
+# "Allow write access to the API site" + package upload scope).
+# Optional: repo variable ANACONDA_CHANNEL to upload into an org channel;
+# unset → uploads to the token owner's personal channel (where 0.3.0 lives).
+
+on:
+  push:
+    tags:
+      - "fi-runner-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. fi-runner-v0.8.0"
+        required: true
+
+permissions:
+  contents: write  # create the GitHub Release + upload the sdist asset
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}  # login shell so the conda env from setup-miniconda is active
+    steps:
+      - name: Resolve tag + version
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fi-runner-v}"
+          if [ "$VERSION" = "$TAG" ]; then
+            echo "::error::Tag '$TAG' does not match fi-runner-v<version>"; exit 1
+          fi
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ver.outputs.tag }}
+
+      - name: Guard — code version matches the tag
+        working-directory: apps/packages/fi-runner
+        run: |
+          CODE_VER=$(python3 -c "import re,pathlib; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', pathlib.Path('fi_runner/__init__.py').read_text()).group(1))")
+          if [ "$CODE_VER" != "${{ steps.ver.outputs.version }}" ]; then
+            echo "::error::fi_runner __version__=$CODE_VER but tag says ${{ steps.ver.outputs.version }}. Bump the code or fix the tag."; exit 1
+          fi
+
+      - name: Build sdist (release asset)
+        working-directory: apps/packages/fi-runner
+        run: |
+          python3 -m pip install --upgrade build
+          python3 -m build --sdist
+          ls -la dist/
+
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          ASSET="apps/packages/fi-runner/dist/fi_runner-${{ steps.ver.outputs.version }}.tar.gz"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            gh release create "$TAG" "$ASSET" \
+              --title "fi-runner ${{ steps.ver.outputs.version }}" \
+              --notes "Automated release. See apps/packages/fi-runner/CHANGELOG or commits since the previous fi-runner-v* tag." \
+              --verify-tag
+          fi
+
+      - name: Set up conda + build/upload tooling
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          channels: conda-forge
+          channel-priority: strict
+
+      - name: Install conda-build + anaconda-client
+        run: conda install -n base -y conda-build anaconda-client
+
+      - name: Sync recipe version to the tag + build
+        run: |
+          RECIPE=apps/packages/fi-runner/conda-recipe
+          sed -i "s/{% set version = \"[^\"]*\" %}/{% set version = \"${{ steps.ver.outputs.version }}\" %}/" "$RECIPE/meta.yaml"
+          # --no-test: the recipe's import smoke test pulls fi_core, which may
+          # not be resolvable on the build channels here. The build itself is a
+          # dep-free `pip install . --no-deps` of a noarch package, so skipping
+          # the test phase doesn't change the artifact.
+          conda build "$RECIPE" --no-test --no-anaconda-upload --output-folder "$RUNNER_TEMP/conda-out"
+
+      - name: Upload to Anaconda
+        env:
+          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+          ANACONDA_CHANNEL: ${{ vars.ANACONDA_CHANNEL }}
+        run: |
+          if [ -z "$ANACONDA_TOKEN" ]; then
+            echo "::error::ANACONDA_TOKEN secret is not set — add it in repo Settings → Secrets, then re-run."; exit 1
+          fi
+          PKG=$(find "$RUNNER_TEMP/conda-out" -name 'fi-runner-*.conda' -o -name 'fi-runner-*.tar.bz2' | head -1)
+          if [ -z "$PKG" ]; then echo "::error::no built conda package found"; exit 1; fi
+          echo "Uploading: $PKG"
+          USER_FLAG=""
+          [ -n "$ANACONDA_CHANNEL" ] && USER_FLAG="-u $ANACONDA_CHANNEL"
+          # --skip-existing so re-running a tag doesn't 409 on an already-uploaded build.
+          anaconda -t "$ANACONDA_TOKEN" upload $USER_FLAG --skip-existing "$PKG"
