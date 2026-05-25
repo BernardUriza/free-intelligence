@@ -18,15 +18,19 @@ WHAT each guard does.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
 from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
+from .flow import Event, events_to_mermaid
 from .guards import Guard, GuardOutcome
+from .narrate import narrate_flow
 from .pipeline import EventSink, MutationStage, run_pipeline
 from .router import ModelRouter
 
@@ -56,6 +60,30 @@ class RetryPolicy:
     fallback_model: str | None = None
 
 
+@dataclass(frozen=True)
+class FlowNarrator:
+    """How the runner narrates each turn's flow diagram (the INSIDE view).
+
+    After a turn settles, the runner hands the mechanical diagram + the turn's
+    request/response back to its OWN backend and asks it to refine the Mermaid
+    into a dev-facing narrative: what its cognitive process reasoned about, with
+    new notes/edges/blocks and colors. This is a SECOND backend call, so it runs
+    in the BACKGROUND (never delays the turn) and supersedes the mechanical
+    diagram when it lands. A refinement is rejected (mechanical kept) if it isn't
+    a Mermaid flowchart or drops the ``request_id`` anchor.
+
+    Observability is core to Free Intelligence, so a Runner narrates by DEFAULT.
+    Pass ``flow_narrator=None`` to disable it (e.g. a metered backend where a
+    second call per turn isn't wanted). Pending narrations are drained by
+    :meth:`Runner.aclose` — or use the runner as an async context manager.
+    """
+
+    # Override the turn's model for the narration call (e.g. a cheaper tier).
+    model: str | None = None
+    # Extra guidance appended to the narration system prompt.
+    instructions: str | None = None
+
+
 @dataclass
 class Runner:
     """A configured runner: a backend + a persona + fi-core capabilities + guards."""
@@ -78,6 +106,24 @@ class Runner:
     post_processors: list[MutationStage] = field(default_factory=list)
     # Telemetry sink for the post-processor pipeline (default: stdlib logging).
     on_event: EventSink | None = None
+    # EVERY turn self-documents: the runner always collects the turn's telemetry
+    # and, once it settles (or crashes), renders a Mermaid flowchart of the path
+    # it took — MCP wiring, guards + levels (CRITICAL highlighted), retries,
+    # post-processors, latency/cost — emitted as a ``turn_flow`` event (always, so
+    # observability is never opt-in). This OPTIONAL callback is an EXTRA channel
+    # for the raw diagram string ``(request_id, mermaid)`` when you also want to
+    # write a file / push to a dashboard. The runner stays dumb about WHERE it
+    # goes. A raising callback never breaks the turn. It may be called twice per
+    # turn — first the mechanical diagram, then the narrated one (latest wins).
+    on_turn_flow: Callable[[str, str], None] | None = None
+    # The INSIDE view: after each turn, the runner's own backend refines the flow
+    # diagram into a dev-facing narrative (see :class:`FlowNarrator`). On by
+    # DEFAULT (observability is core to Free Intelligence); set ``None`` to skip
+    # the second backend call. Runs in the background; drained by ``aclose()``.
+    flow_narrator: FlowNarrator | None = field(default_factory=FlowNarrator)
+    # Internal: in-flight background narration tasks, awaited by ``aclose()`` /
+    # the async context manager so a narration is never silently lost.
+    _narration_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
     # Optional per-turn model selection (e.g. tier routing). None = use `model`.
     # A sticky router caches per session internally; the runner stays dumb.
     model_router: ModelRouter | None = None
@@ -121,6 +167,16 @@ class Runner:
         if not user_message or not user_message.strip():
             raise ValueError("user_message must be non-empty")
         request_id = request_id or uuid.uuid4().hex[:12]
+
+        # EVERY turn self-documents — observability is not opt-in. Mirror this
+        # turn's events into a local buffer (local → safe under concurrent runs)
+        # so we can render its path (and narrate it) once it settles.
+        turn_events: list[Event] = []
+
+        def emit(event: str, fields: dict[str, Any]) -> None:
+            turn_events.append((event, fields))
+            self._emit(event, fields)
+
         t0 = time.perf_counter()
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         attempts = max(1, self.retry_policy.max_attempts)
@@ -135,71 +191,148 @@ class Runner:
         result: TurnResult | None = None
         attempt = 0
 
-        for attempt in range(attempts):
-            is_last = attempt == attempts - 1
-            system_prompt = f"{self.persona}\n\n{reinforcement}".strip() if reinforcement else self.persona
-            try:
-                result = await self.backend.run_turn(
-                    system_prompt=system_prompt,
-                    user_message=user_message,
-                    mcp_servers=mcp_servers,
-                    tool_policy=self.tool_policy,
-                    model=model,
-                    session_id=session_id,
-                )
-            except BackendError:
-                raise  # already typed — don't double-wrap
-            except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
-                self._emit(
-                    "backend_error",
-                    {
-                        "backend": type(self.backend).__name__,
-                        "model": model,
-                        "attempt": attempt + 1,
-                        "error": str(exc),
-                    },
-                )
-                raise BackendError(
-                    f"{type(self.backend).__name__} failed on attempt "
-                    f"{attempt + 1}/{attempts}: {exc}"
-                ) from exc
-            if not self.guards:
-                break
+        try:
+            for attempt in range(attempts):
+                is_last = attempt == attempts - 1
+                system_prompt = f"{self.persona}\n\n{reinforcement}".strip() if reinforcement else self.persona
+                try:
+                    result = await self.backend.run_turn(
+                        system_prompt=system_prompt,
+                        user_message=user_message,
+                        mcp_servers=mcp_servers,
+                        tool_policy=self.tool_policy,
+                        model=model,
+                        session_id=session_id,
+                    )
+                except BackendError:
+                    raise  # already typed — don't double-wrap
+                except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
+                    emit(
+                        "backend_error",
+                        {
+                            "backend": type(self.backend).__name__,
+                            "model": model,
+                            "attempt": attempt + 1,
+                            "error": str(exc),
+                        },
+                    )
+                    raise BackendError(
+                        f"{type(self.backend).__name__} failed on attempt "
+                        f"{attempt + 1}/{attempts}: {exc}"
+                    ) from exc
+                if not self.guards:
+                    break
 
-            text, outcomes, wants_retry, added = self._run_guards(
-                result.text, user_message, final=is_last, request_id=request_id
+                text, outcomes, wants_retry, added = self._run_guards(
+                    result.text, user_message, final=is_last, request_id=request_id, emit=emit
+                )
+                result = replace(result, text=text, guard_outcomes=outcomes)
+                if is_last or not wants_retry:
+                    break
+                # A guard asked to retry and attempts remain: reinforce + (maybe) escalate model.
+                reinforcement = f"{reinforcement}\n\n{added}".strip()
+                model = self.retry_policy.fallback_model or model
+
+            assert result is not None  # the loop runs at least once
+            result = await self._apply_post_processors(result, context, request_id=request_id, emit=emit)
+            emit(
+                "turn_completed",
+                {
+                    "request_id": request_id,
+                    "model": model,
+                    "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+                    "tokens": result.usage,
+                    "mcp_count": len(mcp_servers),
+                    "attempts": attempt + 1,
+                    "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
+                },
             )
-            result = replace(result, text=text, guard_outcomes=outcomes)
-            if is_last or not wants_retry:
-                break
-            # A guard asked to retry and attempts remain: reinforce + (maybe) escalate model.
-            reinforcement = f"{reinforcement}\n\n{added}".strip()
-            model = self.retry_policy.fallback_model or model
+            # Success → narrate this turn in the BACKGROUND (the INSIDE view).
+            # Snapshot the path events so the task is independent of this frame.
+            if self.flow_narrator is not None:
+                self._schedule_narration(request_id, list(turn_events), user_message, result.text, model)
+            return result
+        finally:
+            # Render the turn's flow even if it crashed — a failed turn's diagram
+            # (error node, no completion) is as useful as a clean one. Guarded so a
+            # raising renderer/callback can never mask the turn's own outcome.
+            self._deliver_turn_flow(request_id, turn_events)
 
-        assert result is not None  # the loop runs at least once
-        result = await self._apply_post_processors(result, context, request_id=request_id)
-        self._emit(
-            "turn_completed",
-            {
-                "request_id": request_id,
-                "model": model,
-                "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
-                "tokens": result.usage,
-                "mcp_count": len(mcp_servers),
-                "attempts": attempt + 1,
-                "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
-            },
-        )
-        return result
+    def _deliver_turn_flow(self, request_id: str, events: list[Event]) -> None:
+        """Publish this turn's MECHANICAL flow diagram: always as a ``turn_flow``
+        telemetry event (observability is never opt-in) and — when set — to
+        ``on_turn_flow``. Defensive: a render/callback error is reported as
+        ``turn_flow_error`` and swallowed — a diagram is never a turn's SPOF."""
+        try:
+            mermaid = events_to_mermaid(events, title=f"fi_runner turn · {request_id}")
+        except Exception as exc:  # noqa: BLE001 - a diagram is never a turn's SPOF
+            self._emit("turn_flow_error", {"request_id": request_id, "error": str(exc)})
+            return
+        self._emit("turn_flow", {"request_id": request_id, "narrated": False, "mermaid": mermaid})
+        self._call_turn_flow(request_id, mermaid)
+
+    def _call_turn_flow(self, request_id: str, mermaid: str) -> None:
+        """Hand a diagram to the optional ``on_turn_flow`` callback, guarded so a
+        raising consumer can never break (or mask) the turn."""
+        if self.on_turn_flow is None:
+            return
+        try:
+            self.on_turn_flow(request_id, mermaid)
+        except Exception as exc:  # noqa: BLE001 - a diagram is never a turn's SPOF
+            self._emit("turn_flow_error", {"request_id": request_id, "error": str(exc)})
+
+    def _schedule_narration(
+        self, request_id: str, events: list[Event], user_message: str, response_text: str, model: str | None
+    ) -> None:
+        """Fire the turn's narration in the background and track the task so
+        ``aclose()`` can drain it — a narration is never silently lost."""
+        task = asyncio.create_task(self._narrate(request_id, events, user_message, response_text, model))
+        self._narration_tasks.add(task)
+        task.add_done_callback(self._narration_tasks.discard)
+
+    async def _narrate(
+        self, request_id: str, events: list[Event], user_message: str, response_text: str, model: str | None
+    ) -> None:
+        """Ask the backend to refine this turn's flow into a dev-facing narrative,
+        then publish it (a ``turn_flow`` event with ``narrated=True`` + the
+        ``on_turn_flow`` callback), superseding the mechanical diagram. Best
+        effort: any failure emits ``flow_narration_error`` and keeps the already
+        published mechanical diagram."""
+        narrator = self.flow_narrator
+        if narrator is None:
+            return
+        mechanical = events_to_mermaid(events, title=f"fi_runner turn · {request_id}")
+        try:
+            refined = await narrate_flow(
+                self.backend,
+                mechanical,
+                user_message=user_message,
+                response_text=response_text,
+                model=narrator.model or model,
+                instructions=narrator.instructions,
+                request_id=request_id,
+            )
+        except Exception as exc:  # noqa: BLE001 - narration is best-effort observability
+            self._emit("flow_narration_error", {"request_id": request_id, "error": str(exc)})
+            return
+        self._emit("turn_flow", {"request_id": request_id, "narrated": True, "mermaid": refined})
+        self._call_turn_flow(request_id, refined)
 
     def _run_guards(
-        self, text: str, user_message: str, *, final: bool, request_id: str | None = None
+        self,
+        text: str,
+        user_message: str,
+        *,
+        final: bool,
+        request_id: str | None = None,
+        emit: EventSink,
     ) -> tuple[str, dict[str, GuardOutcome], bool, str]:
         """Run each guard over the turn text once. Returns the (possibly
         sanitized) text, the per-guard outcomes, whether any guard wants a retry,
         and the combined reinforcement to append. ``text_override`` is applied
         sequentially so a later guard sees the cleaned text. Emits
-        ``guard_critical`` when a guard flags a CRITICAL outcome."""
+        ``guard_critical`` when a guard flags a CRITICAL outcome via ``emit``
+        (the per-turn sink, so guard events also reach the turn-flow buffer)."""
         outcomes: dict[str, GuardOutcome] = {}
         reinforcement_parts: list[str] = []
         wants_retry = False
@@ -213,7 +346,7 @@ class Runner:
                 # single point of failure: if it raises (e.g. a malformed regex),
                 # log + skip it and keep the backend's valid text rather than
                 # crashing the whole turn.
-                self._emit("guard_error", {"guard": name, "error": str(exc)})
+                emit("guard_error", {"guard": name, "error": str(exc)})
                 outcomes[name] = GuardOutcome(metadata={"guard_failed": True, "error": str(exc)})
                 continue
             outcomes[name] = outcome
@@ -221,7 +354,7 @@ class Runner:
                 # A guaranteed safety signal (e.g. triage escalating a suicide
                 # plan) must SURFACE as telemetry so a consumer can alert/escalate,
                 # even for an observational guard that never edits the text.
-                self._emit(
+                emit(
                     "guard_critical",
                     {
                         "guard": name,
@@ -240,19 +373,35 @@ class Runner:
         return text, outcomes, wants_retry, "\n\n".join(reinforcement_parts)
 
     async def _apply_post_processors(
-        self, result: TurnResult, context: dict[str, Any] | None, *, request_id: str | None = None
+        self,
+        result: TurnResult,
+        context: dict[str, Any] | None,
+        *,
+        request_id: str | None = None,
+        emit: EventSink,
     ) -> TurnResult:
         """Run post-processors ONCE on the settled text, with per-stage invariants.
-        No-op when none are declared."""
+        No-op when none are declared. Pipeline events go through ``emit`` (the
+        per-turn sink) so ``mutation_applied`` / ``pipeline_violation`` also land
+        in the turn-flow buffer, not just the raw ``on_event``."""
         if not self.post_processors:
             return result
         mutated = await run_pipeline(
-            self.post_processors, result.text, context or {}, request_id=request_id, on_event=self.on_event
+            self.post_processors, result.text, context or {}, request_id=request_id, on_event=emit
         )
         return replace(result, text=mutated)
 
     async def aclose(self) -> None:
-        """Release backend resources (pooled sessions, etc.), if any."""
+        """Drain pending background narrations (so none is lost) and release
+        backend resources (pooled sessions, etc.), if any. Idempotent."""
+        if self._narration_tasks:
+            await asyncio.gather(*tuple(self._narration_tasks), return_exceptions=True)
         close = getattr(self.backend, "aclose", None)
         if close is not None:
             await close()
+
+    async def __aenter__(self) -> Runner:
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        await self.aclose()

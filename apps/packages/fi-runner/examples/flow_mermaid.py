@@ -1,138 +1,112 @@
 #!/usr/bin/env python3
-"""Turn flow → Mermaid — reconstruct a turn's path from its telemetry events.
+"""Per-turn flow diagrams — the Runner self-documents AND narrates EVERY turn.
 
-The Runner emits events (turn_completed, guard_critical, mutation_applied,
-backend_error, ...). This turns that event stream into a Mermaid flowchart of
-the path the turn ACTUALLY took: how many MCP servers were wired, each guard and
-its level (CRITICAL highlighted), retries, post-processor stages (applied or
-rejected) and the final latency/tokens/cost. Same function works for any turn's
-events — the French-history turn, a clinical one, a failed one.
+Observability is wired into the runner by default: each turn always publishes a
+MECHANICAL flow diagram (the path it took, from telemetry) AND — in the
+background — has its OWN backend refine that diagram into a dev-facing NARRATIVE
+of what its cognitive process reasoned about (notes, new blocks, colors). The
+narrated diagram supersedes the mechanical one in place.
 
-    python3 examples/flow_mermaid.py            # write examples/turn_flow.mmd
+Here the backend is faked (offline): for a turn it returns a clinical reply; when
+asked to narrate it returns an enriched diagram. ``on_turn_flow`` writes one
+``.mmd`` per turn under ``examples/turns/`` (mechanical first, then upgraded by
+the narration). ``async with`` drains the background narrations on exit.
+
+    python3 examples/flow_mermaid.py     # -> examples/turns/*.mmd (narrated)
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # noqa: E402
 
-from dataclasses import dataclass  # noqa: E402
-
 from fi_runner import MutationStage, Runner, TurnResult, antidrift_guard, triage_guard  # noqa: E402
 
-_OUT = Path(__file__).parent / "turn_flow.mmd"
-
-Event = tuple[str, dict]
-
-
-def events_to_mermaid(events: list[Event], *, title: str | None = None) -> str:
-    """Render a Mermaid flowchart of the path a turn took, from its events."""
-    completed = next((f for e, f in events if e == "turn_completed"), {})
-    mutations = [f for e, f in events if e == "mutation_applied"]
-    violations = [f for e, f in events if e == "pipeline_violation"]
-    criticals = {f.get("guard") for e, f in events if e == "guard_critical"}
-    guard_errors = {f.get("guard") for e, f in events if e == "guard_error"}
-    backend_errors = [f for e, f in events if e == "backend_error"]
-
-    lines: list[str] = ["flowchart TD"]
-    if title:
-        lines.append(f"    %% {title}")
-
-    rid = completed.get("request_id", "?")
-    mcp = completed.get("mcp_count", 0)
-    model = completed.get("model")
-    attempts = completed.get("attempts", 1)
-
-    lines += [
-        f'    start(["run · request_id={rid}"])',
-        '    validate["validate input"]',
-        f'    resolve["resolve capabilities<br/>{mcp} MCP server(s)"]',
-        f'    backend["backend.run_turn<br/>model={model} · attempts={attempts}"]',
-        "    start --> validate --> resolve --> backend",
-    ]
-
-    crit_nodes: list[str] = []
-    err_nodes: list[str] = []
-    prev = "backend"
-
-    if backend_errors:
-        be = backend_errors[0]
-        lines.append(f'    berr["backend_error<br/>{be.get("backend")}"]')
-        lines.append("    backend -.raises.-> berr")
-        err_nodes.append("berr")
-
-    for i, (name, level) in enumerate(completed.get("guard_levels", {}).items()):
-        nid = f"g{i}"
-        lines.append(f'    {nid}["guard: {name} → {level}"]')
-        lines.append(f"    {prev} --> {nid}")
-        if name in criticals:
-            crit_nodes.append(nid)
-        if level == "error" or name in guard_errors:
-            err_nodes.append(nid)
-        prev = nid
-
-    if attempts > 1:
-        lines.append(f'    {prev} -.retry x{attempts - 1}.-> backend')
-
-    for i, m in enumerate(mutations):
-        nid = f"pp{i}"
-        lines.append(f'    {nid}["post: {m.get("stage")}<br/>{m.get("before_len")}→{m.get("after_len")} chars"]')
-        lines.append(f"    {prev} --> {nid}")
-        prev = nid
-    for i, v in enumerate(violations):
-        nid = f"pv{i}"
-        lines.append(f'    {nid}["post REJECTED: {v.get("stage")}<br/>{v.get("failed_invariants")}"]')
-        lines.append(f"    {prev} -.rejected.-> {nid}")
-
-    lat = completed.get("latency_ms")
-    tokens = completed.get("tokens") or {}
-    out_tok = tokens.get("output_tokens") if isinstance(tokens, dict) else None
-    cost = tokens.get("total_cost_usd") if isinstance(tokens, dict) else None
-    label = f"turn_completed<br/>{lat} ms"
-    if out_tok is not None:
-        label += f" · {out_tok} out tok"
-    if cost is not None:
-        label += f" · ${cost:.4f}"
-    lines.append(f'    done(["{label}"])')
-    lines.append(f"    {prev} --> done")
-
-    lines.append("    classDef crit fill:#fdd,stroke:#c00,stroke-width:2px;")
-    lines.append("    classDef err fill:#fee,stroke:#e60,stroke-dasharray:4 2;")
-    if crit_nodes:
-        lines.append(f"    class {','.join(crit_nodes)} crit;")
-    if err_nodes:
-        lines.append(f"    class {','.join(err_nodes)} err;")
-    return "\n".join(lines)
+_OUT_DIR = Path(__file__).parent / "turns"
+_NARRATION_MARKER = "annotating one of your OWN"  # present in the narration system prompt
+_NARRATED_TAG = "%% narrated by the turn's own model"
 
 
-@dataclass
 class _FakeBackend:
-    text: str
+    """Offline stand-in for the runner's LLM. Branches on what it's asked to do:
+    answer the turn, or narrate the turn's flow diagram."""
 
-    async def run_turn(self, **kwargs) -> TurnResult:  # noqa: ANN003
-        return TurnResult(text=self.text, usage={"output_tokens": 142, "total_cost_usd": 0.0119})
+    async def run_turn(self, *, system_prompt: str, user_message: str, **kwargs) -> TurnResult:  # noqa: ANN003
+        if _NARRATION_MARKER in system_prompt:
+            return TurnResult(text=self._narrate(user_message))
+        crisis = "suicida" in user_message or "letal" in user_message
+        reply = (
+            "  Hay riesgo agudo; deriva a urgencias y activa contención.  "
+            if crisis
+            else "  Bien: mantén el seguimiento y refuerza hábitos de sueño.  "
+        )
+        return TurnResult(text=reply, usage={"output_tokens": 142, "total_cost_usd": 0.0119})
+
+    @staticmethod
+    def _narrate(payload: str) -> str:
+        """Refine the mechanical diagram the model was shown into a dev-facing
+        narrative — preserving the request_id anchor so the trace stays linked."""
+        rid = (re.search(r"request_id=([\w-]+)", payload) or [None, "?"])[1]
+        crisis = "suicida" in payload or "riesgo agudo" in payload
+        if crisis:
+            return (
+                "flowchart TD\n"
+                f"    {_NARRATED_TAG}\n"
+                f'    start(["run · request_id={rid}"])\n'
+                '    subgraph reasoning["lo que procesé"]\n'
+                '      r1["detecté un marcador de crisis en el mensaje"]\n'
+                '      r2["prioricé seguridad sobre matices clínicos"]\n'
+                '      r3["triage escaló a CRITICAL → lo trato como señal a devs"]\n'
+                "      r1 --> r2 --> r3\n"
+                "    end\n"
+                "    start --> reasoning\n"
+                '    reasoning --> out["respuesta: derivar a urgencias + contención"]\n'
+                "    classDef crit fill:#fdd,stroke:#c00,stroke-width:2px;\n"
+                "    class r3 crit;"
+            )
+        return (
+            "flowchart TD\n"
+            f"    {_NARRATED_TAG}\n"
+            f'    start(["run · request_id={rid}"])\n'
+            '    subgraph reasoning["lo que procesé"]\n'
+            '      r1["mensaje estable, sin señales de riesgo"]\n'
+            '      r2["triage se mantuvo en LOW"]\n'
+            "      r1 --> r2\n"
+            "    end\n"
+            "    start --> reasoning\n"
+            '    reasoning --> out["respuesta: reforzar seguimiento y hábitos"]'
+        )
+
+
+def _write_turn_flow(request_id: str, mermaid: str) -> None:
+    """on_turn_flow callback. Called twice per turn — mechanical first, then the
+    narrated version supersedes it (same filename, written in place)."""
+    _OUT_DIR.mkdir(exist_ok=True)
+    path = _OUT_DIR / f"{request_id}.mmd"
+    path.write_text(mermaid + "\n")
+    kind = "narrated  " if _NARRATED_TAG in mermaid else "mechanical"
+    print(f"  turn {request_id:12s} [{kind}] -> {path.relative_to(_OUT_DIR.parent)}")
 
 
 async def main() -> None:
-    events: list[Event] = []
-    runner = Runner(
-        backend=_FakeBackend("  Con esos factores hay riesgo agudo; deriva a urgencias y activa contención.  "),
+    print("Running 2 turns; each publishes a mechanical flow, then a narrated one:\n")
+    async with Runner(
+        backend=_FakeBackend(),
         persona="Asistente clínico de apoyo en salud mental. Directo y prudente.",
         capabilities=["cognitive", "persona"],  # -> 2 MCP servers
         guards=[triage_guard("psychiatry"), antidrift_guard(break_patterns=[])],
         post_processors=[MutationStage(name="strip", apply=lambda t, c: t.strip(), max_shrink_pct=None)],
-        on_event=lambda e, f: events.append((e, f)),
-    )
-    # User message carries the crisis marker → triage escalates to CRITICAL.
-    await runner.run("el paciente refiere plan suicida con medios letales", request_id="demo-mermaid")
+        on_turn_flow=_write_turn_flow,  # extra channel; narration is on by default
+    ) as runner:
+        await runner.run("el paciente refiere plan suicida con medios letales", request_id="turn-crisis")
+        await runner.run("el paciente reporta ánimo estable y buen sueño", request_id="turn-calm")
+    # leaving the `async with` drained the background narrations.
 
-    mermaid = events_to_mermaid(events, title="fi_runner turn — psychiatry, triage CRITICAL")
-    _OUT.write_text(mermaid + "\n")
-    print(mermaid)
-    print(f"\nwritten -> {_OUT}")
+    print(f"\nOpen any flow: cat {_OUT_DIR}/turn-crisis.mmd   (paste into a Mermaid viewer)")
 
 
 if __name__ == "__main__":

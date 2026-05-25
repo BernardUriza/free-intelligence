@@ -27,7 +27,7 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
 
 from typing import Any
 
-from . import capabilities, guards, pipeline, router
+from . import capabilities, flow, guards, narrate, pipeline, router
 from .backend import (
     AgentBackend,
     BackendError,
@@ -37,6 +37,8 @@ from .backend import (
     TurnResult,
 )
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig
+from .flow import Event, events_to_mermaid
+from .narrate import FlowNarrationError, narrate_flow
 from .guards import (
     AntiDriftGuard,
     Guard,
@@ -56,7 +58,7 @@ from .pipeline import (
     run_pipeline_sync,
 )
 from .router import ModelRouter
-from .runner import RetryPolicy, Runner
+from .runner import FlowNarrator, RetryPolicy, Runner
 
 __version__ = "0.8.0"
 
@@ -72,8 +74,15 @@ __all__ = [
     "ProviderConfig",
     "Runner",
     "RetryPolicy",
+    "FlowNarrator",
     "ModelRouter",
     "capabilities",
+    "flow",
+    "Event",
+    "events_to_mermaid",
+    "narrate",
+    "narrate_flow",
+    "FlowNarrationError",
     "guards",
     "router",
     "Guard",
