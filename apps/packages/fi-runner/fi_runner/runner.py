@@ -28,6 +28,7 @@ from typing import Any
 
 from . import capabilities as _capabilities
 from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
+from .conversation import ConversationStore, Message, render_transcript
 from .flow import Event, events_to_mermaid
 from .guards import Guard, GuardOutcome
 from .narrate import narrate_flow
@@ -127,6 +128,14 @@ class Runner:
     # Optional per-turn model selection (e.g. tier routing). None = use `model`.
     # A sticky router caches per session internally; the runner stays dumb.
     model_router: ModelRouter | None = None
+    # Container-safe conversation continuity by HISTORY REPLAY: when set AND a
+    # session_id is given, the runner loads the transcript from this store, folds
+    # it into the turn's prompt, and appends the new exchange after. The backend
+    # stays stateless (the runner does NOT pass session_id to it — replay is the
+    # continuity), so the conversation survives a recycled container as long as the
+    # store is durable. Mutually exclusive with a backend's native session. See
+    # fi_runner.conversation. None = no replay.
+    conversation_store: ConversationStore | None = None
 
     def __post_init__(self) -> None:
         # Fail fast on a misconfigured runner instead of shipping an empty system
@@ -191,6 +200,22 @@ class Runner:
         result: TurnResult | None = None
         attempt = 0
 
+        # Container-safe continuity by history replay: fold the stored transcript
+        # into the prompt sent to the backend, and keep the backend stateless
+        # (session_id addresses the STORE, not a backend-native session). Guards
+        # still see the ORIGINAL user_message, not the folded transcript.
+        backend_message = user_message
+        backend_session_id = session_id
+        if self.conversation_store is not None and session_id is not None:
+            history = await self.conversation_store.load(session_id)
+            backend_message = render_transcript(history, user_message)
+            backend_session_id = None  # replay IS the continuity; don't also resume
+            if history:
+                emit(
+                    "history_replayed",
+                    {"request_id": request_id, "session_id": session_id, "messages": len(history)},
+                )
+
         try:
             for attempt in range(attempts):
                 is_last = attempt == attempts - 1
@@ -198,11 +223,11 @@ class Runner:
                 try:
                     result = await self.backend.run_turn(
                         system_prompt=system_prompt,
-                        user_message=user_message,
+                        user_message=backend_message,
                         mcp_servers=mcp_servers,
                         tool_policy=self.tool_policy,
                         model=model,
-                        session_id=session_id,
+                        session_id=backend_session_id,
                     )
                 except BackendError:
                     raise  # already typed — don't double-wrap
@@ -261,6 +286,14 @@ class Runner:
                     "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
                 },
             )
+            # Success → persist the exchange for replay (the ORIGINAL user_message,
+            # not the folded transcript). Only on success: a crash stores no half
+            # turn. Reached only when conversation_store + session_id are set.
+            if self.conversation_store is not None and session_id is not None:
+                await self.conversation_store.append(
+                    session_id,
+                    [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
+                )
             # Success → narrate this turn in the BACKGROUND (the INSIDE view).
             # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:

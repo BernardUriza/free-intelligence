@@ -27,7 +27,7 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
 
 from typing import Any
 
-from . import capabilities, flow, guards, narrate, pipeline, router
+from . import capabilities, conversation, flow, guards, narrate, pipeline, router
 from .backend import (
     AgentBackend,
     BackendError,
@@ -41,6 +41,7 @@ from .backend import (
     mcp_tool_id,
 )
 from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
+from .conversation import ConversationStore, InMemoryConversationStore, Message, render_transcript
 from .flow import Event, events_to_mermaid
 from .narrate import FlowNarrationError, narrate_flow
 from .guards import (
@@ -86,6 +87,11 @@ __all__ = [
     "FlowNarrator",
     "ModelRouter",
     "capabilities",
+    "conversation",
+    "ConversationStore",
+    "InMemoryConversationStore",
+    "Message",
+    "render_transcript",
     "flow",
     "Event",
     "events_to_mermaid",
