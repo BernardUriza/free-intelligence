@@ -1,6 +1,6 @@
 [project]
 name = "fi-core"
-version = "0.14.0"
+version = "0.15.0"
 description = "Free Intelligence core — shared LLM primitives (RAG chunking + protocols, HDF5 + pgvector stores, Azure OpenAI + sentence-transformers embedders, persona character-integrity detection + MCP server) used by AURITY and Insult"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -143,4 +143,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "slow: marks tests that load heavy resources (e.g. real sentence-transformers model). Run with `-m slow` to include; default invocation skips them unless explicitly selected.",
+    "integration: marks tests needing external infra (e.g. a pgvector DB via FI_RAG_PGVECTOR_TEST_DSN). Skipped unless that infra is configured.",
 ]

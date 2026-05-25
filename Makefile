@@ -31,6 +31,14 @@ ALLOW_BREAK ?= 0
 # Set ALLOW_BREAK=1 to allow --break-system-packages (non-strict envs)
 # Use `make uv-install` for no-global installs (creates project .venv)
 
+# fi-core RAG pgvector smoke (throwaway container — see `make test-rag-smoke`)
+FI_RAG_PG_CONTAINER ?= fi-rag-smoke
+FI_RAG_PG_PORT ?= 5433
+FI_RAG_PG_PASSWORD ?= smoke
+FI_RAG_PG_DB ?= firag
+FI_RAG_PG_IMAGE ?= pgvector/pgvector:pg16
+FI_RAG_PGVECTOR_TEST_DSN ?= postgresql://postgres:$(FI_RAG_PG_PASSWORD)@localhost:$(FI_RAG_PG_PORT)/$(FI_RAG_PG_DB)
+
 # ==========================================================================
 # Observability (On-demand, read-only)
 # ==========================================================================
@@ -54,7 +62,7 @@ OBS_ALERTS_SERVICE ?= public_api
 .PHONY: setup install install-dev check-deps
 .PHONY: init-corpus init
 .PHONY: run run-gateway run-both
-.PHONY: test test-cov test-scenario-1
+.PHONY: test test-cov test-scenario-1 test-rag-smoke test-rag-smoke-down
 .PHONY: lint format fmt format-check lint-fix lint-fix-ai lint-fix-ai-dry
 .PHONY: type-check type-check-mypy type-check-all type-check-export type-check-batch
 .PHONY: clean clean-all
@@ -177,6 +185,34 @@ test-cov: ## Run tests with coverage
 test-scenario-1: ## Run QA Scenario 1 (green path)
 	@echo "🧪 Running Scenario 1: Green Path"
 	bash test_scenario_1.sh
+
+test-rag-smoke: ## Run fi-core RAG smoke vs a REAL pgvector DB (auto-starts a throwaway container)
+	@echo "🧪 RAG pgvector smoke → container '$(FI_RAG_PG_CONTAINER)' on :$(FI_RAG_PG_PORT)"
+	@if [ -n "$$(docker ps -q -f name=^/$(FI_RAG_PG_CONTAINER)$$)" ]; then \
+		echo "  ↳ reusing running container"; \
+	elif [ -n "$$(docker ps -aq -f name=^/$(FI_RAG_PG_CONTAINER)$$)" ]; then \
+		echo "  ↳ starting existing container"; docker start $(FI_RAG_PG_CONTAINER) >/dev/null; \
+	else \
+		echo "  ↳ creating container ($(FI_RAG_PG_IMAGE))"; \
+		docker run -d --name $(FI_RAG_PG_CONTAINER) \
+			-e POSTGRES_PASSWORD=$(FI_RAG_PG_PASSWORD) -e POSTGRES_DB=$(FI_RAG_PG_DB) \
+			-p $(FI_RAG_PG_PORT):5432 $(FI_RAG_PG_IMAGE) >/dev/null; \
+	fi
+	@echo "  ↳ waiting for postgres"; \
+	for i in $$(seq 1 30); do \
+		if docker exec $(FI_RAG_PG_CONTAINER) pg_isready -U postgres -d $(FI_RAG_PG_DB) >/dev/null 2>&1; then break; fi; \
+		if [ "$$i" = "30" ]; then echo "  ✗ postgres not ready after 30s" >&2; exit 1; fi; \
+		sleep 1; \
+	done
+	@docker exec $(FI_RAG_PG_CONTAINER) psql -U postgres -d $(FI_RAG_PG_DB) \
+		-c 'CREATE EXTENSION IF NOT EXISTS vector;' >/dev/null
+	cd apps/packages/fi-core && \
+		FI_RAG_PGVECTOR_TEST_DSN="$(FI_RAG_PGVECTOR_TEST_DSN)" \
+		$(PY) -m pytest tests/test_rag_pgvector_smoke.py -v -m integration
+
+test-rag-smoke-down: ## Stop & remove the throwaway pgvector smoke container
+	@docker rm -f $(FI_RAG_PG_CONTAINER) >/dev/null 2>&1 || true
+	@echo "🧹 removed $(FI_RAG_PG_CONTAINER)"
 
 # ============================================================================
 # Code Quality

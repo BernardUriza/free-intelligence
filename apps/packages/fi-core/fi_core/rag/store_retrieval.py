@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fi_core.rag.chunking import ChunkConfig, ChunkingStrategy, chunk_document
+from fi_core.rag.contextual import Contextualizer
 from fi_core.rag.protocols import ChunkStore, Embedder
 from fi_core.rag.types import Chunk, RetrievedChunk
 
@@ -35,6 +36,11 @@ class StoreBackedRetriever:
     embedder: Embedder
     store: ChunkStore
     min_similarity: float = 0.0
+    # Optional Contextual Retrieval: when set, ingest embeds each chunk with an
+    # LLM-generated situating context prepended (Anthropic's technique, ~-35%
+    # retrieval failures). The ORIGINAL chunk is stored; only the EMBEDDING sees
+    # the context — so citations stay faithful. None = plain embedding.
+    contextualizer: Contextualizer | None = None
 
     async def retrieve(
         self,
@@ -78,7 +84,14 @@ class StoreBackedRetriever:
         now = datetime.now(tz=UTC)
         count = 0
         for piece in pieces:
-            embedding = await self.embedder.embed(piece)
+            # Contextual Retrieval: embed the chunk WITH its situating context,
+            # but store the ORIGINAL chunk text (faithful citations).
+            to_embed = piece
+            if self.contextualizer is not None:
+                context = await self.contextualizer.contextualize(document=text, chunk=piece)
+                if context:
+                    to_embed = f"{context}\n\n{piece}"
+            embedding = await self.embedder.embed(to_embed)
             await self.store.add(
                 namespace=namespace,
                 chunk=Chunk(text=piece, source_type=source_type, source_ref=source_ref, created_at=now),
