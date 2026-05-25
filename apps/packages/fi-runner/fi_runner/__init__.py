@@ -27,7 +27,7 @@ you actually run a turn (extras: ``fi-runner[claude]`` / ``[codex]`` / ``[api]``
 
 from typing import Any
 
-from . import capabilities, guards, pipeline
+from . import capabilities, guards, pipeline, router
 from .backend import (
     AgentBackend,
     MCPServerSpec,
@@ -54,9 +54,10 @@ from .pipeline import (
     run_pipeline,
     run_pipeline_sync,
 )
+from .router import ModelRouter
 from .runner import RetryPolicy, Runner
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     "AgentBackend",
@@ -69,8 +70,10 @@ __all__ = [
     "ProviderConfig",
     "Runner",
     "RetryPolicy",
+    "ModelRouter",
     "capabilities",
     "guards",
+    "router",
     "Guard",
     "GuardOutcome",
     "TriageGuard",

@@ -25,6 +25,7 @@ from . import capabilities as _capabilities
 from .backend import AgentBackend, MCPServerSpec, ToolPolicy, TurnResult
 from .guards import Guard, GuardOutcome
 from .pipeline import EventSink, MutationStage, run_pipeline
+from .router import ModelRouter
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,9 @@ class Runner:
     post_processors: list[MutationStage] = field(default_factory=list)
     # Telemetry sink for the post-processor pipeline (default: stdlib logging).
     on_event: EventSink | None = None
+    # Optional per-turn model selection (e.g. tier routing). None = use `model`.
+    # A sticky router caches per session internally; the runner stays dumb.
+    model_router: ModelRouter | None = None
 
     async def run(
         self,
@@ -85,6 +89,12 @@ class Runner:
         attempts = max(1, self.retry_policy.max_attempts)
         reinforcement = ""
         model = self.model
+        if self.model_router is not None:
+            chosen = await self.model_router.choose(
+                user_message=user_message, default=self.model, context=context or {}
+            )
+            if chosen:
+                model = chosen
         result: TurnResult | None = None
 
         for attempt in range(attempts):

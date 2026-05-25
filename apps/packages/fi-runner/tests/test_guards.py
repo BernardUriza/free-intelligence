@@ -334,3 +334,50 @@ async def test_post_processors_run_after_guard_sanitize():
     result = await runner.run("x")
     assert "AS AN AI" not in result.text  # guard sanitized first
     assert "HOLA MUNDO" in result.text  # then post-processor uppercased
+
+
+# ---------------------------------------------------------------------------
+# ModelRouter — per-turn model selection
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FixedRouter:
+    """Test router that returns a fixed model and records what it was asked."""
+
+    model: str | None
+    seen: list = field(default_factory=list)
+
+    async def choose(self, *, user_message, default, context):  # noqa: ANN001
+        self.seen.append({"user_message": user_message, "default": default, "context": dict(context)})
+        return self.model
+
+
+@pytest.mark.asyncio
+async def test_model_router_overrides_model():
+    be = _ScriptedBackend(texts=["ok"])
+    runner = Runner(
+        backend=be, persona="p", model="default-model", model_router=_FixedRouter("routed-model")
+    )
+    await runner.run("hola")
+    assert be.calls[0]["model"] == "routed-model"
+
+
+@pytest.mark.asyncio
+async def test_model_router_none_keeps_default():
+    be = _ScriptedBackend(texts=["ok"])
+    runner = Runner(
+        backend=be, persona="p", model="default-model", model_router=_FixedRouter(None)
+    )
+    await runner.run("hola")
+    assert be.calls[0]["model"] == "default-model"
+
+
+@pytest.mark.asyncio
+async def test_model_router_receives_user_message_and_context():
+    be = _ScriptedBackend(texts=["ok"])
+    rt = _FixedRouter("m")
+    runner = Runner(backend=be, persona="p", model_router=rt)
+    await runner.run("hola doc", context={"user_id": "42"})
+    assert rt.seen[0]["user_message"] == "hola doc"
+    assert rt.seen[0]["context"] == {"user_id": "42"}
