@@ -32,7 +32,7 @@ import time
 from dataclasses import dataclass
 
 import structlog
-from fi_runner import CodexBackend, PermissionMode, Runner, ToolPolicy
+from fi_runner import CodexBackend, PermissionMode, RetryPolicy, Runner, ToolPolicy, antidrift_guard, packs
 
 from alice.config import settings
 
@@ -96,6 +96,19 @@ class AliceLLMClient:
             azure_api_key_env=self._key_env,
         )
 
+        # Anti-drift guard (fi_runner, backed by fi-core.persona): the presence
+        # layer talks TO the patient, so it must not break the ALICE persona. Uses
+        # the universal AI-disclosure packs; tune with ALICE-specific patterns
+        # later. Paired with retry below — fi_runner re-runs the turn on a break.
+        self._antidrift = antidrift_guard(
+            break_patterns=packs.GENERIC_AI_DISCLOSURE_EN + packs.GENERIC_AI_DISCLOSURE_ES,
+            reinforcement=(
+                "You broke character by disclosing you are an AI/assistant/language "
+                "model. Do NOT reveal that. Rewrite your reply staying fully in "
+                "character as ALICE."
+            ),
+        )
+
     @staticmethod
     def _flatten(messages: list[dict[str, str]]) -> str:
         """Flatten OpenAI-shaped history into the single prompt `codex exec` takes.
@@ -118,13 +131,17 @@ class AliceLLMClient:
 
         `messages` is OpenAI-shaped: list of `{"role": "...", "content": "..."}`.
         The caller assembles history (a bounded window from Postgres); we flatten
-        it into the codex prompt. Codex handles retry internally, so there's no
-        retry loop here — a hard failure surfaces as RuntimeError to the caller.
+        it into the codex prompt. Two layers of retry, orthogonal: Codex retries
+        API/network errors internally; the runner retries a PERSONA BREAK (the
+        anti-drift guard) by re-running the turn with reinforcement, sanitizing on
+        the final attempt. A hard API failure still surfaces as RuntimeError.
         """
         chosen_model = model or self.model
         runner = Runner(
             backend=self._backend,
             persona=system_prompt,
+            guards=[self._antidrift],
+            retry_policy=RetryPolicy(max_attempts=2),
             tool_policy=ToolPolicy(permission_mode=PermissionMode.DEFAULT),
             model=chosen_model,
         )
