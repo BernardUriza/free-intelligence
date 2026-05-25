@@ -129,13 +129,16 @@ __all__ = [
 
 # Re-export the fi-core surface a runner needs to USE guards without importing
 # fi-core itself (fi_runner is the single boundary): the persona pattern `packs`
-# (compose anti-drift patterns) and `GravityScore` (the triage_guard's result
-# type). Lazy via PEP 562 so plain `import fi_runner` stays free of fi-core.
+# (compose anti-drift patterns, via the fi_runner.packs submodule) and
+# `GravityScore` (the triage_guard's result type). Lazy via PEP 562 so plain
+# `import fi_runner` stays free of fi-core.
 def __getattr__(name: str) -> Any:
     if name == "packs":
-        from fi_core.persona import packs
+        # import_module (not `from . import packs`) — the latter re-enters this
+        # __getattr__ via _handle_fromlist and recurses infinitely.
+        import importlib
 
-        return packs
+        return importlib.import_module(f"{__name__}.packs")
     if name == "GravityScore":
         from fi_core.cognitive import GravityScore
 

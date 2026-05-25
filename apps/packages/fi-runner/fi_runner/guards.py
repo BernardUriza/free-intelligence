@@ -200,7 +200,7 @@ def antidrift_guard(
     """Build an :class:`AntiDriftGuard` from a runner's composed pattern packs.
 
     The runner supplies its full pattern lists (compose fi-core's built-in packs —
-    re-exported as :data:`fi_runner.packs` — with its own patterns). The guard
+    re-exported as :mod:`fi_runner.packs` — with its own patterns). The guard
     imports the fi-core detectors; the runner does not import fi-core.
     """
     from fi_core.persona import (
