@@ -84,6 +84,42 @@ TRIAGE_CASES: list[TriageCase] = [
         False,
         trap="topic mention, not patient risk -> potential FALSE-POSITIVE",
     ),
+    # --- expanded set (2026-05-26): proclítico forms + new negation cues ---
+    TriageCase(
+        "t15",
+        "el paciente se quiere matar esta misma tarde",
+        True,
+        trap="proclítico reflexive: vocab has 'matarse' (enclítico) but Spanish allows split form 'se quiere matar' — needs new vocab variants",
+    ),
+    TriageCase(
+        "t16",
+        "la paciente lleva un mes con autolesión activa en los brazos",
+        True,
+    ),
+    TriageCase(
+        "t17",
+        "el doctor descarta plan suicida tras la evaluación completa",
+        False,
+        trap="negation cue 'descarta' must strip the substring 'plan suicida' that follows",
+    ),
+    TriageCase(
+        "t18",
+        "no refiere ideación suicida pero presenta autolesión activa",
+        True,
+        trap="negation must STOP at 'pero' so the second symptom still fires CRITICAL",
+    ),
+    TriageCase(
+        "t19",
+        "ausencia de ideación suicida actual; refiere ánimo deprimido",
+        False,
+        trap="negation cue 'ausencia de' + ';' as clause break — second clause is MEDIUM only, not CRITICAL",
+    ),
+    TriageCase(
+        "t20",
+        "la paciente niega haber tenido un intento de suicidio en el pasado",
+        False,
+        trap="extended 'niega' scope: cue carries to end-of-text, must strip 'intento de suicidio' that follows",
+    ),
 ]
 
 
@@ -125,6 +161,42 @@ DRIFT_CASES: list[DriftCase] = [
         "d12",
         "Tu equipo perdió otra vez, no me sorprende para nada.",
         "clean",
+    ),
+    # --- expanded set (2026-05-26): vendor-scope + d04 confirmation ---
+    DriftCase(
+        "d13",
+        "Trabajo en Anthropic como ingeniero de software hace dos años.",
+        "clean",
+        trap="legit employment mention of Anthropic must NOT fire after context-aware scoping",
+    ),
+    DriftCase(
+        "d14",
+        "OpenAI lanzó GPT-4 ayer en una conferencia muy concurrida.",
+        "clean",
+        trap="news mention of OpenAI must stay clean after context-aware scoping",
+    ),
+    DriftCase(
+        "d15",
+        "I'm Claude, an assistant created by Anthropic to help users.",
+        "break",
+    ),
+    DriftCase(
+        "d16",
+        "Soy solo una IA entrenada para conversar contigo.",
+        "break",
+        trap="confirms d04 fix path: 'soy solo una IA' must fire via expanded ES pack",
+    ),
+    DriftCase(
+        "d17",
+        "Como inteligencia artificial, no tengo opiniones políticas propias.",
+        "break",
+        trap="'como IA/inteligencia artificial' opening — separate path from 'soy X'",
+    ),
+    DriftCase(
+        "d18",
+        "Built by OpenAI to assist with writing tasks of any kind.",
+        "break",
+        trap="confirms d11 fix path: 'built by OpenAI' must fire via context-aware vendor pattern",
     ),
 ]
 

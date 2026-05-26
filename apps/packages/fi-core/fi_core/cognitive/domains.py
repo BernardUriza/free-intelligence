@@ -58,6 +58,16 @@ PSYCH_CRITICAL_SYMPTOMS: frozenset[str] = frozenset({
     "quiere morir", "quiere suicidarse", "quiere ahorcarse",
     "quiere matarse", "quiere quitarse la vida",
     "planea suicidarse", "planea ahorcarse", "planea matarse",
+    # proclítico reflexive forms — Spanish permits splitting the reflexive
+    # pronoun from the verb ("se quiere matar" alongside "quiere matarse").
+    # Substring matching only catches the enclítico form, so explicit
+    # proclítico variants are needed. Eval case t15 surfaced this gap.
+    "se quiere matar", "se quiere ahorcar", "se quiere suicidar",
+    "se quiere quitar la vida",
+    "se va a matar", "se va a ahorcar", "se va a suicidar",
+    "se va a quitar la vida",
+    "va a matarse", "va a ahorcarse", "va a suicidarse",
+    "intenta matarse", "intenta ahorcarse", "intenta suicidarse",
 })
 #: Serious but not imminent → gravity 7.
 PSYCH_HIGH_SYMPTOMS: frozenset[str] = frozenset({
@@ -95,6 +105,13 @@ PSYCH_CRITICAL_PATTERNS: frozenset[str] = frozenset({
     "quiere morir", "quiere suicidarse", "quiere ahorcarse",
     "quiere matarse", "quiere quitarse la vida",
     "planea suicidarse", "planea ahorcarse", "planea matarse",
+    # proclítico reflexive forms (mirrors PSYCH_CRITICAL_SYMPTOMS).
+    "se quiere matar", "se quiere ahorcar", "se quiere suicidar",
+    "se quiere quitar la vida",
+    "se va a matar", "se va a ahorcar", "se va a suicidar",
+    "se va a quitar la vida",
+    "va a matarse", "va a ahorcarse", "va a suicidarse",
+    "intenta matarse", "intenta ahorcarse", "intenta suicidarse",
 })
 #: Comorbidities / history that add gravity (+0.5 each).
 PSYCH_HIGH_RISK_CONDITIONS: frozenset[str] = frozenset({
