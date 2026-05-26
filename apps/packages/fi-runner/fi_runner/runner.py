@@ -45,6 +45,65 @@ def _guard_level(metadata: dict[str, Any]) -> str:
     return metadata.get("level") or metadata.get("severity") or "ok"
 
 
+# Server name from fi_core.task_tracker.mcp_contract.MCP_SERVER_NAME. Inlined
+# as a literal (not imported) to keep the runner dep-free of fi-core — the
+# capability resolver pulls the spec lazily; this helper just sees tool names.
+_TASK_TRACKER_SERVER = "fi_core_task_tracker"
+
+
+def _derive_plan_events(tool_call: Any, *, session_id: str | None) -> list[dict[str, Any]]:
+    """Translate a task_tracker tool call into semantic stream events.
+
+    Returns a list (often empty) of events to yield ADDITIONALLY to the raw
+    ``tool_call`` event. The original tool_call still goes through — these are
+    a higher-level VIEW for UIs that want a checklist instead of step soup.
+
+    Mapping (tool → event):
+      - ``declare_plan(session_id, steps)`` → ``{"type":"plan","data":{steps, session_id}}``
+      - ``start_step(plan_id, step_index)`` → ``{"type":"step_started","data":{plan_id, step_index}}``
+      - ``complete_step(plan_id, step_index, summary)`` → ``{"type":"step_done","data":{plan_id, step_index, status:"done", summary}}``
+      - ``fail_step(plan_id, step_index, error)`` → ``{"type":"step_done","data":{plan_id, step_index, status:"failed", error}}``
+
+    Robust to a missing ``tool.input`` (codex doesn't capture inputs for MCP
+    tool calls — see ``CodexBackend._tool_call_from_item``). Without input we
+    can't reconstruct the payload, so we drop silently (the raw tool_call
+    still goes through for the generic UI)."""
+    if getattr(tool_call, "server", None) != _TASK_TRACKER_SERVER:
+        return []
+    name = getattr(tool_call, "name", "") or ""
+    # name is mcp__fi_core_task_tracker__<tool>; strip prefix to get the tool.
+    suffix = name.rsplit("__", 1)[-1]
+    inp = getattr(tool_call, "input", None) or {}
+    if suffix == "declare_plan":
+        steps = inp.get("steps")
+        if not isinstance(steps, list):
+            return []
+        return [{"type": "plan", "data": {
+            "session_id": inp.get("session_id") or session_id,
+            "steps": list(steps),
+        }}]
+    if suffix == "start_step":
+        return [{"type": "step_started", "data": {
+            "plan_id": inp.get("plan_id"),
+            "step_index": inp.get("step_index"),
+        }}]
+    if suffix == "complete_step":
+        return [{"type": "step_done", "data": {
+            "plan_id": inp.get("plan_id"),
+            "step_index": inp.get("step_index"),
+            "status": "done",
+            "summary": inp.get("summary", ""),
+        }}]
+    if suffix == "fail_step":
+        return [{"type": "step_done", "data": {
+            "plan_id": inp.get("plan_id"),
+            "step_index": inp.get("step_index"),
+            "status": "failed",
+            "error": inp.get("error", ""),
+        }}]
+    return []
+
+
 @dataclass(frozen=True)
 class RetryPolicy:
     """How the runner retries a turn when a guard requests it.
@@ -358,6 +417,14 @@ class Runner:
                         result = event["result"]
                     else:
                         yield event  # tool_call / text — live, before the turn ends
+                        # Plan-first observability: when the agent calls the task_tracker
+                        # MCP, re-emit the semantic event (plan / step_started / step_done)
+                        # so the UI can paint a checklist without parsing tool names itself.
+                        # The original tool_call event still goes through above, so the
+                        # generic ThinkingPanel keeps working — these are ADDITIVE.
+                        if event.get("type") == "tool_call":
+                            for derived in _derive_plan_events(event["tool"], session_id=session_id):
+                                yield derived
             else:
                 # Backend can't stream → one-shot, surfaced as a single result event.
                 result = await self.backend.run_turn(

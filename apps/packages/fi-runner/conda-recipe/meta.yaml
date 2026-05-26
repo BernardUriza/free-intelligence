@@ -3,7 +3,7 @@
    The publish workflow (.github/workflows/publish-fi-runner.yml) seds this from
    the pushed `fi-runner-v*` tag, so a build always packages the tagged commit.
    Bump it here too when cutting a release so a manual `conda build` matches. #}
-{% set version = "0.14.0" %}
+{% set version = "0.15.0" %}
 
 package:
   name: {{ name }}
@@ -33,7 +33,7 @@ requirements:
   run:
     - python >=3.12
     # 0.20: rag_store capability + RagStore client need fi-core's store service.
-    - fi-core >=0.22
+    - fi-core >=0.23
     # Harness SDKs (claude-agent-sdk, codex) are pip-only and installed
     # per-deployment via the [claude] / [codex] extras — they are intentionally
     # NOT conda run deps (the core import is dep-free).

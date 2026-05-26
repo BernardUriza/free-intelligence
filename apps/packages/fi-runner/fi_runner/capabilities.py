@@ -83,12 +83,36 @@ def rag_store(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
+def task_tracker(*, env_passthrough: bool = True) -> MCPServerSpec:
+    """The fi-core task_tracker MCP — agent declares its plan before executing.
+
+    Tools: ``declare_plan``, ``start_step``, ``complete_step``, ``fail_step``.
+    When the runner sees these calls during streaming, it re-emits semantic
+    events (``plan``, ``step_started``, ``step_done``) so UIs can paint a
+    checklist instead of disconnected step rows (see ``Runner.run_stream`` +
+    ``_derive_plan_events``)."""
+    try:
+        from fi_core.task_tracker import MCP_SERVER_NAME, MCP_TOOLS  # zero-dep contract
+
+        name, tools = MCP_SERVER_NAME, tuple(t["name"] for t in MCP_TOOLS)
+    except Exception:  # noqa: BLE001 - best-effort contract read; fall back to whole-server allow
+        name, tools = "fi_core_task_tracker", ()
+    return MCPServerSpec(
+        name=name,
+        command=sys.executable,
+        args=["-m", "fi_core.task_tracker.mcp_server"],
+        tools=tools,
+        env_passthrough=env_passthrough,
+    )
+
+
 #: capability name → factory.
 REGISTRY = {
     "cognitive": cognitive,
     "persona": persona,
     "rag": rag,
     "rag_store": rag_store,
+    "task_tracker": task_tracker,
 }
 
 
