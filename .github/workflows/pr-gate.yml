@@ -117,13 +117,13 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: BernardUriza/.github/.github/workflows/ai-gatekeep.yml@main
     # `secrets: inherit` is REJECTED when caller + callee live in different
-    # repos — GitHub triggers startup_failure with no annotation. Explicit
-    # passing required. Both ANTHROPIC and OPENAI are optional in callee;
-    # passing whichever is set in this repo's secrets works.
+    # repos — GitHub triggers startup_failure. Explicit passing required;
+    # additionally, referencing an undefined repo secret in this section
+    # ALSO triggers startup_failure (no annotation, no useful diagnostic).
+    # Only ANTHROPIC_API_KEY is set in this repo; add OPENAI_* lines back
+    # when those secrets exist.
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
 
   # SUMMARY: Final gate status
   # ============================================================
