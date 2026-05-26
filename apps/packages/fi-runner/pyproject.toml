@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.17.0"
+version = "0.17.1"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,9 +21,13 @@ classifiers = [
 dependencies = [
     # Bounded: pre-1.0 minors of fi-core can break; cap at the next unreleased
     # minor so a mid-event fi-core bump can't silently break consumers.
-    # Floor 0.22: the RagStore client re-exports fi-core's QuotaExceeded
-    # (per-tenant quotas, 0.22.0); older fi-core lacks it.
-    "fi-core>=0.23,<0.24",
+    # Floor 0.24: fi-runner's plan-first stream events depend on the v2
+    # task_tracker contract (11 MCP tools — declare/start/complete/fail/cancel
+    # step + note + insert + replan + cancel/finalize plan + list_plans).
+    # Older fi-core only exposes the v1 4-tool surface, so the runner's
+    # `_derive_plan_events` would silently drop step_noted / plan_amended /
+    # plan_completed / plan_failed / plan_cancelled events.
+    "fi-core>=0.24,<0.25",
 ]
 
 [project.optional-dependencies]

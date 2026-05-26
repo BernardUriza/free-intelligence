@@ -73,7 +73,7 @@ from .preflight import PreflightResult, probe_all, probe_mcp
 from .router import ModelRouter
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.17.0"
+__version__ = "0.17.1"
 
 __all__ = [
     "AgentBackend",
