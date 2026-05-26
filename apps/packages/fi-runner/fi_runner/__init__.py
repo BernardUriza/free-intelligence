@@ -68,11 +68,12 @@ from .pipeline import (
     run_pipeline,
     run_pipeline_sync,
 )
+from .plan_guard import PlanGuard, PlanGuardOutcome, plan_guard
 from .preflight import PreflightResult, probe_all, probe_mcp
 from .router import ModelRouter
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 
 __all__ = [
     "AgentBackend",
@@ -126,6 +127,9 @@ __all__ = [
     "PreflightResult",
     "probe_mcp",
     "probe_all",
+    "PlanGuard",
+    "PlanGuardOutcome",
+    "plan_guard",
     "packs",
     "GravityScore",
 ]

@@ -14,6 +14,13 @@ so a transformational guard sanitizes instead of asking to retry again. This is
 how the retry/anti-drift loop that used to live in a consumer (insult's client)
 moves UP into the runner: the runner orchestrates, the runner stays dumb about
 WHAT each guard does.
+
+Internals are split into sibling modules; this file is the orchestrator:
+
+  - :mod:`._plan_events`    — plan-first stream events from task_tracker calls
+  - :mod:`._runner_config`  — :class:`RetryPolicy`, :class:`FlowNarrator`
+  - :mod:`._flow_delivery`  — Mermaid diagram render + background narration
+  - :mod:`._guards_executor` — guard list execution + CRITICAL escalation
 """
 
 from __future__ import annotations
@@ -29,119 +36,32 @@ from typing import Any
 from . import capabilities as _capabilities
 from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
 from .conversation import ConversationStore, Message, render_transcript
-from .flow import Event, events_to_mermaid
-from .guards import Guard, GuardOutcome
-from .narrate import narrate_flow
+from .flow import Event
+from .guards import Guard
 from .pipeline import EventSink, MutationStage, run_pipeline
+from .plan_guard import PlanGuard
 from .router import ModelRouter
+
+# Extracted internals — kept private (leading underscore) to signal they
+# are implementation detail; consumers should import from ``fi_runner``
+# directly, not these submodules.
+from ._flow_delivery import deliver_turn_flow, schedule_narration
+from ._guards_executor import guard_level as _guard_level, run_guards
+from ._plan_events import _derive_plan_events, _PlanStreamObserver
+from ._runner_config import FlowNarrator, RetryPolicy
 
 _log = logging.getLogger("fi_runner.runner")
 
 
-def _guard_level(metadata: dict[str, Any]) -> str:
-    """A single representative level for a guard outcome, for telemetry."""
-    if metadata.get("guard_failed"):
-        return "error"
-    return metadata.get("level") or metadata.get("severity") or "ok"
-
-
-# Server name from fi_core.task_tracker.mcp_contract.MCP_SERVER_NAME. Inlined
-# as a literal (not imported) to keep the runner dep-free of fi-core — the
-# capability resolver pulls the spec lazily; this helper just sees tool names.
-_TASK_TRACKER_SERVER = "fi_core_task_tracker"
-
-
-def _derive_plan_events(tool_call: Any, *, session_id: str | None) -> list[dict[str, Any]]:
-    """Translate a task_tracker tool call into semantic stream events.
-
-    Returns a list (often empty) of events to yield ADDITIONALLY to the raw
-    ``tool_call`` event. The original tool_call still goes through — these are
-    a higher-level VIEW for UIs that want a checklist instead of step soup.
-
-    Mapping (tool → event):
-      - ``declare_plan(session_id, steps)`` → ``{"type":"plan","data":{steps, session_id}}``
-      - ``start_step(plan_id, step_index)`` → ``{"type":"step_started","data":{plan_id, step_index}}``
-      - ``complete_step(plan_id, step_index, summary)`` → ``{"type":"step_done","data":{plan_id, step_index, status:"done", summary}}``
-      - ``fail_step(plan_id, step_index, error)`` → ``{"type":"step_done","data":{plan_id, step_index, status:"failed", error}}``
-
-    Robust to a missing ``tool.input`` (codex doesn't capture inputs for MCP
-    tool calls — see ``CodexBackend._tool_call_from_item``). Without input we
-    can't reconstruct the payload, so we drop silently (the raw tool_call
-    still goes through for the generic UI)."""
-    if getattr(tool_call, "server", None) != _TASK_TRACKER_SERVER:
-        return []
-    name = getattr(tool_call, "name", "") or ""
-    # name is mcp__fi_core_task_tracker__<tool>; strip prefix to get the tool.
-    suffix = name.rsplit("__", 1)[-1]
-    inp = getattr(tool_call, "input", None) or {}
-    if suffix == "declare_plan":
-        steps = inp.get("steps")
-        if not isinstance(steps, list):
-            return []
-        return [{"type": "plan", "data": {
-            "session_id": inp.get("session_id") or session_id,
-            "steps": list(steps),
-        }}]
-    if suffix == "start_step":
-        return [{"type": "step_started", "data": {
-            "plan_id": inp.get("plan_id"),
-            "step_index": inp.get("step_index"),
-        }}]
-    if suffix == "complete_step":
-        return [{"type": "step_done", "data": {
-            "plan_id": inp.get("plan_id"),
-            "step_index": inp.get("step_index"),
-            "status": "done",
-            "summary": inp.get("summary", ""),
-        }}]
-    if suffix == "fail_step":
-        return [{"type": "step_done", "data": {
-            "plan_id": inp.get("plan_id"),
-            "step_index": inp.get("step_index"),
-            "status": "failed",
-            "error": inp.get("error", ""),
-        }}]
-    return []
-
-
-@dataclass(frozen=True)
-class RetryPolicy:
-    """How the runner retries a turn when a guard requests it.
-
-    The guard decides WHETHER a turn is retry-worthy (``GuardOutcome.retry``);
-    this policy decides HOW MANY times and on WHICH model. ``max_attempts=1``
-    (the default) disables retry entirely — backward-compatible.
-    """
-
-    # Total turn attempts (1 = no retry). The final attempt runs guards with
-    # ``final=True`` so transformational guards clean up instead of retrying.
-    max_attempts: int = 1
-    # Model to switch to on retry (e.g. a stronger tier). None = keep the model.
-    fallback_model: str | None = None
-
-
-@dataclass(frozen=True)
-class FlowNarrator:
-    """How the runner narrates each turn's flow diagram (the INSIDE view).
-
-    After a turn settles, the runner hands the mechanical diagram + the turn's
-    request/response back to its OWN backend and asks it to refine the Mermaid
-    into a dev-facing narrative: what its cognitive process reasoned about, with
-    new notes/edges/blocks and colors. This is a SECOND backend call, so it runs
-    in the BACKGROUND (never delays the turn) and supersedes the mechanical
-    diagram when it lands. A refinement is rejected (mechanical kept) if it isn't
-    a Mermaid flowchart or drops the ``request_id`` anchor.
-
-    Observability is core to Free Intelligence, so a Runner narrates by DEFAULT.
-    Pass ``flow_narrator=None`` to disable it (e.g. a metered backend where a
-    second call per turn isn't wanted). Pending narrations are drained by
-    :meth:`Runner.aclose` — or use the runner as an async context manager.
-    """
-
-    # Override the turn's model for the narration call (e.g. a cheaper tier).
-    model: str | None = None
-    # Extra guidance appended to the narration system prompt.
-    instructions: str | None = None
+__all__ = [
+    "Runner",
+    "RetryPolicy",
+    "FlowNarrator",
+    # Re-exports kept for backward compatibility — tests and the package
+    # __init__.py import these from ``fi_runner.runner`` directly.
+    "_derive_plan_events",
+    "_PlanStreamObserver",
+]
 
 
 @dataclass
@@ -159,6 +79,11 @@ class Runner:
     # capabilities (optional MCP tools). This is how a runner gets fi-core grounding
     # (triage, anti-drift) without importing fi-core itself. See fi_runner.guards.
     guards: list[Guard] = field(default_factory=list)
+    # Plan-first anti-drift: inspects the declared task_tracker plan BEFORE any
+    # other tool runs. Soft-rejects (emits ``plan_rejected`` event); the consumer
+    # decides whether to abort the turn or retry with the guard's reinforcement.
+    # See :mod:`fi_runner.plan_guard`. None = no pre-execution plan review.
+    plan_guard: PlanGuard | None = None
     # Retry behavior when a guard requests it (default: no retry).
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
     # Cosmetic/normalizing text mutations run AFTER guards+retry settle, once, each
@@ -307,8 +232,9 @@ class Runner:
                 if not self.guards:
                     break
 
-                text, outcomes, wants_retry, added = self._run_guards(
-                    result.text, user_message, final=is_last, request_id=request_id, emit=emit
+                text, outcomes, wants_retry, added = run_guards(
+                    self.guards, result.text, user_message,
+                    final=is_last, request_id=request_id, emit=emit,
                 )
                 result = replace(result, text=text, guard_outcomes=outcomes)
                 if is_last or not wants_retry:
@@ -356,13 +282,18 @@ class Runner:
             # Success → narrate this turn in the BACKGROUND (the INSIDE view).
             # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:
-                self._schedule_narration(request_id, list(turn_events), user_message, result.text, model)
+                schedule_narration(
+                    request_id, list(turn_events), user_message, result.text, model,
+                    narrator=self.flow_narrator, backend=self.backend,
+                    emit=self._emit, on_turn_flow=self.on_turn_flow,
+                    task_pool=self._narration_tasks,
+                )
             return result
         finally:
             # Render the turn's flow even if it crashed — a failed turn's diagram
             # (error node, no completion) is as useful as a clean one. Guarded so a
             # raising renderer/callback can never mask the turn's own outcome.
-            self._deliver_turn_flow(request_id, turn_events)
+            deliver_turn_flow(request_id, turn_events, emit=self._emit, on_turn_flow=self.on_turn_flow)
 
     async def run_stream(
         self,
@@ -406,6 +337,11 @@ class Runner:
             if history:
                 self._emit("history_replayed", {"request_id": request_id, "session_id": session_id, "messages": len(history)})
 
+        # Per-turn observer for the plan-first derived events. Tracks the
+        # per-plan_id counters (done/failed/cancelled) needed to pick the
+        # terminal event when ``finalize_plan`` lands.
+        plan_observer = _PlanStreamObserver()
+
         result: TurnResult | None = None
         try:
             if hasattr(self.backend, "run_turn_stream"):
@@ -418,13 +354,36 @@ class Runner:
                     else:
                         yield event  # tool_call / text — live, before the turn ends
                         # Plan-first observability: when the agent calls the task_tracker
-                        # MCP, re-emit the semantic event (plan / step_started / step_done)
+                        # MCP, re-emit the semantic event (plan / step_started / step_done /
+                        # step_noted / plan_amended / plan_completed / plan_failed / plan_cancelled)
                         # so the UI can paint a checklist without parsing tool names itself.
                         # The original tool_call event still goes through above, so the
                         # generic ThinkingPanel keeps working — these are ADDITIVE.
                         if event.get("type") == "tool_call":
-                            for derived in _derive_plan_events(event["tool"], session_id=session_id):
+                            for derived in _derive_plan_events(
+                                event["tool"],
+                                session_id=session_id,
+                                request_id=request_id,
+                                observer=plan_observer,
+                            ):
                                 yield derived
+                                # Plan-first anti-drift: when a fresh ``plan`` event is
+                                # emitted, give the optional PlanGuard a chance to veto
+                                # before the agent fires any other tool. Rejection is
+                                # SOFT — we emit ``plan_rejected`` but do not interrupt
+                                # the stream; the consumer's turn loop (or the agent's
+                                # own logic, prompted via reinforcement) decides to abort.
+                                if derived.get("type") == "plan" and self.plan_guard is not None:
+                                    steps = (derived.get("data") or {}).get("steps") or []
+                                    outcome = self.plan_guard.inspect(steps)
+                                    if not outcome.allowed:
+                                        yield {"type": "plan_rejected", "data": {
+                                            "request_id": request_id,
+                                            "reason": outcome.reason,
+                                            "matched": list(outcome.matched),
+                                            "reinforcement": outcome.reinforcement,
+                                            "guard": self.plan_guard.name,
+                                        }}
             else:
                 # Backend can't stream → one-shot, surfaced as a single result event.
                 result = await self.backend.run_turn(
@@ -439,8 +398,9 @@ class Runner:
 
         assert result is not None  # the backend always emits a result
         if self.guards:
-            text, outcomes, _retry, _added = self._run_guards(
-                result.text, user_message, final=True, request_id=request_id, emit=self._emit
+            text, outcomes, _retry, _added = run_guards(
+                self.guards, result.text, user_message,
+                final=True, request_id=request_id, emit=self._emit,
             )
             result = replace(result, text=text, guard_outcomes=outcomes)
         for i, call in enumerate(result.tool_calls):
@@ -462,120 +422,6 @@ class Runner:
                 [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
             )
         yield {"type": "result", "result": result}
-
-    def _deliver_turn_flow(self, request_id: str, events: list[Event]) -> None:
-        """Publish this turn's MECHANICAL flow diagram: always as a ``turn_flow``
-        telemetry event (observability is never opt-in) and — when set — to
-        ``on_turn_flow``. Defensive: a render/callback error is reported as
-        ``turn_flow_error`` and swallowed — a diagram is never a turn's SPOF."""
-        try:
-            mermaid = events_to_mermaid(events, title=f"fi_runner turn · {request_id}")
-        except Exception as exc:  # noqa: BLE001 - a diagram is never a turn's SPOF
-            self._emit("turn_flow_error", {"request_id": request_id, "error": str(exc)})
-            return
-        self._emit("turn_flow", {"request_id": request_id, "narrated": False, "mermaid": mermaid})
-        self._call_turn_flow(request_id, mermaid)
-
-    def _call_turn_flow(self, request_id: str, mermaid: str) -> None:
-        """Hand a diagram to the optional ``on_turn_flow`` callback, guarded so a
-        raising consumer can never break (or mask) the turn."""
-        if self.on_turn_flow is None:
-            return
-        try:
-            self.on_turn_flow(request_id, mermaid)
-        except Exception as exc:  # noqa: BLE001 - a diagram is never a turn's SPOF
-            self._emit("turn_flow_error", {"request_id": request_id, "error": str(exc)})
-
-    def _schedule_narration(
-        self, request_id: str, events: list[Event], user_message: str, response_text: str, model: str | None
-    ) -> None:
-        """Fire the turn's narration in the background and track the task so
-        ``aclose()`` can drain it — a narration is never silently lost."""
-        task = asyncio.create_task(self._narrate(request_id, events, user_message, response_text, model))
-        self._narration_tasks.add(task)
-        task.add_done_callback(self._narration_tasks.discard)
-
-    async def _narrate(
-        self, request_id: str, events: list[Event], user_message: str, response_text: str, model: str | None
-    ) -> None:
-        """Ask the backend to refine this turn's flow into a dev-facing narrative,
-        then publish it (a ``turn_flow`` event with ``narrated=True`` + the
-        ``on_turn_flow`` callback), superseding the mechanical diagram. Best
-        effort: any failure emits ``flow_narration_error`` and keeps the already
-        published mechanical diagram."""
-        narrator = self.flow_narrator
-        if narrator is None:
-            return
-        mechanical = events_to_mermaid(events, title=f"fi_runner turn · {request_id}")
-        try:
-            refined = await narrate_flow(
-                self.backend,
-                mechanical,
-                user_message=user_message,
-                response_text=response_text,
-                model=narrator.model or model,
-                instructions=narrator.instructions,
-                request_id=request_id,
-            )
-        except Exception as exc:  # noqa: BLE001 - narration is best-effort observability
-            self._emit("flow_narration_error", {"request_id": request_id, "error": str(exc)})
-            return
-        self._emit("turn_flow", {"request_id": request_id, "narrated": True, "mermaid": refined})
-        self._call_turn_flow(request_id, refined)
-
-    def _run_guards(
-        self,
-        text: str,
-        user_message: str,
-        *,
-        final: bool,
-        request_id: str | None = None,
-        emit: EventSink,
-    ) -> tuple[str, dict[str, GuardOutcome], bool, str]:
-        """Run each guard over the turn text once. Returns the (possibly
-        sanitized) text, the per-guard outcomes, whether any guard wants a retry,
-        and the combined reinforcement to append. ``text_override`` is applied
-        sequentially so a later guard sees the cleaned text. Emits
-        ``guard_critical`` when a guard flags a CRITICAL outcome via ``emit``
-        (the per-turn sink, so guard events also reach the turn-flow buffer)."""
-        outcomes: dict[str, GuardOutcome] = {}
-        reinforcement_parts: list[str] = []
-        wants_retry = False
-        for guard in self.guards:
-            # `or repr(guard)` is lazy — repr (expensive for guards holding
-            # compiled-pattern lists) only runs if a guard has no `.name`.
-            name = getattr(guard, "name", None) or repr(guard)
-            try:
-                outcome = guard.inspect(response_text=text, context=(user_message,), final=final)
-            except Exception as exc:  # noqa: BLE001 - a guard is a safety NET, not a
-                # single point of failure: if it raises (e.g. a malformed regex),
-                # log + skip it and keep the backend's valid text rather than
-                # crashing the whole turn.
-                emit("guard_error", {"guard": name, "error": str(exc)})
-                outcomes[name] = GuardOutcome(metadata={"guard_failed": True, "error": str(exc)})
-                continue
-            outcomes[name] = outcome
-            if outcome.metadata.get("critical") is True or outcome.metadata.get("level") == "CRITICAL":
-                # A guaranteed safety signal (e.g. triage escalating a suicide
-                # plan) must SURFACE as telemetry so a consumer can alert/escalate,
-                # even for an observational guard that never edits the text.
-                emit(
-                    "guard_critical",
-                    {
-                        "guard": name,
-                        "request_id": request_id,
-                        "level": outcome.metadata.get("level"),
-                        "gravity": outcome.metadata.get("gravity"),
-                        "reasons": outcome.metadata.get("reasons"),
-                    },
-                )
-            if outcome.text_override is not None:
-                text = outcome.text_override
-            if outcome.retry:
-                wants_retry = True
-                if outcome.reinforcement:
-                    reinforcement_parts.append(outcome.reinforcement)
-        return text, outcomes, wants_retry, "\n\n".join(reinforcement_parts)
 
     async def _apply_post_processors(
         self,
