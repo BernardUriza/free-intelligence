@@ -48,6 +48,14 @@ class FlowNarrator:
     model: str | None = None
     # Extra guidance appended to the narration system prompt.
     instructions: str | None = None
+    # Upper bound on background narration tasks in flight at once. When the
+    # runner's narration pool is already at this size, new narrations are
+    # DROPPED (a ``narration_dropped`` event is emitted) instead of being
+    # enqueued. Prevents the task set from growing unbounded under a slow
+    # narration backend + sustained turn burst (>5 turns/sec). Sized 8 by
+    # default: enough headroom for a typical Codex/Claude tier without
+    # leaking memory under pathological backpressure.
+    max_inflight_narrations: int = 8
 
 
 __all__ = ["RetryPolicy", "FlowNarrator"]

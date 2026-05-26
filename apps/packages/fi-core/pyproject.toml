@@ -64,7 +64,7 @@ rerank = [
 # (anti-drift), cognitive (clinical flow), and rag (chunking + retrieval).
 # Required for `python -m fi_core.{persona,cognitive,rag}.mcp_server`.
 mcp = [
-    "mcp>=1.4,<2",
+    "mcp>=1.27,<2",
 ]
 
 # Training utilities: TinyGPT + PyTorchTrainer + tokenizers + dataset readers.
@@ -101,7 +101,7 @@ all = [
     "openai>=1.40",
     "sentence-transformers>=2.5",
     "torch>=2.0",
-    "mcp>=1.4,<2",
+    "mcp>=1.27,<2",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
     "pyyaml>=6",
@@ -120,7 +120,7 @@ dev = [
     "openai>=1.40",
     "sentence-transformers>=2.5",
     "torch>=2.0",
-    "mcp>=1.4,<2",
+    "mcp>=1.27,<2",
     "tiktoken>=0.7",
     "tokenizers>=0.20",
     "pyyaml>=6",

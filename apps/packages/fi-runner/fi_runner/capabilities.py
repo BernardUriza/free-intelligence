@@ -12,6 +12,20 @@ configuration of the differences (module path + fallback name + contract
 attribute names, where ``rag_store`` is the only outlier with ``STORE_*``
 prefixed contract symbols). Adding a new capability is registering one line
 in :data:`REGISTRY` and adding a one-line factory.
+
+Transport limitation (R6 in the fi-runner robustness roadmap memory): every
+capability here is spawned over MCP STDIO. Stdio is one-client-per-server by
+construction — a single runner instance owns its subprocess, and concurrent
+turns from N sessions multiplex over the same pipe sequentially. For a
+single-tenant runner this is fine (a turn is bounded; the pipe drains in
+seconds). It is NOT fine for a multi-tenant fan-out (one runner serving 10+
+concurrent chats): turns will queue behind one another in the MCP server and
+latency climbs linearly with concurrent load. The mitigation when that
+trigger fires is a Streamable HTTP variant of the fi-core MCP servers
+(``mcp>=1.27`` already supports it server-side), exposed as an alternative
+spawn so the runner can connect to a shared HTTP server instead of forking
+its own stdio subprocess. Not implemented yet — wire it in when the second
+consumer asks for concurrency. See: https://www.padiso.co/blog/stdio-vs-sse-vs-http-mcp-transport-trade-offs/
 """
 
 from __future__ import annotations
@@ -110,11 +124,20 @@ def rag_store(*, env_passthrough: bool = False) -> MCPServerSpec:
 def task_tracker(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core task_tracker MCP — agent declares its plan before executing.
 
-    Tools: ``declare_plan``, ``start_step``, ``complete_step``, ``fail_step``.
-    When the runner sees these calls during streaming, it re-emits semantic
-    events (``plan``, ``step_started``, ``step_done``) so UIs can paint a
-    checklist instead of disconnected step rows (see ``Runner.run_stream`` +
-    ``_derive_plan_events``)."""
+    Tools (v2, 11 surface): ``declare_plan``, ``start_step``, ``complete_step``,
+    ``fail_step``, ``cancel_step``, ``note_step``, ``insert_step``, ``replan``,
+    ``cancel_plan``, ``finalize_plan``, ``list_plans``. When the runner sees
+    these calls during streaming, it re-emits semantic events (``plan``,
+    ``step_started``, ``step_done``, ``step_noted``, ``plan_amended``,
+    ``plan_completed`` / ``plan_failed`` / ``plan_cancelled``) so UIs can paint
+    a checklist instead of disconnected step rows (see ``Runner.run_stream`` +
+    ``_derive_plan_events``).
+
+    Concurrency caveat: see module docstring on MCP stdio limits. The tracker
+    itself is single-event-loop by design and safe under one runner; a future
+    multi-tenant HTTP variant would need an ``asyncio.Lock`` + Redis-backed
+    store to stay coherent across replicas (already noted in
+    ``fi_core.task_tracker.tracker``)."""
     return _capability_spec(
         server_module="fi_core.task_tracker.mcp_server",
         contract_module="fi_core.task_tracker",
