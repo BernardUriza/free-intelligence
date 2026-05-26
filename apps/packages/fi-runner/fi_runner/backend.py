@@ -11,9 +11,45 @@ Zero-dep: this module imports no harness SDK; the backends import theirs lazily.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
+
+
+#: Env vars that are safe to forward from the runner's environment to an MCP
+#: subprocess by default. PATH (find executables), HOME (config files), USER
+#: (logging), LANG/LC_* (locale), PYTHONPATH+VIRTUAL_ENV (find the installed
+#: fi_core package), TERM (TTY apps), TZ (timezone-aware logs). Everything
+#: else — AWS_*, AZURE_*, OPENAI_API_KEY, ANTHROPIC_API_KEY, GITHUB_TOKEN,
+#: etc. — is BLOCKED unless the consumer opts in via ``env_passthrough=True``
+#: or a custom whitelist. This matches the industry convention (Docker MCP
+#: gateway, Hermes, Claude Code) for stopping accidental secret leakage to
+#: third-party MCP servers spawned as subprocesses.
+DEFAULT_SAFE_ENV_VARS: frozenset[str] = frozenset({
+    "PATH", "HOME", "USER", "LOGNAME",
+    "LANG", "LC_ALL", "LC_CTYPE", "LC_COLLATE", "LC_MESSAGES",
+    "PYTHONPATH", "PYTHONHOME", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
+    "TERM", "TZ", "SHELL",
+})
+
+
+def safe_subprocess_env(
+    *,
+    extra: dict[str, str] | None = None,
+    whitelist: frozenset[str] | None = None,
+) -> dict[str, str]:
+    """Build a subprocess env dict that includes ONLY safe vars from os.environ.
+
+    ``whitelist`` overrides the default safe set; ``extra`` is merged on top
+    (use for vars an MCP server legitimately needs that aren't safe by
+    default — pass them EXPLICITLY rather than blanket-leak everything)."""
+    safe = whitelist if whitelist is not None else DEFAULT_SAFE_ENV_VARS
+    # Also honor LC_* prefix wildcards beyond the explicit names above.
+    env = {k: v for k, v in os.environ.items() if k in safe or k.startswith("LC_")}
+    if extra:
+        env.update(extra)
+    return env
 
 
 class BackendError(RuntimeError):
@@ -46,8 +82,17 @@ class MCPServerSpec:
     # Explicit tool names, used to build the allowlist. Empty = allow the whole
     # server (``mcp__<name>``).
     tools: tuple[str, ...] = ()
-    # Inherit the parent process env into the subprocess (needed so the server
-    # can import its package + read credentials).
+    # SECURITY: when ``True`` the FULL parent ``os.environ`` is forwarded to
+    # the MCP subprocess — including AWS_*, OPENAI_API_KEY, GITHUB_TOKEN, and
+    # any other secret the runner can see. The default remains ``True`` only
+    # for backward compatibility with consumers that already construct
+    # :class:`MCPServerSpec` directly. **fi-runner's own capability factories
+    # default to ``False``** (see :mod:`fi_runner.capabilities`), which uses
+    # :func:`safe_subprocess_env` to forward ONLY a whitelisted safe set
+    # (PATH, HOME, USER, LANG, PYTHONPATH, etc.). Set this to ``True`` only
+    # when the MCP server legitimately needs more — and prefer adding the
+    # specific vars to an ``extra`` dict via a custom spawn site over
+    # blanket-leaking everything.
     env_passthrough: bool = True
     # A pre-built IN-PROCESS MCP server object (e.g. an SDK SdkMcpServer like
     # insult's insult_db). When set, it is passed straight to the harness and

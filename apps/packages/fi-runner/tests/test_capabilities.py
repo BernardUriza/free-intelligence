@@ -29,15 +29,19 @@ def test_resolve_persona_reads_real_tools_from_contract():
     assert "check_drift" in spec.tools
 
 
-def test_resolve_defaults_env_passthrough_true():
+def test_resolve_defaults_env_passthrough_false_for_security():
+    # SECURITY: capabilities default to env_passthrough=False so fi-core MCP
+    # servers run with a safe env whitelist (PATH/HOME/PYTHONPATH/...) and
+    # NEVER see secrets the runner has (AWS_*, OPENAI_API_KEY, etc.).
     (spec,) = capabilities.resolve(["persona"])
-    assert spec.env_passthrough is True
-
-
-def test_resolve_forwards_env_passthrough_false():
-    # insult drives the stdio server in its own pool and wants env_passthrough=False.
-    (spec,) = capabilities.resolve(["persona"], env_passthrough=False)
     assert spec.env_passthrough is False
+
+
+def test_resolve_forwards_env_passthrough_true_when_explicit():
+    # A consumer who legitimately needs the full env (e.g. fi-core MCP that
+    # reads credentials from os.environ) can opt in explicitly.
+    (spec,) = capabilities.resolve(["persona"], env_passthrough=True)
+    assert spec.env_passthrough is True
 
 
 def test_resolve_cognitive_points_at_cognitive_server():

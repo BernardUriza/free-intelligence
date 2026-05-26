@@ -42,10 +42,21 @@ def test_mcp_dict_stdio_spec_carries_env_when_passthrough():
     assert out["cognitive"]["env"] == dict(os.environ)
 
 
-def test_mcp_dict_stdio_spec_omits_env_when_disabled():
+def test_mcp_dict_stdio_spec_uses_safe_env_when_disabled():
+    # SECURITY: env_passthrough=False sends the safe whitelist (PATH, HOME,
+    # PYTHONPATH, ...) — never the full os.environ. Previously this branch
+    # sent no env at all, but that lets the OS default to passthrough at the
+    # subprocess level, defeating the safety; now we ALWAYS set ``env``
+    # explicitly so the subprocess sees ONLY what we whitelist.
+    from fi_runner.backend import DEFAULT_SAFE_ENV_VARS
     specs = [MCPServerSpec(name="cognitive", command="python", args=[], env_passthrough=False)]
     out = ClaudeCodeBackend()._mcp_dict(specs)
-    assert "env" not in out["cognitive"]
+    env = out["cognitive"]["env"]
+    assert "env" in out["cognitive"]
+    # Every key surfaced must be in the safe whitelist (or LC_*); no secrets.
+    for k in env:
+        assert k in DEFAULT_SAFE_ENV_VARS or k.startswith("LC_"), \
+            f"leaked env var {k!r} via safe_subprocess_env"
 
 
 def test_mcp_dict_in_process_server_passed_through():

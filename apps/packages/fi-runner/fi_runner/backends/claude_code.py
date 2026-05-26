@@ -87,8 +87,15 @@ class ClaudeCodeBackend:
                 out[spec.name] = spec.server
             else:
                 entry: dict[str, Any] = {"command": spec.command, "args": spec.args}
+                # env_passthrough=True forwards the full os.environ (legacy
+                # default); =False sends the safe whitelist (no secrets).
+                # Always set ``env`` explicitly so the SDK doesn't default to
+                # passthrough on its own when we omit the key.
                 if spec.env_passthrough:
                     entry["env"] = dict(os.environ)
+                else:
+                    from ..backend import safe_subprocess_env
+                    entry["env"] = safe_subprocess_env()
                 out[spec.name] = entry
         return out
 

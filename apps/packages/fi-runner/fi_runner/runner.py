@@ -274,11 +274,22 @@ class Runner:
             # Success → persist the exchange for replay (the ORIGINAL user_message,
             # not the folded transcript). Only on success: a crash stores no half
             # turn. Reached only when conversation_store + session_id are set.
+            # Failure is SURFACED as ``conversation_store_error`` but does NOT
+            # raise — the user already saw a valid response; we don't roll back
+            # the turn just because persistence flaked. The next turn will lose
+            # this exchange from history (silent context loss), so monitoring on
+            # this event is required for production durability.
             if self.conversation_store is not None and session_id is not None:
-                await self.conversation_store.append(
-                    session_id,
-                    [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
-                )
+                try:
+                    await self.conversation_store.append(
+                        session_id,
+                        [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
+                    )
+                except Exception as exc:  # noqa: BLE001 - boundary: any store failure
+                    emit("conversation_store_error", {
+                        "request_id": request_id, "session_id": session_id,
+                        "phase": "run", "error_type": type(exc).__name__, "error": str(exc),
+                    })
             # Success → narrate this turn in the BACKGROUND (the INSIDE view).
             # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:
@@ -417,10 +428,16 @@ class Runner:
             "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
         })
         if self.conversation_store is not None and session_id is not None:
-            await self.conversation_store.append(
-                session_id,
-                [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
-            )
+            try:
+                await self.conversation_store.append(
+                    session_id,
+                    [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
+                )
+            except Exception as exc:  # noqa: BLE001 - boundary: any store failure
+                self._emit("conversation_store_error", {
+                    "request_id": request_id, "session_id": session_id,
+                    "phase": "run_stream", "error_type": type(exc).__name__, "error": str(exc),
+                })
         yield {"type": "result", "result": result}
 
     async def _apply_post_processors(
@@ -460,9 +477,25 @@ class Runner:
 
     async def aclose(self) -> None:
         """Drain pending background narrations (so none is lost) and release
-        backend resources (pooled sessions, etc.), if any. Idempotent."""
+        backend resources (pooled sessions, etc.), if any. Idempotent.
+
+        ``return_exceptions=True`` is required so one failed narration doesn't
+        cancel the others mid-drain. We iterate the results to surface every
+        failure as a ``narration_drain_error`` event — otherwise narrations
+        that raised would be silently swallowed by gather (a documented
+        asyncio footgun)."""
         if self._narration_tasks:
-            await asyncio.gather(*tuple(self._narration_tasks), return_exceptions=True)
+            results = await asyncio.gather(
+                *tuple(self._narration_tasks), return_exceptions=True
+            )
+            for r in results:
+                if isinstance(r, BaseException):
+                    # BaseException catches CancelledError too — gather's
+                    # return_exceptions does NOT auto-detect it via Exception.
+                    self._emit("narration_drain_error", {
+                        "error_type": type(r).__name__,
+                        "error": str(r),
+                    })
         close = getattr(self.backend, "aclose", None)
         if close is not None:
             await close()

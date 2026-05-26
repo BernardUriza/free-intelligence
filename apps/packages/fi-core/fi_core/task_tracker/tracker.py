@@ -10,11 +10,17 @@ crashes between :meth:`start_step` and :meth:`complete_step` doesn't leak a
 plan forever. The TTL is generous (1h by default) because a plan lives for
 seconds; an entry that's still around at TTL eviction was always orphaned.
 
-Thread-safety: every public mutation holds an :class:`threading.RLock`. The
-FastMCP stdio transport is single-threaded so the lock is a no-op today, but
-the moment the server is mounted on HTTP/SSE (multi-replica or async
-workers) the lock prevents a torn read between ``start_step`` and the
-``time.monotonic()`` baseline.
+Concurrency model: SINGLE-EVENT-LOOP by design. The FastMCP stdio transport
+runs one event loop per server process; each tool handler is sync (no
+``await`` inside the tracker mutations), so the event loop never preempts
+between checking and writing state. **No lock is used** — a ``threading.RLock``
+would be false advertising under asyncio (single-thread + reentrant = the
+critical section is NOT actually protected from concurrent coroutines that
+``await`` mid-mutation). If a future variant needs concurrency safety
+(HTTP/SSE multi-replica or async tracker methods), swap this implementation
+for one backed by ``asyncio.Lock`` AND make the methods async, OR use a
+Redis-backed store with optimistic concurrency. Don't try to bolt a thread
+lock onto async code — it's the canonical anti-pattern.
 
 Multi-replica deploys: scope by ``session_id`` and a sticky load-balancer
 routes the same session to the same replica; the tracker is process-local
@@ -26,8 +32,8 @@ from __future__ import annotations
 
 import time
 import uuid
+from contextlib import nullcontext
 from dataclasses import replace
-from threading import RLock
 from typing import Any
 
 from .models import (
@@ -168,9 +174,13 @@ class TaskTracker:
         # duration_ms on complete_step / fail_step. Kept separate from the
         # frozen Plan so the lifecycle stays immutable.
         self._step_starts: _TTLStore = _TTLStore(ttl_seconds=ttl_seconds)
-        # All public mutations grab this. RLock so a method can call another
-        # method on the same tracker without self-deadlocking.
-        self._lock = RLock()
+        # `with self._lock:` is a NO-OP context (nullcontext) — the tracker
+        # is single-event-loop by design (see module docstring). The blocks
+        # are kept as structure markers so a future variant that needs real
+        # locking can swap in an ``asyncio.Lock`` without touching every
+        # call site. DO NOT replace with ``threading.RLock`` — that would
+        # be false advertising under asyncio.
+        self._lock = nullcontext()
 
     # --- queries ----------------------------------------------------------
 
