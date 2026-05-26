@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.14.0"
+version = "0.15.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,7 +23,7 @@ dependencies = [
     # minor so a mid-event fi-core bump can't silently break consumers.
     # Floor 0.22: the RagStore client re-exports fi-core's QuotaExceeded
     # (per-tenant quotas, 0.22.0); older fi-core lacks it.
-    "fi-core>=0.22,<0.23",
+    "fi-core>=0.23,<0.24",
 ]
 
 [project.optional-dependencies]
