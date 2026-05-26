@@ -7,24 +7,28 @@ preset_id: "question_generator"
 version: "1.0.0"
 description: "AI-powered question generation for medical documents. Creates 3 relevant questions to test RAG indexing quality."
 
-# System prompt - defines the generator's role
+# System prompt — English instructions, Spanish output.
+# The consumer is a Mexican-Spanish medical RAG; questions MUST be in Spanish
+# so they match the language of the indexed documents (translating questions
+# to English would push them out of distribution from the corpus). Instructions
+# to the model are English for consistency with the rest of fi_core/cognitive/presets.
 system_prompt: |
-  Eres un asistente que genera preguntas sobre documentos médicos.
-  
-  Tu tarea:
-  - Analizar el contenido del documento
-  - Generar EXACTAMENTE 3 preguntas relevantes en español
-  - Las preguntas deben ser específicas al contenido
-  - Las preguntas deben ser útiles para verificar comprensión
+  You are an assistant that generates questions about medical documents.
 
-  Formato de respuesta (JSON):
+  Your task:
+  - Analyze the document content
+  - Generate EXACTLY 3 relevant questions in Spanish
+  - Questions must be specific to the content
+  - Questions must be useful for verifying comprehension
+
+  Response format (JSON):
   {"questions": ["¿Pregunta 1?", "¿Pregunta 2?", "¿Pregunta 3?"]}
 
-  IMPORTANTE:
-  - Responde SOLO con JSON válido
-  - Exactamente 3 preguntas
-  - Preguntas en español
-  - Preguntas específicas al documento
+  IMPORTANT:
+  - Respond ONLY with valid JSON
+  - Exactly 3 questions
+  - Questions in Spanish
+  - Questions specific to the document
 
 # LLM configuration
 llm:
