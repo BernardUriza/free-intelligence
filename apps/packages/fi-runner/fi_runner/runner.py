@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal as _signal
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -120,6 +121,16 @@ class Runner:
     # store is durable. Mutually exclusive with a backend's native session. See
     # fi_runner.conversation. None = no replay.
     conversation_store: ConversationStore | None = None
+    # Write-ahead variant of the conversation_store append. When ``True`` AND
+    # ``conversation_store`` is set, the runner persists the exchange BEFORE
+    # the post-processor pipeline runs (and before any ``turn_completed`` event
+    # is emitted). The stored ``assistant`` text is therefore the post-guards
+    # but pre-cosmetic-mutation version — losing post-processor normalization
+    # in exchange for a durable record that survives a post-yield crash. Off
+    # by default; turn on only when transactional durability matters more than
+    # storing the fully-mutated text. See R14 in the fi-runner robustness
+    # roadmap memory.
+    pre_emit_append: bool = False
 
     def __post_init__(self) -> None:
         # Fail fast on a misconfigured runner instead of shipping an empty system
@@ -257,6 +268,14 @@ class Runner:
                         "is_error": call.is_error,
                     },
                 )
+            # R14: optional write-ahead append BEFORE post-processors. Stores the
+            # post-guards but pre-mutation text — useful when the consumer needs
+            # the durable record to predate any cosmetic transform.
+            if self.pre_emit_append:
+                await self._append_to_store(
+                    session_id, user_message, result.text,
+                    request_id=request_id, phase="run_pre_emit", emit=emit,
+                )
             result = await self._apply_post_processors(result, context, request_id=request_id, emit=emit)
             emit(
                 "turn_completed",
@@ -279,17 +298,11 @@ class Runner:
             # the turn just because persistence flaked. The next turn will lose
             # this exchange from history (silent context loss), so monitoring on
             # this event is required for production durability.
-            if self.conversation_store is not None and session_id is not None:
-                try:
-                    await self.conversation_store.append(
-                        session_id,
-                        [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
-                    )
-                except Exception as exc:  # noqa: BLE001 - boundary: any store failure
-                    emit("conversation_store_error", {
-                        "request_id": request_id, "session_id": session_id,
-                        "phase": "run", "error_type": type(exc).__name__, "error": str(exc),
-                    })
+            if not self.pre_emit_append:
+                await self._append_to_store(
+                    session_id, user_message, result.text,
+                    request_id=request_id, phase="run", emit=emit,
+                )
             # Success → narrate this turn in the BACKGROUND (the INSIDE view).
             # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:
@@ -408,37 +421,81 @@ class Runner:
             raise BackendError(f"{type(self.backend).__name__} failed (stream): {exc}") from exc
 
         assert result is not None  # the backend always emits a result
-        if self.guards:
-            text, outcomes, _retry, _added = run_guards(
-                self.guards, result.text, user_message,
-                final=True, request_id=request_id, emit=self._emit,
-            )
-            result = replace(result, text=text, guard_outcomes=outcomes)
-        for i, call in enumerate(result.tool_calls):
-            self._emit("tool_called", {
-                "request_id": request_id, "index": i, "name": call.name,
-                "server": call.server, "is_error": call.is_error,
-            })
-        result = await self._apply_post_processors(result, context, request_id=request_id, emit=self._emit)
-        self._emit("turn_completed", {
-            "request_id": request_id, "model": model,
-            "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
-            "tokens": result.usage, "mcp_count": len(mcp_servers),
-            "tool_count": len(result.tool_calls), "attempts": 1, "streamed": True,
-            "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
-        })
-        if self.conversation_store is not None and session_id is not None:
-            try:
-                await self.conversation_store.append(
-                    session_id,
-                    [Message(role="user", content=user_message), Message(role="assistant", content=result.text)],
+        # R10: the post-stream pipeline (guards + tool_call telemetry + post-
+        # processors + turn_completed + conversation_store append) is wrapped
+        # in a single try/except so a failure here can never crash the async
+        # generator before the consumer receives its ``result`` event. The
+        # final ``yield`` sits OUTSIDE the guarded block — even a catastrophic
+        # post-processor crash still hands back the best-available result.
+        try:
+            if self.guards:
+                text, outcomes, _retry, _added = run_guards(
+                    self.guards, result.text, user_message,
+                    final=True, request_id=request_id, emit=self._emit,
                 )
-            except Exception as exc:  # noqa: BLE001 - boundary: any store failure
-                self._emit("conversation_store_error", {
-                    "request_id": request_id, "session_id": session_id,
-                    "phase": "run_stream", "error_type": type(exc).__name__, "error": str(exc),
+                result = replace(result, text=text, guard_outcomes=outcomes)
+            # R14: optional write-ahead append (same semantic as run()).
+            if self.pre_emit_append:
+                await self._append_to_store(
+                    session_id, user_message, result.text,
+                    request_id=request_id, phase="run_stream_pre_emit", emit=self._emit,
+                )
+            for i, call in enumerate(result.tool_calls):
+                self._emit("tool_called", {
+                    "request_id": request_id, "index": i, "name": call.name,
+                    "server": call.server, "is_error": call.is_error,
                 })
+            result = await self._apply_post_processors(result, context, request_id=request_id, emit=self._emit)
+            self._emit("turn_completed", {
+                "request_id": request_id, "model": model,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+                "tokens": result.usage, "mcp_count": len(mcp_servers),
+                "tool_count": len(result.tool_calls), "attempts": 1, "streamed": True,
+                "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
+            })
+            if not self.pre_emit_append:
+                await self._append_to_store(
+                    session_id, user_message, result.text,
+                    request_id=request_id, phase="run_stream", emit=self._emit,
+                )
+        except Exception as exc:  # noqa: BLE001 - R10: never lose the result event
+            self._emit("stream_postprocess_error", {
+                "request_id": request_id,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
         yield {"type": "result", "result": result}
+
+    async def _append_to_store(
+        self,
+        session_id: str | None,
+        user_message: str,
+        assistant_text: str,
+        *,
+        request_id: str,
+        phase: str,
+        emit: EventSink,
+    ) -> None:
+        """Persist one user/assistant exchange to ``conversation_store``.
+
+        No-op when ``conversation_store`` or ``session_id`` is unset. Failures
+        are SURFACED as ``conversation_store_error`` but never raised — the
+        user already saw a valid response and we don't roll back the turn
+        just because persistence flaked. ``phase`` discriminates which call
+        site (``run`` / ``run_pre_emit`` / ``run_stream`` / ``run_stream_pre_emit``)
+        produced the failure, for monitoring."""
+        if self.conversation_store is None or session_id is None:
+            return
+        try:
+            await self.conversation_store.append(
+                session_id,
+                [Message(role="user", content=user_message), Message(role="assistant", content=assistant_text)],
+            )
+        except Exception as exc:  # noqa: BLE001 - boundary: any store failure
+            emit("conversation_store_error", {
+                "request_id": request_id, "session_id": session_id,
+                "phase": phase, "error_type": type(exc).__name__, "error": str(exc),
+            })
 
     async def _apply_post_processors(
         self,
@@ -474,6 +531,55 @@ class Runner:
 
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         return await probe_all(mcp_servers, timeout=timeout)
+
+    def install_signal_handlers(
+        self,
+        *,
+        signals: tuple[_signal.Signals, ...] = (),
+    ) -> None:
+        """Register SIGTERM/SIGINT handlers that drain background narrations
+        on shutdown — opt-in for k8s/long-running deploys (R11).
+
+        When the registered signal fires, the runner emits
+        ``runner_signal_received`` and schedules :meth:`aclose` on the current
+        event loop. Must be called from inside a running event loop (handlers
+        register via :meth:`asyncio.AbstractEventLoop.add_signal_handler`).
+
+        Unix-only: ``add_signal_handler`` raises ``NotImplementedError`` on
+        Windows; we catch and skip per-signal so a partial install still
+        runs (e.g. SIGINT works on Win, SIGTERM does not). Idempotent —
+        replaces any prior handler for the same signal."""
+        if not signals:
+            signals = (_signal.SIGTERM, _signal.SIGINT)
+        loop = asyncio.get_running_loop()
+        for sig in signals:
+            try:
+                loop.add_signal_handler(
+                    sig,
+                    lambda s=sig: asyncio.create_task(self._on_signal(s)),
+                )
+            except NotImplementedError:
+                # Windows: asyncio signal handlers are unix-only. Skip
+                # silently; the consumer can wire a SetConsoleCtrlHandler
+                # equivalent themselves if needed.
+                self._emit("runner_signal_install_skipped", {
+                    "signal": int(sig),
+                    "reason": "platform_unsupported",
+                })
+
+    async def _on_signal(self, sig: _signal.Signals) -> None:
+        """Drain narrations + release backend resources when a registered
+        signal fires. Surfaces the event before closing so an external
+        observer can correlate the shutdown with telemetry."""
+        self._emit("runner_signal_received", {"signal": int(sig)})
+        try:
+            await self.aclose()
+        except Exception as exc:  # noqa: BLE001 - shutdown is best-effort
+            self._emit("runner_shutdown_error", {
+                "signal": int(sig),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
 
     async def aclose(self) -> None:
         """Drain pending background narrations (so none is lost) and release

@@ -11,10 +11,22 @@ Zero-dep: this module imports no harness SDK; the backends import theirs lazily.
 
 from __future__ import annotations
 
+import logging
 import os
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
+
+_logger = logging.getLogger(__name__)
+
+# Shell wrappers that hide the real MCP server PID from the harness's child
+# tracker — if ``command`` is one of these, the wrapper exits and the actual
+# python child becomes invisible (orphan/zombie risk on harness shutdown).
+_SHELL_WRAPPERS: frozenset[str] = frozenset({
+    "sh", "bash", "zsh", "/bin/sh", "/bin/bash", "/bin/zsh",
+    "/usr/bin/sh", "/usr/bin/bash", "/usr/bin/zsh",
+})
 
 
 #: Env vars that are safe to forward from the runner's environment to an MCP
@@ -102,6 +114,28 @@ class MCPServerSpec:
     @property
     def is_in_process(self) -> bool:
         return self.server is not None
+
+    def __post_init__(self) -> None:
+        # Lint: wrapping the MCP server in a shell ("/bin/bash -c python ...")
+        # makes the real PID invisible to the harness's child tracker — when
+        # the wrapper exits, the python child becomes a zombie/orphan instead
+        # of being reaped. Prefer ``command=sys.executable, args=["-m", ...]``
+        # so the harness owns the actual server process. Warning, not error,
+        # because legitimate shim use-cases exist (env munging, conditional
+        # execs); the consumer can suppress it via a custom logger filter.
+        if self.is_in_process or not self.command:
+            return
+        cmd_basename = self.command.rsplit("/", 1)[-1]
+        if self.command in _SHELL_WRAPPERS or cmd_basename in {"sh", "bash", "zsh"}:
+            _logger.warning(
+                "MCPServerSpec(name=%r, command=%r): shell-wrapped commands "
+                "hide the child PID from the harness's process tracker and risk "
+                "zombie accumulation on shutdown. Prefer `command=sys.executable, "
+                "args=['-m', '<module>']` so the harness owns the real PID. "
+                "See fi-runner robustness roadmap R7.",
+                self.name,
+                self.command,
+            )
 
 
 @dataclass

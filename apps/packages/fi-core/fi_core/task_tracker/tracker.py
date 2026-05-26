@@ -133,12 +133,17 @@ class _TTLStore:
         return self._data.pop(key, default)
 
     def values(self):
+        # Return a snapshot list, not a view: callers may iterate while a
+        # concurrent purge mutates ``self._data`` (today single-event-loop
+        # makes this safe; a future ``asyncio.Lock`` migration would race
+        # on a live view → ``RuntimeError: dictionary changed size during
+        # iteration``).
         self._purge_expired()
-        return self._data.values()
+        return list(self._data.values())
 
     def items(self):
         self._purge_expired()
-        return self._data.items()
+        return list(self._data.items())
 
     def __len__(self) -> int:
         self._purge_expired()

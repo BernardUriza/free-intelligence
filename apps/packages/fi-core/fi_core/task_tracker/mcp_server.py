@@ -14,8 +14,9 @@ All the boilerplate (try/except per error type, JSON shape) lives in
 
 Backward-compat note: tests import ``_TRACKER`` from this module and
 ``monkeypatch.setattr(mcp_server, "_TRACKER", fresh)`` to isolate state.
-We re-export the registry singleton + ``_get_tracker`` indirection so
-existing tests keep working without changes."""
+The module-level ``__getattr__`` below delegates reads through to
+``_registry._TRACKER`` so a stale snapshot can't drift from the live
+singleton between import time and first use."""
 
 from __future__ import annotations
 
@@ -37,10 +38,16 @@ from ._server import (
 from ._server import registry as _registry
 from .mcp_contract import MCP_SERVER_NAME
 
-# Backward-compat: keep the module-level ``_TRACKER`` name so existing
-# tests' monkeypatching keeps working. Both lookups route through the
-# same singleton in ``_server.registry``.
-_TRACKER = _registry._TRACKER  # noqa: SLF001 — intentional cross-module alias for test hooks
+
+def __getattr__(name: str) -> Any:
+    # PEP 562 module-level __getattr__: defer ``mcp_server._TRACKER`` lookups
+    # to the live registry singleton instead of capturing a stale reference
+    # at import time. Lets external monkeypatch via ``_registry`` work even
+    # when tests patch ``mcp_server`` first, and keeps a single source of
+    # truth for the tracker instance.
+    if name == "_TRACKER":
+        return _registry._TRACKER  # noqa: SLF001 — intentional cross-module bridge for test hooks
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 mcp = FastMCP(MCP_SERVER_NAME)

@@ -88,7 +88,22 @@ def schedule_narration(
     task_pool: set[asyncio.Task[None]],
 ) -> None:
     """Fire the turn's narration in the background and track the task so
-    ``aclose()`` can drain it — a narration is never silently lost."""
+    ``aclose()`` can drain it — a narration is never silently lost.
+
+    Backpressure: when ``task_pool`` is already at
+    ``narrator.max_inflight_narrations``, the narration is DROPPED and a
+    ``narration_dropped`` event is emitted. This bounds the task set so a
+    slow narration backend + burst of turns can't grow the pool without
+    limit (R5). The mechanical diagram still ships — only the
+    narrated refinement is skipped for this turn."""
+    if len(task_pool) >= narrator.max_inflight_narrations:
+        emit("narration_dropped", {
+            "request_id": request_id,
+            "inflight": len(task_pool),
+            "max_inflight": narrator.max_inflight_narrations,
+            "reason": "narration_pool_saturated",
+        })
+        return
     task = asyncio.create_task(narrate_and_publish(
         request_id, events, user_message, response_text, model,
         narrator=narrator, backend=backend,
