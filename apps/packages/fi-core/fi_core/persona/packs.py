@@ -170,7 +170,10 @@ OVER_VALIDATION_ES: list[re.Pattern[str]] = [
 # at scale by the source bot, so adding them speculatively would be noise.
 # ============================================================
 CLARIFICATION_DUMP_ES: list[re.Pattern[str]] = [
-    re.compile(r"(?i)\bdime\s+(?:qu[eé]|cu[aá]l)\s+(?:busco|buscar|hago|hacer|quieres|necesitas)\b"),
+    # ``buscas`` covers the bot punting in 2nd person ("Dime qué buscas
+    # exactamente para ayudarte") — the original pattern only matched
+    # ``busco|buscar``, missing the most common dump phrasing.
+    re.compile(r"(?i)\bdime\s+(?:qu[eé]|cu[aá]l)\s+(?:busco|buscar|buscas|hago|hacer|quieres|necesitas)\b"),
     re.compile(r"(?i)\bqu[eé]\s+quieres\s+que\s+(?:busque|haga|diga|responda|pregunte|encuentre)\b"),
     re.compile(r"(?i)\ba\s+qu[eé]\s+te\s+refieres\b"),
     re.compile(r"(?im)(?<!\w)repite(?:\s+(?:la\s+pregunta|lo\s+que|por\s+favor|eso))?[.!?]?\s*$"),
