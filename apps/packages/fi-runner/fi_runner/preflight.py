@@ -114,7 +114,12 @@ async def probe_mcp(spec: MCPServerSpec, *, timeout: float = 10.0) -> PreflightR
     if not spec.command:
         return PreflightResult(name=spec.name, alive=False, error="spec has no command")
 
-    env = dict(os.environ) if spec.env_passthrough else None
+    # env_passthrough=True forwards the FULL os.environ (legacy default for
+    # backward-compat); =False uses a safe whitelist that includes only PATH,
+    # HOME, USER, LANG, PYTHONPATH, etc. — never secrets. Capabilities default
+    # to False to prevent secret leakage to fi-core MCP servers.
+    from .backend import safe_subprocess_env
+    env = dict(os.environ) if spec.env_passthrough else safe_subprocess_env()
     proc: asyncio.subprocess.Process | None = None
     try:
         try:

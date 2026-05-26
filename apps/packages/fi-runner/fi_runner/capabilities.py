@@ -30,7 +30,7 @@ def _capability_spec(
     fallback_name: str,
     name_attr: str = "MCP_SERVER_NAME",
     tools_attr: str = "MCP_TOOLS",
-    env_passthrough: bool = True,
+    env_passthrough: bool = False,
 ) -> MCPServerSpec:
     """Build the spec for one fi-core capability.
 
@@ -59,7 +59,7 @@ def _capability_spec(
     )
 
 
-def cognitive(*, env_passthrough: bool = True) -> MCPServerSpec:
+def cognitive(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core clinical cognitive-flow MCP server."""
     return _capability_spec(
         server_module="fi_core.cognitive.mcp_server",
@@ -69,7 +69,7 @@ def cognitive(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
-def persona(*, env_passthrough: bool = True) -> MCPServerSpec:
+def persona(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core persona / anti-drift MCP server."""
     return _capability_spec(
         server_module="fi_core.persona.mcp_server",
@@ -79,7 +79,7 @@ def persona(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
-def rag(*, env_passthrough: bool = True) -> MCPServerSpec:
+def rag(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core retrieval MCP server (chunking + lexical/semantic search)."""
     return _capability_spec(
         server_module="fi_core.rag.mcp_server",
@@ -89,7 +89,7 @@ def rag(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
-def rag_store(*, env_passthrough: bool = True) -> MCPServerSpec:
+def rag_store(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core STATEFUL retrieval MCP server — persist documents and query
     them later (ingest/search/list/delete, namespaced by corpus_id). Backend +
     path via env (FI_RAG_BACKEND, FI_RAG_STORE_PATH); lexical/zero-model default.
@@ -107,7 +107,7 @@ def rag_store(*, env_passthrough: bool = True) -> MCPServerSpec:
     )
 
 
-def task_tracker(*, env_passthrough: bool = True) -> MCPServerSpec:
+def task_tracker(*, env_passthrough: bool = False) -> MCPServerSpec:
     """The fi-core task_tracker MCP — agent declares its plan before executing.
 
     Tools: ``declare_plan``, ``start_step``, ``complete_step``, ``fail_step``.
@@ -133,7 +133,7 @@ REGISTRY: dict[str, Callable[..., MCPServerSpec]] = {
 }
 
 
-def resolve(names: list[str], *, env_passthrough: bool = True) -> list[MCPServerSpec]:
+def resolve(names: list[str], *, env_passthrough: bool = False) -> list[MCPServerSpec]:
     """Resolve capability names to MCP server specs.
 
     ``env_passthrough`` is forwarded to every spec — a consumer that drives the
