@@ -26,8 +26,54 @@ In the consultation state machine this is what the ``TRIAGE`` state runs
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
+
+
+# --- Negation handling ------------------------------------------------------
+# Substring matching alone over-counts symptoms in negated phrasing — the t13
+# eval trap ("el paciente niega ideación suicida, plan suicida o autolesión
+# activa") fires CRITICAL because "plan suicida" matches verbatim, even though
+# the patient EXPLICITLY DENIES it. Before matching, we strip clauses scoped
+# to a negation cue so the denied items don't reach the vocabularies.
+#
+# Scope rule: cue → next sentence terminator (.;!?) OR opposing conjunction
+# (pero, sin embargo, mas, aunque). Comma is intentionally NOT a clause break,
+# so a single cue covering a comma-separated list of denied items
+# ("niega A, B o C") strips all three. Tradeoff: phrasings like "no refiere
+# mejoría, presenta X" lose the un-negated tail unless the writer separates
+# with a period or `pero`. Acceptable for clinical notes — perfect coverage
+# needs a real negation parser (NegEx / spaCy negspaCy), out of scope for
+# fi-core's zero-dep promise.
+
+_NEGATION_CUES: tuple[str, ...] = (
+    # Spanish — clinical phrasing
+    r"niega", r"niegan", r"neg[oó]",
+    r"no\s+presenta", r"no\s+tiene", r"no\s+refiere", r"no\s+manifiesta",
+    r"descarta", r"descartan", r"descart[oó]",
+    r"ausencia\s+de", r"sin\s+(?!embargo)",
+    # English
+    r"denies", r"no\s+history\s+of", r"no\s+signs?\s+of",
+    r"no\s+evidence\s+of", r"rules?\s+out", r"without",
+    r"absence\s+of",
+)
+
+_NEGATION_RE = re.compile(
+    r"\b(?:" + "|".join(_NEGATION_CUES) + r")\b"
+    r"[^.;!?]*?"  # everything up to next strong boundary (lazy)
+    r"(?=[.;!?]|\s+(?:pero|sin\s+embargo|mas|aunque)\b|$)",
+    re.IGNORECASE,
+)
+
+
+def _strip_negations(text: str) -> str:
+    """Remove clauses falling under a negation cue's scope.
+
+    Returns the text with negated runs replaced by a single space. Idempotent:
+    a re-run finds no more cues. See module-level comment for the scope rules
+    and the deliberate edge cases."""
+    return _NEGATION_RE.sub(" ", text)
 
 
 class UrgencyLevel(str, Enum):
@@ -112,7 +158,11 @@ class GravityScore:
 
 
 def _normalize(items: list[str]) -> list[str]:
-    return [str(i).strip().lower() for i in items if str(i).strip()]
+    # Strip negation BEFORE returning so every downstream substring matcher
+    # (base_gravity, critical_pattern, modifiers) sees only un-negated text.
+    # Centralizing the pass here avoids missing a site that handles its own
+    # normalization in the future.
+    return [_strip_negations(str(i).strip().lower()) for i in items if str(i).strip()]
 
 
 def _matches(item: str, vocab: frozenset[str]) -> bool:
