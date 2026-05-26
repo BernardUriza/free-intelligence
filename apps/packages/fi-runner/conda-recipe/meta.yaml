@@ -3,7 +3,7 @@
    The publish workflow (.github/workflows/publish-fi-runner.yml) seds this from
    the pushed `fi-runner-v*` tag, so a build always packages the tagged commit.
    Bump it here too when cutting a release so a manual `conda build` matches. #}
-{% set version = "0.8.0" %}
+{% set version = "0.14.0" %}
 
 package:
   name: {{ name }}
