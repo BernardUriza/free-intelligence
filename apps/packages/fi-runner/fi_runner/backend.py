@@ -110,13 +110,19 @@ class ToolCall:
     events. ``server`` is the MCP server parsed from an ``mcp__<server>__<tool>``
     name (``None`` for a built-in tool like ``Bash``). ``is_error`` is the result
     status when the backend reports it (``None`` = unknown). ``input`` is kept for
-    the consumer but is NEVER put into telemetry/diagrams — it may carry PHI."""
+    the consumer but is NEVER put into telemetry/diagrams — it may carry PHI.
+
+    ``duration_ms`` is wall-clock time between the tool USE and its matching
+    RESULT, when the backend can pair them. Claude Code fills it in (paired by
+    ``tool_use_id``); Codex leaves it ``None`` (the JSONL stream has no per-item
+    timestamps). Use it to colour slow steps in the Mermaid turn-flow."""
 
     name: str
     server: str | None = None
     input: dict[str, Any] | None = None
     id: str | None = None
     is_error: bool | None = None
+    duration_ms: int | None = None
 
     @classmethod
     def make(
@@ -126,10 +132,18 @@ class ToolCall:
         input: dict[str, Any] | None = None,
         id: str | None = None,
         is_error: bool | None = None,
+        duration_ms: int | None = None,
     ) -> ToolCall:
         """Build a ToolCall, parsing the MCP ``server`` out of an
         ``mcp__<server>__<tool>`` name (``None`` for built-in tools)."""
-        return cls(name=name, server=mcp_server_of(name), input=input, id=id, is_error=is_error)
+        return cls(
+            name=name,
+            server=mcp_server_of(name),
+            input=input,
+            id=id,
+            is_error=is_error,
+            duration_ms=duration_ms,
+        )
 
 
 @dataclass(frozen=True)

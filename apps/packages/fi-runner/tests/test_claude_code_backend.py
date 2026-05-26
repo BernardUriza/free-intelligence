@@ -190,6 +190,28 @@ async def test_collect_captures_tool_trace_with_result_status():
 
 
 @pytest.mark.asyncio
+async def test_collect_measures_tool_call_duration():
+    # Sleep in the gap between ToolUseBlock and the matching ToolResultBlock —
+    # _collect should pair them by id and fill duration_ms (>= the sleep).
+    import asyncio as _asyncio
+
+    class _SlowFake:
+        """receive_response that pauses between assistant + user messages, so
+        the wall-clock gap between use→result is real, monotonic-measurable."""
+
+        async def receive_response(self):
+            yield AssistantMessage([ToolUseBlock("mcp__cognitive__assess", {"q": "x"}, "t1")])
+            await _asyncio.sleep(0.05)  # 50ms gap; CI-safe margin below
+            yield UserMessage([ToolResultBlock("t1", is_error=False)])
+
+    _text, _usage, _sess, tools = await ClaudeCodeBackend._collect(_SlowFake())
+    assert tools[0].duration_ms is not None
+    assert tools[0].duration_ms >= 40  # 50ms - jitter; survives slow CI
+    # Sanity: nothing absurdly inflated (no leakage of older starts).
+    assert tools[0].duration_ms < 5000
+
+
+@pytest.mark.asyncio
 async def test_iter_events_streams_tool_call_text_then_result():
     # _iter_events is the streaming counterpart of _collect: live events, then result.
     client = _FakeClient(

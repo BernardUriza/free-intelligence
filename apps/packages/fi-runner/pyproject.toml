@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.13.0"
+version = "0.14.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"

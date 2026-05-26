@@ -529,6 +529,22 @@ class Runner:
         )
         return replace(result, text=mutated)
 
+    async def preflight(self, *, timeout: float = 10.0) -> dict[str, Any]:
+        """Probe every MCP server this runner will use, BEFORE the first turn.
+
+        Resolves capabilities + ``extra_mcp_servers`` exactly as :meth:`run` does,
+        then runs :func:`fi_runner.preflight.probe_mcp` for each in parallel.
+        Returns ``{server_name: PreflightResult}`` so the caller can fail boot
+        (or just log) when an expected MCP is dead — instead of finding out
+        mid-turn as a generic ``is_error`` with no context.
+
+        Cheap: each probe is a short JSON-RPC handshake; safe to call on every
+        process start. No-op for runners with zero MCP servers."""
+        from .preflight import probe_all  # local import keeps preflight optional
+
+        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
+        return await probe_all(mcp_servers, timeout=timeout)
+
     async def aclose(self) -> None:
         """Drain pending background narrations (so none is lost) and release
         backend resources (pooled sessions, etc.), if any. Idempotent."""

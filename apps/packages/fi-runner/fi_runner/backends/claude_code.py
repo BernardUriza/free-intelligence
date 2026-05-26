@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from typing import Any
@@ -136,6 +137,10 @@ class ClaudeCodeBackend:
         session_id: str | None = None
         tool_calls: list[ToolCall] = []
         by_id: dict[str, int] = {}  # tool_use_id -> index in tool_calls
+        # Wall-clock start (monotonic) for each ToolUseBlock by id — paired with
+        # its ToolResultBlock to fill ``duration_ms``. monotonic survives clock
+        # jumps and is what you want for "how long did THIS take".
+        start_ts: dict[str, float] = {}
         async for message in client.receive_response():
             kind = type(message).__name__
             content = getattr(message, "content", None)
@@ -152,18 +157,24 @@ class ClaudeCodeBackend:
                         )
                         if tc.id is not None:
                             by_id[tc.id] = len(tool_calls)
+                            start_ts[tc.id] = time.monotonic()
                         tool_calls.append(tc)
             elif kind == "UserMessage" and isinstance(content, list):
                 for block in content:  # tool RESULTS feed back as ToolResultBlocks
                     if type(block).__name__ != "ToolResultBlock":
                         continue
-                    idx = by_id.get(getattr(block, "tool_use_id", None))
+                    use_id = getattr(block, "tool_use_id", None)
+                    idx = by_id.get(use_id)
                     if idx is not None:
                         # Respect the contract: None = unknown. A missing is_error
                         # stays None (don't claim success); only a present value coerces.
                         raw_err = getattr(block, "is_error", None)
+                        t0 = start_ts.get(use_id)
+                        dur = int((time.monotonic() - t0) * 1000) if t0 is not None else None
                         tool_calls[idx] = replace(
-                            tool_calls[idx], is_error=None if raw_err is None else bool(raw_err)
+                            tool_calls[idx],
+                            is_error=None if raw_err is None else bool(raw_err),
+                            duration_ms=dur,
                         )
             elif kind == "ResultMessage":
                 # Final message of a turn — carries usage, cost and session id.
@@ -234,6 +245,7 @@ class ClaudeCodeBackend:
         session_id: str | None = None
         tool_calls: list[ToolCall] = []
         by_id: dict[str, int] = {}
+        start_ts: dict[str, float] = {}  # tool_use_id -> monotonic start (for duration_ms)
         async for message in client.receive_response():
             kind = type(message).__name__
             content = getattr(message, "content", None)
@@ -253,16 +265,24 @@ class ClaudeCodeBackend:
                         )
                         if tc.id is not None:
                             by_id[tc.id] = len(tool_calls)
+                            start_ts[tc.id] = time.monotonic()
                         tool_calls.append(tc)
                         yield {"type": "tool_call", "tool": tc}
             elif kind == "UserMessage" and isinstance(content, list):
                 for block in content:
                     if type(block).__name__ != "ToolResultBlock":
                         continue
-                    idx = by_id.get(getattr(block, "tool_use_id", None))
+                    use_id = getattr(block, "tool_use_id", None)
+                    idx = by_id.get(use_id)
                     if idx is not None:
                         raw_err = getattr(block, "is_error", None)
-                        tool_calls[idx] = replace(tool_calls[idx], is_error=None if raw_err is None else bool(raw_err))
+                        t0 = start_ts.get(use_id)
+                        dur = int((time.monotonic() - t0) * 1000) if t0 is not None else None
+                        tool_calls[idx] = replace(
+                            tool_calls[idx],
+                            is_error=None if raw_err is None else bool(raw_err),
+                            duration_ms=dur,
+                        )
             elif kind == "ResultMessage":
                 raw = getattr(message, "usage", None)
                 if raw is not None:
