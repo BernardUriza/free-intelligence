@@ -60,3 +60,6 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["fi_runner*"]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"fi_runner" = ["py.typed"]

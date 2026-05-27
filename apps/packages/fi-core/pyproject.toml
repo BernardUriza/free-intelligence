@@ -136,6 +136,7 @@ include = ["fi_core*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
+"fi_core" = ["py.typed"]
 "fi_core.cognitive" = ["presets/*.yaml"]
 
 [tool.ruff]
