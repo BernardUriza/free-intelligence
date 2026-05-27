@@ -133,10 +133,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install xair + bair
+        # xair[openai] required even though gatekeep uses Anthropic via
+        # httpx — Container.production() unconditionally instantiates
+        # OpenAIProvider() at construction time. Future xair refactor:
+        # make production() pick provider based on env, then drop [openai].
         run: |
           set -e
           pip install --no-cache-dir \
-            "git+https://github.com/BernardUriza/xair@main" \
+            "xair[openai] @ git+https://github.com/BernardUriza/xair@main" \
             "git+https://github.com/BernardUriza/.github@main#subdirectory=bair"
       - name: Run BAIR gatekeep
         id: gatekeep
