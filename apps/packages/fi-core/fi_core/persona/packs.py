@@ -41,8 +41,14 @@ GENERIC_AI_DISCLOSURE_EN: list[re.Pattern[str]] = [
     re.compile(r"(?i)\bI cannot (and will not|assist with)\b"),
     re.compile(r"(?i)\bmy training data\b"),
     re.compile(r"(?i)\bI was (created|made|trained) by\b"),
-    re.compile(r"(?i)\bAnthropic\b"),
-    re.compile(r"(?i)\bOpenAI\b"),
+    # Vendor names — SCOPED to identity-claim contexts to avoid false positives
+    # on legit content ("OpenAI is a big company"). The bare \bOpenAI\b /
+    # \bAnthropic\b patterns matched any mention; the d11 trap proved that
+    # turns a non-character-broken response into a forced sanitize. The narrow
+    # patterns below only fire when the model is claiming origin/identity.
+    re.compile(r"(?i)\b(?:made|created|built|trained|developed|designed|powered)\s+by\s+(?:OpenAI|Anthropic)\b"),
+    re.compile(r"(?i)\bI'?m\s+(?:from\s+)?(?:OpenAI|Anthropic)(?:'s)?\b"),
+    re.compile(r"(?i)\b(?:OpenAI|Anthropic)'?s\s+(?:AI|model|chatbot|assistant|product|service)\b"),
     re.compile(r"(?i)\bChatGPT\b"),
     re.compile(r"(?i)\blanguage model\b"),
     re.compile(r"(?i)\bI'?m sorry,?\s+but\s+I\b"),
@@ -62,6 +68,11 @@ GENERIC_AI_DISCLOSURE_ES: list[re.Pattern[str]] = [
     re.compile(r"(?i)\b(no soy|soy solo)\s+(un\s+)?(bot|programa|herramienta)\b"),
     re.compile(r"(?i)\b(mi|my)\s+(entrenamiento|training|programaci[oó]n|programming)\b"),
     re.compile(r"(?i)\b(fu[ií]|was)\s+(dise[nñ]ado|programado|designed|trained)\s+(para|to)\b"),
+    # "soy una inteligencia artificial" / "como una IA" — the d04 trap. The
+    # original ES pack only knew "bot/chatbot/programa/software" and missed
+    # the most common Spanish self-disclosure phrasing.
+    re.compile(r"(?i)\b(?:soy|eres|es)\s+(?:una?\s+|s[oó]lo\s+(?:una?\s+)?)?(?:intelig[eé]ncia\s+artificial|IA)\b"),
+    re.compile(r"(?i)\bcomo\s+(?:una?\s+)?(?:intelig[eé]ncia\s+artificial|IA)\b"),
 ]
 
 # ============================================================
@@ -170,7 +181,10 @@ OVER_VALIDATION_ES: list[re.Pattern[str]] = [
 # at scale by the source bot, so adding them speculatively would be noise.
 # ============================================================
 CLARIFICATION_DUMP_ES: list[re.Pattern[str]] = [
-    re.compile(r"(?i)\bdime\s+(?:qu[eé]|cu[aá]l)\s+(?:busco|buscar|hago|hacer|quieres|necesitas)\b"),
+    # ``buscas`` covers the bot punting in 2nd person ("Dime qué buscas
+    # exactamente para ayudarte") — the original pattern only matched
+    # ``busco|buscar``, missing the most common dump phrasing.
+    re.compile(r"(?i)\bdime\s+(?:qu[eé]|cu[aá]l)\s+(?:busco|buscar|buscas|hago|hacer|quieres|necesitas)\b"),
     re.compile(r"(?i)\bqu[eé]\s+quieres\s+que\s+(?:busque|haga|diga|responda|pregunte|encuentre)\b"),
     re.compile(r"(?i)\ba\s+qu[eé]\s+te\s+refieres\b"),
     re.compile(r"(?im)(?<!\w)repite(?:\s+(?:la\s+pregunta|lo\s+que|por\s+favor|eso))?[.!?]?\s*$"),
