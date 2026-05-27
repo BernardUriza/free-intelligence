@@ -1,15 +1,19 @@
 {% set name = "fi-core" %}
 {% set version = "0.12.0" %}
-{# sha256 MUST be regenerated from the fi-core-v0.12.0 release tarball at release time #}
-{% set sha256 = "0000000000000000000000000000000000000000000000000000000000000000" %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-  url: https://github.com/BernardUriza/free-intelligence/releases/download/fi-core-v{{ version }}/fi_core-{{ version }}.tar.gz
-  sha256: {{ sha256 }}
+  # During automated release, the publish-fi-core.yml workflow checks out
+  # the tagged commit and `conda build` reads the recipe from there;
+  # `path: ..` packages the local working tree (apps/packages/fi-core/)
+  # which IS the tagged source. No sha256 placeholder to keep in sync.
+  # This matches publish-fi-runner.yml's recipe + conda-recipe README.
+  # For local dev: `cd apps/packages/fi-core && conda build conda-recipe`
+  # also works because path is relative to the recipe directory.
+  path: ..
 
 build:
   number: 0
