@@ -204,7 +204,7 @@ jobs:
           fi
 
           # Check AI Gatekeeper (only for PRs, skipped for push to dev/main)
-          AI_RESULT="${{ needs.backend-tests.result }}"
+          AI_RESULT="${{ needs.ai-gatekeep.result }}"
           if [[ "$AI_RESULT" == "success" ]]; then
             echo "✅ AI Gatekeeper approved" >> $GITHUB_STEP_SUMMARY
           elif [[ "$AI_RESULT" == "skipped" ]]; then
@@ -221,7 +221,7 @@ jobs:
           # Fail if ANY critical check failed (tests are informational only)
           BACKEND_OK="${{ needs.backend-compiles.result }}"
           LINT_OK="${{ needs.lint-report.result }}"
-          AI_OK="${{ needs.backend-tests.result }}"
+          AI_OK="${{ needs.ai-gatekeep.result }}"
 
           if [[ "$BACKEND_OK" != "success" ]] || \
              [[ "$LINT_OK" != "success" ]] || \
