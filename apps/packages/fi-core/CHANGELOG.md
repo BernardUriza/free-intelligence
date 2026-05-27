@@ -5,6 +5,53 @@ All notable changes to `fi-core` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Policy:
+- **PATCH**: backwards-compatible bug fixes; no public-API change.
+- **MINOR**: backwards-compatible additions; new protocols, new extra, new MCP tool.
+- **MAJOR**: breaking changes to Protocols, function signatures, or removed extras.
+
+Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
+
+## [Unreleased]
+
+(Add entries here as work lands on `dev`.)
+
+## [0.24.4] — 2026-05-26
+
+Brought to anaconda.org as part of the platform-engineer release pass after the channel had drifted to **0.9.1** while the source was at 0.24.4 — gap of 15 minor versions across 9 months of internal-only work.
+
+### Added
+- Proclítico reflexive forms in `PSYCH_CRITICAL_SYMPTOMS` and `PSYCH_CRITICAL_PATTERNS` (`se quiere matar`, `se quiere ahorcar`, `va a matarse`, `intenta suicidarse`, etc.). Spanish allows splitting the reflexive pronoun from the verb; substring matching now catches both forms.
+- `fi_core.cognitive.urgency._strip_negations` — regex pre-pass over the input that removes clauses scoped to a negation cue (`niega`/`descarta`/`no presenta`/`sin (?!embargo)`/`denies`/`rules out`/...). Scope: cue → next sentence terminator OR opposing conjunction (`pero`, `sin embargo`, `mas`, `aunque`). Comma is intentionally NOT a clause break.
+- Cross-encoder reranker (`fi-core[rerank]`): BAAI/bge-reranker-v2-m3, Apache-2.0, multilingual.
+- Long-term memory primitives (`fi-core[memory]`): `PgMemoryStore` + `FactConsolidator` (Mem0-style retention).
+- `task_tracker` v2: 11 MCP tools, DAG step deps, terminal-state immutability, TTL eviction, replanning, cancellation, note-step append, `list_plans`, `PlanGuard` integration in fi-runner.
+
+### Changed
+- `PSYCH_CRITICAL_SYMPTOMS` / `PSYCH_CRITICAL_PATTERNS` expanded to include 3rd-person + infinitive crisis markers (`quitarse la vida`, `ahorcarse`, `quiere morir`, `planea suicidarse`, etc.). Closes recall regressions on eval cases t04 (1st→3rd person) and t07 (vocab gap for `ahorcarse`).
+- `GENERIC_AI_DISCLOSURE_ES` adds "inteligencia artificial" / "IA" patterns (closes d04 eval trap).
+- `OpenAI`/`Anthropic` vendor patterns scoped to identity-claim contexts (`made/created/built/trained by`, `I'm (from) OpenAI`, `OpenAI's assistant`) instead of bare `\bOpenAI\b` (closes d11 false-positive trap).
+- `mcp>=1.27,<2` pin (RFC 8707 OAuth resource validation + StreamableHTTP idle timeout).
+- `fi_core.task_tracker.mcp_server._TRACKER` alias replaced with module-level `__getattr__` (PEP 562) delegating to the live `_registry._TRACKER`. Eliminates the stale-at-import-time reference.
+- `_TTLStore.values()/.items()` return `list(...)` snapshots instead of dict views (defensive against future async-lock migration).
+- `__init__.py` docstring rewritten: more comprehensive sub-package map, install-extras matrix, dropped the "AURITY + Insult" mention (fi-core is contract-generic).
+
+### Eval impact (vs baseline sha 7bc3f1cd, 38 hand-labeled cases)
+- Triage F1: 0.769 → **1.000** (+0.231); recall 0.714 → 1.000.
+- Antidrift F1: 0.750 → **1.000** (+0.250); multi-class accuracy 0.750 → **1.000**.
+
+## [0.9.1 — 0.24.3]
+
+These intermediate versions were never published to anaconda.org (the channel was stuck at 0.9.1 while `dev` advanced). Highlights of the period:
+
+- `fi_core.rag` end-to-end: `StoreBackedRetriever` + `search_documents` MCP tool.
+- `fi_core.persona.mcp_server` standalone: anti-drift detectors callable from any MCP client.
+- `fi_core.cognitive` clinical state machine + urgency classifier + SOAP commit gate.
+- `fi_core.task_tracker` v1 → v2 rewrite (gaps catalogued in the fi-runner-task-tracker-v2 memory).
+- Multiple safety hardening passes (env whitelist, RLock removal, gather logging, conversation_store guards).
+
+For per-commit detail, browse the git history between tags `fi-core-v0.9.1` and `fi-core-v0.24.3` (when they get created) in https://github.com/BernardUriza/free-intelligence/commits/main/apps/packages/fi-core.
+
 ## [0.8.0] — 2026-05-22
 
 ### Added
