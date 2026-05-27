@@ -107,17 +107,69 @@ jobs:
           echo "Note: Lint issues do not block merge" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================
-  # AI GATEKEEPER: BAIR passthrough — TEMPORARILY DISABLED while we
-  # debug a startup_failure on cross-repo reusable workflow invocation.
-  # Restore the ai-gatekeep job once the root cause is identified.
+  # AI GATEKEEPER: BAIR inline runner. The reusable-workflow approach
+  # (uses: BernardUriza/.github/...@main) kept tripping startup_failure
+  # on cross-repo invocation with no useful diagnostic. Inlining trades
+  # 30 LOC of duplication per repo for a reliable invocation. The
+  # bair Python package still lives at BernardUriza/.github so prompt
+  # tuning is centralized — only the workflow YAML is duplicated.
   # ============================================================
+  ai-gatekeep:
+    name: "AI Gatekeeper"
+    runs-on: ubuntu-latest
+    needs: [backend-compiles]
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout PR head with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install xair + bair
+        run: |
+          set -e
+          pip install --no-cache-dir \
+            "git+https://github.com/BernardUriza/xair@main" \
+            "git+https://github.com/BernardUriza/.github@main#subdirectory=bair"
+      - name: Run BAIR gatekeep
+        id: gatekeep
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Exit code IS the gate. BLOCK or UNAVAILABLE → exit 1 → step
+        # RED → ai-gatekeep job RED → gate-status RED → PR cannot merge.
+        run: python -m bair gatekeep
+      - name: Summarize verdict
+        if: always()
+        run: |
+          {
+            echo "## BAIR Gatekeeper Verdict"
+            echo
+            echo "| Field    | Value |"
+            echo "|----------|-------|"
+            echo "| verdict  | ${{ steps.gatekeep.outputs.verdict || 'UNAVAILABLE' }} |"
+            echo "| severity | ${{ steps.gatekeep.outputs.severity || '?' }} |"
+            echo "| provider | ${{ steps.gatekeep.outputs.provider || 'none' }} |"
+            echo "| executed | ${{ steps.gatekeep.outputs.executed || 'false' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # SUMMARY: Final gate status
   # ============================================================
   gate-status:
     name: "PR Gate Status"
     runs-on: ubuntu-latest
-    needs: [backend-compiles, backend-tests, lint-report]
+    needs: [backend-compiles, backend-tests, lint-report, ai-gatekeep]
     if: always()
 
     steps:
