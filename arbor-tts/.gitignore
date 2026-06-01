@@ -1,0 +1,8 @@
+node_modules/
+auth/
+output/
+.env
+*.mp3
+*.aac
+*.ogg
+*.m4a
