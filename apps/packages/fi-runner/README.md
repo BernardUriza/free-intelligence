@@ -38,7 +38,27 @@ maps `capabilities=["cognitive"]` → `python -m fi_core.cognitive.mcp_server`.
 ```bash
 pip install 'fi-runner[claude]'   # Claude Code backend (claude_agent_sdk)
 pip install 'fi-runner[codex]'    # Codex backend (codex exec --json)
+pip install 'fi-runner[cli]'      # the `fi-runner` shell-out CLI (Typer)
 ```
+
+The conda package (`bernardurizaorozco` channel) ships the CLI by default.
+
+## CLI — run a turn without importing Python
+
+Any process (a shell, a Makefile, a CI step, or a non-Python backend via
+`Runtime.exec`) can drive a Runner without a persistent sidecar — exactly how
+fi-runner itself shells out to `codex exec --json`:
+
+```bash
+fi-runner exec "Summarize this repo" --backend codex --model gpt-4.1
+echo "70yo male, chest pain" | fi-runner exec - --persona-file medic.md
+fi-runner exec "What changed in this PR?" --json --session-id pr-42
+```
+
+Plain mode prints the text to stdout; `--json` emits
+`{text, session_id, tool_calls}`. Secrets stay in the environment
+(`--azure-endpoint` / `--azure-key-env`). This is the Python half of the
+conda+npm SSOT — see [`docs/SSOT_CONTRACT.md`](docs/SSOT_CONTRACT.md).
 
 ## Usage
 
