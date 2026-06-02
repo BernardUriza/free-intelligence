@@ -72,29 +72,34 @@ export class ArborTTS {
     const voice = opts.voice || process.env.ARBOR_VOICE || "fathom";
     const format = opts.format || process.env.ARBOR_FORMAT || "mp3";
 
+    // Reuse the last conversation; on ANY failure (gone, slow, id-resolution,
+    // Playwright error) reset it and retry ONCE in a fresh chat — "new chat
+    // only as a fallback".
+    if (this.lastConversationUrl) {
+      try {
+        return await this._attempt(text, voice, format, this.lastConversationUrl);
+      } catch {
+        this.lastConversationUrl = null;
+      }
+    }
+    return await this._attempt(text, voice, format, this.gptUrl);
+  }
+
+  /** One synthesis attempt against `target` (a conversation URL or GPT base). */
+  async _attempt(text, voice, format, target) {
+    const reuse = target !== this.gptUrl;
     const page = await this.context.newPage();
     try {
       const composer = page.locator("#prompt-textarea");
-
-      // Reuse the last conversation; fall back to a new chat (gptUrl) if it is
-      // gone (deleted / not found → composer never appears).
-      const target = this.lastConversationUrl || this.gptUrl;
       await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: STEP_TIMEOUT,
       });
-      try {
-        await composer.waitFor({ state: "visible", timeout: 12_000 });
-      } catch {
-        if (target === this.gptUrl) throw new Error("composer not found on new chat");
-        // saved conversation disappeared → start a fresh one
-        this.lastConversationUrl = null;
-        await page.goto(this.gptUrl, {
-          waitUntil: "domcontentloaded",
-          timeout: STEP_TIMEOUT,
-        });
-        await composer.waitFor({ state: "visible", timeout: STEP_TIMEOUT });
-      }
+      // Fast-fail when reusing so we fall back quickly; patient for a new chat.
+      await composer.waitFor({
+        state: "visible",
+        timeout: reuse ? 12_000 : STEP_TIMEOUT,
+      });
 
       // Remember the current last assistant id so we can tell the NEW reply
       // apart from prior ones when reusing a conversation.
