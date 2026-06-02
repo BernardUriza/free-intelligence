@@ -33,6 +33,16 @@ export class ArborTTS {
     // calls (lower anti-bot footprint). Falls back to a new chat if the saved
     // conversation is gone.
     this.lastConversationUrl = null;
+    // One reused page (tab) across requests. Opening a fresh tab per request
+    // raised Chrome to the foreground and stole focus; reusing one tab avoids it.
+    this.page = null;
+  }
+
+  /** Return the single reused page, creating it if missing/closed. */
+  async _getPage() {
+    if (this.page && !this.page.isClosed()) return this.page;
+    this.page = await this.context.newPage();
+    return this.page;
   }
 
   async launch() {
@@ -88,8 +98,8 @@ export class ArborTTS {
   /** One synthesis attempt against `target` (a conversation URL or GPT base). */
   async _attempt(text, voice, format, target) {
     const reuse = target !== this.gptUrl;
-    const page = await this.context.newPage();
-    try {
+    const page = await this._getPage();
+    {
       const composer = page.locator("#prompt-textarea");
       await page.goto(target, {
         waitUntil: "domcontentloaded",
@@ -198,8 +208,6 @@ export class ArborTTS {
         messageId,
         conversationId,
       };
-    } finally {
-      await page.close().catch(() => {});
     }
   }
 
@@ -228,7 +236,7 @@ export class ArborTTS {
     // context/tabs — just drop the CDP connection.
     if (!this._cdp && this.context) await this.context.close().catch(() => {});
     if (this.browser) await this.browser.close().catch(() => {});
-    this.browser = this.context = null;
+    this.browser = this.context = this.page = null;
     this._cdp = false;
   }
 }
