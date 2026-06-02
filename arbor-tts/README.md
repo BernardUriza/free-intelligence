@@ -102,6 +102,44 @@ Response body is the raw audio (`Content-Type: audio/mpeg`), with `X-Voice-Id` /
 the path is returned in `X-Saved-Path`. If `SERVICE_TOKEN` is set in `.env`, send
 `Authorization: Bearer <SERVICE_TOKEN>`.
 
+By default, `/tts` is fail-closed for deployed use: `REQUIRE_SERVICE_TOKEN=1`
+means the service refuses synthesis unless `SERVICE_TOKEN` is configured. It also
+ships with conservative in-memory caps:
+
+| Env | Default |
+|---|---:|
+| `TTS_ENABLED` | `1` |
+| `RATE_LIMIT_WINDOW_MS` | `3600000` |
+| `RATE_LIMIT_MAX_REQUESTS` | `20` |
+| `DAILY_REQUEST_CAP` | `100` |
+| `DAILY_TEXT_CHAR_CAP` | `100000` |
+
+Set a cap to `0` to disable it. These are guardrails against accidental loops and
+shared-token abuse; they are not a way to evade platform limits.
+
+### Callback delivery
+
+For service-to-service flows, the same endpoint can synthesize and then POST the
+audio to one of your endpoints:
+
+```bash
+curl -s -X POST http://localhost:8799/tts \
+  -H 'authorization: Bearer <SERVICE_TOKEN>' \
+  -H 'content-type: application/json' \
+  -d '{
+    "text":"Hola desde Arbor",
+    "voice":"arbor",
+    "format":"mp3",
+    "request_id":"job-123",
+    "callback_url":"https://your-service.example/tts-ready",
+    "callback_headers":{"authorization":"Bearer <callback-token>"}
+  }'
+```
+
+Callbacks are disabled unless `CALLBACK_ALLOWLIST` contains the callback host.
+The callback receives JSON with `audio_base64`, `content_type`, `bytes`,
+`voice_id`, `voice_name`, `request_id`, and optional `saved_path`.
+
 ### As a CLI
 
 ```bash
@@ -161,3 +199,9 @@ For guaranteed-verbatim output, create your own GPT with instructions like:
 - **Serialized:** one ChatGPT session = one conversation at a time; requests are
   queued internally.
 - **ToS:** see the warning at the top.
+
+## Azure VM deployment
+
+Infra scripts live in `../infra/azure/arbor-tts/`. They create a small Ubuntu VM,
+install Node/nginx, deploy this service under `systemd`, and document the env vars
+needed by the Discord bot (`ARBOR_TTS_URL`, `ARBOR_TTS_TOKEN`, `ARBOR_TTS_VOICE`).

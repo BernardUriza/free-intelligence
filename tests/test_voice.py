@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.cogs.voice import _VERSION_TAG_RE, pick_tts_voice, resolve_full_response
+from insult.cogs.voice import _VERSION_TAG_RE, build_arbor_tts_payload, pick_tts_voice, resolve_full_response
 
 
 class TestPickTtsVoice:
@@ -47,6 +47,18 @@ class TestPickTtsVoice:
         voice, is_alice = pick_tts_voice(1503983124982534284, self._settings(alice_id=""))
         assert voice == "onyx"
         assert is_alice is False
+
+
+class TestArborTtsPayload:
+    def test_uses_configured_voice_and_mp3(self):
+        settings = SimpleNamespace(arbor_tts_voice="arbor")
+        payload = build_arbor_tts_payload("hola", settings)
+        assert payload == {"text": "hola", "voice": "arbor", "format": "mp3"}
+
+    def test_limits_text_to_service_boundary(self):
+        settings = SimpleNamespace(arbor_tts_voice="arbor")
+        payload = build_arbor_tts_payload("x" * 5000, settings)
+        assert len(payload["text"]) == 4096
 
 
 class TestResolveFullResponse:

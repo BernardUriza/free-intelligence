@@ -87,9 +87,25 @@ export class ArborTTS {
       await assistant.waitFor({ state: "attached", timeout: STEP_TIMEOUT });
       await this._waitStreamDone(page, assistant);
 
-      const messageId = await assistant.getAttribute("data-message-id");
-      const conversationId = (page.url().match(/\/c\/([0-9a-f-]+)/) || [])[1];
-      if (!messageId || !conversationId) {
+      // Resolve the REAL ids. Right after sending, the DOM carries a temporary
+      // placeholder id (e.g. "request-placeholder-..." / "request-WEB:...") and
+      // the URL has not yet flipped to /c/<uuid>. Poll until both are real:
+      // a UUID-shaped message id and a conversation id in the URL.
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let messageId = null;
+      let conversationId;
+      const idDeadline = Date.now() + 30_000;
+      while (Date.now() < idDeadline) {
+        messageId = await page
+          .locator('[data-message-author-role="assistant"]')
+          .last()
+          .getAttribute("data-message-id")
+          .catch(() => null);
+        conversationId = (page.url().match(/\/c\/([0-9a-f-]{36})/) || [])[1];
+        if (messageId && UUID_RE.test(messageId) && conversationId) break;
+        await page.waitForTimeout(400);
+      }
+      if (!messageId || !UUID_RE.test(messageId) || !conversationId) {
         throw new Error(
           `could not resolve ids (message_id=${messageId} conversation_id=${conversationId})`,
         );
