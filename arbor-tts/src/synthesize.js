@@ -38,7 +38,7 @@ export class ArborTTS {
     this.page = null;
   }
 
-  /** Return the single reused page, creating it if missing/closed. */
+  /** Return the single reused page, creating it once if missing/closed. */
   async _getPage() {
     if (this.page && !this.page.isClosed()) return this.page;
     this.page = await this.context.newPage();
@@ -46,9 +46,15 @@ export class ArborTTS {
   }
 
   async launch() {
-    if (this.context) return;
+    // Reuse a LIVE connection only. If the browser dropped (Chrome restarted
+    // by KeepAlive, or the service started before Chrome was up after a reboot),
+    // drop the stale handles and reconnect — otherwise every request would hang
+    // on a dead CDP socket.
+    if (this.context && this.browser && this.browser.isConnected()) return;
+    this.context = null;
+    this.page = null;
     if (this.cdpUrl) {
-      this.browser = await chromium.connectOverCDP(this.cdpUrl);
+      this.browser = await chromium.connectOverCDP(this.cdpUrl, { timeout: 15000 });
       const contexts = this.browser.contexts();
       this.context = contexts[0] || (await this.browser.newContext());
       this._cdp = true;
@@ -89,10 +95,19 @@ export class ArborTTS {
       try {
         return await this._attempt(text, voice, format, this.lastConversationUrl);
       } catch {
+        // Reuse failed: drop the saved conversation AND the page (it may be
+        // crashed/stale after a Chrome restart), then retry in a fresh chat.
         this.lastConversationUrl = null;
+        this.page = null;
       }
     }
-    return await this._attempt(text, voice, format, this.gptUrl);
+    try {
+      return await this._attempt(text, voice, format, this.gptUrl);
+    } catch (e) {
+      // Leave no crashed/stale page cached for the next request.
+      this.page = null;
+      throw e;
+    }
   }
 
   /** One synthesis attempt against `target` (a conversation URL or GPT base). */
