@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     azure_openai_tts_deployment: str = "tts"
     azure_openai_whisper_deployment: str = "whisper"
     tts_voice: str = "onyx"  # alloy, echo, fable, onyx, nova, shimmer
+    # Optional external Arbor voice service. When ARBOR_TTS_URL is set, the
+    # 🔊 reaction TTS path calls this service instead of Azure OpenAI speech.
+    arbor_tts_url: str = ""
+    arbor_tts_token: SecretStr = SecretStr("")
+    arbor_tts_voice: str = "arbor"
+    arbor_tts_timeout_seconds: float = 240.0
     # The VoiceCog (🔊 reaction) reads ANY message, including ALICE's. Insult
     # is male (onyx); ALICE is female. When the 🔊'd message was authored by
     # the ALICE bot, speak it with a female tts-1 voice instead. Identified by

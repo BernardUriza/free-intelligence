@@ -11,6 +11,7 @@ import re
 from typing import TYPE_CHECKING
 
 import discord
+import httpx
 import structlog
 from discord.ext import commands
 from openai import AsyncAzureOpenAI
@@ -41,6 +42,37 @@ def pick_tts_voice(author_id: int | str, settings) -> tuple[str, bool]:
     is_alice = bool(alice_id) and str(author_id) == str(alice_id)
     voice = settings.alice_tts_voice if is_alice else settings.tts_voice
     return voice, is_alice
+
+
+def build_arbor_tts_payload(text: str, settings) -> dict[str, str]:
+    """Payload accepted by the external arbor-tts service."""
+    return {
+        "text": text[:4096],
+        "voice": getattr(settings, "arbor_tts_voice", "arbor") or "arbor",
+        "format": "mp3",
+    }
+
+
+async def generate_arbor_tts_audio(text: str, settings) -> bytes:
+    """Generate MP3 bytes through the external Arbor TTS service."""
+    base_url = getattr(settings, "arbor_tts_url", "").rstrip("/")
+    if not base_url:
+        raise RuntimeError("arbor_tts_url is not configured")
+
+    token = settings.arbor_tts_token.get_secret_value()
+    headers = {"content-type": "application/json"}
+    if token:
+        headers["authorization"] = f"Bearer {token}"
+
+    timeout = float(getattr(settings, "arbor_tts_timeout_seconds", 240.0))
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{base_url}/tts",
+            headers=headers,
+            json=build_arbor_tts_payload(text, settings),
+        )
+        response.raise_for_status()
+        return response.content
 
 
 async def resolve_full_response(
@@ -137,7 +169,7 @@ class VoiceCog(commands.Cog):
         if channel is None:
             try:
                 channel = await self.bot.fetch_channel(payload.channel_id)
-            except (discord.NotFound, discord.Forbidden):
+            except discord.NotFound, discord.Forbidden:
                 log.warning(
                     "tts_skipped",
                     reason="channel_not_found",
@@ -175,11 +207,6 @@ class VoiceCog(commands.Cog):
                 text = full.strip()
                 reassembled = True
 
-        client = self._get_tts_client()
-        if not client:
-            log.warning("tts_not_configured")
-            return
-
         # Pick the voice by message author — ALICE's messages get her female
         # voice, everyone else (Insult, humans) gets onyx. See pick_tts_voice.
         voice, is_alice = pick_tts_voice(message.author.id, self.settings)
@@ -187,21 +214,34 @@ class VoiceCog(commands.Cog):
         # Generate TTS audio
         try:
             async with channel.typing():
-                tts_response = await client.audio.speech.create(
-                    model=self.settings.azure_openai_tts_deployment,
-                    voice=voice,
-                    input=text[:4096],
-                    response_format="mp3",
-                )
-                audio_bytes = tts_response.content
+                provider = "azure_openai"
+                spoken_voice = voice
+                if self.settings.arbor_tts_url:
+                    audio_bytes = await generate_arbor_tts_audio(text, self.settings)
+                    provider = "arbor_tts"
+                    spoken_voice = self.settings.arbor_tts_voice
+                else:
+                    client = self._get_tts_client()
+                    if not client:
+                        log.warning("tts_not_configured")
+                        return
+                    tts_response = await client.audio.speech.create(
+                        model=self.settings.azure_openai_tts_deployment,
+                        voice=voice,
+                        input=text[:4096],
+                        response_format="mp3",
+                    )
+                    audio_bytes = tts_response.content
                 log.info(
                     "tts_generated",
                     text_len=len(text),
                     chunk_len=original_chunk_len,
                     reassembled=reassembled,
                     audio_bytes=len(audio_bytes),
-                    voice=voice,
+                    voice=spoken_voice,
+                    fallback_voice=voice,
                     is_alice=is_alice,
+                    provider=provider,
                 )
         except Exception:
             log.exception("tts_generation_failed")
