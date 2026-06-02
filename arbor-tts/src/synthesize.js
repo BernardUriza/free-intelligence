@@ -28,6 +28,11 @@ export class ArborTTS {
     this.context = null;
     this._cdp = false;
     this._queue = Promise.resolve();
+    // Reuse the same ChatGPT conversation across requests instead of starting a
+    // fresh chat every time: less history clutter, fewer conversation-creation
+    // calls (lower anti-bot footprint). Falls back to a new chat if the saved
+    // conversation is gone.
+    this.lastConversationUrl = null;
   }
 
   async launch() {
@@ -69,14 +74,36 @@ export class ArborTTS {
 
     const page = await this.context.newPage();
     try {
-      // Fresh navigation = fresh conversation = exactly one assistant message.
-      await page.goto(this.gptUrl, {
+      const composer = page.locator("#prompt-textarea");
+
+      // Reuse the last conversation; fall back to a new chat (gptUrl) if it is
+      // gone (deleted / not found → composer never appears).
+      const target = this.lastConversationUrl || this.gptUrl;
+      await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: STEP_TIMEOUT,
       });
+      try {
+        await composer.waitFor({ state: "visible", timeout: 12_000 });
+      } catch {
+        if (target === this.gptUrl) throw new Error("composer not found on new chat");
+        // saved conversation disappeared → start a fresh one
+        this.lastConversationUrl = null;
+        await page.goto(this.gptUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: STEP_TIMEOUT,
+        });
+        await composer.waitFor({ state: "visible", timeout: STEP_TIMEOUT });
+      }
 
-      const composer = page.locator("#prompt-textarea");
-      await composer.waitFor({ state: "visible", timeout: STEP_TIMEOUT });
+      // Remember the current last assistant id so we can tell the NEW reply
+      // apart from prior ones when reusing a conversation.
+      const prevAssistantId = await page
+        .locator('[data-message-author-role="assistant"]')
+        .last()
+        .getAttribute("data-message-id")
+        .catch(() => null);
+
       await composer.click();
       await composer.fill(String(text));
       await page.keyboard.press("Enter");
@@ -102,14 +129,30 @@ export class ArborTTS {
           .getAttribute("data-message-id")
           .catch(() => null);
         conversationId = (page.url().match(/\/c\/([0-9a-f-]{36})/) || [])[1];
-        if (messageId && UUID_RE.test(messageId) && conversationId) break;
+        // Must be a real UUID, have a conversation id, AND be a NEW message
+        // (different from the last one when reusing a conversation).
+        if (
+          messageId &&
+          UUID_RE.test(messageId) &&
+          conversationId &&
+          messageId !== prevAssistantId
+        )
+          break;
         await page.waitForTimeout(400);
       }
-      if (!messageId || !UUID_RE.test(messageId) || !conversationId) {
+      if (
+        !messageId ||
+        !UUID_RE.test(messageId) ||
+        !conversationId ||
+        messageId === prevAssistantId
+      ) {
         throw new Error(
           `could not resolve ids (message_id=${messageId} conversation_id=${conversationId})`,
         );
       }
+
+      // Remember this conversation so the next request reuses it.
+      this.lastConversationUrl = page.url();
 
       const audio = await page.evaluate(
         async ({ messageId, conversationId, voice, format }) => {

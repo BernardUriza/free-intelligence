@@ -250,6 +250,7 @@ export function createApp(opts = {}) {
       res.set("Content-Type", result.contentType || "application/octet-stream");
       res.set("X-Voice-Id", result.voice);
       res.set("X-Voice-Name", v.name);
+      res.set("X-Conversation-Id", result.conversationId || "");
       res.set("Content-Length", String(result.bytes));
       if (savedPath) res.set("X-Saved-Path", savedPath);
       res.send(result.buffer);
