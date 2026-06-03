@@ -29,6 +29,17 @@ INSULT_BREAK_PATTERNS: list[re.Pattern[str]] = [
     # Insult never legitimately uses it (the persona doesn't summarize),
     # so any occurrence is treated as a character break worth retrying.
     re.compile(r"(?i)\bIn summary\b"),
+    # Competitor / provider names — naming OpenAI, Anthropic or ChatGPT is a
+    # hard identity leak (persona.md forbids exposing the underlying tech).
+    # These USED to be caught only by fi_core.persona.packs.GENERIC_AI_DISCLOSURE_*,
+    # but that pack's contents shift between fi-core releases (0.9.x carried
+    # `\bOpenAI\b`; 0.21+ changed it), making a security-critical guard depend on
+    # an external package's version. Pin the guard HERE in the repo so it can't
+    # silently regress when fi-core bumps. Regression: test_detects_openai
+    # passed on fi-core 0.9.1, failed on 0.24.4 (2026-06-03).
+    re.compile(r"(?i)\bOpenAI\b"),
+    re.compile(r"(?i)\bAnthropic\b"),
+    re.compile(r"(?i)\bChatGPT\b"),
 ]
 
 

@@ -41,14 +41,15 @@ dependencies:
   # Floor raised to 0.9.1 (alice 0.1.20): ALICE's clinical reflection layer
   # imports fi_core.cognitive.PSYCHIATRY (the ClinicalDomain added in 0.9.1);
   # 0.9.0 lacks it and crashes ALICE at boot with ImportError.
-  # PINNED exact to 0.9.1: the persona packs re-exported as fi_runner.packs
-  # (GENERIC_AI_DISCLOSURE_EN, used by detect_break) carry the `\bOpenAI\b`
-  # leak pattern in 0.9.1; a loose `>=0.9.1` let CI resolve to 0.24.4 whose
-  # pack changed and stopped matching test_detects_openai — a security-relevant
-  # behavior change never validated here. The whole branch was developed +
-  # tested against 0.9.1 (1422 passed). Bump deliberately, not by solver drift.
-  # See conda_version_constraint.
-  - fi-core=0.9.1
+  # PINNED exact to 0.24.4: this is the modern fi-core the rest of the env
+  # actually resolves with (fi-runner 0.11.0 requires fi-core>=0.21; forcing an
+  # older fi-core cascades into unsatisfiable starlette/fastapi pins). The whole
+  # suite passes on 0.24.4 (CI runs proved 1421 pass; the lone test_detects_openai
+  # failure was fi-core's persona pack dropping `\bOpenAI\b` — now guarded
+  # repo-side in INSULT_BREAK_PATTERNS, independent of fi-core's pack). Pinned
+  # exact so a future fi-core bump can't drift behavior silently. See
+  # conda_version_constraint.
+  - fi-core=0.24.4
   # fi-runner — the backend-agnostic runner framework. insult's runner now
   # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
   # MUST be published to the bernardurizaorozco channel for the prod build.
@@ -61,10 +62,11 @@ dependencies:
   # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
   # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
   # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
-  # PINNED exact: the antidrift pack that detect_break relies on (e.g. the
-  # `\bOpenAI\b` pattern in tests/test_character.py::test_detects_openai) ships
-  # in 0.11.0; a loose `>=0.3.0` lets the solver pick an older build whose pack
-  # lacks it, failing CI while passing locally. See conda_version_constraint.
+  # PINNED exact to 0.11.0 — carries antidrift_guard + packs + capabilities +
+  # ClaudeCodeBackend (all imported by the repo) and requires fi-core>=0.21,
+  # satisfied by the pinned fi-core=0.24.4. Pinned exact (not `>=`) so the
+  # fi-core/fi-runner pair stays the validated combo and can't drift apart on a
+  # fresh solve. See conda_version_constraint.
   - fi-runner=0.11.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
@@ -92,11 +94,15 @@ dependencies:
   - azure-storage-blob>=12.19.0
   - openai>=1.30.0
   - fastapi>=0.115
-  # starlette pinned >=1.0.1: fastapi pulls starlette transitively, and an
-  # unpinned resolve grabbed 1.0.0 in CI which carries PYSEC-2026-161 (fix in
-  # 1.0.1). This is a web-facing dep (FastAPI runner + debug server), so we
-  # patch rather than ignore the advisory. Bump when fastapi's floor moves past it.
-  - starlette>=1.0.1
+  # starlette CAPPED <1.0: PYSEC-2026-161 lives in starlette 1.0.0 (fixed in
+  # 1.0.1), BUT no fastapi on conda-forge supports starlette 1.x yet — the
+  # newest (0.116) caps `starlette<0.47`. The original `>=1.0.1` pin was
+  # unsatisfiable against fastapi and only "worked" while CI restored a cached
+  # env (it never solved clean). Capping `<1.0` keeps the env OFF the vulnerable
+  # 1.0.0 (so the advisory is still honored) while letting fastapi pull a
+  # compatible 0.4x starlette. pip-audit gates that the resolved 0.4x is clean.
+  # Lift the cap to `>=1.0.1` only once fastapi's floor supports starlette 1.x.
+  - starlette<1.0
   - uvicorn>=0.30
   - httpx>=0.27
   - sentence-transformers>=3.0.0
