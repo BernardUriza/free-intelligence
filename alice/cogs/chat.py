@@ -187,6 +187,18 @@ class AliceChatCog(commands.Cog):
                 intrusive_match_obj = _CLINICAL_KEYWORDS_PATTERN.search(message.content or "")
                 intrusive_match = intrusive_match_obj.group(0) if intrusive_match_obj else None
 
+            # Guard (v4.20.19): a sibling bot (Insult) using "amix"/"ali" as a
+            # casual vocative toward a user — or tripping a clinical keyword in
+            # its own reply — must NOT auto-invoke ALICE. The legitimate
+            # Insult→ALICE path is the REST /invite endpoint, not on_message.
+            # KQL sample 2026-06-03: 8/8 "amix" messages in 8h were bot-authored,
+            # which is why ALICE kept chasing Alex every time Insult said "Amix,".
+            # Explicit @-mention of ALICE still works (a bot could deliberately
+            # tag her); only the loose alias/intrusive heuristics are suppressed.
+            if message.author and message.author.bot:
+                mentioned_as_alias = None
+                intrusive_match = None
+
             if mentioned_as_user:
                 invited_by = "user_mention"
             elif mentioned_as_text:
@@ -197,7 +209,10 @@ class AliceChatCog(commands.Cog):
                 invited_by = f"alias:{mentioned_as_alias}"
             elif intrusive_match:
                 invited_by = f"intrusive:{intrusive_match.lower()[:40]}"
-            elif (open_gate_reason := await self._should_open_gate(str(message.channel.id))) is not None:
+            elif (
+                not (message.author and message.author.bot)
+                and (open_gate_reason := await self._should_open_gate(str(message.channel.id))) is not None
+            ):
                 # Self-governing failover (alice 0.1.21): ALICE covers the
                 # channel only while Insult is down. `_should_open_gate` returns
                 # the reason string when she should step in, or None to stand
