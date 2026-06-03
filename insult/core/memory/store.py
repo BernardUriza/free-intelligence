@@ -143,6 +143,12 @@ class MemoryStore:
     async def get_facts(self, user_id: str) -> list[dict]:
         return await self._facts.get_facts(user_id)
 
+    async def get_auto_facts(self, user_id: str) -> list[dict]:
+        """Complete live auto-extracted set (not the semantic top-N). The
+        fact-extraction backstop unions onto this so `save_facts`' snapshot
+        replace can't hard-delete auto facts outside the prompt subset."""
+        return await self._facts.get_auto_facts(user_id)
+
     async def get_all_facts(self) -> list[dict]:
         return await self._facts.get_all_facts()
 

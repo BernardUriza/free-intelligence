@@ -14,7 +14,7 @@ import time
 
 import structlog
 
-from insult.core.facts import extract_facts
+from insult.core.facts import extract_facts, merge_facts_additive
 from insult.core.guild_setup import post_facts_to_channel
 
 log = structlog.get_logger()
@@ -64,46 +64,6 @@ def spawn_tracked_task(
     return task
 
 
-def _norm_fact(s: str) -> str:
-    """Normalize a fact's text for dedup: lowercase, whitespace-collapsed."""
-    return " ".join(s.lower().split())
-
-
-def _merge_facts_additive(existing: list[dict], incoming: list[dict]) -> tuple[list[dict], list[dict]]:
-    """Union `incoming` facts onto `existing`, deduping by normalized text.
-
-    ADD-only: every existing fact is preserved verbatim; only genuinely-new
-    facts are appended. Returns ``(merged, added)``.
-
-    This is the guard against `save_facts`' snapshot-replace silently dropping
-    auto facts that weren't in the extractor's input subset. The extractor only
-    ever sees the semantic top-N (token economy in the prompt), but `save_facts`
-    REPLACES the full auto snapshot — so a naive ``save_facts(new_facts)``
-    hard-deletes every auto fact outside the top-N, every turn (P0, 2026-06-03).
-
-    The trade-off is deliberate per the operator's directive ("que no elimine
-    nada absolutamente"): the extractor can no longer *correct* an auto fact in
-    place — a reworded correction lands as an additional row, and near-miss
-    duplicates accumulate until a conservative consolidator folds them. That
-    cost is accepted; silent data loss is not.
-    """
-    seen = {_norm_fact(f["fact"]) for f in existing if f.get("fact")}
-    merged = list(existing)
-    added: list[dict] = []
-    for f in incoming:
-        text = f.get("fact", "")
-        if not text:
-            continue
-        key = _norm_fact(text)
-        if key in seen:
-            continue
-        seen.add(key)
-        row = {"fact": text, "category": f.get("category", "general")}
-        merged.append(row)
-        added.append(row)
-    return merged, added
-
-
 async def extract_user_facts(
     llm,
     summary_model: str,
@@ -135,7 +95,7 @@ async def extract_user_facts(
         # ("Alex explains the same thing every day"). Union onto the COMPLETE
         # live auto set so extraction can only ADD, never destroy.
         all_auto = await memory.get_auto_facts(user_id)
-        merged, added = _merge_facts_additive(all_auto, new_facts)
+        merged, added = merge_facts_additive(all_auto, new_facts)
         if added:
             await memory.save_facts(user_id, merged)
             log.info("facts_extracted_additive", user_id=user_id, added=len(added), total_auto=len(merged))

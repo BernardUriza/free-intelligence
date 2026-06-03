@@ -10,7 +10,7 @@ THE BUG this locks out:
   soft-delete) was the lesser villain; this per-turn hard delete was the real
   one.
 
-THE FIX (`_merge_facts_additive` + `get_auto_facts`):
+THE FIX (`facts.merge_facts_additive` + `get_auto_facts`):
   Union the extractor's output onto the COMPLETE live auto set, so the snapshot
   that `save_facts` writes is always a SUPERSET of what was already stored.
   Extraction can only ADD, never destroy.
@@ -25,10 +25,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.cogs.chat.tasks import _merge_facts_additive, extract_user_facts
+from insult.cogs.chat.tasks import extract_user_facts
+from insult.core.facts import merge_facts_additive
 
 # --------------------------------------------------------------------------
-# Pure-function tests for _merge_facts_additive (no DB)
+# Pure-function tests for merge_facts_additive (no DB)
 # --------------------------------------------------------------------------
 
 
@@ -39,7 +40,7 @@ def test_merge_adds_genuinely_new_facts():
         {"fact": "Le gusta Python", "category": "interests"},
         {"fact": "Vive en CDMX", "category": "location"},
     ]
-    merged, added = _merge_facts_additive(existing, incoming)
+    merged, added = merge_facts_additive(existing, incoming)
     texts = {f["fact"] for f in merged}
     assert texts == {"Le gusta Python", "Vive en CDMX"}
     assert [f["fact"] for f in added] == ["Vive en CDMX"]
@@ -57,7 +58,7 @@ def test_merge_preserves_all_existing_when_extractor_returns_subset():
     ]
     # Extractor saw only the top-1 in its prompt and returned just that.
     incoming = [{"fact": "A — tiene CPTSD", "category": "personal"}]
-    merged, added = _merge_facts_additive(existing, incoming)
+    merged, added = merge_facts_additive(existing, incoming)
     assert {f["fact"] for f in merged} == {f["fact"] for f in existing}
     assert added == [], "nothing new, and crucially nothing lost"
 
@@ -67,7 +68,7 @@ def test_merge_never_shrinks_for_any_extractor_output():
     set is a superset of `existing` and contains every original fact."""
     existing = [{"fact": f"fact-{i}", "category": "general"} for i in range(20)]
     for incoming in ([], [{"fact": "fact-3", "category": "general"}], [{"fact": "brand new", "category": "general"}]):
-        merged, _ = _merge_facts_additive(existing, incoming)
+        merged, _ = merge_facts_additive(existing, incoming)
         assert len(merged) >= len(existing)
         merged_texts = {f["fact"] for f in merged}
         assert all(f["fact"] in merged_texts for f in existing)
@@ -77,14 +78,14 @@ def test_merge_dedupes_by_normalized_text():
     """A reworded-only-by-whitespace/case duplicate is NOT appended."""
     existing = [{"fact": "Vive en CDMX", "category": "location"}]
     incoming = [{"fact": "  vive   EN   cdmx ", "category": "location"}]
-    merged, added = _merge_facts_additive(existing, incoming)
+    merged, added = merge_facts_additive(existing, incoming)
     assert len(merged) == 1
     assert added == []
 
 
 def test_merge_empty_incoming_is_noop():
     existing = [{"fact": "solo", "category": "general"}]
-    merged, added = _merge_facts_additive(existing, [])
+    merged, added = merge_facts_additive(existing, [])
     assert merged == existing
     assert added == []
 
@@ -92,13 +93,13 @@ def test_merge_empty_incoming_is_noop():
 def test_merge_skips_blank_incoming_facts():
     existing = [{"fact": "real", "category": "general"}]
     incoming = [{"fact": "", "category": "general"}, {"category": "general"}]
-    merged, added = _merge_facts_additive(existing, incoming)
+    merged, added = merge_facts_additive(existing, incoming)
     assert merged == existing
     assert added == []
 
 
 def test_merge_defaults_missing_category_to_general():
-    merged, added = _merge_facts_additive([], [{"fact": "sin categoría"}])
+    merged, added = merge_facts_additive([], [{"fact": "sin categoría"}])
     assert added == [{"fact": "sin categoría", "category": "general"}]
     assert merged == added
 

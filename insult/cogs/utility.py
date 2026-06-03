@@ -9,7 +9,7 @@ import structlog
 from discord.ext import commands
 
 from insult.core.errors import ErrorType, get_error_response
-from insult.core.facts import extract_facts
+from insult.core.facts import extract_facts, merge_facts_additive
 from insult.core.guild_setup import setup_guild
 
 if TYPE_CHECKING:
@@ -228,11 +228,18 @@ class UtilityCog(commands.Cog):
                 continue
 
             try:
-                existing = await self.memory.get_facts(user_id)
+                # Same ADD-only contract as the per-turn extractor (P0 fix,
+                # 2026-06-03): feed only the AUTO set (never manual/import — or
+                # save_facts re-inserts them as auto duplicates) and union the
+                # extractor output on top so save_facts gets a superset and can
+                # never hard-delete an auto fact it didn't re-emit.
+                existing = await self.memory.get_auto_facts(user_id)
                 new_facts = await extract_facts(self.judge, self.settings.summary_model, user_name, existing, messages)
-                await self.memory.save_facts(user_id, new_facts)
+                merged, added = merge_facts_additive(existing, new_facts)
+                if added:
+                    await self.memory.save_facts(user_id, merged)
                 synced += 1
-                await ctx.send(f"✅ **{user_name}**: {len(new_facts)} facts")
+                await ctx.send(f"✅ **{user_name}**: +{len(added)} ({len(merged)} auto)")
             except Exception:
                 log.exception("syncfacts_user_failed", user_id=user_id)
                 errors += 1
@@ -339,7 +346,7 @@ class UtilityCog(commands.Cog):
                 "```\n"
                 "Listo. Los canales son read-only — solo yo escribo ahi."
             )
-        except (PermissionError, discord.Forbidden):
+        except PermissionError, discord.Forbidden:
             await ctx.send("No tengo permiso de **Manage Channels**. Daselo al bot y vuelve a intentar.")
         except Exception:
             log.exception("setup_failed", guild_id=str(ctx.guild.id))

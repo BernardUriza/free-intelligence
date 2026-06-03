@@ -3,7 +3,7 @@
 Two provenance tiers coexist in the same table, distinguished by `source`:
 - `'auto'`: produced by the LLM fact-extraction background task. As of the
   2026-06-03 P0 fix the extractor's output is UNIONED onto the full live auto
-  set (`tasks._merge_facts_additive` + `get_auto_facts`), so re-extraction can
+  set (`facts.merge_facts_additive` + `get_auto_facts`), so re-extraction can
   only ADD. Before the fix it saved only the prompt's semantic top-N subset
   into a snapshot-replace, hard-deleting every auto fact outside the top-N on
   every turn. `save_facts` still does the scoped snapshot replace, but it now

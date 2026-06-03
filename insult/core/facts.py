@@ -103,6 +103,48 @@ async def extract_facts(
         return existing_facts
 
 
+def norm_fact(s: str) -> str:
+    """Normalize a fact's text for dedup: lowercase, whitespace-collapsed."""
+    return " ".join(s.lower().split())
+
+
+def merge_facts_additive(existing: list[dict], incoming: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Union `incoming` facts onto `existing`, deduping by normalized text.
+
+    ADD-only: every existing fact is preserved verbatim; only genuinely-new
+    facts are appended. Returns ``(merged, added)``.
+
+    This is the guard against `save_facts`' snapshot-replace silently dropping
+    auto facts the extractor didn't echo back. The extractor only ever sees a
+    SUBSET of stored auto facts (the prompt's semantic top-N, or — in the
+    `!syncfacts` path — `get_facts` which extract may compress), yet
+    `save_facts` REPLACES the full `source='auto'` snapshot. A naive
+    ``save_facts(extractor_output)`` therefore hard-deletes every auto fact the
+    extractor omitted, with no recovery (P0, 2026-06-03).
+
+    The trade-off is deliberate per the operator's directive ("que no elimine
+    nada absolutamente"): the extractor can no longer *correct* an auto fact in
+    place — a reworded correction lands as an additional row, and near-miss
+    duplicates accumulate until a conservative consolidator folds them. That
+    cost is accepted; silent data loss is not.
+    """
+    seen = {norm_fact(f["fact"]) for f in existing if f.get("fact")}
+    merged = list(existing)
+    added: list[dict] = []
+    for f in incoming:
+        text = f.get("fact", "")
+        if not text:
+            continue
+        key = norm_fact(text)
+        if key in seen:
+            continue
+        seen.add(key)
+        row = {"fact": text, "category": f.get("category", "general")}
+        merged.append(row)
+        added.append(row)
+    return merged, added
+
+
 def build_facts_prompt(user_name: str, facts: list[dict]) -> str:
     """Build a system prompt section with the user's known facts.
 
