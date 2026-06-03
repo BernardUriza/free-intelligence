@@ -10,6 +10,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
+import 'fi-glass/theme.css';
 import '@/polyfills';
 import { GlobalPolicyBanner } from '@/components/policy/GlobalPolicyBanner';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';

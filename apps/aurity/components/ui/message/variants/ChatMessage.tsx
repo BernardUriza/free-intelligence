@@ -3,22 +3,22 @@
 /**
  * ChatMessage - Full-featured chat message variant
  *
- * Uses unified message primitives with chat-specific features:
- * - ReasoningBlock: AI thinking/reasoning display
- * - ModelBadge: LLM model indicator
- * - Auth integration for user names
- * - TTS via AudioPlayer (injected into MessageActions)
+ * Layout shell is now fi-glass's <MessageBubble> (Plutonio, element 94). All
+ * chat-specific behavior stays here and is injected into the bubble via slots:
+ * - header:   MessageAvatar + MessageMeta (auth/persona)
+ * - reasoning: ReasoningBlock (AI thinking)
+ * - badge:    ModelBadge (LLM indicator)
+ * - actions:  MessageActions with TTS/AudioPlayer
  *
- * showThinking is read from ChatConfigContext (eliminates props drilling)
- * but can be overridden via prop for special cases.
+ * showThinking is read from ChatConfigContext (override via prop).
  *
  * @see Headless Component Pattern: https://martinfowler.com/articles/headless-component.html
  */
 
 import { memo } from 'react';
+import { MessageBubble } from 'fi-glass/messages';
 import type { ChatMessageProps } from '../types';
 import { useMessage } from '../hooks/useMessage';
-import { messageStyles } from '../styles/message-styles';
 import { MessageAvatar } from '../primitives/MessageAvatar';
 import { MessageMeta } from '../primitives/MessageMeta';
 import { MessageContent } from '../primitives/MessageContent';
@@ -27,8 +27,13 @@ import { ModelBadge } from '../primitives/ModelBadge';
 // Chat-specific components (TTS, Reasoning, Config)
 import { ReasoningBlock } from '@/components/chat/ReasoningBlock';
 import { SpeakButton } from '@/components/chat/MessageActions';
-import { useAudioPlayer, AudioPlayer } from '@/components/chat/AudioPlayer';
+import { AudioPlayer } from '@/components/chat/AudioPlayer';
 import { useChatConfig } from '@/components/chat/ChatConfigContext';
+// TTS now routed through the VoiceAdapter (Americio): fi-glass useVoice consumes
+// aurity's adapter; synthesize() makes the same /tts/synthesize call as before.
+import { useVoice } from 'fi-glass/voice';
+import { aurityVoiceAdapter } from '@/lib/voice/aurityVoiceAdapter';
+import { reportAudioError } from '@/lib/audio/ErrorPolicy';
 
 export const ChatMessage = memo(function ChatMessage({
   message,
@@ -40,9 +45,8 @@ export const ChatMessage = memo(function ChatMessage({
   const config = useChatConfig();
   const showThinking = showThinkingProp ?? config.showThinking;
   const { isUser, displayName, persona } = useMessage({ message });
-  const { message: styles } = messageStyles;
 
-  // TTS state - lives here, injected into primitive
+  // TTS state - routed through the VoiceAdapter (was useAudioPlayer).
   const {
     generateAudio,
     audioUrl,
@@ -50,87 +54,82 @@ export const ChatMessage = memo(function ChatMessage({
     voiceName,
     close: onClose,
     changeVoice: onChangeVoice,
-  } = useAudioPlayer();
+  } = useVoice(aurityVoiceAdapter, {
+    onError: (e) => {
+      void reportAudioError(e, 'ChatMessage:TTS');
+    },
+  });
 
   const voice = message.metadata?.voice || 'nova';
 
   return (
-    <article
-      className={`
-        ${styles.base}
-        ${styles.borderRadius}
-        ${isUser ? styles.user : styles.assistant}
-        ${className || ''}
-      `}
-      role="article"
-      aria-label={isUser ? 'Tu mensaje' : 'Respuesta de AURITY'}
-    >
-      {/* Header: Avatar + Meta */}
-      <div className="flex items-center gap-2 mb-1">
-        <MessageAvatar isUser={isUser} persona={persona} />
-        <MessageMeta
-          isUser={isUser}
-          timestamp={message.timestamp}
-          name={displayName}
-          persona={persona}
-        />
-      </div>
-
-      {/* Thinking/Reasoning Block (assistant only) */}
-      {showThinking && !isUser && message.thinking && (
-        <div className="mt-3 mb-3">
+    <MessageBubble
+      role={isUser ? 'user' : 'assistant'}
+      className={className}
+      ariaLabel={isUser ? 'Tu mensaje' : 'Respuesta de AURITY'}
+      header={
+        <>
+          <MessageAvatar isUser={isUser} persona={persona} />
+          <MessageMeta
+            isUser={isUser}
+            timestamp={message.timestamp}
+            name={displayName}
+            persona={persona}
+          />
+        </>
+      }
+      reasoning={
+        showThinking && !isUser && message.thinking ? (
           <ReasoningBlock
             thinking={message.thinking}
             messageId={message.id}
             isStreaming={isStreaming}
             persona={persona}
           />
-        </div>
-      )}
-
+        ) : undefined
+      }
+      badge={
+        !isUser && message.metadata?.model ? (
+          <ModelBadge
+            model={message.metadata.model}
+            voice={message.metadata?.voice ?? null}
+          />
+        ) : undefined
+      }
+      actions={
+        <MessageActions
+          isUser={isUser}
+          content={message.content}
+          audioPlayer={
+            (isLoading || audioUrl) && (
+              <AudioPlayer
+                audioUrl={audioUrl}
+                isLoading={isLoading}
+                voiceName={voiceName || 'Nova'}
+                isUserMessage={isUser}
+                currentVoice={voice}
+                onClose={onClose}
+                onChangeVoice={onChangeVoice}
+              />
+            )
+          }
+        >
+          <SpeakButton
+            content={message.content}
+            size="sm"
+            voice={voice}
+            isUserMessage={isUser}
+            onOpenPlayer={generateAudio}
+          />
+        </MessageActions>
+      }
+    >
       {/* Content */}
       <MessageContent
         isUser={isUser}
         content={message.content}
         isStreaming={isStreaming}
       />
-
-      {/* Model Badge (assistant only) */}
-      {!isUser && message.metadata?.model && (
-        <div className="mt-2">
-          <ModelBadge
-            model={message.metadata.model}
-            voice={message.metadata?.voice ?? null}
-          />
-        </div>
-      )}
-
-      {/* Hover Actions - TTS injected as children */}
-      <MessageActions
-        isUser={isUser}
-        content={message.content}
-        audioPlayer={
-          (isLoading || audioUrl) && (
-            <AudioPlayer
-              audioUrl={audioUrl}
-              isLoading={isLoading}
-              voiceName={voiceName || 'Nova'}
-              isUserMessage={isUser}
-              currentVoice={voice}
-              onClose={onClose}
-              onChangeVoice={onChangeVoice}
-            />
-          )
-        }
-      >
-        <SpeakButton
-          content={message.content}
-          size="sm"
-          voice={voice}
-          isUserMessage={isUser}
-          onOpenPlayer={generateAudio}
-        />
-      </MessageActions>
-    </article>
+    </MessageBubble>
   );
 });

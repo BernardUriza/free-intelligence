@@ -3,23 +3,19 @@
 /**
  * ChatMessageList - Dense Style (Claude.ai / ChatGPT inspired)
  *
- * Modern, minimal, content-first
+ * Structure is now fi-glass's <MessageList> (Plutonio, element 94). aurity keeps
+ * all data logic and injects it via slots:
+ * - groups:        useMessageGroups (date grouping)
+ * - renderDivider: DateDivider
+ * - renderItem:    ChatMessage
+ * - footer:        streaming row + TypingIndicator + ghost spacer
+ * - ChatConfigProvider wraps the list (showThinking via context)
  *
- * Architecture:
- * - config/styles.ts: All styling configuration
- * - core/types.ts: Shared interfaces
- * - ui/*: Atomic components (Avatar, Meta, Content, Actions, etc.)
- * - hooks/*: Business logic (useMessageGroups)
- *
- * Design principles:
- * - No bubbles - text is protagonist
- * - Minimal spacing between messages
- * - Subtle avatars (24px, muted colors)
- * - Dark grey base (#121212 equivalent)
- * - Hover actions only
+ * Design principles: no bubbles, minimal spacing, subtle avatars, hover actions.
  */
 
 import { memo } from 'react';
+import { MessageList } from 'fi-glass/messages';
 import type { FIMessage, FITone } from '@aurity-standalone/types/assistant';
 import type { ChatConfig } from '@/config/chat.config';
 import { messageStyles } from './config/styles';
@@ -61,72 +57,71 @@ export const ChatMessageList = memo(function ChatMessageList({
   selectedPersona,
   streaming,
 }: ChatMessageListProps) {
-  // Group messages by date
+  // Group messages by date, then adapt to fi-glass MessageList's group shape
   const messageGroups = useMessageGroups(messages);
+  const groups = messageGroups.map((group) => ({
+    key: group.date,
+    items: group.messages,
+  }));
   const { container } = messageStyles;
 
   // Use selectedPersona from selector, fallback to most recent assistant message
   const lastMessagePersona = messages
     .slice()
     .reverse()
-    .find(msg => msg.role === 'assistant')?.metadata?.tone;
+    .find((msg) => msg.role === 'assistant')?.metadata?.tone;
 
   // Priority: selectedPersona > last message persona
   const currentPersona = selectedPersona || lastMessagePersona;
 
-  // Debug log removed - was causing console spam on every keystroke
-  // Enable for debugging: console.log('[ChatMessageList] Render:', { messagesCount: messages.length });
-
   return (
     <ChatConfigProvider showThinking={config.behavior.showThinking}>
-      <div className={`${container.base} ${container.padding}`}>
-        {messageGroups.map((group) => (
-          <div key={group.date}>
-            {/* Date separator */}
-            <DateDivider date={group.date} />
-
-            {/* Messages in group */}
-            <div className="space-y-0.5">
-              {group.messages.map((message, idx) => (
-                <ChatMessage
-                  key={message.id || `${message.timestamp}-${idx}`}
-                  message={message}
-                  isStreaming={false}
-                  // showThinking now comes from ChatConfigContext
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {/* Streaming message - shows content as it arrives */}
-        {streaming?.isStreaming && (streaming.content || streaming.thinking) && (
+      <MessageList<FIMessage>
+        containerClassName={`${container.base} ${container.padding}`}
+        groupClassName="space-y-0.5"
+        groups={groups}
+        renderDivider={(date) => <DateDivider date={date} />}
+        renderItem={(message, idx) => (
           <ChatMessage
-            message={{
-              id: 'streaming-temp',
-              role: 'assistant',
-              content: streaming.content,
-              thinking: streaming.thinking || undefined,
-              timestamp: new Date().toISOString(),
-              metadata: {
-                tone: currentPersona,
-              },
-            }}
-            isStreaming={true}
+            key={message.id || `${message.timestamp}-${idx}`}
+            message={message}
+            isStreaming={false}
             // showThinking now comes from ChatConfigContext
           />
         )}
+        footer={
+          <>
+            {/* Streaming message - shows content as it arrives */}
+            {streaming?.isStreaming &&
+              (streaming.content || streaming.thinking) && (
+                <ChatMessage
+                  message={{
+                    id: 'streaming-temp',
+                    role: 'assistant',
+                    content: streaming.content,
+                    thinking: streaming.thinking || undefined,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                      tone: currentPersona,
+                    },
+                  }}
+                  isStreaming={true}
+                  // showThinking now comes from ChatConfigContext
+                />
+              )}
 
-        {/* Typing indicator */}
-        {isTyping && <TypingIndicator persona={currentPersona} />}
+            {/* Typing indicator */}
+            {isTyping && <TypingIndicator persona={currentPersona} />}
 
-        {/* Ghost spacer - prevents content from being hidden behind floating input */}
-        <div
-          className="h-28 w-full pointer-events-none select-none"
-          aria-hidden="true"
-          data-ghost-spacer
-        />
-      </div>
+            {/* Ghost spacer - prevents content from being hidden behind floating input */}
+            <div
+              className="h-28 w-full pointer-events-none select-none"
+              aria-hidden="true"
+              data-ghost-spacer
+            />
+          </>
+        }
+      />
     </ChatConfigProvider>
   );
 });
