@@ -234,6 +234,16 @@ async def deep_memory(args: dict) -> dict:
     query = (args.get("query") or "").strip()
     if not user_id or not query:
         return _error("user_id and query are required")
+    # Reserved synthetic namespaces are NOT user memory and must never be
+    # reachable through this agent-facing tool. `__chatgpt_archive__` holds
+    # Bernard's intimate ChatGPT history (health/sexuality/sensitive) that was
+    # DELIBERATELY routed out of auto-recall (hybrid privacy choice, 2026-06-03);
+    # `__corpus_film__` is shared topic knowledge with its own retrieval path
+    # (query_corpus). Real users are Discord snowflakes — a `__`-prefixed id can
+    # only be an attempt (by the model or a crafted message) to read an archive
+    # that must stay out of any public turn.
+    if user_id.startswith("__"):
+        return _error(f"'{user_id}' is a reserved namespace, not a user — not accessible here")
     top_k = max(1, min(int(args.get("top_k") or 5), 20))
     results = await query_user_memory(user_id=user_id, query=query, top_k=top_k)
     if not results:
