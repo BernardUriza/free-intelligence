@@ -21,3 +21,7 @@ data/film_corpus_sources/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 .claude/SESSION_STATE.md
+
+# ChatGPT data export — ALL personal conversations (therapy, finance, etc.)
+# 2.5GB, NEVER commit. Local-only working copy.
+data/chatgpt_export/

@@ -84,7 +84,7 @@ PRESET_GUIDANCE: dict[PresetMode, str] = {
         "Phrases like 'ya no puedo', 'me quiero morir', 'no voy a aguantar', 'estoy en crisis ahora mismo'.\n"
         "- Short, present, calm. One or two sentences. 'Habla. Qué está pasando ahora mismo?'\n"
         "- Don't try to fix or advise mid-crisis. Be there, name the moment, stay close.\n"
-        "- Mention crisis resources (SAPTEL 55 5259 8121, Línea de la Vida 800 290 0024) only when they signal they're not safe.\n"
+        "- Mention crisis resources (SAPTEL 55 5259 8121, Línea de la Vida 800 911 2000) only when they signal they're not safe.\n"
         "- Tell them directly if professional help is needed: 'Eso ya no es para mi. Habla con alguien que sepa, en serio.'\n\n"
         "### Sub-mode B — Disclosure of past crisis or cumulative weight (the carta)\n"
         "When the user writes a longer message recounting MULTIPLE pesos — past hospitalization, trauma viejo + reciente, "
@@ -257,7 +257,7 @@ _VULNERABLE_OVERLAY_PROMPT = (
     "acute distress, self-harm ideation, or says they are not safe. Not on "
     "every message:\n"
     "  - SAPTEL: 55 5259 8121 (24/7, gratuito)\n"
-    "  - Línea de la Vida: 800 290 0024 (24/7, gratuito)\n"
+    "  - Línea de la Vida: 800 911 2000 (24/7, gratuito)\n"
 )
 
 
