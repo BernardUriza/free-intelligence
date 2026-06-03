@@ -1,0 +1,13 @@
+/*
+ * fi-glass · design tokens
+ * Extracted verbatim from apps/aurity/app/medical-styles.css on 2026-06-01.
+ * These are the concrete values that fill core's ThemeTokens slots for the
+ * glass material. A future fi-<material> ships its own tokens file.
+ */
+:root {
+  --glass-blur: 12px;
+  --glass-blur-compact: 8px;
+  --glass-opacity: 0.8;
+  --glass-saturation: 180%;
+  --glass-border: rgba(255, 255, 255, 0.18);
+}

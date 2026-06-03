@@ -1,0 +1,27 @@
+/*
+ * fi-glass · frosted-surface utility classes
+ * Extracted verbatim from apps/aurity/app/medical-styles.css on 2026-06-01.
+ * Behavior is byte-for-byte identical to the in-aurity version; the only change
+ * is the mobile blur, now driven by the --glass-blur-compact token (same 8px
+ * value) instead of a hardcoded literal.
+ */
+.glass {
+  background: rgba(255, 255, 255, var(--glass-opacity));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  border: 1px solid var(--glass-border);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+@media (max-width: 768px) {
+  .glass {
+    backdrop-filter: blur(var(--glass-blur-compact));
+    -webkit-backdrop-filter: blur(var(--glass-blur-compact));
+  }
+}
