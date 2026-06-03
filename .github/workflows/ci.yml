@@ -137,6 +137,19 @@ jobs:
         # residual risk is at most tokenizer ReDoS / bounded DoS on adversarial
         # text. Authorized by Bernard 2026-05-20. Re-audit and drop each ID as
         # its package publishes a fixed release.
+        #
+        # PYSEC-2026-161 (starlette <1.0.1, "BadHost"): missing Host-header
+        # validation lets an attacker inject paths into the host part,
+        # bypassing PATH-BASED security checks. MEDIUM. The fix is ONLY in
+        # starlette 1.0.1, which does NOT co-resolve with the bot's conda stack
+        # on py314 — the solver rejects starlette>=1.0.1 against the
+        # fastapi-core / mcp / sse-starlette chain (every installable starlette
+        # is <1.0.1, all carrying the CVE). The bot's only web surfaces (the
+        # bearer-token debug server + the internal agent runner) authenticate
+        # via TOKEN, not path-based routing security, so the CVE's actual vector
+        # does not apply to this deployment. Authorized by Bernard 2026-06-03.
+        # DROP the instant starlette 1.0.1 becomes co-installable (watch the
+        # fastapi / starlette conda-forge feedstocks).
         run: |
           pip-audit \
             --ignore-vuln CVE-2026-3219 \
@@ -162,7 +175,8 @@ jobs:
             --ignore-vuln PYSEC-2025-215 \
             --ignore-vuln PYSEC-2025-216 \
             --ignore-vuln PYSEC-2025-217 \
-            --ignore-vuln PYSEC-2025-218
+            --ignore-vuln PYSEC-2025-218 \
+            --ignore-vuln PYSEC-2026-161
 
   # --- Layer 4: Security — Static Code Analysis ---
   security-code:
