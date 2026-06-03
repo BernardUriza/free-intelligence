@@ -1,0 +1,18 @@
+[Unit]
+Description=Arbor TTS service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/arbor-tts
+EnvironmentFile=/opt/arbor-tts/.env
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+User=arbor
+Group=arbor
+
+[Install]
+WantedBy=multi-user.target

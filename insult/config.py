@@ -23,12 +23,11 @@ class Settings(BaseSettings):
     discord_token: SecretStr
     command_prefix: str = "!"
 
-    # Anthropic
-    anthropic_api_key: SecretStr
+    # LLM model selection. There's no direct-Anthropic client anymore — all
+    # generation goes through the agent runner (OAuth Max). This is just the
+    # model id the runner is asked to use as the DEPTH tier when the router
+    # is enabled (and the default everywhere else).
     llm_model: str = "claude-sonnet-4-6"
-    llm_max_tokens: int = 2048
-    llm_timeout: float = 30.0
-    llm_max_retries: int = 5
     system_prompt: str = "You are a helpful assistant."
     persona_file: Path = _PROJECT_ROOT / "persona.md"
 
@@ -92,24 +91,28 @@ class Settings(BaseSettings):
     debug_port: int = 8787
 
     # Moltbook integration (see .claude/plans/elegant-foraging-knuth.md).
-    # The carretera both-ways is fail-closed by default: an empty api_key
-    # disables both lanes regardless of the *_enabled flags. The flags are
-    # the second gate — they let an operator stage rollout (inbound first,
-    # then outbound) once the key is provisioned, mirroring how
-    # is_azure_configured() gates the backup loop in bot.py.
+    # All four lanes default ON now (revived 2026-05-25 after the LLMClient→
+    # /v1/judge migration restored their LLM path). The real fail-closed gate
+    # is INFRASTRUCTURE, not policy: an empty `moltbook_api_key` makes the
+    # source None → every lane short-circuits, and inbound/outbound also need
+    # `moltbook_submolts`. So a deployment without the key/submolts/runner
+    # stays silent regardless of these flags; set them to False only to mute a
+    # lane that IS otherwise wired. The SAFETY gates (PII redaction,
+    # vulnerability/disclosure, salience) run inside each lane and are NOT
+    # affected by these switches.
     moltbook_api_key: SecretStr = SecretStr("")
     moltbook_base_url: str = "https://www.moltbook.com/api/v1"
     # Comma-separated submolt names, e.g. "m/philosophy,m/ai-agents". Parsed
     # via the moltbook_submolts property to keep .env friendly (Pydantic
     # parsing of list[str] from env requires JSON, which is awkward to type).
     moltbook_submolts_raw: str = ""
-    moltbook_outbound_enabled: bool = False
-    moltbook_inbound_enabled: bool = False
-    moltbook_engagement_enabled: bool = False
+    moltbook_outbound_enabled: bool = True
+    moltbook_inbound_enabled: bool = True
+    moltbook_engagement_enabled: bool = True
     # Heartbeat replies-to-commenters task. Polls /api/v1/home every 20
     # minutes for activity_on_your_posts and replies via the agent's own
     # LLM. See Phase 7 plan + .claude/plans/elegant-foraging-knuth.md.
-    moltbook_heartbeat_enabled: bool = False
+    moltbook_heartbeat_enabled: bool = True
     # Discord channel id where the bot reports its Moltbook activity
     # (publishes + engagement comments). Empty string disables narration.
     moltbook_report_channel_id: str = ""
@@ -132,21 +135,12 @@ class Settings(BaseSettings):
     # uppercases the field name automatically).
     postgres_url: SecretStr = SecretStr("")
 
-    # Agent SDK runner (Container App insult-runner). When the user_id is in
-    # `insult_agent_sdk_user_ids` (comma-separated, "*" = all), the turn
-    # routes through `AgentRunnerClient` (OAuth Max + workspace-grounded)
-    # instead of the legacy LLMClient (API key + inline-context). Empty list
-    # disables the flag entirely. See .claude/plans/insult_agent_sdk_migration.md
+    # Agent SDK runner (Container App insult-runner). Every chat turn routes
+    # through `AgentRunnerClient` (/v1/turn) and every one-shot utility call
+    # through `RunnerJudgeClient` (/v1/judge) — both on OAuth Max. These two
+    # creds are the bot's ONLY LLM backend.
     insult_agent_runner_url: str = ""
     insult_agent_runner_token: SecretStr = SecretStr("")
-    insult_agent_sdk_user_ids: str = ""
-
-    # Legacy direct-Anthropic kill switch. Set to False once the agent runner
-    # is canonical and the API key is revoked. Every LLMClient.chat()/
-    # utility_call() returns empty fast; each aux caller already has a
-    # fallback path for empty responses. The bot Container becomes pure
-    # plumbing between Discord and the runner.
-    legacy_llm_enabled: bool = True
 
     # When the agent runner times out / 5xx's / rate-limits, invite ALICE to
     # take the turn instead of failing the user-facing message. ALICE reads
@@ -154,7 +148,15 @@ class Settings(BaseSettings):
     # user sees a continuation in voice B instead of a canned error.
     alice_failover_enabled: bool = True
 
-    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
+    # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
+    # Container App's environment always carries vars this model doesn't model
+    # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,
+    # LLM_TIMEOUT, LLM_MAX_RETRIES — that outlived the direct-Anthropic client in
+    # prod env + local .env). ``forbid`` would crash startup on any of those.
+    # Trade-off accepted: a typo'd known field is silently dropped rather than
+    # caught — acceptable since the fields that matter have explicit defaults and
+    # are exercised by the test suite.
+    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @classmethod
     def settings_customise_sources(

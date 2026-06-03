@@ -560,7 +560,7 @@ def moltbook_ctx_unconfigured(memory_with_data):
 
     return MoltbookDebugContext(
         source_factory=lambda: None,
-        llm=MagicMock(),
+        judge=MagicMock(),
         settings=MagicMock(),
     )
 
@@ -608,14 +608,15 @@ def moltbook_ctx_ready(memory_with_data):
     settings.system_prompt = "persona"
     settings.summary_model = "haiku"
 
-    llm = MagicMock()
-    llm.client = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text='{"title":"T","content":"long enough content here"}'))
-    response = MagicMock()
-    response.content = [MagicMock(text="redacted version of the content keeping the take")]
-    llm.client.messages.create = AsyncMock(return_value=response)
+    # RunnerJudgeClient stand-in. Both build_post_draft and redact_with_llm
+    # route through judge.utility_call now; .text carries the output (no
+    # nested content[] blocks). None of the wired endpoints exercise it
+    # (the publish test posts a pre-approved draft directly), but we give it
+    # a sane draft-shaped return for any preview path that does.
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text='{"title":"T","content":"long enough content here"}'))
 
-    return MoltbookDebugContext(source_factory=lambda: fake_source, llm=llm, settings=settings)
+    return MoltbookDebugContext(source_factory=lambda: fake_source, judge=judge, settings=settings)
 
 
 @pytest.fixture

@@ -71,11 +71,22 @@ def mock_memory():
 
 
 @pytest.fixture
-def mock_llm():
-    """Mocked LLMClient."""
-    llm = AsyncMock()
-    llm.chat = AsyncMock(return_value=LLMResponse(text="Test response from Insult"))
-    return llm
+def mock_agent_client():
+    """Mocked AgentRunnerClient — the turn backend (/v1/turn). `.chat`
+    returns a default LLMResponse so turn tests that don't override it
+    still get text through the pipeline."""
+    client = AsyncMock()
+    client.chat = AsyncMock(return_value=LLMResponse(text="Test response from Insult"))
+    return client
+
+
+@pytest.fixture
+def mock_judge_client():
+    """Mocked RunnerJudgeClient — the one-shot utility backend (/v1/judge)
+    used by fact extraction, image summary, preset classifier, etc."""
+    judge = AsyncMock()
+    judge.utility_call = AsyncMock(return_value=LLMResponse(text="judge output"))
+    return judge
 
 
 @pytest.fixture
@@ -87,9 +98,7 @@ def mock_settings():
     s.memory_relevant_limit = 5
     s.command_prefix = "!"
     s.llm_model = "claude-sonnet-4-20250514"
-    s.llm_max_tokens = 1024
     s.discord_token = "fake-token"  # noqa: S105
-    s.anthropic_api_key = "fake-key"
     # Router feature flag OFF in tests — legacy single-model path.
     s.model_router_enabled = False
     s.casual_model = "claude-haiku-4-5-20251001"
@@ -133,12 +142,14 @@ def mock_siesta():
 
 
 @pytest.fixture
-def mock_container(mock_settings, mock_memory, mock_llm, mock_bot, mock_siesta):
-    """Full mocked DI container."""
+def mock_container(mock_settings, mock_memory, mock_agent_client, mock_judge_client, mock_bot, mock_siesta):
+    """Full mocked DI container — no `llm` field anymore; the turn rides
+    `agent_client` and aux work rides `judge_client`."""
     container = MagicMock()
     container.settings = mock_settings
     container.memory = mock_memory
-    container.llm = mock_llm
+    container.agent_client = mock_agent_client
+    container.judge_client = mock_judge_client
     container.bot = mock_bot
     container.siesta = mock_siesta
     return container

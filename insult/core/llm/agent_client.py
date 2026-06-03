@@ -1,10 +1,10 @@
 """HTTP client to the Container-Apps-resident Claude Agent SDK runner.
 
-Insult's legacy `LLMClient` (`insult/core/llm/client.py`) talks to Anthropic
-Messages API directly: it inlines the full conversation context + facts
-+ disclosures as `messages[]` blocks, then receives a single-shot response.
-Validated 2026-05-13 (histerical-search): 1M-context recall degrades 20-40%
-on multi-hop reasoning at scale.
+The legacy direct-Anthropic client talked to the Messages API directly: it
+inlined the full conversation context + facts + disclosures as `messages[]`
+blocks, then received a single-shot response. Validated 2026-05-13
+(histerical-search): 1M-context recall degrades 20-40% on multi-hop
+reasoning at scale.
 
 `AgentRunnerClient` replaces that single-shot pattern with a remote call to
 the FastAPI runner in the `insult-runner` Container App. The runner hosts
@@ -14,8 +14,8 @@ renderer) via Read/Grep/Glob.
 
 ## Drop-in contract
 
-Same signature as `LLMClient.chat()` so `stages.py:448` can branch behind
-the `INSULT_AGENT_SDK_USER_IDS` feature flag without changing call shape.
+Exposes the same `chat()` signature the turn pipeline expects, so
+`stages.py` calls it as the single turn backend without any branch.
 Returns the same `LLMResponse` dataclass.
 
 ## Auth
@@ -38,7 +38,7 @@ in-character error text; the caller surfaces it normally.
 - `messages[-1]['content']` becomes the agent prompt (last user text).
 - `max_tokens` is forwarded only in metrics — runner uses its own cap.
 - `on_timeout`: fires once after the HTTP read timeout fires the first
-  time — same UX as legacy LLMClient's retry_notice.
+  time — same UX as the legacy retry_notice.
 - `behavioral_guidance` (v3.9.94): the per-turn preset + vulnerability
   overlay the caller computed. Forwarded to the runner, which injects it
   into the user message (NOT the cached system prompt). This is the
@@ -109,7 +109,7 @@ def _last_user_attachments(messages: list[dict]) -> list[dict]:
 
 
 class AgentRunnerClient:
-    """Drop-in replacement for LLMClient that delegates to the runner.
+    """The turn backend — delegates each chat turn to the runner.
 
     Constructor takes the runner URL and bearer auth. Both come from env
     (`INSULT_AGENT_RUNNER_URL` + `INSULT_AGENT_RUNNER_TOKEN`).

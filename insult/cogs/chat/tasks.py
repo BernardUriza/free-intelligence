@@ -81,9 +81,9 @@ async def extract_user_facts(
     Posts safe additions to the system channel so the operator can audit
     what Insult is remembering without having to curl the debug endpoint.
 
-    `llm` is the LLMClient (not the raw AsyncAnthropic client) — fact
-    extraction goes through utility_call so it picks up retry policy +
-    prompt caching, but skips the user-facing guards.
+    `llm` is the RunnerJudgeClient (the runner's one-shot /v1/judge) — fact
+    extraction goes through its utility_call so the work runs on OAuth Max
+    without a direct-Anthropic key and skips the user-facing guards.
     """
     try:
         new_facts = await extract_facts(llm, summary_model, user_name, existing_facts, recent)

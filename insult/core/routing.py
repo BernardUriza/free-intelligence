@@ -12,7 +12,7 @@ Tiers:
 
 Fallback shape is always (primary, depth). Opus and Sonnet fall back to
 Sonnet — no point reruning against an identical model; the reinforced-prompt
-retry inside LLMClient already handles that edge.
+retry inside the runner already handles that edge.
 """
 
 from __future__ import annotations

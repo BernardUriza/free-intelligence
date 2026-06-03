@@ -10,8 +10,8 @@ its MCP tools), this client EXECUTES the prompt against the runner,
 fi-core parses the result. Three layers, three responsibilities, zero
 LLM credentials in the consolidator.
 
-This is intentionally a SUBSET of the legacy LLMClient surface — only
-`utility_call` is implemented because that's all the consolidator needs.
+This is intentionally a SUBSET of a full chat client's surface — only
+`utility_call` is implemented because that's all utility callers need.
 If a future caller wants more (chat-style turns), use AgentRunnerClient
 (`agent_client.py`) which targets /v1/turn.
 """
@@ -29,7 +29,7 @@ log = structlog.get_logger()
 
 @dataclass
 class JudgeResponse:
-    """Mirrors the shape that LLMClient.utility_call returned, so callers
+    """Mirrors the shape the legacy utility_call returned, so callers
     that previously consumed `LLMResponse` (e.g. memory_consolidator's
     `_call_judge`) work without code change. Only the fields the
     consolidator actually reads are exposed."""
@@ -42,7 +42,7 @@ class JudgeResponse:
 
 
 class RunnerJudgeClient:
-    """HTTP client to /v1/judge. Quacks like LLMClient for utility_call.
+    """HTTP client to /v1/judge. Exposes utility_call for one-shot text calls.
 
     Usage (drop-in for memory_consolidator):
         client = RunnerJudgeClient(runner_url=..., token=...)
@@ -98,7 +98,7 @@ class RunnerJudgeClient:
         tools: list | None = None,
         tool_choice: dict | None = None,
     ) -> JudgeResponse:
-        """Drop-in replacement for LLMClient.utility_call.
+        """One-shot utility call against the runner's /v1/judge.
 
         Args:
             system_prompt: passed verbatim to the runner. NOT persona.md

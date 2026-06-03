@@ -21,7 +21,7 @@ log = structlog.get_logger()
 class UtilityCog(commands.Cog):
     def __init__(self, container: Container):
         self.memory = container.memory
-        self.llm = container.llm
+        self.judge = container.judge_client
         self.settings = container.settings
         self.bot = container.bot
         self.siesta = container.siesta
@@ -207,6 +207,9 @@ class UtilityCog(commands.Cog):
     @commands.cooldown(1, 60, commands.BucketType.guild)
     async def syncfacts(self, ctx: commands.Context):
         """Recorre todos los mensajes históricos y extrae/actualiza facts de cada usuario."""
+        if self.judge is None:
+            await ctx.send("No tengo backend LLM configurado (runner sin URL/token). No puedo sincronizar facts.")
+            return
         await ctx.send("🔄 Sincronizando facts de todos los usuarios... esto puede tardar.")
 
         try:
@@ -226,7 +229,7 @@ class UtilityCog(commands.Cog):
 
             try:
                 existing = await self.memory.get_facts(user_id)
-                new_facts = await extract_facts(self.llm, self.settings.summary_model, user_name, existing, messages)
+                new_facts = await extract_facts(self.judge, self.settings.summary_model, user_name, existing, messages)
                 await self.memory.save_facts(user_id, new_facts)
                 synced += 1
                 await ctx.send(f"✅ **{user_name}**: {len(new_facts)} facts")

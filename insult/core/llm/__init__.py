@@ -1,22 +1,23 @@
-"""Claude API client subpackage.
+"""LLM client subpackage — runner-backed, no direct-Anthropic client.
+
+The legacy direct-Anthropic Messages-API client was deleted once
+the agent runner became the sole LLM backend. What remains are the runner
+HTTP clients plus the still-shared building blocks:
 
 Submodules:
+- ``agent_client``: ``AgentRunnerClient`` → POST /v1/turn (chat turns).
+- ``runner_judge_client``: ``RunnerJudgeClient`` → POST /v1/judge (one-shot
+  text-only utility calls: facts, summaries, moltbook, proactive, reminders).
 - ``pricing``: per-family token tracking + USD cost estimation.
 - ``retry``: retry-after parsing + Full Jitter backoff timing.
 - ``parsing``: LLMResponse, WEB_SEARCH_TOOL, system-block builder,
-  Messages API response parser.
-- ``client``: LLMClient with _send retry loop, _recover_from_break,
-  chat (user-facing guards), utility_call (no guards).
+  Messages API response parser (still consumed by the runner clients).
 
-This __init__ is a barrel — every public symbol is re-exported so
-that ``from insult.core.llm import LLMClient`` (and the private
-helpers used by tests) keeps working after the F4 refactor.
+This __init__ is a barrel — public symbols are re-exported so existing
+imports (``from insult.core.llm import LLMResponse / get_usage_report``)
+keep working.
 """
 
-from insult.core.llm.client import (
-    _ANTI_PATTERN_FALLBACK_THRESHOLD,
-    LLMClient,
-)
 from insult.core.llm.parsing import (
     WEB_SEARCH_TOOL,
     LLMResponse,
@@ -45,14 +46,12 @@ from insult.core.llm.retry import (
 
 __all__ = [
     "WEB_SEARCH_TOOL",
-    "_ANTI_PATTERN_FALLBACK_THRESHOLD",
     "_BACKOFF_CAP_5XX",
     "_BACKOFF_CAP_429",
     "_BACKOFF_CAP_TIMEOUT",
     "_DEFAULT_FAMILY",
     "_MAX_TIMEOUT_RETRIES",
     "_PRICING",
-    "LLMClient",
     "LLMResponse",
     "_build_system_blocks",
     "_errors_total",

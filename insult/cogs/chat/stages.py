@@ -46,7 +46,6 @@ from insult.cogs.chat.context import (
     load_server_pulse,
     store_assistant_message,
     store_user_message,
-    summarize_user_images_into_text,
     update_style_profile,
 )
 from insult.cogs.chat.pipeline import Stage, TurnCtx
@@ -85,7 +84,12 @@ from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
-from shared.corpus import animal_liberation_guidance, animal_tactics_guidance
+from shared.corpus import (
+    animal_liberation_guidance,
+    animal_tactics_guidance,
+    detect_film_topic,
+    film_criticism_guidance,
+)
 
 log = structlog.get_logger()
 
@@ -159,10 +163,12 @@ async def _stage_process_attachments(ctx: TurnCtx) -> None:
 
 
 async def _stage_memory_store(ctx: TurnCtx) -> None:
-    image_blocks = [b for b in ctx.attachment_blocks if isinstance(b, dict) and b.get("type") == "image"]
-    ctx.text_for_memory = await summarize_user_images_into_text(
-        image_blocks, ctx.llm, ctx.settings.summary_model, ctx.text
-    )
+    # Image summarization was removed: /v1/judge is text-only (can't see images),
+    # and the agent runner has native vision in the turn itself + the workspace
+    # renderer writes its image-describing reply to markdown — so the future-turn
+    # trace the old [Imagen: ...] annotation provided is already covered. The
+    # raw user text is what we persist.
+    ctx.text_for_memory = ctx.text
 
     await store_user_message(
         ctx.memory,
@@ -242,13 +248,13 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
     # the task with a timeout and falls back to the regex classifier on
     # failure. Disabled-by-flag path leaves ctx.preset_task as None and
     # the awaiter goes straight to regex.
-    if getattr(ctx.settings, "preset_classifier_llm_enabled", False):
+    if getattr(ctx.settings, "preset_classifier_llm_enabled", False) and ctx.judge_client is not None:
         ctx.preset_task = asyncio.create_task(
             classify_preset_llm(
                 ctx.text,
                 ctx.recent,
                 ctx.user_facts,
-                ctx.llm,
+                ctx.judge_client,
                 model=getattr(ctx.settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
             )
         )
@@ -419,29 +425,13 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
 
 
 # --- Stage 10: LLM call (BUSINESS-critical, the heart of the turn) ---
-
-
-def _user_in_agent_flag(user_id: str, raw: str) -> bool:
-    """Parse `INSULT_AGENT_SDK_USER_IDS` and decide if this user routes to the
-    Agent SDK runner. Empty = legacy path. "*" = all users. Otherwise CSV match.
-    """
-    if not raw:
-        return False
-    raw = raw.strip()
-    if raw == "*":
-        return True
-    ids = {x.strip() for x in raw.split(",") if x.strip()}
-    return user_id in ids
-
-
-def _pick_llm_for_turn(ctx: TurnCtx) -> tuple[Any, str]:
-    """Return (client, backend_label). Falls back to legacy LLMClient when the
-    agent path is not enabled for this user or the agent_client isn't wired.
-    """
-    flag = getattr(ctx.settings, "insult_agent_sdk_user_ids", "") or ""
-    if ctx.agent_client is not None and _user_in_agent_flag(ctx.user_id, flag):
-        return ctx.agent_client, "agent_runner"
-    return ctx.llm, "legacy"
+#
+# Every turn rides the agent runner (/v1/turn) now — there is no legacy
+# per-user flag and no direct-Anthropic fallback. The old
+# `_pick_llm_for_turn` / `_user_in_agent_flag` branching (agent vs legacy
+# legacy direct-Anthropic client, gated on INSULT_AGENT_SDK_USER_IDS) was
+# removed when that client died. `_stage_call_llm` binds `ctx.agent_client`
+# directly.
 
 
 # --- deep_memory auto-retrieval (v4.3.0) ---
@@ -510,6 +500,25 @@ async def _build_relevant_memory(ctx: TurnCtx) -> str | None:
     return header + "\n" + "\n".join(lines)
 
 
+async def _build_film_references(ctx: TurnCtx) -> str | None:
+    """Pre-fetch the top relevant film-theory chunks when the turn is about film.
+
+    Topic-gated by `detect_film_topic` so we don't pay an embed call on
+    off-topic turns. Returns the formatted references block (header + chunks)
+    or None when off-topic, trivial, retrieval fails, or nothing clears the
+    similarity floor. Best-effort: a failure here NEVER breaks the turn — it
+    just means no film theory this turn (the Vultur frame still applies)."""
+    if not detect_film_topic(ctx.text):
+        return None
+    try:
+        from insult.core.deep_memory import build_film_references_block
+
+        return await build_film_references_block(ctx.text)
+    except Exception as e:  # retrieval is best-effort; never break the turn
+        log.warning("film_references_prefetch_failed", error=str(e))
+        return None
+
+
 def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     """Rebuild the per-turn behavioral layer for the agent runner.
 
@@ -546,6 +555,13 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
         tactics = animal_tactics_guidance(ctx.text)
         if tactics:
             parts.append(tactics)
+    # Film-criticism (Vultur) method frame — same shared/corpus mechanism,
+    # topic-gated, expressed in Insult's own acid voice. Theory RAG (the 2 PDF
+    # books) is retrieved separately and injected as `relevant_memory` so the
+    # async embed call doesn't block this sync prompt builder.
+    film = film_criticism_guidance(ctx.text)
+    if film:
+        parts.append(film)
     return "\n\n".join(p for p in parts if p)
 
 
@@ -572,7 +588,12 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         primary_model=ctx.model_choice.primary if ctx.model_choice else ctx.settings.llm_model,
         fallback_model=ctx.model_choice.fallback if ctx.model_choice else None,
     )
-    llm_client, backend = _pick_llm_for_turn(ctx)
+    # The agent runner is the only turn backend. ``backend`` is kept as a
+    # constant so the agent-runner-specific payload blocks (channel_id,
+    # behavioral_guidance, relevant_memory) and the ALICE-failover branch
+    # below read self-documentingly.
+    llm_client = ctx.agent_client
+    backend = "agent_runner"
     log.info("llm_backend_selected", backend=backend, user_id=ctx.user_id)
     # Keepalive the Discord typing indicator throughout the LLM call.
     # Discord's typing indicator times out at ~10s; agent runner turns can
@@ -605,8 +626,15 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             # most relevant raw-history chunks so the agent always sees them
             # instead of relying on the opt-in deep_memory tool.
             relevant_memory = await _build_relevant_memory(ctx)
-            if relevant_memory:
-                llm_kwargs["relevant_memory"] = relevant_memory
+            # v4.20.0: when the turn is about film, also retrieve the most
+            # relevant film-theory chunks (Braudy & Cohen / Language of Film
+            # Criticism) from the shared corpus and inject them as analytical
+            # ammo under the Vultur frame. Distinct header from the per-user
+            # block; both are clearly labeled. Best-effort: never breaks the turn.
+            film_refs = await _build_film_references(ctx)
+            combined_memory = "\n\n".join(b for b in (relevant_memory, film_refs) if b)
+            if combined_memory:
+                llm_kwargs["relevant_memory"] = combined_memory
         ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):
@@ -893,7 +921,7 @@ async def _stage_spawn_side_effects(ctx: TurnCtx) -> None:
                     ctx.message,
                     other_calls,
                     memory=ctx.memory,
-                    llm=ctx.llm,
+                    judge=ctx.judge_client,
                     settings=ctx.settings,
                     spawn_task=ctx.spawn_task,
                 ),
@@ -1075,19 +1103,17 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
 
 async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
     ch_name = getattr(ctx.message.channel, "name", "")
-    # Fact extraction rides utility_call. When the legacy LLMClient is
-    # disabled (LEGACY_LLM_ENABLED=false + dead Anthropic key), it returns
-    # empty and extraction fails every turn (`facts_extraction_failed:
-    # Expecting value: line 1 column 1`). Route through the RunnerJudgeClient
-    # (OAuth Max via /v1/judge) instead — same migration the consolidator got.
-    # The [REMEMBER:] marker path is unaffected; this restores the automatic
-    # extraction safety net that catches facts the model didn't mark.
-    extraction_llm = ctx.llm
-    if not ctx.settings.legacy_llm_enabled and ctx.judge_client is not None:
-        extraction_llm = ctx.judge_client
+    # Fact extraction rides the runner's one-shot /v1/judge (OAuth Max) — the
+    # automatic safety net that catches facts the model didn't mark with
+    # [REMEMBER:]. When the runner isn't wired (judge_client is None) there's
+    # no backend to extract with, so skip the spawn entirely; the marker path
+    # still works.
+    if ctx.judge_client is None:
+        log.info("fact_extraction_skipped", reason="no_judge_client")
+        return
     ctx.spawn_task(
         extract_user_facts(
-            extraction_llm,
+            ctx.judge_client,
             ctx.settings.summary_model,
             ctx.memory,
             ctx.bot,

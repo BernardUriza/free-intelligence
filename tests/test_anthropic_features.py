@@ -24,7 +24,6 @@ from insult.core.actions import ToolCall
 from insult.core.character import CACHE_BOUNDARY
 from insult.core.llm import (
     WEB_SEARCH_TOOL,
-    LLMClient,
     LLMResponse,
     _build_system_blocks,
     _parse_response_content,
@@ -181,57 +180,6 @@ class TestLLMResponseStopReason:
 
 
 # ---------------------------------------------------------------------------
-# LLMClient.utility_call — wrapper contract
-# ---------------------------------------------------------------------------
-
-
-class TestUtilityCall:
-    @pytest.mark.asyncio
-    async def test_utility_call_invokes_send_with_kwargs(self):
-        """utility_call is a thin wrapper over _send. It must propagate
-        every kwarg the caller passes — model, max_tokens, tools — so
-        callers can override per-call settings without tripping over
-        the LLMClient defaults."""
-        llm = LLMClient(api_key="sk-test", model="default", max_tokens=1024)
-        # Mock _send so we don't hit the network
-        sent = LLMResponse(text="ok", stop_reason="end_turn")
-        llm._send = AsyncMock(return_value=sent)
-
-        result = await llm.utility_call(
-            "system",
-            [{"role": "user", "content": "hi"}],
-            model="claude-haiku-4-5-20251001",
-            max_tokens=256,
-            tools=[{"name": "x"}],
-        )
-
-        assert result is sent
-        llm._send.assert_awaited_once()
-        kwargs = llm._send.await_args.kwargs
-        assert kwargs["model"] == "claude-haiku-4-5-20251001"
-        assert kwargs["max_tokens"] == 256
-        assert kwargs["tools"] == [{"name": "x"}]
-
-    @pytest.mark.asyncio
-    async def test_utility_call_skips_user_facing_pipeline(self):
-        """utility_call MUST NOT run character_break / language_cure /
-        formatting normalization. Those are post-processing for
-        user-facing output; for JSON-shaped utility outputs (facts
-        extraction, judge plans) they would corrupt the payload.
-
-        We assert this by mocking `chat` and confirming utility_call
-        never delegates to it — only to `_send`."""
-        llm = LLMClient(api_key="sk-test", model="default", max_tokens=1024, cure_model="claude-haiku-4-5-20251001")
-        llm._send = AsyncMock(return_value=LLMResponse(text="raw", stop_reason="end_turn"))
-        llm.chat = AsyncMock()  # would log error if called
-
-        await llm.utility_call("sys", [{"role": "user", "content": "x"}])
-
-        llm.chat.assert_not_awaited()
-        llm._send.assert_awaited_once()
-
-
-# ---------------------------------------------------------------------------
 # Title language gate — Spanish detection + translation
 # ---------------------------------------------------------------------------
 
@@ -255,44 +203,45 @@ class TestTitleLanguageGate:
     async def test_ensure_title_english_passthrough_when_already_english(self):
         from insult.core.moltbook_outbound import ensure_title_english
 
-        client = MagicMock()
-        client.messages.create = AsyncMock()  # would assert if called
+        judge = MagicMock()
+        judge.utility_call = AsyncMock()  # would assert if called
         out = await ensure_title_english(
             "Session 8. The grift is the symptom.",
-            client=client,
+            judge=judge,
             model="claude-haiku-4-5-20251001",
         )
         assert out == "Session 8. The grift is the symptom."
-        client.messages.create.assert_not_awaited()
+        judge.utility_call.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_ensure_title_english_translates_when_spanish(self):
         from insult.core.moltbook_outbound import ensure_title_english
 
-        block = MagicMock()
-        block.text = "Session 6. Fewer words as a philosophical stance."
-        response = MagicMock(content=[block])
-        client = MagicMock()
-        client.messages.create = AsyncMock(return_value=response)
+        # RunnerJudgeClient.utility_call returns a JudgeResponse whose .text
+        # holds the translation — no nested content[] blocks like the old
+        # raw-Anthropic response shape.
+        response = MagicMock(text="Session 6. Fewer words as a philosophical stance.")
+        judge = MagicMock()
+        judge.utility_call = AsyncMock(return_value=response)
 
         out = await ensure_title_english(
             "Sesión 6. Menos palabras como postura filosófica.",
-            client=client,
+            judge=judge,
             model="claude-haiku-4-5-20251001",
         )
         assert "Session 6" in out
         assert "Fewer words" in out
-        client.messages.create.assert_awaited_once()
+        judge.utility_call.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ensure_title_english_falls_back_on_api_error(self):
         from insult.core.moltbook_outbound import ensure_title_english
 
-        client = MagicMock()
-        client.messages.create = AsyncMock(side_effect=RuntimeError("api down"))
+        judge = MagicMock()
+        judge.utility_call = AsyncMock(side_effect=RuntimeError("api down"))
 
         original = "Sesión 9. Crash test."
-        out = await ensure_title_english(original, client=client, model="claude-haiku-4-5-20251001")
+        out = await ensure_title_english(original, judge=judge, model="claude-haiku-4-5-20251001")
         # Failure of the translation pass MUST NOT block publishes
         assert out == original
 

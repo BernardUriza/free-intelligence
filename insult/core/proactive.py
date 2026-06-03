@@ -19,7 +19,6 @@ from enum import Enum
 
 import structlog
 
-from insult.core.llm import LLMClient
 from insult.core.prompts_loader import load_prompt
 
 log = structlog.get_logger()
@@ -228,13 +227,6 @@ def _elapsed_description(last_user_message_ts: float | None) -> str:
 
 # Prompts live in insult/prompts/proactive_social.md and proactive_world_scan.md
 
-# Web search tool for world scan mode
-_WORLD_SCAN_SEARCH_TOOL = {
-    "type": "web_search_20250305",
-    "name": "web_search",
-    "max_uses": 2,
-}
-
 
 # ---------------------------------------------------------------------------
 # Search topic selection — conversation-aware
@@ -366,7 +358,7 @@ def _pick_search_topic(user_facts: dict[str, list[dict]], mood: str, recent_text
 
 
 async def generate_proactive_message(
-    llm: LLMClient,
+    judge,
     model: str,
     time_str: str,
     user_facts: dict[str, list[dict]],
@@ -374,12 +366,11 @@ async def generate_proactive_message(
 ) -> str | None:
     """Generate an in-character context-aware check-in message.
 
-    Routed through LLMClient.chat (not client.messages.create) so the
-    proactive output gets the same protections as a turn response:
-    character_break detection, anti_pattern monitoring, language_cure,
-    and formatting normalization. Without this wrapper, a proactive
-    message that drifts ("As an AI...") would ship to the channel
-    untouched."""
+    Routed through the runner's one-shot ``judge.utility_call`` (/v1/judge,
+    OAuth Max). The persona prompt (``proactive_social``) is handed in as the
+    system prompt, so Insult's voice survives even though /v1/judge applies
+    none of the legacy post-generation guards (character_break, language_cure).
+    For a background check-in that tradeoff is fine."""
     facts_lines = []
     for user_name, facts in user_facts.items():
         user_facts_str = ", ".join(f["fact"] for f in facts[:5])
@@ -418,7 +409,7 @@ async def generate_proactive_message(
     )
 
     try:
-        response = await llm.chat(
+        response = await judge.utility_call(
             load_prompt("proactive_social"),
             [{"role": "user", "content": user_prompt}],
             model=model,
@@ -448,19 +439,20 @@ class WorldScanResult:
 
 
 async def generate_world_scan_message(
-    llm: LLMClient,
+    judge,
     model: str,
     time_str: str,
     user_facts: dict[str, list[dict]],
     recent_messages: list[dict] | None = None,
 ) -> WorldScanResult | None:
-    """Generate an in-character world scan message using web search.
+    """Generate an in-character world scan message.
 
-    Routed through LLMClient.chat — gives us character_break detection,
-    anti_pattern monitoring, language_cure, and consistent retry policy
-    on top of the web_search server tool. Server-side `tool_use` and
-    `web_search_tool_result` blocks are still parsed transparently by
-    `_parse_response_content`; we only consume the text output.
+    Routed through the runner's one-shot ``judge.utility_call`` (/v1/judge).
+    NOTE: /v1/judge is text-only — it does NOT run the ``web_search`` server
+    tool the legacy path used, so this is now a knowledge-grounded "scan"
+    rather than a live web search. Reviving real web search means adding a
+    tool-capable endpoint on the runner; until then the commentary is
+    generated from the model's own knowledge + the suggested topic.
 
     Returns WorldScanResult with commentary + metadata, or None on failure.
     """
@@ -484,10 +476,13 @@ async def generate_world_scan_message(
     )
 
     try:
-        response = await llm.chat(
+        # Telemetry: make the degradation explicit. /v1/judge is text-only, so
+        # this "scan" is knowledge-grounded, NOT a live web search like the
+        # legacy path. Reviving real search needs a tool-capable runner endpoint.
+        log.info("world_scan_knowledge_only", search_topic=search_topic, has_web_search=False)
+        response = await judge.utility_call(
             load_prompt("proactive_world_scan"),
             [{"role": "user", "content": user_prompt}],
-            tools=[_WORLD_SCAN_SEARCH_TOOL],
             model=model,
         )
         text = response.text.strip()

@@ -82,13 +82,16 @@ class TurnCtx:
     text: str
     turn_start: float
     memory: Any
-    llm: Any
     settings: Any
     bot: Any
     expression_history: Any
     opus_budget: Any
     spawn_task: Callable[..., None]
     all_tools: list
+    # The two runner-backed LLM surfaces (see app.Container). agent_client
+    # drives the turn (/v1/turn); judge_client serves one-shot utility calls
+    # (/v1/judge): image summary, preset classifier, fact extraction, tool
+    # inauguration. Both may be None only when the runner isn't configured.
     agent_client: Any = None
     judge_client: Any = None
 

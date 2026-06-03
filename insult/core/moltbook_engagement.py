@@ -301,7 +301,7 @@ async def pick_target(
     candidates: list[EngagementCandidate],
     *,
     persona: str,
-    llm,
+    judge,
     model: str | None = None,
 ) -> EngagementCandidate | None:
     """Of N candidates, ask the LLM which ONE Insult would actually engage
@@ -323,11 +323,7 @@ async def pick_target(
     system = f"{load_prompt('moltbook_engagement_target')}\n\n## Base voice (do not change the output language)\n{persona[:1500]}"
     user = f"Candidate posts (one per block):\n\n{listing}\n\nReturn JSON only."
     try:
-        resp = (
-            await llm.chat(system, [{"role": "user", "content": user}], model=model)
-            if model
-            else await llm.chat(system, [{"role": "user", "content": user}])
-        )
+        resp = await judge.utility_call(system, [{"role": "user", "content": user}], model=model)
         raw = (resp.text or "").strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -360,7 +356,7 @@ async def build_engagement_comment(
     candidate: EngagementCandidate,
     *,
     persona: str,
-    llm,
+    judge,
     model: str | None = None,
 ) -> str | None:
     """Generate a short engagement comment for the chosen post.
@@ -377,11 +373,7 @@ async def build_engagement_comment(
         f"Write the comment now."
     )
     try:
-        resp = (
-            await llm.chat(system, [{"role": "user", "content": user}], model=model)
-            if model
-            else await llm.chat(system, [{"role": "user", "content": user}])
-        )
+        resp = await judge.utility_call(system, [{"role": "user", "content": user}], model=model)
         text = (resp.text or "").strip()
     except Exception:
         log.exception("moltbook_engagement_comment_call_failed")
@@ -429,7 +421,7 @@ async def engage_once(
     source,
     memory,
     persona: str,
-    llm,
+    judge,
     summary_model: str,
     facts_user_ids: list[str],
     channel_id: str | None = None,
@@ -477,11 +469,11 @@ async def engage_once(
     if not candidates:
         return None, "no_candidates"
 
-    target = await pick_target(candidates, persona=persona, llm=llm)
+    target = await pick_target(candidates, persona=persona, judge=judge)
     if target is None:
         return None, "pick_none"
 
-    draft = await build_engagement_comment(target, persona=persona, llm=llm)
+    draft = await build_engagement_comment(target, persona=persona, judge=judge)
     if not draft:
         return None, "draft_empty"
     # SKIP detection: the prompt says to return SKIP standalone, but in
@@ -503,7 +495,7 @@ async def engage_once(
         facts = await memory.get_facts(uid)
         all_facts.extend(f["fact"] for f in facts)
     stripped = regex_privacy_strip(draft, [{"fact": f} for f in all_facts])
-    redacted = await redact_with_llm(stripped, all_facts, client=llm.client, model=summary_model)
+    redacted = await redact_with_llm(stripped, all_facts, judge=judge, model=summary_model)
     if redacted is None:
         return None, "redaction_blocked"
 
@@ -578,7 +570,7 @@ async def build_reply_to_commenter(
     parent_comment_content: str,
     *,
     persona: str,
-    llm,
+    judge,
     model: str | None = None,
 ) -> str | None:
     """Generate a reply to a comment on one of Insult's own posts.
@@ -604,11 +596,7 @@ async def build_reply_to_commenter(
         f"Write the reply now. Or return the single token SKIP if no good reply."
     )
     try:
-        resp = (
-            await llm.chat(system, [{"role": "user", "content": user}], model=model)
-            if model
-            else await llm.chat(system, [{"role": "user", "content": user}])
-        )
+        resp = await judge.utility_call(system, [{"role": "user", "content": user}], model=model)
         text = (resp.text or "").strip()
     except Exception:
         log.exception("moltbook_reply_to_commenter_call_failed")
@@ -670,7 +658,7 @@ async def reply_to_own_post_commenters(
     source,
     memory,
     persona: str,
-    llm,
+    judge,
     summary_model: str,
     facts_user_ids: list[str],
     channel_id: str | None = None,
@@ -682,7 +670,7 @@ async def reply_to_own_post_commenters(
     1. Pull /home → activity_on_your_posts
     2. For each post with new notifications, fetch comments (sort=new)
     3. Filter (not-self, not-blocked, depth-1, not-already-replied-to)
-    4. Build reply via LLMClient.chat (builds reply_to_commenter prompt)
+    4. Build reply via judge.utility_call (builds reply_to_commenter prompt)
     5. Apply privacy gates (regex_strip + redact_with_llm)
     6. Publish via source.create_comment(post_id, redacted, parent_id=...)
        — auto-verified + rate-limited inside the source
@@ -782,12 +770,12 @@ async def reply_to_own_post_commenters(
                 author,
                 content,
                 persona=persona,
-                llm=llm,
+                judge=judge,
             )
             if not draft:
                 continue
             stripped = regex_privacy_strip(draft, [{"fact": f} for f in all_facts])
-            redacted = await redact_with_llm(stripped, all_facts, client=llm.client, model=summary_model)
+            redacted = await redact_with_llm(stripped, all_facts, judge=judge, model=summary_model)
             if redacted is None:
                 log.warning(
                     "moltbook_reply_redaction_blocked",

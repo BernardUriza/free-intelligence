@@ -160,9 +160,9 @@ class JudgeRequest(BaseModel):
     consolidator job (and any future utility caller) so OAuth Max stays
     centralized in the runner. Memory: [[mcp-shape-b-canonical]].
 
-    The judge prompt + user text shape mirrors the legacy
-    LLMClient.utility_call signature so the consolidator can swap out
-    LLMClient with a RunnerJudgeClient with minimal churn.
+    The judge prompt + user text shape mirrors the legacy utility_call
+    signature so the consolidator runs against RunnerJudgeClient with
+    minimal churn.
     """
 
     system_prompt: str = Field(..., min_length=1, max_length=256000)

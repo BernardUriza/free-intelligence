@@ -17,6 +17,19 @@ language-detection lookup, not a content-word filter.
 
 from __future__ import annotations
 
+import re
+
+
+def count_pattern_hits(text: str, patterns: list[re.Pattern]) -> int:
+    """How many patterns in the list produced at least one match in the text.
+
+    The canonical one-liner shared by the preset classifier and the flows
+    analyzers (which re-export it as ``count_hits``). Lives here so there's a
+    single implementation instead of a copy per detector package.
+    """
+    return sum(1 for p in patterns if p.search(text))
+
+
 # Verified by intersection of _QUOTE / _QUALITY / _STANCE / _RECALL stopwords
 # (see git history of insult/core/{character,quality,stance_log,presets}.py).
 # frozenset because these are read-only and shared across modules.

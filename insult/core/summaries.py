@@ -35,12 +35,12 @@ _TWENTY_FOUR_HOURS = 86400
 async def summarize_channel(llm, model: str, channel_name: str, messages: list[dict]) -> str:
     """Call LLM to summarize recent channel activity.
 
-    Routes through LLMClient.utility_call — gets retry policy + cache
-    (when system prompt is reused across channels) without the user-
-    facing guards that don't apply to internal summaries.
+    Routes through the runner's one-shot /v1/judge (utility_call) — runs on
+    OAuth Max without the user-facing guards that don't apply to internal
+    summaries.
 
     Args:
-        llm: LLMClient instance.
+        llm: a client exposing ``utility_call`` (RunnerJudgeClient in prod).
         model: Model name (e.g. claude-haiku-4-5-20251001).
         channel_name: Human-readable channel name.
         messages: List of message dicts with user_name, role, content, timestamp.

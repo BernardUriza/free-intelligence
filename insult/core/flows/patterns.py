@@ -15,6 +15,12 @@ from __future__ import annotations
 import re
 
 from insult.core.flows.types import UserState
+from insult.core.patterns import count_pattern_hits
+
+# Re-exported under the flows-local name `count_hits` so every flows analyzer
+# keeps importing it from here, while the implementation stays single-sourced
+# in core.patterns (shared with the preset classifier).
+count_hits = count_pattern_hits
 
 # Single-line module shared across flows — used to count assistant
 # agreement streaks (bot saying "exacto, tienes razón" too many turns in
@@ -259,13 +265,3 @@ WINNING_PATTERNS = [
 # before we flag the loop as a pattern.
 JACCARD_THRESHOLD = 0.4
 MIN_LOOP_CONSECUTIVE = 2
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Shared counting utility
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def count_hits(text: str, patterns: list[re.Pattern]) -> int:
-    """How many patterns in the list produced at least one match in the text."""
-    return sum(1 for p in patterns if p.search(text))

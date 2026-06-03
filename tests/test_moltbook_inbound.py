@@ -185,40 +185,40 @@ async def test_fetch_skips_posts_without_id():
 
 
 async def test_render_returns_none_for_empty_picks():
-    llm = MagicMock()
-    llm.chat = AsyncMock()
+    judge = MagicMock()
+    judge.utility_call = AsyncMock()
     settings = MagicMock(system_prompt="persona")
-    out = await render_digest_message([], llm=llm, settings=settings)
+    out = await render_digest_message([], judge=judge, settings=settings)
     assert out is None
-    llm.chat.assert_not_called()
+    judge.utility_call.assert_not_called()
 
 
 async def test_render_calls_llm_with_persona_and_picks():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text="qué buena rola"))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text="qué buena rola"))
     settings = MagicMock(system_prompt="this is the persona file content")
     picks = [_post("p1", title="art expo", content="some interesting take")]
-    out = await render_digest_message(picks, llm=llm, settings=settings)
+    out = await render_digest_message(picks, judge=judge, settings=settings)
     assert out == "qué buena rola"
-    prompt_arg = llm.chat.call_args.args[0]
+    prompt_arg = judge.utility_call.call_args.args[0]
     assert "persona file content" in prompt_arg
     assert "art expo" in prompt_arg
 
 
 async def test_render_returns_none_when_llm_returns_blank():
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=MagicMock(text="   "))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=MagicMock(text="   "))
     settings = MagicMock(system_prompt="persona")
     picks = [_post("p1")]
-    assert await render_digest_message(picks, llm=llm, settings=settings) is None
+    assert await render_digest_message(picks, judge=judge, settings=settings) is None
 
 
 async def test_render_returns_none_when_llm_raises():
-    llm = MagicMock()
-    llm.chat = AsyncMock(side_effect=RuntimeError("anthropic dead"))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(side_effect=RuntimeError("anthropic dead"))
     settings = MagicMock(system_prompt="persona")
     picks = [_post("p1")]
-    assert await render_digest_message(picks, llm=llm, settings=settings) is None
+    assert await render_digest_message(picks, judge=judge, settings=settings) is None
 
 
 # ---------------------------------------------------------------------------
@@ -279,9 +279,9 @@ def _mock_source(posts):
 async def test_build_skips_when_no_submolts():
     src = _mock_source([])
     mem = _mock_memory()
-    llm = MagicMock(chat=AsyncMock())
+    judge = MagicMock(utility_call=AsyncMock())
     settings = MagicMock(system_prompt="persona")
-    res = await build_inbound_digest(src, [], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, [], ["u1"], memory=mem, judge=judge, settings=settings)
     assert isinstance(res, InboundDigestResult)
     assert res.skipped_reason == "no_submolts"
     src.fetch_submolt_posts.assert_not_called()
@@ -299,22 +299,22 @@ async def test_build_pauses_for_vulnerable_user():
     }
     src = _mock_source([_post("p1")])
     mem = _mock_memory(facts_by_user=vulnerable_facts)
-    llm = MagicMock(chat=AsyncMock())
+    judge = MagicMock(utility_call=AsyncMock())
     settings = MagicMock(system_prompt="persona")
-    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, judge=judge, settings=settings)
     assert res.skipped_reason == "vulnerability_gate"
     src.fetch_submolt_posts.assert_not_called()
-    llm.chat.assert_not_called()
+    judge.utility_call.assert_not_called()
 
 
 async def test_build_skips_when_all_posts_already_seen():
     src = _mock_source([_post("p1"), _post("p2")])
     mem = _mock_memory(has_external_id_value=True)
-    llm = MagicMock(chat=AsyncMock())
+    judge = MagicMock(utility_call=AsyncMock())
     settings = MagicMock(system_prompt="persona")
-    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, judge=judge, settings=settings)
     assert res.skipped_reason == "no_posts_after_dedupe"
-    llm.chat.assert_not_called()
+    judge.utility_call.assert_not_called()
 
 
 async def test_build_skips_when_nothing_relevant():
@@ -322,11 +322,11 @@ async def test_build_skips_when_nothing_relevant():
     than send a digest of irrelevant content."""
     src = _mock_source([_post("p1", title="random gaming news", content="patches", created_at=0.0, upvotes=0)])
     mem = _mock_memory(facts_by_user={"u1": [{"fact": "le interesa la filosofía", "category": "interests"}]})
-    llm = MagicMock(chat=AsyncMock())
+    judge = MagicMock(utility_call=AsyncMock())
     settings = MagicMock(system_prompt="persona")
-    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, judge=judge, settings=settings)
     assert res.skipped_reason == "no_relevant_after_rank"
-    llm.chat.assert_not_called()
+    judge.utility_call.assert_not_called()
 
 
 async def test_build_happy_path_returns_picks_and_rendered_message():
@@ -348,9 +348,9 @@ async def test_build_happy_path_returns_picks_and_rendered_message():
     ]
     src = _mock_source(posts)
     mem = _mock_memory(facts_by_user={"u1": [{"fact": "le gusta filosofía y fenomenología"}]})
-    llm = MagicMock(chat=AsyncMock(return_value=MagicMock(text="qué interesante esa lectura")))
+    judge = MagicMock(utility_call=AsyncMock(return_value=MagicMock(text="qué interesante esa lectura")))
     settings = MagicMock(system_prompt="persona content")
-    res = await build_inbound_digest(src, ["m/philosophy"], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, ["m/philosophy"], ["u1"], memory=mem, judge=judge, settings=settings)
     assert res.skipped_reason is None
     assert res.rendered_message == "qué interesante esa lectura"
     assert any(p.id == "p1" for p in res.picks)
@@ -363,9 +363,9 @@ async def test_build_persists_picks_after_render():
     external_id so the next run dedupes them."""
     src = _mock_source([_post("p1", title="filosofía", upvotes=5)])
     mem = _mock_memory(facts_by_user={"u1": [{"fact": "filosofía"}]})
-    llm = MagicMock(chat=AsyncMock(return_value=MagicMock(text="take")))
+    judge = MagicMock(utility_call=AsyncMock(return_value=MagicMock(text="take")))
     settings = MagicMock(system_prompt="persona")
-    await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, llm=llm, settings=settings)
+    await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, judge=judge, settings=settings)
     kw = mem.store_world_scan.call_args.kwargs
     assert kw["source"] == "moltbook"
     assert kw["external_id"] == "p1"
@@ -377,8 +377,8 @@ async def test_build_skips_when_render_returns_empty():
     to those picks)."""
     src = _mock_source([_post("p1", title="filosofía", upvotes=5)])
     mem = _mock_memory(facts_by_user={"u1": [{"fact": "filosofía"}]})
-    llm = MagicMock(chat=AsyncMock(return_value=MagicMock(text="")))
+    judge = MagicMock(utility_call=AsyncMock(return_value=MagicMock(text="")))
     settings = MagicMock(system_prompt="persona")
-    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, llm=llm, settings=settings)
+    res = await build_inbound_digest(src, ["m/x"], ["u1"], memory=mem, judge=judge, settings=settings)
     assert res.skipped_reason == "render_empty"
     mem.store_world_scan.assert_not_called()

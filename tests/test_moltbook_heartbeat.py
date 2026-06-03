@@ -104,15 +104,15 @@ async def test_reply_to_commenter_returns_none_on_skip_token():
         def __init__(self, text: str) -> None:
             self.text = text
 
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=_FakeResp("SKIP"))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=_FakeResp("SKIP"))
     out = await build_reply_to_commenter(
         post_title="x",
         post_content="y",
         parent_comment_author="alice",
         parent_comment_content="(short)",
         persona="persona",
-        llm=llm,
+        judge=judge,
     )
     assert out is None
 
@@ -122,15 +122,15 @@ async def test_reply_to_commenter_handles_trailing_skip_line():
         def __init__(self, text: str) -> None:
             self.text = text
 
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=_FakeResp("Some reasoning preamble.\nSKIP"))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=_FakeResp("Some reasoning preamble.\nSKIP"))
     out = await build_reply_to_commenter(
         post_title="t",
         post_content="b",
         parent_comment_author="bob",
         parent_comment_content="(meh)",
         persona="persona",
-        llm=llm,
+        judge=judge,
     )
     assert out is None
 
@@ -140,15 +140,15 @@ async def test_reply_to_commenter_returns_text_on_normal_reply():
         def __init__(self, text: str) -> None:
             self.text = text
 
-    llm = MagicMock()
-    llm.chat = AsyncMock(return_value=_FakeResp("That frame treats X as Y, but X is just leverage."))
+    judge = MagicMock()
+    judge.utility_call = AsyncMock(return_value=_FakeResp("That frame treats X as Y, but X is just leverage."))
     out = await build_reply_to_commenter(
         post_title="t",
         post_content="b",
         parent_comment_author="bob",
         parent_comment_content="here is a real claim",
         persona="persona",
-        llm=llm,
+        judge=judge,
     )
     assert out is not None and "leverage" in out
 
@@ -165,14 +165,12 @@ def _orchestrator_deps(
     has_external_id_returns: bool = False,
 ):
     """Build the mock surfaces the orchestrator needs. Returns a tuple
-    (source, memory, llm) ready to pass into reply_to_own_post_commenters."""
+    (source, memory, judge) ready to pass into reply_to_own_post_commenters."""
     source = MagicMock()
     source.fetch_home = AsyncMock(return_value={"activity_on_your_posts": activity})
     source.mark_notifications_read = AsyncMock()
     source.create_comment = AsyncMock(return_value=MagicMock(id="our_reply_id"))
     source._request = AsyncMock(side_effect=lambda method, path, **kw: _stub_request_router(path, comments_by_post))
-    # client used by redact_with_llm — not exercised when we skip dedup'd comments
-    source.client = MagicMock()
 
     memory = MagicMock()
     memory.has_external_id = AsyncMock(return_value=has_external_id_returns)
@@ -180,9 +178,10 @@ def _orchestrator_deps(
     memory.get_facts = AsyncMock(return_value=[])
     memory.get_arc = AsyncMock(return_value={"phase": "stability"})
 
-    llm = MagicMock()
-    llm.client = MagicMock()
-    return source, memory, llm
+    # RunnerJudgeClient stand-in: build_reply_to_commenter calls .utility_call;
+    # redact_with_llm is monkeypatched at module scope in the publishing tests.
+    judge = MagicMock()
+    return source, memory, judge
 
 
 def _stub_request_router(path: str, comments_by_post: dict[str, list[dict[str, Any]]]):
@@ -204,13 +203,13 @@ async def test_reply_dedup_via_world_scans_short_circuits_llm(monkeypatch):
     the heartbeat publishes duplicates every 20 minutes."""
     activity = [{"post_id": "p1", "post_title": "Session 4", "unread_count": 1}]
     comments_by_post = {"p1": [{"id": "c_already_replied", "author": "alice", "content": "x", "parent_id": None}]}
-    source, memory, llm = _orchestrator_deps(
+    source, memory, judge = _orchestrator_deps(
         activity=activity,
         comments_by_post=comments_by_post,
         has_external_id_returns=True,  # ← already replied
     )
     # If the LLM gets called it's a regression — fail loudly.
-    llm.chat = AsyncMock(side_effect=AssertionError("LLM should not be invoked when dedup matches"))
+    judge.utility_call = AsyncMock(side_effect=AssertionError("LLM should not be invoked when dedup matches"))
 
     # Block redact_with_llm at module scope so a code-path leak is caught here.
     import insult.core.moltbook_engagement as eng
@@ -221,7 +220,7 @@ async def test_reply_dedup_via_world_scans_short_circuits_llm(monkeypatch):
         source=source,
         memory=memory,
         persona="persona",
-        llm=llm,
+        judge=judge,
         summary_model="haiku",
         facts_user_ids=[],
         channel_id="ch1",
@@ -242,7 +241,7 @@ async def test_orchestrator_publishes_and_persists_world_scan(monkeypatch):
     comments_by_post = {
         "p1": [{"id": "c_new", "author": "alice", "content": "real claim worth answering", "parent_id": None}]
     }
-    source, memory, llm = _orchestrator_deps(
+    source, memory, judge = _orchestrator_deps(
         activity=activity,
         comments_by_post=comments_by_post,
         has_external_id_returns=False,
@@ -251,7 +250,7 @@ async def test_orchestrator_publishes_and_persists_world_scan(monkeypatch):
     class _FakeResp:
         text = "real reply text, in english."
 
-    llm.chat = AsyncMock(return_value=_FakeResp())
+    judge.utility_call = AsyncMock(return_value=_FakeResp())
 
     import insult.core.moltbook_engagement as eng
 
@@ -263,7 +262,7 @@ async def test_orchestrator_publishes_and_persists_world_scan(monkeypatch):
         source=source,
         memory=memory,
         persona="persona",
-        llm=llm,
+        judge=judge,
         summary_model="haiku",
         facts_user_ids=[],
         channel_id="ch1",
@@ -292,7 +291,7 @@ async def test_orchestrator_skips_when_outbound_gate_blocks(monkeypatch):
     """Vulnerability / disclosure gate must short-circuit the entire
     heartbeat — same posture as outbound posting. We never reach the
     home fetch in this branch."""
-    source, memory, llm = _orchestrator_deps(
+    source, memory, judge = _orchestrator_deps(
         activity=[],
         comments_by_post={},
     )
@@ -304,7 +303,7 @@ async def test_orchestrator_skips_when_outbound_gate_blocks(monkeypatch):
         source=source,
         memory=memory,
         persona="persona",
-        llm=llm,
+        judge=judge,
         summary_model="haiku",
         facts_user_ids=["u1"],
         channel_id="ch1",
@@ -316,7 +315,7 @@ async def test_orchestrator_skips_when_outbound_gate_blocks(monkeypatch):
 async def test_orchestrator_no_activity_returns_empty(monkeypatch):
     """Empty `activity_on_your_posts` is the steady state — no error,
     no replies, no notifications-read calls."""
-    source, memory, llm = _orchestrator_deps(activity=[], comments_by_post={})
+    source, memory, judge = _orchestrator_deps(activity=[], comments_by_post={})
 
     import insult.core.moltbook_engagement as eng
 
@@ -326,7 +325,7 @@ async def test_orchestrator_no_activity_returns_empty(monkeypatch):
         source=source,
         memory=memory,
         persona="persona",
-        llm=llm,
+        judge=judge,
         summary_model="haiku",
         facts_user_ids=[],
         channel_id="ch1",

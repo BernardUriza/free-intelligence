@@ -12,6 +12,10 @@ storage/
 htmlcov/
 .pytest_cache/
 
+# Film corpus source PDFs — copyrighted books, ingested locally into the
+# shared deep_memory corpus, never committed (6 MB, not a repo artifact).
+data/film_corpus_sources/
+
 # Claude Code tooling state (local-only, never commit)
 .claude/plans/
 .claude/worktrees/

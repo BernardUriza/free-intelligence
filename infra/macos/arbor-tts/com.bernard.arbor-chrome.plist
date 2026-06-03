@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.bernard.arbor-chrome</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Applications/Google Chrome.app/Contents/MacOS/Google Chrome</string>
+    <string>--remote-debugging-port=9333</string>
+    <string>--user-data-dir=/Users/bernardurizaorozco/.chrome-debug-profile</string>
+    <string>--no-first-run</string>
+    <string>--no-default-browser-check</string>
+    <string>https://chatgpt.com/</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/bernardurizaorozco/Library/ArborTTS/chrome.log</string>
+  <key>StandardErrorPath</key><string>/Users/bernardurizaorozco/Library/ArborTTS/chrome.log</string>
+</dict>
+</plist>

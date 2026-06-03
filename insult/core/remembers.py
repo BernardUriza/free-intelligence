@@ -11,8 +11,8 @@ user surfaces in a conversation. This module:
   driven by the model in-band instead of a separate Haiku call)
 
 The marker is the in-band substitute for the legacy `core/facts.py`
-extraction pass. When the agent runner is the canonical LLM path and
-the legacy LLMClient is disabled, this is how new facts enter Postgres.
+extraction pass. The agent runner is the canonical LLM path; this marker
+is how new facts enter Postgres straight from the turn.
 """
 
 from __future__ import annotations

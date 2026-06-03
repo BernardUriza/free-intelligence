@@ -138,7 +138,7 @@ class TestReactionIntegration:
         return ChatCog(mock_container)
 
     async def test_response_with_reaction_sends_text_and_reacts(self, cog, mock_ctx):
-        cog.llm.chat = AsyncMock(return_value=LLMResponse(text="Eso estuvo bien.[REACT:💀]"))
+        cog.agent_client.chat = AsyncMock(return_value=LLMResponse(text="Eso estuvo bien.[REACT:💀]"))
         await cog.chat.callback(cog, mock_ctx, message="hola")
         # Text should be sent without [REACT:] marker
         sent_text = " ".join(str(c) for c in mock_ctx.message.channel.send.call_args_list)
@@ -146,13 +146,13 @@ class TestReactionIntegration:
         assert "REACT" not in sent_text
 
     async def test_reaction_only_response_no_text_sent(self, cog, mock_ctx):
-        cog.llm.chat = AsyncMock(return_value=LLMResponse(text="[REACT:👀]"))
+        cog.agent_client.chat = AsyncMock(return_value=LLMResponse(text="[REACT:👀]"))
         await cog.chat.callback(cog, mock_ctx, message="hola")
         # No text message should be sent (reaction-only)
         mock_ctx.message.channel.send.assert_not_called()
 
     async def test_no_reaction_marker_works_normally(self, cog, mock_ctx):
-        cog.llm.chat = AsyncMock(return_value=LLMResponse(text="Respuesta normal"))
+        cog.agent_client.chat = AsyncMock(return_value=LLMResponse(text="Respuesta normal"))
         await cog.chat.callback(cog, mock_ctx, message="hola")
         sent_text = " ".join(str(c) for c in mock_ctx.message.channel.send.call_args_list)
         assert "Respuesta normal" in sent_text
