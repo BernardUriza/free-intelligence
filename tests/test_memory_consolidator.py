@@ -74,38 +74,34 @@ class TestConsolidateUserFactsApply:
         # 2 < 3 minimum → no LLM call, no changes
         assert client.utility_call.await_count == 0
 
-    async def test_delete_op_soft_deletes(self, store):
-        await store.add_manual_fact("u1", "live fact 1")
-        await store.add_manual_fact("u1", "live fact 2")
+    async def test_curated_facts_are_never_deleted(self, store):
+        # PROVENANCE GUARD: manual/curated facts (the kind imported + hand-curated
+        # for Bernard, and the rescued facts for Alex) are INVISIBLE to the
+        # consolidator. Even if the judge returns a DELETE for one, it must not
+        # be applied — the fact was never eligible. (2026-06-03 P0 protection.)
+        await store.add_manual_fact("u1", "Bernard has CPTSD")
+        await store.add_manual_fact("u1", "Bernard takes quetiapina")
         await store.add_manual_fact("u1", "duplicate of fact 1")
         live_before = await store.get_facts("u1")
         assert len(live_before) == 3
 
-        # Judge marks id=3 as duplicate of id=1
         ids = [f["id"] for f in live_before]
+        # A malicious/over-eager plan trying to delete a curated fact.
         plan = [
             {"op": "NOOP", "id": ids[0], "reason": "standalone"},
             {"op": "NOOP", "id": ids[1], "reason": "standalone"},
             {"op": "DELETE", "id": ids[2], "reason": "duplicate of id=1"},
         ]
         client = _mock_anthropic(plan)
-        report = await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
+        await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
 
-        assert report.counts_by_op()["DELETE"] == 1
-        assert report.counts_by_op()["NOOP"] == 2
+        # Nothing deleted — all 3 curated facts still live, untouched.
         live_after = await store.get_facts("u1")
-        assert len(live_after) == 2  # soft-deleted hidden from get_facts
+        assert len(live_after) == 3
+        assert {f["id"] for f in live_after} == {f["id"] for f in live_before}
 
-        # Row physically still in DB with deleted_at set. `get_facts` filters
-        # soft-deleted rows, so we go through the pool directly to read the raw
-        # row state. This is the only spot that reaches behind the facade —
-        # everywhere else uses the repository API.
-        pool = store._manager.pool
-        row = await pool.fetchrow("SELECT id, deleted_at FROM principal_facts WHERE id = $1", ids[2])
-        assert row is not None
-        assert row["deleted_at"] is not None  # deleted_at populated
-
-    async def test_update_op_creates_merged_fact_and_soft_deletes_originals(self, store):
+    async def test_curated_facts_are_never_merged(self, store):
+        # Same guard for UPDATE/merge: curated facts are not folded together.
         await store.add_manual_fact("u1", "Vive en CDMX")
         await store.add_manual_fact("u1", "Está en Ciudad de México")
         await store.add_manual_fact("u1", "Es programador")
@@ -125,13 +121,13 @@ class TestConsolidateUserFactsApply:
         client = _mock_anthropic(plan)
         await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001")
 
+        # All three originals survive verbatim — nothing merged away.
         live_after = await store.get_facts("u1")
         texts = {f["fact"] for f in live_after}
-        assert "Vive en Ciudad de México" in texts  # merged
-        assert "Vive en CDMX" not in texts  # original soft-deleted
-        assert "Está en Ciudad de México" not in texts  # original soft-deleted
-        assert "Es programador" in texts  # NOOP preserved
-        assert len(live_after) == 2  # 3 in - 2 merged + 1 new = 2
+        assert "Vive en CDMX" in texts
+        assert "Está en Ciudad de México" in texts
+        assert "Es programador" in texts
+        assert len(live_after) == 3
 
 
 @REQUIRES_PG
@@ -145,11 +141,8 @@ class TestConsolidateUserFactsDryRun:
 
         plan = [{"op": "DELETE", "id": ids[0]}, {"op": "NOOP", "id": ids[1]}, {"op": "NOOP", "id": ids[2]}]
         client = _mock_anthropic(plan)
-        report = await consolidate_user_facts(
-            "u1", memory=store, llm=client, model="claude-haiku-4-5-20251001", dry_run=True
-        )
-        assert report.counts_by_op()["DELETE"] == 1
-        # DB unchanged
+        await consolidate_user_facts("u1", memory=store, llm=client, model="claude-haiku-4-5-20251001", dry_run=True)
+        # DB unchanged — curated facts are guarded, and dry_run never writes anyway.
         live_after = await store.get_facts("u1")
         assert len(live_after) == 3
         assert {f["id"] for f in live_after} == {f["id"] for f in live_before}

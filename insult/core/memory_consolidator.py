@@ -49,6 +49,26 @@ log = structlog.get_logger()
 # the table doesn't accumulate forever.
 SOFT_DELETE_RETENTION_SECONDS = 90 * 86400
 
+# SAFETY CAP (2026-06-03 P0, hardened to ZERO by operator order): the
+# consolidator may NOT destroy memory. After it buried Alex's entire
+# CPTSD/treatment history and nearly wiped 328 of Bernard's curated imports,
+# the policy is absolute: a consolidation pass that would delete or merge-away
+# ANY fact is REJECTED WHOLESALE — nothing is applied, and the run logs a loud
+# alert with the exact ops it refused (justify + retract). The consolidator is
+# now effectively non-destructive: it can only NOOP (or, in future, ADD). It
+# cannot forget anything. "Destroyed" = DELETE ops + net facts consumed by
+# UPDATE merges (merge_ids - 1 each). Raise this ONLY with a human-reviewed,
+# test-backed redesign — never let an LLM silently decide what to forget again.
+CONSOLIDATION_MAX_DESTROY_FRACTION = 0.0
+# Any destruction at all (>= 1 fact) trips the cap. Zero tolerance.
+CONSOLIDATION_MIN_DESTROY_TO_CAP = 1
+
+# Curated provenance — these sources are NEVER eligible for consolidation.
+# 'manual' (operator-written or rescued), 'agent' ([REMEMBER:]-tagged), and
+# 'chatgpt_import' (bulk-imported then hand-curated via the Tinder tool). The
+# consolidator only ever sees auto-extracted facts; curated memory is untouchable.
+CURATED_SOURCES = frozenset({"manual", "agent", "chatgpt_import"})
+
 # Output cap for the judge LLM. The plan must reference every input
 # fact id in exactly one op (NOOP/DELETE/UPDATE), and each op carries a
 # short reason string — so output tokens scale linearly with input fact
@@ -199,6 +219,21 @@ async def consolidate_user_facts(
     run_ts = time.time()
     facts = await memory.get_facts(user_id)
 
+    # PROVENANCE GUARD (2026-06-03): curated facts are NEVER eligible for
+    # consolidation. Sources 'manual' (operator-written or rescued), 'agent'
+    # ([REMEMBER:]-tagged), and 'chatgpt_import' (bulk-imported then hand-curated
+    # by the user via the Tinder tool) are deliberate and MUST survive untouched.
+    # The consolidator exists ONLY to collapse the redundant auto-extraction
+    # pile-up from Discord turns — it must not re-judge curated provenance.
+    # Without this guard the judge (a small model) over-grouped substantive facts
+    # and soft-deleted them: it nearly wiped 328 of Bernard's curated imports and
+    # had already buried Alex's entire CPTSD/treatment history under recency bias.
+    # See memory_consolidator P0, 2026-06-03.
+    curated = [f for f in facts if f.get("source") in CURATED_SOURCES]
+    facts = [f for f in facts if f.get("source") not in CURATED_SOURCES]
+    if curated:
+        log.info("consolidator_curated_protected", user_id=user_id, protected=len(curated), eligible=len(facts))
+
     report = ConsolidationReport(user_id=user_id, facts_in=len(facts), facts_out=len(facts))
 
     if not facts:
@@ -225,6 +260,31 @@ async def consolidate_user_facts(
     # dropped malformed ops, and backfilled implicit NOOPs — `plan` is
     # ready to apply as-is.
     valid_plan = plan
+
+    # SAFETY CAP: reject any plan that would destroy too much of the user's
+    # memory in one pass. This is the hard backstop against a judge model
+    # decimating substantive facts (the 2026-06-03 Alex P0). Counts DELETE ops
+    # plus net facts consumed by UPDATE merges. Over the cap → apply NOTHING.
+    destroyed = sum(1 for op in valid_plan if op["op"] == "DELETE") + sum(
+        max(0, len(op.get("merge_ids", [])) - 1) for op in valid_plan if op["op"] == "UPDATE"
+    )
+    if (
+        facts
+        and destroyed >= CONSOLIDATION_MIN_DESTROY_TO_CAP
+        and (destroyed / len(facts)) > CONSOLIDATION_MAX_DESTROY_FRACTION
+    ):
+        report.error = "rejected_excessive_destruction"
+        report.duration_ms = int((time.monotonic() - started) * 1000)
+        log.warning(
+            "consolidator_plan_rejected",
+            user_id=user_id,
+            reason="excessive_destruction",
+            facts_in=len(facts),
+            would_destroy=destroyed,
+            fraction=round(destroyed / len(facts), 2),
+            cap=CONSOLIDATION_MAX_DESTROY_FRACTION,
+        )
+        return report
 
     if dry_run:
         # Build the report without touching the DB.
