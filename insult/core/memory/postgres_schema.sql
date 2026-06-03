@@ -366,3 +366,40 @@ CREATE TABLE IF NOT EXISTS user_sync_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_user_sync_tokens_lookup
     ON user_sync_tokens(token_hash) WHERE revoked_at IS NULL;
+
+-- ─── agents + agent_facts (v4.20.14 — PR-1: bot self-knowledge) ────────
+-- The bots learn facts about THEMSELVES, not just about users. Insult and
+-- ALICE are rows in `agents`; their self-knowledge lives in `agent_facts`,
+-- a mirror of `principal_facts` with two differences the brief mandated:
+--   1. the owner is an AGENT (`agent_id` FK), not a user `principal_id`.
+--   2. `provenance` is a FIRST-CLASS column (not buried like `source`):
+--      who declared this fact about the bot — the bot itself, a user, the
+--      system prompt, or a consolidation pass. principal_facts.source can't
+--      express that distinction, so agent_facts gets its own enum.
+-- Scope (PR-1): storage + read/write/update MCP tools ONLY. NO auto-write
+-- of facts from the message pipeline, NO touching user_facts consolidation —
+-- those are PR-2. The `embedding` column mirrors principal_facts for forward
+-- compatibility but is NOT populated in PR-1.
+CREATE TABLE IF NOT EXISTS agents (
+    name        TEXT PRIMARY KEY,
+    created_at  DOUBLE PRECISION NOT NULL
+);
+-- Seed the two live agents. Idempotent: re-running connect() never duplicates.
+INSERT INTO agents (name, created_at)
+VALUES ('insult', extract(epoch from now())),
+       ('alice',  extract(epoch from now()))
+ON CONFLICT (name) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS agent_facts (
+    id          BIGSERIAL PRIMARY KEY,
+    agent_id    TEXT NOT NULL REFERENCES agents(name),
+    fact        TEXT NOT NULL,
+    category    TEXT NOT NULL DEFAULT 'general',
+    provenance  TEXT NOT NULL
+                CHECK (provenance IN ('self_declared', 'user_attributed', 'system_prompt', 'consolidation')),
+    updated_at  DOUBLE PRECISION NOT NULL,
+    deleted_at  DOUBLE PRECISION DEFAULT NULL,
+    embedding   vector
+);
+CREATE INDEX IF NOT EXISTS idx_af_agent ON agent_facts(agent_id);
+CREATE INDEX IF NOT EXISTS idx_af_deleted_at ON agent_facts(deleted_at) WHERE deleted_at IS NOT NULL;
