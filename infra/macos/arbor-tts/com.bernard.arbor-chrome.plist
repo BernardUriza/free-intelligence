@@ -10,6 +10,11 @@
     <string>--user-data-dir=/Users/bernardurizaorozco/.chrome-debug-profile</string>
     <string>--no-first-run</string>
     <string>--no-default-browser-check</string>
+    <string>--disable-backgrounding-occluded-windows</string>
+    <string>--disable-renderer-backgrounding</string>
+    <string>--disable-background-timer-throttling</string>
+    <string>--window-position=-32000,-32000</string>
+    <string>--window-size=800,600</string>
     <string>https://chatgpt.com/</string>
   </array>
   <key>RunAtLoad</key><true/>

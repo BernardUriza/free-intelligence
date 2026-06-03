@@ -6,3 +6,6 @@ output/
 *.aac
 *.ogg
 *.m4a
+
+# persisted ChatGPT conversation id (runtime state)
+.last_conversation

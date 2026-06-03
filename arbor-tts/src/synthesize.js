@@ -2,6 +2,9 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 
 const STEP_TIMEOUT = 60_000;
+// Hard ceiling for a whole speak() so a hung Playwright op can never wedge the
+// serialized queue (the recurring "voice goes silent until hard-restart" bug).
+const SPEAK_TIMEOUT = 150_000;
 
 /**
  * ArborTTS — a headless black box that turns text into ChatGPT "Arbor" (fathom)
@@ -29,13 +32,31 @@ export class ArborTTS {
     this._cdp = false;
     this._queue = Promise.resolve();
     // Reuse the same ChatGPT conversation across requests instead of starting a
-    // fresh chat every time: less history clutter, fewer conversation-creation
-    // calls (lower anti-bot footprint). Falls back to a new chat if the saved
-    // conversation is gone.
-    this.lastConversationUrl = null;
+    // fresh chat every time. PERSISTED to disk so it survives service restarts /
+    // reboots → never creates a new chat unless the saved one is gone.
+    this.convFile = opts.convFile || process.env.CONV_STATE_FILE || ".last_conversation";
+    this.lastConversationUrl = this._loadConv();
     // One reused page (tab) across requests. Opening a fresh tab per request
     // raised Chrome to the foreground and stole focus; reusing one tab avoids it.
     this.page = null;
+  }
+
+  _loadConv() {
+    try {
+      const u = fs.readFileSync(this.convFile, "utf8").trim();
+      return u || null;
+    } catch {
+      return null;
+    }
+  }
+
+  _setConv(url) {
+    this.lastConversationUrl = url || null;
+    try {
+      if (url) fs.writeFileSync(this.convFile, url);
+    } catch {
+      /* best-effort persistence */
+    }
   }
 
   /** Return the single reused page, creating it once if missing/closed. */
@@ -76,7 +97,25 @@ export class ArborTTS {
 
   /** Public entry point. Serialized via an internal promise queue. */
   speak(text, opts = {}) {
-    const run = () => this._speak(text, opts);
+    const run = async () => {
+      try {
+        return await Promise.race([
+          this._speak(text, opts),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error("speak timed out")),
+              SPEAK_TIMEOUT,
+            ),
+          ),
+        ]);
+      } catch (e) {
+        // A hung/failed request must NOT wedge the queue. Drop the cached page
+        // so the next request opens a fresh one; launch() reconnects if the
+        // browser itself died. The queue then moves on instead of hanging.
+        this.page = null;
+        throw e;
+      }
+    };
     // chain on both fulfil and reject so one failure doesn't wedge the queue
     this._queue = this._queue.then(run, run);
     return this._queue;
@@ -181,8 +220,9 @@ export class ArborTTS {
         );
       }
 
-      // Remember this conversation so the next request reuses it.
-      this.lastConversationUrl = page.url();
+      // Remember this conversation so the next request reuses it (persisted to
+      // disk so it also survives a service restart / reboot).
+      this._setConv(page.url());
 
       const audio = await page.evaluate(
         async ({ messageId, conversationId, voice, format }) => {
