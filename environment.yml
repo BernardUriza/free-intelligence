@@ -41,7 +41,14 @@ dependencies:
   # Floor raised to 0.9.1 (alice 0.1.20): ALICE's clinical reflection layer
   # imports fi_core.cognitive.PSYCHIATRY (the ClinicalDomain added in 0.9.1);
   # 0.9.0 lacks it and crashes ALICE at boot with ImportError.
-  - fi-core>=0.9.1
+  # PINNED exact to 0.9.1: the persona packs re-exported as fi_runner.packs
+  # (GENERIC_AI_DISCLOSURE_EN, used by detect_break) carry the `\bOpenAI\b`
+  # leak pattern in 0.9.1; a loose `>=0.9.1` let CI resolve to 0.24.4 whose
+  # pack changed and stopped matching test_detects_openai — a security-relevant
+  # behavior change never validated here. The whole branch was developed +
+  # tested against 0.9.1 (1422 passed). Bump deliberately, not by solver drift.
+  # See conda_version_constraint.
+  - fi-core=0.9.1
   # fi-runner — the backend-agnostic runner framework. insult's runner now
   # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
   # MUST be published to the bernardurizaorozco channel for the prod build.
