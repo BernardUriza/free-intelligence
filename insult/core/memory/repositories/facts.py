@@ -1,9 +1,13 @@
 """User facts — structured long-term memory about each user.
 
 Two provenance tiers coexist in the same table, distinguished by `source`:
-- `'auto'`: produced by the LLM fact-extraction background task. Wiped on
-  every re-extraction (the extractor sees the last N messages and outputs
-  a full refreshed list).
+- `'auto'`: produced by the LLM fact-extraction background task. As of the
+  2026-06-03 P0 fix the extractor's output is UNIONED onto the full live auto
+  set (`tasks._merge_facts_additive` + `get_auto_facts`), so re-extraction can
+  only ADD. Before the fix it saved only the prompt's semantic top-N subset
+  into a snapshot-replace, hard-deleting every auto fact outside the top-N on
+  every turn. `save_facts` still does the scoped snapshot replace, but it now
+  always receives a superset of what was stored.
 - `'manual'`: curated by a human operator or cross-user injection. NEVER
   wiped. This distinction exists because before the `source` column was
   introduced, every re-extraction nuked manual injections — the bot would
@@ -124,6 +128,29 @@ class FactsRepository(BaseRepository):
         """All live facts for a user, newest-updated first."""
         facts = await self._get_store().get_facts(user_id)
         return [_fact_to_dict(f) for f in facts]
+
+    async def get_auto_facts(self, user_id: str) -> list[dict]:
+        """Every LIVE auto-extracted fact for a user — the COMPLETE set, not
+        the semantic top-N injected into the prompt.
+
+        The extraction backstop needs this because `save_facts` REPLACES the
+        whole auto snapshot (`DELETE … WHERE source='auto'`). Feeding the
+        extractor only the injected top-N subset and then saving its output
+        hard-deletes every auto fact OUTSIDE that subset — every turn, no
+        recovery. That mismatch (subset in, full-snapshot replace out) is the
+        reason a user's auto-facts could never grow past ~10. The merge in
+        `tasks.extract_user_facts` unions onto this full set so extraction is
+        ADD-only. (P0, 2026-06-03.)"""
+        rows = await self._fetch(
+            "SELECT id, fact, category, updated_at "
+            "FROM principal_facts "
+            "WHERE principal_id = $1 AND source = 'auto' AND deleted_at IS NULL "
+            "ORDER BY updated_at DESC",
+            user_id,
+        )
+        return [
+            {"id": r["id"], "fact": r["fact"], "category": r["category"], "updated_at": r["updated_at"]} for r in rows
+        ]
 
     async def save_facts(self, user_id: str, facts: list[dict]) -> None:
         """Replace AUTO-extracted facts for a user with a new snapshot.
