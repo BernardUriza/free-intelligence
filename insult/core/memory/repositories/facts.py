@@ -152,6 +152,32 @@ class FactsRepository(BaseRepository):
             {"id": r["id"], "fact": r["fact"], "category": r["category"], "updated_at": r["updated_at"]} for r in rows
         ]
 
+    async def get_facts_for_injection(self, user_id: str, auto_limit: int = 10) -> list[dict]:
+        """Facts to inject when ANOTHER user asks about this person — curated
+        first, then the most recent auto facts.
+
+        The "Other People in This Channel" block used `get_facts()[:N]` (pure
+        recency), so a burst of recent auto-extractions (e.g. a pet-sitting
+        mishap) would push the CURATED, load-bearing facts (a person's plans,
+        origins, diagnoses — all `manual`/`agent`) out of the top-N. The bot then
+        knew Alex's dog drama but not her trainer-cert plan or that her family is
+        from Tantoyuca. Fix (2026-06-03): ALWAYS include every curated fact, then
+        top up with the freshest `auto` facts. Curated memory is finite and is
+        exactly what someone asking ABOUT a third party needs."""
+        rows = await self._fetch(
+            "SELECT id, fact, category, updated_at, source "
+            "FROM principal_facts "
+            "WHERE principal_id = $1 AND deleted_at IS NULL "
+            "ORDER BY CASE WHEN source IN ('manual', 'agent') THEN 0 ELSE 1 END, updated_at DESC",
+            user_id,
+        )
+        curated = [r for r in rows if r["source"] in ("manual", "agent")]
+        auto = [r for r in rows if r["source"] == "auto"]
+        chosen = [*curated, *auto[:auto_limit]]
+        return [
+            {"id": r["id"], "fact": r["fact"], "category": r["category"], "updated_at": r["updated_at"]} for r in chosen
+        ]
+
     async def save_facts(self, user_id: str, facts: list[dict]) -> None:
         """Replace AUTO-extracted facts for a user with a new snapshot.
 

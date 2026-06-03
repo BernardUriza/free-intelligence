@@ -149,6 +149,12 @@ class MemoryStore:
         replace can't hard-delete auto facts outside the prompt subset."""
         return await self._facts.get_auto_facts(user_id)
 
+    async def get_facts_for_injection(self, user_id: str, auto_limit: int = 10) -> list[dict]:
+        """Curated-first facts for the 'Other People' block, so a person's
+        load-bearing curated facts (plans, origins, diagnoses) never get pushed
+        out of the prompt by a burst of recent auto-extractions."""
+        return await self._facts.get_facts_for_injection(user_id, auto_limit=auto_limit)
+
     async def get_all_facts(self) -> list[dict]:
         return await self._facts.get_all_facts()
 

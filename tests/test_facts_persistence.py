@@ -126,6 +126,36 @@ async def test_save_facts_preserves_agent_rows(pg_memory_store):
 
 
 @pytest.mark.asyncio
+async def test_get_facts_for_injection_keeps_curated_over_recent_auto(pg_memory_store):
+    """The 'Other People' block must surface a person's CURATED facts even when
+    buried under a burst of recent auto-extractions.
+
+    The 2026-06-03 regression: `get_facts()[:N]` (pure recency) let a flood of
+    recent auto facts (Alex's pet-sitting mishap) push her load-bearing curated
+    facts (trainer-cert plan, family origin) out of the prompt. `get_facts_for_injection`
+    always includes curated facts + only the freshest N auto.
+    """
+    await pg_memory_store.add_manual_fact("u1", "Plans a trainer certification", "plans")
+    await pg_memory_store.add_manual_fact("u1", "Family is from Tantoyuca, Veracruz", "identity")
+    # Flood with 15 newer auto facts — under pure recency these would evict the curated ones.
+    await pg_memory_store.save_facts("u1", [{"fact": f"auto recent {i}", "category": "personal"} for i in range(15)])
+
+    inj = await pg_memory_store.get_facts_for_injection("u1", auto_limit=5)
+    texts = {f["fact"] for f in inj}
+    # Both curated facts survive despite 15 newer auto facts.
+    assert "Plans a trainer certification" in texts
+    assert "Family is from Tantoyuca, Veracruz" in texts
+    # Only the freshest 5 auto facts are included, not all 15.
+    assert len([t for t in texts if t.startswith("auto recent")]) == 5
+
+
+@pytest.mark.asyncio
+async def test_get_facts_for_injection_empty_user(pg_memory_store):
+    """RESISTANCE: a user with no facts yields an empty list, not an error."""
+    assert await pg_memory_store.get_facts_for_injection("nobody") == []
+
+
+@pytest.mark.asyncio
 async def test_search_facts_semantic_ranks_relevant_first(pg_memory_store):
     """Inline-embedding cosine search surfaces the relevant fact first.
 

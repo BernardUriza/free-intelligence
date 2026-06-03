@@ -352,13 +352,16 @@ def _format_other_people_block(facts: dict[str, list[dict]]) -> str:
         "When the current message asks about ANOTHER participant by name (their career, "
         "habits, history, what they can do), THIS block is your source — not the main "
         "user_facts block. Cite the specific facts you have. Never say 'no sé' if the fact is here.",
+        "STRICT ATTRIBUTION: each bullet lists facts about THAT person only. Do NOT carry "
+        "the asker's own traits (diet, identity, beliefs, diagnoses, terapeuta) over to them. "
+        "If a trait is in the asker's user_facts but NOT in this person's bullet, you do NOT "
+        "know it about this person — don't infer it.",
     ]
     for name, person_facts in facts.items():
-        # 20 facts per person (vs the previous 3) so freshly-extracted CV
-        # data, recent disclosures, and historical context all survive
-        # truncation. See load_other_participants_facts docstring for the
-        # 2026-05-12 regression that drove this change.
-        fact_lines = "; ".join(f["fact"] for f in person_facts[:20])
+        # No extra cap here: `get_facts_for_injection` already bounds the list
+        # (all curated facts + freshest auto). Capping again at 20 would re-drop
+        # curated facts — the 2026-06-03 regression this whole path exists to fix.
+        fact_lines = "; ".join(f["fact"] for f in person_facts)
         parts.append(f"- {name}: {fact_lines}")
     return "\n".join(parts)
 
