@@ -54,7 +54,11 @@ dependencies:
   # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
   # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
   # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
-  - fi-runner>=0.3.0
+  # PINNED exact: the antidrift pack that detect_break relies on (e.g. the
+  # `\bOpenAI\b` pattern in tests/test_character.py::test_detects_openai) ships
+  # in 0.11.0; a loose `>=0.3.0` lets the solver pick an older build whose pack
+  # lacks it, failing CI while passing locally. See conda_version_constraint.
+  - fi-runner=0.11.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
