@@ -149,6 +149,7 @@ class AgentRunnerClient:
         fallback_model: str | None = None,
         behavioral_guidance: str | None = None,
         relevant_memory: str | None = None,
+        other_people: str | None = None,
     ) -> LLMResponse:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
@@ -165,8 +166,21 @@ class AgentRunnerClient:
         # retrieved context, not as the user's own words. The STORED message is
         # unaffected — storage runs upstream, before this call.
         effective_user_text = user_text or "[adjuntó solo imagen]"
+        # The runner DISCARDS `system_prompt` and rebuilds persona + the AUTHOR's
+        # facts from its own filesystem (via the user_id it gets). But facts about
+        # OTHER channel participants only live in the plumbing-built system_prompt,
+        # so without this the runner is blind to them: it could recall Alex when
+        # Alex spoke (her user_id) yet answer "no me lo has contado" when Bernard
+        # asked ABOUT Alex. Inject the pre-built "Other People" block into the
+        # user_text the runner DOES read — same mechanism as relevant_memory, no
+        # runner change needed. (2026-06-03 second-layer fix.)
+        prefix_blocks: list[str] = []
         if relevant_memory:
-            effective_user_text = f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>\n\n{effective_user_text}"
+            prefix_blocks.append(f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>")
+        if other_people:
+            prefix_blocks.append(f"<other_people_in_channel>\n{other_people}\n</other_people_in_channel>")
+        if prefix_blocks:
+            effective_user_text = "\n\n".join([*prefix_blocks, effective_user_text])
 
         payload: dict[str, Any] = {
             "channel_id": channel_id or "0",

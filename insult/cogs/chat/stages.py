@@ -65,6 +65,7 @@ from insult.core.character import (
 from insult.core.character import (
     run_pipeline as run_character_pipeline,
 )
+from insult.core.character.prompts import _format_other_people_block
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.disclosure import scan_disclosure
 from insult.core.errors import ErrorType, classify_error, get_error_response
@@ -635,6 +636,16 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             combined_memory = "\n\n".join(b for b in (relevant_memory, film_refs) if b)
             if combined_memory:
                 llm_kwargs["relevant_memory"] = combined_memory
+            # Second-layer fix (2026-06-03): the runner discards system_prompt and
+            # rebuilds only the AUTHOR's facts from its filesystem, so facts about
+            # OTHER participants (the "Other People" block) never reach it — the bot
+            # knew Alex when she spoke but not when Bernard asked ABOUT her. Forward
+            # the already-built block so the runner can answer about third parties.
+            if ctx.other_participants_facts:
+                op_block = _format_other_people_block(ctx.other_participants_facts)
+                if op_block:
+                    llm_kwargs["other_people"] = op_block
+                    log.info("agent_other_people_forwarded", participants=len(ctx.other_participants_facts))
         ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):

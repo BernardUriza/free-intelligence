@@ -114,6 +114,20 @@ def _namespace_for(cat: str) -> str | None:
     return None  # unknown category → skip (don't guess where intimate data goes)
 
 
+def _conv_date(conv: dict) -> str:
+    """`YYYY-MM-DD` of the conversation's create_time, or 'fecha-desconocida'.
+
+    The temporal axis is the whole point of ingesting the bodies: it lets the
+    bot situate a memory in Bernard's timeline ("en 2024 batallabas con X, para
+    2026 ya lo das por sentado") — his ChatGPT history spans 2024-03 → 2026-05.
+    The date rides BOTH the chunk header (so the embedding is era-aware) and the
+    source_ref (so chunks can be ordered / cited by date)."""
+    ct = conv.get("create_time")
+    if isinstance(ct, int | float) and ct > 0:
+        return time.strftime("%Y-%m-%d", time.gmtime(ct))
+    return "fecha-desconocida"
+
+
 def extract_conv_text(conv: dict) -> str:
     """Flatten a ChatGPT conversation's `mapping` tree into a readable transcript.
 
@@ -149,7 +163,8 @@ def extract_conv_text(conv: dict) -> str:
         return ""
 
     title = (conv.get("title") or "").strip()
-    header = f"[Conversación: {title}]\n\n" if title else ""
+    date = _conv_date(conv)
+    header = f"[Conversación del {date}: {title}]\n\n" if title else f"[Conversación del {date}]\n\n"
     return header + "\n\n".join(r[2] for r in rows)
 
 
@@ -167,21 +182,61 @@ def iter_conversations():
 # DB + embedding plumbing (mirrors ingest_film_corpus.py — same robustness)
 # ---------------------------------------------------------------------------
 
-_EMBED_CONCURRENCY = 6  # Azure embeddings quota is 10/350 — 6 in flight is safe
-_EMBED_RETRIES = 3
+_EMBED_BATCH = 16  # chunks per Azure request — ~16x400tok ~= 6.4K, safely < ada-002's 8191/req
+_REQUEST_CONCURRENCY = 8  # parallel requests (250K TPM headroom; 8x6.4K ~= 51K in flight)
+_EMBED_RETRIES = 4
+_MAX_CHARS_PER_CHUNK = 8000  # ~2K tokens — hard cap so a pathological chunk can't 400 the batch
 _PG_CONNECT_ATTEMPTS = 6
 
 
-async def _embed_with_retry(chunk: str, sem: asyncio.Semaphore) -> list[float] | None:
-    from insult.core.deep_memory import embed_text
+async def _embed_request(texts: list[str], sem: asyncio.Semaphore) -> list[list[float] | None]:
+    """One raw Azure embeddings request under the concurrency gate.
 
+    Returns vectors aligned by `resp.data[i].index`; None only on dim mismatch.
+    Raises the SDK error (RateLimitError / BadRequestError / …) so the caller
+    can branch."""
+    from insult.core.deep_memory import EMBEDDING_DIM, _get_default_embedder
+
+    emb = _get_default_embedder()
+    client = emb._get_client()
     async with sem:
-        for attempt in range(_EMBED_RETRIES):
-            vec = await embed_text(chunk)
-            if vec is not None:
-                return vec
-            await asyncio.sleep(1.5 * (attempt + 1))
-    return None
+        resp = await client.embeddings.create(model=emb.deployment, input=texts)
+    out: list[list[float] | None] = [None] * len(texts)
+    for item in resp.data:
+        v = item.embedding
+        out[item.index] = v if len(v) == EMBEDDING_DIM else None
+    return out
+
+
+async def _embed_batch_azure(texts: list[str], sem: asyncio.Semaphore) -> list[list[float] | None]:
+    """Embed a batch, tolerant of rate limits (retry) and oversize requests
+    (recursive split). Batching ONE request over ~16 chunks is what makes the
+    bumped 250K-TPM headroom usable (the single-text path topped out at ~48/min).
+
+    - RateLimitError / transient → retry with backoff.
+    - BadRequestError on a multi-item batch → split in half and recurse (isolates
+      whichever chunk blew the per-request token cap; the previous 96-wide batch
+      tripped this every time).
+    - BadRequestError on a single item → give up on that one (None), never fatal.
+    Chunks are hard-truncated to `_MAX_CHARS_PER_CHUNK` up front as a guard."""
+    safe = [t[:_MAX_CHARS_PER_CHUNK] for t in texts]
+    for attempt in range(_EMBED_RETRIES):
+        try:
+            return await _embed_request(safe, sem)
+        except Exception as e:
+            name = type(e).__name__
+            if "RateLimit" in name or "Timeout" in name or "Connection" in name:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            if "BadRequest" in name and len(safe) > 1:
+                mid = len(safe) // 2
+                left = await _embed_batch_azure(texts[:mid], sem)
+                right = await _embed_batch_azure(texts[mid:], sem)
+                return left + right
+            print(f"    embed skip ({name}) on {len(safe)} chunk(s)", flush=True)
+            return [None] * len(texts)
+    print(f"    embed gave up after {_EMBED_RETRIES} retries on {len(safe)} chunk(s)", flush=True)
+    return [None] * len(texts)
 
 
 async def _connect_retry(pg_url: str) -> asyncpg.Connection:
@@ -241,29 +296,33 @@ async def _insert_batch(pg_url: str, rows: list[tuple]) -> int:
 async def _ingest_namespace(pg_url: str, namespace: str, items: list[tuple[str, str]]) -> int:
     """Embed + insert all (source_ref, chunk_text) pairs for one namespace.
 
-    Resumable: pre-loads what's already stored and skips it. Parallel embed
-    under a concurrency gate; batched, reconnect-tolerant inserts."""
+    Resumable: pre-loads what's already stored and skips it. Embeds in batched
+    Azure requests (~96 chunks each) run a few in parallel, then flushes a DB
+    insert per wave. Reconnect-tolerant throughout."""
     existing = await _load_existing_namespace(pg_url, namespace)
     pending = [(sr, ct) for (sr, ct) in items if (sr, ct) not in existing]
-    print(f"  namespace {namespace}: {len(existing)} stored, {len(pending)} new to embed")
+    print(f"  namespace {namespace}: {len(existing)} stored, {len(pending)} new to embed", flush=True)
     if not pending:
         return 0
 
-    sem = asyncio.Semaphore(_EMBED_CONCURRENCY)
+    sem = asyncio.Semaphore(_REQUEST_CONCURRENCY)
+    groups = [pending[i : i + _EMBED_BATCH] for i in range(0, len(pending), _EMBED_BATCH)]
+    wave = _REQUEST_CONCURRENCY * 3  # embed groups per DB insert flush
     inserted = 0
-    batch = 120
-    for start in range(0, len(pending), batch):
-        slice_ = pending[start : start + batch]
-        vecs = await asyncio.gather(*(_embed_with_retry(ct, sem) for (_sr, ct) in slice_))
-        rows = [(namespace, "manual", sr, ct, v) for (sr, ct), v in zip(slice_, vecs, strict=False) if v is not None]
-        got = await _insert_batch(pg_url, rows) if rows else 0
-        inserted += got
-        failed = len(slice_) - len(rows)
-        print(
-            f"    {min(start + batch, len(pending))}/{len(pending)} embedded "
-            f"(+{got} inserted{f', {failed} embed-failed' if failed else ''})",
-            flush=True,
-        )
+    done = 0
+
+    async def _do_group(group: list[tuple[str, str]]) -> list[tuple]:
+        vecs = await _embed_batch_azure([ct for (_sr, ct) in group], sem)
+        return [(namespace, "manual", sr, ct, v) for (sr, ct), v in zip(group, vecs, strict=False) if v is not None]
+
+    for w in range(0, len(groups), wave):
+        batch_groups = groups[w : w + wave]
+        results = await asyncio.gather(*(_do_group(g) for g in batch_groups))
+        rows = [r for grp in results for r in grp]
+        if rows:
+            inserted += await _insert_batch(pg_url, rows)
+        done += sum(len(g) for g in batch_groups)
+        print(f"    {done}/{len(pending)} embedded (+{inserted} inserted total)", flush=True)
     return inserted
 
 
@@ -317,7 +376,9 @@ async def main() -> int:
             stats["convs_empty"] += 1
             continue
         chunks = chunk_text_for_embedding(text, chunk_size=args.chunk_size, overlap=args.overlap)
-        source_ref = f"chatgpt:{cid}"
+        # Date in the source_ref so chunks can be ordered/cited by when they
+        # happened — the temporal axis that lets the bot read Bernard's arc.
+        source_ref = f"chatgpt:{_conv_date(conv)}:{cid}"
         for ch in chunks:
             ch = ch.strip()
             if ch:

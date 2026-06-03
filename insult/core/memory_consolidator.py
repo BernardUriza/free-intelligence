@@ -64,10 +64,18 @@ CONSOLIDATION_MAX_DESTROY_FRACTION = 0.0
 CONSOLIDATION_MIN_DESTROY_TO_CAP = 1
 
 # Curated provenance — these sources are NEVER eligible for consolidation.
-# 'manual' (operator-written or rescued), 'agent' ([REMEMBER:]-tagged), and
-# 'chatgpt_import' (bulk-imported then hand-curated via the Tinder tool). The
-# consolidator only ever sees auto-extracted facts; curated memory is untouchable.
-CURATED_SOURCES = frozenset({"manual", "agent", "chatgpt_import"})
+# 'manual' (operator-written, rescued, OR bulk-imported-then-curated from the
+# ChatGPT export) and 'agent' ([REMEMBER:]-tagged). The consolidator only ever
+# sees auto-extracted facts; curated memory is untouchable.
+#
+# HARD CONSTRAINT (2026-06-03 P0): every value stored in principal_facts.source
+# MUST be a member of fi_core's `FactSource` enum (auto / manual / agent). The
+# store does `FactSource(row["source"])` on read, so any out-of-enum value
+# (we once bulk-imported 328 rows as 'chatgpt_import') makes get_facts() raise
+# `ValueError` for that whole principal — the bot then loads ZERO facts and acts
+# amnesiac. Those rows were relabeled to 'manual'. Do NOT introduce a new source
+# string without first adding it to fi_core's FactSource enum.
+CURATED_SOURCES = frozenset({"manual", "agent"})
 
 # Output cap for the judge LLM. The plan must reference every input
 # fact id in exactly one op (NOOP/DELETE/UPDATE), and each op carries a
@@ -220,9 +228,9 @@ async def consolidate_user_facts(
     facts = await memory.get_facts(user_id)
 
     # PROVENANCE GUARD (2026-06-03): curated facts are NEVER eligible for
-    # consolidation. Sources 'manual' (operator-written or rescued), 'agent'
-    # ([REMEMBER:]-tagged), and 'chatgpt_import' (bulk-imported then hand-curated
-    # by the user via the Tinder tool) are deliberate and MUST survive untouched.
+    # consolidation. Sources 'manual' (operator-written, rescued, OR the
+    # bulk-imported-then-curated ChatGPT export) and 'agent' ([REMEMBER:]-tagged)
+    # are deliberate and MUST survive untouched.
     # The consolidator exists ONLY to collapse the redundant auto-extraction
     # pile-up from Discord turns — it must not re-judge curated provenance.
     # Without this guard the judge (a small model) over-grouped substantive facts
