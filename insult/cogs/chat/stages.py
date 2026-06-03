@@ -84,7 +84,12 @@ from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
-from shared.corpus import animal_liberation_guidance, animal_tactics_guidance
+from shared.corpus import (
+    animal_liberation_guidance,
+    animal_tactics_guidance,
+    detect_film_topic,
+    film_criticism_guidance,
+)
 
 log = structlog.get_logger()
 
@@ -495,6 +500,25 @@ async def _build_relevant_memory(ctx: TurnCtx) -> str | None:
     return header + "\n" + "\n".join(lines)
 
 
+async def _build_film_references(ctx: TurnCtx) -> str | None:
+    """Pre-fetch the top relevant film-theory chunks when the turn is about film.
+
+    Topic-gated by `detect_film_topic` so we don't pay an embed call on
+    off-topic turns. Returns the formatted references block (header + chunks)
+    or None when off-topic, trivial, retrieval fails, or nothing clears the
+    similarity floor. Best-effort: a failure here NEVER breaks the turn — it
+    just means no film theory this turn (the Vultur frame still applies)."""
+    if not detect_film_topic(ctx.text):
+        return None
+    try:
+        from insult.core.deep_memory import build_film_references_block
+
+        return await build_film_references_block(ctx.text)
+    except Exception as e:  # retrieval is best-effort; never break the turn
+        log.warning("film_references_prefetch_failed", error=str(e))
+        return None
+
+
 def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     """Rebuild the per-turn behavioral layer for the agent runner.
 
@@ -531,6 +555,13 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
         tactics = animal_tactics_guidance(ctx.text)
         if tactics:
             parts.append(tactics)
+    # Film-criticism (Vultur) method frame — same shared/corpus mechanism,
+    # topic-gated, expressed in Insult's own acid voice. Theory RAG (the 2 PDF
+    # books) is retrieved separately and injected as `relevant_memory` so the
+    # async embed call doesn't block this sync prompt builder.
+    film = film_criticism_guidance(ctx.text)
+    if film:
+        parts.append(film)
     return "\n\n".join(p for p in parts if p)
 
 
@@ -595,8 +626,15 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             # most relevant raw-history chunks so the agent always sees them
             # instead of relying on the opt-in deep_memory tool.
             relevant_memory = await _build_relevant_memory(ctx)
-            if relevant_memory:
-                llm_kwargs["relevant_memory"] = relevant_memory
+            # v4.20.0: when the turn is about film, also retrieve the most
+            # relevant film-theory chunks (Braudy & Cohen / Language of Film
+            # Criticism) from the shared corpus and inject them as analytical
+            # ammo under the Vultur frame. Distinct header from the per-user
+            # block; both are clearly labeled. Best-effort: never breaks the turn.
+            film_refs = await _build_film_references(ctx)
+            combined_memory = "\n\n".join(b for b in (relevant_memory, film_refs) if b)
+            if combined_memory:
+                llm_kwargs["relevant_memory"] = combined_memory
         ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):

@@ -40,7 +40,12 @@ from alice.core.clinical_reflection import ClinicalReflector
 from alice.core.llm import AliceLLMClient
 from alice.core.memory import AliceMemory
 from alice.core.persona_loader import PersonaLoader
-from shared.corpus import animal_liberation_guidance, animal_tactics_guidance
+from shared.corpus import (
+    animal_liberation_guidance,
+    animal_tactics_guidance,
+    detect_film_topic,
+    film_criticism_guidance,
+)
 from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
@@ -394,6 +399,25 @@ class AliceChatCog(commands.Cog):
             if tactics:
                 system_prompt = f"{system_prompt}\n\n{tactics}"
                 log.info("alice_animal_tactics_injected", tactics_chars=len(tactics))
+
+        # Film-criticism (Vultur) method frame — topic-gated, same shared/corpus
+        # mechanism. ALICE runs it cold/forensic. The theory RAG (the 2 PDF
+        # books) is queried via Azure ada-002 (remote HTTP embed — NOT MiniLM
+        # local, so no OOM risk at 1Gi) and injected underneath the frame.
+        film = film_criticism_guidance(topic_text)
+        if film:
+            system_prompt = f"{system_prompt}\n\n{film}"
+            log.info("alice_film_corpus_injected", corpus_chars=len(film))
+            if detect_film_topic(topic_text):
+                try:
+                    from insult.core.deep_memory import build_film_references_block
+
+                    refs = await build_film_references_block(topic_text)
+                    if refs:
+                        system_prompt = f"{system_prompt}\n\n{refs}"
+                        log.info("alice_film_refs_injected", refs_chars=len(refs))
+                except Exception as e:  # best-effort; never break the turn
+                    log.warning("alice_film_refs_failed", error=str(e))
 
         try:
             response = await self.llm.chat(system_prompt, recent)

@@ -63,6 +63,49 @@ def detect_animal_topic(text: str | None) -> bool:
     return _ANIMAL_TOPIC_PATTERN.search(text) is not None
 
 
+# Film-criticism topic detector. Same precision-over-recall bias as the animal
+# detector: a false positive forces the forensic frame onto an off-topic turn
+# (jarring), a false negative just leaves it silent. Each alternative is
+# specific enough to the *film-as-work / analysis* axis that a casual "vi una
+# peli" or a bare "actor" won't trip it — we require vocabulary that signals
+# the conversation is ABOUT a film or its craft, not a passing mention.
+_FILM_TOPIC_PATTERN = re.compile(
+    r"\b("
+    # the work itself (require enough specificity)
+    r"pel[ií]cula[s]?|filme[s]?|largometraje[s]?|cortometraje[s]?|"
+    r"cinta\s+(cinematogr[aá]fica|de\s+cine)|filme?\b|movie[s]?|film[s]?|"
+    # craft / analysis vocabulary — unambiguous about cinema
+    r"cinematogr[aá]fic[oa]s?|cinematography|"
+    r"director[ae]?\s+de\s+cine|direcci[oó]n\s+(de\s+)?(cine|fotograf[ií]a)|"
+    r"mise[\s-]?en[\s-]?sc[eè]ne|puesta\s+en\s+escena|"
+    r"plano[\s-]?(secuencia|detalle|general|americano|contrapicado|picado|"
+    r"cenital|holand[eé]s|largo|corto|medio|fijo|abierto|cerrado|maestro)|"
+    r"long\s+take|"
+    r"montaje|monta(je|r)\s+cinematogr|editing|"
+    r"ritmo\s+dieg[eé]tico|dieg[eé]tic[oa]|"
+    r"gui[oó]n(ista)?|screenplay|"
+    r"fotograf[ií]a\s+de\s+(la\s+pel[ií]cula|cine)|"
+    r"secuela|precuela|tr[aá]iler|trailer|"
+    r"rese[ñn]a\s+de\s+(la\s+)?(pel[ií]cula|cine|filme)|"
+    r"filmograf[ií]a|cineasta[s]?|el\s+cine\s+de|"
+    r"escena\s+(final|de\s+apertura|clave|de\s+la\s+pel[ií]cula)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def detect_film_topic(text: str | None) -> bool:
+    """True when the message is on the film / film-criticism axis.
+
+    Tuned for precision: fires on cinema-craft vocabulary and explicit
+    references to a film as a work, not on neutral mentions ("vi una peli"
+    alone, a bare "actor"). Empty / None → False.
+    """
+    if not text:
+        return False
+    return _FILM_TOPIC_PATTERN.search(text) is not None
+
+
 class _CorpusLoader:
     """mtime-aware loader for a single corpus markdown file.
 
@@ -113,6 +156,32 @@ def animal_liberation_guidance(text: str | None) -> str:
     if not detect_animal_topic(text):
         return ""
     return load_animal_liberation_values()
+
+
+_film_criticism_loader = _CorpusLoader("film_criticism.md")
+
+
+def load_film_criticism_values() -> str:
+    """Return the curated film-criticism (Vultur) method frame (mtime-cached).
+
+    Strips the leading HTML authoring comment so only the frame itself
+    reaches the model.
+    """
+    raw = _film_criticism_loader.load()
+    return re.sub(r"^<!--.*?-->\s*", "", raw, count=1, flags=re.DOTALL)
+
+
+def film_criticism_guidance(text: str | None) -> str:
+    """Convenience: return the Vultur method frame iff the topic is detected.
+
+    Both bots call this with the current user message. Empty string means
+    "topic absent, inject nothing" — caller appends unconditionally. The
+    theoretical RAG layer (Braudy & Cohen / Language of Film Criticism) is a
+    separate retrieval the caller adds underneath this frame when present.
+    """
+    if not detect_film_topic(text):
+        return ""
+    return load_film_criticism_values()
 
 
 def animal_tactics_guidance(text: str | None, *, embed=None, top_k: int = 2) -> str:
