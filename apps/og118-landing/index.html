@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>og118.ai</title>
+  <meta name="description" content="og118.ai — soon. something radioactive here." />
+  <style>
+    :root {
+      /* fi-glass tokens */
+      --glass-blur: 12px;
+      --glass-opacity: 0.8;
+      --glass-saturation: 180%;
+      --glass-border: rgba(255, 255, 255, 0.18);
+
+      /* radioactive accent */
+      --accent: #34d399;
+      --accent-dim: rgba(52, 211, 153, 0.55);
+      --accent-glow: rgba(52, 211, 153, 0.35);
+
+      --bg-deep: #0a0e16;
+      --bg-mid: #0f172a;
+      --text: #e2e8f0;
+      --text-muted: rgba(226, 232, 240, 0.65);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2rem, 6vh, 3.5rem);
+      padding: 2rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(
+          120% 120% at 50% 18%,
+          rgba(52, 211, 153, 0.06) 0%,
+          rgba(15, 23, 42, 0) 55%
+        ),
+        radial-gradient(
+          140% 140% at 50% 50%,
+          var(--bg-mid) 0%,
+          var(--bg-deep) 70%
+        );
+      background-color: var(--bg-deep);
+      overflow: hidden;
+    }
+
+    /* ---- periodic table cell : the visual hero ---- */
+    .cell {
+      position: relative;
+      width: clamp(180px, 46vw, 260px);
+      aspect-ratio: 1 / 1;
+      border-radius: 20px;
+      padding: clamp(14px, 3vw, 22px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+
+      /* glassmorphism (fi-glass tokens) */
+      background: rgba(255, 255, 255, calc(var(--glass-opacity) * 0.08));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      border: 1px solid var(--glass-border);
+      box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.45),
+        0 0 60px var(--accent-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      animation: pulse 5s ease-in-out infinite;
+    }
+
+    .cell__number {
+      position: absolute;
+      top: clamp(10px, 2.4vw, 16px);
+      left: clamp(14px, 3vw, 20px);
+      font-size: clamp(1rem, 3vw, 1.4rem);
+      font-weight: 600;
+      color: var(--accent-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .cell__symbol {
+      font-size: clamp(4.5rem, 18vw, 7.5rem);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      color: var(--accent);
+      text-shadow:
+        0 0 18px var(--accent-glow),
+        0 0 4px rgba(52, 211, 153, 0.6);
+    }
+
+    .cell__name {
+      margin-top: clamp(8px, 1.8vw, 12px);
+      font-size: clamp(0.75rem, 2.4vw, 0.95rem);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .cell__mass {
+      margin-top: 2px;
+      font-size: clamp(0.6rem, 1.8vw, 0.7rem);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: rgba(226, 232, 240, 0.45);
+    }
+
+    /* ---- the line ---- */
+    .tagline {
+      font-size: clamp(1rem, 4.5vw, 1.6rem);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow:
+          0 8px 40px rgba(0, 0, 0, 0.45),
+          0 0 50px rgba(52, 211, 153, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+      50% {
+        box-shadow:
+          0 8px 40px rgba(0, 0, 0, 0.45),
+          0 0 80px rgba(52, 211, 153, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cell { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="cell" aria-label="Oganesson, element 118">
+    <span class="cell__number">118</span>
+    <span class="cell__symbol">Og</span>
+    <span class="cell__name">Oganesson</span>
+    <span class="cell__mass">[294]</span>
+  </main>
+  <p class="tagline">soon. something radioactive here.</p>
+</body>
+</html>
