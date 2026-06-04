@@ -1,0 +1,10 @@
+export { glassTheme } from './theme/index.js';
+export { CopyButton, CopyButtonProps, MessageBubble, MessageBubbleProps, MessageContent, MessageContentProps, MessageList, MessageListGroup, MessageListProps, markdownStyles, messageStyles } from './messages/index.js';
+export { AutoResizeTextarea, AutoResizeTextareaProps, Composer, ComposerProps } from './composer/index.js';
+export { BUTTON_SIZES, ButtonSize, ButtonSizeConfig, COLOR_THEMES, ColorTheme, PulseConfig, PulseRings, PulseRingsProps, PulseStyle, RecordingButton, RecordingButtonProps, RecordingStateType, RecordingTimer, RecordingTimerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, SpeakButtonProps, StateColors, StatusText, StatusTextConfig, StatusTextProps, UseDictationOptions, UseDictationReturn, UseVoiceOptions, UseVoiceReturn, VoiceMicButton, formatRecordingTime, makeRecorder, useAudioAnalysis, useDictation, useRecorder, useVoice } from './voice/index.js';
+export { AnimationConfig, BreakpointMatches, Breakpoints, CHAT_BREAKPOINTS, ChatBehavior, ChatBreakpoints, ChatConfig, ChatContent, ChatContentProps, ChatFilePreview, ChatFilePreviewProps, ChatNavDest, ChatStartScreen, ChatStartScreenProps, ChatTheme, ChatToolbar, ChatToolbarProps, ChatViewMode, ChatWidget, ChatWidgetContainer, ChatWidgetContainerProps, ChatWidgetHeader, ChatWidgetHeaderProps, ChatWidgetProps, FloatingButton, FloatingButtonProps, PersonaType, ResponseMode, ShellStreamingState, TimestampConfig, UploadStatus, UseChatWidgetStateOptions, UseChatWidgetStateReturn, UseMediaQueryOptions, VoiceRecordingState, clearMediaQueryCache, defaultAnimationConfig, defaultBehavior, defaultChatConfig, defaultTheme, defaultTimestampConfig, mergeChatConfig, useBreakpoints, useChatWidgetState, useMediaQuery } from './shell/index.js';
+export { PersonaSelector, PersonaSelectorProps, PersonaSlotContext } from './persona-selector/index.js';
+import '@free-intelligence/core';
+import 'react';
+import 'react/jsx-runtime';
+import 'lucide-react';

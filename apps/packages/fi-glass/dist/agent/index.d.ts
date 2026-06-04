@@ -1,0 +1,152 @@
+import * as react_jsx_runtime from 'react/jsx-runtime';
+import { ReactNode } from 'react';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus } from '@free-intelligence/core';
+import { LucideIcon } from 'lucide-react';
+
+/**
+ * Tool classification + live-status helpers for the Steps audit trail.
+ *
+ * Pure and generic — a raw tool name like `mcp__brightdata__scrape_as_markdown`
+ * or `Bash` → a visual category + a short display name + a live status. No app
+ * deps, no icons (the icon set maps a category → a component separately).
+ */
+
+type ToolCategory = 'search' | 'scrape' | 'browser' | 'rag' | 'bash' | 'introspect' | 'generic';
+/** Classify a raw tool name into a visual category (loose substring match, so a
+ * rename like `scrape_as_markdown` → `scrape_markdown` still resolves). */
+declare function classifyTool(name: string): ToolCategory;
+/** Strip the `mcp__<server>__` prefix for display (`scrape_as_markdown`). */
+declare function shortToolName(name: string): string;
+type ToolVisualStatus = 'active' | 'sent' | 'done' | 'error';
+/** Index of the latest still-open (pending) tool — the one to highlight live. */
+declare function latestOpenToolIndex(steps: ToolCall[]): number;
+/** Visual status for one step: only the latest open step reads "active". */
+declare function toolVisualStatus(step: ToolCall, index: number, latestOpenIndex: number, live: boolean): ToolVisualStatus;
+
+/**
+ * AgentIconSet — the icons the agent panels need, with lucide defaults.
+ *
+ * Icons are injectable per panel (the `icons` prop merges over these defaults),
+ * so an app can swap the icon language without forking the components. The tool
+ * map is keyed by visual category (see toolClassify), not lucide names, so a
+ * swap is a one-line change here.
+ */
+
+interface AgentIconSet {
+    /** Plan checklist header. */
+    plan: LucideIcon;
+    /** Guard/warning indicator. */
+    warning: LucideIcon;
+    /** Assistant identity (Steps panel header). */
+    bot: LucideIcon;
+    /** Sources panel header. */
+    sources: LucideIcon;
+    /** Outgoing-link arrow on each source row. */
+    external: LucideIcon;
+    /** Per-category tool icons for the Steps audit trail. */
+    tools: Record<ToolCategory, LucideIcon>;
+}
+declare const defaultAgentIcons: AgentIconSet;
+/** Merge caller overrides over the defaults (deep-merges the `tools` map). */
+declare function resolveIcons(overrides?: Partial<AgentIconSet>): AgentIconSet;
+/** Resolve the icon for a raw tool name via its category. */
+declare function toolIcon(icons: AgentIconSet, name: string): LucideIcon;
+
+/**
+ * Class-name slots so the consuming app keeps its own CSS — fi-glass ships
+ * neutral defaults (empty strings) and never hardcodes app-specific class names
+ * (no `iai-*` / `aplay-*` leaking into the framework). insult_ai passes its
+ * `iai-card-soft` / `iai-hint` / branded source-row strings to preserve render;
+ * og118 passes its own (or nothing for the neutral look).
+ */
+interface AgentClassNames {
+    /** Card/surface container of a panel. */
+    card?: string;
+    /** Dimmed small-text hint (counts, queued labels, guard tag). */
+    hint?: string;
+    /** A single source row (`<a>`) in the Sources panel. */
+    sourceRow?: string;
+}
+
+interface AgentPanelProps {
+    /**
+     * The reduced state of one agentic turn (built by core's `applyAgentEvent`).
+     * Passed directly — NOT via the AgentHook — because consumers render a panel
+     * per historical turn/message, and the hook models only the current turn.
+     * A single-turn app simply passes `agentHook.turn`.
+     */
+    turn: AgentTurnState;
+    /** Optional target (URL/claim) for the Steps live label. */
+    target?: string;
+    classNames?: AgentClassNames;
+    icons?: Partial<AgentIconSet>;
+    enableSlowBanner?: boolean;
+    slowThresholdMs?: number;
+    /** Replace the default Sources panel (e.g. an app's branded source list). */
+    renderSources?: (sources: string[]) => ReactNode;
+    /** Override the guard-rejection banner (copy is app-owned). */
+    renderGuardBanner?: (rejection: GuardRejection) => ReactNode;
+}
+/**
+ * The glass-box agentic panel: Plan (contract, guard woven in) + Steps (live
+ * audit trail) + Sources (evidence). Each sub-panel self-hides when it has
+ * nothing to show, so an early/no-tool turn degrades gracefully.
+ */
+declare function AgentPanel({ turn, target, classNames, icons, enableSlowBanner, slowThresholdMs, renderSources, renderGuardBanner, }: AgentPanelProps): react_jsx_runtime.JSX.Element;
+
+interface PlanChecklistProps {
+    plan: AgentPlan | null;
+    classNames?: AgentClassNames;
+    icons?: Partial<AgentIconSet>;
+    /**
+     * Override the guard-rejection banner. The guard is a QUALITY woven into the
+     * plan, not a separate widget — when a rejection is present this renders it.
+     * The default copy is generic ("A guard blocked this plan"); apps that want
+     * their own wording (e.g. "PlanGuard blocked this plan") pass this slot.
+     */
+    renderGuardBanner?: (rejection: GuardRejection) => ReactNode;
+}
+/**
+ * The agent's plan-of-action as a live checklist. Renders only when a plan was
+ * declared. Visual rule: signal > detail — this says WHAT the agent committed
+ * to; the Steps panel shows every tool call as it happens.
+ */
+declare function PlanChecklist({ plan, classNames, icons, renderGuardBanner, }: PlanChecklistProps): react_jsx_runtime.JSX.Element | null;
+
+interface StepsPanelProps {
+    steps: ToolCall[];
+    status: AgentTurnStatus;
+    /** Optional target (URL/claim) the agent is working on, for the live label. */
+    target?: string;
+    classNames?: AgentClassNames;
+    icons?: Partial<AgentIconSet>;
+    /** Show the "still working" reassurance banner past the threshold (default true). */
+    enableSlowBanner?: boolean;
+    /** Milliseconds before the slow banner appears (default 12s). */
+    slowThresholdMs?: number;
+}
+/**
+ * Collapsible audit trail that lists every tool call as it happens. Auto-expands
+ * while the turn is live and collapses on done. The "thinking" status is generic
+ * here — fi-glass knows nothing about clinical/roast modes; the slow banner is a
+ * plain prop (apps that have their own slow UI pass enableSlowBanner={false}).
+ */
+declare function StepsPanel({ steps, status, target, classNames, icons, enableSlowBanner, slowThresholdMs, }: StepsPanelProps): react_jsx_runtime.JSX.Element | null;
+
+interface SourcesPanelProps {
+    /** Evidence references (e.g. source URLs). Contract field name = `sources`. */
+    sources: string[];
+    classNames?: AgentClassNames;
+    icons?: Partial<AgentIconSet>;
+    /** Header label (default "Sources"). */
+    label?: string;
+}
+/**
+ * The Sources panel — the references the agent actually fetched/cited. fi-glass
+ * ships a neutral default; an app with branded styling (e.g. insult_ai's Bright
+ * Data receipts) can pass its row class via `classNames.sourceRow`, or replace
+ * this whole panel through the AgentPanel's `renderSources` slot.
+ */
+declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react_jsx_runtime.JSX.Element | null;
+
+export { type AgentClassNames, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus };

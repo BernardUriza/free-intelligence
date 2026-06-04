@@ -27,6 +27,9 @@ const nextConfig = {
   transpilePackages: [
     '@fi/shared',
     'recordrtc',
+    // fi-glass + @free-intelligence/core are consumed as their BUILT dist
+    // (pre-compiled ESM + .d.ts, 'use client' preserved) — no source transpile
+    // needed. This is what proves aurity consumes the release artifact, not src.
   ],
 
   typescript: {

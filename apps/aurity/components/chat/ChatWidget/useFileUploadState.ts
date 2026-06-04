@@ -7,7 +7,7 @@
 
 import { useCallback } from 'react';
 import { useChatUpload } from '@aurity-standalone/hooks/useChatUpload';
-import type { PersonaType } from '../ChatToolbar';
+import type { PersonaType } from 'fi-glass/shell';
 import { createLogger } from '@/lib/internal/logger';
 
 const log = createLogger('FileUpload');

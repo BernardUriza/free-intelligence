@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, KeyboardEvent } from 'react';
+import { useState, useEffect, FormEvent, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -18,10 +18,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
 
-  // Already logged in — redirect
+  // Already logged in — redirect (side effect, never during render).
+  // Calling router.replace() in the render body triggers a setState on Router
+  // while LoginPage renders → React error. It belongs in an effect.
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      router.replace('/chat');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
   if (isAuthenticated && !authLoading) {
-    router.replace('/chat');
-    return null;
+    return null; // render nothing while the effect performs the redirect
   }
 
   const handleSubmit = async (e: FormEvent) => {

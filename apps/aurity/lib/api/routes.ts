@@ -41,9 +41,9 @@ export const ROUTES = {
   kpis: `${API_AURITY}/kpis`,
   health: `${API_AURITY}/health`,
   healthRoot: `${API}/health`,
-  stream: `${API_AURITY}/stream`,
-  endSession: `${API_AURITY}/end-session`,
-  jobs: `${API_AURITY}/jobs`,
+  stream: `${API_AURITY}/transcription/stream`,
+  endSession: `${API_AURITY}/transcription/end-session`,
+  jobs: `${API_AURITY}/transcription/jobs`,
   tts: `${API}/tts`,
   workflowEvents: `${API}/workflows/events`,
 

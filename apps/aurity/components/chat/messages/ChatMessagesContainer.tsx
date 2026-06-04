@@ -16,7 +16,7 @@
 import { useCallback, useMemo } from 'react';
 import type { FIMessage } from '@aurity-standalone/types/assistant';
 import type { ChatConfig } from '@/config/chat.config';
-import type { ChatViewMode } from '../ChatWidgetContainer';
+import type { ChatViewMode } from 'fi-glass/shell';
 import { useChatScroll } from '@/hooks/useChatScroll';
 import { useChatKeyboardNav } from '@/hooks/useChatKeyboardNav';
 import { spacing, a11yLabels } from '@/config/chat-messages.config';

@@ -92,6 +92,14 @@ out/
 *.bundle
 *.sha256
 
+# fi-glass + @free-intelligence/core ship their built dist as the v1 release
+# artifact (PolyForm Noncommercial; consumed standalone via git-dep subdirectory,
+# which doesn't build raw TS). Keep these dist/ trees tracked despite `dist/` above.
+!apps/packages/fi-glass/dist/
+!apps/packages/fi-glass/dist/**
+!apps/packages/free-intelligence-core/dist/
+!apps/packages/free-intelligence-core/dist/**
+
 # Next.js (apps/aurity)
 .next/
 .turbo/
