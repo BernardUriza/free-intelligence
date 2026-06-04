@@ -7,12 +7,12 @@ requires-python = ">=3.12"
 authors = [
     { name = "Bernard Uriza Orozco" },
 ]
-license = { text = "MIT" }
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 keywords = ["rag", "chunking", "embeddings", "fi-core", "llm", "persona", "character-drift", "anti-drift", "hdf5", "vector-store", "mcp", "model-context-protocol", "pgvector", "azure-openai", "sentence-transformers"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
