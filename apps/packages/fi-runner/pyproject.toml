@@ -51,6 +51,18 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.11",
 ]
+# CLI shell-out surface (`fi-runner exec ...`). Typer only — the backends still
+# pull their own harness SDK lazily. Importing `fi_runner` stays dep-free; only
+# running the `fi-runner` console script needs this extra.
+cli = [
+    "typer>=0.12",
+]
+
+[project.scripts]
+# The shell-out entrypoint: `pip install 'fi-runner[cli]'` exposes `fi-runner`.
+# Any process (shell, Makefile, Java `Runtime.exec`, CI) drives the runner
+# without importing Python and without a persistent sidecar.
+fi-runner = "fi_runner.cli:main"
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]

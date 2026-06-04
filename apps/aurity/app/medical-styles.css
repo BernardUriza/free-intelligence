@@ -18,11 +18,7 @@
   --color-medical-error: #EF4444;
   --color-medical-info: #3B82F6;
 
-  /* Glassmorphism effects */
-  --glass-blur: 12px;
-  --glass-opacity: 0.8;
-  --glass-saturation: 180%;
-  --glass-border: rgba(255, 255, 255, 0.18);
+  /* Glassmorphism tokens moved to fi-glass (import "fi-glass/theme.css"). */
 
   /* Shadow system */
   --shadow-glow: 0 0 15px rgb(16 185 129 / 0.15);
@@ -68,20 +64,7 @@
   animation: heartbeat 2s ease-in-out infinite;
 }
 
-/* Glassmorphism Components */
-.glass {
-  background: rgba(255, 255, 255, var(--glass-opacity));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  border: 1px solid var(--glass-border);
-}
-
-.glass-dark {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  border: 1px solid rgba(148, 163, 184, 0.2);
-}
+/* Glassmorphism components (.glass / .glass-dark) moved to fi-glass. */
 
 /* Card Variants */
 .card-gradient {
@@ -223,11 +206,7 @@
 
 /* Responsive Utilities */
 @media (max-width: 768px) {
-  .glass {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
+  /* .glass compact-blur override moved to fi-glass (--glass-blur-compact). */
   .card-float:hover {
     transform: none;
   }

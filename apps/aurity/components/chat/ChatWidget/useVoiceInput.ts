@@ -8,7 +8,7 @@
 import { useRef, useMemo, useCallback } from 'react';
 import { createLogger } from '@/lib/internal/logger';
 import { useChatVoiceRecorder } from '@/hooks/useChatVoiceRecorder';
-import type { VoiceRecordingState } from './types';
+import type { VoiceRecordingState } from 'fi-glass/shell';
 
 const log = createLogger('VoiceInput');
 

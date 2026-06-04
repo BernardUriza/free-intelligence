@@ -8,10 +8,11 @@
  */
 
 import { useState } from 'react';
-import { Copy, Check, MoreVertical, Trash2, Pin, Reply, Volume2 } from 'lucide-react';
+import { Copy, Check, MoreVertical, Trash2, Pin, Reply } from 'lucide-react';
 import { confirmDelete } from '@/lib/swal';
 import { Button } from '@/components/ui/button';
 import { createLogger } from '@/lib/internal/logger';
+import { SpeakButton as GlassSpeakButton } from 'fi-glass/voice';
 
 const log = createLogger('MessageActions');
 
@@ -86,16 +87,16 @@ export function CopyButton({ content, size = 'sm' }: { content: string; size?: '
 /**
  * Speak button with Azure TTS
  *
- * ChatGPT-inspired: Opens a floating AudioPlayer component
- * Loading: Pulsing dot (not spinner)
+ * Thin domain wrapper over fi-glass's <SpeakButton> (Californio, element 98).
+ * fi-glass owns the presentation; aurity injects the exact class string the old
+ * Button (ghost) produced — `fi-btn-ghost fi-btn-<size> <pad> chat-action-btn` —
+ * so the button renders byte-identically. Playback is the app's job, opened via
+ * onOpenPlayer (provided by AudioPlayerContext).
  */
-export function SpeakButton({
-  content,
-  size = 'sm',
-  voice = 'nova',
-  isUserMessage = false,
-  onOpenPlayer,
-}: {
+const SPEAK_FI_BTN_SIZE = { xs: 'fi-btn-xs', sm: 'fi-btn-sm', md: '' } as const;
+const SPEAK_PAD = { xs: 'p-1', sm: 'p-1.5', md: 'p-2' } as const;
+
+export function SpeakButton(props: {
   content: string;
   size?: 'xs' | 'sm' | 'md';
   voice?: string;
@@ -104,45 +105,11 @@ export function SpeakButton({
   /** Callback to open the global audio player (required - provided by AudioPlayerContext) */
   onOpenPlayer: (text: string, voice: string, isUserMessage?: boolean) => void;
 }) {
-  const sizeClasses = {
-    xs: 'w-3 h-3',
-    sm: 'w-3.5 h-3.5',
-    md: 'w-4 h-4',
-  };
-
-  const buttonSizeClasses = {
-    xs: 'p-1',
-    sm: 'p-1.5',
-    md: 'p-2',
-  };
-
-  // Format voice name for display
-  const formatVoiceName = (voiceId: string): string => {
-    const match = voiceId.match(/([A-Z][a-z]+)Neural$/);
-    if (match) return match[1];
-    return voiceId.charAt(0).toUpperCase() + voiceId.slice(1);
-  };
-
-  const voiceDisplay = formatVoiceName(voice);
-
-  const handleClick = () => {
-    // Use global audio player (always available now via AudioPlayerContext)
-    onOpenPlayer(content, voice, isUserMessage);
-  };
-
-  return (
-    <Button
-      onClick={handleClick}
-      className={`${buttonSizeClasses[size]} chat-action-btn`}
-      title={`Escuchar (${voiceDisplay})`}
-      aria-label={`Escuchar mensaje con voz ${voiceDisplay}`}
-      variant="ghost"
-      size={size === 'xs' ? 'xs' : size === 'sm' ? 'sm' : 'md'}
-      type="button"
-    >
-      <Volume2 className={sizeClasses[size]} />
-    </Button>
-  );
+  const size = props.size ?? 'sm';
+  const className = ['fi-btn-ghost', SPEAK_FI_BTN_SIZE[size], `${SPEAK_PAD[size]} chat-action-btn`]
+    .filter(Boolean)
+    .join(' ');
+  return <GlassSpeakButton {...props} size={size} className={className} />;
 }
 
 /**

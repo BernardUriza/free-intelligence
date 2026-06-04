@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { ResponseMode, PersonaType } from '../ChatToolbar';
+import type { ResponseMode, PersonaType } from 'fi-glass/shell';
 import { usePersonas } from '@aurity-standalone/hooks/usePersonas';
 
 const STORAGE_KEYS = {

@@ -1,0 +1,78 @@
+{
+  "name": "fi-glass",
+  "version": "1.0.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "fi-glass — the glassmorphism material (skin) for Free Intelligence chat frontends. Glass-box agentic UI rendered as frosted surfaces. Depends only on @free-intelligence/core.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./theme": {
+      "types": "./dist/theme/index.d.ts",
+      "import": "./dist/theme/index.js"
+    },
+    "./theme.css": "./src/theme/index.css",
+    "./messages": {
+      "types": "./dist/messages/index.d.ts",
+      "import": "./dist/messages/index.js"
+    },
+    "./composer": {
+      "types": "./dist/composer/index.d.ts",
+      "import": "./dist/composer/index.js"
+    },
+    "./voice": {
+      "types": "./dist/voice/index.d.ts",
+      "import": "./dist/voice/index.js"
+    },
+    "./shell": {
+      "types": "./dist/shell/index.d.ts",
+      "import": "./dist/shell/index.js"
+    },
+    "./persona-selector": {
+      "types": "./dist/persona-selector/index.d.ts",
+      "import": "./dist/persona-selector/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "import": "./dist/agent/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/theme"
+  ],
+  "dependencies": {
+    "@free-intelligence/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "lucide-react": ">=0.400.0",
+    "framer-motion": ">=11.0.0",
+    "react-markdown": ">=9.0.0",
+    "remark-gfm": ">=4.0.0",
+    "recordrtc": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "recordrtc": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild-plugin-preserve-directives": "^0.0.11",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.548.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tsup": "^8.5.1"
+  }
+}
