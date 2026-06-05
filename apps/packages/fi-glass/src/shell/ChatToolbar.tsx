@@ -40,6 +40,8 @@ export interface ChatToolbarProps {
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
   onShowThinkingToggle?: () => void;
+  /** Show the clear-conversation control (off when no handler is wired). */
+  showClear?: boolean;
   /** Clear conversation — the app wraps this with its confirm dialog. */
   onClearConversation?: () => void;
   /** Show copy-curl dev tool button. */
@@ -71,6 +73,7 @@ export function ChatToolbar({
   onVoiceStart,
   onVoiceStop,
   onShowThinkingToggle,
+  showClear = true,
   onClearConversation,
   showCopyCurl = true,
   onCopyCurl,
@@ -212,19 +215,21 @@ export function ChatToolbar({
                   )}
 
                   {/* Compact-only: Clear conversation (hidden when container is wider) */}
-                  <div className="@md:hidden">
-                    <div className="chat-dropdown-divider" />
-                    <button
-                      onClick={() => {
-                        onClearConversation?.();
-                        setOverflowOpen(false);
-                      }}
-                      className="chat-dropdown-item-danger"
-                    >
-                      <Trash className="fi-icon-sm" />
-                      <span>Limpiar conversación</span>
-                    </button>
-                  </div>
+                  {showClear && (
+                    <div className="@md:hidden">
+                      <div className="chat-dropdown-divider" />
+                      <button
+                        onClick={() => {
+                          onClearConversation?.();
+                          setOverflowOpen(false);
+                        }}
+                        className="chat-dropdown-item-danger"
+                      >
+                        <Trash className="fi-icon-sm" />
+                        <span>Limpiar conversación</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>,
               document.body
@@ -236,14 +241,16 @@ export function ChatToolbar({
       {/* Right side: Response Mode, Thinking Toggle & Voice */}
       <div className="fi-flex-gap-sm">
         {/* Clear conversation - destructive action (app confirms; hidden when compact) */}
-        <button
-          onClick={() => onClearConversation?.()}
-          className={`${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`}
-          title="Limpiar conversación"
-          aria-label="Limpiar conversación"
-        >
-          <Trash className={iconClass} />
-        </button>
+        {showClear && (
+          <button
+            onClick={() => onClearConversation?.()}
+            className={`${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`}
+            title="Limpiar conversación"
+            aria-label="Limpiar conversación"
+          >
+            <Trash className={iconClass} />
+          </button>
+        )}
 
         {/* ThinkingToggle - hidden when compact, shown in overflow menu instead */}
         {showThinkingToggle && (

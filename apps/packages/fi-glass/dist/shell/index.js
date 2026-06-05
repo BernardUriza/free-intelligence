@@ -800,6 +800,7 @@ function ChatToolbar({
   onVoiceStart,
   onVoiceStop,
   onShowThinkingToggle,
+  showClear = true,
   onClearConversation,
   showCopyCurl = true,
   onCopyCurl,
@@ -933,7 +934,7 @@ function ChatToolbar({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxs9("div", { className: "@md:hidden", children: [
+                  showClear && /* @__PURE__ */ jsxs9("div", { className: "@md:hidden", children: [
                     /* @__PURE__ */ jsx12("div", { className: "chat-dropdown-divider" }),
                     /* @__PURE__ */ jsxs9(
                       "button",
@@ -959,7 +960,7 @@ function ChatToolbar({
       ] })
     ] }),
     /* @__PURE__ */ jsxs9("div", { className: "fi-flex-gap-sm", children: [
-      /* @__PURE__ */ jsx12(
+      showClear && /* @__PURE__ */ jsx12(
         "button",
         {
           onClick: () => onClearConversation?.(),
@@ -1226,7 +1227,13 @@ function ChatContent({
   renderHistory,
   renderMessages
 }) {
-  const dynamicPlaceholder = `Escribe a ${personaName}...`;
+  const dynamicPlaceholder = personaName ? `Escribe a ${personaName}...` : "Escribe tu mensaje...";
+  const showVoice = typeof onVoiceStart === "function";
+  const showAttach = typeof onAttach === "function";
+  const showResponseMode = typeof onResponseModeToggle === "function";
+  const showThinkingToggle = typeof onShowThinkingToggle === "function";
+  const showClear = typeof onClearConversation === "function";
+  const showPersonaSelector = personaSelector != null;
   return /* @__PURE__ */ jsxs12("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
     !isHistoryOpen && /* @__PURE__ */ jsxs12(
       ChatWidgetContainer,
@@ -1269,8 +1276,9 @@ function ChatContent({
               ChatFilePreview,
               {
                 file: uploadFile,
-                status: uploadStatus,
-                onCancel: onCancelUpload
+                status: uploadStatus ?? "selecting",
+                onCancel: onCancelUpload ?? (() => {
+                })
               }
             ),
             /* @__PURE__ */ jsx15(
@@ -1295,13 +1303,15 @@ function ChatContent({
                 showThinking,
                 voiceRecording: voiceState,
                 personaSelector,
-                showAttach: true,
+                showAttach,
                 showLanguage: false,
                 showFormatting: false,
-                showResponseMode: true,
-                showVoice: true,
-                showPersonaSelector: true,
-                showThinkingToggle: true,
+                showResponseMode,
+                showVoice,
+                showPersonaSelector,
+                showThinkingToggle,
+                showClear,
+                showCopyCurl: typeof onCopyCurl === "function",
                 onResponseModeToggle,
                 onShowThinkingToggle,
                 onClearConversation,
@@ -1433,11 +1443,26 @@ function ChatWidget({
     }
   );
 }
+
+// src/shell/ChatSurface.tsx
+import { jsx as jsx17 } from "react/jsx-runtime";
+function ChatSurface(props) {
+  return /* @__PURE__ */ jsx17(
+    ChatWidget,
+    {
+      ...props,
+      embedded: true,
+      initialOpen: true,
+      initialMode: "fullscreen"
+    }
+  );
+}
 export {
   CHAT_BREAKPOINTS,
   ChatContent,
   ChatFilePreview,
   ChatStartScreen,
+  ChatSurface,
   ChatToolbar,
   ChatWidget,
   ChatWidgetContainer,

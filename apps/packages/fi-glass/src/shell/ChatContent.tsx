@@ -67,8 +67,21 @@ export function ChatContent({
   renderHistory,
   renderMessages,
 }: ChatContentProps) {
-  // Dynamic placeholder like ChatGPT: "Escribe a [Persona Name]"
-  const dynamicPlaceholder = `Escribe a ${personaName}...`;
+  // Dynamic placeholder like ChatGPT: "Escribe a [Persona Name]". Falls back to
+  // a neutral prompt when the app has no personas (personaName omitted).
+  const dynamicPlaceholder = personaName
+    ? `Escribe a ${personaName}...`
+    : 'Escribe tu mensaje...';
+
+  // Feature-off by absence: a control is shown only when its handler is wired.
+  // An app that omits voice/upload/persona/response-mode (e.g. og118 hello-chat)
+  // gets a clean toolbar instead of dead buttons. aurity wires all → unchanged.
+  const showVoice = typeof onVoiceStart === 'function';
+  const showAttach = typeof onAttach === 'function';
+  const showResponseMode = typeof onResponseModeToggle === 'function';
+  const showThinkingToggle = typeof onShowThinkingToggle === 'function';
+  const showClear = typeof onClearConversation === 'function';
+  const showPersonaSelector = personaSelector != null;
 
   return (
     <div className="relative flex h-full flex-1 flex-col overflow-hidden">
@@ -126,8 +139,8 @@ export function ChatContent({
                   {isUploadActive && uploadFile && (
                     <ChatFilePreview
                       file={uploadFile}
-                      status={uploadStatus}
-                      onCancel={onCancelUpload}
+                      status={uploadStatus ?? 'selecting'}
+                      onCancel={onCancelUpload ?? (() => {})}
                     />
                   )}
 
@@ -151,13 +164,15 @@ export function ChatContent({
                     showThinking={showThinking}
                     voiceRecording={voiceState}
                     personaSelector={personaSelector}
-                    showAttach={true}
+                    showAttach={showAttach}
                     showLanguage={false}
                     showFormatting={false}
-                    showResponseMode={true}
-                    showVoice={true}
-                    showPersonaSelector={true}
-                    showThinkingToggle={true}
+                    showResponseMode={showResponseMode}
+                    showVoice={showVoice}
+                    showPersonaSelector={showPersonaSelector}
+                    showThinkingToggle={showThinkingToggle}
+                    showClear={showClear}
+                    showCopyCurl={typeof onCopyCurl === 'function'}
                     onResponseModeToggle={onResponseModeToggle}
                     onShowThinkingToggle={onShowThinkingToggle}
                     onClearConversation={onClearConversation}

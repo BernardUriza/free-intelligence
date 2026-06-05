@@ -1,4 +1,4 @@
-import * as react_jsx_runtime from 'react/jsx-runtime';
+import * as react from 'react';
 import { ReactNode } from 'react';
 
 interface PersonaSlotContext {
@@ -49,6 +49,6 @@ interface PersonaSelectorProps<T> {
     /** Accessible label for the trigger. */
     ariaLabel?: string;
 }
-declare function PersonaSelector<T>({ personas, selected, onSelect, getPersonaId, loading, getPersonaLabel, getPersonaDescription, renderPersonaIcon, renderPersonaBadge, renderPersonaMeta, renderTriggerValue, renderHeader, renderFooter, renderLoading, placeholder, className, triggerClassName, contentClassName, ariaLabel, }: PersonaSelectorProps<T>): react_jsx_runtime.JSX.Element;
+declare function PersonaSelector<T>({ personas, selected, onSelect, getPersonaId, loading, getPersonaLabel, getPersonaDescription, renderPersonaIcon, renderPersonaBadge, renderPersonaMeta, renderTriggerValue, renderHeader, renderFooter, renderLoading, placeholder, className, triggerClassName, contentClassName, ariaLabel, }: PersonaSelectorProps<T>): react.JSX.Element;
 
 export { PersonaSelector, type PersonaSelectorProps, type PersonaSlotContext };

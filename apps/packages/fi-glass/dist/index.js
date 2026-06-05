@@ -1595,6 +1595,7 @@ function ChatToolbar({
   onVoiceStart,
   onVoiceStop,
   onShowThinkingToggle,
+  showClear = true,
   onClearConversation,
   showCopyCurl = true,
   onCopyCurl,
@@ -1728,7 +1729,7 @@ function ChatToolbar({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxs12("div", { className: "@md:hidden", children: [
+                  showClear && /* @__PURE__ */ jsxs12("div", { className: "@md:hidden", children: [
                     /* @__PURE__ */ jsx16("div", { className: "chat-dropdown-divider" }),
                     /* @__PURE__ */ jsxs12(
                       "button",
@@ -1754,7 +1755,7 @@ function ChatToolbar({
       ] })
     ] }),
     /* @__PURE__ */ jsxs12("div", { className: "fi-flex-gap-sm", children: [
-      /* @__PURE__ */ jsx16(
+      showClear && /* @__PURE__ */ jsx16(
         "button",
         {
           onClick: () => onClearConversation?.(),
@@ -2021,7 +2022,13 @@ function ChatContent({
   renderHistory,
   renderMessages
 }) {
-  const dynamicPlaceholder = `Escribe a ${personaName}...`;
+  const dynamicPlaceholder = personaName ? `Escribe a ${personaName}...` : "Escribe tu mensaje...";
+  const showVoice = typeof onVoiceStart === "function";
+  const showAttach = typeof onAttach === "function";
+  const showResponseMode = typeof onResponseModeToggle === "function";
+  const showThinkingToggle = typeof onShowThinkingToggle === "function";
+  const showClear = typeof onClearConversation === "function";
+  const showPersonaSelector = personaSelector != null;
   return /* @__PURE__ */ jsxs15("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
     !isHistoryOpen && /* @__PURE__ */ jsxs15(
       ChatWidgetContainer,
@@ -2064,8 +2071,9 @@ function ChatContent({
               ChatFilePreview,
               {
                 file: uploadFile,
-                status: uploadStatus,
-                onCancel: onCancelUpload
+                status: uploadStatus ?? "selecting",
+                onCancel: onCancelUpload ?? (() => {
+                })
               }
             ),
             /* @__PURE__ */ jsx19(
@@ -2090,13 +2098,15 @@ function ChatContent({
                 showThinking,
                 voiceRecording: voiceState,
                 personaSelector,
-                showAttach: true,
+                showAttach,
                 showLanguage: false,
                 showFormatting: false,
-                showResponseMode: true,
-                showVoice: true,
-                showPersonaSelector: true,
-                showThinkingToggle: true,
+                showResponseMode,
+                showVoice,
+                showPersonaSelector,
+                showThinkingToggle,
+                showClear,
+                showCopyCurl: typeof onCopyCurl === "function",
                 onResponseModeToggle,
                 onShowThinkingToggle,
                 onClearConversation,
@@ -2229,6 +2239,20 @@ function ChatWidget({
   );
 }
 
+// src/shell/ChatSurface.tsx
+import { jsx as jsx21 } from "react/jsx-runtime";
+function ChatSurface(props) {
+  return /* @__PURE__ */ jsx21(
+    ChatWidget,
+    {
+      ...props,
+      embedded: true,
+      initialOpen: true,
+      initialMode: "fullscreen"
+    }
+  );
+}
+
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback7,
@@ -2239,7 +2263,7 @@ import {
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx21, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -2343,7 +2367,7 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx21(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx21("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx22(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx22("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
@@ -2388,16 +2412,16 @@ function PersonaSelector({
               children: [
                 /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-2 mb-1", children: [
                   renderPersonaIcon?.(persona, ctx),
-                  /* @__PURE__ */ jsx21(
+                  /* @__PURE__ */ jsx22(
                     "span",
                     {
                       className: `font-medium text-sm ${isSelected ? "text-purple-200" : "text-slate-200"}`,
                       children: getPersonaLabel?.(persona) ?? id
                     }
                   ),
-                  isSelected && /* @__PURE__ */ jsx21(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
+                  isSelected && /* @__PURE__ */ jsx22(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
                 ] }),
-                description && /* @__PURE__ */ jsx21("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
+                description && /* @__PURE__ */ jsx22("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
                 (badge || meta) && /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-2 flex-wrap", children: [
                   badge,
                   meta
@@ -2426,7 +2450,7 @@ function PersonaSelector({
         className: triggerClassName ?? TRIGGER_DEFAULT,
         children: [
           triggerInner,
-          /* @__PURE__ */ jsx21(
+          /* @__PURE__ */ jsx22(
             ChevronDown,
             {
               className: `h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`
@@ -2446,6 +2470,7 @@ export {
   ChatContent,
   ChatFilePreview,
   ChatStartScreen,
+  ChatSurface,
   ChatToolbar,
   ChatWidget,
   ChatWidgetContainer,

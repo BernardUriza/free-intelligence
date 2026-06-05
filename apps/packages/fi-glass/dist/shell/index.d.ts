@@ -1,6 +1,6 @@
-import * as react_jsx_runtime from 'react/jsx-runtime';
-import { ChatMessage, ChatHook } from '@free-intelligence/core';
+import * as react from 'react';
 import { ReactNode } from 'react';
+import { ChatMessage, ChatHook } from '@free-intelligence/core';
 
 /**
  * fi-glass · shell config — the ChatConfig contract the shell renders against.
@@ -168,22 +168,22 @@ interface ChatWidgetProps<TMessage = ChatMessage, TNode = unknown> {
     message: string;
     onMessageChange: (value: string) => void;
     onSend: () => void;
-    responseMode: ResponseMode;
-    selectedPersona: PersonaType;
-    personaName: string;
+    responseMode?: ResponseMode;
+    selectedPersona?: PersonaType;
+    personaName?: string;
     showThinking?: boolean;
-    onResponseModeToggle: () => void;
+    onResponseModeToggle?: () => void;
     onShowThinkingToggle?: () => void;
-    onPersonaChange: (persona: PersonaType) => void;
+    onPersonaChange?: (persona: PersonaType) => void;
     onClearConversation?: () => void;
-    voiceState: VoiceRecordingState;
-    onVoiceStart: () => void;
-    onVoiceStop: () => void;
-    uploadFile: File | null;
-    uploadStatus: UploadStatus;
-    isUploadActive: boolean;
-    onAttach: () => void;
-    onCancelUpload: () => void;
+    voiceState?: VoiceRecordingState;
+    onVoiceStart?: () => void;
+    onVoiceStop?: () => void;
+    uploadFile?: File | null;
+    uploadStatus?: UploadStatus;
+    isUploadActive?: boolean;
+    onAttach?: () => void;
+    onCancelUpload?: () => void;
     isStartingConversation?: boolean;
     onStartConversation?: () => void;
     /** PersonaSelectorPanel (uses @/components/ui/select) — lives in the app. */
@@ -215,14 +215,14 @@ interface ChatContentProps {
     customEmptyState?: ReactNode;
     customQuickReplies?: ReactNode;
     message: string;
-    responseMode: ResponseMode;
-    selectedPersona: PersonaType;
-    personaName: string;
+    responseMode?: ResponseMode;
+    selectedPersona?: PersonaType;
+    personaName?: string;
     showThinking?: boolean;
-    voiceState: VoiceRecordingState;
-    uploadFile: File | null;
-    uploadStatus: UploadStatus;
-    isUploadActive: boolean;
+    voiceState?: VoiceRecordingState;
+    uploadFile?: File | null;
+    uploadStatus?: UploadStatus;
+    isUploadActive?: boolean;
     onNavigate?: (dest: ChatNavDest) => void;
     onModeChange: (mode: ChatViewMode) => void;
     onMinimize: () => void;
@@ -235,14 +235,14 @@ interface ChatContentProps {
     onLogin: () => void;
     onMessageChange: (message: string) => void;
     onSend: () => void;
-    onResponseModeToggle: () => void;
+    onResponseModeToggle?: () => void;
     onShowThinkingToggle?: () => void;
-    onPersonaChange: (persona: PersonaType) => void;
+    onPersonaChange?: (persona: PersonaType) => void;
     onClearConversation?: () => void;
-    onVoiceStart: () => void;
-    onVoiceStop: () => void;
-    onAttach: () => void;
-    onCancelUpload: () => void;
+    onVoiceStart?: () => void;
+    onVoiceStop?: () => void;
+    onAttach?: () => void;
+    onCancelUpload?: () => void;
     onCopyCurl?: () => void;
     personaSelector?: ReactNode;
     renderHistory?: (ctx: {
@@ -253,9 +253,16 @@ interface ChatContentProps {
     }) => ReactNode;
 }
 
-declare function ChatWidget<TMessage = ChatMessage, TNode = unknown>({ chatHook, config: customConfig, user, isAuthenticated, onLogin, onNavigate, isMobile: isMobileProp, initialOpen, initialMode, embedded, message, onMessageChange, onSend, responseMode, selectedPersona, personaName, showThinking, onResponseModeToggle, onShowThinkingToggle, onPersonaChange, onClearConversation, voiceState, onVoiceStart, onVoiceStop, uploadFile, uploadStatus, isUploadActive, onAttach, onCancelUpload, isStartingConversation, onStartConversation, personaSelector, renderHistory, renderMessages, onCopyCurl, }: ChatWidgetProps<TMessage, TNode>): react_jsx_runtime.JSX.Element | null;
+declare function ChatWidget<TMessage = ChatMessage, TNode = unknown>({ chatHook, config: customConfig, user, isAuthenticated, onLogin, onNavigate, isMobile: isMobileProp, initialOpen, initialMode, embedded, message, onMessageChange, onSend, responseMode, selectedPersona, personaName, showThinking, onResponseModeToggle, onShowThinkingToggle, onPersonaChange, onClearConversation, voiceState, onVoiceStart, onVoiceStop, uploadFile, uploadStatus, isUploadActive, onAttach, onCancelUpload, isStartingConversation, onStartConversation, personaSelector, renderHistory, renderMessages, onCopyCurl, }: ChatWidgetProps<TMessage, TNode>): react.JSX.Element | null;
 
-declare function ChatContent({ config, embedded, isAuthenticated, userName, viewMode, isHistoryOpen, isStartingConversation, messageCount, loading, isTyping, loadingInitial, customEmptyState, customQuickReplies, message, responseMode, selectedPersona, personaName, showThinking, voiceState, uploadFile, uploadStatus, isUploadActive, onNavigate, onModeChange, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistoryOpen, onHistoryClose, onStartConversation, onLogin, onMessageChange, onSend, onResponseModeToggle, onShowThinkingToggle, onPersonaChange: _onPersonaChange, onClearConversation, onVoiceStart, onVoiceStop, onAttach, onCancelUpload, onCopyCurl, personaSelector, renderHistory, renderMessages, }: ChatContentProps): react_jsx_runtime.JSX.Element;
+/**
+ * Same surface as ChatWidget minus the launcher/view-mode knobs, which
+ * ChatSurface fixes to the always-open full-page configuration.
+ */
+type ChatSurfaceProps<TMessage = ChatMessage, TNode = unknown> = Omit<ChatWidgetProps<TMessage, TNode>, 'initialOpen' | 'embedded' | 'initialMode'>;
+declare function ChatSurface<TMessage = ChatMessage, TNode = unknown>(props: ChatSurfaceProps<TMessage, TNode>): react.JSX.Element;
+
+declare function ChatContent({ config, embedded, isAuthenticated, userName, viewMode, isHistoryOpen, isStartingConversation, messageCount, loading, isTyping, loadingInitial, customEmptyState, customQuickReplies, message, responseMode, selectedPersona, personaName, showThinking, voiceState, uploadFile, uploadStatus, isUploadActive, onNavigate, onModeChange, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistoryOpen, onHistoryClose, onStartConversation, onLogin, onMessageChange, onSend, onResponseModeToggle, onShowThinkingToggle, onPersonaChange: _onPersonaChange, onClearConversation, onVoiceStart, onVoiceStop, onAttach, onCancelUpload, onCopyCurl, personaSelector, renderHistory, renderMessages, }: ChatContentProps): react.JSX.Element;
 
 interface ChatWidgetContainerProps {
     /** Current view mode */
@@ -269,7 +276,7 @@ interface ChatWidgetContainerProps {
     /** Callbacks */
     onModeChange: (mode: ChatViewMode) => void;
 }
-declare function ChatWidgetContainer(props: ChatWidgetContainerProps): react_jsx_runtime.JSX.Element;
+declare function ChatWidgetContainer(props: ChatWidgetContainerProps): react.JSX.Element;
 
 interface ChatWidgetHeaderProps {
     title: string;
@@ -285,7 +292,7 @@ interface ChatWidgetHeaderProps {
     onClose?: () => void;
     onHistorySearch?: () => void;
 }
-declare function ChatWidgetHeader({ title, subtitle, backgroundClass, mode, showControls, showHistorySearch, onNavigate, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistorySearch, }: ChatWidgetHeaderProps): react_jsx_runtime.JSX.Element;
+declare function ChatWidgetHeader({ title, subtitle, backgroundClass, mode, showControls, showHistorySearch, onNavigate, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistorySearch, }: ChatWidgetHeaderProps): react.JSX.Element;
 
 interface ChatToolbarProps {
     showAttach?: boolean;
@@ -308,6 +315,8 @@ interface ChatToolbarProps {
     onVoiceStart?: () => void;
     onVoiceStop?: () => void;
     onShowThinkingToggle?: () => void;
+    /** Show the clear-conversation control (off when no handler is wired). */
+    showClear?: boolean;
     /** Clear conversation — the app wraps this with its confirm dialog. */
     onClearConversation?: () => void;
     /** Show copy-curl dev tool button. */
@@ -318,7 +327,7 @@ interface ChatToolbarProps {
     canSend?: boolean;
     sendLoading?: boolean;
 }
-declare function ChatToolbar({ showAttach, showLanguage, showFormatting, showResponseMode, showVoice, showPersonaSelector, showThinkingToggle, responseMode, selectedPersona: _selectedPersona, showThinking, voiceRecording, personaSelector, onAttach, onLanguage, onFormatting, onResponseModeToggle, onVoiceStart, onVoiceStop, onShowThinkingToggle, onClearConversation, showCopyCurl, onCopyCurl, onSend, canSend, sendLoading, }: ChatToolbarProps): react_jsx_runtime.JSX.Element;
+declare function ChatToolbar({ showAttach, showLanguage, showFormatting, showResponseMode, showVoice, showPersonaSelector, showThinkingToggle, responseMode, selectedPersona: _selectedPersona, showThinking, voiceRecording, personaSelector, onAttach, onLanguage, onFormatting, onResponseModeToggle, onVoiceStart, onVoiceStop, onShowThinkingToggle, showClear, onClearConversation, showCopyCurl, onCopyCurl, onSend, canSend, sendLoading, }: ChatToolbarProps): react.JSX.Element;
 
 interface ChatFilePreviewProps {
     file: File;
@@ -327,7 +336,7 @@ interface ChatFilePreviewProps {
     error?: string;
     onCancel: () => void;
 }
-declare function ChatFilePreview({ file, status, progress, error, onCancel, }: ChatFilePreviewProps): react_jsx_runtime.JSX.Element;
+declare function ChatFilePreview({ file, status, progress, error, onCancel, }: ChatFilePreviewProps): react.JSX.Element;
 
 interface ChatStartScreenProps {
     /** Whether the user is authenticated */
@@ -343,7 +352,7 @@ interface ChatStartScreenProps {
     /** Whether the start action is loading */
     isLoading?: boolean;
 }
-declare function ChatStartScreen({ isAuthenticated, userName, onStart, onLogin: _onLogin, onNavigate, isLoading, }: ChatStartScreenProps): react_jsx_runtime.JSX.Element;
+declare function ChatStartScreen({ isAuthenticated, userName, onStart, onLogin: _onLogin, onNavigate, isLoading, }: ChatStartScreenProps): react.JSX.Element;
 
 /**
  * fi-glass · FloatingButton — the closed-state launcher (bottom-right).
@@ -354,7 +363,7 @@ interface FloatingButtonProps {
     onClick: () => void;
     isMobile: boolean;
 }
-declare function FloatingButton({ onClick, isMobile }: FloatingButtonProps): react_jsx_runtime.JSX.Element;
+declare function FloatingButton({ onClick, isMobile }: FloatingButtonProps): react.JSX.Element;
 
 /**
  * fi-glass · useChatWidgetState — widget UI state (open/close, view mode,
@@ -417,4 +426,4 @@ interface BreakpointMatches {
 declare function useBreakpoints(breakpoints: Breakpoints, options?: Pick<UseMediaQueryOptions, 'ssrMatch'>): BreakpointMatches;
 declare function clearMediaQueryCache(): void;
 
-export { type AnimationConfig, type BreakpointMatches, type Breakpoints, CHAT_BREAKPOINTS, type ChatBehavior, type ChatBreakpoints, type ChatConfig, ChatContent, type ChatContentProps, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, ChatStartScreen, type ChatStartScreenProps, type ChatTheme, ChatToolbar, type ChatToolbarProps, type ChatViewMode, ChatWidget, ChatWidgetContainer, type ChatWidgetContainerProps, ChatWidgetHeader, type ChatWidgetHeaderProps, type ChatWidgetProps, FloatingButton, type FloatingButtonProps, type PersonaType, type ResponseMode, type ShellStreamingState, type TimestampConfig, type UploadStatus, type UseChatWidgetStateOptions, type UseChatWidgetStateReturn, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, defaultAnimationConfig, defaultBehavior, defaultChatConfig, defaultTheme, defaultTimestampConfig, mergeChatConfig, useBreakpoints, useChatWidgetState, useMediaQuery };
+export { type AnimationConfig, type BreakpointMatches, type Breakpoints, CHAT_BREAKPOINTS, type ChatBehavior, type ChatBreakpoints, type ChatConfig, ChatContent, type ChatContentProps, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, ChatStartScreen, type ChatStartScreenProps, ChatSurface, type ChatSurfaceProps, type ChatTheme, ChatToolbar, type ChatToolbarProps, type ChatViewMode, ChatWidget, ChatWidgetContainer, type ChatWidgetContainerProps, ChatWidgetHeader, type ChatWidgetHeaderProps, type ChatWidgetProps, FloatingButton, type FloatingButtonProps, type PersonaType, type ResponseMode, type ShellStreamingState, type TimestampConfig, type UploadStatus, type UseChatWidgetStateOptions, type UseChatWidgetStateReturn, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, defaultAnimationConfig, defaultBehavior, defaultChatConfig, defaultTheme, defaultTimestampConfig, mergeChatConfig, useBreakpoints, useChatWidgetState, useMediaQuery };

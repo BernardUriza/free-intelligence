@@ -84,31 +84,38 @@ export interface ChatWidgetProps<TMessage = ChatMessage, TNode = unknown> {
   embedded?: boolean;
 
   // ---- Input (message state lifted to the app; voice mutates it) ----
+  // The conversation essentials — always required (there is no chat without them).
   message: string;
   onMessageChange: (value: string) => void;
   onSend: () => void;
 
   // ---- Preferences (app-owned; usePersonas resolves personaName) ----
-  responseMode: ResponseMode;
-  selectedPersona: PersonaType;
-  personaName: string;
+  // OPTIONAL: a feature is OFF when its handler is absent. An app with no
+  // response-mode toggle / personas (e.g. og118 hello-chat) simply omits these
+  // and the toolbar hides the corresponding control. Mirrors ChatHook, which
+  // already treats voice/personas/upload as optional capabilities.
+  responseMode?: ResponseMode;
+  selectedPersona?: PersonaType;
+  personaName?: string;
   showThinking?: boolean;
-  onResponseModeToggle: () => void;
+  onResponseModeToggle?: () => void;
   onShowThinkingToggle?: () => void;
-  onPersonaChange: (persona: PersonaType) => void;
+  onPersonaChange?: (persona: PersonaType) => void;
   onClearConversation?: () => void;
 
   // ---- Voice (state from the app's useChatVoiceRecorder) ----
-  voiceState: VoiceRecordingState;
-  onVoiceStart: () => void;
-  onVoiceStop: () => void;
+  // OPTIONAL: omit onVoiceStart/onVoiceStop → the mic button is hidden.
+  voiceState?: VoiceRecordingState;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => void;
 
   // ---- File upload (state from the app's useChatUpload) ----
-  uploadFile: File | null;
-  uploadStatus: UploadStatus;
-  isUploadActive: boolean;
-  onAttach: () => void;
-  onCancelUpload: () => void;
+  // OPTIONAL: omit onAttach → the attach control + file preview are hidden.
+  uploadFile?: File | null;
+  uploadStatus?: UploadStatus;
+  isUploadActive?: boolean;
+  onAttach?: () => void;
+  onCancelUpload?: () => void;
 
   // ---- Conversation start screen ----
   isStartingConversation?: boolean;
@@ -148,19 +155,19 @@ export interface ChatContentProps {
   // Input
   message: string;
 
-  // Preferences
-  responseMode: ResponseMode;
-  selectedPersona: PersonaType;
-  personaName: string;
+  // Preferences (optional — feature-off when the matching handler is absent)
+  responseMode?: ResponseMode;
+  selectedPersona?: PersonaType;
+  personaName?: string;
   showThinking?: boolean;
 
-  // Voice
-  voiceState: VoiceRecordingState;
+  // Voice (optional)
+  voiceState?: VoiceRecordingState;
 
-  // File upload
-  uploadFile: File | null;
-  uploadStatus: UploadStatus;
-  isUploadActive: boolean;
+  // File upload (optional)
+  uploadFile?: File | null;
+  uploadStatus?: UploadStatus;
+  isUploadActive?: boolean;
 
   // Navigation
   onNavigate?: (dest: ChatNavDest) => void;
@@ -179,14 +186,15 @@ export interface ChatContentProps {
   onLogin: () => void;
   onMessageChange: (message: string) => void;
   onSend: () => void;
-  onResponseModeToggle: () => void;
+  // Optional capability handlers — their absence hides the matching control.
+  onResponseModeToggle?: () => void;
   onShowThinkingToggle?: () => void;
-  onPersonaChange: (persona: PersonaType) => void;
+  onPersonaChange?: (persona: PersonaType) => void;
   onClearConversation?: () => void;
-  onVoiceStart: () => void;
-  onVoiceStop: () => void;
-  onAttach: () => void;
-  onCancelUpload: () => void;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => void;
+  onAttach?: () => void;
+  onCancelUpload?: () => void;
   onCopyCurl?: () => void;
 
   // Slots
