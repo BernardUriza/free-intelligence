@@ -26,6 +26,7 @@ export type {
 export type {
   PlanStep,
   AgentPlan,
+  PlanOutcome,
   AgentTurnStatus,
   AgentTurnState,
 } from './agent/state';

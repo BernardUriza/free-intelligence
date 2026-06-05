@@ -174,7 +174,7 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
  * contract in the fi-glass roadmap — og118 and every future app inherit it.
  */
 /** Lifecycle status of a single planned step. */
-type StepStatus = 'pending' | 'running' | 'done' | 'failed';
+type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
 /** Severity a guard can assign. Generic — each app names its own guards. */
 type GuardLevel = 'ok' | 'warning' | 'critical';
 /** A tool invocation surfaced for the live audit trail. */
@@ -245,9 +245,29 @@ type AgentStreamEvent = {
 } | {
     type: 'step_done';
     index: number;
-    status: 'done' | 'failed';
+    status: 'done' | 'failed' | 'cancelled';
     summary?: string;
     error?: string;
+} | {
+    type: 'step_noted';
+    index: number;
+    note: string;
+} | {
+    type: 'plan_amended';
+    action: 'insert' | 'replan';
+} | {
+    type: 'plan_cancelled';
+    reason?: string;
+} | {
+    type: 'plan_completed';
+    completedCount?: number;
+    failedCount?: number;
+    cancelledCount?: number;
+} | {
+    type: 'plan_failed';
+    completedCount?: number;
+    failedCount?: number;
+    cancelledCount?: number;
 } | {
     type: 'tool_call';
     call: ToolCall;
@@ -284,12 +304,23 @@ interface PlanStep {
     status: StepStatus;
     summary?: string;
     error?: string;
+    /** Free-text annotation from note_step (carried by the step_noted event). */
+    note?: string;
 }
+/** Terminal verdict of a whole plan (finalize_plan / cancel_plan). */
+type PlanOutcome = 'completed' | 'failed' | 'cancelled';
 /** The agent's declared plan. Guard-as-quality: rejection is woven in here. */
 interface AgentPlan {
     steps: PlanStep[];
     /** Set when a guard blocks; cleared when a fresh plan is declared. */
     rejection?: GuardRejection | null;
+    /**
+     * Set when the agent restructures the plan mid-turn (plan_amended). 'replan'
+     * is then followed by a fresh `plan` event that reseeds steps and clears this.
+     */
+    amended?: 'insert' | 'replan' | null;
+    /** Terminal plan verdict once finalize_plan / cancel_plan settles it. */
+    outcome?: PlanOutcome | null;
 }
 type AgentTurnStatus = 'thinking' | 'streaming' | 'done' | 'error';
 /** The full reduced state of one agentic turn. */
@@ -340,4 +371,4 @@ interface AgentHook {
     reset?: () => void;
 }
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, type ChatHook, type ChatMessage, type ChatStreamingState, type GuardLevel, type GuardRejection, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, initialAgentTurnState };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, type ChatHook, type ChatMessage, type ChatStreamingState, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, initialAgentTurnState };

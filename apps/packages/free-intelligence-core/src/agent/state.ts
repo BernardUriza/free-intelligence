@@ -21,13 +21,25 @@ export interface PlanStep {
   status: StepStatus;
   summary?: string;
   error?: string;
+  /** Free-text annotation from note_step (carried by the step_noted event). */
+  note?: string;
 }
+
+/** Terminal verdict of a whole plan (finalize_plan / cancel_plan). */
+export type PlanOutcome = 'completed' | 'failed' | 'cancelled';
 
 /** The agent's declared plan. Guard-as-quality: rejection is woven in here. */
 export interface AgentPlan {
   steps: PlanStep[];
   /** Set when a guard blocks; cleared when a fresh plan is declared. */
   rejection?: GuardRejection | null;
+  /**
+   * Set when the agent restructures the plan mid-turn (plan_amended). 'replan'
+   * is then followed by a fresh `plan` event that reseeds steps and clears this.
+   */
+  amended?: 'insert' | 'replan' | null;
+  /** Terminal plan verdict once finalize_plan / cancel_plan settles it. */
+  outcome?: PlanOutcome | null;
 }
 
 export type AgentTurnStatus = 'thinking' | 'streaming' | 'done' | 'error';
@@ -85,6 +97,8 @@ export function applyAgentEvent(
         plan: {
           steps: event.steps.map((label) => ({ label, status: 'pending' })),
           rejection: null,
+          amended: null,
+          outcome: null,
         },
         status: streamingStatus,
       };
@@ -114,16 +128,67 @@ export function applyAgentEvent(
       if (!state.plan) return state;
       const idx = event.index;
       if (idx < 0 || idx >= state.plan.steps.length) return state; // bounds guard
-      const failed = event.status === 'failed';
       const steps = state.plan.steps.map((s, i) => {
         if (i !== idx) return s; // mutate exactly step N — no off-by-one
         const patch: PlanStep = { ...s, status: event.status };
-        if (!failed && event.summary) patch.summary = event.summary;
-        if (failed && event.error) patch.error = event.error;
+        // 'done' carries a summary; 'failed'/'cancelled' carry a reason in error.
+        if (event.status === 'done') {
+          if (event.summary) patch.summary = event.summary;
+        } else if (event.error) {
+          patch.error = event.error;
+        }
         return patch;
       });
       return { ...state, plan: { ...state.plan, steps } };
     }
+
+    case 'step_noted': {
+      // Annotate exactly step N with a free-text note; never touches status.
+      if (!state.plan) return state;
+      const idx = event.index;
+      if (idx < 0 || idx >= state.plan.steps.length) return state; // bounds guard
+      const steps = state.plan.steps.map((s, i) =>
+        i === idx ? { ...s, note: event.note } : s
+      );
+      return { ...state, plan: { ...state.plan, steps } };
+    }
+
+    case 'plan_amended':
+      // Record that the plan was restructured. For 'replan' the new steps land
+      // in a following `plan` event (which clears this flag); here we only set
+      // the badge signal — the amended event carries no steps to apply.
+      return state.plan
+        ? { ...state, plan: { ...state.plan, amended: event.action } }
+        : state;
+
+    case 'plan_cancelled': {
+      // The whole plan was abandoned. Settle still-open steps as 'cancelled'
+      // (NOT 'done' — distinct from the `result` close-out sweep, which only
+      // touches pending/running and would wrongly mark these done if it ran
+      // after us). Already-settled steps keep their terminal status.
+      if (!state.plan) return state;
+      const steps = state.plan.steps.map((s) =>
+        s.status === 'pending' || s.status === 'running'
+          ? { ...s, status: 'cancelled' as const }
+          : s
+      );
+      return { ...state, plan: { ...state.plan, steps, outcome: 'cancelled' } };
+    }
+
+    case 'plan_completed':
+      // Terminal verdict. Per-step statuses already reflect reality (each
+      // step_done settled them); we only stamp the plan-level outcome. The
+      // wire counts are derivable from steps[].status, so we don't store them.
+      return state.plan
+        ? { ...state, plan: { ...state.plan, outcome: 'completed' } }
+        : state;
+
+    case 'plan_failed':
+      // Plan failed (>=1 step failed). Leave step statuses as settled — a
+      // failed plan can still have done steps — and stamp the outcome.
+      return state.plan
+        ? { ...state, plan: { ...state.plan, outcome: 'failed' } }
+        : state;
 
     case 'tool_call': {
       // Dedupe-on-arrival by id (DELIBERATE divergence from the original's

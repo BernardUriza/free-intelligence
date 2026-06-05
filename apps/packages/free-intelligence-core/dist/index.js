@@ -19,7 +19,9 @@ function applyAgentEvent(state, event) {
         ...state,
         plan: {
           steps: event.steps.map((label) => ({ label, status: "pending" })),
-          rejection: null
+          rejection: null,
+          amended: null,
+          outcome: null
         },
         status: streamingStatus
       };
@@ -42,16 +44,40 @@ function applyAgentEvent(state, event) {
       if (!state.plan) return state;
       const idx = event.index;
       if (idx < 0 || idx >= state.plan.steps.length) return state;
-      const failed = event.status === "failed";
       const steps = state.plan.steps.map((s, i) => {
         if (i !== idx) return s;
         const patch = { ...s, status: event.status };
-        if (!failed && event.summary) patch.summary = event.summary;
-        if (failed && event.error) patch.error = event.error;
+        if (event.status === "done") {
+          if (event.summary) patch.summary = event.summary;
+        } else if (event.error) {
+          patch.error = event.error;
+        }
         return patch;
       });
       return { ...state, plan: { ...state.plan, steps } };
     }
+    case "step_noted": {
+      if (!state.plan) return state;
+      const idx = event.index;
+      if (idx < 0 || idx >= state.plan.steps.length) return state;
+      const steps = state.plan.steps.map(
+        (s, i) => i === idx ? { ...s, note: event.note } : s
+      );
+      return { ...state, plan: { ...state.plan, steps } };
+    }
+    case "plan_amended":
+      return state.plan ? { ...state, plan: { ...state.plan, amended: event.action } } : state;
+    case "plan_cancelled": {
+      if (!state.plan) return state;
+      const steps = state.plan.steps.map(
+        (s) => s.status === "pending" || s.status === "running" ? { ...s, status: "cancelled" } : s
+      );
+      return { ...state, plan: { ...state.plan, steps, outcome: "cancelled" } };
+    }
+    case "plan_completed":
+      return state.plan ? { ...state, plan: { ...state.plan, outcome: "completed" } } : state;
+    case "plan_failed":
+      return state.plan ? { ...state, plan: { ...state.plan, outcome: "failed" } } : state;
     case "tool_call": {
       const existing = event.call.id != null ? state.steps.findIndex((c) => c.id === event.call.id) : -1;
       const steps = existing >= 0 ? state.steps.map((c, i) => i === existing ? event.call : c) : [...state.steps, event.call];
