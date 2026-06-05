@@ -108,6 +108,48 @@ def _last_user_attachments(messages: list[dict]) -> list[dict]:
     return [b for b in content if isinstance(b, dict) and b.get("type") in {"image", "document"}]
 
 
+# How much of the prior channel conversation to replay to the runner. The
+# runner DISCARDS the plumbing-built `messages[]` and keeps only PER-USER
+# session state (see chat() below), so it is blind to what OTHER participants
+# just said. Concrete failure (2026-06-05, #general): Bernard names the film
+# "Creep" in his own message; seconds later Alex says "me dio ptsd la peli"
+# WITHOUT naming it; her turn's session never saw Bernard's line, so the bot
+# answers "¿cuál peli?". Replaying the tail of the SHARED channel lets
+# cross-user references ("la peli", "eso", "el de antes") resolve.
+_RECENT_CONTEXT_MAX_MESSAGES = 25
+_RECENT_CONTEXT_MAX_CHARS = 3500
+
+
+def _format_recent_context(messages: list[dict]) -> str:
+    """Render the channel messages BEFORE the current one as a transcript.
+
+    The plumbing builds `messages[]` (recent 50 + keyword-relevant) where each
+    prior entry's `content` is already a speaker-prefixed string like
+    "Bernard: ya terminamos". The runner ignores that list entirely, so the
+    shared group conversation never reaches it. We replay the tail here so the
+    runner can resolve references to what other people just said.
+
+    Returns "" when there is nothing prior to replay.
+    """
+    if not messages or len(messages) <= 1:
+        return ""
+    tail = messages[:-1][-_RECENT_CONTEXT_MAX_MESSAGES:]
+    lines: list[str] = []
+    for m in tail:
+        content = m.get("content", "")
+        if isinstance(content, list):
+            content = "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+        if isinstance(content, str) and content.strip():
+            lines.append(content.strip())
+    if not lines:
+        return ""
+    transcript = "\n".join(lines)
+    if len(transcript) > _RECENT_CONTEXT_MAX_CHARS:
+        # Keep the freshest tail — truncate from the front.
+        transcript = "…\n" + transcript[-_RECENT_CONTEXT_MAX_CHARS:]
+    return transcript
+
+
 class AgentRunnerClient:
     """The turn backend — delegates each chat turn to the runner.
 
@@ -179,6 +221,20 @@ class AgentRunnerClient:
             prefix_blocks.append(f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>")
         if other_people:
             prefix_blocks.append(f"<other_people_in_channel>\n{other_people}\n</other_people_in_channel>")
+        # The shared channel conversation the runner would otherwise never see
+        # (it only reads the last user message + its own per-user session).
+        # Goes LAST among the prefix blocks — closest to the current message —
+        # so it reads as the live thread, not as background memory.
+        recent_context = _format_recent_context(messages)
+        if recent_context:
+            prefix_blocks.append(
+                "<recent_conversation>\n"
+                "Lo que se acaba de decir en este canal (incluye a otras personas). "
+                'Úsalo para resolver referencias como "la peli", "eso", "el de antes" — '
+                "NO vuelvas a preguntar qué es algo que ya se nombró aquí.\n"
+                f"{recent_context}\n</recent_conversation>"
+            )
+            log.info("agent_runner_client_recent_context_forwarded", context_chars=len(recent_context))
         if prefix_blocks:
             effective_user_text = "\n\n".join([*prefix_blocks, effective_user_text])
 
