@@ -1,0 +1,5 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+# fi-runner (with the Claude Code backend extra) is installed editable from the
+# monorepo path — see README:
+#   pip install -e ../../packages/fi-runner[claude]

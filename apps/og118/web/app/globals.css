@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* og118 base. fi-glass tokens come from 'fi-glass/theme.css' (imported in layout).
+   Tailwind is required by fi-glass/messages primitives (messageStyles emit
+   utility classes) — see VALIDATION_REPORT finding #3. */
+:root {
+  --og-bg-deep: #0a0e16;
+  --og-bg-mid: #0f172a;
+  --og-accent: #34d399;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 70% 30%, rgba(52, 211, 153, 0.06), transparent 60%),
+    linear-gradient(160deg, var(--og-bg-mid), var(--og-bg-deep));
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Composer (fi-glass ships it style-agnostic; the app dresses it via className). */
+.og-composer-area {
+  display: flex;
+}
+.og-composer-textarea {
+  width: 100%;
+  resize: none;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  outline: none;
+  backdrop-filter: blur(var(--glass-blur, 12px));
+}
+.og-composer-textarea:focus {
+  border-color: var(--og-accent);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+}

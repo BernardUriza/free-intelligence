@@ -1,0 +1,7 @@
+# og118 web — build artifacts (never committed)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*
+!.env.example
