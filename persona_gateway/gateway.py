@@ -28,10 +28,14 @@ import re
 import discord
 import structlog
 
-from insult.config import settings
 from insult.core.llm.agent_client import AgentRunnerClient
 from insult.core.memory import MemoryStore
 from shared.personas import Persona, all_personas
+
+# NOTE: `insult.config.settings` is imported lazily inside `_build_shared()`,
+# NOT at module top-level. Constructing the Settings singleton requires a `.env`
+# (DISCORD_TOKEN etc.); importing it here would crash test collection in CI,
+# which has no .env. The pure helpers + PersonaClient must import cleanly.
 
 log = structlog.get_logger()
 
@@ -209,6 +213,8 @@ class PersonaClient(discord.Client):
 
 def _build_shared() -> tuple[MemoryStore, AgentRunnerClient]:
     """Construct the deps shared by all persona-bots (same wiring as Insult)."""
+    from insult.config import settings  # lazy: needs .env, see module note
+
     memory = MemoryStore(settings.postgres_url.get_secret_value())
     runner_url = settings.insult_agent_runner_url
     runner_token = settings.insult_agent_runner_token.get_secret_value()
