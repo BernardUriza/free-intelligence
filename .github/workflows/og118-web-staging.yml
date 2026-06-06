@@ -1,0 +1,63 @@
+name: Deploy og118 web (SWA staging)
+
+# Builds the og118 Next static export and deploys it to a NEW, temporary staging
+# Static Web App. Does NOT touch og118-landing.yml or og118.ai — the public
+# domain cutover is Gate 4. Path-filtered to og118 web + the fi-glass material
+# it consumes.
+#
+# NEXT_PUBLIC_OG118_API is baked at build time from the OG118_API_URL repo
+# variable (set once the backend Container App FQDN is known — see
+# apps/og118/DEPLOY.md). The access token is NEVER baked: it is entered at
+# runtime in the browser (localStorage), per Gate 1.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/og118/web/**'
+      - 'apps/packages/fi-glass/**'
+      - 'apps/packages/free-intelligence-core/**'
+      - '.github/workflows/og118-web-staging.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: og118-web-staging
+  cancel-in-progress: true
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install (frozen)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static export
+        env:
+          NEXT_PUBLIC_OG118_API: ${{ vars.OG118_API_URL }}
+        run: pnpm --filter og118-web build
+
+      - name: Guard — no token / no secret baked into the bundle
+        run: |
+          OUT=apps/og118/web/out
+          if grep -rq 'sk-ant-' "$OUT"; then echo "API key leaked into bundle"; exit 1; fi
+          if grep -rq 'NEXT_PUBLIC_OG118_TOKEN' "$OUT"; then echo "token env baked"; exit 1; fi
+          echo "no secrets baked ✓"
+
+      - name: Deploy to Azure Static Web Apps (staging)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_TOKEN_OG118_STAGING }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: apps/og118/web/out
+          output_location: ''
+          skip_app_build: true

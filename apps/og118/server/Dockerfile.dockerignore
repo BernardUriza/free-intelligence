@@ -1,0 +1,22 @@
+# Scoped to this Dockerfile (BuildKit reads <dockerfile>.dockerignore first), so
+# it does NOT affect other builds in the repo. Keeps the repo-root build context
+# small — the server image only needs fi-core, fi-runner and apps/og118/server.
+*
+!apps/packages/fi-core
+!apps/packages/fi-runner
+!apps/og118/server
+
+# Re-exclude heavy/irrelevant trees even under the allowed paths.
+**/node_modules
+**/.venv
+**/.venv-build
+**/__pycache__
+**/*.pyc
+**/.next
+**/out
+**/dist
+**/.git
+**/.env*
+**/.canary-screens
+**/.pytest_cache
+**/.ruff_cache

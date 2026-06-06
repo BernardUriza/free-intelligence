@@ -1,0 +1,104 @@
+name: Deploy og118 backend (ACR + Container App)
+
+# Builds the og118 FastAPI + fi-runner image (linux/amd64) and deploys it to an
+# Azure Container App. Path-filtered to og118 + its Python substrate only —
+# AURITY's deploy-azure.yml is untouched and unaffected.
+#
+# Auth: OIDC federated credentials (NOT the shared AURITY AZURE_CREDENTIALS).
+# Image is built amd64 on the (amd64) GitHub runner so it runs on ACA — the
+# local arm64 image from Gate 1 is dev-only.
+#
+# One-time bootstrap (identity, secrets, variables, roles) is documented in
+# apps/og118/DEPLOY.md. The resources (ACR, env, app) are created idempotently
+# here, so a fresh run reproduces the deploy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/og118/server/**'
+      - 'apps/packages/fi-core/**'
+      - 'apps/packages/fi-runner/**'
+      - '.github/workflows/og118-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: og118-backend-deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+env:
+  RG: ${{ vars.OG118_RESOURCE_GROUP }}
+  LOCATION: ${{ vars.OG118_LOCATION }}
+  ACR: ${{ vars.OG118_ACR_NAME }}
+  ACA_ENV: ${{ vars.OG118_CONTAINERAPP_ENV }}
+  APP: ${{ vars.OG118_API_NAME }}
+  IMAGE: og118-server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure ACR (idempotent)
+        run: |
+          az acr show -n "$ACR" -g "$RG" >/dev/null 2>&1 \
+            || az acr create -n "$ACR" -g "$RG" -l "$LOCATION" --sku Basic --admin-enabled false
+
+      - name: Build linux/amd64 + push to ACR
+        run: |
+          az acr login -n "$ACR"
+          # BuildKit on the amd64 runner honors apps/og118/server/Dockerfile.dockerignore
+          # (scoped) and builds natively — no QEMU, no arm64.
+          docker build --platform linux/amd64 \
+            -f apps/og118/server/Dockerfile \
+            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" \
+            -t "$ACR.azurecr.io/$IMAGE:latest" .
+          docker push "$ACR.azurecr.io/$IMAGE:${{ github.sha }}"
+          docker push "$ACR.azurecr.io/$IMAGE:latest"
+
+      - name: Ensure Container Apps environment (idempotent)
+        run: |
+          az containerapp env show -n "$ACA_ENV" -g "$RG" >/dev/null 2>&1 \
+            || az containerapp env create -n "$ACA_ENV" -g "$RG" -l "$LOCATION"
+
+      - name: Create or update Container App
+        env:
+          IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/og118-server:${{ github.sha }}
+        run: |
+          # Secrets and env. ANTHROPIC_API_KEY only (API mode); NO OAuth in cloud.
+          SECRETS="anthropic-key=${{ secrets.OG118_ANTHROPIC_API_KEY }} access-token=${{ secrets.OG118_ACCESS_TOKEN }}"
+          ENVVARS="ANTHROPIC_API_KEY=secretref:anthropic-key OG118_ACCESS_TOKEN=secretref:access-token OG118_ALLOWED_ORIGINS=${{ vars.OG118_ALLOWED_ORIGINS }} OG118_MODEL=${{ vars.OG118_MODEL }}"
+          if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
+            az containerapp secret set -n "$APP" -g "$RG" --secrets $SECRETS
+            az containerapp update -n "$APP" -g "$RG" --image "$IMG" --set-env-vars $ENVVARS
+          else
+            az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
+              --image "$IMG" \
+              --registry-server "$ACR.azurecr.io" --registry-identity system \
+              --target-port 8118 --ingress external \
+              --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+              --secrets $SECRETS \
+              --env-vars $ENVVARS
+          fi
+
+      - name: Health check
+        run: |
+          FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "FQDN: https://$FQDN"
+          for i in $(seq 1 12); do
+            if curl -sf "https://$FQDN/health" -o /dev/null; then echo "healthy"; exit 0; fi
+            echo "waiting for health ($i)…"; sleep 10
+          done
+          echo "health check failed"; exit 1
