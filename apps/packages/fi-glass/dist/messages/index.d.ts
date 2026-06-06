@@ -1,6 +1,5 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
-import * as react_jsx_runtime from 'react/jsx-runtime';
 
 /**
  * fi-glass · message style configuration
@@ -157,6 +156,6 @@ interface MessageListProps<T> {
     /** Slot rendered after the groups (streaming row, typing dots, spacer…). */
     footer?: ReactNode;
 }
-declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react_jsx_runtime.JSX.Element;
+declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
 export { CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles };

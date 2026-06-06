@@ -1,6 +1,5 @@
 import * as react from 'react';
 import { LucideIcon } from 'lucide-react';
-import * as react_jsx_runtime from 'react/jsx-runtime';
 import { VoiceAdapter } from '@free-intelligence/core';
 
 /**
@@ -94,7 +93,7 @@ interface PulseRingsProps {
     /** Additional container classes */
     className?: string;
 }
-declare function PulseRings({ style, color, audioLevel, isSilent, className, }: PulseRingsProps): react_jsx_runtime.JSX.Element | null;
+declare function PulseRings({ style, color, audioLevel, isSilent, className, }: PulseRingsProps): react.JSX.Element | null;
 
 /**
  * RecordingTimer - Shared Timer Display Component
@@ -127,7 +126,7 @@ interface RecordingTimerProps {
  * Format seconds to MM:SS string
  */
 declare function formatRecordingTime(seconds: number): string;
-declare function RecordingTimer({ time, visible, size, showDot, textColor, dotColor, className, }: RecordingTimerProps): react_jsx_runtime.JSX.Element | null;
+declare function RecordingTimer({ time, visible, size, showDot, textColor, dotColor, className, }: RecordingTimerProps): react.JSX.Element | null;
 
 /**
  * StatusText - Recording Status Display Component
@@ -147,7 +146,7 @@ interface StatusTextProps {
     /** Additional classes */
     className?: string;
 }
-declare function StatusText({ text, color, showLoader, animate, className, }: StatusTextProps): react_jsx_runtime.JSX.Element;
+declare function StatusText({ text, color, showLoader, animate, className, }: StatusTextProps): react.JSX.Element;
 
 /**
  * VoiceMicButton Component
@@ -173,7 +172,7 @@ interface VoiceMicButtonProps {
     onStop: () => void;
     className?: string;
 }
-declare function VoiceMicButton({ isRecording, isTranscribing, audioLevel, isSilent, recordingTime, onStart, onStop, className, }: VoiceMicButtonProps): react_jsx_runtime.JSX.Element;
+declare function VoiceMicButton({ isRecording, isTranscribing, audioLevel, isSilent, recordingTime, onStart, onStop, className, }: VoiceMicButtonProps): react.JSX.Element;
 
 interface SpeakButtonProps {
     /** Text to speak. */
@@ -193,7 +192,7 @@ interface SpeakButtonProps {
     /** Override the tooltip (default: "Escuchar (<voice>)"). */
     title?: string;
 }
-declare function SpeakButton({ content, voice, isUserMessage, onOpenPlayer, size, className, iconClassName, title, }: SpeakButtonProps): react_jsx_runtime.JSX.Element;
+declare function SpeakButton({ content, voice, isUserMessage, onOpenPlayer, size, className, iconClassName, title, }: SpeakButtonProps): react.JSX.Element;
 
 interface UseVoiceOptions {
     /** Called when synthesis fails (app decides logging/reporting). */

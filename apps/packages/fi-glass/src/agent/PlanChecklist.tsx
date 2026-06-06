@@ -42,12 +42,36 @@ export function PlanChecklist({
   const rejection = plan.rejection ?? null;
   const matchedIndexes = new Set(rejection?.matched.map((m) => m.index) ?? []);
 
+  // Terminal plan verdict (finalize_plan / cancel_plan) → header badge.
+  const outcome = plan.outcome ?? null;
+  const outcomeBadge =
+    outcome === 'completed'
+      ? { label: 'completed', tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' }
+      : outcome === 'failed'
+        ? { label: 'failed', tone: 'border-red-500/30 bg-red-500/10 text-red-300' }
+        : outcome === 'cancelled'
+          ? { label: 'cancelled', tone: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400' }
+          : null;
+  // The plan was restructured mid-turn (insert_step / replan).
+  const amended = plan.amended ?? null;
+  const amendedLabel = amended === 'replan' ? 're-planned' : amended === 'insert' ? 'revised' : null;
+
   return (
     <div className={`${card} mb-2 text-sm`.trim()}>
       <div className="flex items-center justify-between gap-2 text-zinc-300">
         <span className="inline-flex items-center gap-2 font-medium">
           <PlanIcon className="h-4 w-4 text-zinc-400" aria-hidden />
           plan
+          {amendedLabel && (
+            <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300">
+              {amendedLabel}
+            </span>
+          )}
+          {outcomeBadge && (
+            <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${outcomeBadge.tone}`}>
+              {outcomeBadge.label}
+            </span>
+          )}
         </span>
         <span className={`${hint} text-xs tabular-nums`.trim()}>
           {done} / {total}
@@ -81,23 +105,28 @@ export function PlanChecklist({
           const isPending = step.status === 'pending';
           const isDone = step.status === 'done';
           const isFailed = step.status === 'failed';
+          const isCancelled = step.status === 'cancelled';
           const isRejected = matchedIndexes.has(i);
           const labelTone = isRejected
             ? 'text-amber-300 line-through decoration-amber-500/60'
             : isFailed
               ? 'text-red-400'
-              : isDone
-                ? 'text-zinc-300'
-                : isRunning
-                  ? 'text-zinc-100'
-                  : 'text-zinc-500';
+              : isCancelled
+                ? 'text-zinc-500 line-through decoration-zinc-600'
+                : isDone
+                  ? 'text-zinc-300'
+                  : isRunning
+                    ? 'text-zinc-100'
+                    : 'text-zinc-500';
           const railTone = isFailed
             ? 'text-red-400'
-            : isDone
-              ? 'text-emerald-400 bg-emerald-400'
-              : isRunning
-                ? 'text-amber-300 bg-amber-300'
-                : 'text-zinc-600 bg-zinc-700';
+            : isCancelled
+              ? 'text-zinc-500 bg-zinc-500'
+              : isDone
+                ? 'text-emerald-400 bg-emerald-400'
+                : isRunning
+                  ? 'text-amber-300 bg-amber-300'
+                  : 'text-zinc-600 bg-zinc-700';
           return (
             <li key={i} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2 text-xs">
@@ -118,6 +147,11 @@ export function PlanChecklist({
                     running
                   </span>
                 )}
+                {isCancelled && (
+                  <span className={`${hint} text-[10px] uppercase tracking-wide`.trim()}>
+                    cancelled
+                  </span>
+                )}
               </div>
               {step.summary && isDone && (
                 <div className={`${hint} pl-5 font-mono text-[11px] text-zinc-500`.trim()}>
@@ -127,6 +161,16 @@ export function PlanChecklist({
               {step.error && isFailed && (
                 <div className="pl-5 font-mono text-[11px] text-red-400/80">
                   {step.error}
+                </div>
+              )}
+              {step.error && isCancelled && (
+                <div className="pl-5 font-mono text-[11px] text-zinc-500">
+                  {step.error}
+                </div>
+              )}
+              {step.note && (
+                <div className="pl-5 text-[11px] italic text-zinc-400">
+                  note: {step.note}
                 </div>
               )}
             </li>

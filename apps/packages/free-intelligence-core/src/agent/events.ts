@@ -14,7 +14,7 @@
  */
 
 /** Lifecycle status of a single planned step. */
-export type StepStatus = 'pending' | 'running' | 'done' | 'failed';
+export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
 
 /** Severity a guard can assign. Generic — each app names its own guards. */
 export type GuardLevel = 'ok' | 'warning' | 'critical';
@@ -79,9 +79,39 @@ export type AgentStreamEvent =
   | {
       type: 'step_done';
       index: number;
-      status: 'done' | 'failed';
+      status: 'done' | 'failed' | 'cancelled';
       summary?: string;
       error?: string;
+    }
+  // --- Plan revision & lifecycle ------------------------------------------
+  // Faithful to fi-runner's task_tracker stream (see fi_runner/_plan_events.py).
+  // Without these variants an app's hook DROPS the signal (og118 did exactly
+  // that) — the turn re-plans or cancels and the UI never learns.
+  //
+  // A step gained a free-text annotation (note_step). Carries the note so the
+  // UI can show WHY, not merely that a note exists.
+  | { type: 'step_noted'; index: number; note: string }
+  // The agent restructured the plan mid-turn: 'insert' splices a step in;
+  // 'replan' replaces the plan (its new steps arrive in a fresh `plan` event,
+  // which clears the amended flag). The amended event itself carries no steps.
+  | { type: 'plan_amended'; action: 'insert' | 'replan' }
+  // The whole plan was abandoned (cancel_plan). `reason` is on the wire even
+  // though the reducer doesn't surface it yet — the contract equals the wire.
+  | { type: 'plan_cancelled'; reason?: string }
+  // Terminal plan verdicts (finalize_plan). Counts are derivable from
+  // steps[].status, but the backend's authoritative tallies ride the wire too
+  // (they survive lossy SSE that the per-step events may not).
+  | {
+      type: 'plan_completed';
+      completedCount?: number;
+      failedCount?: number;
+      cancelledCount?: number;
+    }
+  | {
+      type: 'plan_failed';
+      completedCount?: number;
+      failedCount?: number;
+      cancelledCount?: number;
     }
   | { type: 'tool_call'; call: ToolCall }
   | { type: 'text'; delta: string }

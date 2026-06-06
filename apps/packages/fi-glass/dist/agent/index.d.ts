@@ -1,4 +1,4 @@
-import * as react_jsx_runtime from 'react/jsx-runtime';
+import * as react from 'react';
 import { ReactNode } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
@@ -92,7 +92,7 @@ interface AgentPanelProps {
  * audit trail) + Sources (evidence). Each sub-panel self-hides when it has
  * nothing to show, so an early/no-tool turn degrades gracefully.
  */
-declare function AgentPanel({ turn, target, classNames, icons, enableSlowBanner, slowThresholdMs, renderSources, renderGuardBanner, }: AgentPanelProps): react_jsx_runtime.JSX.Element;
+declare function AgentPanel({ turn, target, classNames, icons, enableSlowBanner, slowThresholdMs, renderSources, renderGuardBanner, }: AgentPanelProps): react.JSX.Element;
 
 interface PlanChecklistProps {
     plan: AgentPlan | null;
@@ -111,7 +111,7 @@ interface PlanChecklistProps {
  * declared. Visual rule: signal > detail — this says WHAT the agent committed
  * to; the Steps panel shows every tool call as it happens.
  */
-declare function PlanChecklist({ plan, classNames, icons, renderGuardBanner, }: PlanChecklistProps): react_jsx_runtime.JSX.Element | null;
+declare function PlanChecklist({ plan, classNames, icons, renderGuardBanner, }: PlanChecklistProps): react.JSX.Element | null;
 
 interface StepsPanelProps {
     steps: ToolCall[];
@@ -131,7 +131,7 @@ interface StepsPanelProps {
  * here — fi-glass knows nothing about clinical/roast modes; the slow banner is a
  * plain prop (apps that have their own slow UI pass enableSlowBanner={false}).
  */
-declare function StepsPanel({ steps, status, target, classNames, icons, enableSlowBanner, slowThresholdMs, }: StepsPanelProps): react_jsx_runtime.JSX.Element | null;
+declare function StepsPanel({ steps, status, target, classNames, icons, enableSlowBanner, slowThresholdMs, }: StepsPanelProps): react.JSX.Element | null;
 
 interface SourcesPanelProps {
     /** Evidence references (e.g. source URLs). Contract field name = `sources`. */
@@ -147,6 +147,6 @@ interface SourcesPanelProps {
  * Data receipts) can pass its row class via `classNames.sourceRow`, or replace
  * this whole panel through the AgentPanel's `renderSources` slot.
  */
-declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react_jsx_runtime.JSX.Element | null;
+declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react.JSX.Element | null;
 
 export { type AgentClassNames, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus };

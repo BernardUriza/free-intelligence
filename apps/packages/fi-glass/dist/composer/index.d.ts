@@ -1,4 +1,4 @@
-import * as react_jsx_runtime from 'react/jsx-runtime';
+import * as react from 'react';
 import { TextareaHTMLAttributes } from 'react';
 
 interface ComposerProps {
@@ -21,7 +21,7 @@ interface ComposerProps {
     /** Class for the <textarea> itself */
     textareaClassName?: string;
 }
-declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, textareaClassName, }: ComposerProps): react_jsx_runtime.JSX.Element;
+declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, textareaClassName, }: ComposerProps): react.JSX.Element;
 
 interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     /** Max rows before scrolling */
@@ -33,6 +33,6 @@ interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaEle
     /** Additional wrapper CSS classes */
     wrapperClassName?: string;
 }
-declare function AutoResizeTextarea({ value, onChange, maxRows, showCounter, maxLength, wrapperClassName, className, ...props }: AutoResizeTextareaProps): react_jsx_runtime.JSX.Element;
+declare function AutoResizeTextarea({ value, onChange, maxRows, showCounter, maxLength, wrapperClassName, className, ...props }: AutoResizeTextareaProps): react.JSX.Element;
 
 export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, type ComposerProps };

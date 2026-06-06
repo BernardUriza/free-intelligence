@@ -6,6 +6,7 @@
 // @/components/ui/*.
 
 export { ChatWidget } from './ChatWidget';
+export { ChatSurface, type ChatSurfaceProps } from './ChatSurface';
 export { ChatContent } from './ChatContent';
 export { ChatWidgetContainer, type ChatWidgetContainerProps } from './ChatWidgetContainer';
 export { ChatWidgetHeader, type ChatWidgetHeaderProps } from './ChatWidgetHeader';
