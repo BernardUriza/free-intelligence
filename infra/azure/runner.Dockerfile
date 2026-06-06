@@ -61,6 +61,10 @@ COPY insult/ insult/
 # with the image. Renderer NEVER overwrites it.
 COPY persona.md /app/persona.md
 
+# Khimeras sibling personas (vultur.md, etc.) → /app/personas/ to match the
+# runner's PERSONAS_DIR default. A turn's persona_id selects <id>.md from here.
+COPY shared/personas/ /app/personas/
+
 # Entrypoint script orchestrates two processes: renderer (background) +
 # FastAPI runner (foreground). See infra/azure/entrypoint.sh for details
 # on OAuth credential materialization and process lifecycle.

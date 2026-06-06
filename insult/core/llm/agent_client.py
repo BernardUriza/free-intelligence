@@ -192,6 +192,7 @@ class AgentRunnerClient:
         behavioral_guidance: str | None = None,
         relevant_memory: str | None = None,
         other_people: str | None = None,
+        persona_id: str | None = None,
     ) -> LLMResponse:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
@@ -243,6 +244,10 @@ class AgentRunnerClient:
             "user_id": user_id or "0",
             "user_text": effective_user_text,
         }
+        # Khimeras multi-persona: tell the runner which sibling persona answers.
+        # Omitted for Insult (None) so the payload + runner behavior are unchanged.
+        if persona_id:
+            payload["persona_id"] = persona_id
         if attachments:
             payload["attachments"] = attachments
             log.info(

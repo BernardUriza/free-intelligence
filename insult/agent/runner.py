@@ -66,6 +66,7 @@ import asyncio
 import contextlib
 import hmac
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -81,6 +82,12 @@ log = structlog.get_logger()
 
 WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", "/data/insult-workspace"))
 PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/persona.md"))
+# Multi-persona (Khimeras): a turn may carry a `persona_id` to load a sibling
+# persona (e.g. "vultur") from PERSONAS_DIR/<id>.md instead of Insult's default
+# PERSONA_PATH. The id is allowlisted to a tight charset so it can never escape
+# the directory (path traversal) — anything else falls back to Insult.
+PERSONAS_DIR = Path(os.environ.get("PERSONAS_DIR", "/app/personas"))
+_PERSONA_ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
 RUNNER_AUTH_TOKEN = os.environ.get("INSULT_AGENT_RUNNER_TOKEN", "")
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
@@ -142,6 +149,10 @@ class TurnRequest(BaseModel):
     # prompt) so persona.md stays cache-stable while the guidance varies
     # per turn. Capped to keep the turn payload bounded.
     behavioral_guidance: str | None = Field(default=None, max_length=16000)
+    # Khimeras multi-persona: which sibling persona answers this turn. None ⇒
+    # Insult (default PERSONA_PATH), fully backward-compatible. A valid id loads
+    # PERSONAS_DIR/<id>.md; an unknown/invalid id falls back to Insult + a log.
+    persona_id: str | None = Field(default=None, max_length=32)
 
 
 class TurnResponse(BaseModel):
@@ -207,18 +218,49 @@ def _frame_turn_text(
     )
 
 
-def _load_persona() -> str:
-    """Read persona.md from disk on first session creation only.
+def _resolve_persona_path(persona_id: str | None) -> Path:
+    """Map a persona_id to its persona file, defaulting to Insult.
 
-    Each long-lived ClaudeSDKClient gets persona.md inlined as its
+    Returns PERSONA_PATH (Insult) when persona_id is None, fails the allowlist
+    (anti path-traversal), or the sibling file is missing — logging the unknown
+    case so a typo'd id is visible instead of silently impersonating Insult.
+    """
+    if not persona_id:
+        return PERSONA_PATH
+    if not _PERSONA_ID_RE.match(persona_id):
+        log.warning("agent_runner_persona_invalid_id", persona_id=persona_id)
+        return PERSONA_PATH
+    candidate = PERSONAS_DIR / f"{persona_id}.md"
+    if not candidate.exists():
+        log.warning("agent_runner_persona_unknown", persona_id=persona_id, path=str(candidate))
+        return PERSONA_PATH
+    return candidate
+
+
+def _load_persona(persona_id: str | None = None) -> str:
+    """Read the persona markdown from disk on first session creation only.
+
+    Each long-lived ClaudeSDKClient gets the persona inlined as its
     system_prompt at construction time. The SDK then caches it across
     that client's lifetime. Re-reading from disk is cheap and lets
     `mtime` updates take effect on the NEXT new session.
+
+    With `persona_id` set (Khimeras siblings), loads PERSONAS_DIR/<id>.md;
+    otherwise the default Insult PERSONA_PATH. Resolution + safety live in
+    `_resolve_persona_path`.
     """
-    if not PERSONA_PATH.exists():
-        log.error("agent_runner_persona_missing", path=str(PERSONA_PATH))
+    path = _resolve_persona_path(persona_id)
+    if not path.exists():
+        log.error("agent_runner_persona_missing", path=str(path))
         return ""
-    return PERSONA_PATH.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8")
+
+
+def _pool_key(channel_id: str, persona_id: str | None) -> str:
+    """Session-pool key. Insult (persona_id=None) keeps the bare channel_id so
+    existing sessions and behavior are untouched; a sibling persona gets its own
+    `channel_id:persona_id` slot so it never shares Insult's SDK session."""
+    return channel_id if not persona_id else f"{channel_id}:{persona_id}"
 
 
 # --- Per-channel session pool ---
@@ -332,6 +374,7 @@ _pool_models: dict[str, str] = {}  # channel_id → model id chosen at session c
 async def _get_or_create_client(
     channel_id: str,
     *,
+    persona_id: str | None = None,
     user_id: str | None = None,
     user_text: str | None = None,
 ) -> Any:
@@ -350,10 +393,11 @@ async def _get_or_create_client(
     """
     from claude_agent_sdk import ClaudeSDKClient
 
+    key = _pool_key(channel_id, persona_id)
     async with _pool_lock:
-        existing = _pool.get(channel_id)
+        existing = _pool.get(key)
         if existing is not None:
-            _pool_last_used[channel_id] = time.time()
+            _pool_last_used[key] = time.time()
             return existing
 
         # First turn for this channel — route, then build + enter client.
@@ -392,16 +436,17 @@ async def _get_or_create_client(
                     with contextlib.suppress(Exception):
                         await pg_conn.close()
 
-        persona = _load_persona()
+        persona = _load_persona(persona_id)
         options = await _build_options(persona, model=chosen_model)
         client = ClaudeSDKClient(options=options)
         await client.__aenter__()
-        _pool[channel_id] = client
-        _pool_models[channel_id] = chosen_model
-        _pool_last_used[channel_id] = time.time()
+        _pool[key] = client
+        _pool_models[key] = chosen_model
+        _pool_last_used[key] = time.time()
         log.info(
             "agent_runner_session_created",
             channel_id=channel_id,
+            persona_id=persona_id or "insult",
             model=chosen_model,
             pool_size=len(_pool),
             **route_meta,
@@ -659,10 +704,14 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     _check_auth(authorization)
     start = time.monotonic()
 
-    # Lock per-channel so concurrent /v1/turn calls for the same channel
-    # serialize queries against the same client. Different channels run
-    # in parallel.
-    lock = _channel_locks.setdefault(req.channel_id, asyncio.Lock())
+    # Pool slot for this turn. Insult (persona_id=None) keeps the bare
+    # channel_id; a sibling persona gets its own channel_id:persona_id slot so
+    # Insult and Vultur in the same channel never share one SDK session.
+    pool_key = _pool_key(req.channel_id, req.persona_id)
+
+    # Lock per-slot so concurrent /v1/turn calls for the same slot serialize
+    # queries against the same client. Different slots run in parallel.
+    lock = _channel_locks.setdefault(pool_key, asyncio.Lock())
 
     # Per-turn behavioral guidance goes BEFORE the user text so the model
     # reads "how to respond" before "what to respond to". See _frame_turn_text.
@@ -701,18 +750,23 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     output_tokens = 0
     stop_reason = ""
     session_uuid: str | None = None
-    is_first_turn = req.channel_id not in _pool
+    is_first_turn = pool_key not in _pool
     # Best-known model for this turn: prefer the per-session decision
     # picked at create-time (set by the router), fall back to DEFAULT_MODEL
     # for legacy callers and the synthetic logging path before client open.
-    model = _pool_models.get(req.channel_id, DEFAULT_MODEL)
+    model = _pool_models.get(pool_key, DEFAULT_MODEL)
 
     try:
         async with lock:
-            client = await _get_or_create_client(req.channel_id, user_id=req.user_id, user_text=req.user_text)
+            client = await _get_or_create_client(
+                req.channel_id,
+                persona_id=req.persona_id,
+                user_id=req.user_id,
+                user_text=req.user_text,
+            )
             # After create the chosen model is in the pool. Refresh local
             # binding so the response payload reports what was actually used.
-            model = _pool_models.get(req.channel_id, DEFAULT_MODEL)
+            model = _pool_models.get(pool_key, DEFAULT_MODEL)
             await client.query(query_input)
             async for message in client.receive_response():
                 mtype = type(message).__name__
@@ -748,7 +802,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
             elapsed_ms=int((time.monotonic() - start) * 1000),
             is_first_turn=is_first_turn,
         )
-        await _close_client(req.channel_id)
+        await _close_client(pool_key)
         raise HTTPException(502, f"agent loop failed: {type(e).__name__}: {e}") from e
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
