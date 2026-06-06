@@ -1,0 +1,84 @@
+name: 🛡️ BAIR Gatekeeper
+
+# AI gate on every PR to main. The gatekeeper analyzes the PR diff via git —
+# it is independent of this repo's language/stack, so no project deps are
+# installed. The exit code IS the gate: BLOCK or UNAVAILABLE → exit 1 → job
+# RED → PR cannot merge (once this check is marked required in branch rules).
+#
+# Modeled on free-intelligence/.github/workflows/pr-gate.yml (ai-gatekeep job).
+# The bair Python package lives at BernardUriza/.github (subdir bair); xair at
+# BernardUriza/xair. Only this YAML is duplicated per repo — prompt tuning stays
+# centralized in the bair package.
+#
+# PREREQUISITES (configure once on this repo):
+#   - Secrets: BAIR_APP_ID, BAIR_APP_PRIVATE_KEY, ANTHROPIC_API_KEY
+#   - Install the BAIR GitHub App (id 3878034) on BernardUriza/discord-bot
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ai-gatekeep:
+    name: AI Gatekeeper
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Generate BAIR App installation token
+        # Exchanges the BAIR GitHub App + private-key secret for a short-lived
+        # installation token scoped to this repo. Comments post as
+        # `bair-gatekeeper[bot]` with the App avatar, not github-actions[bot].
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.BAIR_APP_ID }}
+          private-key: ${{ secrets.BAIR_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR head with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install xair + bair
+        # xair[openai] required even though gatekeep talks to Anthropic via
+        # httpx — Container.production() instantiates the OpenAI provider at
+        # construction time (falls back to a stub when OPENAI_API_KEY is unset).
+        run: |
+          set -e
+          pip install --no-cache-dir \
+            "xair[openai] @ git+https://github.com/BernardUriza/xair@main" \
+            "git+https://github.com/BernardUriza/.github@main#subdirectory=bair"
+
+      - name: Run BAIR gatekeep
+        id: gatekeep
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Exit code is the gate: non-zero → step RED → job RED → PR blocked.
+        run: python -m bair gatekeep
+
+      - name: Summarize verdict
+        if: always()
+        run: |
+          {
+            echo "## BAIR Gatekeeper Verdict"
+            echo
+            echo "| Field    | Value |"
+            echo "|----------|-------|"
+            echo "| verdict  | ${{ steps.gatekeep.outputs.verdict || 'UNAVAILABLE' }} |"
+            echo "| severity | ${{ steps.gatekeep.outputs.severity || '?' }} |"
+            echo "| provider | ${{ steps.gatekeep.outputs.provider || 'none' }} |"
+            echo "| executed | ${{ steps.gatekeep.outputs.executed || 'false' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
