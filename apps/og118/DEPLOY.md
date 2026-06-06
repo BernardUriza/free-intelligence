@@ -105,3 +105,13 @@ automatically.
   in-container turn must be re-validated once on the amd64 ACA image.
 - `AURITY` redeploys on any `main` push (its `deploy-azure.yml` has no path
   filter). Adding a path filter there is a separate, permissioned change.
+
+## Deferred (gatekeeper LOW findings — follow-ups, not blocking)
+
+- **Refuse-to-start in prod without a token:** `app.py` warns when
+  `OG118_ACCESS_TOKEN` is unset but still serves (open). Harden later to refuse
+  startup when a non-localhost origin is configured without a token.
+- **Health check vs active revision:** `og118-backend.yml` curls `/health` but
+  doesn't confirm the freshly-deployed revision is the active one. Add a
+  `properties.latestRevisionName` / provisioning-state check so a stale healthy
+  replica can't mask a failed new image.
