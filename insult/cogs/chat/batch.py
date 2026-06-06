@@ -27,6 +27,7 @@ import discord
 import structlog
 
 from insult.core.errors import ErrorType, get_error_response
+from shared.personas.registry import sibling_bot_user_ids
 
 log = structlog.get_logger()
 
@@ -80,6 +81,22 @@ def addressed_to_alice(message: discord.Message, settings) -> bool:
     return any(re.search(rf"\b{re.escape(a.lower())}\b", low) for a in aliases if a)
 
 
+def addressed_to_sibling(message: discord.Message) -> bool:
+    """True when this message @mentions any registered Khimeras sibling bot.
+
+    Reads `shared/personas/registry.py` at call time — no config coupling. When
+    a new persona is added to the registry, Insult automatically suppresses for
+    it without any change here. Works alongside `addressed_to_alice` (which
+    handles ALICE specifically, including role-mention and text aliases).
+
+    Only checks DIRECT @mentions (message.mentions): text aliases per sibling
+    are possible but left opt-in in the registry (default empty) to avoid false
+    positives — e.g. "vultur" as a word could fire on film-critic talk.
+    """
+    mention_ids = {str(u.id) for u in message.mentions}
+    return bool(mention_ids & sibling_bot_user_ids())
+
+
 @dataclass
 class _MessageBatch:
     """Accumulates rapid-fire messages from one user before responding."""
@@ -130,13 +147,17 @@ class BatchManager:
         if message.content.startswith(settings.command_prefix):
             return
 
-        # Directly addressed to ALICE → Insult stays silent (she answers). We
-        # still PERSIST the message so the shared `messages` table keeps full
-        # context for both bots (Insult is the gateway that stores #general;
-        # an early return without storing would blind ALICE's own context read).
-        if addressed_to_alice(message, settings):
+        # Directly addressed to ALICE or any Khimeras sibling → Insult stays
+        # silent and lets the right bot answer. We STILL PERSIST the message so
+        # the shared `messages` table keeps full context for all bots (Insult is
+        # the canonical storage gateway; skipping storage would blind ALICE/Vultur).
+        _to_alice = addressed_to_alice(message, settings)
+        _to_sibling = addressed_to_sibling(message)
+        if _to_alice or _to_sibling:
+            sibling_label = "alice" if _to_alice else "persona_sibling"
             log.info(
-                "msg_skipped_addressed_to_alice",
+                "msg_skipped_addressed_to_sibling",
+                sibling=sibling_label,
                 message_id=message.id,
                 user_id=message.author.id,
                 channel_id=message.channel.id,
@@ -154,7 +175,7 @@ class BatchManager:
                         channel_name=message.channel.name if hasattr(message.channel, "name") else None,
                     )
                 except Exception:
-                    log.exception("chat_store_alice_addressed_failed")
+                    log.exception("chat_store_sibling_addressed_failed")
             return
 
         # Voice transcription

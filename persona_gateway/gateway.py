@@ -173,17 +173,40 @@ class PersonaClient(discord.Client):
 
         messages = [*format_context(recent), {"role": "user", "content": ask}]
 
-        # NOTE: deliberately NOT wrapping the runner call in
-        # `async with channel.typing()`. Typing.__aenter__ fires a blocking
-        # send_typing HTTP request first; a 429 there would kill the whole turn
-        # before the runner even runs (resilience anti-pattern #1).
-        resp = await self.agent_client.chat(
-            "",  # system_prompt ignored by the runner
-            messages,
-            channel_id=channel_id,
-            user_id=user_id,
-            persona_id=self.persona.persona_id,
-        )
+        # Typing keepalive — fire-and-forget background task so the user sees
+        # "[Vultur] is typing…" during the long runner call. Deliberately NOT
+        # `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
+        # killing the turn before the runner runs — anti-pattern #1).
+        # Instead: a short-lived task that triggers typing every 7s and stops
+        # when a stop_event is set (after the runner responds).
+        _typing_stop = asyncio.Event()
+
+        async def _typing_keepalive() -> None:
+            while not _typing_stop.is_set():
+                with contextlib.suppress(discord.HTTPException):
+                    # discord.py's Typing context manager sends a typing event
+                    # and has a built-in 10s keepalive. We enter+exit every 9s
+                    # in our own loop so the indicator stays alive for long turns.
+                    async with message.channel.typing():
+                        with contextlib.suppress(TimeoutError):
+                            await asyncio.wait_for(_typing_stop.wait(), timeout=9.0)
+                    if _typing_stop.is_set():
+                        break
+
+        _typing_task = asyncio.create_task(_typing_keepalive())
+        try:
+            resp = await self.agent_client.chat(
+                "",  # system_prompt ignored by the runner
+                messages,
+                channel_id=channel_id,
+                user_id=user_id,
+                persona_id=self.persona.persona_id,
+            )
+        finally:
+            _typing_stop.set()
+            _typing_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await _typing_task
 
         text = (resp.text or "").strip()
         if not text:
