@@ -11,7 +11,6 @@ from aiohttp import web
 
 from insult.core.debug_server.keys import _MEMORY_KEY
 from insult.core.health_state import get_state as get_health_state
-from insult.core.memory import MemoryStore
 
 
 async def _handle_health(request: web.Request) -> web.Response:
@@ -53,7 +52,7 @@ async def _handle_health(request: web.Request) -> web.Response:
     )
 
 
-async def _pg_health(memory: MemoryStore) -> dict:
+async def _pg_health(memory: object) -> dict:
     """Probe the Postgres pool with a 1s-timeout SELECT 1.
 
     Reports ``{reachable, latency_ms, error}``. We swallow every exception
@@ -63,6 +62,11 @@ async def _pg_health(memory: MemoryStore) -> dict:
     Lives in this module rather than memory/connection.py because it's a
     health-probe concern: keeping it close to the endpoint that consumes it
     means future tweaks (adding pool stats, slow-query gauge) stay one-file.
+
+    ``memory`` is annotated ``object`` on purpose: this probe only duck-types
+    a ``._manager.pool`` off whatever it's handed (see ``getattr`` below) and
+    must NOT import the concrete smart-side ``MemoryStore`` — that host→smart
+    import is exactly what the demux destilado is paying down. Don't re-add it.
     """
     import asyncio as _asyncio
     import time as _time
