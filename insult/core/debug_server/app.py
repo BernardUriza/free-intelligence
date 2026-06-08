@@ -45,13 +45,12 @@ from insult.core.debug_server.reminders import (
     _handle_reminders,
 )
 from insult.core.debug_server.sync import _handle_sync_serenityops
-from insult.core.memory import MemoryStore
 
 log = structlog.get_logger()
 
 
 def build_app(
-    memory: MemoryStore,
+    memory: object,
     debug_token: str,
     moltbook_ctx: MoltbookDebugContext | None = None,
 ) -> web.Application:
@@ -59,9 +58,20 @@ def build_app(
 
     `moltbook_ctx` is optional — when None the /debug/moltbook/* endpoints
     return 503. This lets the server start in deployments without a
-    Moltbook key without leaking error spam at boot."""
+    Moltbook key without leaking error spam at boot.
+
+    ``memory`` is typed ``object`` on purpose: this host plumbing only stashes
+    the store into the app under ``_MEMORY_KEY`` and never calls a method on it
+    (the handlers retrieve it via that key, typed in ``keys.py``). Keeping the
+    concrete smart-side ``MemoryStore`` out of this import is what the demux
+    destilado is paying down. Don't re-add it."""
     app = web.Application(middlewares=[_auth_middleware])
-    app[_MEMORY_KEY] = memory
+    # type: ignore is strictly local and purely a type-checker concession: the
+    # AppKey declares value type MemoryStore (in keys.py, decoupled separately),
+    # and we hand it an `object`. This is a pass-through store — no runtime
+    # dependency on MemoryStore's API exists here — so widening to object is
+    # safe; only the AppKey's declared type disagrees.
+    app[_MEMORY_KEY] = memory  # type: ignore[reportArgumentType]
     app[_TOKEN_KEY] = debug_token
     app[_MOLTBOOK_KEY] = moltbook_ctx
     app.router.add_get("/debug/health", _handle_health)
@@ -90,7 +100,7 @@ def build_app(
 
 
 async def start_debug_server(
-    memory: MemoryStore,
+    memory: object,
     debug_token: str,
     host: str = "127.0.0.1",
     port: int = 8787,
