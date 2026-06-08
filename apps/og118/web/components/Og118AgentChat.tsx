@@ -19,7 +19,7 @@ export function Og118AgentChat() {
   const agent = useOg118Agent();
   const [input, setInput] = useState('');
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
-  const { turn } = agent;
+  const { turn, messages, newConversation } = agent;
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
@@ -40,7 +40,15 @@ export function Og118AgentChat() {
     void agent.send(text);
   };
 
-  const idle = turn.status === 'thinking' && !turn.plan && turn.steps.length === 0 && !turn.text;
+  // StartScreen only on a truly empty thread — once a transcript exists, the
+  // live-turn reset between turns must NOT flash the start screen (DD-002A).
+  const idle =
+    messages.length === 0 &&
+    turn.status === 'thinking' &&
+    !turn.plan &&
+    turn.steps.length === 0 &&
+    !turn.text;
+  const hasThread = messages.length > 0 || agent.isStreaming;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxWidth: 760, margin: '0 auto' }}>
@@ -49,13 +57,16 @@ export function Og118AgentChat() {
           <Og118StartScreen />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Glass-box: plan checklist + live step/tool trace + sources */}
-            <AgentPanel turn={turn} />
+            {/* Transcript: completed turns (user + assistant) as flat messages */}
+            {messages.map((m, i) => (
+              <MessageContent key={i} isUser={m.role === 'user'} content={m.content} />
+            ))}
 
-            {/* The answer */}
-            {turn.text && (
+            {/* Live turn: glass-box trace + streaming answer (current turn only) */}
+            {agent.isStreaming && <AgentPanel turn={turn} />}
+            {agent.isStreaming && turn.text && (
               <div style={{ paddingTop: '0.5rem' }}>
-                <MessageContent isUser={false} content={turn.text} isStreaming={agent.isStreaming} />
+                <MessageContent isUser={false} content={turn.text} isStreaming />
               </div>
             )}
           </div>
@@ -63,6 +74,26 @@ export function Og118AgentChat() {
       </div>
 
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {hasThread && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+            <button
+              onClick={newConversation}
+              disabled={agent.isStreaming}
+              style={{
+                padding: '0.35rem 0.75rem',
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'transparent',
+                color: '#94a3b8',
+                fontSize: '0.8rem',
+                cursor: agent.isStreaming ? 'not-allowed' : 'pointer',
+                opacity: agent.isStreaming ? 0.5 : 1,
+              }}
+            >
+              Nuevo chat
+            </button>
+          </div>
+        )}
         {needsAuth && (
           <div
             style={{
