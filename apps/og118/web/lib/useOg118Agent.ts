@@ -28,8 +28,23 @@ import {
   type AgentHook,
   type AgentStreamEvent,
   type AgentTurnState,
+  type ChatMessage,
 } from '@free-intelligence/core';
 import { authHeaders, AUTH401 } from './og118Token';
+import { makeUserMessage, foldAssistantTurn } from './og118Transcript';
+
+/**
+ * og118's hook is an AgentHook (live glass-box turn) PLUS an in-memory
+ * conversation transcript (DD-002A). The transcript lives here — not in core —
+ * because the stream loop is where the `done` signal that folds a finished turn
+ * is unambiguous. messages = completed turns; turn = the live one.
+ */
+export interface Og118Agent extends AgentHook {
+  /** Flat transcript of completed turns (user + assistant), in send order. */
+  messages: ChatMessage[];
+  /** Clear the whole thread: transcript, live turn, and backend session id. */
+  newConversation: () => void;
+}
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
 
@@ -112,14 +127,18 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
   }
 }
 
-export function useOg118Agent(): AgentHook {
+export function useOg118Agent(): Og118Agent {
   const [turn, setTurn] = useState<AgentTurnState>(initialAgentTurnState());
   const [isStreaming, setIsStreaming] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const sessionId = useRef<string | null>(null);
 
   const send = useCallback(async (message: string) => {
     const text = message.trim();
     if (!text || isStreaming) return;
+
+    // Optimistic: the user sees their message the instant they hit send.
+    setMessages((prev) => [...prev, makeUserMessage(text)]);
 
     let state = initialAgentTurnState();
     setTurn(state);
@@ -137,6 +156,8 @@ export function useOg118Agent(): AgentHook {
         body: JSON.stringify({ message: text, session_id: sessionId.current }),
       });
       if (res.status === 401) {
+        // Revert the optimistic user message; surface the auth banner (turn=error).
+        setMessages((prev) => prev.slice(0, -1));
         apply({ type: 'error', message: `${AUTH401}: token de acceso inválido o ausente` });
         return;
       }
@@ -158,14 +179,28 @@ export function useOg118Agent(): AgentHook {
           apply(mapEvent(ev));
         }
       }
+      // Turn finished cleanly → fold the answer into the transcript and clear
+      // the live area (the answer now lives in `messages`, not `turn`).
+      if (state.text) setMessages((prev) => [...prev, foldAssistantTurn(state)]);
+      setTurn(initialAgentTurnState());
     } catch (err) {
+      // Mid-stream failure: keep the user message in the transcript, show the
+      // error on the live turn, do NOT fold (no assistant message, no reset).
       apply({ type: 'error', message: err instanceof Error ? err.message : String(err) });
     } finally {
       setIsStreaming(false);
     }
   }, [isStreaming]);
 
+  // Clears only the live turn (used to dismiss the auth banner) — NOT the transcript.
   const reset = useCallback(() => setTurn(initialAgentTurnState()), []);
 
-  return { turn, isStreaming, send, reset };
+  // Explicit "new chat": wipe transcript, live turn, and the backend session id.
+  const newConversation = useCallback(() => {
+    setMessages([]);
+    setTurn(initialAgentTurnState());
+    sessionId.current = null;
+  }, []);
+
+  return { turn, isStreaming, send, reset, messages, newConversation };
 }
