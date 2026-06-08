@@ -12,15 +12,35 @@ from __future__ import annotations
 import contextlib
 import re
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 import discord
 import structlog
 
-if TYPE_CHECKING:
-    from insult.core.memory import MemoryStore
-
 log = structlog.get_logger()
+
+
+class GuildConfigStore(Protocol):
+    """Host-side port for the guild-config slice of the memory store.
+
+    Dependency inversion (demux destilado): guild setup depends on this
+    narrow structural interface, NOT the concrete smart-side ``MemoryStore``.
+    Any store exposing these two methods satisfies it — which keeps this host
+    plumbing free of a ``insult.core.memory`` import. Don't widen it past what
+    guild setup actually calls; the debug_server uses a far larger slice and
+    is decoupled separately.
+    """
+
+    async def get_guild_config(self, guild_id: str) -> dict | None: ...
+
+    async def save_guild_config(
+        self,
+        guild_id: str,
+        category_id: str,
+        facts_channel_id: str,
+        reminders_channel_id: str,
+    ) -> None: ...
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Constants
@@ -210,7 +230,7 @@ async def _ensure_text_channel(
     return await guild.create_text_channel(name, category=category, overwrites=overwrites, topic=topic)
 
 
-async def setup_guild(guild: discord.Guild, memory: MemoryStore) -> dict:
+async def setup_guild(guild: discord.Guild, memory: GuildConfigStore) -> dict:
     """Create system channels for the guild. Idempotent.
 
     Returns dict with category_id, facts_channel_id, reminders_channel_id.
@@ -301,7 +321,7 @@ async def setup_guild(guild: discord.Guild, memory: MemoryStore) -> dict:
 
 async def post_facts_to_channel(
     bot: discord.Client,
-    memory: MemoryStore,
+    memory: GuildConfigStore,
     guild_id: str,
     user_name: str,
     new_facts: list[dict],
@@ -338,7 +358,7 @@ async def post_facts_to_channel(
 
 async def post_reminder_set(
     bot: discord.Client,
-    memory: MemoryStore,
+    memory: GuildConfigStore,
     guild_id: str,
     description: str,
     remind_at_str: str,
@@ -364,7 +384,7 @@ async def post_reminder_set(
 
 async def post_reminder_delivered(
     bot: discord.Client,
-    memory: MemoryStore,
+    memory: GuildConfigStore,
     guild_id: str | None,
     description: str,
     user_mentions: str = "",
