@@ -33,7 +33,6 @@ import structlog
 
 from insult.cogs.chat.pipeline import TurnCtx, run_pipeline
 from insult.cogs.chat.stages import DEFAULT_STAGES
-from insult.core.flows import ExpressionHistory
 from insult.core.routing import OpusBudget
 
 log = structlog.get_logger()
@@ -57,7 +56,7 @@ async def run_turn(
     memory,
     settings,
     bot,
-    expression_history: ExpressionHistory,
+    expression_history,
     opus_budget: OpusBudget,
     spawn_task: Callable[..., None],
     all_tools: list,
