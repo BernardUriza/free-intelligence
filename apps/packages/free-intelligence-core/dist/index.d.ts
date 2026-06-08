@@ -346,6 +346,26 @@ declare function initialAgentTurnState(): AgentTurnState;
 declare function applyAgentEvent(state: AgentTurnState, event: AgentStreamEvent): AgentTurnState;
 
 /**
+ * Transcript bridge — fold the live agentic turn into flat chat messages.
+ *
+ * Pure, framework-agnostic (no React, no transport). The agent contract models
+ * ONE live turn (AgentTurnState); a conversation surface needs the thread as a
+ * flat list. These two helpers bridge `AgentTurnState` → `ChatMessage` so any
+ * shell (fi-glass and beyond) can keep a visible transcript without re-deriving
+ * the mapping. Moved here from the og118 consumer (DD-002-LESSON): a reusable
+ * primitive belongs in the framework, not the app wrapper.
+ */
+
+/** A user message, ready to render optimistically the instant the user sends. */
+declare function makeUserMessage(text: string): ChatMessage;
+/**
+ * Fold a finished turn's answer into an assistant message. Keeps only the
+ * material-agnostic content (no AgentTurnState snapshot) — a future gate can add
+ * per-turn glass-box rendering without bloating the ChatMessage contract now.
+ */
+declare function foldAssistantTurn(turn: AgentTurnState): ChatMessage;
+
+/**
  * AgentHook — the agentic-turn contract the fi-glass agent panels consume.
  *
  * Dependency-inversion spine, twin of ChatHook. The app implements it against
@@ -371,4 +391,4 @@ interface AgentHook {
     reset?: () => void;
 }
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, type ChatHook, type ChatMessage, type ChatStreamingState, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, initialAgentTurnState };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, type ChatHook, type ChatMessage, type ChatStreamingState, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, foldAssistantTurn, initialAgentTurnState, makeUserMessage };
