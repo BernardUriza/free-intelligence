@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
 /**
@@ -149,4 +149,38 @@ interface SourcesPanelProps {
  */
 declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react.JSX.Element | null;
 
-export { type AgentClassNames, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus };
+interface AgentConversation {
+    /** The visible thread of completed turns (user + assistant), in send order. */
+    messages: ChatMessage[];
+    /** The current/live turn's reduced state (for the in-flight glass-box). */
+    turn: AgentTurnState;
+    /** Whether a turn is actively streaming. */
+    isStreaming: boolean;
+    /** Send a message: pushes it optimistically, then drives the agent turn. */
+    send: (text: string) => void;
+    /** Clear the whole thread and reset the underlying turn/session. */
+    newConversation: () => void;
+}
+declare function useAgentConversation(agent: AgentHook): AgentConversation;
+
+interface AgentConversationSurfaceProps {
+    /** The conversation state + actions from `useAgentConversation`. */
+    conversation: AgentConversation;
+    /** Composer placeholder copy (app-owned). */
+    composerPlaceholder?: string;
+    /** Label for the new-conversation button. Default: "New chat". */
+    newChatLabel?: string;
+    /** Rendered when the thread is empty and idle (e.g. an app start screen). */
+    emptyState?: ReactNode;
+    /** Slot rendered just above the composer (e.g. an app's auth banner). */
+    aboveComposer?: ReactNode;
+    /** Pass-through styling/icons for the live-turn AgentPanel. */
+    agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
+    /** Composer wrapper class (style hook for the app). */
+    composerAreaClassName?: string;
+    /** Composer textarea class (style hook for the app). */
+    composerTextareaClassName?: string;
+}
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

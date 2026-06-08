@@ -116,8 +116,18 @@ function applyAgentEvent(state, event) {
       return state;
   }
 }
+
+// src/agent/transcript.ts
+function makeUserMessage(text) {
+  return { role: "user", content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function foldAssistantTurn(turn) {
+  return { role: "assistant", content: turn.text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
+}
 export {
   applyAgentEvent,
-  initialAgentTurnState
+  foldAssistantTurn,
+  initialAgentTurnState,
+  makeUserMessage
 };
 //# sourceMappingURL=index.js.map
