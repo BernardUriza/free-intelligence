@@ -1,32 +1,54 @@
 'use client';
 
 /**
- * og118 agentic chat — the glass-box surface.
+ * og118 agentic chat — the glass-box surface, now local-first (DD-002B1.3).
  *
  * og118 supplies only the app-specific pieces: the TRANSPORT (useOg118Agent),
- * the access-token banner, branding/copy, and the start screen. The reusable
- * conversation machinery — visible transcript, optimistic user message,
- * assistant fold, live AgentPanel, new-conversation — lives in the framework
- * (fi-glass `useAgentConversation` + `AgentConversationSurface`). DD-002-LESSON:
- * the consumer consumes the primitive; it does not re-implement it.
+ * the access-token banner, branding/copy, the start screen, and the chat
+ * sidebar. The reusable machinery — visible transcript, optimistic user message,
+ * assistant fold, live AgentPanel, AND local-first persistence — lives in the
+ * framework (fi-glass `useAgentConversation` + `useConversationLibrary` +
+ * `IndexedDBConversationLibrary`). DD-002-LESSON: the consumer consumes the
+ * primitive; it does not re-implement it.
+ *
+ * Identity: the conversation library owns the active id, which IS the backend
+ * session_id (passed to useOg118Agent). One id ⇒ the local transcript and the
+ * server's conversation store key the same thread, so a refresh keeps both the
+ * visible transcript (IndexedDB) and intra-deploy model continuity.
  */
 
 import { useState } from 'react';
 import { AgentConversationSurface, useAgentConversation } from 'fi-glass/agent';
+import {
+  IndexedDBConversationLibrary,
+  useConversationLibrary,
+} from 'fi-glass/conversation';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { Og118StartScreen } from './Og118StartScreen';
+import { Og118Sidebar } from './Og118Sidebar';
+
+// Module-level singleton. The constructor is SSR-safe (it stores config only,
+// never touches indexedDB), so one stable instance shared across renders and
+// remounts is correct and avoids reopening the database.
+const conversationLibrary = new IndexedDBConversationLibrary();
 
 export function Og118AgentChat() {
-  const agent = useOg118Agent();
-  const conversation = useAgentConversation(agent);
+  const lib = useConversationLibrary(conversationLibrary);
+  const agent = useOg118Agent(lib.activeId);
+  const conversation = useAgentConversation(agent, {
+    conversationId: lib.activeId,
+    initialMessages: lib.activeMessages,
+    onMessagesChange: lib.persist,
+  });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
   const { turn } = conversation;
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
-  // browser's localStorage — never in the bundle).
-  const needsAuth = turn.status === 'error' && (turn.errorMessage ?? '').startsWith(AUTH401);
+  // browser's localStorage — never in the bundle, never in conversation storage).
+  const needsAuth =
+    turn.status === 'error' && (turn.errorMessage ?? '').startsWith(AUTH401);
 
   const saveToken = () => {
     const t = tokenInput.trim();
@@ -88,16 +110,45 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
+  // Wait for the first hydration so we never send with a null session id nor
+  // flash an empty start screen over a stored conversation.
+  if (!lib.ready) {
+    return <div className="og-loading">Cargando…</div>;
+  }
+
   return (
-    <AgentConversationSurface
-      conversation={conversation}
-      composerPlaceholder="Pregúntale a og118 (verás su plan en vivo)…"
-      newChatLabel="Nuevo chat"
-      emptyState={<Og118StartScreen />}
-      aboveComposer={authBanner}
-      composerAreaClassName="og-composer-area"
-      composerTextareaClassName="og-composer-textarea"
-      showCopyAction
-    />
+    <div className="og-shell">
+      <Og118Sidebar
+        conversations={lib.conversations}
+        activeId={lib.activeId}
+        onNew={lib.newConversation}
+        onSwitch={(id) =>
+          void lib.switchConversation(id).catch((e) =>
+            console.error('[og118] switch failed', e),
+          )
+        }
+        onDelete={(id) =>
+          void lib.deleteConversation(id).catch((e) =>
+            console.error('[og118] delete failed', e),
+          )
+        }
+        disabled={conversation.isStreaming}
+      />
+      <div className="og-chat-main">
+        <AgentConversationSurface
+          // Route the surface's built-in "new chat" through the library so it
+          // mints a fresh id (and thus a fresh session) instead of just clearing
+          // the thread — otherwise the next message would clobber the active chat.
+          conversation={{ ...conversation, newConversation: lib.newConversation }}
+          composerPlaceholder="Pregúntale a og118 (verás su plan en vivo)…"
+          newChatLabel="Nuevo chat"
+          emptyState={<Og118StartScreen />}
+          aboveComposer={authBanner}
+          composerAreaClassName="og-composer-area"
+          composerTextareaClassName="og-composer-textarea"
+          showCopyAction
+        />
+      </div>
+    </div>
   );
 }

@@ -113,20 +113,22 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
   }
 }
 
-export function useOg118Agent(): AgentHook {
+export function useOg118Agent(sessionId: string | null): AgentHook {
   const [turn, setTurn] = useState<AgentTurnState>(initialAgentTurnState());
   const [isStreaming, setIsStreaming] = useState(false);
-  const sessionId = useRef<string | null>(null);
+  // DD-002B1.3: the active conversation id is owned by the conversation library
+  // (fi-glass `useConversationLibrary`) and passed IN — it IS the backend
+  // session_id, so the local transcript and the server's conversation store key
+  // one thread. A ref keeps the stable `send()` closure reading the CURRENT id
+  // after a chat switch (the active id changes without recreating send).
+  const sessionIdRef = useRef<string | null>(sessionId);
+  sessionIdRef.current = sessionId;
 
   const send = useCallback(async (message: string) => {
     const text = message.trim();
     if (!text || isStreaming) return;
-
-    // DD-002C: a stable session_id from the very first turn keys the backend's
-    // conversation store, so follow-ups replay the real thread. reset() nulls it
-    // (below), so a new conversation starts a fresh session. session_id is a
-    // transport/app concern — it stays in og118, not fi-glass.
-    sessionId.current ??= crypto.randomUUID();
+    const sid = sessionIdRef.current;
+    if (!sid) return; // no active conversation yet — controlled no-op
 
     let state = initialAgentTurnState();
     setTurn(state);
@@ -141,7 +143,7 @@ export function useOg118Agent(): AgentHook {
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ message: text, session_id: sessionId.current }),
+        body: JSON.stringify({ message: text, session_id: sid }),
       });
       if (res.status === 401) {
         apply({ type: 'error', message: `${AUTH401}: token de acceso inválido o ausente` });
@@ -176,11 +178,12 @@ export function useOg118Agent(): AgentHook {
     }
   }, [isStreaming]);
 
-  // Reset the live turn AND the backend session id. Used by the conversation
-  // layer's newConversation and by the auth banner's dismiss-on-token-save.
+  // Reset ONLY the live turn. The session id is owned by the conversation
+  // library now (a new/switched chat changes the id upstream), so reset() must
+  // NOT touch it — nulling it here would break the active thread's continuity.
+  // Used by the conversation layer's hydration and the auth banner's dismiss.
   const reset = useCallback(() => {
     setTurn(initialAgentTurnState());
-    sessionId.current = null;
   }, []);
 
   return { turn, isStreaming, send, reset };
