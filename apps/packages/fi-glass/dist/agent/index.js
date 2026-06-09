@@ -378,9 +378,16 @@ import {
   makeUserMessage,
   foldAssistantTurn
 } from "@free-intelligence/core";
-function useAgentConversation(agent) {
-  const [messages, setMessages] = useState2([]);
+function useAgentConversation(agent, options = {}) {
+  const { conversationId, initialMessages, onMessagesChange } = options;
+  const [messages, setMessages] = useState2(
+    initialMessages ?? []
+  );
   const pending = useRef(false);
+  const initialRef = useRef(initialMessages);
+  initialRef.current = initialMessages;
+  const hydrating = useRef(true);
+  const mounted = useRef(false);
   const send = useCallback(
     (text) => {
       const t = text.trim();
@@ -400,7 +407,25 @@ function useAgentConversation(agent) {
       return prev;
     });
   }, [agent.isStreaming, agent.turn]);
+  useEffect2(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    hydrating.current = true;
+    pending.current = false;
+    setMessages(initialRef.current ?? []);
+    agent.reset?.();
+  }, [conversationId]);
+  useEffect2(() => {
+    if (hydrating.current) {
+      hydrating.current = false;
+      return;
+    }
+    onMessagesChange?.(messages);
+  }, [messages]);
   const newConversation = useCallback(() => {
+    hydrating.current = true;
     setMessages([]);
     pending.current = false;
     agent.reset?.();

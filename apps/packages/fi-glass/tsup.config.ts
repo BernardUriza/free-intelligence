@@ -16,6 +16,7 @@ export default defineConfig({
     'src/shell/index.ts',
     'src/persona-selector/index.ts',
     'src/agent/index.ts',
+    'src/conversation/index.ts',
   ],
   format: ['esm'],
   dts: true,

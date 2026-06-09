@@ -149,6 +149,14 @@ interface SourcesPanelProps {
  */
 declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react.JSX.Element | null;
 
+interface UseAgentConversationOptions {
+    /** Identity of the active conversation. When it changes, the thread re-hydrates. */
+    conversationId?: string | null;
+    /** Messages to seed the thread with (the active conversation's stored transcript). */
+    initialMessages?: ChatMessage[];
+    /** Called when the thread changes from real activity (send/fold) — a persist hook. */
+    onMessagesChange?: (messages: ChatMessage[]) => void;
+}
 interface AgentConversation {
     /** The visible thread of completed turns (user + assistant), in send order. */
     messages: ChatMessage[];
@@ -161,7 +169,7 @@ interface AgentConversation {
     /** Clear the whole thread and reset the underlying turn/session. */
     newConversation: () => void;
 }
-declare function useAgentConversation(agent: AgentHook): AgentConversation;
+declare function useAgentConversation(agent: AgentHook, options?: UseAgentConversationOptions): AgentConversation;
 
 interface AgentConversationSurfaceProps {
     /** The conversation state + actions from `useAgentConversation`. */
@@ -198,4 +206,4 @@ interface AgentConversationSurfaceProps {
 }
 declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

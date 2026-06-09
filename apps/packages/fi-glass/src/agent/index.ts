@@ -34,7 +34,11 @@ export type { AgentClassNames } from './types';
 
 // Agentic conversation (DD-002): transcript + per-turn glass-box, the reusable
 // primitive that replaces the consumer-local transcript in og118.
-export { useAgentConversation, type AgentConversation } from './useAgentConversation';
+export {
+  useAgentConversation,
+  type AgentConversation,
+  type UseAgentConversationOptions,
+} from './useAgentConversation';
 export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
