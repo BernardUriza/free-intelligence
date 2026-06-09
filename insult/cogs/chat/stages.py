@@ -50,7 +50,12 @@ from insult.cogs.chat.context import (
     update_style_profile,
 )
 from insult.cogs.chat.disclosure import scan_disclosure
-from insult.cogs.chat.pipeline import Stage, TurnCtx
+from insult.cogs.chat.pipeline import (
+    S2KnowledgeAssemblyInput,
+    S2KnowledgeAssemblyResult,
+    Stage,
+    TurnCtx,
+)
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
@@ -448,22 +453,24 @@ _DEEP_MEMORY_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
 _DEEP_MEMORY_MAX_CHARS = 2000  # cap injected context so the turn stays bounded
 
 
-async def _build_relevant_memory(ctx: TurnCtx) -> str | None:
+async def _build_relevant_memory(src: S2KnowledgeAssemblyInput) -> str | None:
     """Pre-fetch the top relevant deep_memory chunks for this turn's author.
 
     Returns a labeled, length-capped block to inject into the runner payload,
     or None when the message is trivial, retrieval fails, or nothing clears
     the similarity floor. Best-effort: a failure here NEVER breaks the turn —
-    it just means no auto-memory this turn (same as the pre-v4.3.0 behavior)."""
-    query = (ctx.text or "").strip()
+    it just means no auto-memory this turn (same as the pre-v4.3.0 behavior).
+
+    Consumes only ``.text``/``.user_id`` (duck-typed): the S2 assembly input."""
+    query = (src.text or "").strip()
     if len(query) < _DEEP_MEMORY_MIN_QUERY_LEN:
         return None
     try:
         from insult.core.deep_memory import query_user_memory
 
-        hits = await query_user_memory(user_id=ctx.user_id, query=query, top_k=_DEEP_MEMORY_TOP_K)
+        hits = await query_user_memory(user_id=src.user_id, query=query, top_k=_DEEP_MEMORY_TOP_K)
     except Exception as e:  # retrieval is best-effort; never break the turn
-        log.warning("deep_memory_prefetch_failed", user_id=ctx.user_id, error=str(e))
+        log.warning("deep_memory_prefetch_failed", user_id=src.user_id, error=str(e))
         return None
 
     relevant = [h for h in hits if h.get("similarity", 0.0) >= _DEEP_MEMORY_MIN_SIMILARITY]
@@ -483,7 +490,7 @@ async def _build_relevant_memory(ctx: TurnCtx) -> str | None:
 
     log.info(
         "deep_memory_prefetched",
-        user_id=ctx.user_id,
+        user_id=src.user_id,
         hits=len(lines),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
     )
@@ -501,23 +508,49 @@ async def _build_relevant_memory(ctx: TurnCtx) -> str | None:
     return header + "\n" + "\n".join(lines)
 
 
-async def _build_film_references(ctx: TurnCtx) -> str | None:
+async def _build_film_references(src: S2KnowledgeAssemblyInput) -> str | None:
     """Pre-fetch the top relevant film-theory chunks when the turn is about film.
 
     Topic-gated by `detect_film_topic` so we don't pay an embed call on
     off-topic turns. Returns the formatted references block (header + chunks)
     or None when off-topic, trivial, retrieval fails, or nothing clears the
     similarity floor. Best-effort: a failure here NEVER breaks the turn — it
-    just means no film theory this turn (the Vultur frame still applies)."""
-    if not detect_film_topic(ctx.text):
+    just means no film theory this turn (the Vultur frame still applies).
+
+    Consumes only ``.text`` (duck-typed): the S2 assembly input."""
+    if not detect_film_topic(src.text):
         return None
     try:
         from insult.core.deep_memory import build_film_references_block
 
-        return await build_film_references_block(ctx.text)
+        return await build_film_references_block(src.text)
     except Exception as e:  # retrieval is best-effort; never break the turn
         log.warning("film_references_prefetch_failed", error=str(e))
         return None
+
+
+async def assemble_knowledge(src: S2KnowledgeAssemblyInput) -> S2KnowledgeAssemblyResult:
+    """S2 Knowledge Assembly — bundle the per-turn knowledge fragments injected
+    into the runner payload.
+
+    Orchestrates the read-facet calls (deep_memory semantic retrieval, film
+    corpus retrieval, third-party facts fragment) and bundles their output. S2
+    owns neither retrieval nor state — the domain services do their own reads;
+    this just assembles. Best-effort throughout: each facet returns None on
+    failure without breaking the turn. Behavior is identical to the inline
+    assembly this replaces (same calls, same order, same join)."""
+    relevant_memory = await _build_relevant_memory(src)
+    film_refs = await _build_film_references(src)
+    combined = "\n\n".join(b for b in (relevant_memory, film_refs) if b) or None
+    other_people = None
+    if src.other_participants_facts:
+        other_people = _format_other_people_block(src.other_participants_facts) or None
+    return S2KnowledgeAssemblyResult(
+        relevant_memory_block=relevant_memory,
+        film_references_block=film_refs,
+        combined_memory=combined,
+        other_people_block=other_people,
+    )
 
 
 def _build_behavioral_guidance(ctx: TurnCtx) -> str:
@@ -623,29 +656,26 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     vulnerable_overlay=is_vulnerable_overlay_selection(ctx.preset),
                     guidance_chars=len(guidance),
                 )
-            # v4.3.0: deterministic deep_memory auto-retrieval — inject the
-            # most relevant raw-history chunks so the agent always sees them
-            # instead of relying on the opt-in deep_memory tool.
-            relevant_memory = await _build_relevant_memory(ctx)
-            # v4.20.0: when the turn is about film, also retrieve the most
-            # relevant film-theory chunks (Braudy & Cohen / Language of Film
-            # Criticism) from the shared corpus and inject them as analytical
-            # ammo under the Vultur frame. Distinct header from the per-user
-            # block; both are clearly labeled. Best-effort: never breaks the turn.
-            film_refs = await _build_film_references(ctx)
-            combined_memory = "\n\n".join(b for b in (relevant_memory, film_refs) if b)
-            if combined_memory:
-                llm_kwargs["relevant_memory"] = combined_memory
-            # Second-layer fix (2026-06-03): the runner discards system_prompt and
-            # rebuilds only the AUTHOR's facts from its filesystem, so facts about
-            # OTHER participants (the "Other People" block) never reach it — the bot
-            # knew Alex when she spoke but not when Bernard asked ABOUT her. Forward
-            # the already-built block so the runner can answer about third parties.
-            if ctx.other_participants_facts:
-                op_block = _format_other_people_block(ctx.other_participants_facts)
-                if op_block:
-                    llm_kwargs["other_people"] = op_block
-                    log.info("agent_other_people_forwarded", participants=len(ctx.other_participants_facts))
+            # S2 Knowledge Assembly: bundle the per-turn knowledge fragments
+            # injected into the runner payload. Covers:
+            #  - v4.3.0 deterministic deep_memory auto-retrieval (raw-history
+            #    chunks the agent always sees, vs the dead opt-in MCP tool);
+            #  - v4.20.0 film-theory corpus retrieval under the Vultur frame;
+            #  - the 2026-06-03 "Other People" fix: the runner discards
+            #    system_prompt and rebuilds only the AUTHOR's facts, so facts
+            #    about OTHER participants are forwarded explicitly here.
+            knowledge = await assemble_knowledge(
+                S2KnowledgeAssemblyInput(
+                    user_id=ctx.user_id,
+                    text=ctx.text,
+                    other_participants_facts=ctx.other_participants_facts,
+                )
+            )
+            if knowledge.combined_memory:
+                llm_kwargs["relevant_memory"] = knowledge.combined_memory
+            if knowledge.other_people_block:
+                llm_kwargs["other_people"] = knowledge.other_people_block
+                log.info("agent_other_people_forwarded", participants=len(ctx.other_participants_facts))
         ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):
