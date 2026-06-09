@@ -12,7 +12,13 @@ from __future__ import annotations
 
 import os
 
-from fi_runner import ClaudeCodeBackend, PermissionMode, Runner, ToolPolicy
+from fi_runner import (
+    ClaudeCodeBackend,
+    InMemoryConversationStore,
+    PermissionMode,
+    Runner,
+    ToolPolicy,
+)
 
 PERSONA = (
     "You are og118 — element 118, Oganesson: synthetic, the heaviest known, "
@@ -38,6 +44,13 @@ def build_runner() -> Runner:
         ),
         persona=PERSONA,
         capabilities=["task_tracker"],  # plan/step events come from this MCP
+        # DD-002C: semantic conversation continuity by history replay. The Runner
+        # folds the stored transcript (keyed by the client's session_id) into each
+        # turn's prompt, so follow-ups have real context. In-memory is the right
+        # fit here — og118 runs min/max-replicas 1 (sessions are per-replica by
+        # design); lost on ACA restart/redeploy, not multi-replica/multi-device.
+        # max_messages caps the replayed window so per-turn token cost stays bounded.
+        conversation_store=InMemoryConversationStore(max_messages=20),
         tool_policy=ToolPolicy(
             builtin_disallowed=["Bash", "Write", "Edit"],  # no shell/file writes
             # Headless: auto-approve the (safe, in-process) task_tracker MCP tools

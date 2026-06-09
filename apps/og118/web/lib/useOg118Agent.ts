@@ -122,6 +122,12 @@ export function useOg118Agent(): AgentHook {
     const text = message.trim();
     if (!text || isStreaming) return;
 
+    // DD-002C: a stable session_id from the very first turn keys the backend's
+    // conversation store, so follow-ups replay the real thread. reset() nulls it
+    // (below), so a new conversation starts a fresh session. session_id is a
+    // transport/app concern — it stays in og118, not fi-glass.
+    sessionId.current ??= crypto.randomUUID();
+
     let state = initialAgentTurnState();
     setTurn(state);
     setIsStreaming(true);
@@ -155,7 +161,11 @@ export function useOg118Agent(): AgentHook {
           const line = frame.split('\n').find((l) => l.startsWith('data:'));
           if (!line) continue;
           const ev = JSON.parse(line.slice(5).trim());
-          if (ev.type === 'result' && ev.result?.session_id) sessionId.current = ev.result.session_id;
+          // DD-002C: do NOT latch the backend's per-turn session_id. The stable
+          // client UUID (set in send()) is the conversation_store's key; with
+          // history replay the backend runs session-less (backend_session_id=None),
+          // so its result.session_id is irrelevant. Overwriting it here would make
+          // turn B load an empty history → the model loses the thread.
           apply(mapEvent(ev));
         }
       }
