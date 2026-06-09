@@ -1,0 +1,125 @@
+/*
+ * fi-glass · glass-chat preset (B3-V1)
+ *
+ * A reusable, OPT-IN visual preset for the glassmorphism chat shell — the polished
+ * look observed in AURITY's chat widget (emerald→cyan accents, frosted floating
+ * composer, accented bubbles, gradient start-screen CTA), generalized here so any
+ * consumer (og118 next, future shells) inherits it WITHOUT copying AURITY code.
+ *
+ * Design:
+ *  - Pure CSS custom properties (--glass-chat-*) + flat utility classes
+ *    (.glass-chat, .glass-chat-*), mirroring the existing .glass / .glass-dark
+ *    token-driven pattern. No new components, no JS required to apply it.
+ *  - Reuses the base frosted tokens (--glass-blur / --glass-saturation) so a
+ *    consumer that already imports `fi-glass/theme.css` gets a consistent blur.
+ *  - Shipped as a SEPARATE import so it never touches the shared theme.css:
+ *        import 'fi-glass/glass-chat.css';
+ *    and is opt-in at the CLASS level — nothing changes visually until a
+ *    consumer applies `.glass-chat*` to its chat regions (e.g. og118 in B3-V2).
+ *
+ * Values are the typed mirror of `glassChatPreset` (glass-chat-preset.ts).
+ * Reference (read-only): apps/aurity/config/chat.config.ts + app/styles/domains/chat.css.
+ * Domain pieces (persona styling, clinical colors) deliberately stay AURITY-local.
+ */
+
+:root {
+  /* Accent gradient (emerald-600 → cyan-600). */
+  --glass-chat-accent-from: #059669;
+  --glass-chat-accent-to: #0891b2;
+  /* Text accent (emerald-300). */
+  --glass-chat-accent-text: #6ee7b7;
+
+  /* Shell surfaces. */
+  --glass-chat-body: #020617; /* slate-950 */
+  --glass-chat-surface: rgba(30, 41, 59, 0.6); /* slate-800/60 */
+  --glass-chat-surface-border: rgba(71, 85, 105, 0.4); /* slate-600/40 */
+
+  /* Message bubbles. */
+  --glass-chat-bubble-user: #059669; /* emerald-600 */
+  --glass-chat-bubble-assistant: rgba(30, 41, 59, 0.7); /* slate-800/70 */
+  --glass-chat-bubble-border: rgba(71, 85, 105, 0.6); /* slate-600/60 */
+
+  /* Text. */
+  --glass-chat-text: #ffffff;
+  --glass-chat-text-muted: #94a3b8; /* slate-400 */
+
+  /* Elevation (≈ shadow-2xl). */
+  --glass-chat-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --glass-chat-radius: 14px;
+}
+
+/* Root scope: a consumer wraps its chat surface in `.glass-chat` to opt in. */
+.glass-chat {
+  background: var(--glass-chat-body);
+  color: var(--glass-chat-text);
+}
+
+/* Header band: the signature emerald→cyan gradient. */
+.glass-chat-header {
+  background-image: linear-gradient(
+    to right,
+    var(--glass-chat-accent-from),
+    var(--glass-chat-accent-to)
+  );
+  color: var(--glass-chat-text);
+}
+
+/* Floating composer box: frosted surface, reuses the base blur token. */
+.glass-chat-composer {
+  background: var(--glass-chat-surface);
+  border: 1px solid var(--glass-chat-surface-border);
+  border-radius: var(--glass-chat-radius);
+  box-shadow: var(--glass-chat-shadow);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+}
+
+/* Composer textarea: transparent inside the frosted box. */
+.glass-chat-composer-input {
+  width: 100%;
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--glass-chat-text);
+}
+.glass-chat-composer-input::placeholder {
+  color: var(--glass-chat-text-muted);
+}
+
+/* Message bubbles. */
+.glass-chat-bubble-user {
+  background: var(--glass-chat-bubble-user);
+  color: var(--glass-chat-text);
+  border: 1px solid transparent;
+}
+.glass-chat-bubble-assistant {
+  background: var(--glass-chat-bubble-assistant);
+  color: var(--glass-chat-text);
+  border: 1px solid var(--glass-chat-bubble-border);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+}
+
+/* Gradient CTA (start-screen primary action). */
+.glass-chat-cta {
+  background-image: linear-gradient(
+    to right,
+    var(--glass-chat-accent-from),
+    var(--glass-chat-accent-to)
+  );
+  color: var(--glass-chat-text);
+  border: none;
+  border-radius: 10px;
+  box-shadow: var(--glass-chat-shadow);
+  cursor: pointer;
+}
+
+/* Smaller blur on narrow viewports, consistent with the base material. */
+@media (max-width: 768px) {
+  .glass-chat-composer,
+  .glass-chat-bubble-assistant {
+    backdrop-filter: blur(var(--glass-blur-compact, 8px));
+    -webkit-backdrop-filter: blur(var(--glass-blur-compact, 8px));
+  }
+}
