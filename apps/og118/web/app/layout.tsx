@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import 'fi-glass/theme.css';
 import './globals.css';
+// B3-V2: adopt the reusable glassmorphism chat preset from fi-glass (B3-V1).
+// Imported last so its opt-in `.glass-chat-*` classes win where og118 applies them.
+import 'fi-glass/glass-chat.css';
 
 export const metadata: Metadata = {
   title: 'og118.ai',

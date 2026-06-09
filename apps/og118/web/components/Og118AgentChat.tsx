@@ -144,8 +144,13 @@ export function Og118AgentChat() {
           newChatLabel="Nuevo chat"
           emptyState={<Og118StartScreen />}
           aboveComposer={authBanner}
-          composerAreaClassName="og-composer-area"
-          composerTextareaClassName="og-composer-textarea"
+          composerAreaClassName="og-composer-area glass-chat-composer"
+          composerTextareaClassName="glass-chat-composer-input"
+          // Frosted message cards from the reusable preset. A single class for
+          // all roles (the surface exposes one messageBubbleClassName); a future
+          // per-role tint would need a fi-glass per-message className slot — out
+          // of scope here, accepted as a documented visual difference vs AURITY.
+          messageBubbleClassName="glass-chat-bubble-assistant"
           showCopyAction
         />
       </div>
