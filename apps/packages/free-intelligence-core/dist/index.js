@@ -124,10 +124,71 @@ function makeUserMessage(text) {
 function foldAssistantTurn(turn) {
   return { role: "assistant", content: turn.text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
 }
+
+// src/conversation/helpers.ts
+var CONVERSATION_SCHEMA_VERSION = 1;
+var DEFAULT_TITLE = "New chat";
+var TITLE_MAX = 60;
+var PREVIEW_MAX = 120;
+function truncate(text, max) {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1)).trimEnd()}\u2026`;
+}
+function sanitizeConversationMessage(message) {
+  return {
+    role: message.role,
+    content: message.content,
+    timestamp: message.timestamp
+  };
+}
+function deriveConversationTitle(messages, max = TITLE_MAX) {
+  const firstUser = messages.find(
+    (m) => m.role === "user" && m.content.trim() !== ""
+  );
+  if (!firstUser) return DEFAULT_TITLE;
+  return truncate(firstUser.content, max) || DEFAULT_TITLE;
+}
+function deriveConversationPreview(messages, max = PREVIEW_MAX) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].content.trim() !== "") {
+      return truncate(messages[i].content, max);
+    }
+  }
+  return "";
+}
+function createConversationRecord(args) {
+  const now = args.now ?? (/* @__PURE__ */ new Date()).toISOString();
+  const messages = (args.messages ?? []).map(sanitizeConversationMessage);
+  return {
+    id: args.id,
+    title: deriveConversationTitle(messages),
+    createdAt: now,
+    updatedAt: now,
+    messages,
+    preview: deriveConversationPreview(messages),
+    schemaVersion: CONVERSATION_SCHEMA_VERSION
+  };
+}
+function summarizeConversation(record) {
+  return {
+    id: record.id,
+    title: record.title,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    preview: record.preview
+  };
+}
 export {
+  CONVERSATION_SCHEMA_VERSION,
   applyAgentEvent,
+  createConversationRecord,
+  deriveConversationPreview,
+  deriveConversationTitle,
   foldAssistantTurn,
   initialAgentTurnState,
-  makeUserMessage
+  makeUserMessage,
+  sanitizeConversationMessage,
+  summarizeConversation
 };
 //# sourceMappingURL=index.js.map

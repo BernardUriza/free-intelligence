@@ -1,0 +1,154 @@
+/**
+ * Unit tests for the conversation helpers (DD-002B1.1). These are pure,
+ * deterministic functions; the tests pin the two things that matter most for a
+ * substrate consumed by multiple apps: privacy-by-structure (sanitize drops
+ * everything but role/content/timestamp) and deterministic derivation
+ * (title/preview/record are reproducible given a fixed `now`).
+ */
+
+import { describe, it, expect } from 'vitest';
+import type { ChatMessage } from '../chat/message';
+import {
+  CONVERSATION_SCHEMA_VERSION,
+  createConversationRecord,
+  summarizeConversation,
+  deriveConversationTitle,
+  deriveConversationPreview,
+  sanitizeConversationMessage,
+} from './helpers';
+
+const NOW = '2026-06-09T00:00:00.000Z';
+
+function msg(
+  role: 'user' | 'assistant',
+  content: string,
+  extra: Partial<ChatMessage> = {},
+): ChatMessage {
+  return { role, content, timestamp: '2026-06-09T00:00:01.000Z', ...extra };
+}
+
+describe('sanitizeConversationMessage — privacy by structure', () => {
+  it('keeps only role, content, timestamp', () => {
+    const dirty: ChatMessage = {
+      role: 'assistant',
+      content: 'hola',
+      timestamp: NOW,
+      id: 'abc123',
+      thinking: 'secret chain of thought',
+      metadata: { token: 'Bearer xyz', tool: { payload: 'danger' } },
+    };
+    const clean = sanitizeConversationMessage(dirty);
+    expect(clean).toEqual({ role: 'assistant', content: 'hola', timestamp: NOW });
+    expect('id' in clean).toBe(false);
+    expect('thinking' in clean).toBe(false);
+    expect('metadata' in clean).toBe(false);
+  });
+
+  it('drops unknown future fields by construction', () => {
+    const future = {
+      role: 'user',
+      content: 'x',
+      timestamp: NOW,
+      futureSecret: 'should not survive',
+    } as unknown as ChatMessage;
+    const clean = sanitizeConversationMessage(future);
+    expect(Object.keys(clean).sort()).toEqual(['content', 'role', 'timestamp']);
+  });
+});
+
+describe('deriveConversationTitle', () => {
+  it('uses the first non-empty user message, skipping assistant + empty', () => {
+    const title = deriveConversationTitle([
+      msg('assistant', 'intro screen'),
+      msg('user', '   '),
+      msg('user', 'How do I deploy og118?'),
+      msg('user', 'second question'),
+    ]);
+    expect(title).toBe('How do I deploy og118?');
+  });
+
+  it('falls back to "New chat" with no usable user message', () => {
+    expect(deriveConversationTitle([])).toBe('New chat');
+    expect(deriveConversationTitle([msg('assistant', 'only assistant')])).toBe(
+      'New chat',
+    );
+  });
+
+  it('truncates deterministically with an ellipsis', () => {
+    const long = 'a'.repeat(100);
+    const title = deriveConversationTitle([msg('user', long)], 10);
+    expect(title).toBe(`${'a'.repeat(9)}…`);
+    expect(title.length).toBe(10);
+  });
+});
+
+describe('deriveConversationPreview', () => {
+  it('uses the last non-empty message of any role', () => {
+    const preview = deriveConversationPreview([
+      msg('user', 'first'),
+      msg('assistant', 'last real answer'),
+      msg('assistant', '   '),
+    ]);
+    expect(preview).toBe('last real answer');
+  });
+
+  it('returns empty string when nothing has content', () => {
+    expect(deriveConversationPreview([])).toBe('');
+    expect(deriveConversationPreview([msg('user', '  ')])).toBe('');
+  });
+});
+
+describe('createConversationRecord', () => {
+  it('stamps a deterministic now and the schema version', () => {
+    const rec = createConversationRecord({
+      id: 'sess-1',
+      messages: [msg('user', 'hello there')],
+      now: NOW,
+    });
+    expect(rec.id).toBe('sess-1');
+    expect(rec.createdAt).toBe(NOW);
+    expect(rec.updatedAt).toBe(NOW);
+    expect(rec.schemaVersion).toBe(CONVERSATION_SCHEMA_VERSION);
+    expect(rec.title).toBe('hello there');
+    expect(rec.preview).toBe('hello there');
+  });
+
+  it('sanitizes the seeded messages', () => {
+    const rec = createConversationRecord({
+      id: 'sess-2',
+      messages: [msg('user', 'hi', { metadata: { token: 'Bearer secret' } })],
+      now: NOW,
+    });
+    expect(rec.messages[0]).toEqual({
+      role: 'user',
+      content: 'hi',
+      timestamp: '2026-06-09T00:00:01.000Z',
+    });
+  });
+
+  it('defaults to an empty thread', () => {
+    const rec = createConversationRecord({ id: 'sess-3', now: NOW });
+    expect(rec.messages).toEqual([]);
+    expect(rec.title).toBe('New chat');
+    expect(rec.preview).toBe('');
+  });
+});
+
+describe('summarizeConversation', () => {
+  it('excludes the messages array', () => {
+    const rec = createConversationRecord({
+      id: 'sess-4',
+      messages: [msg('user', 'q'), msg('assistant', 'a')],
+      now: NOW,
+    });
+    const summary = summarizeConversation(rec);
+    expect('messages' in summary).toBe(false);
+    expect(summary).toEqual({
+      id: 'sess-4',
+      title: 'q',
+      createdAt: NOW,
+      updatedAt: NOW,
+      preview: 'a',
+    });
+  });
+});

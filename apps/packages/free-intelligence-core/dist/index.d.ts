@@ -391,4 +391,104 @@ interface AgentHook {
     reset?: () => void;
 }
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, type ChatHook, type ChatMessage, type ChatStreamingState, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, foldAssistantTurn, initialAgentTurnState, makeUserMessage };
+/**
+ * ConversationRecord — the persisted shape of one local-first conversation.
+ *
+ * DD-002B1: og118 (and every future fi-glass shell) needs the transcript to
+ * survive a refresh and a list of past chats for a sidebar. The record is the
+ * unit a ConversationLibrary stores; the summary is the light row a sidebar
+ * lists without paying for the full message array. Pure data — no React, no
+ * browser, no transport. The `id` doubles as the backend session_id so the
+ * local transcript and the server's conversation store key the same thread.
+ */
+
+interface ConversationRecord {
+    /** Stable id. Doubles as the backend session_id for the same thread. */
+    id: string;
+    /** Human-readable title, derived from the first user message. */
+    title: string;
+    /** ISO 8601 creation timestamp. */
+    createdAt: string;
+    /** ISO 8601 timestamp of the last change. */
+    updatedAt: string;
+    /** The thread, sanitized for storage (role/content/timestamp only). */
+    messages: ChatMessage[];
+    /** Snippet of the last non-empty message, for the sidebar. */
+    preview: string;
+    /** Schema version of this record, for forward migrations. */
+    schemaVersion: number;
+}
+/** A light row for listing conversations in a sidebar (no messages). */
+interface ConversationSummary {
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    preview: string;
+}
+
+/**
+ * ConversationLibrary — the storage contract for local-first conversations.
+ *
+ * A pure async interface: adapters implement it over IndexedDB (fi-glass), a
+ * backend, or filesystem (later layers) without core taking a dependency on any
+ * of them. `list` returns light summaries (cheap); `get` hydrates one full
+ * record; `put` upserts; `delete`/`clear` remove. Keeping the contract in core
+ * is what stops a reusable persistence primitive from being trapped in a
+ * consumer app (DD-002-LESSON / framework-first-canary).
+ */
+
+interface ConversationLibrary {
+    /** All conversations as light summaries, newest `updatedAt` first. */
+    list(): Promise<ConversationSummary[]>;
+    /** The full record for `id`, or `null` if none. */
+    get(id: string): Promise<ConversationRecord | null>;
+    /** Insert or replace a record by its `id`. */
+    put(record: ConversationRecord): Promise<void>;
+    /** Remove the record for `id` (no-op if absent). */
+    delete(id: string): Promise<void>;
+    /** Remove every stored conversation. */
+    clear(): Promise<void>;
+}
+
+/**
+ * Conversation helpers — pure, deterministic primitives for building and
+ * summarizing ConversationRecords. No React, no browser, no transport.
+ *
+ * Privacy by structure: `sanitizeConversationMessage` builds a NEW message with
+ * exactly the allowed subset (role / content / timestamp). Any other field a
+ * ChatMessage may carry now or later — `id`, `thinking`, `metadata`, a future
+ * tool payload or token — is dropped by construction, not by an allow/deny list
+ * someone must remember to update. The initial privacy guarantee is the
+ * restriction, not PII heuristics.
+ *
+ * Determinism: helpers that stamp a time accept an optional `now` so tests are
+ * reproducible; they fall back to the wall clock only when it is omitted.
+ */
+
+/** Schema version stamped on every record created here. */
+declare const CONVERSATION_SCHEMA_VERSION = 1;
+/**
+ * Reduce a ChatMessage to the only fields safe to persist: role, content, and
+ * timestamp. Drops id, thinking, metadata, and anything else by construction.
+ */
+declare function sanitizeConversationMessage(message: ChatMessage): ChatMessage;
+/** Title from the first non-empty user message; `DEFAULT_TITLE` otherwise. */
+declare function deriveConversationTitle(messages: ChatMessage[], max?: number): string;
+/** Preview from the last non-empty message of any role; `''` otherwise. */
+declare function deriveConversationPreview(messages: ChatMessage[], max?: number): string;
+/** Arguments for {@link createConversationRecord}. */
+interface CreateConversationRecordArgs {
+    /** Stable id (doubles as the backend session_id). */
+    id: string;
+    /** Initial thread; sanitized before storing. Default: empty. */
+    messages?: ChatMessage[];
+    /** ISO timestamp to stamp createdAt/updatedAt. Default: now. */
+    now?: string;
+}
+/** Build a fresh, sanitized record with derived title + preview. */
+declare function createConversationRecord(args: CreateConversationRecordArgs): ConversationRecord;
+/** Project a record to its light summary — excludes `messages`. */
+declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
+
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, sanitizeConversationMessage, summarizeConversation };
