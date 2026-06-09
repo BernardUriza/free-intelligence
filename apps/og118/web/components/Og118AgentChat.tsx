@@ -97,6 +97,7 @@ export function Og118AgentChat() {
       aboveComposer={authBanner}
       composerAreaClassName="og-composer-area"
       composerTextareaClassName="og-composer-textarea"
+      showCopyAction
     />
   );
 }
