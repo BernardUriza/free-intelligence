@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from threading import Lock
 
-from insult.core.flows import FlowAnalysis, UserState
-from insult.core.presets import PresetMode, PresetSelection
+from insult.core.contracts.flows import FlowAnalysis, UserState
+from insult.core.contracts.presets import PresetMode, PresetSelection
 
 
 class ModelTier(StrEnum):

@@ -136,8 +136,10 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 22 host→smart imports are the structural coupling the demux destilado
+# These 20 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
+# (Was 22; routing→flows and routing→presets removed via the
+# `insult.core.contracts` extraction — routing now depends on neutral contracts.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -163,8 +165,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.cogs.chat.tasks", "insult.core.facts"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
         ("insult.core.debug_server.keys", "insult.core.memory"),
-        ("insult.core.routing", "insult.core.flows"),
-        ("insult.core.routing", "insult.core.presets"),
     }
 )
 
