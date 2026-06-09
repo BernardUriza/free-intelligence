@@ -13,8 +13,9 @@
  */
 
 import { useState, type ReactNode } from 'react';
+import type { ChatMessage } from '@free-intelligence/core';
 import { Composer } from '../composer';
-import { MessageContent } from '../messages';
+import { MessageContent, MessageBubble, CopyButton } from '../messages';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import type { AgentConversation } from './useAgentConversation';
 
@@ -35,6 +36,21 @@ export interface AgentConversationSurfaceProps {
   composerAreaClassName?: string;
   /** Composer textarea class (style hook for the app). */
   composerTextareaClassName?: string;
+  /**
+   * When true (and no `renderActions` override), each transcript message gets a
+   * default {@link CopyButton} in the bubble's actions slot. Default: false
+   * (the dense agentic surface stays action-free unless the app opts in). The
+   * live streaming message never gets a copy action.
+   */
+  showCopyAction?: boolean;
+  /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
+  renderHeader?: (message: ChatMessage) => ReactNode;
+  /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
+  renderBadge?: (message: ChatMessage) => ReactNode;
+  /** Per-message actions slot (overrides showCopyAction) → MessageBubble.actions. */
+  renderActions?: (message: ChatMessage) => ReactNode;
+  /** Extra class for every message bubble → MessageBubble.className. */
+  messageBubbleClassName?: string;
 }
 
 export function AgentConversationSurface({
@@ -46,6 +62,11 @@ export function AgentConversationSurface({
   agentPanelProps,
   composerAreaClassName,
   composerTextareaClassName,
+  showCopyAction = false,
+  renderHeader,
+  renderBadge,
+  renderActions,
+  messageBubbleClassName,
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState('');
@@ -74,17 +95,29 @@ export function AgentConversationSurface({
           emptyState
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Transcript: completed turns (user + assistant) */}
+            {/* Transcript: completed turns (user + assistant), each in a bubble */}
             {messages.map((m, i) => (
-              <MessageContent key={i} isUser={m.role === 'user'} content={m.content} />
+              <MessageBubble
+                key={i}
+                role={m.role}
+                header={renderHeader?.(m)}
+                badge={renderBadge?.(m)}
+                actions={
+                  renderActions?.(m) ??
+                  (showCopyAction ? <CopyButton content={m.content} /> : undefined)
+                }
+                className={messageBubbleClassName}
+              >
+                <MessageContent isUser={m.role === 'user'} content={m.content} />
+              </MessageBubble>
             ))}
 
-            {/* Live turn: glass-box trace + streaming answer (current turn only) */}
+            {/* Live turn: glass-box trace stays as-is, streaming answer in a bubble */}
             {isStreaming && <AgentPanel turn={turn} {...agentPanelProps} />}
             {isStreaming && turn.text && (
-              <div style={{ paddingTop: '0.5rem' }}>
+              <MessageBubble role="assistant" className={messageBubbleClassName}>
                 <MessageContent isUser={false} content={turn.text} isStreaming />
-              </div>
+              </MessageBubble>
             )}
           </div>
         )}
