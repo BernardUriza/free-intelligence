@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 
 import structlog
 
-from insult.core.facts import extract_facts, merge_facts_additive
 from insult.core.guild_setup import post_facts_to_channel
 
 log = structlog.get_logger()
@@ -75,6 +75,9 @@ async def extract_user_facts(
     recent: list[dict],
     guild_id: str | None = None,
     channel_name: str = "",
+    *,
+    extract_facts_fn: Callable[..., Awaitable[list[dict]]],
+    merge_facts_fn: Callable[[list[dict], list[dict]], tuple[list[dict], list[dict]]],
 ) -> None:
     """Run fact extraction against recent turns and persist any new facts.
 
@@ -84,9 +87,14 @@ async def extract_user_facts(
     `llm` is the RunnerJudgeClient (the runner's one-shot /v1/judge) — fact
     extraction goes through its utility_call so the work runs on OAuth Max
     without a direct-Anthropic key and skips the user-facing guards.
+
+    `extract_facts_fn` / `merge_facts_fn` are injected by the caller (stages,
+    which already owns the `insult.core.facts` import) so this host-facing
+    module stays off the smart layer — the behavior is identical to calling
+    `facts.extract_facts` / `facts.merge_facts_additive` directly.
     """
     try:
-        new_facts = await extract_facts(llm, summary_model, user_name, existing_facts, recent)
+        new_facts = await extract_facts_fn(llm, summary_model, user_name, existing_facts, recent)
         # P0 (2026-06-03): `existing_facts` is only the semantic top-N subset
         # injected into the prompt, but `memory.save_facts` REPLACES the whole
         # auto snapshot (DELETE … WHERE source='auto'). Saving `new_facts`
@@ -95,7 +103,7 @@ async def extract_user_facts(
         # ("Alex explains the same thing every day"). Union onto the COMPLETE
         # live auto set so extraction can only ADD, never destroy.
         all_auto = await memory.get_auto_facts(user_id)
-        merged, added = merge_facts_additive(all_auto, new_facts)
+        merged, added = merge_facts_fn(all_auto, new_facts)
         if added:
             await memory.save_facts(user_id, merged)
             log.info("facts_extracted_additive", user_id=user_id, added=len(added), total_auto=len(merged))

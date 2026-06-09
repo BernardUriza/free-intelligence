@@ -69,7 +69,7 @@ from insult.core.character.prompts import _format_other_people_block
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.disclosure import scan_disclosure
 from insult.core.errors import ErrorType, classify_error, get_error_response
-from insult.core.facts import build_facts_prompt
+from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import (
@@ -1134,6 +1134,8 @@ async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
             ctx.recent,
             ctx.guild_id,
             ch_name,
+            extract_facts_fn=extract_facts,
+            merge_facts_fn=merge_facts_additive,
         ),
         name="fact_extraction",
     )

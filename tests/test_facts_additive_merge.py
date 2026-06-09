@@ -110,7 +110,7 @@ def test_merge_defaults_missing_category_to_general():
 
 
 @pytest.mark.asyncio
-async def test_extract_user_facts_saves_superset_not_subset(monkeypatch):
+async def test_extract_user_facts_saves_superset_not_subset():
     """End-to-end (mocked) proof that the per-turn hard delete is gone.
 
     `get_auto_facts` returns the FULL 4-fact auto set; the extractor (given the
@@ -133,8 +133,6 @@ async def test_extract_user_facts_saves_superset_not_subset(monkeypatch):
         assert existing_facts is injected_subset
         return [*injected_subset, {"fact": "E nuevo", "category": "personal"}]
 
-    monkeypatch.setattr("insult.cogs.chat.tasks.extract_facts", fake_extract)
-
     await extract_user_facts(
         llm=MagicMock(),
         summary_model="m",
@@ -145,6 +143,8 @@ async def test_extract_user_facts_saves_superset_not_subset(monkeypatch):
         existing_facts=injected_subset,
         recent=[{"user_name": "Bernard", "content": "hola"}],
         guild_id=None,  # skip post_facts_to_channel
+        extract_facts_fn=fake_extract,
+        merge_facts_fn=merge_facts_additive,
     )
 
     memory.save_facts.assert_awaited_once()
@@ -154,7 +154,7 @@ async def test_extract_user_facts_saves_superset_not_subset(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_extract_user_facts_skips_save_when_nothing_new(monkeypatch):
+async def test_extract_user_facts_skips_save_when_nothing_new():
     """No genuinely-new fact → no save at all (so no needless snapshot churn)."""
     full_auto = [{"id": 1, "fact": "A", "category": "personal", "updated_at": 1.0}]
     memory = MagicMock()
@@ -163,8 +163,6 @@ async def test_extract_user_facts_skips_save_when_nothing_new(monkeypatch):
 
     async def fake_extract(_llm, _model, _name, _existing, _recent):
         return [{"fact": "A", "category": "personal"}]  # already known
-
-    monkeypatch.setattr("insult.cogs.chat.tasks.extract_facts", fake_extract)
 
     await extract_user_facts(
         llm=MagicMock(),
@@ -176,6 +174,8 @@ async def test_extract_user_facts_skips_save_when_nothing_new(monkeypatch):
         existing_facts=[{"fact": "A", "category": "personal"}],
         recent=[{"user_name": "Bernard", "content": "x"}],
         guild_id=None,
+        extract_facts_fn=fake_extract,
+        merge_facts_fn=merge_facts_additive,
     )
 
     memory.save_facts.assert_not_awaited()
