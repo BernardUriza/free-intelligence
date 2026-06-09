@@ -180,7 +180,22 @@ interface AgentConversationSurfaceProps {
     composerAreaClassName?: string;
     /** Composer textarea class (style hook for the app). */
     composerTextareaClassName?: string;
+    /**
+     * When true (and no `renderActions` override), each transcript message gets a
+     * default {@link CopyButton} in the bubble's actions slot. Default: false
+     * (the dense agentic surface stays action-free unless the app opts in). The
+     * live streaming message never gets a copy action.
+     */
+    showCopyAction?: boolean;
+    /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
+    renderHeader?: (message: ChatMessage) => ReactNode;
+    /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
+    renderBadge?: (message: ChatMessage) => ReactNode;
+    /** Per-message actions slot (overrides showCopyAction) → MessageBubble.actions. */
+    renderActions?: (message: ChatMessage) => ReactNode;
+    /** Extra class for every message bubble → MessageBubble.className. */
+    messageBubbleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

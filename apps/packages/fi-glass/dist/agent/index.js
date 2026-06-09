@@ -740,7 +740,12 @@ function AgentConversationSurface({
   aboveComposer,
   agentPanelProps,
   composerAreaClassName,
-  composerTextareaClassName
+  composerTextareaClassName,
+  showCopyAction = false,
+  renderHeader,
+  renderBadge,
+  renderActions,
+  messageBubbleClassName
 }) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState5("");
@@ -754,9 +759,20 @@ function AgentConversationSurface({
   };
   return /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
     /* @__PURE__ */ jsx11("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: idle ? emptyState : /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-      messages.map((m, i) => /* @__PURE__ */ jsx11(MessageContent, { isUser: m.role === "user", content: m.content }, i)),
+      messages.map((m, i) => /* @__PURE__ */ jsx11(
+        MessageBubble,
+        {
+          role: m.role,
+          header: renderHeader?.(m),
+          badge: renderBadge?.(m),
+          actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx11(CopyButton, { content: m.content }) : void 0),
+          className: messageBubbleClassName,
+          children: /* @__PURE__ */ jsx11(MessageContent, { isUser: m.role === "user", content: m.content })
+        },
+        i
+      )),
       isStreaming && /* @__PURE__ */ jsx11(AgentPanel, { turn, ...agentPanelProps }),
-      isStreaming && turn.text && /* @__PURE__ */ jsx11("div", { style: { paddingTop: "0.5rem" }, children: /* @__PURE__ */ jsx11(MessageContent, { isUser: false, content: turn.text, isStreaming: true }) })
+      isStreaming && turn.text && /* @__PURE__ */ jsx11(MessageBubble, { role: "assistant", className: messageBubbleClassName, children: /* @__PURE__ */ jsx11(MessageContent, { isUser: false, content: turn.text, isStreaming: true }) })
     ] }) }),
     /* @__PURE__ */ jsxs9("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
       hasThread && /* @__PURE__ */ jsx11("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx11(
