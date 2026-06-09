@@ -16,7 +16,7 @@ from __future__ import annotations
 import discord
 import structlog
 
-from insult.core.summaries import build_server_pulse, filter_by_permissions
+from insult.core.server_pulse import build_server_pulse, filter_by_permissions
 
 log = structlog.get_logger()
 

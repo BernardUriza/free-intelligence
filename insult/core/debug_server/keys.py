@@ -13,7 +13,7 @@ from typing import Any
 
 from aiohttp import web
 
-from insult.core.memory import MemoryStore
+from insult.core.contracts.memory import DebugMemoryPort
 
 
 @dataclass
@@ -28,8 +28,11 @@ class MoltbookDebugContext:
     settings: Any
 
 
-# Typed aiohttp app keys (avoid NotAppKeyWarning)
-_MEMORY_KEY: web.AppKey[MemoryStore] = web.AppKey("memory", MemoryStore)
+# Typed aiohttp app keys (avoid NotAppKeyWarning). The memory key is typed by
+# the structural DebugMemoryPort (the handlers' static view); the runtime tag is
+# `object` so we don't import the concrete smart-side MemoryStore here — the
+# store injected in app.py satisfies the port structurally.
+_MEMORY_KEY: web.AppKey[DebugMemoryPort] = web.AppKey("memory", object)  # type: ignore[arg-type]
 _TOKEN_KEY: web.AppKey[str] = web.AppKey("debug_token", str)
 _MOLTBOOK_KEY: web.AppKey[MoltbookDebugContext | None] = web.AppKey("moltbook_ctx", object)  # type: ignore[arg-type]
 

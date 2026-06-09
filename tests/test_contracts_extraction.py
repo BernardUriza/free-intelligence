@@ -55,6 +55,45 @@ def test_flow_enum_identity_across_all_import_paths() -> None:
     assert CanonicalState.VULNERABLE is ViaShimState.VULNERABLE is ViaBarrelState.VULNERABLE
 
 
+def test_expression_history_identity_across_all_import_paths() -> None:
+    from insult.core.contracts.history import ExpressionHistory as Canonical
+    from insult.core.flows import ExpressionHistory as ViaBarrel
+    from insult.core.flows.history import ExpressionHistory as ViaShim
+
+    # Same class object across contracts / flows.history shim / flows barrel.
+    assert Canonical is ViaShim is ViaBarrel
+
+
+def test_server_pulse_helpers_identity_across_import_paths() -> None:
+    # The host imports these from the neutral module; summaries.py re-exports
+    # them for backwards compatibility. Same function objects both ways.
+    from insult.core.server_pulse import build_server_pulse as canonical_pulse
+    from insult.core.server_pulse import filter_by_permissions as canonical_filter
+    from insult.core.summaries import build_server_pulse as shim_pulse
+    from insult.core.summaries import filter_by_permissions as shim_filter
+
+    assert canonical_pulse is shim_pulse
+    assert canonical_filter is shim_filter
+
+
+def test_memory_store_satisfies_debug_memory_port() -> None:
+    """The concrete smart-side MemoryStore must structurally satisfy the
+    host-side DebugMemoryPort — otherwise the debug_server handlers would
+    call methods the store doesn't have. Asserts every port method exists on
+    the store class so the port can't silently drift from the real surface."""
+    from insult.core.contracts.memory import DebugMemoryPort
+    from insult.core.memory import MemoryStore
+
+    port_methods = [
+        name
+        for name in dir(DebugMemoryPort)
+        if not name.startswith("_") and callable(getattr(DebugMemoryPort, name, None))
+    ]
+    assert port_methods, "DebugMemoryPort exposes no methods — extraction is wrong"
+    missing = [m for m in port_methods if not hasattr(MemoryStore, m)]
+    assert not missing, f"MemoryStore is missing DebugMemoryPort methods: {missing}"
+
+
 def test_routing_uses_the_canonical_enum_members() -> None:
     """The router compares preset.mode against PresetMode members. If routing
     imported a *different* PresetMode object, those `in`/`==` checks would

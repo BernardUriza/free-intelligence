@@ -29,7 +29,7 @@ from insult.cogs.chat.tasks import spawn_tracked_task
 from insult.cogs.chat.tools import ALL_TOOLS
 from insult.cogs.chat.turn import run_turn
 from insult.cogs.chat.voice import transcribe_voice
-from insult.core.flows import ExpressionHistory
+from insult.core.contracts.history import ExpressionHistory
 from insult.core.routing import OpusBudget
 
 if TYPE_CHECKING:

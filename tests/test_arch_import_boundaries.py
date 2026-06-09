@@ -136,10 +136,11 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 20 host→smart imports are the structural coupling the demux destilado
+# These 17 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
-# (Was 22; routing→flows and routing→presets removed via the
-# `insult.core.contracts` extraction — routing now depends on neutral contracts.)
+# (Was 22; -2 via routing→{flows,presets} contracts extraction; then -3 via the
+# contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
+# DebugMemoryPort Protocol, context→summaries pure helpers → server_pulse.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -148,8 +149,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory"),
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
-        ("insult.cogs.chat.cog", "insult.core.flows"),
-        ("insult.cogs.chat.context", "insult.core.summaries"),
         ("insult.cogs.chat.stages", "insult.core.arc_tracker"),
         ("insult.cogs.chat.stages", "insult.core.attachments"),
         ("insult.cogs.chat.stages", "insult.core.character"),
@@ -164,7 +163,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.cogs.chat.stages", "insult.core.stance_log"),
         ("insult.cogs.chat.tasks", "insult.core.facts"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
-        ("insult.core.debug_server.keys", "insult.core.memory"),
     }
 )
 

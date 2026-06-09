@@ -27,6 +27,11 @@ from insult.core.contracts.flows import (
     StyleFlavor,
     UserState,
 )
+from insult.core.contracts.history import (
+    EXPRESSION_HISTORY_MAXLEN,
+    ExpressionHistory,
+)
+from insult.core.contracts.memory import DebugMemoryPort
 from insult.core.contracts.presets import (
     PresetMode,
     PresetModifier,
@@ -34,11 +39,14 @@ from insult.core.contracts.presets import (
 )
 
 __all__ = [
+    "EXPRESSION_HISTORY_MAXLEN",
     "AwarenessAnalysis",
     "ConversationPattern",
+    "DebugMemoryPort",
     "EpistemicAnalysis",
     "EpistemicMove",
     "ExpressionAnalysis",
+    "ExpressionHistory",
     "FlowAnalysis",
     "PresetMode",
     "PresetModifier",
