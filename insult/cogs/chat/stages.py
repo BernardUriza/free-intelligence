@@ -49,6 +49,7 @@ from insult.cogs.chat.context import (
     store_user_message,
     update_style_profile,
 )
+from insult.cogs.chat.disclosure import scan_disclosure
 from insult.cogs.chat.pipeline import Stage, TurnCtx
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
@@ -67,7 +68,6 @@ from insult.core.character import (
 )
 from insult.core.character.prompts import _format_other_people_block
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
-from insult.core.disclosure import scan_disclosure
 from insult.core.errors import ErrorType, classify_error, get_error_response
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence

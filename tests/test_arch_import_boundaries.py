@@ -64,7 +64,10 @@ FORBIDDEN_MODULES: list[str] = [
     "insult.core.presets_llm",
     "insult.core.flows",
     "insult.core.vulnerability",
-    "insult.core.disclosure",
+    # NOTE: disclosure scanning relocated to insult.cogs.chat.disclosure
+    # (host-side pre-LLM regex classifier, zero persona/memory/LLM — same shape
+    # as triviality). No longer a smart module, so insult.core.disclosure is
+    # intentionally absent here.
     "insult.core.arc_tracker",
     "insult.core.style",
     "insult.core.proactive",
@@ -139,7 +142,7 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 15 host→smart imports are the structural coupling the demux destilado
+# These 14 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
 # (Was 22; -2 via routing→{flows,presets} contracts extraction; -3 via the
 # contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
@@ -157,7 +160,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.cogs.chat.stages", "insult.core.arc_tracker"),
         ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.stages", "insult.core.deep_memory"),
-        ("insult.cogs.chat.stages", "insult.core.disclosure"),
         ("insult.cogs.chat.stages", "insult.core.facts"),
         ("insult.cogs.chat.stages", "insult.core.flows"),
         ("insult.cogs.chat.stages", "insult.core.presets"),

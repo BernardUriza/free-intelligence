@@ -1,6 +1,6 @@
-"""Tests for insult.core.disclosure — pre-LLM disclosure detection."""
+"""Tests for insult.cogs.chat.disclosure — pre-LLM disclosure detection."""
 
-from insult.core.disclosure import scan_disclosure
+from insult.cogs.chat.disclosure import scan_disclosure
 
 
 class TestScanDisclosure:
