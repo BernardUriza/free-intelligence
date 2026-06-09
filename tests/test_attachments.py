@@ -1,9 +1,9 @@
-"""Tests for insult.core.attachments — file classification and processing."""
+"""Tests for insult.cogs.chat.attachments — file classification and processing."""
 
 import io
 from unittest.mock import AsyncMock
 
-from insult.core.attachments import (
+from insult.cogs.chat.attachments import (
     MAX_ATTACHMENT_SIZE,
     AttachmentType,
     classify_attachment,

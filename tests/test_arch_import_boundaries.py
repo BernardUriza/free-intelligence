@@ -58,6 +58,9 @@ FORBIDDEN_MODULES: list[str] = [
     "insult.core.memory_consolidator",
     "insult.core.character",
     "insult.core.presets",
+    # NOTE: attachment processing relocated to insult.cogs.chat.attachments
+    # (host-side Discord ingest adapter, zero persona/memory/LLM). No longer a
+    # smart module, so insult.core.attachments is intentionally absent here.
     "insult.core.presets_llm",
     "insult.core.flows",
     "insult.core.vulnerability",
@@ -136,7 +139,7 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 16 host→smart imports are the structural coupling the demux destilado
+# These 15 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
 # (Was 22; -2 via routing→{flows,presets} contracts extraction; -3 via the
 # contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
@@ -152,7 +155,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
         ("insult.cogs.chat.stages", "insult.core.arc_tracker"),
-        ("insult.cogs.chat.stages", "insult.core.attachments"),
         ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.stages", "insult.core.deep_memory"),
         ("insult.cogs.chat.stages", "insult.core.disclosure"),

@@ -39,6 +39,7 @@ from insult.cogs.chat._failure import (
     spawn_typing_indicator,
     spawn_typing_keepalive,
 )
+from insult.cogs.chat.attachments import process_attachments
 from insult.cogs.chat.context import (
     build_context,
     load_facts_smart,
@@ -52,7 +53,6 @@ from insult.cogs.chat.pipeline import Stage, TurnCtx
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
-from insult.core.attachments import process_attachments
 from insult.core.character import (
     MutationStage,
     build_adaptive_prompt,
