@@ -17,6 +17,7 @@
       "import": "./dist/theme/index.js"
     },
     "./theme.css": "./src/theme/index.css",
+    "./glass-chat.css": "./src/theme/glass-chat.css",
     "./messages": {
       "types": "./dist/messages/index.d.ts",
       "import": "./dist/messages/index.js"

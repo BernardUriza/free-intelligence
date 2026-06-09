@@ -1,19 +1,48 @@
-import { ThemeTokens } from '@free-intelligence/core';
+export { g as glassTheme } from '../glass-theme-D-leVuKb.js';
+import '@free-intelligence/core';
 
 /**
- * glassTheme — the concrete values that fill core's ThemeTokens slots for the
- * `fi-glass` material.
+ * glassChatPreset — the typed mirror of the glass-chat visual preset (B3-V1).
  *
- * The runtime CSS lives next to this file (tokens.css / glass.css) and emits the
- * same values as `--glass-*` custom properties. This object is the typed mirror:
- * it gives programmatic access to the values and lets future materials
- * (fi-slate, fi-paper, …) be diffed against the very same slot shape.
+ * The runtime CSS lives next to this file (glass-chat.css) and emits the same
+ * values as `--glass-chat-*` custom properties; this object is the typed mirror
+ * (same phase-1 contract as `glassTheme` ↔ tokens.css): it gives programmatic
+ * access to the values and lets a consumer reference an accent/surface without
+ * hardcoding the literal.
  *
- * NOTE: values are intentionally duplicated between this object and tokens.css
- * during phase 1 (CSS is the runtime source of truth; this is documentation +
- * typing). A later phase may generate the CSS from this object to remove the
- * duplication — deliberately out of scope here.
+ * Glass-material-specific by design: a future `fi-<material>` ships its own chat
+ * preset. Domain styling (AURITY's clinical personas) is NOT here — only the
+ * reusable glassmorphism chat look.
  */
-declare const glassTheme: ThemeTokens;
+/** The reusable visual slots of the glass-chat preset. */
+interface GlassChatPreset {
+    /** Accent gradient start (emerald). */
+    accentFrom: string;
+    /** Accent gradient end (cyan). */
+    accentTo: string;
+    /** Accent text color. */
+    accentText: string;
+    /** Shell body background. */
+    body: string;
+    /** Frosted composer/surface fill. */
+    surface: string;
+    /** Frosted surface border. */
+    surfaceBorder: string;
+    /** User bubble fill. */
+    bubbleUser: string;
+    /** Assistant bubble fill. */
+    bubbleAssistant: string;
+    /** Assistant bubble border. */
+    bubbleBorder: string;
+    /** Primary text color. */
+    text: string;
+    /** Muted/secondary text color. */
+    textMuted: string;
+    /** Elevation shadow (≈ shadow-2xl). */
+    shadow: string;
+    /** Surface corner radius. */
+    radius: string;
+}
+declare const glassChatPreset: GlassChatPreset;
 
-export { glassTheme };
+export { type GlassChatPreset, glassChatPreset };
