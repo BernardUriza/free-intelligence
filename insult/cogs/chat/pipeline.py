@@ -58,7 +58,7 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.ports import FactsPort
+    from insult.cogs.chat.ports import FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
     Criticality,
@@ -106,6 +106,7 @@ class TurnRuntimeDeps:
     # Domain-service ports (S2 render + S5 write) wired by insult.composition.
     # The pipeline depends on the Protocol, never the insult.core.* impl.
     facts: FactsPort
+    stance: StancePort
     agent_client: Any = None
     judge_client: Any = None
 

@@ -91,7 +91,6 @@ from insult.core.presets import (
 from insult.core.presets_llm import classify_preset_llm
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
-from insult.core.stance_log import build_stance_prompt
 from insult.core.triviality import is_trivial
 from shared.corpus import (
     animal_liberation_guidance,
@@ -384,7 +383,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         system_prompt,
         flow_prompt=build_flow_prompt(ctx.flow_analysis),
         arc_prompt=build_arc_prompt(ctx.arc_state),
-        stance_prompt=build_stance_prompt(ctx.stances) if ctx.stances else "",
+        stance_prompt=ctx.deps.stance.render_block(ctx.stances) if ctx.stances else "",
         facts_prompt=ctx.deps.facts.render_block(ctx.user_name, ctx.user_facts),
         other_participants_facts=ctx.other_participants_facts,
         serenityops_snapshot=ctx.serenityops_snapshot,
@@ -937,7 +936,7 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
 # --- Stage 12: persist assistant message + arc + stances ---
 
 
-async def assimilate_turn(src: S5TurnAssimilationInput, memory) -> S5TurnAssimilationResult:
+async def assimilate_turn(src: S5TurnAssimilationInput, memory, stance) -> S5TurnAssimilationResult:
     """S5 Turn Assimilation — write the completed turn back into long-term state.
 
     Orchestrates the terminal write-back: persist the assistant message row,
@@ -983,9 +982,7 @@ async def assimilate_turn(src: S5TurnAssimilationInput, memory) -> S5TurnAssimil
 
     stances_stored = 0
     if clean_response and src.assertion_density >= 0.4:
-        from insult.core.stance_log import extract_stances
-
-        extraction = extract_stances(clean_response, src.assertion_density, time.time())
+        extraction = stance.derive(clean_response, src.assertion_density, time.time())
         for entry in extraction.entries:
             await memory.store_stance(src.channel_id, src.user_id, entry.topic, entry.position, entry.confidence)
             stances_stored += 1
@@ -1015,6 +1012,7 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
             assertion_density=ctx.flow_analysis.epistemic.assertion_density,
         ),
         ctx.deps.memory,
+        ctx.deps.stance,
     )
 
 

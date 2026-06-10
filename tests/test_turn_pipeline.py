@@ -44,6 +44,7 @@ def _mk_ctx(spawn_task: Any = None) -> TurnCtx:
             spawn_task=spawn_task or (lambda *a, **kw: None),
             all_tools=[],
             facts=MagicMock(),
+            stance=MagicMock(),
         ),
     )
 
