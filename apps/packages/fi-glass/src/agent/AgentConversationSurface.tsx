@@ -16,7 +16,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
-import { ComposerMicSlot, useDictation } from '../voice';
+import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import type { AgentConversation } from './useAgentConversation';
 
@@ -90,6 +90,15 @@ export interface AgentConversationSurfaceProps {
   micButtonClassName?: string;
   /** Called on a recording/transcription failure surfaced by dictation. */
   onVoiceError?: (message: string) => void;
+  /**
+   * Wrapper class for the live dictation visualizer (the equalizer that reacts
+   * to the mic while recording). Only rendered while dictation is active, fed by
+   * the analyser's frequency bands — so every shell inherits reactive bars
+   * without re-wiring Web Audio. Omit for the unstyled default.
+   */
+  voiceVisualizerClassName?: string;
+  /** Per-bar class for the live dictation visualizer. */
+  voiceVisualizerBarClassName?: string;
 }
 
 export function AgentConversationSurface({
@@ -110,6 +119,8 @@ export function AgentConversationSurface({
   micSlotClassName,
   micButtonClassName,
   onVoiceError,
+  voiceVisualizerClassName,
+  voiceVisualizerBarClassName,
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState('');
@@ -233,6 +244,19 @@ export function AgentConversationSurface({
               textareaClassName={composerTextareaClassName}
             />
           </div>
+          {micAvailable && dictation.isRecording && (
+            // Live equalizer: reacts to the mic's frequency bands so the user
+            // sees they're being heard. Only mounted while recording, fed by the
+            // analyser the dictation hook already runs — no extra Web Audio here.
+            <AudioVisualizer
+              levels={dictation.bands}
+              active={dictation.isRecording}
+              variant="bars"
+              label="Nivel del micrófono"
+              className={voiceVisualizerClassName}
+              barClassName={voiceVisualizerBarClassName}
+            />
+          )}
           {micAvailable && (
             <ComposerMicSlot
               available

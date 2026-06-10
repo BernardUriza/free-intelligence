@@ -479,6 +479,8 @@ interface UseDictationReturn {
     recordingTime: number;
     audioLevel: number;
     isSilent: boolean;
+    /** Live, normalized (0..1) frequency bands — feed AudioVisualizer `levels`. */
+    bands: number[];
     liveTranscript: string;
     isTranscribing: boolean;
     startRecording: () => Promise<void>;
@@ -544,10 +546,19 @@ interface AudioAnalysisConfig {
     silenceThreshold?: number;
     gain?: number;
     isActive: boolean;
+    /** How many frequency bands to expose for a bar visualizer. Default 24. */
+    bandCount?: number;
 }
 interface UseAudioAnalysisReturn {
     audioLevel: number;
     isSilent: boolean;
+    /**
+     * Normalized (0..1) frequency bands, downsampled from the analyser's spectrum
+     * to `bandCount` entries. Empty + zeroed while inactive. Feed straight to
+     * AudioVisualizer `levels` for a live equalizer that reacts to the voice's
+     * pitch, not just its volume.
+     */
+    bands: number[];
 }
 declare function useAudioAnalysis(stream: MediaStream | null, config: AudioAnalysisConfig): UseAudioAnalysisReturn;
 

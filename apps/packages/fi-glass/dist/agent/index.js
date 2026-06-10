@@ -865,6 +865,88 @@ import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
 import { jsx as jsx19 } from "react/jsx-runtime";
+var MIN_BAR_PCT = 4;
+function normalizeLevels(levels) {
+  return levels.map(
+    (v) => !Number.isFinite(v) ? 0 : v < 0 ? 0 : v > 1 ? 1 : v
+  );
+}
+function resampleLevels(levels, count) {
+  if (count <= 0) return [];
+  if (levels.length === 0) return new Array(count).fill(0);
+  if (levels.length === count) return levels.slice();
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const idx = Math.min(
+      levels.length - 1,
+      Math.floor(i / count * levels.length)
+    );
+    out.push(levels[idx]);
+  }
+  return out;
+}
+function AudioVisualizer({
+  levels,
+  variant = "bars",
+  active = true,
+  barCount,
+  label = "Visualizador de nivel de audio",
+  className,
+  barClassName,
+  color
+}) {
+  const normalized = normalizeLevels(levels);
+  if (variant === "pulse") {
+    const peak = active && normalized.length ? Math.max(...normalized) : 0;
+    const scale = 1 + peak;
+    return /* @__PURE__ */ jsx19(
+      "div",
+      {
+        role: "img",
+        "aria-label": label,
+        className,
+        "data-fi-audio-visualizer": "pulse",
+        "data-active": active ? "" : void 0,
+        children: /* @__PURE__ */ jsx19(
+          "span",
+          {
+            "data-fi-pulse-core": "",
+            style: {
+              display: "inline-block",
+              transform: `scale(${scale})`,
+              borderColor: color
+            }
+          }
+        )
+      }
+    );
+  }
+  const count = barCount && barCount > 0 ? barCount : normalized.length;
+  const bars = resampleLevels(normalized, count);
+  return /* @__PURE__ */ jsx19(
+    "div",
+    {
+      role: "img",
+      "aria-label": label,
+      className,
+      "data-fi-audio-visualizer": "bars",
+      "data-active": active ? "" : void 0,
+      style: { display: "inline-flex", alignItems: "flex-end" },
+      children: bars.map((level, i) => {
+        const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
+        return /* @__PURE__ */ jsx19(
+          "span",
+          {
+            "data-fi-audio-bar": "",
+            className: barClassName,
+            style: { height: `${pct}%`, backgroundColor: color }
+          },
+          i
+        );
+      })
+    }
+  );
+}
 
 // src/voice/ComposerMicSlot.tsx
 import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
@@ -1181,13 +1263,34 @@ function useRecorder(config) {
 // src/voice/useAudioAnalysis.ts
 import { useState as useState7, useRef as useRef5, useEffect as useEffect7 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
+function frequencyDataToBands(data, bandCount, gain) {
+  if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
+  const usable = Math.floor(data.length * 0.75) || data.length;
+  const sliceSize = Math.max(1, Math.floor(usable / bandCount));
+  const bands = new Array(bandCount);
+  for (let b = 0; b < bandCount; b++) {
+    const start = b * sliceSize;
+    let sum = 0;
+    let n = 0;
+    for (let i = start; i < start + sliceSize && i < usable; i++) {
+      sum += data[i];
+      n++;
+    }
+    const avg = n ? sum / n : 0;
+    const scaled = avg / 255 * gain;
+    bands[b] = scaled > 1 ? 1 : scaled < 0 ? 0 : scaled;
+  }
+  return bands;
+}
 function useAudioAnalysis(stream, config) {
   const {
     silenceThreshold = AUDIO_CONFIG.SILENCE_THRESHOLD,
     gain = AUDIO_CONFIG.AUDIO_GAIN,
-    isActive
+    isActive,
+    bandCount = 24
   } = config;
   const [audioLevel, setAudioLevel] = useState7(0);
+  const [bands, setBands] = useState7([]);
   const analyserRef = useRef5(null);
   const audioContextRef = useRef5(null);
   const animationFrameRef = useRef5(null);
@@ -1195,6 +1298,7 @@ function useAudioAnalysis(stream, config) {
   useEffect7(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
+      setBands([]);
       return;
     }
     const audioContext = new AudioContext();
@@ -1214,6 +1318,7 @@ function useAudioAnalysis(stream, config) {
       analyserRef.current.getByteFrequencyData(dataArray);
       const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
       setAudioLevel(average);
+      setBands(frequencyDataToBands(dataArray, bandCount, gain));
       animationFrameRef.current = requestAnimationFrame(updateLevel);
     };
     updateLevel();
@@ -1225,8 +1330,8 @@ function useAudioAnalysis(stream, config) {
         audioContextRef.current.close();
       }
     };
-  }, [stream, isActive, gain, silenceThreshold]);
-  return { audioLevel, isSilent };
+  }, [stream, isActive, gain, silenceThreshold, bandCount]);
+  return { audioLevel, isSilent, bands };
 }
 
 // src/voice/useDictation.ts
@@ -1261,7 +1366,7 @@ function useDictation(adapter, opts = {}) {
     timeSlice: timeSliceMs,
     deviceId
   });
-  const { audioLevel, isSilent } = useAudioAnalysis(currentStream, {
+  const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
     isActive: isRecording
   });
   const start = useCallback5(async () => {
@@ -1276,6 +1381,7 @@ function useDictation(adapter, opts = {}) {
     recordingTime,
     audioLevel,
     isSilent,
+    bands,
     liveTranscript,
     isTranscribing,
     startRecording: start,
@@ -1302,7 +1408,9 @@ function AgentConversationSurface({
   voiceAdapter,
   micSlotClassName,
   micButtonClassName,
-  onVoiceError
+  onVoiceError,
+  voiceVisualizerClassName,
+  voiceVisualizerBarClassName
 }) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState9("");
@@ -1389,6 +1497,20 @@ function AgentConversationSurface({
             textareaClassName: composerTextareaClassName
           }
         ) }),
+        micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
+        // sees they're being heard. Only mounted while recording, fed by the
+        // analyser the dictation hook already runs — no extra Web Audio here.
+        /* @__PURE__ */ jsx21(
+          AudioVisualizer,
+          {
+            levels: dictation.bands,
+            active: dictation.isRecording,
+            variant: "bars",
+            label: "Nivel del micr\xF3fono",
+            className: voiceVisualizerClassName,
+            barClassName: voiceVisualizerBarClassName
+          }
+        ),
         micAvailable && /* @__PURE__ */ jsx21(
           ComposerMicSlot,
           {

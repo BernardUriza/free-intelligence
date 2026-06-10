@@ -1682,13 +1682,34 @@ function useRecorder(config) {
 // src/voice/useAudioAnalysis.ts
 import { useState as useState5, useRef as useRef4, useEffect as useEffect5 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
+function frequencyDataToBands(data, bandCount, gain) {
+  if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
+  const usable = Math.floor(data.length * 0.75) || data.length;
+  const sliceSize = Math.max(1, Math.floor(usable / bandCount));
+  const bands = new Array(bandCount);
+  for (let b = 0; b < bandCount; b++) {
+    const start = b * sliceSize;
+    let sum = 0;
+    let n = 0;
+    for (let i = start; i < start + sliceSize && i < usable; i++) {
+      sum += data[i];
+      n++;
+    }
+    const avg = n ? sum / n : 0;
+    const scaled = avg / 255 * gain;
+    bands[b] = scaled > 1 ? 1 : scaled < 0 ? 0 : scaled;
+  }
+  return bands;
+}
 function useAudioAnalysis(stream, config) {
   const {
     silenceThreshold = AUDIO_CONFIG.SILENCE_THRESHOLD,
     gain = AUDIO_CONFIG.AUDIO_GAIN,
-    isActive
+    isActive,
+    bandCount = 24
   } = config;
   const [audioLevel, setAudioLevel] = useState5(0);
+  const [bands, setBands] = useState5([]);
   const analyserRef = useRef4(null);
   const audioContextRef = useRef4(null);
   const animationFrameRef = useRef4(null);
@@ -1696,6 +1717,7 @@ function useAudioAnalysis(stream, config) {
   useEffect5(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
+      setBands([]);
       return;
     }
     const audioContext = new AudioContext();
@@ -1715,6 +1737,7 @@ function useAudioAnalysis(stream, config) {
       analyserRef.current.getByteFrequencyData(dataArray);
       const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
       setAudioLevel(average);
+      setBands(frequencyDataToBands(dataArray, bandCount, gain));
       animationFrameRef.current = requestAnimationFrame(updateLevel);
     };
     updateLevel();
@@ -1726,8 +1749,8 @@ function useAudioAnalysis(stream, config) {
         audioContextRef.current.close();
       }
     };
-  }, [stream, isActive, gain, silenceThreshold]);
-  return { audioLevel, isSilent };
+  }, [stream, isActive, gain, silenceThreshold, bandCount]);
+  return { audioLevel, isSilent, bands };
 }
 
 // src/voice/useDictation.ts
@@ -1762,7 +1785,7 @@ function useDictation(adapter, opts = {}) {
     timeSlice: timeSliceMs,
     deviceId
   });
-  const { audioLevel, isSilent } = useAudioAnalysis(currentStream, {
+  const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
     isActive: isRecording
   });
   const start = useCallback4(async () => {
@@ -1777,6 +1800,7 @@ function useDictation(adapter, opts = {}) {
     recordingTime,
     audioLevel,
     isSilent,
+    bands,
     liveTranscript,
     isTranscribing,
     startRecording: start,

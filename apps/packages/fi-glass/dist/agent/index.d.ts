@@ -241,7 +241,16 @@ interface AgentConversationSurfaceProps {
     micButtonClassName?: string;
     /** Called on a recording/transcription failure surfaced by dictation. */
     onVoiceError?: (message: string) => void;
+    /**
+     * Wrapper class for the live dictation visualizer (the equalizer that reacts
+     * to the mic while recording). Only rendered while dictation is active, fed by
+     * the analyser's frequency bands — so every shell inherits reactive bars
+     * without re-wiring Web Audio. Omit for the unstyled default.
+     */
+    voiceVisualizerClassName?: string;
+    /** Per-bar class for the live dictation visualizer. */
+    voiceVisualizerBarClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
