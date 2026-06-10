@@ -40,6 +40,7 @@ from insult.cogs.chat._failure import (
     spawn_typing_keepalive,
 )
 from insult.cogs.chat.attachments import process_attachments
+from insult.cogs.chat.capability_ports import RetrievalPort
 from insult.cogs.chat.context import (
     build_context,
     load_facts_smart,
@@ -94,7 +95,6 @@ from insult.core.triviality import is_trivial
 from shared.corpus import (
     animal_liberation_guidance,
     animal_tactics_guidance,
-    detect_film_topic,
     film_criticism_guidance,
 )
 
@@ -448,104 +448,30 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
 # --- deep_memory auto-retrieval (v4.3.0) ---
 # The runner exposes deep_memory as an opt-in MCP tool, but the agent called
 # it on ~1.2% of turns (7/574 in 7d) — so the longitudinal history was a dead
-# safety net. We instead PRE-FETCH the most relevant raw-history chunks here,
+# safety net. We instead PRE-FETCH the most relevant raw-history chunks,
 # deterministically, and inject them into the turn payload so the agent always
 # sees them. This is the other half of the "Larisa" fix: the ingest now works,
 # and retrieval no longer depends on the model choosing to look.
-_DEEP_MEMORY_TOP_K = 4
-_DEEP_MEMORY_MIN_SIMILARITY = 0.30  # cosine sim (1 - distance); drop weak hits
-_DEEP_MEMORY_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
-_DEEP_MEMORY_MAX_CHARS = 2000  # cap injected context so the turn stays bounded
+#
+# PR-D RetrievalPort (capability seam): the pre-fetch + rendering policy that
+# used to live inline here moved behind ``RetrievalPort``
+# (``capability_ports.py``) — the pipeline asks for finished blocks via
+# ``ctx.deps.retrieval`` and no longer imports ``insult.core.deep_memory``.
 
 
-async def _build_relevant_memory(src: S2KnowledgeAssemblyInput) -> str | None:
-    """Pre-fetch the top relevant deep_memory chunks for this turn's author.
-
-    Returns a labeled, length-capped block to inject into the runner payload,
-    or None when the message is trivial, retrieval fails, or nothing clears
-    the similarity floor. Best-effort: a failure here NEVER breaks the turn —
-    it just means no auto-memory this turn (same as the pre-v4.3.0 behavior).
-
-    Consumes only ``.text``/``.user_id`` (duck-typed): the S2 assembly input."""
-    query = (src.text or "").strip()
-    if len(query) < _DEEP_MEMORY_MIN_QUERY_LEN:
-        return None
-    try:
-        from insult.core.deep_memory import query_user_memory
-
-        hits = await query_user_memory(user_id=src.user_id, query=query, top_k=_DEEP_MEMORY_TOP_K)
-    except Exception as e:  # retrieval is best-effort; never break the turn
-        log.warning("deep_memory_prefetch_failed", user_id=src.user_id, error=str(e))
-        return None
-
-    relevant = [h for h in hits if h.get("similarity", 0.0) >= _DEEP_MEMORY_MIN_SIMILARITY]
-    if not relevant:
-        return None
-
-    lines: list[str] = []
-    total = 0
-    for h in relevant:
-        line = f"- {h['chunk_text'].strip()}"
-        if total + len(line) > _DEEP_MEMORY_MAX_CHARS:
-            break
-        lines.append(line)
-        total += len(line)
-    if not lines:
-        return None
-
-    log.info(
-        "deep_memory_prefetched",
-        user_id=src.user_id,
-        hits=len(lines),
-        top_similarity=round(relevant[0].get("similarity", 0.0), 3),
-    )
-    # Authoritative framing (v4.8.x): the previous "úsalo solo si aplica"
-    # let the model dismiss this block — it answered "no la tengo" about Larisa
-    # even with her chunk delivered here (2026-05-24). These fragments ARE in
-    # the bot's memory of this user; if the message asks about something they
-    # cover, the bot must answer from them and MUST NOT claim it has no record.
-    header = (
-        "MEMORIA RECUPERADA de tu historial con este usuario (esto SÍ lo sabes, "
-        "viene de conversaciones reales). Si su mensaje es sobre algo aquí, "
-        "respóndelo con esta información — NUNCA digas que no lo tienes o que no "
-        "lo recuerdas:"
-    )
-    return header + "\n" + "\n".join(lines)
-
-
-async def _build_film_references(src: S2KnowledgeAssemblyInput) -> str | None:
-    """Pre-fetch the top relevant film-theory chunks when the turn is about film.
-
-    Topic-gated by `detect_film_topic` so we don't pay an embed call on
-    off-topic turns. Returns the formatted references block (header + chunks)
-    or None when off-topic, trivial, retrieval fails, or nothing clears the
-    similarity floor. Best-effort: a failure here NEVER breaks the turn — it
-    just means no film theory this turn (the Vultur frame still applies).
-
-    Consumes only ``.text`` (duck-typed): the S2 assembly input."""
-    if not detect_film_topic(src.text):
-        return None
-    try:
-        from insult.core.deep_memory import build_film_references_block
-
-        return await build_film_references_block(src.text)
-    except Exception as e:  # retrieval is best-effort; never break the turn
-        log.warning("film_references_prefetch_failed", error=str(e))
-        return None
-
-
-async def assemble_knowledge(src: S2KnowledgeAssemblyInput) -> S2KnowledgeAssemblyResult:
+async def assemble_knowledge(src: S2KnowledgeAssemblyInput, *, retrieval: RetrievalPort) -> S2KnowledgeAssemblyResult:
     """S2 Knowledge Assembly — bundle the per-turn knowledge fragments injected
     into the runner payload.
 
     Orchestrates the read-facet calls (deep_memory semantic retrieval, film
     corpus retrieval, third-party facts fragment) and bundles their output. S2
-    owns neither retrieval nor state — the domain services do their own reads;
-    this just assembles. Best-effort throughout: each facet returns None on
-    failure without breaking the turn. Behavior is identical to the inline
-    assembly this replaces (same calls, same order, same join)."""
-    relevant_memory = await _build_relevant_memory(src)
-    film_refs = await _build_film_references(src)
+    owns neither retrieval nor state — the retrieval capability and the domain
+    services do their own reads; this just assembles. Best-effort throughout:
+    each facet returns None on failure without breaking the turn. Behavior is
+    identical to the inline assembly this replaces (same calls, same order,
+    same join)."""
+    relevant_memory = await retrieval.user_memory_block(user_id=src.user_id, text=src.text)
+    film_refs = await retrieval.film_references_block(src.text)
     combined = "\n\n".join(b for b in (relevant_memory, film_refs) if b) or None
     other_people = None
     if src.other_participants_facts:
@@ -674,7 +600,8 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     user_id=ctx.user_id,
                     text=ctx.text,
                     other_participants_facts=ctx.other_participants_facts,
-                )
+                ),
+                retrieval=ctx.deps.retrieval,
             )
             if knowledge.combined_memory:
                 llm_kwargs["relevant_memory"] = knowledge.combined_memory

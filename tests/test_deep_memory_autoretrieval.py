@@ -11,8 +11,6 @@ must NOT trigger the path) per .claude/rules/robustness.md.
 
 from __future__ import annotations
 
-import types
-
 import httpx
 import pytest
 
@@ -86,11 +84,9 @@ async def test_chat_no_memory_leaves_user_text_untouched(_patch_httpx):
     assert "relevant_memory" not in payload["user_text"]
 
 
-# --- _build_relevant_memory: the stages-side pre-fetch ----------------------
-
-
-def _ctx(text: str, user_id: str = "U1"):
-    return types.SimpleNamespace(text=text, user_id=user_id)
+# --- RetrievalPort.user_memory_block: the per-turn pre-fetch ----------------
+# (Lived in stages as `_build_relevant_memory` until PR-D moved the rendering
+# into insult.core.deep_memory behind the RetrievalPort capability seam.)
 
 
 def _patch_query(monkeypatch, hits=None, raises=False):
@@ -105,7 +101,7 @@ def _patch_query(monkeypatch, hits=None, raises=False):
 async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
     """Positive: hits above the similarity floor become a labeled, bulleted
     block."""
-    from insult.cogs.chat.stages import _build_relevant_memory
+    from insult.composition import default_retrieval_port
 
     _patch_query(
         monkeypatch,
@@ -114,7 +110,7 @@ async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
             {"chunk_text": "Voces neurodivergentes es su libro", "similarity": 0.61},
         ],
     )
-    out = await _build_relevant_memory(_ctx("cuéntame de Larisa Guerrero"))
+    out = await default_retrieval_port().user_memory_block(user_id="U1", text="cuéntame de Larisa Guerrero")
     assert out is not None
     assert "- Larisa es la terapeuta de Alex" in out
     assert "- Voces neurodivergentes es su libro" in out
@@ -127,7 +123,7 @@ async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
 async def test_prefetch_skips_trivial_message(monkeypatch):
     """Resistance: a too-short message is skipped WITHOUT even hitting the
     embedder/query (no wasted Azure call on 'okok')."""
-    from insult.cogs.chat.stages import _build_relevant_memory
+    from insult.composition import default_retrieval_port
 
     called = {"n": 0}
 
@@ -136,7 +132,7 @@ async def test_prefetch_skips_trivial_message(monkeypatch):
         return [{"chunk_text": "x", "similarity": 0.9}]
 
     monkeypatch.setattr("insult.core.deep_memory.query_user_memory", _fake)
-    out = await _build_relevant_memory(_ctx("okok"))
+    out = await default_retrieval_port().user_memory_block(user_id="U1", text="okok")
     assert out is None
     assert called["n"] == 0, "trivial message must not trigger a query/embed"
 
@@ -144,17 +140,17 @@ async def test_prefetch_skips_trivial_message(monkeypatch):
 async def test_prefetch_drops_below_threshold_hits(monkeypatch):
     """Resistance: weak (low-similarity) hits are noise — dropped, returns
     None rather than injecting irrelevant history every turn."""
-    from insult.cogs.chat.stages import _build_relevant_memory
+    from insult.composition import default_retrieval_port
 
     _patch_query(monkeypatch, hits=[{"chunk_text": "unrelated", "similarity": 0.10}])
-    out = await _build_relevant_memory(_ctx("una pregunta cualquiera larga"))
+    out = await default_retrieval_port().user_memory_block(user_id="U1", text="una pregunta cualquiera larga")
     assert out is None
 
 
 async def test_prefetch_none_on_retrieval_failure(monkeypatch):
     """Resistance: a retrieval error never breaks the turn — returns None."""
-    from insult.cogs.chat.stages import _build_relevant_memory
+    from insult.composition import default_retrieval_port
 
     _patch_query(monkeypatch, raises=True)
-    out = await _build_relevant_memory(_ctx("mensaje suficientemente largo aquí"))
+    out = await default_retrieval_port().user_memory_block(user_id="U1", text="mensaje suficientemente largo aquí")
     assert out is None

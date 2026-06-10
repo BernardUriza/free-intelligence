@@ -168,7 +168,12 @@ def _violations() -> list[tuple[str, str]]:
 # ArcPort, same seam + OPACITY: ArcState is owned by the port, stages
 # transports the carry without reading its fields (load/phase/render_block
 # pre-LLM, advance/dump post-LLM), enforced by the anti-access resistance
-# test in test_arc_port.py.)
+# test in test_arc_port.py; -1 via PR-D RetrievalPort (FIRST capability seam,
+# `.claude/plans/capability_seams_retrieval_preset.md`): stages consumes
+# finished retrieval blocks through insult.cogs.chat.capability_ports —
+# rendering policy moved into insult.core.deep_memory.build_user_memory_block,
+# the adapter in insult.composition owns the best-effort boundary + the
+# lexical film gate.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -178,7 +183,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
         ("insult.cogs.chat.stages", "insult.core.character"),
-        ("insult.cogs.chat.stages", "insult.core.deep_memory"),
         ("insult.cogs.chat.stages", "insult.core.flows"),
         ("insult.cogs.chat.stages", "insult.core.presets"),
         ("insult.cogs.chat.stages", "insult.core.presets_llm"),
