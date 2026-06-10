@@ -80,7 +80,6 @@ from insult.core.character import (
 from insult.core.character.prompts import _format_other_people_block
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.errors import ErrorType, classify_error, get_error_response
-from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.presets import (
@@ -386,7 +385,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         flow_prompt=build_flow_prompt(ctx.flow_analysis),
         arc_prompt=build_arc_prompt(ctx.arc_state),
         stance_prompt=build_stance_prompt(ctx.stances) if ctx.stances else "",
-        facts_prompt=build_facts_prompt(ctx.user_name, ctx.user_facts),
+        facts_prompt=ctx.deps.facts.render_block(ctx.user_name, ctx.user_facts),
         other_participants_facts=ctx.other_participants_facts,
         serenityops_snapshot=ctx.serenityops_snapshot,
         serenityops_user_name=ctx.user_name,
@@ -1242,8 +1241,8 @@ async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
             ctx.recent,
             ctx.guild_id,
             ch_name,
-            extract_facts_fn=extract_facts,
-            merge_facts_fn=merge_facts_additive,
+            extract_facts_fn=ctx.deps.facts.extract_fn,
+            merge_facts_fn=ctx.deps.facts.merge_fn,
         ),
         name="fact_extraction",
     )

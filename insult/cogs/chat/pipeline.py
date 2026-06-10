@@ -52,10 +52,13 @@ from __future__ import annotations
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import discord
 import structlog
+
+if TYPE_CHECKING:
+    from insult.cogs.chat.ports import FactsPort
 
 from insult.cogs.chat._failure import (
     Criticality,
@@ -100,6 +103,9 @@ class TurnRuntimeDeps:
     opus_budget: Any
     spawn_task: Callable[..., None]
     all_tools: list
+    # Domain-service ports (S2 render + S5 write) wired by insult.composition.
+    # The pipeline depends on the Protocol, never the insult.core.* impl.
+    facts: FactsPort
     agent_client: Any = None
     judge_client: Any = None
 

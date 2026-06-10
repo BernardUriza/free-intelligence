@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.21.18"
+version = "4.21.19"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -51,6 +51,7 @@ omit = [
     "insult/core/memory.py",  # SQLite I/O (integration test territory)
     "insult/core/backup.py",  # Azure Blob Storage I/O
     "insult/cogs/utility.py",  # Discord commands (requires real bot context)
+    "insult/cogs/chat/ports.py",  # Pure Protocol interface (TYPE_CHECKING-only import, no runtime body)
     "insult/cogs/voice.py",    # Voice TTS (requires real Discord + Azure OpenAI)
     "insult/core/proactive.py",  # Proactive messaging (requires real bot + LLM, integration test territory)
     "insult/core/vectors.py",  # sqlite-vec + sentence-transformers I/O (vector search)
