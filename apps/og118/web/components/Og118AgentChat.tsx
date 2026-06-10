@@ -27,7 +27,6 @@ import {
   useVoice,
   RichAudioPlayer,
   AudioVisualizer,
-  ComposerMicSlot,
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -133,14 +132,16 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
-  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer + mic slot,
-  // all reusable fi-glass primitives (DD-002 / framework-first-canary: og118
-  // consumes, never re-implements). og118 owns only layout/color via CSS.
+  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer, reusable
+  // fi-glass primitives (DD-002 / framework-first-canary: og118 consumes, never
+  // re-implements). og118 owns only layout/color via CSS. The dictation mic is
+  // NO LONGER here: B3-VOICE-OG118-4 wires a real STT adapter, so the live mic is
+  // now hosted by AgentConversationSurface inside the composer (it feeds the
+  // transcript straight into the textarea — a disconnected mic above it never
+  // could).
   //   • RichAudioPlayer: full transport + scrubber, shown while a TTS clip is
   //     loaded. fi-glass owns the <audio> element and the object-URL lifecycle.
   //   • AudioVisualizer: idle equalizer affordance (no live analyser wired yet).
-  //   • ComposerMicSlot: visible but available={false} — the mic is discoverable
-  //     yet clearly disabled. No STT adapter, no mic permission, no recording.
   const voiceBar = (
     <div className="og-voice-bar">
       {voice.audioUrl ? (
@@ -160,11 +161,6 @@ export function Og118AgentChat() {
         className="og-voice-visualizer"
         barClassName="og-voice-bar-bar"
         label="Nivel de voz (sin señal en vivo todavía)"
-      />
-      <ComposerMicSlot
-        available={false}
-        className="og-mic-slot"
-        unavailableLabel="Dictado por voz no disponible todavía (STT pendiente)"
       />
     </div>
   );
@@ -210,6 +206,13 @@ export function Og118AgentChat() {
           }
           composerAreaClassName="og-composer-area glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
+          // Dictation (B3-VOICE-OG118-4): hand the surface the voice adapter —
+          // its `transcribe` capability lights up the in-composer mic and feeds
+          // the transcript into the composer. og118 owns only the endpoint/auth
+          // (in og118VoiceAdapter) and the mic's color via og-mic-slot.
+          voiceAdapter={og118VoiceAdapter}
+          micSlotClassName="og-mic-slot"
+          onVoiceError={(msg) => console.error('[og118] stt', msg)}
           // Per-role bubble tint via the fi-glass resolver slot (FIGLASS-3):
           // user turns get the emerald fill, assistant turns keep the frosted
           // glass card. Both classes ship in the glass-chat preset and the
