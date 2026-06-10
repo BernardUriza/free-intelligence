@@ -9,8 +9,9 @@ State ownership:
   - `BatchManager` owns batch buffers, dedup set, and cooldown timestamps
   - `_background_tasks` set is handed to `spawn_tracked_task` so every
     fire-and-forget task gets automatic cleanup + terminal log
-  - `_expression_history` and `_opus_budget` live here because they are
-    mutated across turns and shared between them
+  - `_expression_history` and `_opus_budget` are shared per-bot runtime
+    singletons constructed at the composition root (`app.Container`); the
+    cog holds the handles and forwards them in the per-turn `TurnRuntimeDeps`
 """
 
 from __future__ import annotations
@@ -25,12 +26,11 @@ import structlog
 from discord.ext import commands
 
 from insult.cogs.chat.batch import BatchManager
+from insult.cogs.chat.pipeline import TurnRuntimeDeps
 from insult.cogs.chat.tasks import spawn_tracked_task
 from insult.cogs.chat.tools import ALL_TOOLS
 from insult.cogs.chat.turn import run_turn
 from insult.cogs.chat.voice import transcribe_voice
-from insult.core.contracts.history import ExpressionHistory
-from insult.core.routing import OpusBudget
 
 if TYPE_CHECKING:
     from insult.app import Container
@@ -47,9 +47,11 @@ class ChatCog(commands.Cog):
         self.bot = container.bot
         self.siesta = container.siesta
         self._background_tasks: set[asyncio.Task] = set()
-        self._expression_history = ExpressionHistory()
+        # Shared runtime singletons now born at the composition root
+        # (app.Container); the cog just holds the handles it forwards.
+        self._expression_history = container.expression_history
         self._batches = BatchManager()
-        self._opus_budget = OpusBudget(cap=getattr(self.settings, "opus_24h_cap", 20))
+        self._opus_budget = container.opus_budget
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -108,15 +110,17 @@ class ChatCog(commands.Cog):
                 message,
                 text,
                 turn_start=turn_start,
-                memory=self.memory,
-                settings=self.settings,
-                bot=self.bot,
-                expression_history=self._expression_history,
-                opus_budget=self._opus_budget,
-                spawn_task=self._spawn_task,
-                all_tools=ALL_TOOLS,
-                agent_client=self.agent_client,
-                judge_client=self.judge_client,
+                deps=TurnRuntimeDeps(
+                    memory=self.memory,
+                    settings=self.settings,
+                    bot=self.bot,
+                    expression_history=self._expression_history,
+                    opus_budget=self._opus_budget,
+                    spawn_task=self._spawn_task,
+                    all_tools=ALL_TOOLS,
+                    agent_client=self.agent_client,
+                    judge_client=self.judge_client,
+                ),
             )
         except BaseException as e:
             outcome = f"unhandled:{type(e).__name__}"

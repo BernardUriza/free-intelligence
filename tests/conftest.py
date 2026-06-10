@@ -6,7 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from insult.core.contracts.history import ExpressionHistory
 from insult.core.llm import LLMResponse
+from insult.core.routing import OpusBudget
 from insult.core.style import UserStyleProfile
 
 # Pull in the Postgres-backed fixture (`pg_memory_store`) plus its supporting
@@ -152,6 +154,10 @@ def mock_container(mock_settings, mock_memory, mock_agent_client, mock_judge_cli
     container.judge_client = mock_judge_client
     container.bot = mock_bot
     container.siesta = mock_siesta
+    # Real per-bot runtime singletons (mirrors app.Container) so the cog
+    # forwards genuine objects into TurnRuntimeDeps, not MagicMock stand-ins.
+    container.expression_history = ExpressionHistory()
+    container.opus_budget = OpusBudget(cap=20)
     return container
 
 
