@@ -58,7 +58,7 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.ports import FactsPort, StancePort
+    from insult.cogs.chat.ports import ArcPort, FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
     Criticality,
@@ -107,6 +107,7 @@ class TurnRuntimeDeps:
     # The pipeline depends on the Protocol, never the insult.core.* impl.
     facts: FactsPort
     stance: StancePort
+    arc: ArcPort
     agent_client: Any = None
     judge_client: Any = None
 

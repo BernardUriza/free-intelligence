@@ -45,6 +45,7 @@ def _mk_ctx(spawn_task: Any = None) -> TurnCtx:
             all_tools=[],
             facts=MagicMock(),
             stance=MagicMock(),
+            arc=MagicMock(),
         ),
     )
 
