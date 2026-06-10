@@ -31,6 +31,7 @@ from insult.cogs.chat.tasks import spawn_tracked_task
 from insult.cogs.chat.tools import ALL_TOOLS
 from insult.cogs.chat.turn import run_turn
 from insult.cogs.chat.voice import transcribe_voice
+from insult.composition import default_facts_port
 
 if TYPE_CHECKING:
     from insult.app import Container
@@ -118,6 +119,7 @@ class ChatCog(commands.Cog):
                     opus_budget=self._opus_budget,
                     spawn_task=self._spawn_task,
                     all_tools=ALL_TOOLS,
+                    facts=default_facts_port(),
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                 ),

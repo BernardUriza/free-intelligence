@@ -149,7 +149,7 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 12 host→smart imports are the structural coupling the demux destilado
+# These 11 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
 # (Was 22; -2 via routing→{flows,presets} contracts extraction; -3 via the
 # contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
@@ -159,7 +159,10 @@ def _violations() -> list[tuple[str, str]]:
 # post-LLM mutations seam (Wave 2): reactions + remembers relocated to host
 # (insult.cogs.chat.{reactions,remembers}) — pure-stdlib marker pipelines, the
 # remembers persist takes the memory store injected so no persistence ownership
-# moved.)
+# moved; -1 via PR-A FactsPort (S2/S5 domain facets): stages depends on the
+# FactsPort Protocol (insult.cogs.chat.ports), the concrete adapter is wired by
+# the composition seam (insult.composition) which is the only module that knows
+# both the Protocol and insult.core.facts — no new host→smart edge.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -171,7 +174,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.cogs.chat.stages", "insult.core.arc_tracker"),
         ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.stages", "insult.core.deep_memory"),
-        ("insult.cogs.chat.stages", "insult.core.facts"),
         ("insult.cogs.chat.stages", "insult.core.flows"),
         ("insult.cogs.chat.stages", "insult.core.presets"),
         ("insult.cogs.chat.stages", "insult.core.presets_llm"),
