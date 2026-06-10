@@ -31,7 +31,7 @@ from collections.abc import Callable
 import discord
 import structlog
 
-from insult.cogs.chat.pipeline import TurnCtx, run_pipeline
+from insult.cogs.chat.pipeline import TurnCtx, TurnRuntimeDeps, run_pipeline
 from insult.cogs.chat.stages import DEFAULT_STAGES
 from insult.core.routing import OpusBudget
 
@@ -69,15 +69,17 @@ async def run_turn(
         message=message,
         text=text,
         turn_start=turn_start,
-        memory=memory,
-        settings=settings,
-        bot=bot,
-        expression_history=expression_history,
-        opus_budget=opus_budget,
-        spawn_task=spawn_task,
-        all_tools=all_tools,
-        agent_client=agent_client,
-        judge_client=judge_client,
+        deps=TurnRuntimeDeps(
+            memory=memory,
+            settings=settings,
+            bot=bot,
+            expression_history=expression_history,
+            opus_budget=opus_budget,
+            spawn_task=spawn_task,
+            all_tools=all_tools,
+            agent_client=agent_client,
+            judge_client=judge_client,
+        ),
     )
 
     result = await run_pipeline(ctx, DEFAULT_STAGES)

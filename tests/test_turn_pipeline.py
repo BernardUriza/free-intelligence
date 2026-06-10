@@ -24,7 +24,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from insult.cogs.chat._failure import Criticality, FailureClass, StageFailure, StageStop
-from insult.cogs.chat.pipeline import Stage, TurnCtx, run_pipeline
+from insult.cogs.chat.pipeline import Stage, TurnCtx, TurnRuntimeDeps, run_pipeline
 from insult.cogs.chat.stages import _stage_ensure_payload
 
 
@@ -35,13 +35,15 @@ def _mk_ctx(spawn_task: Any = None) -> TurnCtx:
         message=MagicMock(),
         text="hi",
         turn_start=time.monotonic(),
-        memory=MagicMock(),
-        settings=MagicMock(),
-        bot=MagicMock(),
-        expression_history=MagicMock(),
-        opus_budget=MagicMock(),
-        spawn_task=spawn_task or (lambda *a, **kw: None),
-        all_tools=[],
+        deps=TurnRuntimeDeps(
+            memory=MagicMock(),
+            settings=MagicMock(),
+            bot=MagicMock(),
+            expression_history=MagicMock(),
+            opus_budget=MagicMock(),
+            spawn_task=spawn_task or (lambda *a, **kw: None),
+            all_tools=[],
+        ),
     )
 
 
