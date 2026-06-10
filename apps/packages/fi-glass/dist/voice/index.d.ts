@@ -268,6 +268,17 @@ interface AudioPlayerController {
     stop(): void;
     /** Play if paused/idle, pause if playing. */
     toggle(): Promise<void>;
+    /**
+     * Jump to an absolute position in seconds, clamped to [0, duration] (or
+     * [0, seconds] while duration is still unknown). Drives the rich progress
+     * bar / scrubber. No-op after dispose or before a source is loaded.
+     */
+    seek(seconds: number): void;
+    /**
+     * Move the playhead by a relative delta in seconds (negative = rewind),
+     * clamped like `seek`. Powers the "back 10s / forward 10s" controls.
+     */
+    seekBy(deltaSeconds: number): void;
     /** Tear down: detach listeners, pause, release owned URL. Idempotent. */
     dispose(): void;
 }
@@ -289,6 +300,10 @@ interface UseAudioPlayerReturn extends AudioPlayerState {
     pause: () => void;
     stop: () => void;
     toggle: () => Promise<void>;
+    /** Jump to an absolute position (seconds), clamped to [0, duration]. */
+    seek: (seconds: number) => void;
+    /** Move the playhead by a relative delta (seconds); negative rewinds. */
+    seekBy: (deltaSeconds: number) => void;
     /** Convenience: load a source and immediately play it. */
     playSource: (source: AudioSource) => Promise<void>;
 }
@@ -311,6 +326,125 @@ interface AudioPlayerProps {
     iconClassName?: string;
 }
 declare function AudioPlayer({ source, autoPlay, onError, onEnded, className, buttonClassName, iconClassName, }: AudioPlayerProps): react.JSX.Element;
+
+interface RichAudioPlayerProps {
+    /** Audio to play; when it changes the player loads the new source. */
+    source?: AudioSource | null;
+    /** Start playing as soon as a new source loads. Default false. */
+    autoPlay?: boolean;
+    /** Seconds the skip-back / skip-forward controls jump. Default 10. */
+    skipSeconds?: number;
+    /** Show the mm:ss / mm:ss time readout. Default true. */
+    showTime?: boolean;
+    /** Called on a playback/load error. */
+    onError?: (error: unknown, context: string) => void;
+    /** Called when the clip finishes. */
+    onEnded?: () => void;
+    /** Override the wrapper class. */
+    className?: string;
+    /** Override the button class (applies to all transport buttons). */
+    buttonClassName?: string;
+    /** Override the icon class. */
+    iconClassName?: string;
+    /** Override the progress scrubber class. */
+    progressClassName?: string;
+}
+/**
+ * Format seconds as mm:ss (or h:mm:ss past an hour). Pure + exported so the
+ * readout formatting is unit-tested without rendering. Guards NaN/negatives
+ * (duration is NaN until metadata loads) by collapsing them to 0:00.
+ */
+declare function formatPlaybackTime(seconds: number): string;
+declare function RichAudioPlayer({ source, autoPlay, skipSeconds, showTime, onError, onEnded, className, buttonClassName, iconClassName, progressClassName, }: RichAudioPlayerProps): react.JSX.Element;
+
+/**
+ * fi-glass · AudioVisualizer — reusable audio-level graphic (bars / pulse).
+ *
+ * The visual half of the voice UX that AURITY had baked into its clinical
+ * capture screen: animated bars and pulsing rings that react to audio level.
+ * Extracted here as a pure, presentational primitive so any surface — a TTS
+ * player, a recording composer, a future shell — can render levels without
+ * pulling in Web Audio, a microphone, or the network.
+ *
+ * Deliberately data-driven: it renders whatever normalized `levels` (0..1) it
+ * is handed. Real consumers feed it analyser output (e.g. `useAudioAnalysis`
+ * scaled to 0..1); tests feed it a fixed array. No effects, no timers, no
+ * randomness — same props in, same DOM out — so it is unit-testable with static
+ * rendering and never depends on a live mic.
+ *
+ * Accessibility: it is a non-interactive graphic, exposed as role="img" with a
+ * label so assistive tech announces it as a single "audio level" image rather
+ * than a pile of empty divs.
+ */
+type AudioVisualizerVariant = 'bars' | 'pulse';
+interface AudioVisualizerProps {
+    /**
+     * Normalized amplitude samples in [0, 1]. Out-of-range values are clamped.
+     * For `bars`, each sample is one bar; for `pulse`, the peak drives the ring.
+     */
+    levels: number[];
+    /** Visual style. Default 'bars'. */
+    variant?: AudioVisualizerVariant;
+    /**
+     * Whether the source is actively producing audio. When false the graphic
+     * renders at rest (flat bars / collapsed pulse) regardless of `levels`, so a
+     * paused player or an idle mic reads as silent.
+     */
+    active?: boolean;
+    /**
+     * For `bars`: force a fixed bar count, resampling `levels` to fit. Defaults to
+     * `levels.length`. Lets a surface keep a stable bar count across frames.
+     */
+    barCount?: number;
+    /** Accessible label. Default 'Visualizador de nivel de audio'. */
+    label?: string;
+    /** Wrapper class. */
+    className?: string;
+    /** Per-bar class (bars variant). */
+    barClassName?: string;
+    /** Fill color applied inline (bars background / pulse border). */
+    color?: string;
+}
+/** Clamp to [0,1] and drop non-finite values to 0. Pure + exported for tests. */
+declare function normalizeLevels(levels: number[]): number[];
+/**
+ * Resample an array to exactly `count` points by nearest-index sampling. Pure +
+ * exported so the resampling rule is unit-tested. Returns zeros for count<=0.
+ */
+declare function resampleLevels(levels: number[], count: number): number[];
+declare function AudioVisualizer({ levels, variant, active, barCount, label, className, barClassName, color, }: AudioVisualizerProps): react.JSX.Element;
+
+interface ComposerMicSlotProps {
+    /**
+     * Whether voice dictation is wired (an STT adapter exists). Default false →
+     * the slot renders disabled/unavailable. No STT backend is required for the
+     * slot itself; this flag is the consumer's declaration of capability.
+     */
+    available?: boolean;
+    /** Currently capturing audio. */
+    recording?: boolean;
+    /** Transcribing / processing — shows a spinner and disables interaction. */
+    busy?: boolean;
+    /** Begin capture (consumer owns the recorder). Ignored when unavailable. */
+    onStart?: () => void;
+    /** Stop capture. Ignored when unavailable. */
+    onStop?: () => void;
+    /** Label/title shown while unavailable. */
+    unavailableLabel?: string;
+    /** aria-label for the start affordance. */
+    startLabel?: string;
+    /** aria-label for the stop affordance. */
+    stopLabel?: string;
+    /** aria-label while busy. */
+    busyLabel?: string;
+    /** Wrapper class. */
+    className?: string;
+    /** Button class. */
+    buttonClassName?: string;
+    /** Icon class. */
+    iconClassName?: string;
+}
+declare function ComposerMicSlot({ available, recording, busy, onStart, onStop, unavailableLabel, startLabel, stopLabel, busyLabel, className, buttonClassName, iconClassName, }: ComposerMicSlotProps): react.JSX.Element;
 
 interface UseVoiceOptions {
     /** Called when synthesis fails (app decides logging/reporting). */
@@ -459,4 +593,4 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-export { type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseDictationOptions, type UseDictationReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, createAudioPlayer, formatRecordingTime, makeRecorder, useAudioAnalysis, useAudioPlayer, useDictation, useRecorder, useVoice };
+export { type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseDictationOptions, type UseDictationReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, createAudioPlayer, formatPlaybackTime, formatRecordingTime, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useDictation, useRecorder, useVoice };

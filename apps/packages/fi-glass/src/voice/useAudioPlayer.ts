@@ -42,6 +42,10 @@ export interface UseAudioPlayerReturn extends AudioPlayerState {
   pause: () => void;
   stop: () => void;
   toggle: () => Promise<void>;
+  /** Jump to an absolute position (seconds), clamped to [0, duration]. */
+  seek: (seconds: number) => void;
+  /** Move the playhead by a relative delta (seconds); negative rewinds. */
+  seekBy: (deltaSeconds: number) => void;
   /** Convenience: load a source and immediately play it. */
   playSource: (source: AudioSource) => Promise<void>;
 }
@@ -80,6 +84,8 @@ export function useAudioPlayer(
     pause: controller.pause,
     stop: controller.stop,
     toggle: controller.toggle,
+    seek: controller.seek,
+    seekBy: controller.seekBy,
     playSource: async (source: AudioSource) => {
       controller.load(source);
       await controller.play();
