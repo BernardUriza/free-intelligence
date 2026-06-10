@@ -210,11 +210,15 @@ export function Og118AgentChat() {
           }
           composerAreaClassName="og-composer-area glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
-          // Frosted message cards from the reusable preset. A single class for
-          // all roles (the surface exposes one messageBubbleClassName); a future
-          // per-role tint would need a fi-glass per-message className slot — out
-          // of scope here, accepted as a documented visual difference vs AURITY.
-          messageBubbleClassName="glass-chat-bubble-assistant"
+          // Per-role bubble tint via the fi-glass resolver slot (FIGLASS-3):
+          // user turns get the emerald fill, assistant turns keep the frosted
+          // glass card. Both classes ship in the glass-chat preset and the
+          // resolver also drives the live streaming assistant bubble.
+          messageBubbleClassName={(m) =>
+            m.role === 'user'
+              ? 'glass-chat-bubble-user'
+              : 'glass-chat-bubble-assistant'
+          }
           // Copy stays on every message; Speak is added on assistant messages
           // only. renderActions overrides the default showCopyAction.
           renderActions={(m) => (
