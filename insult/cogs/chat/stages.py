@@ -53,6 +53,8 @@ from insult.cogs.chat.disclosure import scan_disclosure
 from insult.cogs.chat.pipeline import (
     S2KnowledgeAssemblyInput,
     S2KnowledgeAssemblyResult,
+    S4OutputInterpretationInput,
+    S4OutputInterpretationResult,
     Stage,
     TurnCtx,
 )
@@ -817,42 +819,37 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
 # --- Stage 11: post-LLM mutations ---
 
 
-async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
-    response = ctx.llm_response.text
-    ctx.raw_response_text = response
-    post_llm_len = len(response)
+async def interpret_output(src: S4OutputInterpretationInput) -> S4OutputInterpretationResult:
+    """S4 Output Interpretation — turn the model's raw text into the deliverable
+    response + its side channels (reactions, remembered facts).
 
-    ctx.reactions = parse_reactions(response)
-    remembered_facts = parse_remembers(response)
-    if remembered_facts:
-        log.info(
-            "remember_markers_parsed",
-            count=len(remembered_facts),
-            user_id=ctx.user_id,
-        )
-        ctx.spawn_task(
-            persist_remembers(ctx.memory, ctx.user_id, remembered_facts),
-            name=f"persist_remembers:{ctx.user_id}",
-        )
-    ctx.recent_openers = [m["content"].split("\n")[0] for m in ctx.recent if m["role"] == "assistant"][-5:]
+    Orchestrates the post-LLM read of the model output: parse the ``[REACT:]`` /
+    ``[REMEMBER:]`` markers, run the character mutation pipeline (echo-strip,
+    length variation, opener dedup, marker stripping), apply the unattended-
+    reminder tail, and harvest inline orphan emojis. S4 owns neither persistence
+    nor delivery — it returns the parsed/mutated results and the stage applies
+    the side effects. Behavior is identical to the inline block this replaces
+    (same parsers, same mutation order, same harvest)."""
+    reactions = parse_reactions(src.raw_text)
+    remembered_facts = parse_remembers(src.raw_text)
 
     response = await run_character_pipeline(
         [
             MutationStage(
                 name="strip_echoed_quotes",
-                apply=lambda t, _ctx, _user_text=ctx.text: strip_echoed_quotes(t, _user_text),
+                apply=lambda t, _ctx, _user_text=src.user_text: strip_echoed_quotes(t, _user_text),
                 max_shrink_pct=0.30,
                 on_violation="skip_stage",
             ),
             MutationStage(
                 name="enforce_length_variation",
-                apply=lambda t, _ctx, _lens=ctx.recent_response_lengths: enforce_length_variation(t, _lens),
+                apply=lambda t, _ctx, _lens=src.recent_response_lengths: enforce_length_variation(t, _lens),
                 max_shrink_pct=0.50,
                 on_violation="skip_stage",
             ),
             MutationStage(
                 name="deduplicate_opener",
-                apply=lambda t, _ctx, _openers=ctx.recent_openers: deduplicate_opener(t, _openers),
+                apply=lambda t, _ctx, _openers=src.recent_openers: deduplicate_opener(t, _openers),
                 max_shrink_pct=0.30,
                 must_preserve=[preserve_react_markers],
                 on_violation="skip_stage",
@@ -870,32 +867,68 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
                 on_violation="skip_stage",
             ),
         ],
-        response,
+        src.raw_text,
         ctx={},
     )
 
-    if ctx.intent_unattended and response.strip():
+    if src.intent_unattended and response.strip():
         response = response.rstrip() + "\n\n*(no agendé recordatorio formal — si querías uno, dime día y hora.)*"
 
     # Safety net: if the LLM emitted emojis inline (ignoring the `[REACT:...]`
-    # marker), harvest them into ctx.reactions and strip them from visible
+    # marker), harvest them into the reactions list and strip them from visible
     # text. Opus 4.7 has been observed ignoring the persona's mandatory
     # wrapper rule (v3.9.11 reinforcement didn't fully fix it), so we
     # enforce the behavior in code rather than trust prompt adherence.
-    harvested_reactions, response = harvest_orphan_emojis(response, ctx.reactions)
-    emojis_harvested = len(harvested_reactions) - len(ctx.reactions)
-    ctx.reactions = harvested_reactions
+    harvested_reactions, response = harvest_orphan_emojis(response, reactions)
+    emojis_harvested = len(harvested_reactions) - len(reactions)
+
+    return S4OutputInterpretationResult(
+        response_text=response,
+        reactions=harvested_reactions,
+        remembered_facts=remembered_facts,
+        emojis_harvested_inline=emojis_harvested,
+    )
+
+
+async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
+    response = ctx.llm_response.text
+    ctx.raw_response_text = response
+    post_llm_len = len(response)
+
+    ctx.recent_openers = [m["content"].split("\n")[0] for m in ctx.recent if m["role"] == "assistant"][-5:]
+
+    result = await interpret_output(
+        S4OutputInterpretationInput(
+            raw_text=response,
+            user_text=ctx.text,
+            recent_openers=ctx.recent_openers,
+            recent_response_lengths=ctx.recent_response_lengths,
+            intent_unattended=ctx.intent_unattended,
+        )
+    )
+
+    if result.remembered_facts:
+        log.info(
+            "remember_markers_parsed",
+            count=len(result.remembered_facts),
+            user_id=ctx.user_id,
+        )
+        ctx.spawn_task(
+            persist_remembers(ctx.memory, ctx.user_id, result.remembered_facts),
+            name=f"persist_remembers:{ctx.user_id}",
+        )
+
+    ctx.reactions = result.reactions
+    ctx.response_text = result.response_text
 
     log.info(
         "stage_post_llm_done",
         raw_llm_len=post_llm_len,
-        final_text_len=len(response),
+        final_text_len=len(result.response_text),
         reactions=ctx.reactions,
-        emojis_harvested_inline=emojis_harvested,
+        emojis_harvested_inline=result.emojis_harvested_inline,
         elapsed_ms=ctx.elapsed_ms(),
     )
-
-    ctx.response_text = response
 
 
 # --- Stage 12: persist assistant message + arc + stances ---
