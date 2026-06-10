@@ -20,10 +20,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from runner import build_runner
+from tts import (
+    DEFAULT_FORMAT,
+    TTSNotConfiguredError,
+    TTSProvider,
+    TTSUpstreamError,
+    TTSValidationError,
+    build_provider,
+    content_type_for,
+    validate_request,
+)
 
 logger = logging.getLogger("og118")
 
@@ -77,10 +87,28 @@ def require_access(authorization: str | None = Header(default=None)) -> None:
 
 _runner = build_runner()
 
+# Built once from the ambient env. None when OG118_TTS_* is unset/incomplete —
+# the /tts/synthesize route turns that into an explicit 503, never a crash.
+_tts_provider = build_provider()
+
+
+def get_tts_provider() -> TTSProvider | None:
+    """Dependency seam: returns the configured provider (or None). Overridable in
+    tests via app.dependency_overrides so they never touch the network or need a
+    real key."""
+    return _tts_provider
+
 
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: str | None = None
+    response_format: str = DEFAULT_FORMAT
+    speed: float = 1.0
 
 
 def _to_jsonable(value: object) -> object:
@@ -121,4 +149,68 @@ async def chat_stream(
         generate(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/tts/synthesize")
+async def tts_synthesize(
+    req: TTSRequest,
+    _: None = Depends(require_access),
+    provider: TTSProvider | None = Depends(get_tts_provider),
+) -> Response:
+    """Synthesize speech for `text` and return the raw audio blob.
+
+    This is the backend gate the frontend's `VoiceAdapter.synthesize` needs — it
+    returns audio bytes + a Content-Type so the consumer can build an
+    `AudioSource`. Gated by the same single-user bearer as /chat/stream.
+
+    Failure is explicit and secret-free:
+      - provider unconfigured (OG118_TTS_* unset) -> 503 TTS_NOT_CONFIGURED
+      - bad input (empty/too-long text, bad format/speed) -> 400 TTS_INVALID_REQUEST
+      - provider/network error -> 502 TTS_UPSTREAM_ERROR
+    No request/response carries any secret value.
+    """
+    if provider is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "TTS_NOT_CONFIGURED",
+                "message": (
+                    "TTS is not configured on this deployment. Set "
+                    "OG118_TTS_ENDPOINT, OG118_TTS_API_KEY and OG118_TTS_DEPLOYMENT."
+                ),
+            },
+        )
+
+    try:
+        validate_request(req.text, req.response_format, req.speed)
+    except TTSValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "TTS_INVALID_REQUEST", "message": str(exc)},
+        ) from None
+
+    try:
+        audio = await provider.synthesize(
+            req.text,
+            voice=req.voice or "",
+            response_format=req.response_format,
+            speed=req.speed,
+        )
+    except TTSNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "TTS_NOT_CONFIGURED", "message": str(exc)},
+        ) from None
+    except TTSUpstreamError as exc:
+        # str(exc) is status-only / type-only by construction (see tts.py) — safe.
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "TTS_UPSTREAM_ERROR", "message": str(exc)},
+        ) from None
+
+    return Response(
+        content=audio,
+        media_type=content_type_for(req.response_format),
+        headers={"Cache-Control": "private, max-age=0, no-store"},
     )
