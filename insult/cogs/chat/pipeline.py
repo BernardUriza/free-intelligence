@@ -67,6 +67,43 @@ from insult.cogs.chat._failure import (
 log = structlog.get_logger()
 
 
+@dataclass(frozen=True)
+class TurnRuntimeDeps:
+    """The host-wired runtime the turn pipeline runs *against*.
+
+    Composition-root seam: these are the configuration / orchestration
+    dependencies the cog injects ONCE per turn — the data plane
+    (``memory``), the config singleton (``settings``), the Discord
+    gateway handle (``bot``), the anti-repetition ledger
+    (``expression_history``), the Opus spend budget (``opus_budget``),
+    the background-task spawner (``spawn_task``), the tool catalogue
+    (``all_tools``), and the two runner-backed LLM surfaces
+    (``agent_client`` / ``judge_client``).
+
+    They are grouped here, frozen, to separate *what the host supplies*
+    from *the mutable turn state* a stage reads-and-writes on ``TurnCtx``.
+    Stages reach them explicitly via ``ctx.deps.<name>`` instead of
+    pulling loose fields off the context — making the orchestration
+    boundary visible without moving any domain logic.
+
+    The two runner-backed LLM surfaces (see ``app.Container``):
+    ``agent_client`` drives the turn (``/v1/turn``); ``judge_client``
+    serves one-shot utility calls (``/v1/judge``): image summary, preset
+    classifier, fact extraction, tool inauguration. Both may be ``None``
+    only when the runner isn't configured.
+    """
+
+    memory: Any
+    settings: Any
+    bot: Any
+    expression_history: Any
+    opus_budget: Any
+    spawn_task: Callable[..., None]
+    all_tools: list
+    agent_client: Any = None
+    judge_client: Any = None
+
+
 @dataclass
 class TurnCtx:
     """Mutable state carried through the pipeline.
@@ -75,25 +112,18 @@ class TurnCtx:
     progressively as stages run. A stage reads only what previous
     stages wrote — no global state, no module-level singletons (except
     the health state ledger which is intentionally a singleton).
+
+    The host-wired runtime dependencies live on ``deps`` (a frozen
+    ``TurnRuntimeDeps``); everything else here is per-turn input or
+    progressively-filled output.
     """
 
     # --- Inputs ---
     message: discord.Message
     text: str
     turn_start: float
-    memory: Any
-    settings: Any
-    bot: Any
-    expression_history: Any
-    opus_budget: Any
-    spawn_task: Callable[..., None]
-    all_tools: list
-    # The two runner-backed LLM surfaces (see app.Container). agent_client
-    # drives the turn (/v1/turn); judge_client serves one-shot utility calls
-    # (/v1/judge): image summary, preset classifier, fact extraction, tool
-    # inauguration. Both may be None only when the runner isn't configured.
-    agent_client: Any = None
-    judge_client: Any = None
+    # Host-wired runtime (config / orchestration), injected by the cog.
+    deps: TurnRuntimeDeps
 
     # --- Derived identity (filled by the first stage) ---
     channel_id: str = ""
@@ -341,7 +371,7 @@ async def run_pipeline(ctx: TurnCtx, stages: list[Stage]) -> PipelineResult:
             # Fire and forget. Failures inside the task are surfaced by
             # the cog's task tracker (``spawn_task`` wraps them).
             try:
-                ctx.spawn_task(stage.fn(ctx), name=stage.name)
+                ctx.deps.spawn_task(stage.fn(ctx), name=stage.name)
             except Exception:
                 log.exception("stage_background_spawn_failed", stage=stage.name)
             continue

@@ -181,7 +181,7 @@ async def _stage_memory_store(ctx: TurnCtx) -> None:
     ctx.text_for_memory = ctx.text
 
     await store_user_message(
-        ctx.memory,
+        ctx.deps.memory,
         ctx.channel_id,
         ctx.user_id,
         ctx.user_name,
@@ -192,7 +192,7 @@ async def _stage_memory_store(ctx: TurnCtx) -> None:
 
     # Style profile BEFORE the trivial gate so short-message users still
     # accumulate signal for language/formality/emoji detection.
-    ctx.profile = await update_style_profile(ctx.memory, ctx.user_id, ctx.text)
+    ctx.profile = await update_style_profile(ctx.deps.memory, ctx.user_id, ctx.text)
 
     log.info(
         "stage_memory_stored",
@@ -214,7 +214,9 @@ async def _stage_ensure_not_trivial(ctx: TurnCtx) -> None:
 
 
 async def _stage_build_context(ctx: TurnCtx) -> None:
-    context, recent = await build_context(ctx.memory, ctx.settings, ctx.channel_id, ctx.text, ctx.attachment_blocks)
+    context, recent = await build_context(
+        ctx.deps.memory, ctx.deps.settings, ctx.channel_id, ctx.text, ctx.attachment_blocks
+    )
     if context is None:
         log.warning("chat_turn_aborted", reason="context_failed")
         await send_with_reaction_fallback(ctx.message, get_error_response(ErrorType.CONTEXT_FAILED))
@@ -236,10 +238,10 @@ async def _stage_build_context(ctx: TurnCtx) -> None:
 
 
 async def _stage_load_facts(ctx: TurnCtx) -> None:
-    ctx.user_facts = await load_facts_smart(ctx.memory, ctx.user_id, ctx.text)
+    ctx.user_facts = await load_facts_smart(ctx.deps.memory, ctx.user_id, ctx.text)
     log.info("stage_facts_loaded", facts_count=len(ctx.user_facts), elapsed_ms=ctx.elapsed_ms())
-    ctx.other_participants_facts = await load_other_participants_facts(ctx.memory, ctx.channel_id, ctx.user_id)
-    ctx.server_pulse = await load_server_pulse(ctx.memory, ctx.message, ctx.channel_id, ctx.text)
+    ctx.other_participants_facts = await load_other_participants_facts(ctx.deps.memory, ctx.channel_id, ctx.user_id)
+    ctx.server_pulse = await load_server_pulse(ctx.deps.memory, ctx.message, ctx.channel_id, ctx.text)
 
     # v3.8.0: pull the latest SerenityOps snapshot for the author. Cheap
     # single-row lookup keyed by user_id — the per-user index makes this an
@@ -247,7 +249,7 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
     # block entirely (the omission carries information too: Insult shouldn't
     # claim to "have your CV" when no row exists).
     try:
-        ctx.serenityops_snapshot = await ctx.memory.get_latest_serenityops_snapshot(ctx.user_id)
+        ctx.serenityops_snapshot = await ctx.deps.memory.get_latest_serenityops_snapshot(ctx.user_id)
     except Exception:
         log.exception("serenityops_snapshot_load_failed", user_id=ctx.user_id)
         ctx.serenityops_snapshot = None
@@ -258,14 +260,14 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
     # the task with a timeout and falls back to the regex classifier on
     # failure. Disabled-by-flag path leaves ctx.preset_task as None and
     # the awaiter goes straight to regex.
-    if getattr(ctx.settings, "preset_classifier_llm_enabled", False) and ctx.judge_client is not None:
+    if getattr(ctx.deps.settings, "preset_classifier_llm_enabled", False) and ctx.deps.judge_client is not None:
         ctx.preset_task = asyncio.create_task(
             classify_preset_llm(
                 ctx.text,
                 ctx.recent,
                 ctx.user_facts,
-                ctx.judge_client,
-                model=getattr(ctx.settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
+                ctx.deps.judge_client,
+                model=getattr(ctx.deps.settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
             )
         )
 
@@ -276,7 +278,7 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
 async def _stage_scan_disclosure(ctx: TurnCtx) -> None:
     ctx.disclosure = scan_disclosure(ctx.text)
     if ctx.disclosure.detected:
-        await ctx.memory.store_disclosure(
+        await ctx.deps.memory.store_disclosure(
             ctx.channel_id,
             ctx.user_id,
             ctx.disclosure.category,
@@ -284,7 +286,7 @@ async def _stage_scan_disclosure(ctx: TurnCtx) -> None:
             _json.dumps(ctx.disclosure.signals),
             ctx.text[:200],
         )
-    arc_data = await ctx.memory.get_arc(ctx.channel_id, ctx.user_id)
+    arc_data = await ctx.deps.memory.get_arc(ctx.channel_id, ctx.user_id)
     ctx.arc_state = arc_from_dict(arc_data) if arc_data else ArcState()
 
     ctx.recent_response_lengths = [len(m.get("content", "").split()) for m in ctx.recent if m["role"] == "assistant"][
@@ -306,7 +308,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
     classifier_ms = 0
     if ctx.preset_task is not None:
         classifier_start = time.monotonic()
-        timeout_s = float(getattr(ctx.settings, "preset_classifier_timeout_ms", 1500)) / 1000.0
+        timeout_s = float(getattr(ctx.deps.settings, "preset_classifier_timeout_ms", 1500)) / 1000.0
         try:
             llm_preset = await asyncio.wait_for(ctx.preset_task, timeout=timeout_s)
         except TimeoutError:
@@ -340,7 +342,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         )
 
     system_prompt, preset = build_adaptive_prompt(
-        ctx.settings.system_prompt,
+        ctx.deps.settings.system_prompt,
         ctx.profile,
         len(ctx.context),
         preset=effective_preset,
@@ -364,7 +366,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         elapsed_ms=ctx.elapsed_ms(),
     )
 
-    ctx.flow_analysis = analyze_flows(ctx.text, ctx.recent, preset, ctx.expression_history, ctx.context_key)
+    ctx.flow_analysis = analyze_flows(ctx.text, ctx.recent, preset, ctx.deps.expression_history, ctx.context_key)
     log.info(
         "stage_flows_analyzed",
         pressure=ctx.flow_analysis.pressure.pressure_level,
@@ -377,7 +379,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         elapsed_ms=ctx.elapsed_ms(),
     )
 
-    ctx.stances = await ctx.memory.get_stances(ctx.channel_id, ctx.user_id, limit=5)
+    ctx.stances = await ctx.deps.memory.get_stances(ctx.channel_id, ctx.user_id, limit=5)
 
     ctx.system_prompt = compose_extra_layers(
         system_prompt,
@@ -407,20 +409,20 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
 
 
 async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
-    ctx.tools = [*ctx.all_tools, WEB_SEARCH_TOOL]
+    ctx.tools = [*ctx.deps.all_tools, WEB_SEARCH_TOOL]
     force_tool = PresetModifier.ACTION_INTENT in ctx.preset.modifiers
     ctx.tool_choice = {"type": "any"} if force_tool else None
 
-    if getattr(ctx.settings, "model_router_enabled", False):
+    if getattr(ctx.deps.settings, "model_router_enabled", False):
         ctx.model_choice = select_model(
             ctx.preset,
             ctx.flow_analysis,
             ctx.disclosure.severity,
-            casual_model=ctx.settings.casual_model,
-            depth_model=ctx.settings.llm_model,
-            crisis_model=ctx.settings.crisis_model,
-            opus_24h_count=ctx.opus_budget.count(ctx.user_id),
-            opus_24h_cap=ctx.opus_budget.cap,
+            casual_model=ctx.deps.settings.casual_model,
+            depth_model=ctx.deps.settings.llm_model,
+            crisis_model=ctx.deps.settings.crisis_model,
+            opus_24h_count=ctx.deps.opus_budget.count(ctx.user_id),
+            opus_24h_cap=ctx.deps.opus_budget.cap,
         )
         log.info(
             "model_routed",
@@ -440,7 +442,7 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
 # per-user flag and no direct-Anthropic fallback. The old
 # `_pick_llm_for_turn` / `_user_in_agent_flag` branching (agent vs legacy
 # legacy direct-Anthropic client, gated on INSULT_AGENT_SDK_USER_IDS) was
-# removed when that client died. `_stage_call_llm` binds `ctx.agent_client`
+# removed when that client died. `_stage_call_llm` binds `ctx.deps.agent_client`
 # directly.
 
 
@@ -623,14 +625,14 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         context_messages=len(ctx.context),
         tools=[t.get("name", t.get("type", "?")) for t in ctx.tools],
         tool_choice=(ctx.tool_choice or {}).get("type"),
-        primary_model=ctx.model_choice.primary if ctx.model_choice else ctx.settings.llm_model,
+        primary_model=ctx.model_choice.primary if ctx.model_choice else ctx.deps.settings.llm_model,
         fallback_model=ctx.model_choice.fallback if ctx.model_choice else None,
     )
     # The agent runner is the only turn backend. ``backend`` is kept as a
     # constant so the agent-runner-specific payload blocks (channel_id,
     # behavioral_guidance, relevant_memory) and the ALICE-failover branch
     # below read self-documentingly.
-    llm_client = ctx.agent_client
+    llm_client = ctx.deps.agent_client
     backend = "agent_runner"
     log.info("llm_backend_selected", backend=backend, user_id=ctx.user_id)
     # Keepalive the Discord typing indicator throughout the LLM call.
@@ -695,7 +697,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         # B instead of a half-canned "ando hasta el queso" from voice A.
         # Only triggers on agent_runner backend failures, NOT BadRequestError
         # (which is usually a malformed request that ALICE can't fix either).
-        alice_failover_enabled = getattr(ctx.settings, "alice_failover_enabled", True)
+        alice_failover_enabled = getattr(ctx.deps.settings, "alice_failover_enabled", True)
         is_agent_failure = backend == "agent_runner" and failure_class == FailureClass.LLM_FAILED
         if alice_failover_enabled and is_agent_failure:
             log.warning(
@@ -815,7 +817,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
 
     # Opus budget: only record on success so transient failures don't burn the cap.
     if ctx.model_choice is not None and ctx.model_choice.tier == ModelTier.CRISIS:
-        ctx.opus_budget.record(ctx.user_id)
+        ctx.deps.opus_budget.record(ctx.user_id)
 
 
 # --- Stage 11: post-LLM mutations ---
@@ -915,8 +917,8 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
             count=len(result.remembered_facts),
             user_id=ctx.user_id,
         )
-        ctx.spawn_task(
-            persist_remembers(ctx.memory, ctx.user_id, result.remembered_facts),
+        ctx.deps.spawn_task(
+            persist_remembers(ctx.deps.memory, ctx.user_id, result.remembered_facts),
             name=f"persist_remembers:{ctx.user_id}",
         )
 
@@ -1004,8 +1006,8 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
             user_id=ctx.user_id,
             guild_id=ctx.guild_id,
             channel_name=ctx.channel_name,
-            bot_user_id=str(ctx.bot.user.id),
-            bot_user_name=ctx.bot.user.name,
+            bot_user_id=str(ctx.deps.bot.user.id),
+            bot_user_name=ctx.deps.bot.user.name,
             model_used=ctx.llm_response.model_used or None,
             arc_state=ctx.arc_state,
             disclosure_severity=ctx.disclosure.severity,
@@ -1013,7 +1015,7 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
             preset_mode=ctx.preset.mode.value,
             assertion_density=ctx.flow_analysis.epistemic.assertion_density,
         ),
-        ctx.memory,
+        ctx.deps.memory,
     )
 
 
@@ -1022,25 +1024,25 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
 
 async def _stage_spawn_side_effects(ctx: TurnCtx) -> None:
     if ctx.reactions:
-        ctx.spawn_task(add_reactions(ctx.message, ctx.reactions), name="reactions")
+        ctx.deps.spawn_task(add_reactions(ctx.message, ctx.reactions), name="reactions")
 
     if ctx.llm_response.tool_calls:
         reminder_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name in _REMINDER_TOOL_NAMES]
         other_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _REMINDER_TOOL_NAMES]
         for rc in reminder_calls:
-            ctx.spawn_task(
-                execute_reminder_call(ctx.message, rc, ctx.memory, ctx.bot),
+            ctx.deps.spawn_task(
+                execute_reminder_call(ctx.message, rc, ctx.deps.memory, ctx.deps.bot),
                 name=f"reminder:{rc.name}",
             )
         if other_calls and ctx.message.guild:
-            ctx.spawn_task(
+            ctx.deps.spawn_task(
                 execute_tool_calls(
                     ctx.message,
                     other_calls,
-                    memory=ctx.memory,
-                    judge=ctx.judge_client,
-                    settings=ctx.settings,
-                    spawn_task=ctx.spawn_task,
+                    memory=ctx.deps.memory,
+                    judge=ctx.deps.judge_client,
+                    settings=ctx.deps.settings,
+                    spawn_task=ctx.deps.spawn_task,
                 ),
                 name=f"tool_calls:{','.join(tc.name for tc in other_calls)}",
             )
@@ -1185,7 +1187,7 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
 
     from insult.core.quality import check_quality
 
-    recent_shapes = ctx.expression_history.recent_shapes(ctx.context_key, n=5)
+    recent_shapes = ctx.deps.expression_history.recent_shapes(ctx.context_key, n=5)
     check_quality(
         ctx.response_text,
         ctx.text,
@@ -1225,15 +1227,15 @@ async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
     # [REMEMBER:]. When the runner isn't wired (judge_client is None) there's
     # no backend to extract with, so skip the spawn entirely; the marker path
     # still works.
-    if ctx.judge_client is None:
+    if ctx.deps.judge_client is None:
         log.info("fact_extraction_skipped", reason="no_judge_client")
         return
-    ctx.spawn_task(
+    ctx.deps.spawn_task(
         extract_user_facts(
-            ctx.judge_client,
-            ctx.settings.summary_model,
-            ctx.memory,
-            ctx.bot,
+            ctx.deps.judge_client,
+            ctx.deps.settings.summary_model,
+            ctx.deps.memory,
+            ctx.deps.bot,
             ctx.user_id,
             ctx.user_name,
             ctx.user_facts,
