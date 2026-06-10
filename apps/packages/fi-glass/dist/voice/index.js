@@ -423,6 +423,14 @@ function SpeakButton({
 }
 
 // src/voice/createAudioPlayer.ts
+function clampSeekTarget(seconds, duration) {
+  if (!Number.isFinite(seconds)) return 0;
+  const lowerBounded = Math.max(0, seconds);
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.min(lowerBounded, duration);
+  }
+  return lowerBounded;
+}
 var INITIAL = {
   status: "idle",
   isPlaying: false,
@@ -570,6 +578,17 @@ function createAudioPlayer(options = {}) {
     }
     await play();
   }
+  function seek(seconds) {
+    if (disposed || !el) return;
+    const target = clampSeekTarget(seconds, state.duration);
+    el.currentTime = target;
+    setState({ currentTime: target });
+  }
+  function seekBy(deltaSeconds) {
+    if (disposed || !el) return;
+    const base = Number.isFinite(el.currentTime) ? el.currentTime : state.currentTime;
+    seek(base + deltaSeconds);
+  }
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -597,6 +616,8 @@ function createAudioPlayer(options = {}) {
     pause,
     stop,
     toggle,
+    seek,
+    seekBy,
     dispose
   };
 }
@@ -629,6 +650,8 @@ function useAudioPlayer(opts = {}) {
     pause: controller.pause,
     stop: controller.stop,
     toggle: controller.toggle,
+    seek: controller.seek,
+    seekBy: controller.seekBy,
     playSource: async (source) => {
       controller.load(source);
       await controller.play();
@@ -690,6 +713,284 @@ function AudioPlayer({
       "Error de audio"
     ] }) : null
   ] });
+}
+
+// src/voice/RichAudioPlayer.tsx
+import {
+  Play as Play2,
+  Pause as Pause2,
+  Square as Square3,
+  Loader2 as Loader25,
+  AlertCircle as AlertCircle2,
+  RotateCcw,
+  RotateCw
+} from "lucide-react";
+import { useEffect as useEffect3 } from "react";
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+var ICON2 = "w-4 h-4";
+var BTN2 = "p-2 disabled:opacity-40";
+function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor(total % 3600 / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, "0");
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${ss}`;
+  return `${m}:${ss}`;
+}
+function RichAudioPlayer({
+  source,
+  autoPlay = false,
+  skipSeconds = 10,
+  showTime = true,
+  onError,
+  onEnded,
+  className,
+  buttonClassName,
+  iconClassName,
+  progressClassName
+}) {
+  const player = useAudioPlayer({ onError, onEnded });
+  const {
+    load,
+    play,
+    toggle,
+    stop,
+    seek,
+    seekBy,
+    isPlaying,
+    isLoading,
+    error,
+    currentSrc,
+    duration,
+    currentTime
+  } = player;
+  useEffect3(() => {
+    if (!source) return;
+    load(source);
+    if (autoPlay) void play();
+  }, [source, autoPlay]);
+  const hasSource = currentSrc !== null;
+  const canSeek = hasSource && duration > 0;
+  const btnClass = buttonClassName ?? BTN2;
+  const iconClass = iconClassName ?? ICON2;
+  const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
+    duration
+  )}`;
+  return /* @__PURE__ */ jsxs6(
+    "div",
+    {
+      className,
+      "data-fi-audio-player": "rich",
+      role: "group",
+      "aria-label": "Controles de reproducci\xF3n de audio",
+      children: [
+        /* @__PURE__ */ jsx8(
+          "button",
+          {
+            type: "button",
+            onClick: () => seekBy(-skipSeconds),
+            disabled: !canSeek,
+            "aria-label": `Retroceder ${skipSeconds} segundos`,
+            className: btnClass,
+            children: /* @__PURE__ */ jsx8(RotateCcw, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx8(
+          "button",
+          {
+            type: "button",
+            onClick: () => void toggle(),
+            disabled: !hasSource || isLoading,
+            "aria-pressed": isPlaying,
+            "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
+            className: btnClass,
+            children: isLoading ? /* @__PURE__ */ jsx8(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx8(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx8(Play2, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx8(
+          "button",
+          {
+            type: "button",
+            onClick: stop,
+            disabled: !hasSource,
+            "aria-label": "Detener audio",
+            className: btnClass,
+            children: /* @__PURE__ */ jsx8(Square3, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx8(
+          "button",
+          {
+            type: "button",
+            onClick: () => seekBy(skipSeconds),
+            disabled: !canSeek,
+            "aria-label": `Avanzar ${skipSeconds} segundos`,
+            className: btnClass,
+            children: /* @__PURE__ */ jsx8(RotateCw, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx8(
+          "input",
+          {
+            type: "range",
+            min: 0,
+            max: duration > 0 ? duration : 0,
+            step: 0.1,
+            value: Math.min(currentTime, duration > 0 ? duration : currentTime),
+            onChange: (e) => seek(Number(e.target.value)),
+            disabled: !canSeek,
+            "aria-label": "Progreso de reproducci\xF3n",
+            "aria-valuetext": positionLabel,
+            className: progressClassName,
+            "data-fi-audio-progress": ""
+          }
+        ),
+        showTime ? /* @__PURE__ */ jsx8("span", { "data-fi-audio-time": "", "aria-hidden": true, className: "text-xs tabular-nums", children: positionLabel }) : null,
+        error ? /* @__PURE__ */ jsxs6("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
+          /* @__PURE__ */ jsx8(AlertCircle2, { className: iconClass, "aria-hidden": true }),
+          "Error de audio"
+        ] }) : null
+      ]
+    }
+  );
+}
+
+// src/voice/AudioVisualizer.tsx
+import { jsx as jsx9 } from "react/jsx-runtime";
+var MIN_BAR_PCT = 4;
+function normalizeLevels(levels) {
+  return levels.map(
+    (v) => !Number.isFinite(v) ? 0 : v < 0 ? 0 : v > 1 ? 1 : v
+  );
+}
+function resampleLevels(levels, count) {
+  if (count <= 0) return [];
+  if (levels.length === 0) return new Array(count).fill(0);
+  if (levels.length === count) return levels.slice();
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const idx = Math.min(
+      levels.length - 1,
+      Math.floor(i / count * levels.length)
+    );
+    out.push(levels[idx]);
+  }
+  return out;
+}
+function AudioVisualizer({
+  levels,
+  variant = "bars",
+  active = true,
+  barCount,
+  label = "Visualizador de nivel de audio",
+  className,
+  barClassName,
+  color
+}) {
+  const normalized = normalizeLevels(levels);
+  if (variant === "pulse") {
+    const peak = active && normalized.length ? Math.max(...normalized) : 0;
+    const scale = 1 + peak;
+    return /* @__PURE__ */ jsx9(
+      "div",
+      {
+        role: "img",
+        "aria-label": label,
+        className,
+        "data-fi-audio-visualizer": "pulse",
+        "data-active": active ? "" : void 0,
+        children: /* @__PURE__ */ jsx9(
+          "span",
+          {
+            "data-fi-pulse-core": "",
+            style: {
+              display: "inline-block",
+              transform: `scale(${scale})`,
+              borderColor: color
+            }
+          }
+        )
+      }
+    );
+  }
+  const count = barCount && barCount > 0 ? barCount : normalized.length;
+  const bars = resampleLevels(normalized, count);
+  return /* @__PURE__ */ jsx9(
+    "div",
+    {
+      role: "img",
+      "aria-label": label,
+      className,
+      "data-fi-audio-visualizer": "bars",
+      "data-active": active ? "" : void 0,
+      style: { display: "inline-flex", alignItems: "flex-end" },
+      children: bars.map((level, i) => {
+        const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
+        return /* @__PURE__ */ jsx9(
+          "span",
+          {
+            "data-fi-audio-bar": "",
+            className: barClassName,
+            style: { height: `${pct}%`, backgroundColor: color }
+          },
+          i
+        );
+      })
+    }
+  );
+}
+
+// src/voice/ComposerMicSlot.tsx
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { jsx as jsx10 } from "react/jsx-runtime";
+var ICON3 = "w-4 h-4";
+var BTN3 = "p-2 disabled:opacity-40";
+function ComposerMicSlot({
+  available = false,
+  recording = false,
+  busy = false,
+  onStart,
+  onStop,
+  unavailableLabel = "Dictado por voz no disponible todav\xEDa",
+  startLabel = "Iniciar dictado por voz",
+  stopLabel = "Detener dictado por voz",
+  busyLabel = "Transcribiendo\u2026",
+  className,
+  buttonClassName,
+  iconClassName
+}) {
+  const btnClass = buttonClassName ?? BTN3;
+  const iconClass = iconClassName ?? ICON3;
+  const disabled = !available || busy;
+  const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
+  const handleClick = () => {
+    if (disabled) return;
+    if (recording) onStop?.();
+    else onStart?.();
+  };
+  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  return /* @__PURE__ */ jsx10("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx10(
+    "button",
+    {
+      type: "button",
+      onClick: handleClick,
+      disabled,
+      "aria-disabled": disabled,
+      "aria-pressed": available ? recording : void 0,
+      "aria-label": label,
+      title: !available ? unavailableLabel : void 0,
+      className: btnClass,
+      children: /* @__PURE__ */ jsx10(
+        Icon,
+        {
+          className: busy ? `${iconClass} animate-spin` : iconClass,
+          "aria-hidden": true
+        }
+      )
+    }
+  ) });
 }
 
 // src/voice/useVoice.ts
@@ -1036,7 +1337,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef3, useEffect as useEffect3 } from "react";
+import { useState as useState3, useRef as useRef3, useEffect as useEffect4 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function useAudioAnalysis(stream, config) {
   const {
@@ -1049,7 +1350,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef3(null);
   const animationFrameRef = useRef3(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect3(() => {
+  useEffect4(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       return;
@@ -1141,19 +1442,25 @@ function useDictation(adapter, opts = {}) {
 }
 export {
   AudioPlayer,
+  AudioVisualizer,
   BUTTON_SIZES,
   COLOR_THEMES,
+  ComposerMicSlot,
   PulseRings,
   RecordingButton,
   RecordingTimer,
+  RichAudioPlayer,
   STATUS_TEXT_EN,
   STATUS_TEXT_ES,
   SpeakButton,
   StatusText,
   VoiceMicButton,
   createAudioPlayer,
+  formatPlaybackTime,
   formatRecordingTime,
   makeRecorder,
+  normalizeLevels,
+  resampleLevels,
   useAudioAnalysis,
   useAudioPlayer,
   useDictation,

@@ -26,6 +26,27 @@ export {
 } from './useAudioPlayer';
 export { AudioPlayer, type AudioPlayerProps } from './AudioPlayer';
 
+// B3-VOICE-FIGLASS-2: rich voice controls + reusable visualizers. Additive over
+// the B3-VOICE-FIGLASS-1 foundation — the minimal AudioPlayer is untouched. og118
+// is the canary that surfaced the austere player / missing visualizer / no mic
+// slot; these primitives raise that UX to the framework. No STT, no backend.
+export {
+  RichAudioPlayer,
+  formatPlaybackTime,
+  type RichAudioPlayerProps,
+} from './RichAudioPlayer';
+export {
+  AudioVisualizer,
+  normalizeLevels,
+  resampleLevels,
+  type AudioVisualizerProps,
+  type AudioVisualizerVariant,
+} from './AudioVisualizer';
+export {
+  ComposerMicSlot,
+  type ComposerMicSlotProps,
+} from './ComposerMicSlot';
+
 // Orchestration that consumes a VoiceAdapter (Americio slice 2).
 export {
   useVoice,

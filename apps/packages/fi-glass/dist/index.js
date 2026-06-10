@@ -766,6 +766,14 @@ function SpeakButton({
 }
 
 // src/voice/createAudioPlayer.ts
+function clampSeekTarget(seconds, duration) {
+  if (!Number.isFinite(seconds)) return 0;
+  const lowerBounded = Math.max(0, seconds);
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.min(lowerBounded, duration);
+  }
+  return lowerBounded;
+}
 var INITIAL = {
   status: "idle",
   isPlaying: false,
@@ -913,6 +921,17 @@ function createAudioPlayer(options = {}) {
     }
     await play();
   }
+  function seek(seconds) {
+    if (disposed || !el) return;
+    const target = clampSeekTarget(seconds, state.duration);
+    el.currentTime = target;
+    setState({ currentTime: target });
+  }
+  function seekBy(deltaSeconds) {
+    if (disposed || !el) return;
+    const base = Number.isFinite(el.currentTime) ? el.currentTime : state.currentTime;
+    seek(base + deltaSeconds);
+  }
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -940,6 +959,8 @@ function createAudioPlayer(options = {}) {
     pause,
     stop,
     toggle,
+    seek,
+    seekBy,
     dispose
   };
 }
@@ -972,6 +993,8 @@ function useAudioPlayer(opts = {}) {
     pause: controller.pause,
     stop: controller.stop,
     toggle: controller.toggle,
+    seek: controller.seek,
+    seekBy: controller.seekBy,
     playSource: async (source) => {
       controller.load(source);
       await controller.play();
@@ -1033,6 +1056,284 @@ function AudioPlayer({
       "Error de audio"
     ] }) : null
   ] });
+}
+
+// src/voice/RichAudioPlayer.tsx
+import {
+  Play as Play2,
+  Pause as Pause2,
+  Square as Square3,
+  Loader2 as Loader25,
+  AlertCircle as AlertCircle2,
+  RotateCcw,
+  RotateCw
+} from "lucide-react";
+import { useEffect as useEffect4 } from "react";
+import { jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
+var ICON2 = "w-4 h-4";
+var BTN2 = "p-2 disabled:opacity-40";
+function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor(total % 3600 / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, "0");
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${ss}`;
+  return `${m}:${ss}`;
+}
+function RichAudioPlayer({
+  source,
+  autoPlay = false,
+  skipSeconds = 10,
+  showTime = true,
+  onError,
+  onEnded,
+  className,
+  buttonClassName,
+  iconClassName,
+  progressClassName
+}) {
+  const player = useAudioPlayer({ onError, onEnded });
+  const {
+    load,
+    play,
+    toggle,
+    stop,
+    seek,
+    seekBy,
+    isPlaying,
+    isLoading,
+    error,
+    currentSrc,
+    duration,
+    currentTime
+  } = player;
+  useEffect4(() => {
+    if (!source) return;
+    load(source);
+    if (autoPlay) void play();
+  }, [source, autoPlay]);
+  const hasSource = currentSrc !== null;
+  const canSeek = hasSource && duration > 0;
+  const btnClass = buttonClassName ?? BTN2;
+  const iconClass = iconClassName ?? ICON2;
+  const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
+    duration
+  )}`;
+  return /* @__PURE__ */ jsxs10(
+    "div",
+    {
+      className,
+      "data-fi-audio-player": "rich",
+      role: "group",
+      "aria-label": "Controles de reproducci\xF3n de audio",
+      children: [
+        /* @__PURE__ */ jsx14(
+          "button",
+          {
+            type: "button",
+            onClick: () => seekBy(-skipSeconds),
+            disabled: !canSeek,
+            "aria-label": `Retroceder ${skipSeconds} segundos`,
+            className: btnClass,
+            children: /* @__PURE__ */ jsx14(RotateCcw, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx14(
+          "button",
+          {
+            type: "button",
+            onClick: () => void toggle(),
+            disabled: !hasSource || isLoading,
+            "aria-pressed": isPlaying,
+            "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
+            className: btnClass,
+            children: isLoading ? /* @__PURE__ */ jsx14(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx14(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx14(Play2, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx14(
+          "button",
+          {
+            type: "button",
+            onClick: stop,
+            disabled: !hasSource,
+            "aria-label": "Detener audio",
+            className: btnClass,
+            children: /* @__PURE__ */ jsx14(Square3, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx14(
+          "button",
+          {
+            type: "button",
+            onClick: () => seekBy(skipSeconds),
+            disabled: !canSeek,
+            "aria-label": `Avanzar ${skipSeconds} segundos`,
+            className: btnClass,
+            children: /* @__PURE__ */ jsx14(RotateCw, { className: iconClass, "aria-hidden": true })
+          }
+        ),
+        /* @__PURE__ */ jsx14(
+          "input",
+          {
+            type: "range",
+            min: 0,
+            max: duration > 0 ? duration : 0,
+            step: 0.1,
+            value: Math.min(currentTime, duration > 0 ? duration : currentTime),
+            onChange: (e) => seek(Number(e.target.value)),
+            disabled: !canSeek,
+            "aria-label": "Progreso de reproducci\xF3n",
+            "aria-valuetext": positionLabel,
+            className: progressClassName,
+            "data-fi-audio-progress": ""
+          }
+        ),
+        showTime ? /* @__PURE__ */ jsx14("span", { "data-fi-audio-time": "", "aria-hidden": true, className: "text-xs tabular-nums", children: positionLabel }) : null,
+        error ? /* @__PURE__ */ jsxs10("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
+          /* @__PURE__ */ jsx14(AlertCircle2, { className: iconClass, "aria-hidden": true }),
+          "Error de audio"
+        ] }) : null
+      ]
+    }
+  );
+}
+
+// src/voice/AudioVisualizer.tsx
+import { jsx as jsx15 } from "react/jsx-runtime";
+var MIN_BAR_PCT = 4;
+function normalizeLevels(levels) {
+  return levels.map(
+    (v) => !Number.isFinite(v) ? 0 : v < 0 ? 0 : v > 1 ? 1 : v
+  );
+}
+function resampleLevels(levels, count) {
+  if (count <= 0) return [];
+  if (levels.length === 0) return new Array(count).fill(0);
+  if (levels.length === count) return levels.slice();
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const idx = Math.min(
+      levels.length - 1,
+      Math.floor(i / count * levels.length)
+    );
+    out.push(levels[idx]);
+  }
+  return out;
+}
+function AudioVisualizer({
+  levels,
+  variant = "bars",
+  active = true,
+  barCount,
+  label = "Visualizador de nivel de audio",
+  className,
+  barClassName,
+  color
+}) {
+  const normalized = normalizeLevels(levels);
+  if (variant === "pulse") {
+    const peak = active && normalized.length ? Math.max(...normalized) : 0;
+    const scale = 1 + peak;
+    return /* @__PURE__ */ jsx15(
+      "div",
+      {
+        role: "img",
+        "aria-label": label,
+        className,
+        "data-fi-audio-visualizer": "pulse",
+        "data-active": active ? "" : void 0,
+        children: /* @__PURE__ */ jsx15(
+          "span",
+          {
+            "data-fi-pulse-core": "",
+            style: {
+              display: "inline-block",
+              transform: `scale(${scale})`,
+              borderColor: color
+            }
+          }
+        )
+      }
+    );
+  }
+  const count = barCount && barCount > 0 ? barCount : normalized.length;
+  const bars = resampleLevels(normalized, count);
+  return /* @__PURE__ */ jsx15(
+    "div",
+    {
+      role: "img",
+      "aria-label": label,
+      className,
+      "data-fi-audio-visualizer": "bars",
+      "data-active": active ? "" : void 0,
+      style: { display: "inline-flex", alignItems: "flex-end" },
+      children: bars.map((level, i) => {
+        const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
+        return /* @__PURE__ */ jsx15(
+          "span",
+          {
+            "data-fi-audio-bar": "",
+            className: barClassName,
+            style: { height: `${pct}%`, backgroundColor: color }
+          },
+          i
+        );
+      })
+    }
+  );
+}
+
+// src/voice/ComposerMicSlot.tsx
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { jsx as jsx16 } from "react/jsx-runtime";
+var ICON3 = "w-4 h-4";
+var BTN3 = "p-2 disabled:opacity-40";
+function ComposerMicSlot({
+  available = false,
+  recording = false,
+  busy = false,
+  onStart,
+  onStop,
+  unavailableLabel = "Dictado por voz no disponible todav\xEDa",
+  startLabel = "Iniciar dictado por voz",
+  stopLabel = "Detener dictado por voz",
+  busyLabel = "Transcribiendo\u2026",
+  className,
+  buttonClassName,
+  iconClassName
+}) {
+  const btnClass = buttonClassName ?? BTN3;
+  const iconClass = iconClassName ?? ICON3;
+  const disabled = !available || busy;
+  const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
+  const handleClick = () => {
+    if (disabled) return;
+    if (recording) onStop?.();
+    else onStart?.();
+  };
+  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  return /* @__PURE__ */ jsx16("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx16(
+    "button",
+    {
+      type: "button",
+      onClick: handleClick,
+      disabled,
+      "aria-disabled": disabled,
+      "aria-pressed": available ? recording : void 0,
+      "aria-label": label,
+      title: !available ? unavailableLabel : void 0,
+      className: btnClass,
+      children: /* @__PURE__ */ jsx16(
+        Icon,
+        {
+          className: busy ? `${iconClass} animate-spin` : iconClass,
+          "aria-hidden": true
+        }
+      )
+    }
+  ) });
 }
 
 // src/voice/useVoice.ts
@@ -1379,7 +1680,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef4, useEffect as useEffect4 } from "react";
+import { useState as useState5, useRef as useRef4, useEffect as useEffect5 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function useAudioAnalysis(stream, config) {
   const {
@@ -1392,7 +1693,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef4(null);
   const animationFrameRef = useRef4(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       return;
@@ -1693,12 +1994,12 @@ var CHAT_BREAKPOINTS = {
 
 // src/shell/FloatingButton.tsx
 import { MessageCircle } from "lucide-react";
-import { jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs11 } from "react/jsx-runtime";
 function FloatingButton({ onClick, isMobile }) {
   const buttonSize = isMobile ? "w-16 h-16" : "w-14 h-14";
   const iconSize = isMobile ? "h-7 w-7" : "h-6 w-6";
   const buttonPosition = isMobile ? "bottom-4 right-4" : "bottom-6 right-6";
-  return /* @__PURE__ */ jsxs10(
+  return /* @__PURE__ */ jsxs11(
     "button",
     {
       onClick,
@@ -1708,20 +2009,20 @@ function FloatingButton({ onClick, isMobile }) {
       `,
       "aria-label": "Chat with Free Intelligence",
       children: [
-        /* @__PURE__ */ jsx14(MessageCircle, { className: `${iconSize} text-white` }),
-        /* @__PURE__ */ jsx14("span", { className: "fi-dot-pulse-red" }),
-        !isMobile && /* @__PURE__ */ jsx14("div", { className: "fi-tooltip-right", children: "Habla con Free Intelligence" })
+        /* @__PURE__ */ jsx17(MessageCircle, { className: `${iconSize} text-white` }),
+        /* @__PURE__ */ jsx17("span", { className: "fi-dot-pulse-red" }),
+        !isMobile && /* @__PURE__ */ jsx17("div", { className: "fi-tooltip-right", children: "Habla con Free Intelligence" })
       ]
     }
   );
 }
 
 // src/shell/ChatContent.tsx
-import { Loader2 as Loader27 } from "lucide-react";
+import { Loader2 as Loader29 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment2, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx18, jsxs as jsxs12 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -1729,10 +2030,10 @@ function ChatWidgetContainer(props) {
   });
   const effectiveMode = mode === "minimized" ? "minimized" : isMobile ? mode === "dense" ? "dense" : "fullscreen" : isTablet && (mode === "normal" || mode === "expanded") ? "expanded" : mode;
   if (effectiveMode === "minimized") {
-    return /* @__PURE__ */ jsxs11("div", { className: "chat-container-minimized", onClick: () => onModeChange("normal"), children: [
-      /* @__PURE__ */ jsx15(MessageCircle2, { className: "chat-container-minimized-icon" }),
-      /* @__PURE__ */ jsx15("span", { className: "chat-container-minimized-title", children: title }),
-      /* @__PURE__ */ jsx15(
+    return /* @__PURE__ */ jsxs12("div", { className: "chat-container-minimized", onClick: () => onModeChange("normal"), children: [
+      /* @__PURE__ */ jsx18(MessageCircle2, { className: "chat-container-minimized-icon" }),
+      /* @__PURE__ */ jsx18("span", { className: "chat-container-minimized-title", children: title }),
+      /* @__PURE__ */ jsx18(
         "button",
         {
           onClick: (e) => {
@@ -1741,15 +2042,15 @@ function ChatWidgetContainer(props) {
           },
           className: "ml-2 fi-hover-ghost",
           "aria-label": "Expand chat",
-          children: /* @__PURE__ */ jsx15("div", { className: "chat-container-minimized-pulse" })
+          children: /* @__PURE__ */ jsx18("div", { className: "chat-container-minimized-pulse" })
         }
       )
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs11(Fragment2, { children: [
-      /* @__PURE__ */ jsx15("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
-      /* @__PURE__ */ jsx15(
+    return /* @__PURE__ */ jsxs12(Fragment2, { children: [
+      /* @__PURE__ */ jsx18("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
+      /* @__PURE__ */ jsx18(
         "div",
         {
           className: "chat-container-expanded-tablet",
@@ -1760,7 +2061,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded") {
-    return /* @__PURE__ */ jsx15(
+    return /* @__PURE__ */ jsx18(
       "div",
       {
         className: "chat-container-expanded",
@@ -1775,20 +2076,20 @@ function ChatWidgetContainer(props) {
     );
   }
   if (embedded && (effectiveMode === "fullscreen" || effectiveMode === "dense")) {
-    return /* @__PURE__ */ jsx15("div", { className: "chat-container-embedded", children });
+    return /* @__PURE__ */ jsx18("div", { className: "chat-container-embedded", children });
   }
   if (effectiveMode === "dense") {
-    return /* @__PURE__ */ jsx15("div", { className: "chat-container-dense", children });
+    return /* @__PURE__ */ jsx18("div", { className: "chat-container-dense", children });
   }
   if (effectiveMode === "fullscreen") {
-    return /* @__PURE__ */ jsx15("div", { className: "chat-container-fullscreen", children });
+    return /* @__PURE__ */ jsx18("div", { className: "chat-container-fullscreen", children });
   }
-  return /* @__PURE__ */ jsx15("div", { className: "chat-container-normal", children });
+  return /* @__PURE__ */ jsx18("div", { className: "chat-container-normal", children });
 }
 
 // src/shell/ChatWidgetHeader.tsx
 import { X, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx19, jsxs as jsxs13 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -1805,9 +2106,9 @@ function ChatWidgetHeader({
   onClose,
   onHistorySearch
 }) {
-  return /* @__PURE__ */ jsxs12("div", { className: `${backgroundClass} chat-header`, children: [
-    /* @__PURE__ */ jsxs12("div", { className: "flex items-center gap-3 min-w-0", children: [
-      /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsxs13("div", { className: `${backgroundClass} chat-header`, children: [
+    /* @__PURE__ */ jsxs13("div", { className: "flex items-center gap-3 min-w-0", children: [
+      /* @__PURE__ */ jsx19(
         "button",
         {
           type: "button",
@@ -1815,36 +2116,36 @@ function ChatWidgetHeader({
           className: "chat-header-icon",
           title: "Abrir chat completo",
           "aria-label": "Abrir chat completo",
-          children: /* @__PURE__ */ jsx16(MessageCircle3, { className: "h-5 w-5 text-white" })
+          children: /* @__PURE__ */ jsx19(MessageCircle3, { className: "h-5 w-5 text-white" })
         }
       ),
-      /* @__PURE__ */ jsxs12("div", { className: "min-w-0", children: [
-        /* @__PURE__ */ jsx16("h3", { className: "chat-header-title", children: title }),
-        subtitle && /* @__PURE__ */ jsx16("p", { className: "chat-header-subtitle", children: subtitle })
+      /* @__PURE__ */ jsxs13("div", { className: "min-w-0", children: [
+        /* @__PURE__ */ jsx19("h3", { className: "chat-header-title", children: title }),
+        subtitle && /* @__PURE__ */ jsx19("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx16("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs12(Fragment3, { children: [
-      showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx16("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx16(Search, { className: "h-4 w-4" }) }),
-      mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx16("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs12("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx16("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
-        /* @__PURE__ */ jsx16("path", { d: "M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z" })
+    /* @__PURE__ */ jsx19("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs13(Fragment3, { children: [
+      showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx19("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx19(Search, { className: "h-4 w-4" }) }),
+      mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx19("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs13("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
+        /* @__PURE__ */ jsx19("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
+        /* @__PURE__ */ jsx19("path", { d: "M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z" })
       ] }) }),
-      mode === "dense" && onToggleDenseMode && /* @__PURE__ */ jsx16("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo expandido", title: "Modo expandido (con controles)", type: "button", children: /* @__PURE__ */ jsxs12("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx16("path", { d: "M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" }),
-        /* @__PURE__ */ jsx16("path", { d: "M6.5 4.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zM8 8.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5zm3-4a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zm0 6a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5z" })
+      mode === "dense" && onToggleDenseMode && /* @__PURE__ */ jsx19("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo expandido", title: "Modo expandido (con controles)", type: "button", children: /* @__PURE__ */ jsxs13("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
+        /* @__PURE__ */ jsx19("path", { d: "M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" }),
+        /* @__PURE__ */ jsx19("path", { d: "M6.5 4.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zM8 8.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5zm3-4a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zm0 6a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5z" })
       ] }) }),
-      mode === "expanded" && /* @__PURE__ */ jsx16("button", { onClick: onMinimize, className: HEADER_BTN_CLASS, "aria-label": "Restaurar tama\xF1o", title: "Restaurar a tama\xF1o normal", type: "button", children: /* @__PURE__ */ jsx16(Minimize2, { className: "h-4 w-4" }) }),
-      mode === "normal" && /* @__PURE__ */ jsx16("button", { onClick: onMaximize, className: HEADER_BTN_CLASS, "aria-label": "Expandir", title: "Expandir (60% m\xE1s grande)", type: "button", children: /* @__PURE__ */ jsx16(Maximize2, { className: "h-4 w-4" }) }),
-      /* @__PURE__ */ jsx16("button", { onClick: onClose, className: HEADER_BTN_CLASS, "aria-label": "Close", title: "Cerrar", type: "button", children: /* @__PURE__ */ jsx16(X, { className: "h-5 w-5" }) })
+      mode === "expanded" && /* @__PURE__ */ jsx19("button", { onClick: onMinimize, className: HEADER_BTN_CLASS, "aria-label": "Restaurar tama\xF1o", title: "Restaurar a tama\xF1o normal", type: "button", children: /* @__PURE__ */ jsx19(Minimize2, { className: "h-4 w-4" }) }),
+      mode === "normal" && /* @__PURE__ */ jsx19("button", { onClick: onMaximize, className: HEADER_BTN_CLASS, "aria-label": "Expandir", title: "Expandir (60% m\xE1s grande)", type: "button", children: /* @__PURE__ */ jsx19(Maximize2, { className: "h-4 w-4" }) }),
+      /* @__PURE__ */ jsx19("button", { onClick: onClose, className: HEADER_BTN_CLASS, "aria-label": "Close", title: "Cerrar", type: "button", children: /* @__PURE__ */ jsx19(X, { className: "h-5 w-5" }) })
     ] }) })
   ] });
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState8, useRef as useRef5, useEffect as useEffect5 } from "react";
+import { useState as useState8, useRef as useRef5, useEffect as useEffect6 } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader25 } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader27 } from "lucide-react";
+import { Fragment as Fragment4, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -1876,7 +2177,7 @@ function ChatToolbar({
   const [overflowOpen, setOverflowOpen] = useState8(false);
   const overflowButtonRef = useRef5(null);
   const [dropdownPosition, setDropdownPosition] = useState8({ top: 0, left: 0 });
-  useEffect5(() => {
+  useEffect6(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -1888,11 +2189,11 @@ function ChatToolbar({
   }, [overflowOpen]);
   const buttonBaseClass = "chat-toolbar-btn";
   const iconClass = "chat-toolbar-icon";
-  return /* @__PURE__ */ jsxs13("div", { className: "chat-toolbar", children: [
-    /* @__PURE__ */ jsxs13("div", { className: "fi-flex-gap-sm", children: [
+  return /* @__PURE__ */ jsxs14("div", { className: "chat-toolbar", children: [
+    /* @__PURE__ */ jsxs14("div", { className: "fi-flex-gap-sm", children: [
       showPersonaSelector && personaSelector,
-      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs13("div", { className: "relative", children: [
-        /* @__PURE__ */ jsx17(
+      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs14("div", { className: "relative", children: [
+        /* @__PURE__ */ jsx20(
           "button",
           {
             ref: overflowButtonRef,
@@ -1900,12 +2201,12 @@ function ChatToolbar({
             className: buttonBaseClass,
             title: "M\xE1s opciones",
             "aria-label": "M\xE1s opciones",
-            children: /* @__PURE__ */ jsx17(MoreVertical, { className: iconClass })
+            children: /* @__PURE__ */ jsx20(MoreVertical, { className: iconClass })
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs13(Fragment4, { children: [
-            /* @__PURE__ */ jsx17(
+          /* @__PURE__ */ jsxs14(Fragment4, { children: [
+            /* @__PURE__ */ jsx20(
               "div",
               {
                 className: "fixed inset-0 z-[9998]",
@@ -1913,7 +2214,7 @@ function ChatToolbar({
                 "aria-hidden": "true"
               }
             ),
-            /* @__PURE__ */ jsxs13(
+            /* @__PURE__ */ jsxs14(
               "div",
               {
                 className: "chat-dropdown",
@@ -1923,7 +2224,7 @@ function ChatToolbar({
                   transform: "translateY(-100%)"
                 },
                 children: [
-                  showAttach && /* @__PURE__ */ jsxs13(
+                  showAttach && /* @__PURE__ */ jsxs14(
                     "button",
                     {
                       onClick: () => {
@@ -1932,12 +2233,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx17(Paperclip, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx17("span", { children: "Adjuntar archivo" })
+                        /* @__PURE__ */ jsx20(Paperclip, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx20("span", { children: "Adjuntar archivo" })
                       ]
                     }
                   ),
-                  showLanguage && /* @__PURE__ */ jsxs13(
+                  showLanguage && /* @__PURE__ */ jsxs14(
                     "button",
                     {
                       onClick: () => {
@@ -1946,12 +2247,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx17(Globe, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx17("span", { children: "Cambiar idioma" })
+                        /* @__PURE__ */ jsx20(Globe, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx20("span", { children: "Cambiar idioma" })
                       ]
                     }
                   ),
-                  showFormatting && /* @__PURE__ */ jsxs13(
+                  showFormatting && /* @__PURE__ */ jsxs14(
                     "button",
                     {
                       onClick: () => {
@@ -1960,14 +2261,14 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx17(Type, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx17("span", { children: "Formato de texto" })
+                        /* @__PURE__ */ jsx20(Type, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx20("span", { children: "Formato de texto" })
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs13(Fragment4, { children: [
-                    /* @__PURE__ */ jsx17("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs13(
+                  showCopyCurl && /* @__PURE__ */ jsxs14(Fragment4, { children: [
+                    /* @__PURE__ */ jsx20("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs14(
                       "button",
                       {
                         onClick: () => {
@@ -1976,15 +2277,15 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300",
                         children: [
-                          /* @__PURE__ */ jsx17(Terminal, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx17("span", { children: "Copiar plantilla curl" })
+                          /* @__PURE__ */ jsx20(Terminal, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx20("span", { children: "Copiar plantilla curl" })
                         ]
                       }
                     )
                   ] }),
-                  showThinkingToggle && /* @__PURE__ */ jsxs13("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx17("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs13(
+                  showThinkingToggle && /* @__PURE__ */ jsxs14("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx20("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs14(
                       "button",
                       {
                         onClick: () => {
@@ -1993,15 +2294,15 @@ function ChatToolbar({
                         },
                         className: `chat-dropdown-item ${showThinking ? "fi-text-purple hover:bg-purple-900/20" : ""}`,
                         children: [
-                          /* @__PURE__ */ jsx17(Sparkles, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx17("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
+                          /* @__PURE__ */ jsx20(Sparkles, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx20("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
                         ]
                       }
                     )
                   ] }),
-                  showClear && /* @__PURE__ */ jsxs13("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx17("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs13(
+                  showClear && /* @__PURE__ */ jsxs14("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx20("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs14(
                       "button",
                       {
                         onClick: () => {
@@ -2010,8 +2311,8 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item-danger",
                         children: [
-                          /* @__PURE__ */ jsx17(Trash, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx17("span", { children: "Limpiar conversaci\xF3n" })
+                          /* @__PURE__ */ jsx20(Trash, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx20("span", { children: "Limpiar conversaci\xF3n" })
                         ]
                       }
                     )
@@ -2024,38 +2325,38 @@ function ChatToolbar({
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxs13("div", { className: "fi-flex-gap-sm", children: [
-      showClear && /* @__PURE__ */ jsx17(
+    /* @__PURE__ */ jsxs14("div", { className: "fi-flex-gap-sm", children: [
+      showClear && /* @__PURE__ */ jsx20(
         "button",
         {
           onClick: () => onClearConversation?.(),
           className: `${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`,
           title: "Limpiar conversaci\xF3n",
           "aria-label": "Limpiar conversaci\xF3n",
-          children: /* @__PURE__ */ jsx17(Trash, { className: iconClass })
+          children: /* @__PURE__ */ jsx20(Trash, { className: iconClass })
         }
       ),
-      showThinkingToggle && /* @__PURE__ */ jsx17(
+      showThinkingToggle && /* @__PURE__ */ jsx20(
         "button",
         {
           onClick: onShowThinkingToggle,
           className: `${buttonBaseClass} hidden @md:flex ${showThinking ? "chat-toolbar-btn-active" : ""}`,
           title: showThinking ? "Razonamiento visible (click para ocultar)" : "Razonamiento oculto (click para mostrar)",
           "aria-label": showThinking ? "Ocultar razonamiento del modelo" : "Mostrar razonamiento del modelo",
-          children: /* @__PURE__ */ jsx17(Sparkles, { className: iconClass })
+          children: /* @__PURE__ */ jsx20(Sparkles, { className: iconClass })
         }
       ),
-      showResponseMode && /* @__PURE__ */ jsx17(
+      showResponseMode && /* @__PURE__ */ jsx20(
         "button",
         {
           onClick: onResponseModeToggle,
           className: `${buttonBaseClass} ${responseMode === "concise" ? "fi-text-info hover:text-cyan-300" : "chat-toolbar-btn-success"}`,
           title: responseMode === "explanatory" ? "Modo: Explicativo (detallado)" : "Modo: Conciso (breve)",
           "aria-label": responseMode === "explanatory" ? "Cambiar a modo conciso" : "Cambiar a modo explicativo",
-          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx17(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx17(Zap, { className: iconClass })
+          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx20(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx20(Zap, { className: iconClass })
         }
       ),
-      showVoice && /* @__PURE__ */ jsx17(
+      showVoice && /* @__PURE__ */ jsx20(
         VoiceMicButton,
         {
           isRecording: voiceRecording?.isRecording || false,
@@ -2069,14 +2370,14 @@ function ChatToolbar({
           })
         }
       ),
-      /* @__PURE__ */ jsx17(
+      /* @__PURE__ */ jsx20(
         "button",
         {
           onClick: onSend,
           disabled: !canSend,
           className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
           "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx17(Loader25, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx17(Send, { className: "h-4 w-4" })
+          children: sendLoading ? /* @__PURE__ */ jsx20(Loader27, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx20(Send, { className: "h-4 w-4" })
         }
       )
     ] })
@@ -2090,11 +2391,11 @@ import {
   Image as ImageIcon,
   File,
   X as X2,
-  Loader2 as Loader26,
+  Loader2 as Loader28,
   CheckCircle,
-  AlertCircle as AlertCircle2
+  AlertCircle as AlertCircle3
 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -2127,37 +2428,37 @@ function ChatFilePreview({
   const isError = status === "error";
   const isUploading = status === "uploading";
   const isProcessing = status === "processing" || status === "pending_instructions";
-  return /* @__PURE__ */ jsxs14("div", { className: `
+  return /* @__PURE__ */ jsxs15("div", { className: `
       flex items-center gap-3 p-3 rounded-xl border
       ${isError ? "bg-red-900/20 border-red-700/50" : isCompleted ? "bg-emerald-900/20 border-emerald-700/50" : "bg-slate-800/80 border-slate-700/50"}
       transition-colors duration-200
     `, children: [
-    /* @__PURE__ */ jsx18("div", { className: `
+    /* @__PURE__ */ jsx21("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx18(Loader26, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx18(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx18(AlertCircle2, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx18(FileIcon, { className: "w-5 h-5 fi-text" }) }),
-    /* @__PURE__ */ jsxs14("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx18("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2 fi-text-xs", children: [
-        /* @__PURE__ */ jsx18("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs14(Fragment5, { children: [
-          /* @__PURE__ */ jsx18("span", { children: "-" }),
-          /* @__PURE__ */ jsx18("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+      `, children: isProcessing ? /* @__PURE__ */ jsx21(Loader28, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx21(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx21(AlertCircle3, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx21(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+    /* @__PURE__ */ jsxs15("div", { className: "flex-1 min-w-0", children: [
+      /* @__PURE__ */ jsx21("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs15("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+        /* @__PURE__ */ jsx21("span", { children: formatFileSize(file.size) }),
+        isUploading && /* @__PURE__ */ jsxs15(Fragment5, { children: [
+          /* @__PURE__ */ jsx21("span", { children: "-" }),
+          /* @__PURE__ */ jsx21("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs14(Fragment5, { children: [
-          /* @__PURE__ */ jsx18("span", { children: "-" }),
-          /* @__PURE__ */ jsx18("span", { className: "fi-text-primary", children: "Procesando..." })
+        isProcessing && /* @__PURE__ */ jsxs15(Fragment5, { children: [
+          /* @__PURE__ */ jsx21("span", { children: "-" }),
+          /* @__PURE__ */ jsx21("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs14(Fragment5, { children: [
-          /* @__PURE__ */ jsx18("span", { children: "-" }),
-          /* @__PURE__ */ jsx18("span", { className: "chat-file-status-indexed", children: "Indexado" })
+        isCompleted && /* @__PURE__ */ jsxs15(Fragment5, { children: [
+          /* @__PURE__ */ jsx21("span", { children: "-" }),
+          /* @__PURE__ */ jsx21("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs14(Fragment5, { children: [
-          /* @__PURE__ */ jsx18("span", { children: "-" }),
-          /* @__PURE__ */ jsx18("span", { className: "fi-text-error truncate", title: error, children: error })
+        isError && error && /* @__PURE__ */ jsxs15(Fragment5, { children: [
+          /* @__PURE__ */ jsx21("span", { children: "-" }),
+          /* @__PURE__ */ jsx21("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
       ] }),
-      isUploading && /* @__PURE__ */ jsx18("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx18(
+      isUploading && /* @__PURE__ */ jsx21("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx21(
         "div",
         {
           className: "fi-progress-bar duration-300",
@@ -2165,7 +2466,7 @@ function ChatFilePreview({
         }
       ) })
     ] }),
-    !isCompleted && !isProcessing && /* @__PURE__ */ jsx18(
+    !isCompleted && !isProcessing && /* @__PURE__ */ jsx21(
       "button",
       {
         type: "button",
@@ -2173,7 +2474,7 @@ function ChatFilePreview({
         className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
         "aria-label": "Cancelar",
         title: "Cancelar",
-        children: /* @__PURE__ */ jsx18(X2, { className: "h-4 w-4" })
+        children: /* @__PURE__ */ jsx21(X2, { className: "h-4 w-4" })
       }
     )
   ] });
@@ -2181,7 +2482,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -2191,59 +2492,59 @@ function ChatStartScreen({
   isLoading = false
 }) {
   if (!isAuthenticated) {
-    return /* @__PURE__ */ jsx19("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs15("div", { className: "chat-start-container", children: [
-      /* @__PURE__ */ jsx19("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx19("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx19(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
-      /* @__PURE__ */ jsxs15("div", { className: "fi-stack-sm", children: [
-        /* @__PURE__ */ jsx19("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
-        /* @__PURE__ */ jsx19("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
+    return /* @__PURE__ */ jsx22("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs16("div", { className: "chat-start-container", children: [
+      /* @__PURE__ */ jsx22("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx22("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx22(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
+      /* @__PURE__ */ jsxs16("div", { className: "fi-stack-sm", children: [
+        /* @__PURE__ */ jsx22("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
+        /* @__PURE__ */ jsx22("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
       ] }),
-      /* @__PURE__ */ jsxs15(
+      /* @__PURE__ */ jsxs16(
         "button",
         {
           type: "button",
           onClick: () => onNavigate?.("downloads"),
           className: "chat-start-btn-login",
           children: [
-            /* @__PURE__ */ jsx19(Download, { className: "fi-icon-md" }),
+            /* @__PURE__ */ jsx22(Download, { className: "fi-icon-md" }),
             "Ir a Descargas"
           ]
         }
       ),
-      /* @__PURE__ */ jsx19("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
+      /* @__PURE__ */ jsx22("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
     ] }) });
   }
-  return /* @__PURE__ */ jsx19("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs15("div", { className: "chat-start-container", children: [
-    /* @__PURE__ */ jsx19("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx19("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx19(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
-    /* @__PURE__ */ jsxs15("div", { className: "fi-stack-sm", children: [
-      /* @__PURE__ */ jsxs15("h3", { className: "chat-start-title-large", children: [
+  return /* @__PURE__ */ jsx22("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs16("div", { className: "chat-start-container", children: [
+    /* @__PURE__ */ jsx22("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx22("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx22(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
+    /* @__PURE__ */ jsxs16("div", { className: "fi-stack-sm", children: [
+      /* @__PURE__ */ jsxs16("h3", { className: "chat-start-title-large", children: [
         "Hola, ",
         userName?.split(" ")[0] || "Doctor"
       ] }),
-      /* @__PURE__ */ jsx19("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
+      /* @__PURE__ */ jsx22("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
     ] }),
-    /* @__PURE__ */ jsxs15("div", { className: "chat-start-features", children: [
-      /* @__PURE__ */ jsxs15("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx19(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
-        /* @__PURE__ */ jsx19("span", { children: "Conversaci\xF3n privada y segura" })
+    /* @__PURE__ */ jsxs16("div", { className: "chat-start-features", children: [
+      /* @__PURE__ */ jsxs16("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx22(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
+        /* @__PURE__ */ jsx22("span", { children: "Conversaci\xF3n privada y segura" })
       ] }),
-      /* @__PURE__ */ jsxs15("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx19(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
-        /* @__PURE__ */ jsx19("span", { children: "Datos encriptados localmente" })
+      /* @__PURE__ */ jsxs16("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx22(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
+        /* @__PURE__ */ jsx22("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx19("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs15(Fragment6, { children: [
-      /* @__PURE__ */ jsx19("div", { className: "chat-start-spinner" }),
+    /* @__PURE__ */ jsx22("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs16(Fragment6, { children: [
+      /* @__PURE__ */ jsx22("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs15(Fragment6, { children: [
-      /* @__PURE__ */ jsx19(MessageSquareText, { className: "w-5 h-5" }),
+    ] }) : /* @__PURE__ */ jsxs16(Fragment6, { children: [
+      /* @__PURE__ */ jsx22(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
-    /* @__PURE__ */ jsx19("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
+    /* @__PURE__ */ jsx22("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
   ] }) });
 }
 
 // src/shell/ChatContent.tsx
-import { jsx as jsx20, jsxs as jsxs16 } from "react/jsx-runtime";
+import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 function ChatContent({
   config,
   embedded,
@@ -2299,8 +2600,8 @@ function ChatContent({
   const showThinkingToggle = typeof onShowThinkingToggle === "function";
   const showClear = typeof onClearConversation === "function";
   const showPersonaSelector = personaSelector != null;
-  return /* @__PURE__ */ jsxs16("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
-    !isHistoryOpen && /* @__PURE__ */ jsxs16(
+  return /* @__PURE__ */ jsxs17("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
+    !isHistoryOpen && /* @__PURE__ */ jsxs17(
       ChatWidgetContainer,
       {
         mode: viewMode,
@@ -2308,7 +2609,7 @@ function ChatContent({
         embedded,
         onModeChange,
         children: [
-          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx20(
+          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx23(
             ChatWidgetHeader,
             {
               title: config.title,
@@ -2324,7 +2625,7 @@ function ChatContent({
               onHistorySearch: onHistoryOpen
             }
           ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx20("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx20(Loader27, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx20(
+          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx23("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx23(Loader29, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx23(
             ChatStartScreen,
             {
               isAuthenticated,
@@ -2336,8 +2637,8 @@ function ChatContent({
             }
           ) : renderMessages?.({ viewMode }),
           customQuickReplies,
-          viewMode !== "dense" && /* @__PURE__ */ jsx20("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs16("div", { className: "chat-input-floating-box", children: [
-            isUploadActive && uploadFile && /* @__PURE__ */ jsx20(
+          viewMode !== "dense" && /* @__PURE__ */ jsx23("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs17("div", { className: "chat-input-floating-box", children: [
+            isUploadActive && uploadFile && /* @__PURE__ */ jsx23(
               ChatFilePreview,
               {
                 file: uploadFile,
@@ -2346,7 +2647,7 @@ function ChatContent({
                 })
               }
             ),
-            /* @__PURE__ */ jsx20(
+            /* @__PURE__ */ jsx23(
               Composer,
               {
                 message,
@@ -2360,7 +2661,7 @@ function ChatContent({
                 textareaClassName: "chat-textarea"
               }
             ),
-            /* @__PURE__ */ jsx20(
+            /* @__PURE__ */ jsx23(
               ChatToolbar,
               {
                 responseMode,
@@ -2398,7 +2699,7 @@ function ChatContent({
 }
 
 // src/shell/ChatWidget.tsx
-import { jsx as jsx21 } from "react/jsx-runtime";
+import { jsx as jsx24 } from "react/jsx-runtime";
 function ChatWidget({
   chatHook,
   config: customConfig,
@@ -2453,9 +2754,9 @@ function ChatWidget({
   }, [widgetState, messageCount]);
   if (!widgetState.isOpen) {
     if (embedded) return null;
-    return /* @__PURE__ */ jsx21(FloatingButton, { onClick: handleOpen, isMobile });
+    return /* @__PURE__ */ jsx24(FloatingButton, { onClick: handleOpen, isMobile });
   }
-  return /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsx24(
     ChatContent,
     {
       config,
@@ -2510,9 +2811,9 @@ function ChatWidget({
 }
 
 // src/shell/ChatSurface.tsx
-import { jsx as jsx22 } from "react/jsx-runtime";
+import { jsx as jsx25 } from "react/jsx-runtime";
 function ChatSurface(props) {
-  return /* @__PURE__ */ jsx22(
+  return /* @__PURE__ */ jsx25(
     ChatWidget,
     {
       ...props,
@@ -2526,14 +2827,14 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback7,
-  useEffect as useEffect6,
+  useEffect as useEffect7,
   useId,
   useRef as useRef6,
   useState as useState9
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx26, jsxs as jsxs18 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -2566,7 +2867,7 @@ function PersonaSelector({
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback7(() => setIsOpen(false), []);
-  useEffect6(() => {
+  useEffect7(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -2578,7 +2879,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect6(() => {
+  useEffect7(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -2598,7 +2899,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect6(() => {
+  useEffect7(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -2637,11 +2938,11 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx23(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx23("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx26(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx26("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
-  const content = isOpen ? /* @__PURE__ */ jsxs17(
+  const content = isOpen ? /* @__PURE__ */ jsxs18(
     "div",
     {
       ref: contentRef,
@@ -2667,7 +2968,7 @@ function PersonaSelector({
           const badge = renderPersonaBadge?.(persona, ctx);
           const meta = renderPersonaMeta?.(persona);
           const description = getPersonaDescription?.(persona);
-          return /* @__PURE__ */ jsxs17(
+          return /* @__PURE__ */ jsxs18(
             "div",
             {
               role: "option",
@@ -2680,19 +2981,19 @@ function PersonaSelector({
               onKeyDown: handleOptionKeyDown,
               className: `${ITEM_BASE} hover:bg-slate-700/60 ${isSelected ? "bg-purple-500/20 border-purple-500/50 border" : "bg-slate-700/30 border border-transparent"}`,
               children: [
-                /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-2 mb-1", children: [
+                /* @__PURE__ */ jsxs18("div", { className: "flex items-center gap-2 mb-1", children: [
                   renderPersonaIcon?.(persona, ctx),
-                  /* @__PURE__ */ jsx23(
+                  /* @__PURE__ */ jsx26(
                     "span",
                     {
                       className: `font-medium text-sm ${isSelected ? "text-purple-200" : "text-slate-200"}`,
                       children: getPersonaLabel?.(persona) ?? id
                     }
                   ),
-                  isSelected && /* @__PURE__ */ jsx23(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
+                  isSelected && /* @__PURE__ */ jsx26(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
                 ] }),
-                description && /* @__PURE__ */ jsx23("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
-                (badge || meta) && /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                description && /* @__PURE__ */ jsx26("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
+                (badge || meta) && /* @__PURE__ */ jsxs18("div", { className: "flex items-center gap-2 flex-wrap", children: [
                   badge,
                   meta
                 ] })
@@ -2705,8 +3006,8 @@ function PersonaSelector({
       ]
     }
   ) : null;
-  return /* @__PURE__ */ jsxs17("div", { className, "data-persona-root": true, children: [
-    /* @__PURE__ */ jsxs17(
+  return /* @__PURE__ */ jsxs18("div", { className, "data-persona-root": true, children: [
+    /* @__PURE__ */ jsxs18(
       "button",
       {
         ref: triggerRef,
@@ -2720,7 +3021,7 @@ function PersonaSelector({
         className: triggerClassName ?? TRIGGER_DEFAULT,
         children: [
           triggerInner,
-          /* @__PURE__ */ jsx23(
+          /* @__PURE__ */ jsx26(
             ChevronDown,
             {
               className: `h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`
@@ -2734,6 +3035,7 @@ function PersonaSelector({
 }
 export {
   AudioPlayer,
+  AudioVisualizer,
   AutoResizeTextarea,
   BUTTON_SIZES,
   CHAT_BREAKPOINTS,
@@ -2747,6 +3049,7 @@ export {
   ChatWidgetContainer,
   ChatWidgetHeader,
   Composer,
+  ComposerMicSlot,
   CopyButton,
   FloatingButton,
   MessageBubble,
@@ -2756,6 +3059,7 @@ export {
   PulseRings,
   RecordingButton,
   RecordingTimer,
+  RichAudioPlayer,
   STATUS_TEXT_EN,
   STATUS_TEXT_ES,
   SpeakButton,
@@ -2768,12 +3072,15 @@ export {
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  formatPlaybackTime,
   formatRecordingTime,
   glassTheme,
   makeRecorder,
   markdownStyles,
   mergeChatConfig,
   messageStyles,
+  normalizeLevels,
+  resampleLevels,
   useAudioAnalysis,
   useAudioPlayer,
   useBreakpoints,

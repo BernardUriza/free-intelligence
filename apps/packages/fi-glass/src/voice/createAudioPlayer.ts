@@ -84,8 +84,34 @@ export interface AudioPlayerController {
   stop(): void;
   /** Play if paused/idle, pause if playing. */
   toggle(): Promise<void>;
+  /**
+   * Jump to an absolute position in seconds, clamped to [0, duration] (or
+   * [0, seconds] while duration is still unknown). Drives the rich progress
+   * bar / scrubber. No-op after dispose or before a source is loaded.
+   */
+  seek(seconds: number): void;
+  /**
+   * Move the playhead by a relative delta in seconds (negative = rewind),
+   * clamped like `seek`. Powers the "back 10s / forward 10s" controls.
+   */
+  seekBy(deltaSeconds: number): void;
   /** Tear down: detach listeners, pause, release owned URL. Idempotent. */
   dispose(): void;
+}
+
+/**
+ * Clamp an absolute seek target to the valid range. When duration is unknown
+ * (0, metadata not loaded yet) we still forbid negative seeks but allow any
+ * forward value — the element re-clamps once metadata arrives. Pure + exported
+ * so the clamping rule is unit-tested without a player.
+ */
+export function clampSeekTarget(seconds: number, duration: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  const lowerBounded = Math.max(0, seconds);
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.min(lowerBounded, duration);
+  }
+  return lowerBounded;
 }
 
 const INITIAL: AudioPlayerState = {
@@ -262,6 +288,24 @@ export function createAudioPlayer(
     await play();
   }
 
+  function seek(seconds: number): void {
+    if (disposed || !el) return;
+    const target = clampSeekTarget(seconds, state.duration);
+    el.currentTime = target;
+    // 'timeupdate' will also fire, but set it here so a fake/quiet element and
+    // a paused player reflect the new position immediately.
+    setState({ currentTime: target });
+  }
+
+  function seekBy(deltaSeconds: number): void {
+    if (disposed || !el) return;
+    // Read the element's live position (source of truth) rather than the
+    // state snapshot, which only advances on 'timeupdate' (~4Hz) and can lag a
+    // rapid skip click. Falls back to state if the element has no usable value.
+    const base = Number.isFinite(el.currentTime) ? el.currentTime : state.currentTime;
+    seek(base + deltaSeconds);
+  }
+
   function dispose(): void {
     if (disposed) return;
     disposed = true;
@@ -290,6 +334,8 @@ export function createAudioPlayer(
     pause,
     stop,
     toggle,
+    seek,
+    seekBy,
     dispose,
   };
 }

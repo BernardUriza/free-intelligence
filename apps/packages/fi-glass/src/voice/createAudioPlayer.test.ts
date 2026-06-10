@@ -10,7 +10,11 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createAudioPlayer, type AudioElementLike } from './createAudioPlayer';
+import {
+  createAudioPlayer,
+  clampSeekTarget,
+  type AudioElementLike,
+} from './createAudioPlayer';
 
 class FakeAudioElement implements AudioElementLike {
   src = '';
@@ -187,5 +191,80 @@ describe('createAudioPlayer', () => {
     const before = seen.mock.calls.length;
     el.emit('loadedmetadata');
     expect(seen.mock.calls.length).toBe(before);
+  });
+
+  // --- B3-VOICE-FIGLASS-2: seek / seekBy (rich scrubber + skip controls) -----
+
+  it('seek() jumps to an absolute position within duration', () => {
+    const { el, player } = harness();
+    player.load(fakeBlob());
+    el.duration = 30;
+    el.emit('loadedmetadata');
+    player.seek(12);
+    expect(el.currentTime).toBe(12);
+    expect(player.getState().currentTime).toBe(12);
+  });
+
+  it('seek() clamps above duration and below zero', () => {
+    const { el, player } = harness();
+    player.load(fakeBlob());
+    el.duration = 20;
+    el.emit('loadedmetadata');
+    player.seek(999);
+    expect(player.getState().currentTime).toBe(20);
+    player.seek(-5);
+    expect(player.getState().currentTime).toBe(0);
+  });
+
+  it('seekBy() moves relative to the current position and clamps at the end', () => {
+    const { el, player } = harness();
+    player.load(fakeBlob());
+    el.duration = 30;
+    el.emit('loadedmetadata');
+    player.seek(10);
+    player.seekBy(10); // 20
+    expect(player.getState().currentTime).toBe(20);
+    player.seekBy(-15); // 5
+    expect(player.getState().currentTime).toBe(5);
+    player.seekBy(1000); // clamp -> 30
+    expect(player.getState().currentTime).toBe(30);
+  });
+
+  it('seekBy() reads the element live position, not a stale state snapshot', () => {
+    const { el, player } = harness();
+    player.load(fakeBlob());
+    el.duration = 60;
+    el.emit('loadedmetadata');
+    // Element advances but no 'timeupdate' fired -> state.currentTime stays stale at 0.
+    el.currentTime = 25;
+    expect(player.getState().currentTime).toBe(0); // snapshot is behind
+    player.seekBy(10);
+    // Must jump from the live 25, not the stale 0.
+    expect(el.currentTime).toBe(35);
+    expect(player.getState().currentTime).toBe(35);
+  });
+
+  it('seek() is a no-op before a source loads and after dispose', () => {
+    const { el, player } = harness();
+    player.seek(5); // no element yet
+    expect(player.getState().currentTime).toBe(0);
+    player.load(fakeBlob());
+    player.dispose();
+    player.seek(5);
+    expect(el.currentTime).toBe(0);
+  });
+});
+
+describe('clampSeekTarget', () => {
+  it('forbids negatives and non-finite, clamps to duration when known', () => {
+    expect(clampSeekTarget(-3, 10)).toBe(0);
+    expect(clampSeekTarget(NaN, 10)).toBe(0);
+    expect(clampSeekTarget(5, 10)).toBe(5);
+    expect(clampSeekTarget(50, 10)).toBe(10);
+  });
+
+  it('allows any forward value while duration is unknown (0)', () => {
+    expect(clampSeekTarget(120, 0)).toBe(120);
+    expect(clampSeekTarget(-1, 0)).toBe(0);
   });
 });
