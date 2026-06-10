@@ -60,6 +60,8 @@ from insult.cogs.chat.pipeline import (
     Stage,
     TurnCtx,
 )
+from insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
+from insult.cogs.chat.remembers import parse_remembers, persist_remembers, strip_remembers
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
@@ -88,8 +90,6 @@ from insult.core.presets import (
     is_vulnerable_overlay_selection,
 )
 from insult.core.presets_llm import classify_preset_llm
-from insult.core.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
-from insult.core.remembers import parse_remembers, persist_remembers, strip_remembers
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.stance_log import build_stance_prompt
