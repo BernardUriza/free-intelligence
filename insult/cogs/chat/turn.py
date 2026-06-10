@@ -26,14 +26,12 @@ keep their existing vocabulary while logs gain typed structure.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
 
 import discord
 import structlog
 
 from insult.cogs.chat.pipeline import TurnCtx, TurnRuntimeDeps, run_pipeline
 from insult.cogs.chat.stages import DEFAULT_STAGES
-from insult.core.routing import OpusBudget
 
 log = structlog.get_logger()
 
@@ -53,33 +51,20 @@ async def run_turn(
     text: str,
     *,
     turn_start: float,
-    memory,
-    settings,
-    bot,
-    expression_history,
-    opus_budget: OpusBudget,
-    spawn_task: Callable[..., None],
-    all_tools: list,
-    agent_client=None,
-    judge_client=None,
+    deps: TurnRuntimeDeps,
 ) -> str:
     """Execute one full turn. Returns an outcome string for
-    ``chat_turn_end``. See module docstring for the outcome vocabulary."""
+    ``chat_turn_end``. See module docstring for the outcome vocabulary.
+
+    ``deps`` is the host-wired runtime assembled at the composition edge
+    (the cog, from ``app.Container`` + its own task-spawner); this entry
+    point just seeds it into the ``TurnCtx`` and runs the pipeline.
+    """
     ctx = TurnCtx(
         message=message,
         text=text,
         turn_start=turn_start,
-        deps=TurnRuntimeDeps(
-            memory=memory,
-            settings=settings,
-            bot=bot,
-            expression_history=expression_history,
-            opus_budget=opus_budget,
-            spawn_task=spawn_task,
-            all_tools=all_tools,
-            agent_client=agent_client,
-            judge_client=judge_client,
-        ),
+        deps=deps,
     )
 
     result = await run_pipeline(ctx, DEFAULT_STAGES)
