@@ -250,7 +250,19 @@ interface AgentConversationSurfaceProps {
     voiceVisualizerClassName?: string;
     /** Per-bar class for the live dictation visualizer. */
     voiceVisualizerBarClassName?: string;
+    /**
+     * Render an explicit send button in the composer row (in addition to
+     * Enter-to-send). Default true — a visible affordance matches the shell
+     * composer (AURITY). Set false for an Enter-only composer.
+     */
+    showSendButton?: boolean;
+    /** Class for the send button. */
+    sendButtonClassName?: string;
+    /** Class for the send button icon. */
+    sendButtonIconClassName?: string;
+    /** aria-label for the send button. Default: "Enviar mensaje". */
+    sendLabel?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

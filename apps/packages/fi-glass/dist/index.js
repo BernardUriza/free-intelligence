@@ -264,6 +264,7 @@ function AutoResizeTextarea({
   showCounter = false,
   maxLength,
   wrapperClassName = "",
+  wrapperStyle,
   className = "",
   ...props
 }) {
@@ -280,11 +281,12 @@ function AutoResizeTextarea({
     );
     setRows(newRows);
     textarea.style.height = `${newRows * lineHeight}px`;
+    textarea.style.width = "100%";
   }, [value, maxRows]);
   const charCount = typeof value === "string" ? value.length : 0;
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
-  return /* @__PURE__ */ jsxs4("div", { className: `relative ${wrapperClassName}`, children: [
+  return /* @__PURE__ */ jsxs4("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
     /* @__PURE__ */ jsx5(
       "textarea",
       {
@@ -319,6 +321,7 @@ function Composer({
   maxRows = 5,
   areaClassName,
   wrapperClassName,
+  wrapperStyle,
   textareaClassName
 }) {
   const handleKeyDown = (e) => {
@@ -338,6 +341,7 @@ function Composer({
       maxRows,
       showCounter: false,
       wrapperClassName,
+      wrapperStyle,
       className: textareaClassName
     }
   ) });
