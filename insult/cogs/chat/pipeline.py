@@ -217,6 +217,57 @@ class S2KnowledgeAssemblyResult:
     other_people_block: str | None = None
 
 
+@dataclass
+class S4OutputInterpretationInput:
+    """S4 (Output Interpretation) dependency surface.
+
+    Declares the minimal context the post-LLM interpretation needs to turn the
+    model's raw text into the deliverable response + side-channel markers,
+    instead of handing it the whole ``TurnCtx``. The interpreter owns no state
+    and reads nothing — every value it needs is captured here at the call site.
+
+    - ``raw_text``: the model's verbatim output (before any mutation).
+    - ``user_text``: the originating user message — only ``strip_echoed_quotes``
+      consumes it (to detect quoted-back fragments).
+    - ``recent_openers`` / ``recent_response_lengths``: the anti-repetition
+      windows feeding ``deduplicate_opener`` / ``enforce_length_variation``.
+    - ``intent_unattended``: whether a reminder intent went unhandled this turn,
+      which appends the in-character "no agendé recordatorio" tail.
+    """
+
+    raw_text: str
+    user_text: str
+    recent_openers: list = field(default_factory=list)
+    recent_response_lengths: list = field(default_factory=list)
+    intent_unattended: bool = False
+
+
+@dataclass
+class S4OutputInterpretationResult:
+    """The interpreted post-LLM output, split into its delivery + side channels.
+
+    S4 owns neither persistence nor delivery — it parses and mutates the raw
+    text and bundles the results. The stage applies the side effects (spawning
+    the ``persist_remembers`` task, setting ``ctx`` fields, logging). Behavior is
+    identical to the inline post-LLM block this replaces (same parsers, same
+    mutation order, same orphan-emoji harvest).
+
+    - ``response_text``: the final, mutation-applied text to deliver.
+    - ``reactions``: the emoji reactions to fire (parsed markers + harvested
+      inline orphans).
+    - ``remembered_facts``: facts parsed from ``[REMEMBER:]`` markers, handed
+      back for the stage to persist (parsing here, persistence in the stage).
+    - ``emojis_harvested_inline``: count of inline emojis rescued into
+      ``reactions`` despite the model ignoring the ``[REACT:]`` wrapper — kept
+      for telemetry parity with the legacy ``stage_post_llm_done`` event.
+    """
+
+    response_text: str = ""
+    reactions: list = field(default_factory=list)
+    remembered_facts: list = field(default_factory=list)
+    emojis_harvested_inline: int = 0
+
+
 async def run_pipeline(ctx: TurnCtx, stages: list[Stage]) -> PipelineResult:
     """Execute stages sequentially. ``BACKGROUND`` stages are spawned
     via ``ctx.spawn_task`` and the pipeline moves on immediately.
