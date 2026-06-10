@@ -183,4 +183,22 @@ describe('og118VoiceAdapter.transcribe', () => {
     expect(err.code).toBe('STT_NETWORK');
     expect(err.status).toBeNull();
   });
+
+  it('maps a non-JSON 2xx body to an explicit STT_BAD_RESPONSE instead of a SyntaxError', async () => {
+    // A 200 whose body is not JSON (e.g. a proxy HTML page) must not bubble up
+    // as a bare SyntaxError; it funnels through Og118STTError like every other
+    // failure so the UI's onVoiceError path stays uniform.
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response('<html>not json</html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }),
+    );
+    const adapter = adapterWith(fetchImpl as unknown as typeof fetch);
+    const err = await adapter.transcribe!(chunk()).catch((e) => e);
+    expect(err).toBeInstanceOf(Og118STTError);
+    expect(err.code).toBe('STT_BAD_RESPONSE');
+    expect(err.status).toBe(200);
+  });
 });

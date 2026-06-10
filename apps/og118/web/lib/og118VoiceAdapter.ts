@@ -224,7 +224,20 @@ export function createOg118VoiceAdapter(deps: Og118VoiceAdapterDeps = {}): Voice
         );
       }
 
-      const data = (await res.json()) as { text?: string };
+      // A 2xx with a non-JSON body would otherwise throw a bare SyntaxError;
+      // funnel it through the same explicit-error path as a network failure so
+      // the UI always sees an Og118STTError, never a raw parse rejection.
+      let data: { text?: string };
+      try {
+        data = (await res.json()) as { text?: string };
+      } catch (err) {
+        throw new Og118STTError(
+          'El servicio de transcripción devolvió una respuesta inválida.',
+          'STT_BAD_RESPONSE',
+          res.status,
+          { cause: err },
+        );
+      }
       return { text: data.text ?? '' };
     },
   };
