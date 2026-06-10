@@ -12,10 +12,11 @@
  * and copy props.
  */
 
-import { useState, type ReactNode } from 'react';
-import type { ChatMessage } from '@free-intelligence/core';
+import { useRef, useState, type ReactNode } from 'react';
+import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
+import { ComposerMicSlot, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import type { AgentConversation } from './useAgentConversation';
 
@@ -69,6 +70,26 @@ export interface AgentConversationSurfaceProps {
    * class, so it never throws.
    */
   messageBubbleClassName?: string | ((message: ChatMessage) => string | undefined);
+  /**
+   * The app's voice engine. When it exposes `transcribe`, the surface lights up
+   * an in-composer dictation mic and feeds the recognized text straight into the
+   * composer — no consumer wiring, exactly how a `synthesize`-capable adapter
+   * lights up the SpeakButton. Omit it (or pass one without `transcribe`) and
+   * there is no mic at all (backward-compatible default).
+   *
+   * B3-VOICE-FIGLASS-4: the STT canary (og118) revealed the surface owned the
+   * composer's text state with no way to receive dictated text. Rather than
+   * thread a callback, the surface consumes the VoiceAdapter capability — the
+   * pattern core prescribes ("add a capability via an adapter member, never by
+   * threading a new callback through the components").
+   */
+  voiceAdapter?: VoiceAdapter;
+  /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
+  micSlotClassName?: string;
+  /** Class for the dictation mic button. */
+  micButtonClassName?: string;
+  /** Called on a recording/transcription failure surfaced by dictation. */
+  onVoiceError?: (message: string) => void;
 }
 
 export function AgentConversationSurface({
@@ -85,9 +106,31 @@ export function AgentConversationSurface({
   renderBadge,
   renderActions,
   messageBubbleClassName,
+  voiceAdapter,
+  micSlotClassName,
+  micButtonClassName,
+  onVoiceError,
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState('');
+
+  // Dictation (STT) — only live when the adapter can transcribe. The composer
+  // text typed before recording is captured as a prefix so dictation appends to
+  // it instead of clobbering it. useDictation is a no-op without `transcribe`,
+  // so calling it unconditionally (hooks rule) is safe.
+  const micAvailable = typeof voiceAdapter?.transcribe === 'function';
+  const baseInputRef = useRef('');
+  const dictation = useDictation(voiceAdapter, {
+    onTranscriptUpdate: (full) => {
+      const base = baseInputRef.current;
+      setInput(base ? `${base} ${full}` : full);
+    },
+    onError: onVoiceError,
+  });
+  const startDictation = () => {
+    baseInputRef.current = input;
+    void dictation.startRecording();
+  };
 
   // Resolve the per-bubble class. A string applies to every role (legacy); a
   // function lets the consumer vary it per message/role. Returning undefined
@@ -178,15 +221,30 @@ export function AgentConversationSurface({
           </div>
         )}
         {aboveComposer}
-        <Composer
-          message={input}
-          loading={isStreaming}
-          placeholder={composerPlaceholder}
-          onMessageChange={setInput}
-          onSend={onSend}
-          areaClassName={composerAreaClassName}
-          textareaClassName={composerTextareaClassName}
-        />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: micAvailable ? 8 : 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Composer
+              message={input}
+              loading={isStreaming}
+              placeholder={composerPlaceholder}
+              onMessageChange={setInput}
+              onSend={onSend}
+              areaClassName={composerAreaClassName}
+              textareaClassName={composerTextareaClassName}
+            />
+          </div>
+          {micAvailable && (
+            <ComposerMicSlot
+              available
+              recording={dictation.isRecording}
+              busy={dictation.isTranscribing}
+              onStart={startDictation}
+              onStop={() => void dictation.stopRecording()}
+              className={micSlotClassName}
+              buttonClassName={micButtonClassName}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

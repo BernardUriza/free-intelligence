@@ -104,3 +104,61 @@ describe('<AgentConversationSurface> messageBubbleClassName', () => {
     expect(html).not.toContain('undefined');
   });
 });
+
+describe('<AgentConversationSurface> voiceAdapter dictation (B3-VOICE-FIGLASS-4)', () => {
+  const synthesizeOnly = {
+    defaultVoice: 'nova',
+    availableVoices: [],
+    synthesize: async () => new Blob(),
+  };
+  const withTranscribe = {
+    ...synthesizeOnly,
+    transcribe: async () => ({ text: '' }),
+  };
+
+  it('renders no dictation mic when no voiceAdapter is passed (backward-compatible)', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    // The ComposerMicSlot is the only thing that carries data-available; absent
+    // when no adapter → no mic in the composer at all.
+    expect(html).not.toContain('data-available');
+  });
+
+  it('renders no mic when the adapter lacks a transcribe capability', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        voiceAdapter={synthesizeOnly}
+      />
+    );
+    // synthesize-only adapter → STT not available → mic is capability-gated out.
+    expect(html).not.toContain('data-available');
+  });
+
+  it('lights up an available dictation mic when the adapter can transcribe', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        voiceAdapter={withTranscribe}
+        micSlotClassName="og-mic-slot"
+      />
+    );
+    // transcribe present → the in-composer mic renders, enabled, and the
+    // consumer's style hook lands on it.
+    expect(html).toContain('data-available');
+    expect(html).toContain('og-mic-slot');
+  });
+
+  it('does not throw when rendering an empty thread with dictation enabled', () => {
+    const render = () =>
+      renderToStaticMarkup(
+        <AgentConversationSurface
+          conversation={{ ...makeConversation([]), turn: { ...idleTurn, status: 'thinking' } as AgentConversation['turn'] }}
+          voiceAdapter={withTranscribe}
+          emptyState={<div>start</div>}
+        />
+      );
+    expect(render).not.toThrow();
+  });
+});

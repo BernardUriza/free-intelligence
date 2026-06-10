@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
 /**
@@ -221,7 +221,27 @@ interface AgentConversationSurfaceProps {
      * class, so it never throws.
      */
     messageBubbleClassName?: string | ((message: ChatMessage) => string | undefined);
+    /**
+     * The app's voice engine. When it exposes `transcribe`, the surface lights up
+     * an in-composer dictation mic and feeds the recognized text straight into the
+     * composer — no consumer wiring, exactly how a `synthesize`-capable adapter
+     * lights up the SpeakButton. Omit it (or pass one without `transcribe`) and
+     * there is no mic at all (backward-compatible default).
+     *
+     * B3-VOICE-FIGLASS-4: the STT canary (og118) revealed the surface owned the
+     * composer's text state with no way to receive dictated text. Rather than
+     * thread a callback, the surface consumes the VoiceAdapter capability — the
+     * pattern core prescribes ("add a capability via an adapter member, never by
+     * threading a new callback through the components").
+     */
+    voiceAdapter?: VoiceAdapter;
+    /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
+    micSlotClassName?: string;
+    /** Class for the dictation mic button. */
+    micButtonClassName?: string;
+    /** Called on a recording/transcription failure surfaced by dictation. */
+    onVoiceError?: (message: string) => void;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

@@ -440,7 +440,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useState as useState5 } from "react";
+import { useRef as useRef6, useState as useState9 } from "react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -755,8 +755,536 @@ var MessageBubble = memo3(function MessageBubble2({
 // src/messages/MessageList.tsx
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 
+// src/voice/recording/RecordingButton.tsx
+import { forwardRef } from "react";
+import { Loader2 } from "lucide-react";
+
+// src/voice/recording/types.ts
+var BUTTON_SIZES = {
+  sm: {
+    button: "rec-btn-sm",
+    icon: "rec-icon-sm",
+    ring: "rec-ring-sm"
+  },
+  md: {
+    button: "rec-btn-md",
+    icon: "rec-icon-md",
+    ring: "rec-ring-md"
+  },
+  lg: {
+    button: "rec-btn-lg",
+    icon: "rec-icon-lg",
+    ring: "rec-ring-lg"
+  },
+  xl: {
+    button: "rec-btn-xl",
+    icon: "rec-icon-xl",
+    ring: "rec-ring-xl"
+  }
+};
+
+// src/voice/recording/RecordingButton.tsx
+import { jsx as jsx11 } from "react/jsx-runtime";
+var RecordingButton = forwardRef(
+  function RecordingButton2({
+    size = "md",
+    bgColor,
+    icon: Icon,
+    iconSpin = false,
+    iconColor = "rec-icon-white",
+    disabled = false,
+    onClick,
+    ariaLabel,
+    className = "",
+    borderStyle = "",
+    animate = ""
+  }, ref) {
+    const sizeConfig = BUTTON_SIZES[size];
+    const DisplayIcon = iconSpin ? Loader2 : Icon;
+    return /* @__PURE__ */ jsx11(
+      "button",
+      {
+        ref,
+        onClick,
+        disabled,
+        "aria-label": ariaLabel,
+        className: `fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? "rec-btn-disabled" : "rec-btn-enabled"} ${className}`,
+        children: /* @__PURE__ */ jsx11(
+          DisplayIcon,
+          {
+            className: `${sizeConfig.icon} ${iconColor} ${iconSpin ? "rec-icon-spin" : ""}`
+          }
+        )
+      }
+    );
+  }
+);
+
+// src/voice/recording/PulseRings.tsx
+import { motion } from "framer-motion";
+import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+
+// src/voice/recording/RecordingTimer.tsx
+import { motion as motion2 } from "framer-motion";
+import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+
+// src/voice/recording/StatusText.tsx
+import { Loader2 as Loader22 } from "lucide-react";
+import { motion as motion3 } from "framer-motion";
+import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+
+// src/voice/VoiceMicButton.tsx
+import { Mic, Square, Loader2 as Loader23 } from "lucide-react";
+import { motion as motion4 } from "framer-motion";
+import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+
+// src/voice/SpeakButton.tsx
+import { Volume2 } from "lucide-react";
+import { jsx as jsx16 } from "react/jsx-runtime";
+
+// src/voice/useAudioPlayer.ts
+import { useEffect as useEffect4, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
+
+// src/voice/AudioPlayer.tsx
+import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { useEffect as useEffect5 } from "react";
+import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+
+// src/voice/RichAudioPlayer.tsx
+import {
+  Play as Play2,
+  Pause as Pause2,
+  Square as Square3,
+  Loader2 as Loader25,
+  AlertCircle as AlertCircle2,
+  RotateCcw,
+  RotateCw
+} from "lucide-react";
+import { useEffect as useEffect6 } from "react";
+import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
+
+// src/voice/AudioVisualizer.tsx
+import { jsx as jsx19 } from "react/jsx-runtime";
+
+// src/voice/ComposerMicSlot.tsx
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { jsx as jsx20 } from "react/jsx-runtime";
+var ICON = "w-4 h-4";
+var BTN = "p-2 disabled:opacity-40";
+function ComposerMicSlot({
+  available = false,
+  recording = false,
+  busy = false,
+  onStart,
+  onStop,
+  unavailableLabel = "Dictado por voz no disponible todav\xEDa",
+  startLabel = "Iniciar dictado por voz",
+  stopLabel = "Detener dictado por voz",
+  busyLabel = "Transcribiendo\u2026",
+  className,
+  buttonClassName,
+  iconClassName
+}) {
+  const btnClass = buttonClassName ?? BTN;
+  const iconClass = iconClassName ?? ICON;
+  const disabled = !available || busy;
+  const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
+  const handleClick = () => {
+    if (disabled) return;
+    if (recording) onStop?.();
+    else onStart?.();
+  };
+  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  return /* @__PURE__ */ jsx20("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx20(
+    "button",
+    {
+      type: "button",
+      onClick: handleClick,
+      disabled,
+      "aria-disabled": disabled,
+      "aria-pressed": available ? recording : void 0,
+      "aria-label": label,
+      title: !available ? unavailableLabel : void 0,
+      className: btnClass,
+      children: /* @__PURE__ */ jsx20(
+        Icon,
+        {
+          className: busy ? `${iconClass} animate-spin` : iconClass,
+          "aria-hidden": true
+        }
+      )
+    }
+  ) });
+}
+
+// src/voice/useVoice.ts
+import { useCallback as useCallback3, useState as useState5 } from "react";
+
+// src/voice/useDictation.ts
+import { useCallback as useCallback5, useState as useState8 } from "react";
+
+// src/voice/useRecorder.ts
+import { useState as useState6, useRef as useRef4, useCallback as useCallback4 } from "react";
+
+// src/voice/makeRecorder.ts
+async function makeRecorder(stream, onChunk, opts) {
+  const timeSlice = opts?.timeSlice;
+  const channels = opts?.channels ?? 1;
+  const mod = await import("recordrtc");
+  const RecordRTC = mod.default ?? mod;
+  if (!RecordRTC) {
+    throw new Error("[makeRecorder] RecordRTC library not available");
+  }
+  const mimeType = "audio/wav";
+  let currentRecorder = null;
+  let loopTimer = null;
+  let isActive = false;
+  const createRecorder = () => {
+    return new RecordRTC(stream, {
+      type: "audio",
+      recorderType: RecordRTC.StereoAudioRecorder,
+      mimeType,
+      numberOfAudioChannels: channels,
+      desiredSampRate: opts?.sampleRate ?? 16e3,
+      disableLogs: true
+    });
+  };
+  const startLoop = async () => {
+    if (!isActive) return;
+    currentRecorder = createRecorder();
+    currentRecorder.startRecording();
+    if (timeSlice && timeSlice > 0) {
+      loopTimer = setTimeout(async () => {
+        if (!currentRecorder || !isActive) return;
+        currentRecorder.stopRecording(() => {
+          if (!isActive) return;
+          const blob = currentRecorder.getBlob();
+          if (blob && blob.size > 0) {
+            onChunk(blob);
+          }
+          if (isActive) {
+            startLoop();
+          }
+        });
+      }, timeSlice);
+    }
+  };
+  return {
+    start: () => {
+      isActive = true;
+      startLoop();
+    },
+    stop: () => new Promise((resolve) => {
+      isActive = false;
+      if (loopTimer) {
+        clearTimeout(loopTimer);
+        loopTimer = null;
+      }
+      if (currentRecorder) {
+        currentRecorder.stopRecording(() => {
+          const finalBlob = currentRecorder.getBlob();
+          resolve(finalBlob);
+        });
+      } else {
+        resolve(new Blob([], { type: mimeType }));
+      }
+    }),
+    kind: "recordrtc"
+  };
+}
+
+// src/voice/useRecorder.ts
+var log = {
+  error: (_m, _meta) => {
+    void _m;
+    void _meta;
+  },
+  warn: (_m, _meta) => {
+    void _m;
+    void _meta;
+  }
+};
+function useRecorder(config) {
+  const {
+    onChunk,
+    onError,
+    timeSlice = 3e3,
+    sampleRate = 16e3,
+    channels = 1,
+    externalStream = null,
+    deviceId = null
+  } = config;
+  const [isRecording, setIsRecording] = useState6(false);
+  const [recordingTime, setRecordingTime] = useState6(0);
+  const [fullAudioBlob, setFullAudioBlob] = useState6(null);
+  const [fullAudioUrl, setFullAudioUrl] = useState6(null);
+  const [currentStream, setCurrentStream] = useState6(null);
+  const recorderRef = useRef4(null);
+  const continuousRecorderRef = useRef4(null);
+  const currentStreamRef = useRef4(null);
+  const recordingTimerRef = useRef4(null);
+  const fullAudioUrlRef = useRef4(null);
+  const chunkNumberRef = useRef4(0);
+  const startRecording = useCallback4(async () => {
+    try {
+      chunkNumberRef.current = 0;
+      setRecordingTime(0);
+      setFullAudioBlob(null);
+      if (fullAudioUrlRef.current) {
+        URL.revokeObjectURL(fullAudioUrlRef.current);
+        fullAudioUrlRef.current = null;
+        setFullAudioUrl(null);
+      }
+      let stream;
+      if (externalStream) {
+        stream = externalStream;
+      } else {
+        try {
+          const timeoutMs = 15e3;
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new Error(
+                "Microphone permission timeout (15s). Check: 1) macOS System Preferences \u2192 Privacy \u2192 Microphone has your browser enabled, 2) Restart browser after granting permission"
+              ));
+            }, timeoutMs);
+          });
+          const audioConstraints = deviceId ? { deviceId: { exact: deviceId } } : true;
+          stream = await Promise.race([
+            navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
+            timeoutPromise
+          ]);
+        } catch (micError) {
+          log.error("Microphone access failed", { error: String(micError) });
+          throw micError;
+        }
+      }
+      currentStreamRef.current = stream;
+      setCurrentStream(stream);
+      const chunkedRecorder = await makeRecorder(
+        stream,
+        async (blob) => {
+          const chunkNumber = chunkNumberRef.current++;
+          await onChunk(blob, chunkNumber);
+        },
+        {
+          timeSlice,
+          sampleRate,
+          channels
+        }
+      );
+      recorderRef.current = chunkedRecorder;
+      chunkedRecorder.start();
+      const continuousRecorder = await makeRecorder(
+        stream,
+        () => {
+        },
+        // Empty callback - blob comes from .stop() return value
+        {
+          // NO timeSlice = records continuously until stop()
+          sampleRate,
+          channels
+        }
+      );
+      continuousRecorderRef.current = continuousRecorder;
+      continuousRecorder.start();
+      setIsRecording(true);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1e3);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "No se pudo acceder al micr\xF3fono. Por favor, verifica los permisos.";
+      log.error("Start failed", { error: String(err) });
+      if (onError) {
+        onError(errorMessage);
+      }
+    }
+  }, [onChunk, onError, timeSlice, sampleRate, channels, externalStream, deviceId]);
+  const stopRecording = useCallback4(async () => {
+    try {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setIsRecording(false);
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        currentStreamRef.current = null;
+        setCurrentStream(null);
+      }
+      let fullBlob = null;
+      if (continuousRecorderRef.current) {
+        try {
+          fullBlob = await continuousRecorderRef.current.stop();
+          if (fullBlob && fullBlob.size > 0) {
+            if (fullAudioUrlRef.current) {
+              URL.revokeObjectURL(fullAudioUrlRef.current);
+            }
+            const audioUrl = URL.createObjectURL(fullBlob);
+            fullAudioUrlRef.current = audioUrl;
+            setFullAudioUrl(audioUrl);
+            setFullAudioBlob(fullBlob);
+          }
+        } catch (err) {
+          log.warn("Continuous recorder stop error (non-critical)", { error: String(err) });
+        }
+        continuousRecorderRef.current = null;
+      }
+      if (recorderRef.current) {
+        try {
+          const lastChunk = await recorderRef.current.stop();
+          if (lastChunk && lastChunk.size > 0) {
+            const finalChunkNumber = chunkNumberRef.current++;
+            try {
+              const result = onChunk(lastChunk, finalChunkNumber);
+              if (result instanceof Promise) {
+                result.catch((err) => {
+                  log.error("Final chunk processing failed", { error: String(err) });
+                });
+              }
+            } catch (err) {
+              log.error("Final chunk processing failed", { error: String(err) });
+            }
+          }
+        } catch (err) {
+          log.warn("Chunked recorder stop error (non-critical)", { error: String(err) });
+        }
+        recorderRef.current = null;
+      }
+      return fullBlob;
+    } catch (err) {
+      log.error("Stop failed", { error: String(err) });
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => track.stop());
+        currentStreamRef.current = null;
+        setCurrentStream(null);
+      }
+      setIsRecording(false);
+      if (onError) {
+        onError(err instanceof Error ? err.message : "Error al detener grabaci\xF3n");
+      }
+      return null;
+    }
+  }, [onChunk, onError]);
+  return {
+    isRecording,
+    recordingTime,
+    currentStream,
+    fullAudioBlob,
+    fullAudioUrl,
+    startRecording,
+    stopRecording
+  };
+}
+
+// src/voice/useAudioAnalysis.ts
+import { useState as useState7, useRef as useRef5, useEffect as useEffect7 } from "react";
+var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
+function useAudioAnalysis(stream, config) {
+  const {
+    silenceThreshold = AUDIO_CONFIG.SILENCE_THRESHOLD,
+    gain = AUDIO_CONFIG.AUDIO_GAIN,
+    isActive
+  } = config;
+  const [audioLevel, setAudioLevel] = useState7(0);
+  const analyserRef = useRef5(null);
+  const audioContextRef = useRef5(null);
+  const animationFrameRef = useRef5(null);
+  const isSilent = audioLevel < silenceThreshold;
+  useEffect7(() => {
+    if (!stream || !isActive) {
+      setAudioLevel(0);
+      return;
+    }
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const gainNode = audioContext.createGain();
+    const source = audioContext.createMediaStreamSource(stream);
+    gainNode.gain.value = gain;
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    source.connect(gainNode);
+    gainNode.connect(analyser);
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const updateLevel = () => {
+      if (!analyserRef.current) return;
+      analyserRef.current.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      setAudioLevel(average);
+      animationFrameRef.current = requestAnimationFrame(updateLevel);
+    };
+    updateLevel();
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [stream, isActive, gain, silenceThreshold]);
+  return { audioLevel, isSilent };
+}
+
+// src/voice/useDictation.ts
+function useDictation(adapter, opts = {}) {
+  const { timeSliceMs = 3e4, deviceId = null, onTranscriptUpdate, onError } = opts;
+  const [liveTranscript, setLiveTranscript] = useState8("");
+  const [isTranscribing, setIsTranscribing] = useState8(false);
+  const handleChunk = useCallback5(
+    async (blob, chunkNumber) => {
+      if (!adapter?.transcribe) return;
+      setIsTranscribing(true);
+      try {
+        const { text } = await adapter.transcribe(blob, { index: chunkNumber });
+        if (text) {
+          setLiveTranscript((prev) => {
+            const updated = prev ? `${prev} ${text}` : text;
+            onTranscriptUpdate?.(updated);
+            return updated;
+          });
+        }
+      } catch (err) {
+        onError?.(err instanceof Error ? err.message : "transcription failed");
+      } finally {
+        setIsTranscribing(false);
+      }
+    },
+    [adapter, onTranscriptUpdate, onError]
+  );
+  const { isRecording, recordingTime, currentStream, startRecording, stopRecording } = useRecorder({
+    onChunk: handleChunk,
+    onError,
+    timeSlice: timeSliceMs,
+    deviceId
+  });
+  const { audioLevel, isSilent } = useAudioAnalysis(currentStream, {
+    isActive: isRecording
+  });
+  const start = useCallback5(async () => {
+    setLiveTranscript("");
+    await startRecording();
+  }, [startRecording]);
+  const stop = useCallback5(async () => {
+    await stopRecording();
+  }, [stopRecording]);
+  return {
+    isRecording,
+    recordingTime,
+    audioLevel,
+    isSilent,
+    liveTranscript,
+    isTranscribing,
+    startRecording: start,
+    stopRecording: stop
+  };
+}
+
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 function AgentConversationSurface({
   conversation,
   composerPlaceholder,
@@ -770,10 +1298,27 @@ function AgentConversationSurface({
   renderHeader,
   renderBadge,
   renderActions,
-  messageBubbleClassName
+  messageBubbleClassName,
+  voiceAdapter,
+  micSlotClassName,
+  micButtonClassName,
+  onVoiceError
 }) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
-  const [input, setInput] = useState5("");
+  const [input, setInput] = useState9("");
+  const micAvailable = typeof voiceAdapter?.transcribe === "function";
+  const baseInputRef = useRef6("");
+  const dictation = useDictation(voiceAdapter, {
+    onTranscriptUpdate: (full) => {
+      const base = baseInputRef.current;
+      setInput(base ? `${base} ${full}` : full);
+    },
+    onError: onVoiceError
+  });
+  const startDictation = () => {
+    baseInputRef.current = input;
+    void dictation.startRecording();
+  };
   const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
   const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
   const hasThread = messages.length > 0 || isStreaming;
@@ -783,22 +1328,22 @@ function AgentConversationSurface({
     setInput("");
     send(t);
   };
-  return /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
-    /* @__PURE__ */ jsx11("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: idle ? emptyState : /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-      messages.map((m, i) => /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
+    /* @__PURE__ */ jsx21("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: idle ? emptyState : /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+      messages.map((m, i) => /* @__PURE__ */ jsx21(
         MessageBubble,
         {
           role: m.role,
           header: renderHeader?.(m),
           badge: renderBadge?.(m),
-          actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx11(CopyButton, { content: m.content }) : void 0),
+          actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx21(CopyButton, { content: m.content }) : void 0),
           className: resolveBubbleClass(m),
-          children: /* @__PURE__ */ jsx11(MessageContent, { isUser: m.role === "user", content: m.content })
+          children: /* @__PURE__ */ jsx21(MessageContent, { isUser: m.role === "user", content: m.content })
         },
         i
       )),
-      isStreaming && /* @__PURE__ */ jsx11(AgentPanel, { turn, ...agentPanelProps }),
-      isStreaming && turn.text && /* @__PURE__ */ jsx11(
+      isStreaming && /* @__PURE__ */ jsx21(AgentPanel, { turn, ...agentPanelProps }),
+      isStreaming && turn.text && /* @__PURE__ */ jsx21(
         MessageBubble,
         {
           role: "assistant",
@@ -807,12 +1352,12 @@ function AgentConversationSurface({
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx11(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx21(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] }) }),
-    /* @__PURE__ */ jsxs9("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
-      hasThread && /* @__PURE__ */ jsx11("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx11(
+    /* @__PURE__ */ jsxs15("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
+      hasThread && /* @__PURE__ */ jsx21("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx21(
         "button",
         {
           onClick: newConversation,
@@ -831,18 +1376,32 @@ function AgentConversationSurface({
         }
       ) }),
       aboveComposer,
-      /* @__PURE__ */ jsx11(
-        Composer,
-        {
-          message: input,
-          loading: isStreaming,
-          placeholder: composerPlaceholder,
-          onMessageChange: setInput,
-          onSend,
-          areaClassName: composerAreaClassName,
-          textareaClassName: composerTextareaClassName
-        }
-      )
+      /* @__PURE__ */ jsxs15("div", { style: { display: "flex", alignItems: "flex-end", gap: micAvailable ? 8 : 0 }, children: [
+        /* @__PURE__ */ jsx21("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx21(
+          Composer,
+          {
+            message: input,
+            loading: isStreaming,
+            placeholder: composerPlaceholder,
+            onMessageChange: setInput,
+            onSend,
+            areaClassName: composerAreaClassName,
+            textareaClassName: composerTextareaClassName
+          }
+        ) }),
+        micAvailable && /* @__PURE__ */ jsx21(
+          ComposerMicSlot,
+          {
+            available: true,
+            recording: dictation.isRecording,
+            busy: dictation.isTranscribing,
+            onStart: startDictation,
+            onStop: () => void dictation.stopRecording(),
+            className: micSlotClassName,
+            buttonClassName: micButtonClassName
+          }
+        )
+      ] })
     ] })
   ] });
 }
