@@ -107,6 +107,34 @@ jobs:
                 "OG118_MODEL=$MODEL"
           fi
 
+      - name: Wire TTS config (only when configured — else no-op)
+        # B3-VOICE-BACKEND-1. Additive + idempotent: it does NOT touch the chat
+        # env above. `--set-env-vars` MERGES (it never drops the chat vars). When
+        # OG118_TTS_* is unset, this is a clean no-op and /tts/synthesize returns
+        # 503 by design — the foundation ships gated, not broken. Key is a secret
+        # (secretref); endpoint/deployment/version/voice are plain vars.
+        env:
+          TTS_API_KEY: ${{ secrets.OG118_TTS_API_KEY }}
+          TTS_ENDPOINT: ${{ vars.OG118_TTS_ENDPOINT }}
+          TTS_DEPLOYMENT: ${{ vars.OG118_TTS_DEPLOYMENT }}
+          TTS_API_VERSION: ${{ vars.OG118_TTS_API_VERSION }}
+          TTS_VOICE: ${{ vars.OG118_TTS_VOICE }}
+        run: |
+          if [ -z "$TTS_API_KEY" ] || [ -z "$TTS_ENDPOINT" ] || [ -z "$TTS_DEPLOYMENT" ]; then
+            echo "TTS not configured (OG118_TTS_ENDPOINT/API_KEY/DEPLOYMENT unset)."
+            echo "Skipping — /tts/synthesize will return 503 until configured."
+            exit 0
+          fi
+          az containerapp secret set -n "$APP" -g "$RG" \
+            --secrets "tts-api-key=$TTS_API_KEY"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_TTS_API_KEY=secretref:tts-api-key" \
+              "OG118_TTS_ENDPOINT=$TTS_ENDPOINT" \
+              "OG118_TTS_DEPLOYMENT=$TTS_DEPLOYMENT" \
+              "OG118_TTS_API_VERSION=${TTS_API_VERSION:-2025-03-01-preview}" \
+              "OG118_TTS_VOICE=${TTS_VOICE:-nova}"
+
       - name: Ensure AcrPull for the app's managed identity (idempotent)
         # --registry-identity system wires the pull, but the role assignment can
         # lag on first create. Assign it explicitly (needs Owner on og118-rg, per

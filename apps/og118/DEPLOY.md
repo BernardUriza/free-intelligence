@@ -49,6 +49,7 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `OG118_ANTHROPIC_API_KEY` | og118's Anthropic API key (NOT the existing `ANTHROPIC_API_KEY`, whose purpose differs) |
 | `OG118_ACCESS_TOKEN` | the bearer value `/chat/stream` requires |
 | `AZURE_SWA_TOKEN_OG118_STAGING` | deploy token of the NEW staging SWA (step 5) |
+| `OG118_TTS_API_KEY` | Azure OpenAI key for TTS (B3-VOICE-BACKEND-1). **Optional** — unset → `/tts/synthesize` returns 503, deploy stays green |
 
 ### 4. GitHub variables (Settings → Variables → Actions)
 
@@ -62,6 +63,16 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `OG118_ALLOWED_ORIGINS` | `https://<staging-swa-host>` (set after step 5) |
 | `OG118_MODEL` | `claude-sonnet-4-5` (optional) |
 | `OG118_API_URL` | `https://<backend-fqdn>` (set after first backend deploy) |
+| `OG118_TTS_ENDPOINT` | Azure OpenAI endpoint base, e.g. `https://<res>.openai.azure.com` (TTS; optional) |
+| `OG118_TTS_DEPLOYMENT` | TTS deployment name, e.g. `tts-hd` (TTS; optional) |
+| `OG118_TTS_API_VERSION` | default `2025-03-01-preview` (TTS; optional) |
+| `OG118_TTS_VOICE` | default `nova` (TTS; optional) |
+
+> **TTS (B3-VOICE-BACKEND-1) is opt-in.** Leave `OG118_TTS_*` unset and the
+> backend behaves exactly as before — `/tts/synthesize` returns a clean `503
+> TTS_NOT_CONFIGURED` and the deploy's TTS-wiring step is a no-op. Set the secret
+> + the four vars above (the irreducible trio is endpoint + key + deployment) to
+> light it up. No STT, no voice UI yet — this cut is the backend gate only.
 
 ### 5. Staging Static Web App (new, temporary)
 
