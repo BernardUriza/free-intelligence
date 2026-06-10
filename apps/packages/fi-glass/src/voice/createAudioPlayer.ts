@@ -298,7 +298,12 @@ export function createAudioPlayer(
   }
 
   function seekBy(deltaSeconds: number): void {
-    seek(state.currentTime + deltaSeconds);
+    if (disposed || !el) return;
+    // Read the element's live position (source of truth) rather than the
+    // state snapshot, which only advances on 'timeupdate' (~4Hz) and can lag a
+    // rapid skip click. Falls back to state if the element has no usable value.
+    const base = Number.isFinite(el.currentTime) ? el.currentTime : state.currentTime;
+    seek(base + deltaSeconds);
   }
 
   function dispose(): void {

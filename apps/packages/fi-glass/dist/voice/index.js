@@ -585,7 +585,9 @@ function createAudioPlayer(options = {}) {
     setState({ currentTime: target });
   }
   function seekBy(deltaSeconds) {
-    seek(state.currentTime + deltaSeconds);
+    if (disposed || !el) return;
+    const base = Number.isFinite(el.currentTime) ? el.currentTime : state.currentTime;
+    seek(base + deltaSeconds);
   }
   function dispose() {
     if (disposed) return;

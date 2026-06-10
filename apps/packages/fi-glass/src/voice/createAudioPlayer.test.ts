@@ -230,6 +230,20 @@ describe('createAudioPlayer', () => {
     expect(player.getState().currentTime).toBe(30);
   });
 
+  it('seekBy() reads the element live position, not a stale state snapshot', () => {
+    const { el, player } = harness();
+    player.load(fakeBlob());
+    el.duration = 60;
+    el.emit('loadedmetadata');
+    // Element advances but no 'timeupdate' fired -> state.currentTime stays stale at 0.
+    el.currentTime = 25;
+    expect(player.getState().currentTime).toBe(0); // snapshot is behind
+    player.seekBy(10);
+    // Must jump from the live 25, not the stale 0.
+    expect(el.currentTime).toBe(35);
+    expect(player.getState().currentTime).toBe(35);
+  });
+
   it('seek() is a no-op before a source loads and after dispose', () => {
     const { el, player } = harness();
     player.seek(5); // no element yet
