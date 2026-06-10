@@ -149,7 +149,7 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 10 host→smart imports are the structural coupling the demux destilado
+# These 9 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
 # (Was 22; -2 via routing→{flows,presets} contracts extraction; -3 via the
 # contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
@@ -164,7 +164,11 @@ def _violations() -> list[tuple[str, str]]:
 # the composition seam (insult.composition) which is the only module that knows
 # both the Protocol and insult.core.facts — no new host→smart edge; -1 via
 # PR-B StancePort, same seam: render_block (S2) + derive (S5) behind the
-# Protocol, get/store_stance stay on the memory data plane.)
+# Protocol, get/store_stance stay on the memory data plane; -1 via PR-C
+# ArcPort, same seam + OPACITY: ArcState is owned by the port, stages
+# transports the carry without reading its fields (load/phase/render_block
+# pre-LLM, advance/dump post-LLM), enforced by the anti-access resistance
+# test in test_arc_port.py.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -173,7 +177,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory"),
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
-        ("insult.cogs.chat.stages", "insult.core.arc_tracker"),
         ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.stages", "insult.core.deep_memory"),
         ("insult.cogs.chat.stages", "insult.core.flows"),

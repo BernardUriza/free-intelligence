@@ -19,8 +19,38 @@ Design plan: ``.claude/plans/s2_s5_domain_facets_multipr.md``.
 
 from __future__ import annotations
 
+from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from insult.core.stance_log import StanceExtraction, build_stance_prompt, extract_stances
+
+
+class _CoreArcAdapter:
+    """Adapts the ``insult.core.arc_tracker`` module to the ``ArcPort`` Protocol.
+
+    Sole owner of ``ArcState`` on the pipeline side: the values returned by
+    ``load``/``advance`` are opaque carries to the caller (see the opacity
+    invariant on the Protocol).
+    """
+
+    def load(self, raw: dict | None) -> ArcState:
+        return arc_from_dict(raw) if raw else ArcState()
+
+    def phase(self, arc: ArcState) -> str:
+        return arc.phase
+
+    def render_block(self, arc: ArcState) -> str:
+        return build_arc_prompt(arc)
+
+    def advance(self, arc: ArcState, *, disclosure_severity: int, user_state: str, preset_mode: str) -> ArcState:
+        return update_arc(
+            arc,
+            disclosure_severity=disclosure_severity,
+            user_state=user_state,
+            preset_mode=preset_mode,
+        )
+
+    def dump(self, arc: ArcState) -> dict:
+        return arc_to_dict(arc)
 
 
 class _CoreStanceAdapter:
@@ -51,6 +81,12 @@ class _CoreFactsAdapter:
 # Stateless — a single shared instance is sufficient and avoids per-turn churn.
 _FACTS_PORT = _CoreFactsAdapter()
 _STANCE_PORT = _CoreStanceAdapter()
+_ARC_PORT = _CoreArcAdapter()
+
+
+def default_arc_port() -> _CoreArcAdapter:
+    """Return the process-wide ArcPort adapter for the turn pipeline."""
+    return _ARC_PORT
 
 
 def default_facts_port() -> _CoreFactsAdapter:

@@ -64,7 +64,6 @@ from insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, par
 from insult.cogs.chat.remembers import parse_remembers, persist_remembers, strip_remembers
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
-from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from insult.core.character import (
     MutationStage,
     build_adaptive_prompt,
@@ -285,7 +284,9 @@ async def _stage_scan_disclosure(ctx: TurnCtx) -> None:
             ctx.text[:200],
         )
     arc_data = await ctx.deps.memory.get_arc(ctx.channel_id, ctx.user_id)
-    ctx.arc_state = arc_from_dict(arc_data) if arc_data else ArcState()
+    # Opaque carry: only the ArcPort understands this value. stages transports
+    # it (S2 render → S5 advance) without reading its fields.
+    ctx.arc_state = ctx.deps.arc.load(arc_data)
 
     ctx.recent_response_lengths = [len(m.get("content", "").split()) for m in ctx.recent if m["role"] == "assistant"][
         -5:
@@ -360,7 +361,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         classifier_ms=classifier_ms,
         disclosure_severity=ctx.disclosure.severity,
         disclosure_category=ctx.disclosure.category,
-        arc_phase=ctx.arc_state.phase,
+        arc_phase=ctx.deps.arc.phase(ctx.arc_state),
         elapsed_ms=ctx.elapsed_ms(),
     )
 
@@ -382,7 +383,7 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
     ctx.system_prompt = compose_extra_layers(
         system_prompt,
         flow_prompt=build_flow_prompt(ctx.flow_analysis),
-        arc_prompt=build_arc_prompt(ctx.arc_state),
+        arc_prompt=ctx.deps.arc.render_block(ctx.arc_state),
         stance_prompt=ctx.deps.stance.render_block(ctx.stances) if ctx.stances else "",
         facts_prompt=ctx.deps.facts.render_block(ctx.user_name, ctx.user_facts),
         other_participants_facts=ctx.other_participants_facts,
@@ -936,7 +937,7 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
 # --- Stage 12: persist assistant message + arc + stances ---
 
 
-async def assimilate_turn(src: S5TurnAssimilationInput, memory, stance) -> S5TurnAssimilationResult:
+async def assimilate_turn(src: S5TurnAssimilationInput, memory, stance, arc) -> S5TurnAssimilationResult:
     """S5 Turn Assimilation — write the completed turn back into long-term state.
 
     Orchestrates the terminal write-back: persist the assistant message row,
@@ -963,13 +964,13 @@ async def assimilate_turn(src: S5TurnAssimilationInput, memory, stance) -> S5Tur
         )
         message_stored = True
 
-    new_arc = update_arc(
+    new_arc = arc.advance(
         src.arc_state,
         disclosure_severity=src.disclosure_severity,
         user_state=src.user_state,
         preset_mode=src.preset_mode,
     )
-    arc_dict = arc_to_dict(new_arc)
+    arc_dict = arc.dump(new_arc)
     await memory.upsert_arc(
         src.channel_id,
         src.user_id,
@@ -1013,6 +1014,7 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
         ),
         ctx.deps.memory,
         ctx.deps.stance,
+        ctx.deps.arc,
     )
 
 

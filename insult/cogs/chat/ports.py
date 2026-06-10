@@ -21,6 +21,34 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 
+class ArcPort(Protocol):
+    """The conversational-arc domain service as the turn pipeline consumes it.
+
+    OPACITY INVARIANT (the reason this port exists): ``ArcState`` is NOT a
+    public contract between phases. The pipeline transports the value returned
+    by ``load``/``advance`` as an opaque carry — it must never read or mutate
+    its fields. Any scalar the pipeline needs (e.g. the phase label for
+    telemetry) is exposed as a port method. The resistance test fails on any
+    ``*.arc_state.<attr>`` access in stages.
+
+    - ``load`` (S2/pre-LLM): raw persisted dict (or None) → opaque arc carry.
+    - ``phase``: the arc's phase label, for telemetry only.
+    - ``render_block`` (S2): system-prompt section for the current arc.
+    - ``advance`` (S5): fold the turn's signals into the next arc carry.
+    - ``dump`` (S5): opaque carry → plain dict for the memory upsert.
+    """
+
+    def load(self, raw: dict | None) -> Any: ...
+
+    def phase(self, arc: Any) -> str: ...
+
+    def render_block(self, arc: Any) -> str: ...
+
+    def advance(self, arc: Any, *, disclosure_severity: int, user_state: str, preset_mode: str) -> Any: ...
+
+    def dump(self, arc: Any) -> dict: ...
+
+
 class StancePort(Protocol):
     """The stance-log domain service as the turn pipeline consumes it.
 
