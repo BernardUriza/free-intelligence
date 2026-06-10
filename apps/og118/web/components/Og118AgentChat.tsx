@@ -23,10 +23,13 @@ import {
   IndexedDBConversationLibrary,
   useConversationLibrary,
 } from 'fi-glass/conversation';
+import { useVoice, AudioPlayer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
+import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
+import { Og118MessageActions } from './Og118MessageActions';
 
 // Module-level singleton. The constructor is SSR-safe (it stores config only,
 // never touches indexedDB), so one stable instance shared across renders and
@@ -43,6 +46,14 @@ export function Og118AgentChat() {
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
   const { turn } = conversation;
+
+  // TTS consumer wiring (B3-TTS-1): synthesis goes through og118's adapter
+  // (backend /tts/synthesize); fi-glass owns playback + object-URL lifecycle.
+  // No audio state lives in og118 — useVoice resolves the Blob to a URL and
+  // AudioPlayer plays it.
+  const voice = useVoice(og118VoiceAdapter, {
+    onError: (e, ctx) => console.error('[og118] tts', ctx, e),
+  });
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
@@ -110,6 +121,19 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
+  // Minimal playback bar — shown only while a clip is loaded. fi-glass's
+  // AudioPlayer owns the <audio> element and revokes the object URL it creates.
+  const voicePlayer = voice.audioUrl ? (
+    <div style={{ marginBottom: '0.5rem' }}>
+      <AudioPlayer
+        source={{ url: voice.audioUrl }}
+        autoPlay
+        onEnded={voice.close}
+        onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
+      />
+    </div>
+  ) : null;
+
   // Wait for the first hydration so we never send with a null session id nor
   // flash an empty start screen over a stored conversation.
   if (!lib.ready) {
@@ -143,7 +167,12 @@ export function Og118AgentChat() {
           composerPlaceholder="Pregúntale a og118 (verás su plan en vivo)…"
           newChatLabel="Nuevo chat"
           emptyState={<Og118StartScreen />}
-          aboveComposer={authBanner}
+          aboveComposer={
+            <>
+              {authBanner}
+              {voicePlayer}
+            </>
+          }
           composerAreaClassName="og-composer-area glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
           // Frosted message cards from the reusable preset. A single class for
@@ -151,7 +180,15 @@ export function Og118AgentChat() {
           // per-role tint would need a fi-glass per-message className slot — out
           // of scope here, accepted as a documented visual difference vs AURITY.
           messageBubbleClassName="glass-chat-bubble-assistant"
-          showCopyAction
+          // Copy stays on every message; Speak is added on assistant messages
+          // only. renderActions overrides the default showCopyAction.
+          renderActions={(m) => (
+            <Og118MessageActions
+              message={m}
+              currentVoice={voice.currentVoice}
+              onSpeak={voice.generateAudio}
+            />
+          )}
         />
       </div>
     </div>
