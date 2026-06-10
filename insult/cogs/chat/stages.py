@@ -55,6 +55,8 @@ from insult.cogs.chat.pipeline import (
     S2KnowledgeAssemblyResult,
     S4OutputInterpretationInput,
     S4OutputInterpretationResult,
+    S5TurnAssimilationInput,
+    S5TurnAssimilationResult,
     Stage,
     TurnCtx,
 )
@@ -934,31 +936,43 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
 # --- Stage 12: persist assistant message + arc + stances ---
 
 
-async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
-    clean_response = ctx.response_text.replace(MESSAGE_DELIMITER, "\n")
+async def assimilate_turn(src: S5TurnAssimilationInput, memory) -> S5TurnAssimilationResult:
+    """S5 Turn Assimilation — write the completed turn back into long-term state.
+
+    Orchestrates the terminal write-back: persist the assistant message row,
+    advance + upsert the conversational arc, and extract + persist epistemic
+    stances when the turn cleared the assertion-density gate. S5 owns the write
+    orchestration; the ``memory`` store owns the rows. Behavior is identical to
+    the inline stage this replaces — same writes, same order, same gates: the
+    message is stored only when the cleaned response is non-blank, the arc is
+    upserted on every turn, and stances are extracted only when the response is
+    non-empty and ``assertion_density >= 0.4``."""
+    clean_response = src.response_text.replace(MESSAGE_DELIMITER, "\n")
+    message_stored = False
     if clean_response.strip():
         await store_assistant_message(
-            ctx.memory,
-            ctx.channel_id,
-            str(ctx.bot.user.id),
-            ctx.bot.user.name,
+            memory,
+            src.channel_id,
+            src.bot_user_id,
+            src.bot_user_name,
             clean_response,
-            for_user_id=ctx.user_id,
-            guild_id=ctx.guild_id,
-            channel_name=ctx.channel_name,
-            model_used=ctx.llm_response.model_used or None,
+            for_user_id=src.user_id,
+            guild_id=src.guild_id,
+            channel_name=src.channel_name,
+            model_used=src.model_used,
         )
+        message_stored = True
 
     new_arc = update_arc(
-        ctx.arc_state,
-        disclosure_severity=ctx.disclosure.severity,
-        user_state=ctx.flow_analysis.pressure.detected_state.value,
-        preset_mode=ctx.preset.mode.value,
+        src.arc_state,
+        disclosure_severity=src.disclosure_severity,
+        user_state=src.user_state,
+        preset_mode=src.preset_mode,
     )
     arc_dict = arc_to_dict(new_arc)
-    await ctx.memory.upsert_arc(
-        ctx.channel_id,
-        ctx.user_id,
+    await memory.upsert_arc(
+        src.channel_id,
+        src.user_id,
         arc_dict["phase"],
         arc_dict["phase_since"],
         arc_dict["crisis_depth"],
@@ -966,12 +980,41 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
         arc_dict["turns_in_phase"],
     )
 
-    if clean_response and ctx.flow_analysis.epistemic.assertion_density >= 0.4:
+    stances_stored = 0
+    if clean_response and src.assertion_density >= 0.4:
         from insult.core.stance_log import extract_stances
 
-        extraction = extract_stances(clean_response, ctx.flow_analysis.epistemic.assertion_density, time.time())
+        extraction = extract_stances(clean_response, src.assertion_density, time.time())
         for entry in extraction.entries:
-            await ctx.memory.store_stance(ctx.channel_id, ctx.user_id, entry.topic, entry.position, entry.confidence)
+            await memory.store_stance(src.channel_id, src.user_id, entry.topic, entry.position, entry.confidence)
+            stances_stored += 1
+
+    return S5TurnAssimilationResult(
+        message_stored=message_stored,
+        arc_phase=arc_dict["phase"],
+        stances_stored=stances_stored,
+    )
+
+
+async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
+    await assimilate_turn(
+        S5TurnAssimilationInput(
+            response_text=ctx.response_text,
+            channel_id=ctx.channel_id,
+            user_id=ctx.user_id,
+            guild_id=ctx.guild_id,
+            channel_name=ctx.channel_name,
+            bot_user_id=str(ctx.bot.user.id),
+            bot_user_name=ctx.bot.user.name,
+            model_used=ctx.llm_response.model_used or None,
+            arc_state=ctx.arc_state,
+            disclosure_severity=ctx.disclosure.severity,
+            user_state=ctx.flow_analysis.pressure.detected_state.value,
+            preset_mode=ctx.preset.mode.value,
+            assertion_density=ctx.flow_analysis.epistemic.assertion_density,
+        ),
+        ctx.memory,
+    )
 
 
 # --- Stage 13: spawn reaction/tool tasks (BACKGROUND) ---
