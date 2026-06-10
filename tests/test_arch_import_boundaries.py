@@ -51,7 +51,10 @@ FORBIDDEN_MODULES: list[str] = [
     "insult.core.deep_memory",
     "insult.core.vectors",
     "insult.core.facts",
-    "insult.core.remembers",
+    # NOTE: the [REMEMBER:] marker pipeline relocated to insult.cogs.chat.remembers
+    # (host-side post-LLM marker parse + strip + a persist that takes the memory
+    # store INJECTED — it owns no persistence, same shape as the reactions adapter).
+    # No longer a smart module, so insult.core.remembers is intentionally absent here.
     "insult.core.transcribe",
     "insult.core.attachments",
     "insult.core.summaries",
@@ -71,7 +74,11 @@ FORBIDDEN_MODULES: list[str] = [
     "insult.core.arc_tracker",
     "insult.core.style",
     "insult.core.proactive",
-    "insult.core.reactions",
+    # NOTE: the [REACT:] marker pipeline + Discord reaction egress relocated to
+    # insult.cogs.chat.reactions (host-side: parse/strip markers + add_reactions
+    # via the Discord API, pure stdlib+discord, zero persona/memory/LLM — same
+    # shape as attachments/disclosure). No longer a smart module, so
+    # insult.core.reactions is intentionally absent here.
     "insult.core.language",
     "insult.core.stance_log",
     "insult.agent",
@@ -142,13 +149,17 @@ def _violations() -> list[tuple[str, str]]:
 
 # --- Baseline of KNOWN legacy violations (captured 2026-06-06, v4.21.2) -------
 #
-# These 14 host→smart imports are the structural coupling the demux destilado
+# These 12 host→smart imports are the structural coupling the demux destilado
 # (`.claude/plans/khimeras_demux_destilado.md`) will pay down phase by phase.
 # (Was 22; -2 via routing→{flows,presets} contracts extraction; -3 via the
 # contracts batch: cog→flows ExpressionHistory, debug_server.keys→memory
 # DebugMemoryPort Protocol, context→summaries pure helpers → server_pulse; -1
 # via tasks→facts dependency injection (extract_facts/merge_facts_additive
-# now injected by stages, which already owns the facts import).)
+# now injected by stages, which already owns the facts import); -2 via the
+# post-LLM mutations seam (Wave 2): reactions + remembers relocated to host
+# (insult.cogs.chat.{reactions,remembers}) — pure-stdlib marker pipelines, the
+# remembers persist takes the memory store injected so no persistence ownership
+# moved.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -164,8 +175,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.cogs.chat.stages", "insult.core.flows"),
         ("insult.cogs.chat.stages", "insult.core.presets"),
         ("insult.cogs.chat.stages", "insult.core.presets_llm"),
-        ("insult.cogs.chat.stages", "insult.core.reactions"),
-        ("insult.cogs.chat.stages", "insult.core.remembers"),
         ("insult.cogs.chat.stages", "insult.core.stance_log"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
     }
