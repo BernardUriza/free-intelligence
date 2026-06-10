@@ -774,6 +774,7 @@ function AgentConversationSurface({
 }) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState5("");
+  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
   const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
   const hasThread = messages.length > 0 || isStreaming;
   const onSend = () => {
@@ -791,13 +792,24 @@ function AgentConversationSurface({
           header: renderHeader?.(m),
           badge: renderBadge?.(m),
           actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx11(CopyButton, { content: m.content }) : void 0),
-          className: messageBubbleClassName,
+          className: resolveBubbleClass(m),
           children: /* @__PURE__ */ jsx11(MessageContent, { isUser: m.role === "user", content: m.content })
         },
         i
       )),
       isStreaming && /* @__PURE__ */ jsx11(AgentPanel, { turn, ...agentPanelProps }),
-      isStreaming && turn.text && /* @__PURE__ */ jsx11(MessageBubble, { role: "assistant", className: messageBubbleClassName, children: /* @__PURE__ */ jsx11(MessageContent, { isUser: false, content: turn.text, isStreaming: true }) })
+      isStreaming && turn.text && /* @__PURE__ */ jsx11(
+        MessageBubble,
+        {
+          role: "assistant",
+          className: resolveBubbleClass({
+            role: "assistant",
+            content: turn.text,
+            timestamp: ""
+          }),
+          children: /* @__PURE__ */ jsx11(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+        }
+      )
     ] }) }),
     /* @__PURE__ */ jsxs9("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
       hasThread && /* @__PURE__ */ jsx11("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx11(

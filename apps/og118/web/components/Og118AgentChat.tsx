@@ -23,7 +23,12 @@ import {
   IndexedDBConversationLibrary,
   useConversationLibrary,
 } from 'fi-glass/conversation';
-import { useVoice, AudioPlayer } from 'fi-glass/voice';
+import {
+  useVoice,
+  RichAudioPlayer,
+  AudioVisualizer,
+  ComposerMicSlot,
+} from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
@@ -35,6 +40,13 @@ import { Og118MessageActions } from './Og118MessageActions';
 // never touches indexedDB), so one stable instance shared across renders and
 // remounts is correct and avoids reopening the database.
 const conversationLibrary = new IndexedDBConversationLibrary();
+
+// Static rest pattern for the visualizer. B3-VOICE-OG118-2 adopts the fi-glass
+// AudioVisualizer as a discoverable affordance, but no live analyser is wired
+// here (no STT, no recording, no Web Audio in og118). Rendering at rest
+// (active={false}) is honest: the equalizer is present but has no live signal
+// yet — it lights up when a real mic/analyser pipeline lands.
+const VOICE_REST_LEVELS = [0.3, 0.6, 0.45, 0.75, 0.5, 0.65, 0.4, 0.55];
 
 export function Og118AgentChat() {
   const lib = useConversationLibrary(conversationLibrary);
@@ -121,18 +133,41 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
-  // Minimal playback bar — shown only while a clip is loaded. fi-glass's
-  // AudioPlayer owns the <audio> element and revokes the object URL it creates.
-  const voicePlayer = voice.audioUrl ? (
-    <div style={{ marginBottom: '0.5rem' }}>
-      <AudioPlayer
-        source={{ url: voice.audioUrl }}
-        autoPlay
-        onEnded={voice.close}
-        onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
+  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer + mic slot,
+  // all reusable fi-glass primitives (DD-002 / framework-first-canary: og118
+  // consumes, never re-implements). og118 owns only layout/color via CSS.
+  //   • RichAudioPlayer: full transport + scrubber, shown while a TTS clip is
+  //     loaded. fi-glass owns the <audio> element and the object-URL lifecycle.
+  //   • AudioVisualizer: idle equalizer affordance (no live analyser wired yet).
+  //   • ComposerMicSlot: visible but available={false} — the mic is discoverable
+  //     yet clearly disabled. No STT adapter, no mic permission, no recording.
+  const voiceBar = (
+    <div className="og-voice-bar">
+      {voice.audioUrl ? (
+        <RichAudioPlayer
+          source={{ url: voice.audioUrl }}
+          autoPlay
+          onEnded={voice.close}
+          onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
+          className="og-voice-player"
+          progressClassName="og-voice-progress"
+        />
+      ) : null}
+      <AudioVisualizer
+        levels={VOICE_REST_LEVELS}
+        active={false}
+        variant="bars"
+        className="og-voice-visualizer"
+        barClassName="og-voice-bar-bar"
+        label="Nivel de voz (sin señal en vivo todavía)"
+      />
+      <ComposerMicSlot
+        available={false}
+        className="og-mic-slot"
+        unavailableLabel="Dictado por voz no disponible todavía (STT pendiente)"
       />
     </div>
-  ) : null;
+  );
 
   // Wait for the first hydration so we never send with a null session id nor
   // flash an empty start screen over a stored conversation.
@@ -170,7 +205,7 @@ export function Og118AgentChat() {
           aboveComposer={
             <>
               {authBanner}
-              {voicePlayer}
+              {voiceBar}
             </>
           }
           composerAreaClassName="og-composer-area glass-chat-composer"
