@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { LucideIcon } from 'lucide-react';
-import { VoiceAdapter } from '@free-intelligence/core';
+import { AudioSource, VoiceAdapter } from '@free-intelligence/core';
 
 /**
  * Shared Recording Component Types
@@ -194,6 +194,124 @@ interface SpeakButtonProps {
 }
 declare function SpeakButton({ content, voice, isUserMessage, onOpenPlayer, size, className, iconClassName, title, }: SpeakButtonProps): react.JSX.Element;
 
+/**
+ * fi-glass · audioPlayer — the reusable TTS *playback* engine (headless).
+ *
+ * The missing half of the voice stack: `useVoice`/SpeakButton resolve an
+ * `AudioSource` (synthesis), but nothing in fi-glass actually PLAYS it — every
+ * consumer (aurity, and next og118) had to re-wire its own <audio>, play/stop,
+ * loading/error and object-URL cleanup. This engine owns that lifecycle once so
+ * apps inherit it instead of re-implementing it.
+ *
+ * Deliberately framework-agnostic and dependency-injected: it talks to an
+ * `AudioElementLike` (defaults to `new Audio()`) and to the object-URL helpers,
+ * so the whole state machine — including URL-leak cleanup — is unit-testable in
+ * node with a fake element and zero DOM. The React `useAudioPlayer` hook and the
+ * `<AudioPlayer>` component are thin shells over this.
+ *
+ * Ownership rule (avoids the leak in useVoice.close): the engine revokes ONLY
+ * the object URLs it created itself (from a Blob). A `{ url }` source is owned by
+ * the caller / kept open for streaming, so it is never revoked here.
+ */
+
+type AudioPlayerStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
+interface AudioPlayerState {
+    status: AudioPlayerStatus;
+    isPlaying: boolean;
+    isLoading: boolean;
+    error: Error | null;
+    /** The URL currently loaded into the element (object URL or external url). */
+    currentSrc: string | null;
+    /** Seconds; 0 until metadata loads. */
+    duration: number;
+    currentTime: number;
+}
+/**
+ * The slice of HTMLAudioElement the engine touches. Real playback passes a
+ * `new Audio()`; tests pass a fake that drives the same events synchronously.
+ */
+interface AudioElementLike {
+    src: string;
+    currentTime: number;
+    readonly duration: number;
+    readonly paused: boolean;
+    play(): Promise<void>;
+    pause(): void;
+    load(): void;
+    addEventListener(type: string, listener: () => void): void;
+    removeEventListener(type: string, listener: () => void): void;
+}
+interface AudioPlayerDeps {
+    /** Build the audio element. Default: `() => new Audio()` (browser only). */
+    createElement?: () => AudioElementLike;
+    /** Default: `URL.createObjectURL`. */
+    createObjectURL?: (blob: Blob) => string;
+    /** Default: `URL.revokeObjectURL`. */
+    revokeObjectURL?: (url: string) => void;
+}
+interface AudioPlayerOptions extends AudioPlayerDeps {
+    /** Called on a playback/load error (app owns logging/reporting). */
+    onError?: (error: unknown, context: string) => void;
+    /** Called once when the current clip finishes. */
+    onEnded?: () => void;
+}
+interface AudioPlayerController {
+    getState(): AudioPlayerState;
+    /** Subscribe to state changes; returns an unsubscribe fn. */
+    subscribe(listener: () => void): () => void;
+    /** Point the player at a new source (revokes any previously-owned URL). */
+    load(source: AudioSource): void;
+    /** Start/resume playback of the loaded source. */
+    play(): Promise<void>;
+    pause(): void;
+    /** Stop, rewind to 0 and release any owned object URL. */
+    stop(): void;
+    /** Play if paused/idle, pause if playing. */
+    toggle(): Promise<void>;
+    /** Tear down: detach listeners, pause, release owned URL. Idempotent. */
+    dispose(): void;
+}
+declare function createAudioPlayer(options?: AudioPlayerOptions): AudioPlayerController;
+
+interface UseAudioPlayerOptions {
+    onError?: (error: unknown, context: string) => void;
+    onEnded?: () => void;
+    /**
+     * Dependency overrides forwarded to the engine. Apps never need these; tests
+     * and non-DOM environments inject a fake element / URL helpers.
+     */
+    deps?: Pick<AudioPlayerOptions, 'createElement' | 'createObjectURL' | 'revokeObjectURL'>;
+}
+interface UseAudioPlayerReturn extends AudioPlayerState {
+    /** Point the player at a source without starting it. */
+    load: (source: AudioSource) => void;
+    play: () => Promise<void>;
+    pause: () => void;
+    stop: () => void;
+    toggle: () => Promise<void>;
+    /** Convenience: load a source and immediately play it. */
+    playSource: (source: AudioSource) => Promise<void>;
+}
+declare function useAudioPlayer(opts?: UseAudioPlayerOptions): UseAudioPlayerReturn;
+
+interface AudioPlayerProps {
+    /** Audio to play; when it changes the player loads the new source. */
+    source?: AudioSource | null;
+    /** Start playing as soon as a new source loads. Default false. */
+    autoPlay?: boolean;
+    /** Called on a playback/load error. */
+    onError?: (error: unknown, context: string) => void;
+    /** Called when the clip finishes. */
+    onEnded?: () => void;
+    /** Override the wrapper class. */
+    className?: string;
+    /** Override the button class (applies to both buttons). */
+    buttonClassName?: string;
+    /** Override the icon class. */
+    iconClassName?: string;
+}
+declare function AudioPlayer({ source, autoPlay, onError, onEnded, className, buttonClassName, iconClassName, }: AudioPlayerProps): react.JSX.Element;
+
 interface UseVoiceOptions {
     /** Called when synthesis fails (app decides logging/reporting). */
     onError?: (error: unknown, context: string) => void;
@@ -341,4 +459,4 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-export { BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type UseDictationOptions, type UseDictationReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, formatRecordingTime, makeRecorder, useAudioAnalysis, useDictation, useRecorder, useVoice };
+export { type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseDictationOptions, type UseDictationReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, createAudioPlayer, formatRecordingTime, makeRecorder, useAudioAnalysis, useAudioPlayer, useDictation, useRecorder, useVoice };

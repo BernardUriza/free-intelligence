@@ -8,6 +8,24 @@ export { VoiceMicButton } from './VoiceMicButton';
 // Californio (98): TTS trigger button (presentation only; app owns playback).
 export { SpeakButton, type SpeakButtonProps } from './SpeakButton';
 
+// B3-VOICE-FIGLASS-1: reusable TTS playback foundation. The missing half of the
+// voice stack — synthesis resolves an AudioSource, this plays it (and owns the
+// object-URL cleanup). Headless engine + React hook + presentational controls.
+export {
+  createAudioPlayer,
+  type AudioPlayerController,
+  type AudioPlayerOptions,
+  type AudioPlayerState,
+  type AudioPlayerStatus,
+  type AudioElementLike,
+} from './createAudioPlayer';
+export {
+  useAudioPlayer,
+  type UseAudioPlayerOptions,
+  type UseAudioPlayerReturn,
+} from './useAudioPlayer';
+export { AudioPlayer, type AudioPlayerProps } from './AudioPlayer';
+
 // Orchestration that consumes a VoiceAdapter (Americio slice 2).
 export {
   useVoice,

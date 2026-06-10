@@ -422,6 +422,276 @@ function SpeakButton({
   );
 }
 
+// src/voice/createAudioPlayer.ts
+var INITIAL = {
+  status: "idle",
+  isPlaying: false,
+  isLoading: false,
+  error: null,
+  currentSrc: null,
+  duration: 0,
+  currentTime: 0
+};
+function defaultCreateElement() {
+  if (typeof Audio === "undefined") {
+    throw new Error(
+      "createAudioPlayer: no Audio constructor available. Run in a browser, or inject `createElement` for non-DOM environments/tests."
+    );
+  }
+  return new Audio();
+}
+function isBlob(source) {
+  return typeof Blob !== "undefined" && source instanceof Blob;
+}
+function createAudioPlayer(options = {}) {
+  const {
+    createElement = defaultCreateElement,
+    createObjectURL = (blob) => URL.createObjectURL(blob),
+    revokeObjectURL = (url) => URL.revokeObjectURL(url),
+    onError,
+    onEnded
+  } = options;
+  let state = { ...INITIAL };
+  let el = null;
+  let ownedUrl = null;
+  let disposed = false;
+  const listeners = /* @__PURE__ */ new Set();
+  function emit() {
+    for (const l of listeners) l();
+  }
+  function setState(patch) {
+    state = { ...state, ...patch };
+    emit();
+  }
+  const onLoadedMetadata = () => {
+    setState({
+      isLoading: false,
+      duration: Number.isFinite(el?.duration) ? el.duration : 0
+    });
+  };
+  const onTimeUpdate = () => {
+    if (el) setState({ currentTime: el.currentTime });
+  };
+  const onPlaying = () => {
+    setState({ status: "playing", isPlaying: true, isLoading: false, error: null });
+  };
+  const onPause = () => {
+    if (state.status !== "idle" && state.status !== "error") {
+      setState({ status: "paused", isPlaying: false });
+    }
+  };
+  const onEndedEvt = () => {
+    setState({ status: "idle", isPlaying: false, currentTime: 0 });
+    onEnded?.();
+  };
+  const onErrorEvt = () => {
+    const err = new Error("audio element error");
+    setState({ status: "error", isPlaying: false, isLoading: false, error: err });
+    onError?.(err, "audioPlayer:element");
+  };
+  function ensureElement() {
+    if (el) return el;
+    el = createElement();
+    el.addEventListener("loadedmetadata", onLoadedMetadata);
+    el.addEventListener("timeupdate", onTimeUpdate);
+    el.addEventListener("playing", onPlaying);
+    el.addEventListener("play", onPlaying);
+    el.addEventListener("pause", onPause);
+    el.addEventListener("ended", onEndedEvt);
+    el.addEventListener("error", onErrorEvt);
+    return el;
+  }
+  function releaseOwnedUrl() {
+    if (ownedUrl) {
+      revokeObjectURL(ownedUrl);
+      ownedUrl = null;
+    }
+  }
+  function load(source) {
+    if (disposed) return;
+    const element = ensureElement();
+    releaseOwnedUrl();
+    let url;
+    if (isBlob(source)) {
+      url = createObjectURL(source);
+      ownedUrl = url;
+    } else {
+      url = source.url;
+    }
+    element.src = url;
+    element.load();
+    setState({
+      status: "loading",
+      isLoading: true,
+      isPlaying: false,
+      error: null,
+      currentSrc: url,
+      currentTime: 0,
+      duration: 0
+    });
+  }
+  async function play() {
+    if (disposed || !el) return;
+    try {
+      await el.play();
+      setState({ status: "playing", isPlaying: true, error: null });
+    } catch (error) {
+      setState({
+        status: "error",
+        isPlaying: false,
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      onError?.(error, "audioPlayer:play");
+    }
+  }
+  function pause() {
+    if (disposed || !el) return;
+    el.pause();
+    setState({ status: "paused", isPlaying: false });
+  }
+  function stop() {
+    if (disposed || !el) return;
+    el.pause();
+    el.currentTime = 0;
+    el.src = "";
+    releaseOwnedUrl();
+    setState({
+      status: "idle",
+      isPlaying: false,
+      isLoading: false,
+      currentSrc: null,
+      currentTime: 0
+    });
+  }
+  async function toggle() {
+    if (state.isPlaying) {
+      pause();
+      return;
+    }
+    await play();
+  }
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    if (el) {
+      el.pause();
+      el.removeEventListener("loadedmetadata", onLoadedMetadata);
+      el.removeEventListener("timeupdate", onTimeUpdate);
+      el.removeEventListener("playing", onPlaying);
+      el.removeEventListener("play", onPlaying);
+      el.removeEventListener("pause", onPause);
+      el.removeEventListener("ended", onEndedEvt);
+      el.removeEventListener("error", onErrorEvt);
+    }
+    releaseOwnedUrl();
+    listeners.clear();
+  }
+  return {
+    getState: () => state,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    load,
+    play,
+    pause,
+    stop,
+    toggle,
+    dispose
+  };
+}
+
+// src/voice/useAudioPlayer.ts
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+function useAudioPlayer(opts = {}) {
+  const cbRef = useRef(opts);
+  cbRef.current = opts;
+  const controller = useMemo(
+    () => createAudioPlayer({
+      onError: (e, ctx) => cbRef.current.onError?.(e, ctx),
+      onEnded: () => cbRef.current.onEnded?.(),
+      ...opts.deps
+    }),
+    // One controller for the component's lifetime; deps are read once by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  useEffect(() => () => controller.dispose(), [controller]);
+  const state = useSyncExternalStore(
+    controller.subscribe,
+    controller.getState,
+    controller.getState
+  );
+  return {
+    ...state,
+    load: controller.load,
+    play: controller.play,
+    pause: controller.pause,
+    stop: controller.stop,
+    toggle: controller.toggle,
+    playSource: async (source) => {
+      controller.load(source);
+      await controller.play();
+    }
+  };
+}
+
+// src/voice/AudioPlayer.tsx
+import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { useEffect as useEffect2 } from "react";
+import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
+var ICON = "w-4 h-4";
+var BTN = "p-2 disabled:opacity-40";
+function AudioPlayer({
+  source,
+  autoPlay = false,
+  onError,
+  onEnded,
+  className,
+  buttonClassName,
+  iconClassName
+}) {
+  const player = useAudioPlayer({ onError, onEnded });
+  const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
+  useEffect2(() => {
+    if (!source) return;
+    load(source);
+    if (autoPlay) void play();
+  }, [source, autoPlay]);
+  const hasSource = currentSrc !== null;
+  const btnClass = buttonClassName ?? BTN;
+  const iconClass = iconClassName ?? ICON;
+  return /* @__PURE__ */ jsxs5("div", { className, "data-fi-audio-player": "", children: [
+    /* @__PURE__ */ jsx7(
+      "button",
+      {
+        type: "button",
+        onClick: () => void toggle(),
+        disabled: !hasSource || isLoading,
+        "aria-pressed": isPlaying,
+        "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
+        className: btnClass,
+        children: isLoading ? /* @__PURE__ */ jsx7(Loader24, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx7(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx7(Play, { className: iconClass, "aria-hidden": true })
+      }
+    ),
+    /* @__PURE__ */ jsx7(
+      "button",
+      {
+        type: "button",
+        onClick: stop,
+        disabled: !hasSource,
+        "aria-label": "Detener audio",
+        className: btnClass,
+        children: /* @__PURE__ */ jsx7(Square2, { className: iconClass, "aria-hidden": true })
+      }
+    ),
+    error ? /* @__PURE__ */ jsxs5("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
+      /* @__PURE__ */ jsx7(AlertCircle, { className: iconClass, "aria-hidden": true }),
+      "Error de audio"
+    ] }) : null
+  ] });
+}
+
 // src/voice/useVoice.ts
 import { useCallback, useState } from "react";
 function toUrl(src) {
@@ -511,7 +781,7 @@ function useVoice(adapter, opts = {}) {
 import { useCallback as useCallback3, useState as useState4 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState2, useRef, useCallback as useCallback2 } from "react";
+import { useState as useState2, useRef as useRef2, useCallback as useCallback2 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -606,12 +876,12 @@ function useRecorder(config) {
   const [fullAudioBlob, setFullAudioBlob] = useState2(null);
   const [fullAudioUrl, setFullAudioUrl] = useState2(null);
   const [currentStream, setCurrentStream] = useState2(null);
-  const recorderRef = useRef(null);
-  const continuousRecorderRef = useRef(null);
-  const currentStreamRef = useRef(null);
-  const recordingTimerRef = useRef(null);
-  const fullAudioUrlRef = useRef(null);
-  const chunkNumberRef = useRef(0);
+  const recorderRef = useRef2(null);
+  const continuousRecorderRef = useRef2(null);
+  const currentStreamRef = useRef2(null);
+  const recordingTimerRef = useRef2(null);
+  const fullAudioUrlRef = useRef2(null);
+  const chunkNumberRef = useRef2(0);
   const startRecording = useCallback2(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -766,7 +1036,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef2, useEffect } from "react";
+import { useState as useState3, useRef as useRef3, useEffect as useEffect3 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function useAudioAnalysis(stream, config) {
   const {
@@ -775,11 +1045,11 @@ function useAudioAnalysis(stream, config) {
     isActive
   } = config;
   const [audioLevel, setAudioLevel] = useState3(0);
-  const analyserRef = useRef2(null);
-  const audioContextRef = useRef2(null);
-  const animationFrameRef = useRef2(null);
+  const analyserRef = useRef3(null);
+  const audioContextRef = useRef3(null);
+  const animationFrameRef = useRef3(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect(() => {
+  useEffect3(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       return;
@@ -870,6 +1140,7 @@ function useDictation(adapter, opts = {}) {
   };
 }
 export {
+  AudioPlayer,
   BUTTON_SIZES,
   COLOR_THEMES,
   PulseRings,
@@ -880,9 +1151,11 @@ export {
   SpeakButton,
   StatusText,
   VoiceMicButton,
+  createAudioPlayer,
   formatRecordingTime,
   makeRecorder,
   useAudioAnalysis,
+  useAudioPlayer,
   useDictation,
   useRecorder,
   useVoice

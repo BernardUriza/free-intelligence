@@ -234,7 +234,7 @@ function FloatingButton({ onClick, isMobile }) {
 }
 
 // src/shell/ChatContent.tsx
-import { Loader2 as Loader26 } from "lucide-react";
+import { Loader2 as Loader27 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -451,9 +451,9 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState7, useRef as useRef4, useEffect as useEffect3 } from "react";
+import { useState as useState7, useRef as useRef5, useEffect as useEffect5 } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader24 } from "lucide-react";
+import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader25 } from "lucide-react";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef } from "react";
@@ -766,6 +766,14 @@ function VoiceMicButton({
 import { Volume2 } from "lucide-react";
 import { jsx as jsx11 } from "react/jsx-runtime";
 
+// src/voice/useAudioPlayer.ts
+import { useEffect as useEffect2, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
+
+// src/voice/AudioPlayer.tsx
+import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { useEffect as useEffect3 } from "react";
+import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+
 // src/voice/useVoice.ts
 import { useCallback as useCallback2, useState as useState3 } from "react";
 
@@ -773,13 +781,13 @@ import { useCallback as useCallback2, useState as useState3 } from "react";
 import { useCallback as useCallback4, useState as useState6 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState4, useRef as useRef2, useCallback as useCallback3 } from "react";
+import { useState as useState4, useRef as useRef3, useCallback as useCallback3 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef3, useEffect as useEffect2 } from "react";
+import { useState as useState5, useRef as useRef4, useEffect as useEffect4 } from "react";
 
 // src/shell/ChatToolbar.tsx
-import { Fragment as Fragment4, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -809,9 +817,9 @@ function ChatToolbar({
   sendLoading = false
 }) {
   const [overflowOpen, setOverflowOpen] = useState7(false);
-  const overflowButtonRef = useRef4(null);
+  const overflowButtonRef = useRef5(null);
   const [dropdownPosition, setDropdownPosition] = useState7({ top: 0, left: 0 });
-  useEffect3(() => {
+  useEffect5(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -823,11 +831,11 @@ function ChatToolbar({
   }, [overflowOpen]);
   const buttonBaseClass = "chat-toolbar-btn";
   const iconClass = "chat-toolbar-icon";
-  return /* @__PURE__ */ jsxs9("div", { className: "chat-toolbar", children: [
-    /* @__PURE__ */ jsxs9("div", { className: "fi-flex-gap-sm", children: [
+  return /* @__PURE__ */ jsxs10("div", { className: "chat-toolbar", children: [
+    /* @__PURE__ */ jsxs10("div", { className: "fi-flex-gap-sm", children: [
       showPersonaSelector && personaSelector,
-      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs9("div", { className: "relative", children: [
-        /* @__PURE__ */ jsx12(
+      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs10("div", { className: "relative", children: [
+        /* @__PURE__ */ jsx13(
           "button",
           {
             ref: overflowButtonRef,
@@ -835,12 +843,12 @@ function ChatToolbar({
             className: buttonBaseClass,
             title: "M\xE1s opciones",
             "aria-label": "M\xE1s opciones",
-            children: /* @__PURE__ */ jsx12(MoreVertical, { className: iconClass })
+            children: /* @__PURE__ */ jsx13(MoreVertical, { className: iconClass })
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs9(Fragment4, { children: [
-            /* @__PURE__ */ jsx12(
+          /* @__PURE__ */ jsxs10(Fragment4, { children: [
+            /* @__PURE__ */ jsx13(
               "div",
               {
                 className: "fixed inset-0 z-[9998]",
@@ -848,7 +856,7 @@ function ChatToolbar({
                 "aria-hidden": "true"
               }
             ),
-            /* @__PURE__ */ jsxs9(
+            /* @__PURE__ */ jsxs10(
               "div",
               {
                 className: "chat-dropdown",
@@ -858,7 +866,7 @@ function ChatToolbar({
                   transform: "translateY(-100%)"
                 },
                 children: [
-                  showAttach && /* @__PURE__ */ jsxs9(
+                  showAttach && /* @__PURE__ */ jsxs10(
                     "button",
                     {
                       onClick: () => {
@@ -867,12 +875,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx12(Paperclip, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx12("span", { children: "Adjuntar archivo" })
+                        /* @__PURE__ */ jsx13(Paperclip, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx13("span", { children: "Adjuntar archivo" })
                       ]
                     }
                   ),
-                  showLanguage && /* @__PURE__ */ jsxs9(
+                  showLanguage && /* @__PURE__ */ jsxs10(
                     "button",
                     {
                       onClick: () => {
@@ -881,12 +889,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx12(Globe, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx12("span", { children: "Cambiar idioma" })
+                        /* @__PURE__ */ jsx13(Globe, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx13("span", { children: "Cambiar idioma" })
                       ]
                     }
                   ),
-                  showFormatting && /* @__PURE__ */ jsxs9(
+                  showFormatting && /* @__PURE__ */ jsxs10(
                     "button",
                     {
                       onClick: () => {
@@ -895,14 +903,14 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx12(Type, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx12("span", { children: "Formato de texto" })
+                        /* @__PURE__ */ jsx13(Type, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx13("span", { children: "Formato de texto" })
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs9(Fragment4, { children: [
-                    /* @__PURE__ */ jsx12("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs9(
+                  showCopyCurl && /* @__PURE__ */ jsxs10(Fragment4, { children: [
+                    /* @__PURE__ */ jsx13("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs10(
                       "button",
                       {
                         onClick: () => {
@@ -911,15 +919,15 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300",
                         children: [
-                          /* @__PURE__ */ jsx12(Terminal, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx12("span", { children: "Copiar plantilla curl" })
+                          /* @__PURE__ */ jsx13(Terminal, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx13("span", { children: "Copiar plantilla curl" })
                         ]
                       }
                     )
                   ] }),
-                  showThinkingToggle && /* @__PURE__ */ jsxs9("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx12("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs9(
+                  showThinkingToggle && /* @__PURE__ */ jsxs10("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx13("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs10(
                       "button",
                       {
                         onClick: () => {
@@ -928,15 +936,15 @@ function ChatToolbar({
                         },
                         className: `chat-dropdown-item ${showThinking ? "fi-text-purple hover:bg-purple-900/20" : ""}`,
                         children: [
-                          /* @__PURE__ */ jsx12(Sparkles, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx12("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
+                          /* @__PURE__ */ jsx13(Sparkles, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx13("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
                         ]
                       }
                     )
                   ] }),
-                  showClear && /* @__PURE__ */ jsxs9("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx12("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs9(
+                  showClear && /* @__PURE__ */ jsxs10("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx13("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs10(
                       "button",
                       {
                         onClick: () => {
@@ -945,8 +953,8 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item-danger",
                         children: [
-                          /* @__PURE__ */ jsx12(Trash, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx12("span", { children: "Limpiar conversaci\xF3n" })
+                          /* @__PURE__ */ jsx13(Trash, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx13("span", { children: "Limpiar conversaci\xF3n" })
                         ]
                       }
                     )
@@ -959,38 +967,38 @@ function ChatToolbar({
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxs9("div", { className: "fi-flex-gap-sm", children: [
-      showClear && /* @__PURE__ */ jsx12(
+    /* @__PURE__ */ jsxs10("div", { className: "fi-flex-gap-sm", children: [
+      showClear && /* @__PURE__ */ jsx13(
         "button",
         {
           onClick: () => onClearConversation?.(),
           className: `${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`,
           title: "Limpiar conversaci\xF3n",
           "aria-label": "Limpiar conversaci\xF3n",
-          children: /* @__PURE__ */ jsx12(Trash, { className: iconClass })
+          children: /* @__PURE__ */ jsx13(Trash, { className: iconClass })
         }
       ),
-      showThinkingToggle && /* @__PURE__ */ jsx12(
+      showThinkingToggle && /* @__PURE__ */ jsx13(
         "button",
         {
           onClick: onShowThinkingToggle,
           className: `${buttonBaseClass} hidden @md:flex ${showThinking ? "chat-toolbar-btn-active" : ""}`,
           title: showThinking ? "Razonamiento visible (click para ocultar)" : "Razonamiento oculto (click para mostrar)",
           "aria-label": showThinking ? "Ocultar razonamiento del modelo" : "Mostrar razonamiento del modelo",
-          children: /* @__PURE__ */ jsx12(Sparkles, { className: iconClass })
+          children: /* @__PURE__ */ jsx13(Sparkles, { className: iconClass })
         }
       ),
-      showResponseMode && /* @__PURE__ */ jsx12(
+      showResponseMode && /* @__PURE__ */ jsx13(
         "button",
         {
           onClick: onResponseModeToggle,
           className: `${buttonBaseClass} ${responseMode === "concise" ? "fi-text-info hover:text-cyan-300" : "chat-toolbar-btn-success"}`,
           title: responseMode === "explanatory" ? "Modo: Explicativo (detallado)" : "Modo: Conciso (breve)",
           "aria-label": responseMode === "explanatory" ? "Cambiar a modo conciso" : "Cambiar a modo explicativo",
-          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx12(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx12(Zap, { className: iconClass })
+          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx13(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx13(Zap, { className: iconClass })
         }
       ),
-      showVoice && /* @__PURE__ */ jsx12(
+      showVoice && /* @__PURE__ */ jsx13(
         VoiceMicButton,
         {
           isRecording: voiceRecording?.isRecording || false,
@@ -1004,14 +1012,14 @@ function ChatToolbar({
           })
         }
       ),
-      /* @__PURE__ */ jsx12(
+      /* @__PURE__ */ jsx13(
         "button",
         {
           onClick: onSend,
           disabled: !canSend,
           className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
           "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx12(Loader24, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx12(Send, { className: "h-4 w-4" })
+          children: sendLoading ? /* @__PURE__ */ jsx13(Loader25, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx13(Send, { className: "h-4 w-4" })
         }
       )
     ] })
@@ -1025,11 +1033,11 @@ import {
   Image as ImageIcon,
   File,
   X as X2,
-  Loader2 as Loader25,
+  Loader2 as Loader26,
   CheckCircle,
-  AlertCircle
+  AlertCircle as AlertCircle2
 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -1062,37 +1070,37 @@ function ChatFilePreview({
   const isError = status === "error";
   const isUploading = status === "uploading";
   const isProcessing = status === "processing" || status === "pending_instructions";
-  return /* @__PURE__ */ jsxs10("div", { className: `
+  return /* @__PURE__ */ jsxs11("div", { className: `
       flex items-center gap-3 p-3 rounded-xl border
       ${isError ? "bg-red-900/20 border-red-700/50" : isCompleted ? "bg-emerald-900/20 border-emerald-700/50" : "bg-slate-800/80 border-slate-700/50"}
       transition-colors duration-200
     `, children: [
-    /* @__PURE__ */ jsx13("div", { className: `
+    /* @__PURE__ */ jsx14("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx13(Loader25, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx13(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx13(AlertCircle, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx13(FileIcon, { className: "w-5 h-5 fi-text" }) }),
-    /* @__PURE__ */ jsxs10("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx13("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs10("div", { className: "flex items-center gap-2 fi-text-xs", children: [
-        /* @__PURE__ */ jsx13("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs10(Fragment5, { children: [
-          /* @__PURE__ */ jsx13("span", { children: "-" }),
-          /* @__PURE__ */ jsx13("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+      `, children: isProcessing ? /* @__PURE__ */ jsx14(Loader26, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx14(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx14(AlertCircle2, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx14(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+    /* @__PURE__ */ jsxs11("div", { className: "flex-1 min-w-0", children: [
+      /* @__PURE__ */ jsx14("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs11("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+        /* @__PURE__ */ jsx14("span", { children: formatFileSize(file.size) }),
+        isUploading && /* @__PURE__ */ jsxs11(Fragment5, { children: [
+          /* @__PURE__ */ jsx14("span", { children: "-" }),
+          /* @__PURE__ */ jsx14("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs10(Fragment5, { children: [
-          /* @__PURE__ */ jsx13("span", { children: "-" }),
-          /* @__PURE__ */ jsx13("span", { className: "fi-text-primary", children: "Procesando..." })
+        isProcessing && /* @__PURE__ */ jsxs11(Fragment5, { children: [
+          /* @__PURE__ */ jsx14("span", { children: "-" }),
+          /* @__PURE__ */ jsx14("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs10(Fragment5, { children: [
-          /* @__PURE__ */ jsx13("span", { children: "-" }),
-          /* @__PURE__ */ jsx13("span", { className: "chat-file-status-indexed", children: "Indexado" })
+        isCompleted && /* @__PURE__ */ jsxs11(Fragment5, { children: [
+          /* @__PURE__ */ jsx14("span", { children: "-" }),
+          /* @__PURE__ */ jsx14("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs10(Fragment5, { children: [
-          /* @__PURE__ */ jsx13("span", { children: "-" }),
-          /* @__PURE__ */ jsx13("span", { className: "fi-text-error truncate", title: error, children: error })
+        isError && error && /* @__PURE__ */ jsxs11(Fragment5, { children: [
+          /* @__PURE__ */ jsx14("span", { children: "-" }),
+          /* @__PURE__ */ jsx14("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
       ] }),
-      isUploading && /* @__PURE__ */ jsx13("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx13(
+      isUploading && /* @__PURE__ */ jsx14("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx14(
         "div",
         {
           className: "fi-progress-bar duration-300",
@@ -1100,7 +1108,7 @@ function ChatFilePreview({
         }
       ) })
     ] }),
-    !isCompleted && !isProcessing && /* @__PURE__ */ jsx13(
+    !isCompleted && !isProcessing && /* @__PURE__ */ jsx14(
       "button",
       {
         type: "button",
@@ -1108,7 +1116,7 @@ function ChatFilePreview({
         className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
         "aria-label": "Cancelar",
         title: "Cancelar",
-        children: /* @__PURE__ */ jsx13(X2, { className: "h-4 w-4" })
+        children: /* @__PURE__ */ jsx14(X2, { className: "h-4 w-4" })
       }
     )
   ] });
@@ -1116,7 +1124,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -1126,59 +1134,59 @@ function ChatStartScreen({
   isLoading = false
 }) {
   if (!isAuthenticated) {
-    return /* @__PURE__ */ jsx14("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs11("div", { className: "chat-start-container", children: [
-      /* @__PURE__ */ jsx14("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx14("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx14(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
-      /* @__PURE__ */ jsxs11("div", { className: "fi-stack-sm", children: [
-        /* @__PURE__ */ jsx14("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
-        /* @__PURE__ */ jsx14("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
+    return /* @__PURE__ */ jsx15("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs12("div", { className: "chat-start-container", children: [
+      /* @__PURE__ */ jsx15("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx15("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx15(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
+      /* @__PURE__ */ jsxs12("div", { className: "fi-stack-sm", children: [
+        /* @__PURE__ */ jsx15("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
+        /* @__PURE__ */ jsx15("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
       ] }),
-      /* @__PURE__ */ jsxs11(
+      /* @__PURE__ */ jsxs12(
         "button",
         {
           type: "button",
           onClick: () => onNavigate?.("downloads"),
           className: "chat-start-btn-login",
           children: [
-            /* @__PURE__ */ jsx14(Download, { className: "fi-icon-md" }),
+            /* @__PURE__ */ jsx15(Download, { className: "fi-icon-md" }),
             "Ir a Descargas"
           ]
         }
       ),
-      /* @__PURE__ */ jsx14("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
+      /* @__PURE__ */ jsx15("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
     ] }) });
   }
-  return /* @__PURE__ */ jsx14("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs11("div", { className: "chat-start-container", children: [
-    /* @__PURE__ */ jsx14("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx14("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx14(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
-    /* @__PURE__ */ jsxs11("div", { className: "fi-stack-sm", children: [
-      /* @__PURE__ */ jsxs11("h3", { className: "chat-start-title-large", children: [
+  return /* @__PURE__ */ jsx15("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs12("div", { className: "chat-start-container", children: [
+    /* @__PURE__ */ jsx15("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx15("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx15(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
+    /* @__PURE__ */ jsxs12("div", { className: "fi-stack-sm", children: [
+      /* @__PURE__ */ jsxs12("h3", { className: "chat-start-title-large", children: [
         "Hola, ",
         userName?.split(" ")[0] || "Doctor"
       ] }),
-      /* @__PURE__ */ jsx14("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
+      /* @__PURE__ */ jsx15("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
     ] }),
-    /* @__PURE__ */ jsxs11("div", { className: "chat-start-features", children: [
-      /* @__PURE__ */ jsxs11("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx14(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
-        /* @__PURE__ */ jsx14("span", { children: "Conversaci\xF3n privada y segura" })
+    /* @__PURE__ */ jsxs12("div", { className: "chat-start-features", children: [
+      /* @__PURE__ */ jsxs12("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx15(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
+        /* @__PURE__ */ jsx15("span", { children: "Conversaci\xF3n privada y segura" })
       ] }),
-      /* @__PURE__ */ jsxs11("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx14(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
-        /* @__PURE__ */ jsx14("span", { children: "Datos encriptados localmente" })
+      /* @__PURE__ */ jsxs12("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx15(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
+        /* @__PURE__ */ jsx15("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx14("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs11(Fragment6, { children: [
-      /* @__PURE__ */ jsx14("div", { className: "chat-start-spinner" }),
+    /* @__PURE__ */ jsx15("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs12(Fragment6, { children: [
+      /* @__PURE__ */ jsx15("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs11(Fragment6, { children: [
-      /* @__PURE__ */ jsx14(MessageSquareText, { className: "w-5 h-5" }),
+    ] }) : /* @__PURE__ */ jsxs12(Fragment6, { children: [
+      /* @__PURE__ */ jsx15(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
-    /* @__PURE__ */ jsx14("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
+    /* @__PURE__ */ jsx15("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
   ] }) });
 }
 
 // src/shell/ChatContent.tsx
-import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 function ChatContent({
   config,
   embedded,
@@ -1234,8 +1242,8 @@ function ChatContent({
   const showThinkingToggle = typeof onShowThinkingToggle === "function";
   const showClear = typeof onClearConversation === "function";
   const showPersonaSelector = personaSelector != null;
-  return /* @__PURE__ */ jsxs12("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
-    !isHistoryOpen && /* @__PURE__ */ jsxs12(
+  return /* @__PURE__ */ jsxs13("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
+    !isHistoryOpen && /* @__PURE__ */ jsxs13(
       ChatWidgetContainer,
       {
         mode: viewMode,
@@ -1243,7 +1251,7 @@ function ChatContent({
         embedded,
         onModeChange,
         children: [
-          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx15(
+          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx16(
             ChatWidgetHeader,
             {
               title: config.title,
@@ -1259,7 +1267,7 @@ function ChatContent({
               onHistorySearch: onHistoryOpen
             }
           ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx15("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx15(Loader26, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx15(
+          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx16("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx16(Loader27, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx16(
             ChatStartScreen,
             {
               isAuthenticated,
@@ -1271,8 +1279,8 @@ function ChatContent({
             }
           ) : renderMessages?.({ viewMode }),
           customQuickReplies,
-          viewMode !== "dense" && /* @__PURE__ */ jsx15("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs12("div", { className: "chat-input-floating-box", children: [
-            isUploadActive && uploadFile && /* @__PURE__ */ jsx15(
+          viewMode !== "dense" && /* @__PURE__ */ jsx16("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs13("div", { className: "chat-input-floating-box", children: [
+            isUploadActive && uploadFile && /* @__PURE__ */ jsx16(
               ChatFilePreview,
               {
                 file: uploadFile,
@@ -1281,7 +1289,7 @@ function ChatContent({
                 })
               }
             ),
-            /* @__PURE__ */ jsx15(
+            /* @__PURE__ */ jsx16(
               Composer,
               {
                 message,
@@ -1295,7 +1303,7 @@ function ChatContent({
                 textareaClassName: "chat-textarea"
               }
             ),
-            /* @__PURE__ */ jsx15(
+            /* @__PURE__ */ jsx16(
               ChatToolbar,
               {
                 responseMode,
@@ -1333,7 +1341,7 @@ function ChatContent({
 }
 
 // src/shell/ChatWidget.tsx
-import { jsx as jsx16 } from "react/jsx-runtime";
+import { jsx as jsx17 } from "react/jsx-runtime";
 function ChatWidget({
   chatHook,
   config: customConfig,
@@ -1388,9 +1396,9 @@ function ChatWidget({
   }, [widgetState, messageCount]);
   if (!widgetState.isOpen) {
     if (embedded) return null;
-    return /* @__PURE__ */ jsx16(FloatingButton, { onClick: handleOpen, isMobile });
+    return /* @__PURE__ */ jsx17(FloatingButton, { onClick: handleOpen, isMobile });
   }
-  return /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsx17(
     ChatContent,
     {
       config,
@@ -1445,9 +1453,9 @@ function ChatWidget({
 }
 
 // src/shell/ChatSurface.tsx
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx18 } from "react/jsx-runtime";
 function ChatSurface(props) {
-  return /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsx18(
     ChatWidget,
     {
       ...props,

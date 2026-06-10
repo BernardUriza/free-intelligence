@@ -115,6 +115,41 @@ no stubs, no dead buttons.
 
 ---
 
+## Voice playback: `useAudioPlayer` / `<AudioPlayer>`
+
+The voice stack is two halves. **Synthesis** turns text into an `AudioSource`
+(`useVoice(adapter)` + `SpeakButton`); **playback** turns that source into sound.
+Playback is the reusable foundation here — an app no longer re-wires its own
+`<audio>`, play/stop, loading/error and object-URL cleanup.
+
+Three layers, pick the one you need (all from `fi-glass/voice`):
+
+- `createAudioPlayer(opts)` — headless engine (no React). Owns the element, the
+  play/pause/stop state machine, and **revokes only the object URLs it created**
+  (a `{ url }` source is left alone for streaming). Dependency-injected, so it
+  unit-tests in node with a fake element — no DOM, no network.
+- `useAudioPlayer(opts)` — React hook over the engine; disposes (and revokes) on
+  unmount.
+- `<AudioPlayer source={...} />` — minimal accessible controls (play/pause + stop,
+  loading spinner, `role="alert"` error). Restyle via `className` props.
+
+```tsx
+import { useVoice, useAudioPlayer } from 'fi-glass/voice';
+
+function Message({ text, adapter }) {
+  const { generateAudio, audioUrl } = useVoice(adapter); // text -> AudioSource
+  const player = useAudioPlayer({ onError: report });    // AudioSource -> sound
+
+  // The hook owns cleanup; or drop in <AudioPlayer source={blob} /> directly.
+  return <button onClick={() => generateAudio(text)}>Speak</button>;
+}
+```
+
+Playback needs no adapter — it consumes an `AudioSource` (a `Blob` or `{ url }`),
+so it works with any synthesis path.
+
+---
+
 ## Agent panel: `<AgentPanel>`
 
 Renders one reduced agentic turn (`AgentTurnState` from core's
