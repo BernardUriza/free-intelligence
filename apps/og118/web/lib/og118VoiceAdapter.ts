@@ -1,12 +1,15 @@
 /**
- * og118VoiceAdapter — the CONSUMER half of TTS (B3-TTS-1).
+ * og118VoiceAdapter — the CONSUMER half of voice (TTS + STT).
  *
- * og118 owns only the I/O: it calls the already-shipped backend `/tts/synthesize`
- * (B3-VOICE-BACKEND-1) and hands the resulting audio Blob back to fi-glass, which
- * owns playback and object-URL lifecycle (B3-VOICE-FIGLASS-1: useVoice +
- * useAudioPlayer). This file therefore does NOT touch audio elements, object URLs
- * or playback state — that would duplicate the framework. It implements exactly
- * one capability: `VoiceAdapter.synthesize`.
+ * og118 owns only the I/O. For TTS (B3-TTS-1) it calls `/tts/synthesize`
+ * (B3-VOICE-BACKEND-1) and hands the audio Blob back to fi-glass, which owns
+ * playback + object-URL lifecycle. For STT (B3-VOICE-OG118-4) it calls
+ * `/stt/transcribe` (B3-VOICE-BACKEND-2) and returns the recognized text;
+ * fi-glass's AgentConversationSurface (B3-VOICE-FIGLASS-4) owns the recorder,
+ * the mic slot and feeding the transcript into the composer. This file therefore
+ * touches NO audio elements, object URLs, MediaRecorder or composer state — that
+ * would duplicate the framework. It implements exactly two adapter capabilities:
+ * `synthesize` and `transcribe`.
  *
  * Auth/transport reuse: the bearer is read through og118's existing `authHeaders()`
  * (localStorage token), identical to how `/chat/stream` authenticates. No new auth
@@ -14,10 +17,16 @@
  *
  * Testability: a factory (createOg118VoiceAdapter) injects baseUrl/authHeaders/fetch
  * so tests drive it with a fake fetch and never touch the network or the DOM —
- * mirroring the backend's `get_tts_provider` dependency seam.
+ * mirroring the backend's provider dependency seams.
  */
 
-import type { VoiceAdapter, VoiceOption, AudioSource } from '@free-intelligence/core';
+import type {
+  VoiceAdapter,
+  VoiceOption,
+  AudioSource,
+  TranscribeContext,
+  TranscriptResult,
+} from '@free-intelligence/core';
 import { authHeaders as defaultAuthHeaders } from './og118Token';
 
 /** Same base URL as the chat transport (useOg118Agent). */
@@ -73,6 +82,44 @@ function fallbackForStatus(status: number): { code: string; message: string } {
   }
 }
 
+/**
+ * Explicit STT error — the dictation twin of {@link Og118TTSError}. Every
+ * non-OK response and every network failure becomes one of these so the UI
+ * (AgentConversationSurface.onVoiceError) can react without parsing raw fetch
+ * rejections.
+ */
+export class Og118STTError extends Error {
+  readonly code: string;
+  readonly status: number | null;
+
+  constructor(message: string, code: string, status: number | null, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'Og118STTError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/** STT twin of fallbackForStatus: codes/messages for the /stt/transcribe surface. */
+function fallbackForStatusStt(status: number): { code: string; message: string } {
+  switch (status) {
+    case 400:
+      return { code: 'STT_INVALID_REQUEST', message: 'Audio inválido para transcripción.' };
+    case 401:
+      return { code: 'STT_UNAUTHORIZED', message: 'Token de acceso inválido o ausente para STT.' };
+    case 403:
+      return { code: 'STT_FORBIDDEN', message: 'Acceso a STT denegado.' };
+    case 404:
+      return { code: 'STT_NOT_FOUND', message: 'El endpoint de transcripción no está disponible.' };
+    case 502:
+      return { code: 'STT_UPSTREAM_ERROR', message: 'El proveedor de transcripción falló.' };
+    case 503:
+      return { code: 'STT_NOT_CONFIGURED', message: 'STT no está configurado en este despliegue.' };
+    default:
+      return { code: 'STT_ERROR', message: `Transcripción falló (HTTP ${status}).` };
+  }
+}
+
 /** Best-effort extraction of the backend's `{ detail: { code, message } }` body. */
 async function readBackendError(res: Response): Promise<{ code?: string; message?: string }> {
   try {
@@ -99,8 +146,9 @@ export interface Og118VoiceAdapterDeps {
 
 /**
  * Build an og118 VoiceAdapter. Defaults wire the real backend + auth; tests pass
- * fakes. Only `synthesize` is implemented — STT (transcribe) is intentionally
- * absent (out of scope for B3-TTS-1).
+ * fakes. Implements both `synthesize` (TTS) and `transcribe` (STT) — fi-glass
+ * lights up the SpeakButton and the in-composer dictation mic respectively, off
+ * the presence of each capability.
  */
 export function createOg118VoiceAdapter(deps: Og118VoiceAdapterDeps = {}): VoiceAdapter {
   const baseUrl = deps.baseUrl ?? API;
@@ -140,6 +188,57 @@ export function createOg118VoiceAdapter(deps: Og118VoiceAdapterDeps = {}): Voice
       // Success → raw audio bytes. Returning a Blob lets fi-glass own the object
       // URL (it revokes only the URLs it creates). We never persist it.
       return res.blob();
+    },
+
+    async transcribe(chunk: Blob, ctx?: TranscribeContext): Promise<TranscriptResult> {
+      // Multipart upload — the browser sets the multipart boundary, so we must
+      // NOT send a Content-Type header (that would override the boundary). The
+      // bearer rides along via the same authHeaders() as every other call.
+      const form = new FormData();
+      form.append('audio', chunk, 'chunk.webm');
+
+      let res: Response;
+      try {
+        res = await doFetch(`${baseUrl}/stt/transcribe`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders() },
+          body: form,
+          signal: ctx?.signal,
+        });
+      } catch (err) {
+        throw new Og118STTError(
+          'No se pudo contactar el servicio de transcripción.',
+          'STT_NETWORK',
+          null,
+          { cause: err },
+        );
+      }
+
+      if (!res.ok) {
+        const fallback = fallbackForStatusStt(res.status);
+        const backend = await readBackendError(res);
+        throw new Og118STTError(
+          backend.message ?? fallback.message,
+          backend.code ?? fallback.code,
+          res.status,
+        );
+      }
+
+      // A 2xx with a non-JSON body would otherwise throw a bare SyntaxError;
+      // funnel it through the same explicit-error path as a network failure so
+      // the UI always sees an Og118STTError, never a raw parse rejection.
+      let data: { text?: string };
+      try {
+        data = (await res.json()) as { text?: string };
+      } catch (err) {
+        throw new Og118STTError(
+          'El servicio de transcripción devolvió una respuesta inválida.',
+          'STT_BAD_RESPONSE',
+          res.status,
+          { cause: err },
+        );
+      }
+      return { text: data.text ?? '' };
     },
   };
 }

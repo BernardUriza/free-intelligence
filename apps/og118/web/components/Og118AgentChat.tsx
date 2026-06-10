@@ -27,7 +27,6 @@ import {
   useVoice,
   RichAudioPlayer,
   AudioVisualizer,
-  ComposerMicSlot,
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -57,6 +56,10 @@ export function Og118AgentChat() {
     onMessagesChange: lib.persist,
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
+  // Dictation errors are surfaced to the user, not swallowed in the console.
+  // The adapter only ever emits controlled Og118STTError messages (no tokens,
+  // no PHI, no stack), so the string is safe to render verbatim.
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const { turn } = conversation;
 
   // TTS consumer wiring (B3-TTS-1): synthesis goes through og118's adapter
@@ -133,14 +136,51 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
-  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer + mic slot,
-  // all reusable fi-glass primitives (DD-002 / framework-first-canary: og118
-  // consumes, never re-implements). og118 owns only layout/color via CSS.
+  // Dictation error banner — the user-facing half of onVoiceError. Mirrors the
+  // authBanner pattern (inline controlled UI feedback, dismissable) instead of
+  // hiding STT failures in the console where the user never sees them.
+  const voiceErrorBanner = voiceError ? (
+    <div
+      style={{
+        marginBottom: '0.75rem',
+        padding: '0.5rem 0.75rem',
+        borderRadius: 10,
+        border: '1px solid rgba(251,191,36,0.35)',
+        background: 'rgba(251,191,36,0.08)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '0.5rem',
+      }}
+    >
+      <span style={{ color: '#fcd34d', fontSize: '0.85rem' }}>{voiceError}</span>
+      <button
+        onClick={() => setVoiceError(null)}
+        aria-label="Descartar error de dictado"
+        style={{
+          border: 'none',
+          background: 'transparent',
+          color: '#fcd34d',
+          fontSize: '1rem',
+          cursor: 'pointer',
+          lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  ) : null;
+
+  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer, reusable
+  // fi-glass primitives (DD-002 / framework-first-canary: og118 consumes, never
+  // re-implements). og118 owns only layout/color via CSS. The dictation mic is
+  // NO LONGER here: B3-VOICE-OG118-4 wires a real STT adapter, so the live mic is
+  // now hosted by AgentConversationSurface inside the composer (it feeds the
+  // transcript straight into the textarea — a disconnected mic above it never
+  // could).
   //   • RichAudioPlayer: full transport + scrubber, shown while a TTS clip is
   //     loaded. fi-glass owns the <audio> element and the object-URL lifecycle.
   //   • AudioVisualizer: idle equalizer affordance (no live analyser wired yet).
-  //   • ComposerMicSlot: visible but available={false} — the mic is discoverable
-  //     yet clearly disabled. No STT adapter, no mic permission, no recording.
   const voiceBar = (
     <div className="og-voice-bar">
       {voice.audioUrl ? (
@@ -160,11 +200,6 @@ export function Og118AgentChat() {
         className="og-voice-visualizer"
         barClassName="og-voice-bar-bar"
         label="Nivel de voz (sin señal en vivo todavía)"
-      />
-      <ComposerMicSlot
-        available={false}
-        className="og-mic-slot"
-        unavailableLabel="Dictado por voz no disponible todavía (STT pendiente)"
       />
     </div>
   );
@@ -205,11 +240,24 @@ export function Og118AgentChat() {
           aboveComposer={
             <>
               {authBanner}
+              {voiceErrorBanner}
               {voiceBar}
             </>
           }
           composerAreaClassName="og-composer-area glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
+          // Dictation (B3-VOICE-OG118-4): hand the surface the voice adapter —
+          // its `transcribe` capability lights up the in-composer mic and feeds
+          // the transcript into the composer. og118 owns only the endpoint/auth
+          // (in og118VoiceAdapter) and the mic's color via og-mic-slot.
+          voiceAdapter={og118VoiceAdapter}
+          micSlotClassName="og-mic-slot"
+          onVoiceError={(msg) => {
+            // Keep the console log for dev, but also surface a controlled,
+            // dismissable banner so the user actually sees a dictation failure.
+            console.error('[og118] stt', msg);
+            setVoiceError(msg);
+          }}
           // Per-role bubble tint via the fi-glass resolver slot (FIGLASS-3):
           // user turns get the emerald fill, assistant turns keep the frosted
           // glass card. Both classes ship in the glass-chat preset and the
