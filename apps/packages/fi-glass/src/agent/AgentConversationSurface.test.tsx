@@ -161,4 +161,23 @@ describe('<AgentConversationSurface> voiceAdapter dictation (B3-VOICE-FIGLASS-4)
       );
     expect(render).not.toThrow();
   });
+
+  // B3-VOICE-FIGLASS-5: the live mic equalizer mounts ONLY while recording, so
+  // an idle composer (the SSR default — no effects, isRecording=false) shows the
+  // mic but no visualizer. This pins "no static placeholder bars" — the old
+  // always-at-rest equalizer that lied about reacting to the mic is gone.
+  it('does not render the live mic visualizer while idle (not recording)', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        voiceAdapter={withTranscribe}
+        voiceVisualizerClassName="og-voice-visualizer"
+      />
+    );
+    // The mic is available...
+    expect(html).toContain('data-available');
+    // ...but the equalizer (its accessible label / style hook) is absent at rest.
+    expect(html).not.toContain('Nivel del micrófono');
+    expect(html).not.toContain('og-voice-visualizer');
+  });
 });

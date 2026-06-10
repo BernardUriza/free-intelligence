@@ -33,6 +33,8 @@ export interface UseDictationReturn {
   recordingTime: number;
   audioLevel: number;
   isSilent: boolean;
+  /** Live, normalized (0..1) frequency bands — feed AudioVisualizer `levels`. */
+  bands: number[];
   liveTranscript: string;
   isTranscribing: boolean;
   startRecording: () => Promise<void>;
@@ -77,7 +79,7 @@ export function useDictation(
       deviceId,
     });
 
-  const { audioLevel, isSilent } = useAudioAnalysis(currentStream, {
+  const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
     isActive: isRecording,
   });
 
@@ -95,6 +97,7 @@ export function useDictation(
     recordingTime,
     audioLevel,
     isSilent,
+    bands,
     liveTranscript,
     isTranscribing,
     startRecording: start,

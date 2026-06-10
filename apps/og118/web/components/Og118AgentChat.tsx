@@ -26,7 +26,6 @@ import {
 import {
   useVoice,
   RichAudioPlayer,
-  AudioVisualizer,
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -39,13 +38,6 @@ import { Og118MessageActions } from './Og118MessageActions';
 // never touches indexedDB), so one stable instance shared across renders and
 // remounts is correct and avoids reopening the database.
 const conversationLibrary = new IndexedDBConversationLibrary();
-
-// Static rest pattern for the visualizer. B3-VOICE-OG118-2 adopts the fi-glass
-// AudioVisualizer as a discoverable affordance, but no live analyser is wired
-// here (no STT, no recording, no Web Audio in og118). Rendering at rest
-// (active={false}) is honest: the equalizer is present but has no live signal
-// yet — it lights up when a real mic/analyser pipeline lands.
-const VOICE_REST_LEVELS = [0.3, 0.6, 0.45, 0.75, 0.5, 0.65, 0.4, 0.55];
 
 export function Og118AgentChat() {
   const lib = useConversationLibrary(conversationLibrary);
@@ -171,38 +163,28 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
-  // Voice bar (B3-VOICE-OG118-2) — the rich playback + visualizer, reusable
-  // fi-glass primitives (DD-002 / framework-first-canary: og118 consumes, never
-  // re-implements). og118 owns only layout/color via CSS. The dictation mic is
-  // NO LONGER here: B3-VOICE-OG118-4 wires a real STT adapter, so the live mic is
-  // now hosted by AgentConversationSurface inside the composer (it feeds the
-  // transcript straight into the textarea — a disconnected mic above it never
-  // could).
+  // Voice bar (B3-VOICE-OG118-2) — rich TTS playback, a reusable fi-glass
+  // primitive (DD-002 / framework-first-canary: og118 consumes, never
+  // re-implements). og118 owns only layout/color via CSS.
   //   • RichAudioPlayer: full transport + scrubber, shown while a TTS clip is
   //     loaded. fi-glass owns the <audio> element and the object-URL lifecycle.
-  //   • AudioVisualizer: idle equalizer affordance (no live analyser wired yet).
-  const voiceBar = (
+  // The static placeholder AudioVisualizer (B3-VOICE-OG118-2) is GONE: it was an
+  // always-at-rest equalizer that lied about reacting to the mic. B3-VOICE-
+  // FIGLASS-5 wires a REAL live equalizer inside AgentConversationSurface (fed by
+  // the dictation analyser's frequency bands), so the honest reactive bars now
+  // live in the composer next to the mic — styled below via voiceVisualizer*.
+  const voiceBar = voice.audioUrl ? (
     <div className="og-voice-bar">
-      {voice.audioUrl ? (
-        <RichAudioPlayer
-          source={{ url: voice.audioUrl }}
-          autoPlay
-          onEnded={voice.close}
-          onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
-          className="og-voice-player"
-          progressClassName="og-voice-progress"
-        />
-      ) : null}
-      <AudioVisualizer
-        levels={VOICE_REST_LEVELS}
-        active={false}
-        variant="bars"
-        className="og-voice-visualizer"
-        barClassName="og-voice-bar-bar"
-        label="Nivel de voz (sin señal en vivo todavía)"
+      <RichAudioPlayer
+        source={{ url: voice.audioUrl }}
+        autoPlay
+        onEnded={voice.close}
+        onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
+        className="og-voice-player"
+        progressClassName="og-voice-progress"
       />
     </div>
-  );
+  ) : null;
 
   // Wait for the first hydration so we never send with a null session id nor
   // flash an empty start screen over a stored conversation.
@@ -252,6 +234,10 @@ export function Og118AgentChat() {
           // (in og118VoiceAdapter) and the mic's color via og-mic-slot.
           voiceAdapter={og118VoiceAdapter}
           micSlotClassName="og-mic-slot"
+          // Live mic equalizer (B3-VOICE-FIGLASS-5): the surface renders the real
+          // reactive bars next to the mic while dictating; og118 only tints them.
+          voiceVisualizerClassName="og-voice-visualizer"
+          voiceVisualizerBarClassName="og-voice-bar-bar"
           onVoiceError={(msg) => {
             // Keep the console log for dev, but also surface a controlled,
             // dismissable banner so the user actually sees a dictation failure.
