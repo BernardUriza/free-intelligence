@@ -298,6 +298,64 @@ async def query_user_memory(*, user_id: str, query: str, top_k: int = 5) -> list
         await conn.close()
 
 
+# Tuning for the per-turn user-memory injection (v4.3.0 auto-retrieval).
+# Mirrors the film-corpus knobs below so the two retrieval paths behave
+# consistently. Lived in cogs/chat/stages.py until the RetrievalPort seam
+# moved rendering ownership into this domain service (PR-D).
+_USER_MEMORY_TOP_K = 4
+_USER_MEMORY_MIN_SIMILARITY = 0.30  # cosine sim (1 - distance); drop weak hits
+_USER_MEMORY_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
+_USER_MEMORY_MAX_CHARS = 2000  # cap injected context so the turn stays bounded
+
+
+async def build_user_memory_block(*, user_id: str, text: str | None) -> str | None:
+    """Retrieve the user's most relevant raw-history chunks and format them
+    for prompt injection.
+
+    Mirror of `build_film_references_block` for the per-user partition: owns
+    the similarity floor, the char budget and the authoritative header, so the
+    turn pipeline consumes a finished block instead of raw hits. Returns the
+    labeled block or None when the message is trivial, retrieval fails, or
+    nothing clears the similarity floor. Callers (the RetrievalPort adapter)
+    wrap this in try/except — a failure here NEVER breaks the turn.
+
+    The header is authoritative on purpose (v4.8.x): the previous "úsalo solo
+    si aplica" let the model dismiss this block — it answered "no la tengo"
+    about Larisa even with her chunk delivered here (2026-05-24). These
+    fragments ARE in the bot's memory of this user; if the message asks about
+    something they cover, the bot must answer from them and MUST NOT claim it
+    has no record.
+    """
+    query = (text or "").strip()
+    if len(query) < _USER_MEMORY_MIN_QUERY_LEN:
+        return None
+    hits = await query_user_memory(user_id=user_id, query=query, top_k=_USER_MEMORY_TOP_K)
+    relevant = [h for h in hits if h.get("similarity", 0.0) >= _USER_MEMORY_MIN_SIMILARITY]
+    if not relevant:
+        return None
+
+    lines: list[str] = []
+    total = 0
+    for h in relevant:
+        line = f"- {h['chunk_text'].strip()}"
+        if total + len(line) > _USER_MEMORY_MAX_CHARS:
+            break
+        lines.append(line)
+        total += len(line)
+    if not lines:
+        return None
+
+    log.info(
+        "deep_memory_prefetched",
+        user_id=user_id,
+        hits=len(lines),
+        top_similarity=round(relevant[0].get("similarity", 0.0), 3),
+    )
+    from insult.core.prompts_loader import load_prompt
+
+    return load_prompt("deep_memory_header") + "\n" + "\n".join(lines)
+
+
 # ─── Shared corpus retrieval (topic RAG, not per-user) ────────────────
 
 # A *corpus* is shared knowledge keyed by a synthetic namespace instead of a

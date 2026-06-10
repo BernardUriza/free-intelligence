@@ -58,6 +58,7 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
+    from insult.cogs.chat.capability_ports import RetrievalPort
     from insult.cogs.chat.ports import ArcPort, FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
@@ -103,11 +104,13 @@ class TurnRuntimeDeps:
     opus_budget: Any
     spawn_task: Callable[..., None]
     all_tools: list
-    # Domain-service ports (S2 render + S5 write) wired by insult.composition.
-    # The pipeline depends on the Protocol, never the insult.core.* impl.
+    # Domain-service ports (S2 render + S5 write) and capability ports, wired
+    # by insult.composition. The pipeline depends on the Protocol, never the
+    # insult.core.* impl.
     facts: FactsPort
     stance: StancePort
     arc: ArcPort
+    retrieval: RetrievalPort
     agent_client: Any = None
     judge_client: Any = None
 

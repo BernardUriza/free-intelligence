@@ -31,7 +31,12 @@ from insult.cogs.chat.tasks import spawn_tracked_task
 from insult.cogs.chat.tools import ALL_TOOLS
 from insult.cogs.chat.turn import run_turn
 from insult.cogs.chat.voice import transcribe_voice
-from insult.composition import default_arc_port, default_facts_port, default_stance_port
+from insult.composition import (
+    default_arc_port,
+    default_facts_port,
+    default_retrieval_port,
+    default_stance_port,
+)
 
 if TYPE_CHECKING:
     from insult.app import Container
@@ -122,6 +127,7 @@ class ChatCog(commands.Cog):
                     facts=default_facts_port(),
                     stance=default_stance_port(),
                     arc=default_arc_port(),
+                    retrieval=default_retrieval_port(),
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                 ),
