@@ -268,6 +268,61 @@ class S4OutputInterpretationResult:
     emojis_harvested_inline: int = 0
 
 
+@dataclass
+class S5TurnAssimilationInput:
+    """S5 (Turn Assimilation) dependency surface.
+
+    Declares the minimal set of turn outputs the assimilation write-back needs
+    to persist the completed turn into long-term state, instead of handing it
+    the whole ``TurnCtx``. The assimilator owns the write orchestration; the
+    domain stores (``memory``) still own the actual rows.
+
+    - ``response_text``: the delivered reply (pre delimiter-normalization — the
+      assimilator applies the same ``MESSAGE_DELIMITER`` → newline cleanup the
+      inline stage did).
+    - identity (``channel_id``/``user_id``/``guild_id``/``channel_name``/
+      ``bot_user_id``/``bot_user_name``) + ``model_used``: the message row.
+    - ``arc_state`` + ``disclosure_severity`` / ``user_state`` / ``preset_mode``:
+      the inputs to the per-turn arc advance.
+    - ``assertion_density``: gates stance extraction (≥ 0.4) and feeds it.
+    """
+
+    response_text: str
+    channel_id: str
+    user_id: str
+    guild_id: str | None
+    channel_name: str | None
+    bot_user_id: str
+    bot_user_name: str
+    model_used: str | None
+    arc_state: Any = None
+    disclosure_severity: Any = None
+    user_state: str = ""
+    preset_mode: str = ""
+    assertion_density: float = 0.0
+
+
+@dataclass
+class S5TurnAssimilationResult:
+    """Summary of what the turn assimilation wrote back.
+
+    S5 is the terminal write-back phase — nothing downstream consumes its
+    output, so production ignores this result. It exists for symmetry with the
+    S2/S4 contracts and for tests/observability to assert *what* was assimilated
+    without re-reading the stores. Behavior is identical to the inline stage
+    this replaces (same writes, same order, same stance gate; no new logs).
+
+    - ``message_stored``: whether the assistant message row was written (skipped
+      when the cleaned response is blank).
+    - ``arc_phase``: the phase the arc advanced to this turn (always upserted).
+    - ``stances_stored``: count of stance rows extracted + persisted this turn.
+    """
+
+    message_stored: bool = False
+    arc_phase: str | None = None
+    stances_stored: int = 0
+
+
 async def run_pipeline(ctx: TurnCtx, stages: list[Stage]) -> PipelineResult:
     """Execute stages sequentially. ``BACKGROUND`` stages are spawned
     via ``ctx.spawn_task`` and the pipeline moves on immediately.
