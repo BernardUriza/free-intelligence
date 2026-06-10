@@ -49,8 +49,26 @@ export interface AgentConversationSurfaceProps {
   renderBadge?: (message: ChatMessage) => ReactNode;
   /** Per-message actions slot (overrides showCopyAction) → MessageBubble.actions. */
   renderActions?: (message: ChatMessage) => ReactNode;
-  /** Extra class for every message bubble → MessageBubble.className. */
-  messageBubbleClassName?: string;
+  /**
+   * Extra class for message bubbles → MessageBubble.className.
+   *
+   * Accepts either:
+   *  - a `string` applied to EVERY bubble regardless of role (legacy, unchanged), or
+   *  - a `(message) => string | undefined` resolver so a consumer can return a
+   *    DIFFERENT class per role (e.g. `glass-chat-bubble-user` vs
+   *    `glass-chat-bubble-assistant`) without re-implementing the surface or
+   *    duplicating MessageBubble.
+   *
+   * B3-VOICE-FIGLASS-3: the tri-consumer visual audit found the only real
+   * reusable gap was that this surface could not vary bubble styling by role —
+   * og118 was forced to apply one assistant class to user AND assistant. The
+   * function form closes that gap. Backward-compatible: omit it for defaults,
+   * pass a string for the previous all-roles behavior. The resolver is also
+   * called for the live streaming (assistant) bubble; a resolver that returns
+   * `undefined` for any message (e.g. an unknown role) simply yields no extra
+   * class, so it never throws.
+   */
+  messageBubbleClassName?: string | ((message: ChatMessage) => string | undefined);
 }
 
 export function AgentConversationSurface({
@@ -70,6 +88,14 @@ export function AgentConversationSurface({
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState('');
+
+  // Resolve the per-bubble class. A string applies to every role (legacy); a
+  // function lets the consumer vary it per message/role. Returning undefined
+  // (e.g. for an unknown role) yields no extra class — never throws.
+  const resolveBubbleClass = (message: ChatMessage): string | undefined =>
+    typeof messageBubbleClassName === 'function'
+      ? messageBubbleClassName(message)
+      : messageBubbleClassName;
 
   // Empty thread + nothing in flight → show the app's start screen.
   const idle =
@@ -106,7 +132,7 @@ export function AgentConversationSurface({
                   renderActions?.(m) ??
                   (showCopyAction ? <CopyButton content={m.content} /> : undefined)
                 }
-                className={messageBubbleClassName}
+                className={resolveBubbleClass(m)}
               >
                 <MessageContent isUser={m.role === 'user'} content={m.content} />
               </MessageBubble>
@@ -115,7 +141,14 @@ export function AgentConversationSurface({
             {/* Live turn: glass-box trace stays as-is, streaming answer in a bubble */}
             {isStreaming && <AgentPanel turn={turn} {...agentPanelProps} />}
             {isStreaming && turn.text && (
-              <MessageBubble role="assistant" className={messageBubbleClassName}>
+              <MessageBubble
+                role="assistant"
+                className={resolveBubbleClass({
+                  role: 'assistant',
+                  content: turn.text,
+                  timestamp: '',
+                })}
+              >
                 <MessageContent isUser={false} content={turn.text} isStreaming />
               </MessageBubble>
             )}

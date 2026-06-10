@@ -201,8 +201,26 @@ interface AgentConversationSurfaceProps {
     renderBadge?: (message: ChatMessage) => ReactNode;
     /** Per-message actions slot (overrides showCopyAction) → MessageBubble.actions. */
     renderActions?: (message: ChatMessage) => ReactNode;
-    /** Extra class for every message bubble → MessageBubble.className. */
-    messageBubbleClassName?: string;
+    /**
+     * Extra class for message bubbles → MessageBubble.className.
+     *
+     * Accepts either:
+     *  - a `string` applied to EVERY bubble regardless of role (legacy, unchanged), or
+     *  - a `(message) => string | undefined` resolver so a consumer can return a
+     *    DIFFERENT class per role (e.g. `glass-chat-bubble-user` vs
+     *    `glass-chat-bubble-assistant`) without re-implementing the surface or
+     *    duplicating MessageBubble.
+     *
+     * B3-VOICE-FIGLASS-3: the tri-consumer visual audit found the only real
+     * reusable gap was that this surface could not vary bubble styling by role —
+     * og118 was forced to apply one assistant class to user AND assistant. The
+     * function form closes that gap. Backward-compatible: omit it for defaults,
+     * pass a string for the previous all-roles behavior. The resolver is also
+     * called for the live streaming (assistant) bubble; a resolver that returns
+     * `undefined` for any message (e.g. an unknown role) simply yields no extra
+     * class, so it never throws.
+     */
+    messageBubbleClassName?: string | ((message: ChatMessage) => string | undefined);
 }
 declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
