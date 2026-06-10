@@ -178,6 +178,45 @@ class PipelineResult:
     stage_timings: dict[str, int] = field(default_factory=dict)
 
 
+@dataclass
+class S2KnowledgeAssemblyInput:
+    """S2 (Knowledge Assembly) dependency surface.
+
+    Declares the minimal set of read-facet *sources* S2 needs to assemble the
+    per-turn knowledge blocks, instead of handing it the whole ``TurnCtx``.
+    Domain services still own the actual reads — this is just the input the
+    assembly orchestrator consumes. ``text``/``user_id`` are duck-type
+    compatible with the existing retrieval helpers.
+    """
+
+    user_id: str
+    text: str
+    other_participants_facts: dict = field(default_factory=dict)
+
+
+@dataclass
+class S2KnowledgeAssemblyResult:
+    """The assembled read-facet fragments for the runner payload.
+
+    Each field is a final string fragment (or ``None`` when the facet produced
+    nothing). S2 owns neither retrieval nor state — it bundles what the domain
+    services returned.
+
+    Scope (smallest safe seam): covers only the read facets genuinely assembled
+    at the LLM-payload point today — semantic retrieval (deep_memory),
+    film-corpus retrieval, and the third-party facts fragment. The
+    arc/stance/style/author-facts fragments currently flow through the
+    prompt-composition path (``system_prompt``, built earlier in
+    ``classify_and_analyze``) and are intentionally NOT routed here yet —
+    doing so would change behavior and belongs to a later S3 seam.
+    """
+
+    relevant_memory_block: str | None = None
+    film_references_block: str | None = None
+    combined_memory: str | None = None
+    other_people_block: str | None = None
+
+
 async def run_pipeline(ctx: TurnCtx, stages: list[Stage]) -> PipelineResult:
     """Execute stages sequentially. ``BACKGROUND`` stages are spawned
     via ``ctx.spawn_task`` and the pipeline moves on immediately.
