@@ -21,6 +21,25 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 
+class StancePort(Protocol):
+    """The stance-log domain service as the turn pipeline consumes it.
+
+    - ``render_block`` (S2): build the system-prompt section with the bot's
+      prior positions. Replaces a direct ``build_stance_prompt`` call.
+    - ``derive`` (S5): extract stated positions from the completed response
+      (returns the core ``StanceExtraction``, opaque to the pipeline beyond
+      iterating ``.entries``). Replaces the inline ``extract_stances`` import.
+
+    Persistence (``get_stances`` / ``store_stance``) stays on the ``memory``
+    store — the data plane is already a port; this port owns only the smart
+    render + derivation logic.
+    """
+
+    def render_block(self, stances: list[dict]) -> str: ...
+
+    def derive(self, response_text: str, assertion_density: float, timestamp: float) -> Any: ...
+
+
 class FactsPort(Protocol):
     """The facts domain service as the turn pipeline consumes it.
 
