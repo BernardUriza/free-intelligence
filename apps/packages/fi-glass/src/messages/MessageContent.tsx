@@ -15,6 +15,7 @@ import { memo, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { messageStyles, markdownStyles } from './styles';
+import { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 
 export interface MessageContentProps {
   /** Is this a user message */
@@ -83,7 +84,10 @@ const mdComponents = {
 function defaultRenderMarkdown(content: string): ReactNode {
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-      {content}
+      {/* B3-FIGLASS-9: repair chunk-boundary glue (e.g. "fin.## Título") so a
+          heading the stream stuck onto the previous sentence still renders as a
+          heading. Pure + fence-safe; see normalizeStreamedMarkdown. */}
+      {normalizeStreamedMarkdown(content)}
     </ReactMarkdown>
   );
 }
