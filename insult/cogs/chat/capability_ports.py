@@ -21,10 +21,11 @@ Design plan: ``.claude/plans/capability_seams_retrieval_preset.md``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from insult.core.contracts import PresetSelection
+    from insult.core.contracts.flows import FlowAnalysis
 
 
 class RetrievalPort(Protocol):
@@ -105,3 +106,89 @@ class PresetEnginePort(Protocol):
     """
 
     async def resolve(self, text: str, recent: list[dict], user_facts: list[dict]) -> PresetEngineResult: ...
+
+
+@dataclass(frozen=True)
+class PolicyBundle:
+    """What the S1b Policy Engine hands the pipeline for one turn.
+
+    Lives HERE (not in ``insult.core.contracts``) for the same reason as
+    ``PresetEngineResult``: it is the return shape of one concrete
+    capability, not reusable domain vocabulary.
+
+    - ``system_prompt``: the FULLY composed legacy system prompt (persona +
+      time + preset layer + style + flow + arc + stance + facts + serenity +
+      other-people). What ``LLMClient.chat`` receives on the legacy path.
+    - ``flow_guidance``: the rendered flow-behavioral fragment alone — the
+      runner path (``_build_behavioral_guidance``) re-uses it so both paths
+      render flows ONCE from the same analysis (no drift, same contract as
+      ``PresetEngineResult.guidance_block``).
+    - ``flow_analysis``: the 4-flow analysis. Contracts vocabulary
+      (``insult.core.contracts.flows``), NOT an opaque carry — the pipeline
+      reads its fields for telemetry and forwards it to ``select_model`` /
+      stance derive / ``assess_adherence``, all of which already type it.
+    - ``preset``: the effective ``PresetSelection`` (passes through the
+      pre-resolved Preset Engine selection unchanged; kept in the bundle so
+      the pipeline never assumes that invariant).
+    """
+
+    system_prompt: str
+    flow_guidance: str
+    flow_analysis: FlowAnalysis
+    preset: PresetSelection
+
+
+class S1bPolicyPort(Protocol):
+    """Behavioral policy/guidance composition as ONE logical operation (S1b).
+
+    Absorbs the pre-LLM half of ``insult.core.character`` (adaptive prompt +
+    extra layers) and ALL of ``insult.core.flows`` as the pipeline consumed
+    them: classify-aware prompt building, 4-flow analysis, flow guidance
+    rendering and layer composition happen INSIDE ``compose``. The pipeline
+    supplies pre-rendered domain blocks (arc/stance/facts — its existing
+    ports) and receives finished strings; rendering policy is owned by the
+    capability. Ground truth + design: ``.claude/plans/s1b_ground_truth.md``.
+
+    The adapter is constructed WITH the anti-repetition ledger
+    (``ExpressionHistory``, contracts vocabulary) — the state stays host-owned
+    (born in ``app.Container``), the capability only consults it.
+
+    ``assess_adherence`` / ``assess_lifelessness`` are the S5 telemetry facet:
+    COSMETIC validators of the port's own analysis (log-feeding dicts, never
+    block, never raise into the turn). They live on this port because they
+    judge the response against the same ``flow_analysis`` this port produced.
+
+    ``other_people_block`` renders third-party facts for the runner path (S2
+    knowledge assembly) — replaces the pipeline's reach into the private
+    ``_format_other_people_block`` (same fix-shape as the PR-D header move).
+
+    Everything here is pure computation (no I/O) — sync methods; failures
+    propagate loud, exactly as the inline calls did.
+    """
+
+    def compose(
+        self,
+        *,
+        base_prompt: str,
+        profile: Any,
+        context_len: int,
+        preset: PresetSelection,
+        text: str,
+        recent: list[dict],
+        user_facts: list[dict],
+        context_key: str,
+        server_pulse: str,
+        recent_response_lengths: list[int],
+        arc_block: str,
+        stance_block: str,
+        facts_block: str,
+        other_participants_facts: dict[str, list[dict]] | None,
+        serenityops_snapshot: dict | None,
+        serenityops_user_name: str,
+    ) -> PolicyBundle: ...
+
+    def other_people_block(self, facts: dict[str, list[dict]]) -> str: ...
+
+    def assess_adherence(self, response: str, flow_analysis: FlowAnalysis) -> dict: ...
+
+    def assess_lifelessness(self, response: str, user_text: str) -> dict: ...

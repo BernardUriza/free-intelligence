@@ -178,7 +178,13 @@ def _violations() -> list[tuple[str, str]]:
 # dual-strategy arbitration (LLM timeout/fallback + regex shadow-run +
 # divergence telemetry) and guidance rendering live in the composition
 # adapter built WITH judge_client+settings; the PresetSelection/PresetModifier
-# vocabulary re-points to insult.core.contracts, which is legal for host.)
+# vocabulary re-points to insult.core.contracts, which is legal for host;
+# -1 via PR-F S1bPolicyPort (S1b seam, `.claude/plans/s1b_ground_truth.md`):
+# stages drops flows entirely — analyze + flow render + layer composition live
+# in the composition adapter built WITH expression_history (state stays
+# host-owned), the S5 validators ride the same port as the assess facet, and
+# the private other-people block renders behind other_people_block(); the
+# stages→character entry survives only for its post-LLM S4 mutation half.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -187,8 +193,13 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory"),
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
+        # PR-F S1bPolicyPort removed stages→flows AND the pre-LLM half of
+        # stages→character (adaptive prompt + extra layers + the private
+        # other-people block). This entry survives ONLY for the post-LLM S4
+        # mutation half (run_pipeline/MutationStage/formatting mutators) —
+        # it falls in PR-G (OutputMutationPort). Do NOT read this line as
+        # license to re-import character prompt builders into stages.
         ("insult.cogs.chat.stages", "insult.core.character"),
-        ("insult.cogs.chat.stages", "insult.core.flows"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
     }
 )

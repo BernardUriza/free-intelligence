@@ -27,8 +27,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
+from insult.core.character import build_adaptive_prompt, compose_extra_layers
+from insult.core.character.prompts import _format_other_people_block
 from insult.core.deep_memory import build_film_references_block, build_user_memory_block
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
+from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.presets import (
     build_preset_prompt,
     build_vulnerable_overlay_prompt,
@@ -40,7 +43,9 @@ from insult.core.stance_log import StanceExtraction, build_stance_prompt, extrac
 from shared.corpus import detect_film_topic
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.capability_ports import PresetEngineResult
+    from insult.cogs.chat.capability_ports import PolicyBundle, PresetEngineResult
+    from insult.core.contracts import PresetSelection
+    from insult.core.contracts.flows import FlowAnalysis
 
 log = structlog.get_logger()
 
@@ -187,6 +192,88 @@ class _CorePresetEngineAdapter:
         )
 
 
+class _CoreS1bPolicyAdapter:
+    """Adapts the pre-LLM behavioral stack (``insult.core.character`` prompts
+    + ``insult.core.flows``) to the ``S1bPolicyPort`` Protocol.
+
+    Constructed WITH the anti-repetition ledger (``ExpressionHistory``) — the
+    state stays host-owned (born in ``app.Container``, forwarded by the cog);
+    the capability only consults it, exactly as the inline stage-08 calls did.
+
+    Pure computation throughout (no I/O): same call sequence, same renders,
+    same internal log events (``preset_classified`` from prompts.py,
+    ``flow_*`` from the analyzers) as the inline block this replaces — zero
+    behavior change, KQL continuity.
+    """
+
+    def __init__(self, expression_history: Any) -> None:
+        self._expression_history = expression_history
+
+    def compose(
+        self,
+        *,
+        base_prompt: str,
+        profile: Any,
+        context_len: int,
+        preset: PresetSelection,
+        text: str,
+        recent: list[dict],
+        user_facts: list[dict],
+        context_key: str,
+        server_pulse: str,
+        recent_response_lengths: list[int],
+        arc_block: str,
+        stance_block: str,
+        facts_block: str,
+        other_participants_facts: dict[str, list[dict]] | None,
+        serenityops_snapshot: dict | None,
+        serenityops_user_name: str,
+    ) -> PolicyBundle:
+        # Deferred import: module-level `from insult.cogs.chat...` is circular
+        # (cogs __init__ → cog.py → THIS module) — same shape as the Preset
+        # Engine adapter above. By first compose() call everything is loaded.
+        from insult.cogs.chat.capability_ports import PolicyBundle
+
+        system_prompt, effective_preset = build_adaptive_prompt(
+            base_prompt,
+            profile,
+            context_len,
+            preset=preset,
+            current_message=text,
+            recent_messages=recent,
+            user_facts=user_facts,
+            server_pulse=server_pulse,
+            recent_response_lengths=recent_response_lengths,
+        )
+        flow_analysis = analyze_flows(text, recent, effective_preset, self._expression_history, context_key)
+        flow_guidance = build_flow_prompt(flow_analysis)
+        composed = compose_extra_layers(
+            system_prompt,
+            flow_prompt=flow_guidance,
+            arc_prompt=arc_block,
+            stance_prompt=stance_block,
+            facts_prompt=facts_block,
+            other_participants_facts=other_participants_facts,
+            serenityops_snapshot=serenityops_snapshot,
+            serenityops_user_name=serenityops_user_name,
+        )
+        return PolicyBundle(
+            system_prompt=composed,
+            flow_guidance=flow_guidance,
+            flow_analysis=flow_analysis,
+            preset=effective_preset,
+        )
+
+    def other_people_block(self, facts: dict[str, list[dict]]) -> str:
+        return _format_other_people_block(facts)
+
+    def assess_adherence(self, response: str, flow_analysis: FlowAnalysis) -> dict:
+        return validate_flow_adherence(response, flow_analysis)
+
+    def assess_lifelessness(self, response: str, user_text: str) -> dict:
+        return detect_lifelessness(response, user_text)
+
+
 class _CoreRetrievalAdapter:
     """Adapts ``insult.core.deep_memory`` to the ``RetrievalPort`` Protocol.
 
@@ -241,6 +328,15 @@ def default_stance_port() -> _CoreStanceAdapter:
 def default_retrieval_port() -> _CoreRetrievalAdapter:
     """Return the process-wide RetrievalPort adapter for the turn pipeline."""
     return _RETRIEVAL_PORT
+
+
+def build_s1b_policy_port(expression_history: Any) -> _CoreS1bPolicyAdapter:
+    """Build the S1bPolicyPort adapter with its runtime dep.
+
+    Like the Preset Engine, NOT a stateless singleton: it closes over the
+    anti-repetition ledger (``ExpressionHistory``), which is born in
+    ``app.Container`` — call this once where the cog receives the handle."""
+    return _CoreS1bPolicyAdapter(expression_history)
 
 
 def build_preset_engine_port(judge_client: Any, settings: Any) -> _CorePresetEngineAdapter:

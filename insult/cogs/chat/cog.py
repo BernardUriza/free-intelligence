@@ -33,6 +33,7 @@ from insult.cogs.chat.turn import run_turn
 from insult.cogs.chat.voice import transcribe_voice
 from insult.composition import (
     build_preset_engine_port,
+    build_s1b_policy_port,
     default_arc_port,
     default_facts_port,
     default_retrieval_port,
@@ -62,6 +63,9 @@ class ChatCog(commands.Cog):
         # Preset Engine adapter: built once with its runtime deps (judge
         # client + settings) — unlike the stateless default_* ports below.
         self._preset_engine = build_preset_engine_port(self.judge_client, self.settings)
+        # S1b Policy adapter: built once with the anti-repetition ledger
+        # (host-owned state; the capability only consults it).
+        self._s1b_policy = build_s1b_policy_port(self._expression_history)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -133,6 +137,7 @@ class ChatCog(commands.Cog):
                     arc=default_arc_port(),
                     retrieval=default_retrieval_port(),
                     preset_engine=self._preset_engine,
+                    policy=self._s1b_policy,
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                 ),

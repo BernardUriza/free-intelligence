@@ -58,7 +58,7 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.capability_ports import PresetEnginePort, RetrievalPort
+    from insult.cogs.chat.capability_ports import PresetEnginePort, RetrievalPort, S1bPolicyPort
     from insult.cogs.chat.ports import ArcPort, FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
@@ -112,6 +112,7 @@ class TurnRuntimeDeps:
     arc: ArcPort
     retrieval: RetrievalPort
     preset_engine: PresetEnginePort
+    policy: S1bPolicyPort
     agent_client: Any = None
     judge_client: Any = None
 
@@ -173,6 +174,9 @@ class TurnCtx:
     # vocabulary) + classifier telemetry scalars + rendered guidance_block.
     preset_result: Any = None
     flow_analysis: Any = None
+    # Rendered flow-guidance fragment from PolicyBundle — the runner path
+    # (_build_behavioral_guidance) reuses it so flows render ONCE per turn.
+    flow_guidance: str = ""
     stances: list = field(default_factory=list)
 
     # --- Prompt + tool config ---
