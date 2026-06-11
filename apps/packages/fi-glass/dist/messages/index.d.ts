@@ -92,6 +92,28 @@ interface MessageContentProps {
 }
 declare const MessageContent: react.NamedExoticComponent<MessageContentProps>;
 
+/**
+ * normalizeStreamedMarkdown — repair chunk-boundary glue in streamed LLM output
+ * before markdown rendering (B3-FIGLASS-9).
+ *
+ * The staging audit showed an assistant reply rendering "…las herramientas
+ * necesarias.## Respuesta sobre…" — the backend concatenated the pre-tool text
+ * and the post-tool response without a newline, so the ATX heading never starts
+ * a line and CommonMark (correctly) treats it as paragraph text.
+ *
+ * This is a NORMALIZER, not a parser: one conservative repair, applied only
+ * outside fenced code blocks.
+ *
+ * Repair rule: a heading marker (`#{1,6} `) glued directly onto sentence-ending
+ * punctuation gets a blank line inserted before it. Requiring the punctuation
+ * (no whitespace in between) is what keeps false positives out:
+ *  - `C# is nice`      → untouched (letter before `#`)
+ *  - `issue #123`      → untouched (no space after `#`)
+ *  - `use the # key`   → untouched (whitespace before `#`)
+ *  - `fin.## Título`   → `fin.\n\n## Título` (the streaming-glue case)
+ */
+declare function normalizeStreamedMarkdown(content: string): string;
+
 interface CopyButtonProps {
     /** Text to copy to the clipboard. */
     content: string;
@@ -158,4 +180,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles };
+export { CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles, normalizeStreamedMarkdown };

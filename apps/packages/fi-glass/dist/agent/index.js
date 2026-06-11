@@ -627,6 +627,18 @@ var markdownStyles = {
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+// src/messages/normalizeStreamedMarkdown.ts
+var FENCE_SPLIT = /(```[\s\S]*?(?:```|$))/;
+var GLUED_HEADING = /([.!?:;,)\]"'»…])(#{1,6} )/g;
+function normalizeStreamedMarkdown(content) {
+  if (!content.includes("#")) return content;
+  return content.split(FENCE_SPLIT).map(
+    (segment, i) => i % 2 === 1 ? segment : segment.replace(GLUED_HEADING, "$1\n\n$2")
+  ).join("");
+}
+
+// src/messages/MessageContent.tsx
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var mdComponents = {
   p: ({ children }) => /* @__PURE__ */ jsx7("p", { className: markdownStyles.p, children }),
@@ -656,7 +668,7 @@ var mdComponents = {
   )
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx7(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: content });
+  return /* @__PURE__ */ jsx7(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
