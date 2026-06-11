@@ -2,6 +2,8 @@
 // Generic, presentational, app-configurable via props/slots.
 export { messageStyles, markdownStyles } from './styles';
 export { MessageContent, type MessageContentProps } from './MessageContent';
+// Exported so an app overriding `renderMarkdown` can reuse the same repair.
+export { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 export { CopyButton, type CopyButtonProps } from './CopyButton';
 export { MessageBubble, type MessageBubbleProps } from './MessageBubble';
 export {
