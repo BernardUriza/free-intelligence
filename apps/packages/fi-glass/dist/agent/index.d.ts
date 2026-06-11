@@ -149,23 +149,65 @@ interface SourcesPanelProps {
  */
 declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPanelProps): react.JSX.Element | null;
 
+/**
+ * Predicate an app passes to CLAIM a specific error class as its own. When it
+ * returns true for a failed turn, the conversation still reverts the optimistic
+ * message but does NOT raise the generic recoverable `turnError` — the app shows
+ * its own UI instead (e.g. og118's 401 token-gate banner, where a blind "retry"
+ * would just 401 again). The idle-timeout failure is never app-handled.
+ */
+type AppHandledError = (turn: AgentTurnState) => boolean;
+/** A recoverable failure of the in-flight turn, surfaced for retry/dismiss. */
+interface TurnError {
+    /** `timeout` = the idle watchdog fired; `stream` = the transport reported error. */
+    kind: 'timeout' | 'stream';
+    /** Human-readable, app-displayable reason. */
+    message: string;
+}
+/** Default idle watchdog: a turn with no state change for this long is hung. */
+declare const DEFAULT_TURN_TIMEOUT_MS = 60000;
 interface UseAgentConversationOptions {
     /** Identity of the active conversation. When it changes, the thread re-hydrates. */
     conversationId?: string | null;
     /** Messages to seed the thread with (the active conversation's stored transcript). */
     initialMessages?: ChatMessage[];
-    /** Called when the thread changes from real activity (send/fold) — a persist hook. */
+    /** Called when the thread changes from real activity (fold/revert) — a persist hook. */
     onMessagesChange?: (messages: ChatMessage[]) => void;
+    /**
+     * Idle watchdog in ms: if the live turn's state does not change for this long
+     * while streaming, the turn is declared failed (timeout). Measured since the
+     * LAST turn-state change, not since send — a long-but-active turn (streaming
+     * tokens, running steps) keeps resetting it and never trips. Pass a small
+     * value in tests; `0` disables the watchdog. Defaults to 60s.
+     */
+    turnTimeoutMs?: number;
+    /**
+     * Claim a specific error class as app-handled (see {@link AppHandledError}).
+     * Such a failure still reverts the optimistic message but is NOT surfaced as a
+     * generic `turnError` — the app renders its own UI for it. Timeouts ignore this.
+     */
+    isAppHandledError?: AppHandledError;
 }
 interface AgentConversation {
     /** The visible thread of completed turns (user + assistant), in send order. */
     messages: ChatMessage[];
     /** The current/live turn's reduced state (for the in-flight glass-box). */
     turn: AgentTurnState;
-    /** Whether a turn is actively streaming. */
+    /**
+     * Whether a turn is actively streaming. This is the CONVERSATION's view, not
+     * the transport's: once the watchdog declares a turn hung, this is false even
+     * if the underlying `agent.isStreaming` is still stuck true — so the surface
+     * leaves the "thinking…" state and can render the recoverable error instead.
+     */
     isStreaming: boolean;
+    /** A recoverable failure of the last turn (timeout/stream), or null. */
+    turnError: TurnError | null;
     /** Send a message: pushes it optimistically, then drives the agent turn. */
     send: (text: string) => void;
+    /** Re-send the last user text after a failure. No-op if there is nothing to retry. */
+    retry: () => void;
+    /** Clear the current turnError without re-sending (the optimistic msg is already reverted). */
+    dismissError: () => void;
     /** Clear the whole thread and reset the underlying turn/session. */
     newConversation: () => void;
 }
@@ -262,7 +304,22 @@ interface AgentConversationSurfaceProps {
     sendButtonIconClassName?: string;
     /** aria-label for the send button. Default: "Enviar mensaje". */
     sendLabel?: string;
+    /**
+     * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
+     * is set (a hung/timed-out or errored turn), the surface renders a recoverable
+     * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
+     * the consumer's style/copy hooks; sensible defaults render without any.
+     */
+    errorClassName?: string;
+    /** Retry button copy. Default: "Reintentar". */
+    retryLabel?: string;
+    /** Dismiss button copy. Default: "Descartar". */
+    dismissLabel?: string;
+    /** Class for the retry button. */
+    retryButtonClassName?: string;
+    /** Class for the dismiss button. */
+    dismissButtonClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

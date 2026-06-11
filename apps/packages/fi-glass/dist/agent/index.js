@@ -378,54 +378,113 @@ import {
   makeUserMessage,
   foldAssistantTurn
 } from "@free-intelligence/core";
+var DEFAULT_TURN_TIMEOUT_MS = 6e4;
 function useAgentConversation(agent, options = {}) {
-  const { conversationId, initialMessages, onMessagesChange } = options;
+  const {
+    conversationId,
+    initialMessages,
+    onMessagesChange,
+    turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
+    isAppHandledError
+  } = options;
   const [messages, setMessages] = useState2(
     initialMessages ?? []
   );
+  const [turnError, setTurnError] = useState2(null);
+  const [timedOut, setTimedOut] = useState2(false);
   const pending = useRef(false);
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
+  const appHandledRef = useRef(isAppHandledError);
+  appHandledRef.current = isAppHandledError;
+  const lastSent = useRef(null);
   const initialRef = useRef(initialMessages);
   initialRef.current = initialMessages;
-  const hydrating = useRef(true);
+  const skipPersist = useRef(true);
   const mounted = useRef(false);
+  const revertOptimistic = useCallback(() => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      return last?.role === "user" ? prev.slice(0, -1) : prev;
+    });
+  }, []);
   const send = useCallback(
     (text) => {
       const t = text.trim();
       if (!t || agent.isStreaming) return;
+      lastSent.current = t;
+      setTurnError(null);
+      setTimedOut(false);
+      skipPersist.current = true;
       setMessages((prev) => [...prev, makeUserMessage(t)]);
       pending.current = true;
       void agent.send(t);
     },
     [agent]
   );
+  const retry = useCallback(() => {
+    if (lastSent.current) send(lastSent.current);
+  }, [send]);
+  const dismissError = useCallback(() => {
+    setTurnError(null);
+    setTimedOut(false);
+  }, []);
   useEffect2(() => {
     if (agent.isStreaming || !pending.current) return;
     pending.current = false;
-    setMessages((prev) => {
-      if (agent.turn.status === "error") return prev.slice(0, -1);
-      if (agent.turn.text) return [...prev, foldAssistantTurn(agent.turn)];
-      return prev;
-    });
-  }, [agent.isStreaming, agent.turn]);
+    if (agent.turn.status === "error") {
+      revertOptimistic();
+      if (!appHandledRef.current?.(agent.turn)) {
+        setTurnError({
+          kind: "stream",
+          message: agent.turn.errorMessage || "La respuesta fall\xF3. Intenta de nuevo."
+        });
+      }
+      return;
+    }
+    if (agent.turn.text) {
+      skipPersist.current = false;
+      setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
+    }
+  }, [agent.isStreaming, agent.turn, revertOptimistic]);
+  useEffect2(() => {
+    if (turnTimeoutMs <= 0) return;
+    if (!agent.isStreaming || !pending.current || timedOut) return;
+    const timer = setTimeout(() => {
+      pending.current = false;
+      agentRef.current.abort?.();
+      revertOptimistic();
+      setTimedOut(true);
+      setTurnError({
+        kind: "timeout",
+        message: "La respuesta tard\xF3 demasiado. Intenta de nuevo."
+      });
+    }, turnTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs, revertOptimistic]);
   useEffect2(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    hydrating.current = true;
+    skipPersist.current = true;
     pending.current = false;
+    setTurnError(null);
+    setTimedOut(false);
     setMessages(initialRef.current ?? []);
     agent.reset?.();
   }, [conversationId]);
   useEffect2(() => {
-    if (hydrating.current) {
-      hydrating.current = false;
+    if (skipPersist.current) {
+      skipPersist.current = false;
       return;
     }
     onMessagesChange?.(messages);
   }, [messages]);
   const newConversation = useCallback(() => {
-    hydrating.current = true;
+    skipPersist.current = true;
+    setTurnError(null);
+    setTimedOut(false);
     setMessages([]);
     pending.current = false;
     agent.reset?.();
@@ -433,8 +492,11 @@ function useAgentConversation(agent, options = {}) {
   return {
     messages,
     turn: agent.turn,
-    isStreaming: agent.isStreaming,
+    isStreaming: agent.isStreaming && !timedOut,
+    turnError,
     send,
+    retry,
+    dismissError,
     newConversation
   };
 }
@@ -1431,9 +1493,14 @@ function AgentConversationSurface({
   showSendButton = true,
   sendButtonClassName,
   sendButtonIconClassName,
-  sendLabel = "Enviar mensaje"
+  sendLabel = "Enviar mensaje",
+  errorClassName,
+  retryLabel = "Reintentar",
+  dismissLabel = "Descartar",
+  retryButtonClassName,
+  dismissButtonClassName
 }) {
-  const { messages, turn, isStreaming, send, newConversation } = conversation;
+  const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState9("");
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
   const baseInputRef = useRef6("");
@@ -1459,33 +1526,92 @@ function AgentConversationSurface({
   };
   const canSend = input.trim().length > 0 && !isStreaming;
   return /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
-    /* @__PURE__ */ jsx21("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: idle ? emptyState : /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-      messages.map((m, i) => /* @__PURE__ */ jsx21(
-        MessageBubble,
-        {
-          role: m.role,
-          header: renderHeader?.(m),
-          badge: renderBadge?.(m),
-          actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx21(CopyButton, { content: m.content }) : void 0),
-          className: resolveBubbleClass(m),
-          children: /* @__PURE__ */ jsx21(MessageContent, { isUser: m.role === "user", content: m.content })
-        },
-        i
-      )),
-      isStreaming && /* @__PURE__ */ jsx21(AgentPanel, { turn, ...agentPanelProps }),
-      isStreaming && turn.text && /* @__PURE__ */ jsx21(
-        MessageBubble,
-        {
-          role: "assistant",
-          className: resolveBubbleClass({
+    /* @__PURE__ */ jsxs15("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: [
+      idle ? emptyState : /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+        messages.map((m, i) => /* @__PURE__ */ jsx21(
+          MessageBubble,
+          {
+            role: m.role,
+            header: renderHeader?.(m),
+            badge: renderBadge?.(m),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx21(CopyButton, { content: m.content }) : void 0),
+            className: resolveBubbleClass(m),
+            children: /* @__PURE__ */ jsx21(MessageContent, { isUser: m.role === "user", content: m.content })
+          },
+          i
+        )),
+        isStreaming && /* @__PURE__ */ jsx21(AgentPanel, { turn, ...agentPanelProps }),
+        isStreaming && turn.text && /* @__PURE__ */ jsx21(
+          MessageBubble,
+          {
             role: "assistant",
-            content: turn.text,
-            timestamp: ""
-          }),
-          children: /* @__PURE__ */ jsx21(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+            className: resolveBubbleClass({
+              role: "assistant",
+              content: turn.text,
+              timestamp: ""
+            }),
+            children: /* @__PURE__ */ jsx21(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          }
+        )
+      ] }),
+      turnError && /* @__PURE__ */ jsxs15(
+        "div",
+        {
+          role: "alert",
+          className: errorClassName,
+          style: {
+            marginTop: "1rem",
+            padding: "0.75rem 1rem",
+            borderRadius: 10,
+            border: "1px solid rgba(248,113,113,0.35)",
+            background: "rgba(248,113,113,0.08)",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "0.75rem"
+          },
+          children: [
+            /* @__PURE__ */ jsx21("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
+            /* @__PURE__ */ jsx21(
+              "button",
+              {
+                type: "button",
+                onClick: retry,
+                className: retryButtonClassName,
+                style: retryButtonClassName ? void 0 : {
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "transparent",
+                  color: "#e2e8f0",
+                  fontSize: "0.8rem",
+                  cursor: "pointer"
+                },
+                children: retryLabel
+              }
+            ),
+            /* @__PURE__ */ jsx21(
+              "button",
+              {
+                type: "button",
+                onClick: dismissError,
+                className: dismissButtonClassName,
+                style: dismissButtonClassName ? void 0 : {
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "transparent",
+                  color: "#94a3b8",
+                  fontSize: "0.8rem",
+                  cursor: "pointer"
+                },
+                children: dismissLabel
+              }
+            )
+          ]
         }
       )
-    ] }) }),
+    ] }),
     /* @__PURE__ */ jsxs15("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
       hasThread && /* @__PURE__ */ jsx21("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx21(
         "button",
@@ -1573,6 +1699,7 @@ function AgentConversationSurface({
 export {
   AgentConversationSurface,
   AgentPanel,
+  DEFAULT_TURN_TIMEOUT_MS,
   PlanChecklist,
   SourcesPanel,
   StepsPanel,

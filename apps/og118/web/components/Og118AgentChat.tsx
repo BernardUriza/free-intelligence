@@ -46,6 +46,11 @@ export function Og118AgentChat() {
     conversationId: lib.activeId,
     initialMessages: lib.activeMessages,
     onMessagesChange: lib.persist,
+    // 401 is og118's own error class — the token-gate banner (needsAuth) handles
+    // it, and a blind retry would just 401 again. Claim it so the framework's
+    // generic recoverable banner does not double up. Everything else (timeouts,
+    // stream death) still surfaces generically.
+    isAppHandledError: (t) => (t.errorMessage ?? '').startsWith(AUTH401),
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
   // Dictation errors are surfaced to the user, not swallowed in the console.

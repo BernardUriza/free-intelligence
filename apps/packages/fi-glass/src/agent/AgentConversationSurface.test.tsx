@@ -38,7 +38,10 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
     messages: msgs,
     turn: idleTurn,
     isStreaming: false,
+    turnError: null,
     send: () => {},
+    retry: () => {},
+    dismissError: () => {},
     newConversation: () => {},
   }) as AgentConversation;
 
