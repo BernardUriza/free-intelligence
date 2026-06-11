@@ -2,12 +2,14 @@
 
 // src/composer/AutoResizeTextarea.tsx
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState
 } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
-function AutoResizeTextarea({
+var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   value,
   onChange,
   maxRows = 5,
@@ -17,8 +19,9 @@ function AutoResizeTextarea({
   wrapperStyle,
   className = "",
   ...props
-}) {
+}, ref) {
   const textareaRef = useRef(null);
+  useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState(1);
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -58,7 +61,7 @@ function AutoResizeTextarea({
       maxLength
     ] })
   ] });
-}
+});
 
 // src/composer/Composer.tsx
 import { jsx as jsx2 } from "react/jsx-runtime";
@@ -72,7 +75,8 @@ function Composer({
   areaClassName,
   wrapperClassName,
   wrapperStyle,
-  textareaClassName
+  textareaClassName,
+  textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -83,6 +87,7 @@ function Composer({
   return /* @__PURE__ */ jsx2("div", { className: areaClassName, children: /* @__PURE__ */ jsx2(
     AutoResizeTextarea,
     {
+      ref: textareaRef,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,

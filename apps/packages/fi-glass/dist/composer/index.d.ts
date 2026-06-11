@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { CSSProperties, TextareaHTMLAttributes } from 'react';
+import { CSSProperties, Ref, TextareaHTMLAttributes } from 'react';
 
 interface ComposerProps {
     /** Current message value */
@@ -22,8 +22,14 @@ interface ComposerProps {
     wrapperStyle?: CSSProperties;
     /** Class for the <textarea> itself */
     textareaClassName?: string;
+    /**
+     * Typed ref to the inner <textarea> (B3-FIGLASS-10) so the owner can manage
+     * focus (e.g. refocus after dictation/send/stream) without touching DOM
+     * internals.
+     */
+    textareaRef?: Ref<HTMLTextAreaElement>;
 }
-declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, }: ComposerProps): react.JSX.Element;
+declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, textareaRef, }: ComposerProps): react.JSX.Element;
 
 interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     /** Max rows before scrolling */
@@ -41,6 +47,11 @@ interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaEle
      */
     wrapperStyle?: CSSProperties;
 }
-declare function AutoResizeTextarea({ value, onChange, maxRows, showCounter, maxLength, wrapperClassName, wrapperStyle, className, ...props }: AutoResizeTextareaProps): react.JSX.Element;
+/**
+ * Forwards its ref to the inner <textarea> (B3-FIGLASS-10) so an owner (e.g. the
+ * conversation surface) can manage focus through a TYPED handle instead of
+ * reaching into this component's internal DOM.
+ */
+declare const AutoResizeTextarea: react.ForwardRefExoticComponent<AutoResizeTextareaProps & react.RefAttributes<HTMLTextAreaElement>>;
 
 export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, type ComposerProps };

@@ -9,7 +9,9 @@
  */
 
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type CSSProperties,
@@ -34,18 +36,30 @@ export interface AutoResizeTextareaProps
   wrapperStyle?: CSSProperties;
 }
 
-export function AutoResizeTextarea({
-  value,
-  onChange,
-  maxRows = 5,
-  showCounter = false,
-  maxLength,
-  wrapperClassName = '',
-  wrapperStyle,
-  className = '',
-  ...props
-}: AutoResizeTextareaProps) {
+/**
+ * Forwards its ref to the inner <textarea> (B3-FIGLASS-10) so an owner (e.g. the
+ * conversation surface) can manage focus through a TYPED handle instead of
+ * reaching into this component's internal DOM.
+ */
+export const AutoResizeTextarea = forwardRef<
+  HTMLTextAreaElement,
+  AutoResizeTextareaProps
+>(function AutoResizeTextarea(
+  {
+    value,
+    onChange,
+    maxRows = 5,
+    showCounter = false,
+    maxLength,
+    wrapperClassName = '',
+    wrapperStyle,
+    className = '',
+    ...props
+  },
+  ref,
+) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => textareaRef.current as HTMLTextAreaElement);
   const [rows, setRows] = useState(1);
 
   // Auto-resize on content change
@@ -96,4 +110,4 @@ export function AutoResizeTextarea({
       )}
     </div>
   );
-}
+});

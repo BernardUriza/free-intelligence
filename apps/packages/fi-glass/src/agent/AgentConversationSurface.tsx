@@ -12,7 +12,7 @@
  * and copy props.
  */
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
@@ -163,6 +163,29 @@ export function AgentConversationSurface({
     conversation;
   const [input, setInput] = useState('');
 
+  // B3-FIGLASS-10 — composer focus recovery. The daily-driver audit's "Enter no
+  // envía": clicking the mic/send button leaves focus ON the button, so the next
+  // Enter re-triggers the button instead of sending. The surface owns the
+  // composer, so it owns getting focus BACK to it after voice/send/stream — via
+  // the typed textareaRef (never by reaching into the composer's internal DOM).
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const refocusComposer = useCallback(() => {
+    const el = inputRef.current;
+    if (!el || el.disabled) return;
+    // Don't fight a user who focused another text-entry surface (e.g. an app's
+    // token input). Stealing from buttons/body is the whole point — that's the
+    // mic/send focus trap.
+    const active = document.activeElement;
+    const isOtherTextEntry =
+      active instanceof HTMLElement &&
+      active !== el &&
+      (active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.isContentEditable);
+    if (isOtherTextEntry) return;
+    el.focus();
+  }, []);
+
   // Dictation (STT) — only live when the adapter can transcribe. The composer
   // text typed before recording is captured as a prefix so dictation appends to
   // it instead of clobbering it. useDictation is a no-op without `transcribe`,
@@ -180,6 +203,23 @@ export function AgentConversationSurface({
     baseInputRef.current = input;
     void dictation.startRecording();
   };
+
+  // Refocus when a turn settles (clean finish, stream error, or the timeout
+  // watchdog) — the textarea was disabled while streaming and focus was lost.
+  // A failed turn refocuses too, so the user can edit/retry immediately.
+  const wasStreaming = useRef(false);
+  useEffect(() => {
+    if (wasStreaming.current && !isStreaming) refocusComposer();
+    wasStreaming.current = isStreaming;
+  }, [isStreaming, refocusComposer]);
+
+  // Refocus when dictation finishes transcribing: the user's next natural act is
+  // Enter-to-send, but their click left focus on the mic button (the trap).
+  const wasTranscribing = useRef(false);
+  useEffect(() => {
+    if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
+    wasTranscribing.current = dictation.isTranscribing;
+  }, [dictation.isTranscribing, refocusComposer]);
 
   // Resolve the per-bubble class. A string applies to every role (legacy); a
   // function lets the consumer vary it per message/role. Returning undefined
@@ -349,6 +389,9 @@ export function AgentConversationSurface({
               // styles it (e.g. a flex area): growth is owned here, in the
               // framework, not patched in by a consumer reaching into `.relative`.
               wrapperStyle={{ flex: '1 1 0%', minWidth: 0 }}
+              // Typed focus handle (B3-FIGLASS-10): the surface refocuses the
+              // input after dictation/send/stream — no internal-DOM reach.
+              textareaRef={inputRef}
             />
           </div>
           {micAvailable && dictation.isRecording && (
