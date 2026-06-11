@@ -7,12 +7,12 @@ tuning doesn't require touching logic code."""
 from __future__ import annotations
 
 from insult.core.flows.guidance import (
-    AWARENESS_TACTICS,
-    DEPTH_PATTERN_GUIDANCE,
-    EPISTEMIC_GUIDANCE,
-    FLAVOR_GUIDANCE,
-    PRESSURE_GUIDANCE,
-    SHAPE_GUIDANCE,
+    get_awareness_tactics,
+    get_depth_pattern_guidance,
+    get_epistemic_guidance,
+    get_flavor_guidance,
+    get_pressure_guidance,
+    get_shape_guidance,
 )
 from insult.core.flows.types import (
     ConversationPattern,
@@ -35,21 +35,21 @@ def build_flow_prompt(analysis: FlowAnalysis) -> str:
     parts: list[str] = []
 
     # -- Epistemic --
-    guidance = EPISTEMIC_GUIDANCE.get(analysis.epistemic.recommended_move)
+    guidance = get_epistemic_guidance(analysis.epistemic.recommended_move)
     if guidance:
         parts.append(guidance)
 
     # -- Pressure (baseline level 2 intentionally empty) --
-    pressure_text = PRESSURE_GUIDANCE.get(analysis.pressure.pressure_level, "")
+    pressure_text = get_pressure_guidance(analysis.pressure.pressure_level)
     if pressure_text:
         parts.append(pressure_text)
 
     # -- Depth rider: when the user brings weight, bare validation is
-    # unacceptable. Triggers on sincere/vulnerable OR pressure ≥ 4.
+    # unacceptable. Triggers on sincere/vulnerable OR pressure >= 4.
     # DEFAULT / PLAYFUL stay unaffected — a "Nel." to "me llevo mi mac?"
     # is perfect there.
     if analysis.pressure.detected_state in _DEPTH_TRIGGER_STATES or analysis.pressure.pressure_level >= 4:
-        parts.append(DEPTH_PATTERN_GUIDANCE)
+        parts.append(get_depth_pattern_guidance())
 
     # -- Expression (always — but framed as hard constraint). Shape and
     # flavor are the most-enforced part of the flow prompt because
@@ -59,8 +59,8 @@ def build_flow_prompt(analysis: FlowAnalysis) -> str:
         "The shape below is a HARD CONSTRAINT on your response structure. "
         "Follow it even if the input tempts you to say more."
     )
-    parts.append(SHAPE_GUIDANCE[analysis.expression.selected_shape])
-    parts.append(FLAVOR_GUIDANCE[analysis.expression.selected_flavor])
+    parts.append(get_shape_guidance(analysis.expression.selected_shape))
+    parts.append(get_flavor_guidance(analysis.expression.selected_flavor))
 
     # -- Awareness (only when a meta-pattern was actually detected) --
     if analysis.awareness.detected_pattern != ConversationPattern.NONE:
@@ -71,7 +71,7 @@ def build_flow_prompt(analysis: FlowAnalysis) -> str:
             awareness_parts.append(f"Consider dropping this meta-observation: '{analysis.awareness.meta_commentary}'")
         if analysis.awareness.delayed_question:
             awareness_parts.append(f"Powerful delayed question to deploy: '{analysis.awareness.delayed_question}'")
-        awareness_parts.append(AWARENESS_TACTICS[analysis.awareness.detected_pattern])
+        awareness_parts.append(get_awareness_tactics(analysis.awareness.detected_pattern))
         parts.append("\n".join(awareness_parts))
 
     return "\n\n".join(parts)
