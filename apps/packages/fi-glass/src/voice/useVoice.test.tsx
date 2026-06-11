@@ -79,6 +79,89 @@ describe('useVoice single-flight (B3-VOICE-FIGLASS-6)', () => {
     expect(synthesize).toHaveBeenCalledTimes(2);
   });
 
+  it('serves a repeated text+voice from the session cache (no second paid call)', async () => {
+    const synthesize = vi.fn(async () => new Blob(['mp3'], { type: 'audio/mpeg' }));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('hola', 'nova'); });
+    const firstUrl = voice.current!.audioUrl;
+    await act(async () => { await voice.current!.generateAudio('hola', 'nova'); });
+
+    expect(synthesize).toHaveBeenCalledTimes(1); // cache hit: zero provider spend
+    expect(voice.current!.audioUrl).toMatch(/^blob:/);
+    expect(voice.current!.audioUrl).not.toBe(firstUrl); // fresh URL per playback
+  });
+
+  it('different text or different voice each bill a new synthesis', async () => {
+    const synthesize = vi.fn(async () => new Blob(['mp3'], { type: 'audio/mpeg' }));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('hola', 'nova'); });
+    await act(async () => { await voice.current!.generateAudio('adiós', 'nova'); });
+    await act(async () => { await voice.current!.generateAudio('hola', 'ava'); });
+
+    expect(synthesize).toHaveBeenCalledTimes(3);
+  });
+
+  it('never caches a failed synthesis: retrying the SAME text calls the provider again', async () => {
+    const synthesize = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue(new Blob(['mp3']));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('mismo texto'); });
+    await act(async () => { await voice.current!.generateAudio('mismo texto'); });
+    await act(async () => { await voice.current!.generateAudio('mismo texto'); });
+
+    // 1 failure (uncached) + 1 success (cached) + 1 hit = 2 provider calls.
+    expect(synthesize).toHaveBeenCalledTimes(2);
+  });
+
+  it('never caches an empty blob', async () => {
+    const synthesize = vi.fn(async () => new Blob([]));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('vacío'); });
+    await act(async () => { await voice.current!.generateAudio('vacío'); });
+
+    expect(synthesize).toHaveBeenCalledTimes(2);
+  });
+
+  it('evicts the least-recently-used clip beyond the cache bound', async () => {
+    const synthesize = vi.fn(async () => new Blob(['mp3']));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    // Fill the cache (TTS_CACHE_MAX_CLIPS = 8), then push one more.
+    for (let i = 0; i < 9; i++) {
+      await act(async () => { await voice.current!.generateAudio(`clip ${i}`); });
+    }
+    expect(synthesize).toHaveBeenCalledTimes(9);
+
+    // 'clip 0' was evicted → re-billed. 'clip 8' is still cached → free.
+    await act(async () => { await voice.current!.generateAudio('clip 8'); });
+    expect(synthesize).toHaveBeenCalledTimes(9);
+    await act(async () => { await voice.current!.generateAudio('clip 0'); });
+    expect(synthesize).toHaveBeenCalledTimes(10);
+  });
+
+  it('changeVoice also hits the cache for an already-synthesized voice', async () => {
+    const synthesize = vi.fn(async () => new Blob(['mp3']));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('texto', 'nova'); });
+    await act(async () => { await voice.current!.changeVoice('ava'); });   // miss → bill
+    await act(async () => { await voice.current!.changeVoice('nova'); });  // hit → free
+
+    expect(synthesize).toHaveBeenCalledTimes(2);
+  });
+
   it('revokes the previous blob object URL when re-generating', async () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     const { adapter, finish } = makeAdapter();

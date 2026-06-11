@@ -1005,6 +1005,8 @@ import { useCallback, useRef as useRef2, useState } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
+var TTS_CACHE_MAX_CLIPS = 8;
+var clipKey = (text, voice) => `${voice}\0${text}`;
 function useVoice(adapter, opts = {}) {
   const { onError } = opts;
   const [isOpen, setIsOpen] = useState(false);
@@ -1015,6 +1017,30 @@ function useVoice(adapter, opts = {}) {
   const [currentVoice, setCurrentVoice] = useState("nova");
   const [currentText, setCurrentText] = useState("");
   const inFlight = useRef2(false);
+  const clipCache = useRef2(/* @__PURE__ */ new Map());
+  const synthesizeCached = useCallback(
+    async (text, voice) => {
+      const cache = clipCache.current;
+      const key = clipKey(text, voice);
+      const hit = cache.get(key);
+      if (hit) {
+        cache.delete(key);
+        cache.set(key, hit);
+        return hit;
+      }
+      const src = await adapter.synthesize(text, voice);
+      if (src instanceof Blob && src.size > 0) {
+        cache.set(key, src);
+        while (cache.size > TTS_CACHE_MAX_CLIPS) {
+          const oldest = cache.keys().next().value;
+          if (oldest === void 0) break;
+          cache.delete(oldest);
+        }
+      }
+      return src;
+    },
+    [adapter]
+  );
   const getVoiceDisplayName = useCallback(
     (voiceId) => {
       const found = adapter?.availableVoices?.find((v) => v.id === voiceId);
@@ -1034,13 +1060,14 @@ function useVoice(adapter, opts = {}) {
       setIsUserMessage(isUser);
       setVoiceName(getVoiceDisplayName(voice));
       setIsOpen(true);
-      setIsLoading(true);
       setAudioUrl((prev) => {
         if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
         return null;
       });
+      const isHit = clipCache.current.has(clipKey(text, voice));
+      if (!isHit) setIsLoading(true);
       try {
-        const src = await adapter.synthesize(text, voice);
+        const src = await synthesizeCached(text, voice);
         setAudioUrl(toUrl(src));
       } catch (error) {
         onError?.(error, "useVoice:TTS");
@@ -1050,7 +1077,7 @@ function useVoice(adapter, opts = {}) {
         setIsLoading(false);
       }
     },
-    [adapter, getVoiceDisplayName, onError]
+    [adapter, getVoiceDisplayName, onError, synthesizeCached]
   );
   const changeVoice = useCallback(
     async (newVoice) => {
@@ -1063,7 +1090,7 @@ function useVoice(adapter, opts = {}) {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
       try {
-        const src = await adapter.synthesize(currentText, newVoice);
+        const src = await synthesizeCached(currentText, newVoice);
         setAudioUrl(toUrl(src));
       } catch (error) {
         onError?.(error, "useVoice:VoiceChange");
@@ -1072,7 +1099,7 @@ function useVoice(adapter, opts = {}) {
         setIsLoading(false);
       }
     },
-    [adapter, audioUrl, currentText, getVoiceDisplayName, onError]
+    [adapter, audioUrl, currentText, getVoiceDisplayName, onError, synthesizeCached]
   );
   const close = useCallback(() => {
     setIsOpen(false);
