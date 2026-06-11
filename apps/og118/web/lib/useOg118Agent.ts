@@ -123,6 +123,10 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
   // after a chat switch (the active id changes without recreating send).
   const sessionIdRef = useRef<string | null>(sessionId);
   sessionIdRef.current = sessionId;
+  // B3-FIGLASS-8: the in-flight request, so the framework's turn-timeout watchdog
+  // (useAgentConversation) can actually CANCEL the network call via abort() — not
+  // just drop the UI out of streaming. Without this the timed-out fetch would leak.
+  const abortRef = useRef<AbortController | null>(null);
 
   const send = useCallback(async (message: string) => {
     const text = message.trim();
@@ -139,11 +143,14 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
       setTurn(state);
     };
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ message: text, session_id: sid }),
+        signal: controller.signal,
       });
       if (res.status === 401) {
         apply({ type: 'error', message: `${AUTH401}: token de acceso inválido o ausente` });
@@ -172,11 +179,21 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
         }
       }
     } catch (err) {
-      apply({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+      // An abort is the framework's timeout watchdog cancelling us — it already
+      // surfaced the timeout banner, so don't also emit a transport error.
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        apply({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+      }
     } finally {
+      abortRef.current = null;
       setIsStreaming(false);
     }
   }, [isStreaming]);
+
+  // Cancel the in-flight request (used by the framework's turn-timeout watchdog).
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   // Reset ONLY the live turn. The session id is owned by the conversation
   // library now (a new/switched chat changes the id upstream), so reset() must
@@ -186,5 +203,5 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
     setTurn(initialAgentTurnState());
   }, []);
 
-  return { turn, isStreaming, send, reset };
+  return { turn, isStreaming, send, reset, abort };
 }
