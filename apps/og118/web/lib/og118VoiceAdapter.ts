@@ -195,7 +195,13 @@ export function createOg118VoiceAdapter(deps: Og118VoiceAdapterDeps = {}): Voice
       // NOT send a Content-Type header (that would override the boundary). The
       // bearer rides along via the same authHeaders() as every other call.
       const form = new FormData();
-      form.append('audio', chunk, 'chunk.webm');
+      // Use the blob's actual MIME type to derive the filename extension so
+      // the multipart Content-Disposition matches the real format. useDurableRecording
+      // saves audio/wav; direct-dictation used webm — the backend reads the
+      // Content-Type of the part, not the extension, but a coherent name avoids
+      // ambiguity if the backend logs or inspects filenames.
+      const ext = chunk.type === 'audio/wav' ? 'wav' : 'webm';
+      form.append('audio', chunk, `chunk.${ext}`);
 
       let res: Response;
       try {

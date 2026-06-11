@@ -120,6 +120,23 @@ export interface AgentConversationSurfaceProps {
   /** aria-label for the send button. Default: "Enviar mensaje". */
   sendLabel?: string;
   /**
+   * B3-VOICE-OG118-6 — append text to the composer from an external source
+   * (e.g. a durable-queue transcription). When non-empty, the surface appends
+   * this text to the current input and calls `onComposerAppendConsumed`. Pull-once
+   * pattern: set to a string → surface consumes → consumer resets to ''.
+   */
+  composerAppend?: string;
+  /** Called immediately after the surface appends `composerAppend`. Reset to ''. */
+  onComposerAppendConsumed?: () => void;
+  /**
+   * B3-VOICE-OG118-6 — replace the built-in `ComposerMicSlot` + `useDictation`
+   * with custom content (e.g. a durable-recording button). When provided, no
+   * built-in mic is rendered and no dictation visualizer is shown. The `voiceAdapter`
+   * prop still gates TTS-only features; pass `undefined` or an adapter without
+   * `transcribe` to avoid a phantom built-in mic alongside the override.
+   */
+  micSlotOverride?: ReactNode;
+  /**
    * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
    * is set (a hung/timed-out or errored turn), the surface renders a recoverable
    * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
@@ -161,6 +178,9 @@ export function AgentConversationSurface({
   sendButtonClassName,
   sendButtonIconClassName,
   sendLabel = 'Enviar mensaje',
+  composerAppend,
+  onComposerAppendConsumed,
+  micSlotOverride,
   errorClassName,
   retryLabel = 'Reintentar',
   dismissLabel = 'Descartar',
@@ -193,6 +213,17 @@ export function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
+
+  // B3-VOICE-OG118-6: pull-once external text injection. When composerAppend
+  // becomes non-empty, append to the current input and signal the consumer to
+  // reset it. The dep array intentionally omits onComposerAppendConsumed to
+  // avoid re-running on every parent render; the callback is stable in practice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!composerAppend) return;
+    setInput((prev) => (prev ? `${prev} ${composerAppend}` : composerAppend));
+    onComposerAppendConsumed?.();
+  }, [composerAppend]);
 
   // Dictation (STT) — only live when the adapter can transcribe. The composer
   // text typed before recording is captured as a prefix so dictation appends to
@@ -383,7 +414,7 @@ export function AgentConversationSurface({
           </div>
         )}
         {aboveComposer}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: micAvailable ? 8 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: (micAvailable || micSlotOverride != null) ? 8 : 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <Composer
               message={input}
@@ -402,7 +433,8 @@ export function AgentConversationSurface({
               textareaRef={inputRef}
             />
           </div>
-          {micAvailable && dictation.isRecording && (
+          {/* Built-in dictation visualizer — suppressed when micSlotOverride is used */}
+          {micSlotOverride == null && micAvailable && dictation.isRecording && (
             // Live equalizer: reacts to the mic's frequency bands so the user
             // sees they're being heard. Only mounted while recording, fed by the
             // analyser the dictation hook already runs — no extra Web Audio here.
@@ -415,17 +447,20 @@ export function AgentConversationSurface({
               barClassName={voiceVisualizerBarClassName}
             />
           )}
-          {micAvailable && (
-            <ComposerMicSlot
-              available
-              recording={dictation.isRecording}
-              busy={dictation.isTranscribing}
-              onStart={startDictation}
-              onStop={() => void dictation.stopRecording()}
-              className={micSlotClassName}
-              buttonClassName={micButtonClassName}
-            />
-          )}
+          {/* micSlotOverride replaces the built-in ComposerMicSlot + dictation */}
+          {micSlotOverride != null
+            ? micSlotOverride
+            : micAvailable && (
+              <ComposerMicSlot
+                available
+                recording={dictation.isRecording}
+                busy={dictation.isTranscribing}
+                onStart={startDictation}
+                onStop={() => void dictation.stopRecording()}
+                className={micSlotClassName}
+                buttonClassName={micButtonClassName}
+              />
+            )}
           {showSendButton && (
             // Explicit send affordance (mirrors the shell/AURITY composer). Enter
             // still sends; this is the visible button. Disabled until there's
