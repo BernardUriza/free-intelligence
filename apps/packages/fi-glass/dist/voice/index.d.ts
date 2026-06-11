@@ -183,6 +183,13 @@ interface SpeakButtonProps {
     isUserMessage?: boolean;
     /** Open/play handler — provided by the app's audio player. */
     onOpenPlayer: (text: string, voice: string, isUserMessage?: boolean) => void;
+    /**
+     * Synthesis in flight (B3-VOICE-FIGLASS-6): renders a spinner instead of the
+     * speaker, disables the button and sets aria-busy. TTS takes seconds; a
+     * silent button reads as dead and invites paid spam clicks. Wire it to
+     * `useVoice.isLoading` (scoped to this message via `currentText`).
+     */
+    busy?: boolean;
     /** Size preset (drives default padding + icon size). */
     size?: 'xs' | 'sm' | 'md';
     /** Override the button class entirely (e.g. aurity's exact legacy string). */
@@ -191,8 +198,10 @@ interface SpeakButtonProps {
     iconClassName?: string;
     /** Override the tooltip (default: "Escuchar (<voice>)"). */
     title?: string;
+    /** Tooltip while busy (default: "Generando audio…"). */
+    busyTitle?: string;
 }
-declare function SpeakButton({ content, voice, isUserMessage, onOpenPlayer, size, className, iconClassName, title, }: SpeakButtonProps): react.JSX.Element;
+declare function SpeakButton({ content, voice, isUserMessage, onOpenPlayer, busy, size, className, iconClassName, title, busyTitle, }: SpeakButtonProps): react.JSX.Element;
 
 /**
  * fi-glass · audioPlayer — the reusable TTS *playback* engine (headless).

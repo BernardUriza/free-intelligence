@@ -234,7 +234,7 @@ function FloatingButton({ onClick, isMobile }) {
 }
 
 // src/shell/ChatContent.tsx
-import { Loader2 as Loader29 } from "lucide-react";
+import { Loader2 as Loader210 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -460,9 +460,9 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState7, useRef as useRef5, useEffect as useEffect6 } from "react";
+import { useState as useState7, useRef as useRef6, useEffect as useEffect6 } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader27 } from "lucide-react";
+import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader28 } from "lucide-react";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef as forwardRef2 } from "react";
@@ -772,14 +772,14 @@ function VoiceMicButton({
 }
 
 // src/voice/SpeakButton.tsx
-import { Volume2 } from "lucide-react";
+import { Volume2, Loader2 as Loader24 } from "lucide-react";
 import { jsx as jsx11 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
 import { useEffect as useEffect2, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect3 } from "react";
 import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 
@@ -788,7 +788,7 @@ import {
   Play as Play2,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader25,
+  Loader2 as Loader26,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
@@ -800,20 +800,20 @@ import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 import { jsx as jsx14 } from "react/jsx-runtime";
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
 import { jsx as jsx15 } from "react/jsx-runtime";
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback2, useState as useState3 } from "react";
+import { useCallback as useCallback2, useRef as useRef3, useState as useState3 } from "react";
 
 // src/voice/useDictation.ts
 import { useCallback as useCallback4, useState as useState6 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState4, useRef as useRef3, useCallback as useCallback3 } from "react";
+import { useState as useState4, useRef as useRef4, useCallback as useCallback3 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef4, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useEffect as useEffect5 } from "react";
 
 // src/shell/ChatToolbar.tsx
 import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
@@ -846,7 +846,7 @@ function ChatToolbar({
   sendLoading = false
 }) {
   const [overflowOpen, setOverflowOpen] = useState7(false);
-  const overflowButtonRef = useRef5(null);
+  const overflowButtonRef = useRef6(null);
   const [dropdownPosition, setDropdownPosition] = useState7({ top: 0, left: 0 });
   useEffect6(() => {
     if (overflowOpen && overflowButtonRef.current) {
@@ -1048,7 +1048,7 @@ function ChatToolbar({
           disabled: !canSend,
           className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
           "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx16(Loader27, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx16(Send, { className: "h-4 w-4" })
+          children: sendLoading ? /* @__PURE__ */ jsx16(Loader28, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx16(Send, { className: "h-4 w-4" })
         }
       )
     ] })
@@ -1062,7 +1062,7 @@ import {
   Image as ImageIcon,
   File,
   X as X2,
-  Loader2 as Loader28,
+  Loader2 as Loader29,
   CheckCircle,
   AlertCircle as AlertCircle3
 } from "lucide-react";
@@ -1107,7 +1107,7 @@ function ChatFilePreview({
     /* @__PURE__ */ jsx17("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx17(Loader28, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx17(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx17(AlertCircle3, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx17(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+      `, children: isProcessing ? /* @__PURE__ */ jsx17(Loader29, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx17(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx17(AlertCircle3, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx17(FileIcon, { className: "w-5 h-5 fi-text" }) }),
     /* @__PURE__ */ jsxs12("div", { className: "flex-1 min-w-0", children: [
       /* @__PURE__ */ jsx17("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs12("div", { className: "flex items-center gap-2 fi-text-xs", children: [
@@ -1296,7 +1296,7 @@ function ChatContent({
               onHistorySearch: onHistoryOpen
             }
           ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx19("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx19(Loader29, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx19(
+          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx19("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx19(Loader210, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx19(
             ChatStartScreen,
             {
               isAuthenticated,

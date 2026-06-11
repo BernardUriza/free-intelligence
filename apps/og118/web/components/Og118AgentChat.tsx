@@ -272,6 +272,8 @@ export function Og118AgentChat() {
               message={m}
               currentVoice={voice.currentVoice}
               onSpeak={voice.generateAudio}
+              ttsLoading={voice.isLoading}
+              ttsActiveText={voice.currentText}
             />
           )}
         />

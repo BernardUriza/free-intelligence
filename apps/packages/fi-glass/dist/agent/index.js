@@ -502,8 +502,8 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback6, useEffect as useEffect8, useRef as useRef6, useState as useState9 } from "react";
-import { Send, Loader2 as Loader27 } from "lucide-react";
+import { useCallback as useCallback6, useEffect as useEffect8, useRef as useRef7, useState as useState9 } from "react";
+import { Send, Loader2 as Loader28 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -923,14 +923,14 @@ import { motion as motion4 } from "framer-motion";
 import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/SpeakButton.tsx
-import { Volume2 } from "lucide-react";
+import { Volume2, Loader2 as Loader24 } from "lucide-react";
 import { jsx as jsx16 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
 import { useEffect as useEffect4, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect5 } from "react";
 import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 
@@ -939,7 +939,7 @@ import {
   Play as Play2,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader25,
+  Loader2 as Loader26,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
@@ -1033,7 +1033,7 @@ function AudioVisualizer({
 }
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
 import { jsx as jsx20 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1060,7 +1060,7 @@ function ComposerMicSlot({
     if (recording) onStop?.();
     else onStart?.();
   };
-  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
   return /* @__PURE__ */ jsx20("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx20(
     "button",
     {
@@ -1084,13 +1084,13 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useState as useState5 } from "react";
+import { useCallback as useCallback3, useRef as useRef4, useState as useState5 } from "react";
 
 // src/voice/useDictation.ts
 import { useCallback as useCallback5, useState as useState8 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState6, useRef as useRef4, useCallback as useCallback4 } from "react";
+import { useState as useState6, useRef as useRef5, useCallback as useCallback4 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -1185,12 +1185,12 @@ function useRecorder(config) {
   const [fullAudioBlob, setFullAudioBlob] = useState6(null);
   const [fullAudioUrl, setFullAudioUrl] = useState6(null);
   const [currentStream, setCurrentStream] = useState6(null);
-  const recorderRef = useRef4(null);
-  const continuousRecorderRef = useRef4(null);
-  const currentStreamRef = useRef4(null);
-  const recordingTimerRef = useRef4(null);
-  const fullAudioUrlRef = useRef4(null);
-  const chunkNumberRef = useRef4(0);
+  const recorderRef = useRef5(null);
+  const continuousRecorderRef = useRef5(null);
+  const currentStreamRef = useRef5(null);
+  const recordingTimerRef = useRef5(null);
+  const fullAudioUrlRef = useRef5(null);
+  const chunkNumberRef = useRef5(0);
   const startRecording = useCallback4(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -1345,7 +1345,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState7, useRef as useRef5, useEffect as useEffect7 } from "react";
+import { useState as useState7, useRef as useRef6, useEffect as useEffect7 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1375,9 +1375,9 @@ function useAudioAnalysis(stream, config) {
   } = config;
   const [audioLevel, setAudioLevel] = useState7(0);
   const [bands, setBands] = useState7([]);
-  const analyserRef = useRef5(null);
-  const audioContextRef = useRef5(null);
-  const animationFrameRef = useRef5(null);
+  const analyserRef = useRef6(null);
+  const audioContextRef = useRef6(null);
+  const animationFrameRef = useRef6(null);
   const isSilent = audioLevel < silenceThreshold;
   useEffect7(() => {
     if (!stream || !isActive) {
@@ -1508,7 +1508,7 @@ function AgentConversationSurface({
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState9("");
-  const inputRef = useRef6(null);
+  const inputRef = useRef7(null);
   const refocusComposer = useCallback6(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
@@ -1518,7 +1518,7 @@ function AgentConversationSurface({
     el.focus();
   }, []);
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef6("");
+  const baseInputRef = useRef7("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -1530,12 +1530,12 @@ function AgentConversationSurface({
     baseInputRef.current = input;
     void dictation.startRecording();
   };
-  const wasStreaming = useRef6(false);
+  const wasStreaming = useRef7(false);
   useEffect8(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef6(false);
+  const wasTranscribing = useRef7(false);
   useEffect8(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
@@ -1710,7 +1710,7 @@ function AgentConversationSurface({
             "aria-label": sendLabel,
             className: sendButtonClassName,
             children: isStreaming ? /* @__PURE__ */ jsx21(
-              Loader27,
+              Loader28,
               {
                 className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
                 "aria-hidden": true
