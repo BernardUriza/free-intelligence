@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { TextareaHTMLAttributes } from 'react';
+import { CSSProperties, TextareaHTMLAttributes } from 'react';
 
 interface ComposerProps {
     /** Current message value */
@@ -18,10 +18,12 @@ interface ComposerProps {
     areaClassName?: string;
     /** Class for the AutoResizeTextarea wrapper */
     wrapperClassName?: string;
+    /** Inline style for the input wrapper (e.g. flex-grow so it fills the area). */
+    wrapperStyle?: CSSProperties;
     /** Class for the <textarea> itself */
     textareaClassName?: string;
 }
-declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, textareaClassName, }: ComposerProps): react.JSX.Element;
+declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, }: ComposerProps): react.JSX.Element;
 
 interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     /** Max rows before scrolling */
@@ -32,7 +34,13 @@ interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaEle
     maxLength?: number;
     /** Additional wrapper CSS classes */
     wrapperClassName?: string;
+    /**
+     * Inline style for the wrapper div. Lets the Composer/surface own the input's
+     * layout (e.g. `flex: 1 1 0%` so it fills a flex composer) WITHOUT a consumer
+     * reaching into the internal `.relative` wrapper from CSS.
+     */
+    wrapperStyle?: CSSProperties;
 }
-declare function AutoResizeTextarea({ value, onChange, maxRows, showCounter, maxLength, wrapperClassName, className, ...props }: AutoResizeTextareaProps): react.JSX.Element;
+declare function AutoResizeTextarea({ value, onChange, maxRows, showCounter, maxLength, wrapperClassName, wrapperStyle, className, ...props }: AutoResizeTextareaProps): react.JSX.Element;
 
 export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, type ComposerProps };

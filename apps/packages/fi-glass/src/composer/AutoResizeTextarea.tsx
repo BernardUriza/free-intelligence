@@ -12,6 +12,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type TextareaHTMLAttributes,
 } from 'react';
 
@@ -25,6 +26,12 @@ export interface AutoResizeTextareaProps
   maxLength?: number;
   /** Additional wrapper CSS classes */
   wrapperClassName?: string;
+  /**
+   * Inline style for the wrapper div. Lets the Composer/surface own the input's
+   * layout (e.g. `flex: 1 1 0%` so it fills a flex composer) WITHOUT a consumer
+   * reaching into the internal `.relative` wrapper from CSS.
+   */
+  wrapperStyle?: CSSProperties;
 }
 
 export function AutoResizeTextarea({
@@ -34,6 +41,7 @@ export function AutoResizeTextarea({
   showCounter = false,
   maxLength,
   wrapperClassName = '',
+  wrapperStyle,
   className = '',
   ...props
 }: AutoResizeTextareaProps) {
@@ -55,6 +63,10 @@ export function AutoResizeTextarea({
 
     setRows(newRows);
     textarea.style.height = `${newRows * lineHeight}px`;
+    // Fill the wrapper width. Set imperatively (not via the style prop) so it
+    // never collides with the imperative height above on re-render — a composer
+    // textarea should always span its container.
+    textarea.style.width = '100%';
   }, [value, maxRows]);
 
   const charCount = typeof value === 'string' ? value.length : 0;
@@ -62,7 +74,7 @@ export function AutoResizeTextarea({
   const isOverLimit = maxLength && charCount > maxLength;
 
   return (
-    <div className={`relative ${wrapperClassName}`}>
+    <div className={`relative ${wrapperClassName}`} style={wrapperStyle}>
       <textarea
         ref={textareaRef}
         value={value}

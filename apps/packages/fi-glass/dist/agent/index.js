@@ -441,6 +441,7 @@ function useAgentConversation(agent, options = {}) {
 
 // src/agent/AgentConversationSurface.tsx
 import { useRef as useRef6, useState as useState9 } from "react";
+import { Send, Loader2 as Loader27 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -456,6 +457,7 @@ function AutoResizeTextarea({
   showCounter = false,
   maxLength,
   wrapperClassName = "",
+  wrapperStyle,
   className = "",
   ...props
 }) {
@@ -472,11 +474,12 @@ function AutoResizeTextarea({
     );
     setRows(newRows);
     textarea.style.height = `${newRows * lineHeight}px`;
+    textarea.style.width = "100%";
   }, [value, maxRows]);
   const charCount = typeof value === "string" ? value.length : 0;
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
-  return /* @__PURE__ */ jsxs5("div", { className: `relative ${wrapperClassName}`, children: [
+  return /* @__PURE__ */ jsxs5("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
     /* @__PURE__ */ jsx5(
       "textarea",
       {
@@ -511,6 +514,7 @@ function Composer({
   maxRows = 5,
   areaClassName,
   wrapperClassName,
+  wrapperStyle,
   textareaClassName
 }) {
   const handleKeyDown = (e) => {
@@ -530,6 +534,7 @@ function Composer({
       maxRows,
       showCounter: false,
       wrapperClassName,
+      wrapperStyle,
       className: textareaClassName
     }
   ) });
@@ -1410,7 +1415,11 @@ function AgentConversationSurface({
   micButtonClassName,
   onVoiceError,
   voiceVisualizerClassName,
-  voiceVisualizerBarClassName
+  voiceVisualizerBarClassName,
+  showSendButton = true,
+  sendButtonClassName,
+  sendButtonIconClassName,
+  sendLabel = "Enviar mensaje"
 }) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState9("");
@@ -1436,6 +1445,7 @@ function AgentConversationSurface({
     setInput("");
     send(t);
   };
+  const canSend = input.trim().length > 0 && !isStreaming;
   return /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
     /* @__PURE__ */ jsx21("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: idle ? emptyState : /* @__PURE__ */ jsxs15("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
       messages.map((m, i) => /* @__PURE__ */ jsx21(
@@ -1494,7 +1504,8 @@ function AgentConversationSurface({
             onMessageChange: setInput,
             onSend,
             areaClassName: composerAreaClassName,
-            textareaClassName: composerTextareaClassName
+            textareaClassName: composerTextareaClassName,
+            wrapperStyle: { flex: "1 1 0%", minWidth: 0 }
           }
         ) }),
         micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
@@ -1521,6 +1532,26 @@ function AgentConversationSurface({
             onStop: () => void dictation.stopRecording(),
             className: micSlotClassName,
             buttonClassName: micButtonClassName
+          }
+        ),
+        showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+        // still sends; this is the visible button. Disabled until there's
+        // trimmed text and nothing is streaming.
+        /* @__PURE__ */ jsx21(
+          "button",
+          {
+            type: "button",
+            onClick: onSend,
+            disabled: !canSend,
+            "aria-label": sendLabel,
+            className: sendButtonClassName,
+            children: isStreaming ? /* @__PURE__ */ jsx21(
+              Loader27,
+              {
+                className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
+                "aria-hidden": true
+              }
+            ) : /* @__PURE__ */ jsx21(Send, { className: sendButtonIconClassName, "aria-hidden": true })
           }
         )
       ] })

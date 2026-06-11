@@ -181,3 +181,50 @@ describe('<AgentConversationSurface> voiceAdapter dictation (B3-VOICE-FIGLASS-4)
     expect(html).not.toContain('og-voice-visualizer');
   });
 });
+
+describe('<AgentConversationSurface> send button (B3-FIGLASS-6)', () => {
+  it('renders a send button by default with the consumer style hook', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        sendButtonClassName="og-send-btn"
+      />
+    );
+    expect(html).toContain('Enviar mensaje');
+    expect(html).toContain('og-send-btn');
+  });
+
+  it('disables the send button when there is no text (idle)', () => {
+    // SSR default: input starts empty → canSend false → button disabled.
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    expect(html).toContain('aria-label="Enviar mensaje"');
+    expect(html).toContain('disabled');
+  });
+
+  it('omits the send button when showSendButton is false', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        showSendButton={false}
+      />
+    );
+    expect(html).not.toContain('Enviar mensaje');
+  });
+});
+
+describe('<AgentConversationSurface> composer input fill (B3-FIGLASS-6)', () => {
+  // The width fix belongs to the framework, not a consumer selector reaching
+  // into the internal `.relative` wrapper. The surface hands the Composer a
+  // wrapperStyle that grows the input, so the textarea fills the composer area
+  // regardless of how the consumer styles it.
+  it('grows the composer input wrapper to fill (flex grow owned by the surface)', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    // The inline flex-grow lands on the input wrapper in SSR output.
+    expect(html).toMatch(/flex:\s*1 1 0%/);
+    expect(html).toMatch(/min-width:\s*0/);
+  });
+});

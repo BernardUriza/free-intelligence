@@ -13,7 +13,7 @@
  * or to drop voice (there is none to drop here).
  */
 
-import { type KeyboardEvent } from 'react';
+import { type CSSProperties, type KeyboardEvent } from 'react';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 export interface ComposerProps {
@@ -33,6 +33,8 @@ export interface ComposerProps {
   areaClassName?: string;
   /** Class for the AutoResizeTextarea wrapper */
   wrapperClassName?: string;
+  /** Inline style for the input wrapper (e.g. flex-grow so it fills the area). */
+  wrapperStyle?: CSSProperties;
   /** Class for the <textarea> itself */
   textareaClassName?: string;
 }
@@ -46,6 +48,7 @@ export function Composer({
   maxRows = 5,
   areaClassName,
   wrapperClassName,
+  wrapperStyle,
   textareaClassName,
 }: ComposerProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,6 +69,7 @@ export function Composer({
         maxRows={maxRows}
         showCounter={false}
         wrapperClassName={wrapperClassName}
+        wrapperStyle={wrapperStyle}
         className={textareaClassName}
       />
     </div>

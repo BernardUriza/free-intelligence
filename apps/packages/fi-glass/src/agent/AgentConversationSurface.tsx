@@ -13,6 +13,7 @@
  */
 
 import { useRef, useState, type ReactNode } from 'react';
+import { Send, Loader2 } from 'lucide-react';
 import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
@@ -99,6 +100,18 @@ export interface AgentConversationSurfaceProps {
   voiceVisualizerClassName?: string;
   /** Per-bar class for the live dictation visualizer. */
   voiceVisualizerBarClassName?: string;
+  /**
+   * Render an explicit send button in the composer row (in addition to
+   * Enter-to-send). Default true — a visible affordance matches the shell
+   * composer (AURITY). Set false for an Enter-only composer.
+   */
+  showSendButton?: boolean;
+  /** Class for the send button. */
+  sendButtonClassName?: string;
+  /** Class for the send button icon. */
+  sendButtonIconClassName?: string;
+  /** aria-label for the send button. Default: "Enviar mensaje". */
+  sendLabel?: string;
 }
 
 export function AgentConversationSurface({
@@ -121,6 +134,10 @@ export function AgentConversationSurface({
   onVoiceError,
   voiceVisualizerClassName,
   voiceVisualizerBarClassName,
+  showSendButton = true,
+  sendButtonClassName,
+  sendButtonIconClassName,
+  sendLabel = 'Enviar mensaje',
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, send, newConversation } = conversation;
   const [input, setInput] = useState('');
@@ -167,6 +184,7 @@ export function AgentConversationSurface({
     setInput('');
     send(t);
   };
+  const canSend = input.trim().length > 0 && !isStreaming;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxWidth: 760, margin: '0 auto' }}>
@@ -242,6 +260,10 @@ export function AgentConversationSurface({
               onSend={onSend}
               areaClassName={composerAreaClassName}
               textareaClassName={composerTextareaClassName}
+              // The input fills the composer area regardless of how the consumer
+              // styles it (e.g. a flex area): growth is owned here, in the
+              // framework, not patched in by a consumer reaching into `.relative`.
+              wrapperStyle={{ flex: '1 1 0%', minWidth: 0 }}
             />
           </div>
           {micAvailable && dictation.isRecording && (
@@ -267,6 +289,31 @@ export function AgentConversationSurface({
               className={micSlotClassName}
               buttonClassName={micButtonClassName}
             />
+          )}
+          {showSendButton && (
+            // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+            // still sends; this is the visible button. Disabled until there's
+            // trimmed text and nothing is streaming.
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={!canSend}
+              aria-label={sendLabel}
+              className={sendButtonClassName}
+            >
+              {isStreaming ? (
+                <Loader2
+                  className={
+                    sendButtonIconClassName
+                      ? `${sendButtonIconClassName} animate-spin`
+                      : 'animate-spin'
+                  }
+                  aria-hidden
+                />
+              ) : (
+                <Send className={sendButtonIconClassName} aria-hidden />
+              )}
+            </button>
           )}
         </div>
       </div>

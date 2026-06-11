@@ -238,6 +238,9 @@ export function Og118AgentChat() {
           // reactive bars next to the mic while dictating; og118 only tints them.
           voiceVisualizerClassName="og-voice-visualizer"
           voiceVisualizerBarClassName="og-voice-bar-bar"
+          // Visible send button (like AURITY), styled with the og emerald accent.
+          sendButtonClassName="og-send-btn"
+          sendButtonIconClassName="og-send-icon"
           onVoiceError={(msg) => {
             // Keep the console log for dev, but also surface a controlled,
             // dismissable banner so the user actually sees a dictation failure.
