@@ -135,6 +135,34 @@ jobs:
               "OG118_TTS_API_VERSION=${TTS_API_VERSION:-2025-03-01-preview}" \
               "OG118_TTS_VOICE=${TTS_VOICE:-nova}"
 
+      - name: Wire STT config (only when configured — else no-op)
+        # B3-VOICE-STT-CONFIG-1. The STT twin of the TTS step above: same additive,
+        # idempotent, merge-only shape so a future backend deploy KEEPS dictation
+        # configured (previously the OG118_STT_* vars lived only on the live
+        # Container App — drift). When OG118_STT_* is unset this is a clean no-op
+        # and /stt/transcribe returns 503 by design. Key is a secret (secretref);
+        # endpoint/deployment are plain vars. API version falls back to the code
+        # default (2024-06-01) so no var is required for it.
+        env:
+          STT_API_KEY: ${{ secrets.OG118_STT_API_KEY }}
+          STT_ENDPOINT: ${{ vars.OG118_STT_ENDPOINT }}
+          STT_DEPLOYMENT: ${{ vars.OG118_STT_DEPLOYMENT }}
+          STT_API_VERSION: ${{ vars.OG118_STT_API_VERSION }}
+        run: |
+          if [ -z "$STT_API_KEY" ] || [ -z "$STT_ENDPOINT" ] || [ -z "$STT_DEPLOYMENT" ]; then
+            echo "STT not configured (OG118_STT_ENDPOINT/API_KEY/DEPLOYMENT unset)."
+            echo "Skipping — /stt/transcribe will return 503 until configured."
+            exit 0
+          fi
+          az containerapp secret set -n "$APP" -g "$RG" \
+            --secrets "og118-stt-api-key=$STT_API_KEY"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_STT_API_KEY=secretref:og118-stt-api-key" \
+              "OG118_STT_ENDPOINT=$STT_ENDPOINT" \
+              "OG118_STT_DEPLOYMENT=$STT_DEPLOYMENT" \
+              "OG118_STT_API_VERSION=${STT_API_VERSION:-2024-06-01}"
+
       - name: Ensure AcrPull for the app's managed identity (idempotent)
         # --registry-identity system wires the pull, but the role assignment can
         # lag on first create. Assign it explicitly (needs Owner on og118-rg, per
