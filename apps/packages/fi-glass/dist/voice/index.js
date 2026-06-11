@@ -389,7 +389,7 @@ function VoiceMicButton({
 }
 
 // src/voice/SpeakButton.tsx
-import { Volume2 } from "lucide-react";
+import { Volume2, Loader2 as Loader24 } from "lucide-react";
 import { jsx as jsx6 } from "react/jsx-runtime";
 var ICON_SIZE = { xs: "w-3 h-3", sm: "w-3.5 h-3.5", md: "w-4 h-4" };
 var PAD_SIZE = { xs: "p-1", sm: "p-1.5", md: "p-2" };
@@ -403,21 +403,28 @@ function SpeakButton({
   voice = "nova",
   isUserMessage = false,
   onOpenPlayer,
+  busy = false,
   size = "sm",
   className,
   iconClassName,
-  title
+  title,
+  busyTitle = "Generando audio\u2026"
 }) {
   const voiceDisplay = formatVoiceName(voice);
+  const icon = iconClassName ?? ICON_SIZE[size];
   return /* @__PURE__ */ jsx6(
     "button",
     {
       type: "button",
-      onClick: () => onOpenPlayer(content, voice, isUserMessage),
+      onClick: () => {
+        if (!busy) onOpenPlayer(content, voice, isUserMessage);
+      },
+      disabled: busy,
+      "aria-busy": busy,
       className: className ?? PAD_SIZE[size],
-      title: title ?? `Escuchar (${voiceDisplay})`,
-      "aria-label": `Escuchar mensaje con voz ${voiceDisplay}`,
-      children: /* @__PURE__ */ jsx6(Volume2, { className: iconClassName ?? ICON_SIZE[size] })
+      title: busy ? busyTitle : title ?? `Escuchar (${voiceDisplay})`,
+      "aria-label": busy ? busyTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
+      children: busy ? /* @__PURE__ */ jsx6(Loader24, { className: `${icon} animate-spin` }) : /* @__PURE__ */ jsx6(Volume2, { className: icon })
     }
   );
 }
@@ -660,7 +667,7 @@ function useAudioPlayer(opts = {}) {
 }
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect2 } from "react";
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
@@ -694,7 +701,7 @@ function AudioPlayer({
         "aria-pressed": isPlaying,
         "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
         className: btnClass,
-        children: isLoading ? /* @__PURE__ */ jsx7(Loader24, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx7(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx7(Play, { className: iconClass, "aria-hidden": true })
+        children: isLoading ? /* @__PURE__ */ jsx7(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx7(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx7(Play, { className: iconClass, "aria-hidden": true })
       }
     ),
     /* @__PURE__ */ jsx7(
@@ -720,7 +727,7 @@ import {
   Play as Play2,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader25,
+  Loader2 as Loader26,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
@@ -806,7 +813,7 @@ function RichAudioPlayer({
             "aria-pressed": isPlaying,
             "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
             className: btnClass,
-            children: isLoading ? /* @__PURE__ */ jsx8(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx8(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx8(Play2, { className: iconClass, "aria-hidden": true })
+            children: isLoading ? /* @__PURE__ */ jsx8(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx8(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx8(Play2, { className: iconClass, "aria-hidden": true })
           }
         ),
         /* @__PURE__ */ jsx8(
@@ -943,7 +950,7 @@ function AudioVisualizer({
 }
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
 import { jsx as jsx10 } from "react/jsx-runtime";
 var ICON3 = "w-4 h-4";
 var BTN3 = "p-2 disabled:opacity-40";
@@ -970,7 +977,7 @@ function ComposerMicSlot({
     if (recording) onStop?.();
     else onStart?.();
   };
-  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
   return /* @__PURE__ */ jsx10("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx10(
     "button",
     {
@@ -994,7 +1001,7 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback, useState } from "react";
+import { useCallback, useRef as useRef2, useState } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
@@ -1007,6 +1014,7 @@ function useVoice(adapter, opts = {}) {
   const [isUserMessage, setIsUserMessage] = useState(false);
   const [currentVoice, setCurrentVoice] = useState("nova");
   const [currentText, setCurrentText] = useState("");
+  const inFlight = useRef2(false);
   const getVoiceDisplayName = useCallback(
     (voiceId) => {
       const found = adapter?.availableVoices?.find((v) => v.id === voiceId);
@@ -1019,13 +1027,18 @@ function useVoice(adapter, opts = {}) {
   const generateAudio = useCallback(
     async (text, voice = "nova", isUser = false) => {
       if (!adapter?.synthesize) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
       setCurrentText(text);
       setCurrentVoice(voice);
       setIsUserMessage(isUser);
       setVoiceName(getVoiceDisplayName(voice));
       setIsOpen(true);
       setIsLoading(true);
-      setAudioUrl(null);
+      setAudioUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
       try {
         const src = await adapter.synthesize(text, voice);
         setAudioUrl(toUrl(src));
@@ -1033,6 +1046,7 @@ function useVoice(adapter, opts = {}) {
         onError?.(error, "useVoice:TTS");
         setIsOpen(false);
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },
@@ -1041,6 +1055,8 @@ function useVoice(adapter, opts = {}) {
   const changeVoice = useCallback(
     async (newVoice) => {
       if (!currentText || !adapter?.synthesize) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
       setCurrentVoice(newVoice);
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
@@ -1052,6 +1068,7 @@ function useVoice(adapter, opts = {}) {
       } catch (error) {
         onError?.(error, "useVoice:VoiceChange");
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },
@@ -1082,7 +1099,7 @@ function useVoice(adapter, opts = {}) {
 import { useCallback as useCallback3, useState as useState4 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState2, useRef as useRef2, useCallback as useCallback2 } from "react";
+import { useState as useState2, useRef as useRef3, useCallback as useCallback2 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -1177,12 +1194,12 @@ function useRecorder(config) {
   const [fullAudioBlob, setFullAudioBlob] = useState2(null);
   const [fullAudioUrl, setFullAudioUrl] = useState2(null);
   const [currentStream, setCurrentStream] = useState2(null);
-  const recorderRef = useRef2(null);
-  const continuousRecorderRef = useRef2(null);
-  const currentStreamRef = useRef2(null);
-  const recordingTimerRef = useRef2(null);
-  const fullAudioUrlRef = useRef2(null);
-  const chunkNumberRef = useRef2(0);
+  const recorderRef = useRef3(null);
+  const continuousRecorderRef = useRef3(null);
+  const currentStreamRef = useRef3(null);
+  const recordingTimerRef = useRef3(null);
+  const fullAudioUrlRef = useRef3(null);
+  const chunkNumberRef = useRef3(0);
   const startRecording = useCallback2(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -1337,7 +1354,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef3, useEffect as useEffect4 } from "react";
+import { useState as useState3, useRef as useRef4, useEffect as useEffect4 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1367,9 +1384,9 @@ function useAudioAnalysis(stream, config) {
   } = config;
   const [audioLevel, setAudioLevel] = useState3(0);
   const [bands, setBands] = useState3([]);
-  const analyserRef = useRef3(null);
-  const audioContextRef = useRef3(null);
-  const animationFrameRef = useRef3(null);
+  const analyserRef = useRef4(null);
+  const audioContextRef = useRef4(null);
+  const animationFrameRef = useRef4(null);
   const isSilent = audioLevel < silenceThreshold;
   useEffect4(() => {
     if (!stream || !isActive) {

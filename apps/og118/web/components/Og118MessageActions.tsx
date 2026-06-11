@@ -24,15 +24,32 @@ export interface Og118MessageActionsProps {
   currentVoice: string;
   /** Open/generate playback for `text` in `voice`. Wired to useVoice.generateAudio. */
   onSpeak: (text: string, voice: string, isUserMessage?: boolean) => void;
+  /** Synthesis in flight (useVoice.isLoading). */
+  ttsLoading?: boolean;
+  /** Text being synthesized (useVoice.currentText) — scopes the spinner to ONE message. */
+  ttsActiveText?: string;
 }
 
-export function Og118MessageActions({ message, currentVoice, onSpeak }: Og118MessageActionsProps) {
+export function Og118MessageActions({
+  message,
+  currentVoice,
+  onSpeak,
+  ttsLoading = false,
+  ttsActiveText = '',
+}: Og118MessageActionsProps) {
   const isAssistant = message.role === 'assistant';
   return (
     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
       <CopyButton content={message.content} />
       {isAssistant && (
-        <SpeakButton content={message.content} voice={currentVoice} onOpenPlayer={onSpeak} />
+        <SpeakButton
+          content={message.content}
+          voice={currentVoice}
+          onOpenPlayer={onSpeak}
+          // Spinner on the message being synthesized (B3-VOICE-FIGLASS-6); the
+          // hook's single-flight guard makes clicks elsewhere no-ops meanwhile.
+          busy={ttsLoading && ttsActiveText === message.content}
+        />
       )}
     </div>
   );

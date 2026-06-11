@@ -10,9 +10,16 @@
  *
  * Resolves AudioSource transparently: a Blob is object-URL'd, a { url } is used
  * as-is (keeps streaming TTS open).
+ *
+ * B3-VOICE-FIGLASS-6 — single-flight: while a synthesis is in flight, further
+ * generateAudio/changeVoice calls are IGNORED. The daily-driver audit caught the
+ * cost bug this guards: TTS latency is seconds, the SpeakButton gave no busy
+ * feedback, and every extra click fired another PAID provider request (~50 spam
+ * clicks = ~50 synthesis charges). The ref-based guard is synchronous, so even
+ * same-tick double-clicks collapse to one request.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { VoiceAdapter, AudioSource } from '@free-intelligence/core';
 
 export interface UseVoiceOptions {
@@ -50,6 +57,9 @@ export function useVoice(
   const [isUserMessage, setIsUserMessage] = useState(false);
   const [currentVoice, setCurrentVoice] = useState('nova');
   const [currentText, setCurrentText] = useState('');
+  // Synchronous in-flight latch (state lags a tick; the ref doesn't, so rapid
+  // repeat clicks can never fan out into parallel paid synthesize calls).
+  const inFlight = useRef(false);
 
   const getVoiceDisplayName = useCallback(
     (voiceId: string): string => {
@@ -64,6 +74,8 @@ export function useVoice(
   const generateAudio = useCallback(
     async (text: string, voice: string = 'nova', isUser: boolean = false) => {
       if (!adapter?.synthesize) return;
+      if (inFlight.current) return; // single-flight: spam clicks are no-ops
+      inFlight.current = true;
       setCurrentText(text);
       setCurrentVoice(voice);
       setIsUserMessage(isUser);
@@ -71,7 +83,11 @@ export function useVoice(
 
       setIsOpen(true);
       setIsLoading(true);
-      setAudioUrl(null);
+      setAudioUrl((prev) => {
+        // Don't leak the previous clip's object URL when re-generating.
+        if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+        return null;
+      });
 
       try {
         const src = await adapter.synthesize(text, voice);
@@ -80,6 +96,7 @@ export function useVoice(
         onError?.(error, 'useVoice:TTS');
         setIsOpen(false);
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },
@@ -89,6 +106,8 @@ export function useVoice(
   const changeVoice = useCallback(
     async (newVoice: string) => {
       if (!currentText || !adapter?.synthesize) return;
+      if (inFlight.current) return; // single-flight (same paid-request guard)
+      inFlight.current = true;
       setCurrentVoice(newVoice);
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
@@ -102,6 +121,7 @@ export function useVoice(
       } catch (error) {
         onError?.(error, 'useVoice:VoiceChange');
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },

@@ -753,7 +753,7 @@ function VoiceMicButton({
 }
 
 // src/voice/SpeakButton.tsx
-import { Volume2 } from "lucide-react";
+import { Volume2, Loader2 as Loader24 } from "lucide-react";
 import { jsx as jsx12 } from "react/jsx-runtime";
 var ICON_SIZE = { xs: "w-3 h-3", sm: "w-3.5 h-3.5", md: "w-4 h-4" };
 var PAD_SIZE = { xs: "p-1", sm: "p-1.5", md: "p-2" };
@@ -767,21 +767,28 @@ function SpeakButton({
   voice = "nova",
   isUserMessage = false,
   onOpenPlayer,
+  busy = false,
   size = "sm",
   className,
   iconClassName,
-  title
+  title,
+  busyTitle = "Generando audio\u2026"
 }) {
   const voiceDisplay = formatVoiceName(voice);
+  const icon = iconClassName ?? ICON_SIZE[size];
   return /* @__PURE__ */ jsx12(
     "button",
     {
       type: "button",
-      onClick: () => onOpenPlayer(content, voice, isUserMessage),
+      onClick: () => {
+        if (!busy) onOpenPlayer(content, voice, isUserMessage);
+      },
+      disabled: busy,
+      "aria-busy": busy,
       className: className ?? PAD_SIZE[size],
-      title: title ?? `Escuchar (${voiceDisplay})`,
-      "aria-label": `Escuchar mensaje con voz ${voiceDisplay}`,
-      children: /* @__PURE__ */ jsx12(Volume2, { className: iconClassName ?? ICON_SIZE[size] })
+      title: busy ? busyTitle : title ?? `Escuchar (${voiceDisplay})`,
+      "aria-label": busy ? busyTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
+      children: busy ? /* @__PURE__ */ jsx12(Loader24, { className: `${icon} animate-spin` }) : /* @__PURE__ */ jsx12(Volume2, { className: icon })
     }
   );
 }
@@ -1024,7 +1031,7 @@ function useAudioPlayer(opts = {}) {
 }
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader24, AlertCircle } from "lucide-react";
+import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect3 } from "react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
@@ -1058,7 +1065,7 @@ function AudioPlayer({
         "aria-pressed": isPlaying,
         "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
         className: btnClass,
-        children: isLoading ? /* @__PURE__ */ jsx13(Loader24, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx13(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx13(Play, { className: iconClass, "aria-hidden": true })
+        children: isLoading ? /* @__PURE__ */ jsx13(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx13(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx13(Play, { className: iconClass, "aria-hidden": true })
       }
     ),
     /* @__PURE__ */ jsx13(
@@ -1084,7 +1091,7 @@ import {
   Play as Play2,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader25,
+  Loader2 as Loader26,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
@@ -1170,7 +1177,7 @@ function RichAudioPlayer({
             "aria-pressed": isPlaying,
             "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
             className: btnClass,
-            children: isLoading ? /* @__PURE__ */ jsx14(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx14(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx14(Play2, { className: iconClass, "aria-hidden": true })
+            children: isLoading ? /* @__PURE__ */ jsx14(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx14(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx14(Play2, { className: iconClass, "aria-hidden": true })
           }
         ),
         /* @__PURE__ */ jsx14(
@@ -1307,7 +1314,7 @@ function AudioVisualizer({
 }
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader26 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
 import { jsx as jsx16 } from "react/jsx-runtime";
 var ICON3 = "w-4 h-4";
 var BTN3 = "p-2 disabled:opacity-40";
@@ -1334,7 +1341,7 @@ function ComposerMicSlot({
     if (recording) onStop?.();
     else onStart?.();
   };
-  const Icon = !available ? MicOff : busy ? Loader26 : recording ? Square4 : Mic2;
+  const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
   return /* @__PURE__ */ jsx16("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx16(
     "button",
     {
@@ -1358,7 +1365,7 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback2, useState as useState3 } from "react";
+import { useCallback as useCallback2, useRef as useRef3, useState as useState3 } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
@@ -1371,6 +1378,7 @@ function useVoice(adapter, opts = {}) {
   const [isUserMessage, setIsUserMessage] = useState3(false);
   const [currentVoice, setCurrentVoice] = useState3("nova");
   const [currentText, setCurrentText] = useState3("");
+  const inFlight = useRef3(false);
   const getVoiceDisplayName = useCallback2(
     (voiceId) => {
       const found = adapter?.availableVoices?.find((v) => v.id === voiceId);
@@ -1383,13 +1391,18 @@ function useVoice(adapter, opts = {}) {
   const generateAudio = useCallback2(
     async (text, voice = "nova", isUser = false) => {
       if (!adapter?.synthesize) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
       setCurrentText(text);
       setCurrentVoice(voice);
       setIsUserMessage(isUser);
       setVoiceName(getVoiceDisplayName(voice));
       setIsOpen(true);
       setIsLoading(true);
-      setAudioUrl(null);
+      setAudioUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
       try {
         const src = await adapter.synthesize(text, voice);
         setAudioUrl(toUrl(src));
@@ -1397,6 +1410,7 @@ function useVoice(adapter, opts = {}) {
         onError?.(error, "useVoice:TTS");
         setIsOpen(false);
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },
@@ -1405,6 +1419,8 @@ function useVoice(adapter, opts = {}) {
   const changeVoice = useCallback2(
     async (newVoice) => {
       if (!currentText || !adapter?.synthesize) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
       setCurrentVoice(newVoice);
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
@@ -1416,6 +1432,7 @@ function useVoice(adapter, opts = {}) {
       } catch (error) {
         onError?.(error, "useVoice:VoiceChange");
       } finally {
+        inFlight.current = false;
         setIsLoading(false);
       }
     },
@@ -1446,7 +1463,7 @@ function useVoice(adapter, opts = {}) {
 import { useCallback as useCallback4, useState as useState6 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState4, useRef as useRef3, useCallback as useCallback3 } from "react";
+import { useState as useState4, useRef as useRef4, useCallback as useCallback3 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -1541,12 +1558,12 @@ function useRecorder(config) {
   const [fullAudioBlob, setFullAudioBlob] = useState4(null);
   const [fullAudioUrl, setFullAudioUrl] = useState4(null);
   const [currentStream, setCurrentStream] = useState4(null);
-  const recorderRef = useRef3(null);
-  const continuousRecorderRef = useRef3(null);
-  const currentStreamRef = useRef3(null);
-  const recordingTimerRef = useRef3(null);
-  const fullAudioUrlRef = useRef3(null);
-  const chunkNumberRef = useRef3(0);
+  const recorderRef = useRef4(null);
+  const continuousRecorderRef = useRef4(null);
+  const currentStreamRef = useRef4(null);
+  const recordingTimerRef = useRef4(null);
+  const fullAudioUrlRef = useRef4(null);
+  const chunkNumberRef = useRef4(0);
   const startRecording = useCallback3(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -1701,7 +1718,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef4, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useEffect as useEffect5 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1731,9 +1748,9 @@ function useAudioAnalysis(stream, config) {
   } = config;
   const [audioLevel, setAudioLevel] = useState5(0);
   const [bands, setBands] = useState5([]);
-  const analyserRef = useRef4(null);
-  const audioContextRef = useRef4(null);
-  const animationFrameRef = useRef4(null);
+  const analyserRef = useRef5(null);
+  const audioContextRef = useRef5(null);
+  const animationFrameRef = useRef5(null);
   const isSilent = audioLevel < silenceThreshold;
   useEffect5(() => {
     if (!stream || !isActive) {
@@ -2063,7 +2080,7 @@ function FloatingButton({ onClick, isMobile }) {
 }
 
 // src/shell/ChatContent.tsx
-import { Loader2 as Loader29 } from "lucide-react";
+import { Loader2 as Loader210 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
@@ -2187,9 +2204,9 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState8, useRef as useRef5, useEffect as useEffect6 } from "react";
+import { useState as useState8, useRef as useRef6, useEffect as useEffect6 } from "react";
 import { createPortal } from "react-dom";
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader27 } from "lucide-react";
+import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader28 } from "lucide-react";
 import { Fragment as Fragment4, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
@@ -2220,7 +2237,7 @@ function ChatToolbar({
   sendLoading = false
 }) {
   const [overflowOpen, setOverflowOpen] = useState8(false);
-  const overflowButtonRef = useRef5(null);
+  const overflowButtonRef = useRef6(null);
   const [dropdownPosition, setDropdownPosition] = useState8({ top: 0, left: 0 });
   useEffect6(() => {
     if (overflowOpen && overflowButtonRef.current) {
@@ -2422,7 +2439,7 @@ function ChatToolbar({
           disabled: !canSend,
           className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
           "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx20(Loader27, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx20(Send, { className: "h-4 w-4" })
+          children: sendLoading ? /* @__PURE__ */ jsx20(Loader28, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx20(Send, { className: "h-4 w-4" })
         }
       )
     ] })
@@ -2436,7 +2453,7 @@ import {
   Image as ImageIcon,
   File,
   X as X2,
-  Loader2 as Loader28,
+  Loader2 as Loader29,
   CheckCircle,
   AlertCircle as AlertCircle3
 } from "lucide-react";
@@ -2481,7 +2498,7 @@ function ChatFilePreview({
     /* @__PURE__ */ jsx21("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx21(Loader28, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx21(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx21(AlertCircle3, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx21(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+      `, children: isProcessing ? /* @__PURE__ */ jsx21(Loader29, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx21(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx21(AlertCircle3, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx21(FileIcon, { className: "w-5 h-5 fi-text" }) }),
     /* @__PURE__ */ jsxs15("div", { className: "flex-1 min-w-0", children: [
       /* @__PURE__ */ jsx21("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs15("div", { className: "flex items-center gap-2 fi-text-xs", children: [
@@ -2670,7 +2687,7 @@ function ChatContent({
               onHistorySearch: onHistoryOpen
             }
           ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx23("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx23(Loader29, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx23(
+          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx23("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx23(Loader210, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx23(
             ChatStartScreen,
             {
               isAuthenticated,
@@ -2874,7 +2891,7 @@ import {
   useCallback as useCallback7,
   useEffect as useEffect7,
   useId,
-  useRef as useRef6,
+  useRef as useRef7,
   useState as useState9
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
@@ -2906,8 +2923,8 @@ function PersonaSelector({
 }) {
   const [isOpen, setIsOpen] = useState9(false);
   const [position, setPosition] = useState9({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef6(null);
-  const contentRef = useRef6(null);
+  const triggerRef = useRef7(null);
+  const contentRef = useRef7(null);
   const reactId = useId();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
