@@ -50,6 +50,7 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `OG118_ACCESS_TOKEN` | the bearer value `/chat/stream` requires |
 | `AZURE_SWA_TOKEN_OG118_STAGING` | deploy token of the NEW staging SWA (step 5) |
 | `OG118_TTS_API_KEY` | Azure OpenAI key for TTS (B3-VOICE-BACKEND-1). **Optional** — unset → `/tts/synthesize` returns 503, deploy stays green |
+| `OG118_STT_API_KEY` | Azure OpenAI key for STT/Whisper (B3-VOICE-BACKEND-2 / -STT-CONFIG-1). **Optional** — unset → `/stt/transcribe` returns 503, deploy stays green |
 
 ### 4. GitHub variables (Settings → Variables → Actions)
 
@@ -67,12 +68,22 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `OG118_TTS_DEPLOYMENT` | TTS deployment name, e.g. `tts-hd` (TTS; optional) |
 | `OG118_TTS_API_VERSION` | default `2025-03-01-preview` (TTS; optional) |
 | `OG118_TTS_VOICE` | default `nova` (TTS; optional) |
+| `OG118_STT_ENDPOINT` | Azure OpenAI endpoint base for STT/Whisper, e.g. `https://northcentralus.api.cognitive.microsoft.com` (STT; optional) |
+| `OG118_STT_DEPLOYMENT` | Whisper deployment name, e.g. `whisper` (STT; optional) |
+| `OG118_STT_API_VERSION` | default `2024-06-01` (STT; optional) |
 
 > **TTS (B3-VOICE-BACKEND-1) is opt-in.** Leave `OG118_TTS_*` unset and the
 > backend behaves exactly as before — `/tts/synthesize` returns a clean `503
 > TTS_NOT_CONFIGURED` and the deploy's TTS-wiring step is a no-op. Set the secret
 > + the four vars above (the irreducible trio is endpoint + key + deployment) to
 > light it up. No STT, no voice UI yet — this cut is the backend gate only.
+
+> **STT (B3-VOICE-STT-CONFIG-1) is the same opt-in shape.** Leave `OG118_STT_*`
+> unset → `/stt/transcribe` returns `503` and the STT-wiring step is a no-op. Set
+> the secret + endpoint + deployment to light up dictation. This persists in CI/CD
+> what was first set live on the Container App (closing the staging drift): the
+> reused Whisper deployment lives in the `insult-openai` Azure OpenAI account (same
+> account as TTS). API version defaults to `2024-06-01` (Whisper GA).
 
 ### 5. Staging Static Web App (new, temporary)
 
