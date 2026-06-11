@@ -185,6 +185,31 @@ describe('<AgentConversationSurface> voiceAdapter dictation (B3-VOICE-FIGLASS-4)
   });
 });
 
+describe('<AgentConversationSurface> showNewChatButton (B3-OG118-5)', () => {
+  it('renders the built-in new-chat button by default when a thread exists', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        newChatLabel="Nuevo chat"
+      />
+    );
+    expect(html).toContain('Nuevo chat');
+  });
+
+  it('omits the built-in new-chat button when showNewChatButton is false', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        newChatLabel="Nuevo chat"
+        showNewChatButton={false}
+      />
+    );
+    // The button is gone, but the rest of the surface (transcript) still renders.
+    expect(html).not.toContain('Nuevo chat');
+    expect(html).toContain('pregunta del usuario');
+  });
+});
+
 describe('<AgentConversationSurface> send button (B3-FIGLASS-6)', () => {
   it('renders a send button by default with the consumer style hook', () => {
     const html = renderToStaticMarkup(

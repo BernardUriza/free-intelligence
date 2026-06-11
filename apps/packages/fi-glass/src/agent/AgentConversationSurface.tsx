@@ -28,6 +28,13 @@ export interface AgentConversationSurfaceProps {
   composerPlaceholder?: string;
   /** Label for the new-conversation button. Default: "New chat". */
   newChatLabel?: string;
+  /**
+   * Render the built-in new-conversation button above the composer. Default
+   * true. An app whose chrome already owns that affordance (e.g. a sidebar's
+   * "+ New chat") sets false to avoid a duplicate CTA (B3-OG118-5) — a typed
+   * opt-out, not consumer CSS hiding framework internals.
+   */
+  showNewChatButton?: boolean;
   /** Rendered when the thread is empty and idle (e.g. an app start screen). */
   emptyState?: ReactNode;
   /** Slot rendered just above the composer (e.g. an app's auth banner). */
@@ -133,6 +140,7 @@ export function AgentConversationSurface({
   conversation,
   composerPlaceholder,
   newChatLabel = 'New chat',
+  showNewChatButton = true,
   emptyState,
   aboveComposer,
   agentPanelProps,
@@ -354,7 +362,7 @@ export function AgentConversationSurface({
       </div>
 
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {hasThread && (
+        {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button
               onClick={newConversation}

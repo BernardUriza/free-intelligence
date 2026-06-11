@@ -22,14 +22,17 @@ export interface Og118SidebarProps {
   disabled?: boolean;
 }
 
-function shortTime(iso: string): string {
+export function shortTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, {
+  // Pinned to es-MX 24h (B3-OG118-5): the UI copy is Spanish, so the date must
+  // not follow the browser locale ("Jun 11, 12:18 AM" on an English browser).
+  return d.toLocaleString('es-MX', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   });
 }
 

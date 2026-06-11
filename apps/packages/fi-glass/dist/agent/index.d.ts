@@ -220,6 +220,13 @@ interface AgentConversationSurfaceProps {
     composerPlaceholder?: string;
     /** Label for the new-conversation button. Default: "New chat". */
     newChatLabel?: string;
+    /**
+     * Render the built-in new-conversation button above the composer. Default
+     * true. An app whose chrome already owns that affordance (e.g. a sidebar's
+     * "+ New chat") sets false to avoid a duplicate CTA (B3-OG118-5) — a typed
+     * opt-out, not consumer CSS hiding framework internals.
+     */
+    showNewChatButton?: boolean;
     /** Rendered when the thread is empty and idle (e.g. an app start screen). */
     emptyState?: ReactNode;
     /** Slot rendered just above the composer (e.g. an app's auth banner). */
@@ -320,6 +327,6 @@ interface AgentConversationSurfaceProps {
     /** Class for the dismiss button. */
     dismissButtonClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

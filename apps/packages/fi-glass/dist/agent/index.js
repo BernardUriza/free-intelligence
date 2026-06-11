@@ -1467,6 +1467,7 @@ function AgentConversationSurface({
   conversation,
   composerPlaceholder,
   newChatLabel = "New chat",
+  showNewChatButton = true,
   emptyState,
   aboveComposer,
   agentPanelProps,
@@ -1625,7 +1626,7 @@ function AgentConversationSurface({
       )
     ] }),
     /* @__PURE__ */ jsxs15("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
-      hasThread && /* @__PURE__ */ jsx21("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx21(
+      hasThread && showNewChatButton && /* @__PURE__ */ jsx21("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx21(
         "button",
         {
           onClick: newConversation,
