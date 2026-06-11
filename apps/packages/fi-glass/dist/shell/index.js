@@ -772,20 +772,20 @@ function VoiceMicButton({
 }
 
 // src/voice/SpeakButton.tsx
-import { Volume2, Loader2 as Loader24 } from "lucide-react";
+import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 import { jsx as jsx11 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
 import { useEffect as useEffect2, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
+import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect3 } from "react";
 import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
 import {
-  Play as Play2,
+  Play as Play3,
   Pause as Pause2,
   Square as Square3,
   Loader2 as Loader26,

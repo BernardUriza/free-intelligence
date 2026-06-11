@@ -274,6 +274,7 @@ export function Og118AgentChat() {
               onSpeak={voice.generateAudio}
               ttsLoading={voice.isLoading}
               ttsActiveText={voice.currentText}
+              ttsHasCached={voice.hasCachedAudio}
             />
           )}
         />

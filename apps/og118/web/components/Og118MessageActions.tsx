@@ -28,6 +28,8 @@ export interface Og118MessageActionsProps {
   ttsLoading?: boolean;
   /** Text being synthesized (useVoice.currentText) — scopes the spinner to ONE message. */
   ttsActiveText?: string;
+  /** Session-cache lookup (useVoice.hasCachedAudio) — Play icon = instant free replay. */
+  ttsHasCached?: (text: string, voice?: string) => boolean;
 }
 
 export function Og118MessageActions({
@@ -36,6 +38,7 @@ export function Og118MessageActions({
   onSpeak,
   ttsLoading = false,
   ttsActiveText = '',
+  ttsHasCached,
 }: Og118MessageActionsProps) {
   const isAssistant = message.role === 'assistant';
   return (
@@ -49,6 +52,9 @@ export function Og118MessageActions({
           // Spinner on the message being synthesized (B3-VOICE-FIGLASS-6); the
           // hook's single-flight guard makes clicks elsewhere no-ops meanwhile.
           busy={ttsLoading && ttsActiveText === message.content}
+          // Play icon when the clip is already in the session cache — replay is
+          // instant and free (B3-VOICE-FIGLASS-8).
+          cached={ttsHasCached?.(message.content, currentVoice) ?? false}
         />
       )}
     </div>
