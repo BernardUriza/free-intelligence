@@ -111,8 +111,9 @@ def norm_fact(s: str) -> str:
 def merge_facts_additive(existing: list[dict], incoming: list[dict]) -> tuple[list[dict], list[dict]]:
     """Union `incoming` facts onto `existing`, deduping by normalized text.
 
-    ADD-only: every existing fact is preserved verbatim; only genuinely-new
-    facts are appended. Returns ``(merged, added)``.
+    ADD-only over DISTINCT facts: every distinct existing fact is preserved
+    (first occurrence kept verbatim); only genuinely-new facts are appended.
+    Returns ``(merged, added)``.
 
     This is the guard against `save_facts`' snapshot-replace silently dropping
     auto facts the extractor didn't echo back. The extractor only ever sees a
@@ -122,14 +123,32 @@ def merge_facts_additive(existing: list[dict], incoming: list[dict]) -> tuple[li
     ``save_facts(extractor_output)`` therefore hard-deletes every auto fact the
     extractor omitted, with no recovery (P0, 2026-06-03).
 
-    The trade-off is deliberate per the operator's directive ("que no elimine
-    nada absolutamente"): the extractor can no longer *correct* an auto fact in
-    place — a reworded correction lands as an additional row, and near-miss
-    duplicates accumulate until a conservative consolidator folds them. That
-    cost is accepted; silent data loss is not.
+    `existing` is also deduped by `norm_fact` (PR-1 facts dedup, 2026-06-11):
+    the live snapshot had accumulated byte-identical copies 20.8x over distinct
+    facts (31,590 rows vs 1,517 distinct in prod), and `merged = list(existing)`
+    re-inserted every copy on each save. Folding exact-normalized copies loses
+    no distinct fact — the first save per user after this change rewrites the
+    live `source='auto'` snapshot in deduplicated form. That snapshot is
+    derived current state, not history: soft-deleted rows are untouched and
+    near-miss rewordings are NOT collapsed (that remains the consolidator's
+    job, gated separately).
+
+    The remaining trade-off is deliberate per the operator's directive ("que
+    no elimine nada absolutamente"): the extractor still cannot *correct* an
+    auto fact in place — a reworded correction lands as an additional row.
+    That cost is accepted; silent data loss is not.
     """
-    seen = {norm_fact(f["fact"]) for f in existing if f.get("fact")}
-    merged = list(existing)
+    seen: set[str] = set()
+    merged: list[dict] = []
+    for f in existing:
+        text = f.get("fact", "")
+        if not text:
+            continue
+        key = norm_fact(text)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(f)
     added: list[dict] = []
     for f in incoming:
         text = f.get("fact", "")
