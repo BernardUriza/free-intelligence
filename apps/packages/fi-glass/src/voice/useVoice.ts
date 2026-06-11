@@ -48,6 +48,14 @@ export interface UseVoiceReturn {
   generateAudio: (text: string, voice?: string, isUser?: boolean) => Promise<void>;
   changeVoice: (newVoice: string) => Promise<void>;
   close: () => void;
+  /**
+   * Whether `text` (+`voice`, default 'nova') is already in the session cache —
+   * i.e. clicking Speak would replay instantly and bill nothing. Lets the UI
+   * tell "will synthesize (paid, seconds)" apart from "already generated"
+   * (B3-VOICE-FIGLASS-8). Render-time freshness is guaranteed by the state
+   * updates every synthesis already makes (isLoading/audioUrl).
+   */
+  hasCachedAudio: (text: string, voice?: string) => boolean;
 }
 
 /** Blob -> object URL; { url } -> url. */
@@ -189,6 +197,12 @@ export function useVoice(
     setIsUserMessage(false);
   }, []);
 
+  const hasCachedAudio = useCallback(
+    (text: string, voice: string = 'nova') =>
+      clipCache.current.has(clipKey(text, voice)),
+    [],
+  );
+
   return {
     isOpen,
     isLoading,
@@ -200,5 +214,6 @@ export function useVoice(
     generateAudio,
     changeVoice,
     close,
+    hasCachedAudio,
   };
 }

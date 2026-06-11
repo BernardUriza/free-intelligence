@@ -753,7 +753,7 @@ function VoiceMicButton({
 }
 
 // src/voice/SpeakButton.tsx
-import { Volume2, Loader2 as Loader24 } from "lucide-react";
+import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 import { jsx as jsx12 } from "react/jsx-runtime";
 var ICON_SIZE = { xs: "w-3 h-3", sm: "w-3.5 h-3.5", md: "w-4 h-4" };
 var PAD_SIZE = { xs: "p-1", sm: "p-1.5", md: "p-2" };
@@ -768,14 +768,17 @@ function SpeakButton({
   isUserMessage = false,
   onOpenPlayer,
   busy = false,
+  cached = false,
   size = "sm",
   className,
   iconClassName,
   title,
-  busyTitle = "Generando audio\u2026"
+  busyTitle = "Generando audio\u2026",
+  cachedTitle = "Reproducir (ya generado)"
 }) {
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
+  const label = busy ? busyTitle : cached ? cachedTitle : title ?? `Escuchar (${voiceDisplay})`;
   return /* @__PURE__ */ jsx12(
     "button",
     {
@@ -786,9 +789,9 @@ function SpeakButton({
       disabled: busy,
       "aria-busy": busy,
       className: className ?? PAD_SIZE[size],
-      title: busy ? busyTitle : title ?? `Escuchar (${voiceDisplay})`,
-      "aria-label": busy ? busyTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
-      children: busy ? /* @__PURE__ */ jsx12(Loader24, { className: `${icon} animate-spin` }) : /* @__PURE__ */ jsx12(Volume2, { className: icon })
+      title: label,
+      "aria-label": busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
+      children: busy ? /* @__PURE__ */ jsx12(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx12(Play, { className: icon }) : /* @__PURE__ */ jsx12(Volume2, { className: icon })
     }
   );
 }
@@ -1031,7 +1034,7 @@ function useAudioPlayer(opts = {}) {
 }
 
 // src/voice/AudioPlayer.tsx
-import { Play, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
+import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect3 } from "react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
@@ -1065,7 +1068,7 @@ function AudioPlayer({
         "aria-pressed": isPlaying,
         "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
         className: btnClass,
-        children: isLoading ? /* @__PURE__ */ jsx13(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx13(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx13(Play, { className: iconClass, "aria-hidden": true })
+        children: isLoading ? /* @__PURE__ */ jsx13(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx13(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx13(Play2, { className: iconClass, "aria-hidden": true })
       }
     ),
     /* @__PURE__ */ jsx13(
@@ -1088,7 +1091,7 @@ function AudioPlayer({
 
 // src/voice/RichAudioPlayer.tsx
 import {
-  Play as Play2,
+  Play as Play3,
   Pause as Pause2,
   Square as Square3,
   Loader2 as Loader26,
@@ -1177,7 +1180,7 @@ function RichAudioPlayer({
             "aria-pressed": isPlaying,
             "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
             className: btnClass,
-            children: isLoading ? /* @__PURE__ */ jsx14(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx14(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx14(Play2, { className: iconClass, "aria-hidden": true })
+            children: isLoading ? /* @__PURE__ */ jsx14(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx14(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx14(Play3, { className: iconClass, "aria-hidden": true })
           }
         ),
         /* @__PURE__ */ jsx14(
@@ -1472,6 +1475,10 @@ function useVoice(adapter, opts = {}) {
     setCurrentText("");
     setIsUserMessage(false);
   }, []);
+  const hasCachedAudio = useCallback2(
+    (text, voice = "nova") => clipCache.current.has(clipKey(text, voice)),
+    []
+  );
   return {
     isOpen,
     isLoading,
@@ -1482,7 +1489,8 @@ function useVoice(adapter, opts = {}) {
     currentText,
     generateAudio,
     changeVoice,
-    close
+    close,
+    hasCachedAudio
   };
 }
 

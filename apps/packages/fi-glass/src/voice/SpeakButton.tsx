@@ -15,7 +15,7 @@
  * look. Drop it entirely by not rendering it.
  */
 
-import { Volume2, Loader2 } from 'lucide-react';
+import { Volume2, Loader2, Play } from 'lucide-react';
 
 export interface SpeakButtonProps {
   /** Text to speak. */
@@ -33,6 +33,14 @@ export interface SpeakButtonProps {
    * `useVoice.isLoading` (scoped to this message via `currentText`).
    */
   busy?: boolean;
+  /**
+   * The clip is already in the session cache (B3-VOICE-FIGLASS-8): clicking
+   * replays instantly and bills nothing. Renders a Play icon instead of the
+   * speaker so the user can tell "already generated" from "will synthesize
+   * (paid, takes seconds)". Wire it to `useVoice.hasCachedAudio(content, voice)`.
+   * `busy` takes precedence while a synthesis is in flight.
+   */
+  cached?: boolean;
   /** Size preset (drives default padding + icon size). */
   size?: 'xs' | 'sm' | 'md';
   /** Override the button class entirely (e.g. aurity's exact legacy string). */
@@ -43,6 +51,8 @@ export interface SpeakButtonProps {
   title?: string;
   /** Tooltip while busy (default: "Generando audio…"). */
   busyTitle?: string;
+  /** Tooltip when the clip is cached (default: "Reproducir (ya generado)"). */
+  cachedTitle?: string;
 }
 
 const ICON_SIZE = { xs: 'w-3 h-3', sm: 'w-3.5 h-3.5', md: 'w-4 h-4' } as const;
@@ -61,14 +71,23 @@ export function SpeakButton({
   isUserMessage = false,
   onOpenPlayer,
   busy = false,
+  cached = false,
   size = 'sm',
   className,
   iconClassName,
   title,
   busyTitle = 'Generando audio…',
+  cachedTitle = 'Reproducir (ya generado)',
 }: SpeakButtonProps) {
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
+
+  // busy > cached > default: an in-flight synthesis always shows the spinner.
+  const label = busy
+    ? busyTitle
+    : cached
+      ? cachedTitle
+      : (title ?? `Escuchar (${voiceDisplay})`);
 
   return (
     <button
@@ -79,11 +98,13 @@ export function SpeakButton({
       disabled={busy}
       aria-busy={busy}
       className={className ?? PAD_SIZE[size]}
-      title={busy ? busyTitle : (title ?? `Escuchar (${voiceDisplay})`)}
-      aria-label={busy ? busyTitle : `Escuchar mensaje con voz ${voiceDisplay}`}
+      title={label}
+      aria-label={busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`}
     >
       {busy ? (
         <Loader2 className={`${icon} animate-spin`} />
+      ) : cached ? (
+        <Play className={icon} />
       ) : (
         <Volume2 className={icon} />
       )}

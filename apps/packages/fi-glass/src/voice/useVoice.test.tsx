@@ -162,6 +162,29 @@ describe('useVoice single-flight (B3-VOICE-FIGLASS-6)', () => {
     expect(synthesize).toHaveBeenCalledTimes(2);
   });
 
+  it('hasCachedAudio reports cache state per text+voice (B3-VOICE-FIGLASS-8)', async () => {
+    const synthesize = vi.fn(async () => new Blob(['mp3']));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    expect(voice.current!.hasCachedAudio('hola', 'nova')).toBe(false);
+    await act(async () => { await voice.current!.generateAudio('hola', 'nova'); });
+
+    expect(voice.current!.hasCachedAudio('hola', 'nova')).toBe(true);
+    expect(voice.current!.hasCachedAudio('hola')).toBe(true); // default voice = nova
+    expect(voice.current!.hasCachedAudio('otro texto', 'nova')).toBe(false);
+    expect(voice.current!.hasCachedAudio('hola', 'ava')).toBe(false);
+  });
+
+  it('hasCachedAudio stays false after a failed synthesis', async () => {
+    const synthesize = vi.fn().mockRejectedValue(new Error('boom'));
+    const adapter: VoiceAdapter = { defaultVoice: 'nova', availableVoices: [], synthesize };
+    const voice = mountVoice(adapter);
+
+    await act(async () => { await voice.current!.generateAudio('falla'); });
+    expect(voice.current!.hasCachedAudio('falla')).toBe(false);
+  });
+
   it('revokes the previous blob object URL when re-generating', async () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     const { adapter, finish } = makeAdapter();

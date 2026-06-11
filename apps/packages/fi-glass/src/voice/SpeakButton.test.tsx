@@ -37,3 +37,31 @@ describe('<SpeakButton> busy (B3-VOICE-FIGLASS-6)', () => {
     expect(html).toContain('Sintetizando…');
   });
 });
+
+describe('<SpeakButton> cached (B3-VOICE-FIGLASS-8)', () => {
+  it('renders the Play affordance, enabled, when the clip is cached', () => {
+    const html = renderToStaticMarkup(
+      <SpeakButton content="hola" onOpenPlayer={() => {}} cached />,
+    );
+    expect(html).toContain('Reproducir (ya generado)');
+    expect(html).not.toContain('disabled');
+    // The speaker tooltip is replaced — this is the "instant + free" affordance.
+    expect(html).not.toContain('Escuchar (Nova)');
+  });
+
+  it('busy takes precedence over cached (spinner while re-synthesizing)', () => {
+    const html = renderToStaticMarkup(
+      <SpeakButton content="hola" onOpenPlayer={() => {}} cached busy />,
+    );
+    expect(html).toContain('animate-spin');
+    expect(html).toContain('Generando audio…');
+    expect(html).not.toContain('Reproducir (ya generado)');
+  });
+
+  it('uses a custom cachedTitle when provided', () => {
+    const html = renderToStaticMarkup(
+      <SpeakButton content="hola" onOpenPlayer={() => {}} cached cachedTitle="Replay gratis" />,
+    );
+    expect(html).toContain('Replay gratis');
+  });
+});
