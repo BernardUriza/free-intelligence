@@ -246,7 +246,7 @@ export function Og118AgentChat() {
   // no internal fi-glass DOM is reached.
   const isActivelyRecording = recording.artifact?.state === 'recording';
   const isPaused = recording.artifact?.state === 'paused';
-  const micBtnStyle: React.CSSProperties = {
+  const micBtnStyle = {
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
