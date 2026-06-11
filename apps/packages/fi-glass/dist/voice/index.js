@@ -1516,8 +1516,691 @@ function useDictation(adapter, opts = {}) {
     stopRecording: stop
   };
 }
+
+// src/voice/audioArtifact.ts
+var AUDIO_QUEUE_DEFAULTS = {
+  maxItems: 10,
+  maxBytes: 50 * 1024 * 1024,
+  // 50 MB total queue
+  maxBytesPerItem: 10 * 1024 * 1024
+  // 10 MB per artifact
+};
+function makeArtifactId() {
+  return `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+function isPending(a) {
+  return a.state !== "transcribed" && a.state !== "deleted";
+}
+function isTerminal(a) {
+  return a.state === "transcribed" || a.state === "deleted";
+}
+function artifactLabel(state) {
+  const map = {
+    recording: "Grabando",
+    paused: "En pausa",
+    saved: "Guardado",
+    queued: "En cola",
+    uploading: "Subiendo",
+    transcribing: "Transcribiendo",
+    transcribed: "Transcrito",
+    failed: "Fall\xF3",
+    deleted: "Eliminado"
+  };
+  return map[state];
+}
+function formatArtifactSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function formatArtifactDuration(ms) {
+  if (!ms) return "--:--";
+  const s = Math.floor(ms / 1e3);
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// src/voice/AudioQueueStore.ts
+var DEFAULT_DB_NAME = "free-intelligence-audio-queue";
+var DEFAULT_STORE_NAME = "audio-artifacts";
+var DB_VERSION = 1;
+var CREATED_AT_INDEX = "by_createdAt";
+function unavailable() {
+  return typeof indexedDB === "undefined";
+}
+function unavailableError() {
+  return new Error(
+    "AudioQueueStore: IndexedDB is not available (SSR or storage disabled)."
+  );
+}
+var AudioQueueStore = class {
+  constructor(opts = {}) {
+    this.dbPromise = null;
+    this.dbName = opts.dbName ?? DEFAULT_DB_NAME;
+    this.storeName = opts.storeName ?? DEFAULT_STORE_NAME;
+  }
+  open() {
+    if (unavailable()) return Promise.reject(unavailableError());
+    if (!this.dbPromise) {
+      this.dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(this.dbName, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            const store = db.createObjectStore(this.storeName, { keyPath: "id" });
+            store.createIndex(CREATED_AT_INDEX, "createdAt", { unique: false });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error ?? new Error("AudioQueueStore: open failed"));
+      });
+    }
+    return this.dbPromise;
+  }
+  async run(mode, makeRequest) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, mode);
+      const req = makeRequest(tx.objectStore(this.storeName));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error("AudioQueueStore: request failed"));
+    });
+  }
+  async list() {
+    return this.run("readonly", (s) => s.getAll());
+  }
+  async get(id) {
+    const r = await this.run(
+      "readonly",
+      (s) => s.get(id)
+    );
+    return r ?? null;
+  }
+  async put(artifact) {
+    await this.run("readwrite", (s) => s.put(artifact));
+  }
+  async updateMeta(id, patch) {
+    const existing = await this.get(id);
+    if (!existing) return;
+    await this.put({
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  }
+  async delete(id) {
+    await this.run("readwrite", (s) => s.delete(id));
+  }
+  async clear() {
+    await this.run("readwrite", (s) => s.clear());
+  }
+};
+
+// src/voice/useDurableRecording.ts
+import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect5 } from "react";
+var MIC_TIMEOUT_MS = 15e3;
+async function loadRecordRTC() {
+  const mod = await import("recordrtc");
+  const RTC = mod.default ?? mod.RecordRTC ?? mod;
+  if (!RTC || typeof RTC !== "function") {
+    throw new Error("[useDurableRecording] RecordRTC not available");
+  }
+  return RTC;
+}
+function useDurableRecording(opts) {
+  const {
+    store,
+    policy = AUDIO_QUEUE_DEFAULTS,
+    deviceId = null,
+    onSaved,
+    onError
+  } = opts;
+  const [artifact, setArtifact] = useState5(null);
+  const [recordingTime, setRecordingTime] = useState5(0);
+  const [currentStream, setCurrentStream] = useState5(null);
+  const [isAtCapacity, setIsAtCapacity] = useState5(false);
+  const recorderRef = useRef5(null);
+  const streamRef = useRef5(null);
+  const timerRef = useRef5(null);
+  const startTimeRef = useRef5(0);
+  const pausedElapsedRef = useRef5(0);
+  const artifactRef = useRef5(null);
+  useEffect5(() => {
+    artifactRef.current = artifact;
+  }, [artifact]);
+  useEffect5(() => {
+    store.list().then((stored) => {
+      const pending = stored.filter(
+        (a) => a.state !== "transcribed" && a.state !== "deleted"
+      );
+      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
+      setIsAtCapacity(
+        pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
+      );
+    }).catch(() => {
+    });
+  }, [store, policy]);
+  const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
+    isActive: artifact?.state === "recording"
+  });
+  const stopTimer = useCallback4(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+  const releaseStream = useCallback4(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setCurrentStream(null);
+    }
+  }, []);
+  const updateArtifact = useCallback4(
+    (patch) => {
+      setArtifact((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+        artifactRef.current = updated;
+        return updated;
+      });
+    },
+    []
+  );
+  const startRecording = useCallback4(async () => {
+    if (artifact?.state === "recording" || artifact?.state === "paused") return;
+    try {
+      const stored = await store.list();
+      const pending = stored.filter(
+        (a) => a.state !== "transcribed" && a.state !== "deleted"
+      );
+      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
+      if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
+        setIsAtCapacity(true);
+        onError?.(
+          `Cola llena (m\xE1ximo ${policy.maxItems} audios o ${Math.round(policy.maxBytes / 1024 / 1024)} MB). Transcribe o elimina audios antes de grabar.`
+        );
+        return;
+      }
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(
+          () => reject(new Error("Permiso de micr\xF3fono expirado (15s).")),
+          MIC_TIMEOUT_MS
+        )
+      );
+      const audioConstraints = deviceId ? { deviceId: { exact: deviceId } } : true;
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
+        timeoutPromise
+      ]);
+      streamRef.current = stream;
+      setCurrentStream(stream);
+      const RecordRTC = await loadRecordRTC();
+      const recorder = new RecordRTC(stream, {
+        type: "audio",
+        recorderType: RecordRTC.StereoAudioRecorder,
+        mimeType: "audio/wav",
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16e3,
+        disableLogs: true
+      });
+      recorderRef.current = recorder;
+      recorder.startRecording();
+      const now = Date.now();
+      startTimeRef.current = now;
+      pausedElapsedRef.current = 0;
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(
+          Math.floor((Date.now() - startTimeRef.current) / 1e3)
+        );
+      }, 1e3);
+      const newArtifact = {
+        id: makeArtifactId(),
+        mime: "audio/wav",
+        size: 0,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        state: "recording"
+      };
+      setArtifact(newArtifact);
+      artifactRef.current = newArtifact;
+    } catch (err) {
+      releaseStream();
+      onError?.(err instanceof Error ? err.message : "No se pudo iniciar la grabaci\xF3n.");
+    }
+  }, [artifact, store, policy, deviceId, onError, releaseStream]);
+  const pauseRecording = useCallback4(() => {
+    if (artifactRef.current?.state !== "recording") return;
+    recorderRef.current?.pauseRecording();
+    stopTimer();
+    pausedElapsedRef.current = Date.now() - startTimeRef.current;
+    updateArtifact({ state: "paused" });
+  }, [stopTimer, updateArtifact]);
+  const resumeRecording = useCallback4(() => {
+    if (artifactRef.current?.state !== "paused") return;
+    recorderRef.current?.resumeRecording();
+    startTimeRef.current = Date.now() - pausedElapsedRef.current;
+    timerRef.current = setInterval(() => {
+      setRecordingTime(
+        Math.floor((Date.now() - startTimeRef.current) / 1e3)
+      );
+    }, 1e3);
+    updateArtifact({ state: "recording" });
+  }, [updateArtifact]);
+  const stopRecording = useCallback4(async () => {
+    const current = artifactRef.current;
+    if (current?.state !== "recording" && current?.state !== "paused") {
+      return null;
+    }
+    stopTimer();
+    const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
+    releaseStream();
+    return new Promise((resolve) => {
+      if (!recorderRef.current) {
+        resolve(null);
+        return;
+      }
+      recorderRef.current.stopRecording(async () => {
+        const blob = recorderRef.current?.getBlob() ?? null;
+        recorderRef.current = null;
+        if (!blob || blob.size === 0) {
+          updateArtifact({ state: "failed", errorMessage: "Grabaci\xF3n vac\xEDa." });
+          resolve(null);
+          return;
+        }
+        if (blob.size > policy.maxBytesPerItem) {
+          updateArtifact({
+            state: "failed",
+            errorMessage: `Audio demasiado grande (${Math.round(blob.size / 1024 / 1024)} MB, m\xE1ximo ${Math.round(policy.maxBytesPerItem / 1024 / 1024)} MB).`
+          });
+          resolve(null);
+          return;
+        }
+        const finalArtifact = {
+          ...current,
+          size: blob.size,
+          durationMs,
+          state: "queued",
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        updateArtifact({
+          size: blob.size,
+          durationMs,
+          state: "queued"
+        });
+        try {
+          await store.put({ ...finalArtifact, blob });
+          onSaved?.(finalArtifact);
+          setIsAtCapacity(false);
+          resolve(finalArtifact);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Error al guardar audio.";
+          updateArtifact({ state: "failed", errorMessage: msg });
+          onError?.(msg);
+          resolve(null);
+        }
+      });
+    });
+  }, [store, policy, releaseStream, stopTimer, updateArtifact, onSaved, onError]);
+  const cancelRecording = useCallback4(() => {
+    stopTimer();
+    releaseStream();
+    if (recorderRef.current) {
+      try {
+        recorderRef.current.stopRecording(() => {
+        });
+      } catch {
+      }
+      recorderRef.current = null;
+    }
+    setArtifact(null);
+    artifactRef.current = null;
+    setRecordingTime(0);
+  }, [stopTimer, releaseStream]);
+  return {
+    artifact,
+    recordingTime,
+    bands,
+    audioLevel,
+    isSilent,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+    stopRecording,
+    cancelRecording,
+    isAtCapacity
+  };
+}
+
+// src/voice/useAudioQueue.ts
+import { useState as useState6, useEffect as useEffect6, useCallback as useCallback5 } from "react";
+function useAudioQueue(opts) {
+  const { store, adapter, onTranscribed, onError } = opts;
+  const [artifacts, setArtifacts] = useState6([]);
+  const [isLoading, setIsLoading] = useState6(true);
+  const loadFromStore = useCallback5(async () => {
+    try {
+      const stored = await store.list();
+      const metas = stored.filter((a) => a.state !== "deleted").map(({ blob: _blob, ...meta }) => meta).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      setArtifacts(metas);
+    } catch {
+    }
+    setIsLoading(false);
+  }, [store]);
+  useEffect6(() => {
+    loadFromStore();
+  }, [loadFromStore]);
+  const patchLocal = useCallback5(
+    (id, patch) => {
+      setArtifacts(
+        (prev) => prev.map(
+          (a) => a.id === id ? { ...a, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() } : a
+        )
+      );
+    },
+    []
+  );
+  const doTranscribe = useCallback5(
+    async (id) => {
+      if (!adapter?.transcribe) {
+        onError?.(id, "Adaptador de voz sin capacidad de transcripci\xF3n.");
+        return;
+      }
+      patchLocal(id, { state: "transcribing", errorMessage: void 0 });
+      await store.updateMeta(id, { state: "transcribing", errorMessage: void 0 });
+      const stored = await store.get(id);
+      if (!stored) {
+        patchLocal(id, { state: "failed", errorMessage: "Artefacto no encontrado." });
+        onError?.(id, "Artefacto no encontrado.");
+        return;
+      }
+      patchLocal(id, { state: "uploading" });
+      await store.updateMeta(id, { state: "uploading" });
+      try {
+        const { text } = await adapter.transcribe(stored.blob);
+        patchLocal(id, { state: "transcribed", transcript: text });
+        await store.updateMeta(id, { state: "transcribed", transcript: text });
+        onTranscribed?.(id, text);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Transcripci\xF3n fallida.";
+        patchLocal(id, { state: "failed", errorMessage: msg });
+        await store.updateMeta(id, { state: "failed", errorMessage: msg });
+        onError?.(id, msg);
+      }
+    },
+    [adapter, store, patchLocal, onTranscribed, onError]
+  );
+  const transcribeArtifact = useCallback5(
+    async (id) => {
+      const a = artifacts.find((x) => x.id === id);
+      if (!a || a.state !== "queued" && a.state !== "saved") return;
+      await doTranscribe(id);
+    },
+    [artifacts, doTranscribe]
+  );
+  const retryTranscription = useCallback5(
+    async (id) => {
+      const a = artifacts.find((x) => x.id === id);
+      if (!a || a.state !== "failed") return;
+      await doTranscribe(id);
+    },
+    [artifacts, doTranscribe]
+  );
+  const getPlaybackUrl = useCallback5(
+    async (id) => {
+      const stored = await store.get(id);
+      if (!stored?.blob || stored.blob.size === 0) return null;
+      return URL.createObjectURL(stored.blob);
+    },
+    [store]
+  );
+  const deleteArtifact = useCallback5(
+    async (id) => {
+      await store.delete(id);
+      setArtifacts((prev) => prev.filter((a) => a.id !== id));
+    },
+    [store]
+  );
+  const clearTranscribed = useCallback5(async () => {
+    const toDelete = artifacts.filter((a) => a.state === "transcribed");
+    await Promise.all(toDelete.map((a) => store.delete(a.id)));
+    setArtifacts((prev) => prev.filter((a) => a.state !== "transcribed"));
+  }, [artifacts, store]);
+  const reload = useCallback5(async () => {
+    setIsLoading(true);
+    await loadFromStore();
+  }, [loadFromStore]);
+  const totalBytes = artifacts.filter(isPending).reduce((s, a) => s + a.size, 0);
+  return {
+    artifacts,
+    totalBytes,
+    isLoading,
+    transcribeArtifact,
+    retryTranscription,
+    getPlaybackUrl,
+    deleteArtifact,
+    clearTranscribed,
+    reload
+  };
+}
+
+// src/voice/AudioQueuePanel.tsx
+import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+
+// src/voice/AudioQueueItem.tsx
+import { useState as useState7, useCallback as useCallback6 } from "react";
+import {
+  Mic as Mic3,
+  PauseCircle,
+  CheckCircle2,
+  AlertCircle as AlertCircle3,
+  Loader2 as Loader28,
+  Play as Play4,
+  RotateCcw as RotateCcw2,
+  Trash2,
+  FileAudio
+} from "lucide-react";
+import { jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
+function StateIcon({ state }) {
+  const base = "w-4 h-4 shrink-0";
+  switch (state) {
+    case "recording":
+      return /* @__PURE__ */ jsx11(Mic3, { className: `${base} text-red-400 animate-pulse` });
+    case "paused":
+      return /* @__PURE__ */ jsx11(PauseCircle, { className: `${base} text-yellow-400` });
+    case "transcribed":
+      return /* @__PURE__ */ jsx11(CheckCircle2, { className: `${base} text-green-400` });
+    case "failed":
+      return /* @__PURE__ */ jsx11(AlertCircle3, { className: `${base} text-red-400` });
+    case "transcribing":
+    case "uploading":
+      return /* @__PURE__ */ jsx11(Loader28, { className: `${base} text-blue-400 animate-spin` });
+    default:
+      return /* @__PURE__ */ jsx11(FileAudio, { className: `${base} text-gray-400` });
+  }
+}
+function AudioQueueItem({
+  artifact,
+  onTranscribe,
+  onRetry,
+  onDelete,
+  onGetPlaybackUrl,
+  className = ""
+}) {
+  const [playing, setPlaying] = useState7(false);
+  const [audioEl, setAudioEl] = useState7(null);
+  const handlePlay = useCallback6(async () => {
+    if (!onGetPlaybackUrl) return;
+    if (playing && audioEl) {
+      audioEl.pause();
+      setPlaying(false);
+      return;
+    }
+    const url = await onGetPlaybackUrl(artifact.id);
+    if (!url) return;
+    const el = new Audio(url);
+    setAudioEl(el);
+    setPlaying(true);
+    el.play().catch(() => setPlaying(false));
+    el.addEventListener("ended", () => {
+      setPlaying(false);
+      URL.revokeObjectURL(url);
+    });
+    el.addEventListener("error", () => {
+      setPlaying(false);
+      URL.revokeObjectURL(url);
+    });
+  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+  const canTranscribe = artifact.state === "queued" || artifact.state === "saved";
+  const canRetry = artifact.state === "failed";
+  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && artifact.state !== "recording" && artifact.state !== "paused";
+  const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
+  return /* @__PURE__ */ jsxs7(
+    "div",
+    {
+      className: `flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10 ${className}`,
+      children: [
+        /* @__PURE__ */ jsx11(StateIcon, { state: artifact.state }),
+        /* @__PURE__ */ jsxs7("div", { className: "flex-1 min-w-0 space-y-0.5", children: [
+          /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-2 text-xs", children: [
+            /* @__PURE__ */ jsx11("span", { className: "font-medium text-white/80", children: artifactLabel(artifact.state) }),
+            /* @__PURE__ */ jsx11("span", { className: "text-white/40", children: "\xB7" }),
+            /* @__PURE__ */ jsx11("span", { className: "text-white/50", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx11("span", { className: "text-white/40", children: "\xB7" }),
+            /* @__PURE__ */ jsx11("span", { className: "text-white/50", children: formatArtifactSize(artifact.size) })
+          ] }),
+          artifact.state === "transcribed" && artifact.transcript && /* @__PURE__ */ jsx11("p", { className: "text-xs text-white/60 truncate", children: artifact.transcript }),
+          artifact.state === "failed" && artifact.errorMessage && /* @__PURE__ */ jsx11("p", { className: "text-xs text-red-400/80 truncate", children: artifact.errorMessage }),
+          /* @__PURE__ */ jsx11("p", { className: "text-[10px] text-white/30", children: new Date(artifact.createdAt).toLocaleString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short"
+          }) })
+        ] }),
+        /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-1 shrink-0", children: [
+          canPlay && /* @__PURE__ */ jsx11(
+            "button",
+            {
+              onClick: handlePlay,
+              disabled: isBusy,
+              className: "p-1.5 rounded-md hover:bg-white/10 text-white/50 hover:text-white/80 transition-colors",
+              "aria-label": playing ? "Pausar" : "Reproducir",
+              children: /* @__PURE__ */ jsx11(Play4, { className: "w-3.5 h-3.5" })
+            }
+          ),
+          canTranscribe && onTranscribe && /* @__PURE__ */ jsx11(
+            "button",
+            {
+              onClick: () => onTranscribe(artifact.id),
+              disabled: isBusy,
+              className: "px-2 py-1 rounded-md text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 transition-colors",
+              children: "Transcribir"
+            }
+          ),
+          canRetry && onRetry && /* @__PURE__ */ jsx11(
+            "button",
+            {
+              onClick: () => onRetry(artifact.id),
+              className: "p-1.5 rounded-md hover:bg-white/10 text-yellow-400/70 hover:text-yellow-400 transition-colors",
+              "aria-label": "Reintentar transcripci\xF3n",
+              children: /* @__PURE__ */ jsx11(RotateCcw2, { className: "w-3.5 h-3.5" })
+            }
+          ),
+          onDelete && artifact.state !== "recording" && artifact.state !== "paused" && /* @__PURE__ */ jsx11(
+            "button",
+            {
+              onClick: () => onDelete(artifact.id),
+              disabled: isBusy,
+              className: "p-1.5 rounded-md hover:bg-white/10 text-white/30 hover:text-red-400 transition-colors",
+              "aria-label": "Eliminar audio",
+              children: /* @__PURE__ */ jsx11(Trash2, { className: "w-3.5 h-3.5" })
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+
+// src/voice/AudioQueuePanel.tsx
+import { jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
+var DEFAULT_PRIVACY_NOTICE = "Tu audio se guarda localmente hasta que lo transcribas o elimines. No se env\xEDa al servidor hasta que lo solicites.";
+function AudioQueuePanel({
+  queue,
+  className = "",
+  privacyNotice = DEFAULT_PRIVACY_NOTICE,
+  maxVisible = 6
+}) {
+  const {
+    artifacts,
+    totalBytes,
+    isLoading,
+    transcribeArtifact,
+    retryTranscription,
+    deleteArtifact,
+    clearTranscribed,
+    getPlaybackUrl
+  } = queue;
+  const visible = artifacts.filter((a) => a.state !== "deleted");
+  const hasTranscribed = visible.some((a) => a.state === "transcribed");
+  if (isLoading) {
+    return /* @__PURE__ */ jsx12("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx12(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
+  }
+  if (visible.length === 0) return null;
+  return /* @__PURE__ */ jsxs8("div", { className: `space-y-2 ${className}`, children: [
+    /* @__PURE__ */ jsxs8("div", { className: "flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20", children: [
+      /* @__PURE__ */ jsx12(ShieldAlert, { className: "w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx12("p", { className: "text-[11px] text-yellow-200/70 leading-relaxed", children: privacyNotice })
+    ] }),
+    /* @__PURE__ */ jsxs8("div", { className: "flex items-center justify-between px-1", children: [
+      /* @__PURE__ */ jsxs8("span", { className: "text-xs text-white/50", children: [
+        visible.length,
+        " audio",
+        visible.length !== 1 ? "s" : "",
+        " \xB7 ",
+        formatArtifactSize(totalBytes)
+      ] }),
+      hasTranscribed && /* @__PURE__ */ jsxs8(
+        "button",
+        {
+          onClick: clearTranscribed,
+          className: "flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors",
+          children: [
+            /* @__PURE__ */ jsx12(Trash22, { className: "w-3 h-3" }),
+            "Limpiar transcritos"
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsx12(
+      "div",
+      {
+        className: "space-y-1.5 overflow-y-auto",
+        style: { maxHeight: `${maxVisible * 68}px` },
+        children: visible.map((artifact) => /* @__PURE__ */ jsx12(
+          AudioQueueItem,
+          {
+            artifact,
+            onTranscribe: transcribeArtifact,
+            onRetry: retryTranscription,
+            onDelete: deleteArtifact,
+            onGetPlaybackUrl: getPlaybackUrl
+          },
+          artifact.id
+        ))
+      }
+    )
+  ] });
+}
 export {
+  AUDIO_QUEUE_DEFAULTS,
   AudioPlayer,
+  AudioQueueItem,
+  AudioQueuePanel,
+  AudioQueueStore,
   AudioVisualizer,
   BUTTON_SIZES,
   COLOR_THEMES,
@@ -1531,15 +2214,23 @@ export {
   SpeakButton,
   StatusText,
   VoiceMicButton,
+  artifactLabel,
   createAudioPlayer,
+  formatArtifactDuration,
+  formatArtifactSize,
   formatPlaybackTime,
   formatRecordingTime,
+  isPending,
+  isTerminal,
+  makeArtifactId,
   makeRecorder,
   normalizeLevels,
   resampleLevels,
   useAudioAnalysis,
   useAudioPlayer,
+  useAudioQueue,
   useDictation,
+  useDurableRecording,
   useRecorder,
   useVoice
 };

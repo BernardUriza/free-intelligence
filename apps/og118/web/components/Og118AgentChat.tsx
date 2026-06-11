@@ -3,6 +3,13 @@
 /**
  * og118 agentic chat — the glass-box surface, now local-first (DD-002B1.3).
  *
+ * B3-VOICE-OG118-6: durable audio queue adoption. The in-composer mic no longer
+ * auto-transcribes on stop; instead it saves to a local IndexedDB queue
+ * (useDurableRecording). The user reviews the queue and transcribes explicitly
+ * (useAudioQueue). On success the transcript lands in the composer via the
+ * surface's composerAppend prop. The direct-dictation voiceAdapter is replaced
+ * by micSlotOverride in the composer row.
+ *
  * og118 supplies only the app-specific pieces: the TRANSPORT (useOg118Agent),
  * the access-token banner, branding/copy, the start screen, and the chat
  * sidebar. The reusable machinery — visible transcript, optimistic user message,
@@ -18,6 +25,7 @@
  */
 
 import { useState } from 'react';
+import { Pause, Play, Square } from 'lucide-react';
 import { AgentConversationSurface, useAgentConversation } from 'fi-glass/agent';
 import {
   IndexedDBConversationLibrary,
@@ -26,6 +34,12 @@ import {
 import {
   useVoice,
   RichAudioPlayer,
+  AudioQueueStore,
+  useDurableRecording,
+  useAudioQueue,
+  AudioQueuePanel,
+  ComposerMicSlot,
+  AudioVisualizer,
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -34,10 +48,11 @@ import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118MessageActions } from './Og118MessageActions';
 
-// Module-level singleton. The constructor is SSR-safe (it stores config only,
-// never touches indexedDB), so one stable instance shared across renders and
+// Module-level singletons. Constructors are SSR-safe (they store config only,
+// never touch IndexedDB), so one stable instance shared across renders and
 // remounts is correct and avoids reopening the database.
 const conversationLibrary = new IndexedDBConversationLibrary();
+const audioQueueStore = new AudioQueueStore();
 
 export function Og118AgentChat() {
   const lib = useConversationLibrary(conversationLibrary);
@@ -53,10 +68,14 @@ export function Og118AgentChat() {
     isAppHandledError: (t) => (t.errorMessage ?? '').startsWith(AUTH401),
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
-  // Dictation errors are surfaced to the user, not swallowed in the console.
-  // The adapter only ever emits controlled Og118STTError messages (no tokens,
-  // no PHI, no stack), so the string is safe to render verbatim.
+  // Voice errors (STT recording errors + transcription failures) are surfaced to
+  // the user via a dismissable banner. The adapter only emits controlled error
+  // messages (no tokens, no PHI, no stack), so the string is safe to render verbatim.
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // Pull-once composer injection: when a durable-queue transcription succeeds, the
+  // text lands here; AgentConversationSurface appends it and calls the consumed
+  // callback, which resets this state back to ''.
+  const [composerAppend, setComposerAppend] = useState('');
   const { turn } = conversation;
 
   // TTS consumer wiring (B3-TTS-1): synthesis goes through og118's adapter
@@ -65,6 +84,30 @@ export function Og118AgentChat() {
   // AudioPlayer plays it.
   const voice = useVoice(og118VoiceAdapter, {
     onError: (e, ctx) => console.error('[og118] tts', ctx, e),
+  });
+
+  // B3-VOICE-OG118-6: durable local audio capture.
+  // useDurableRecording owns the mic + IndexedDB save; useAudioQueue owns
+  // transcription + queue management. og118 owns only the transport (adapter).
+  const recording = useDurableRecording({
+    store: audioQueueStore,
+    onError: (msg) => setVoiceError(msg),
+  });
+  const queue = useAudioQueue({
+    store: audioQueueStore,
+    adapter: og118VoiceAdapter,
+    onTranscribed: (_id, text) => {
+      if (text) {
+        setComposerAppend(text);
+      } else {
+        // Empty transcript: audio stays in the queue as-is; user can retry or delete.
+        setVoiceError('El servidor no reconoció texto. El audio se conserva para revisión.');
+      }
+    },
+    onError: (_id, msg) => {
+      console.error('[og118] stt queue', msg);
+      setVoiceError(msg);
+    },
   });
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
@@ -133,9 +176,9 @@ export function Og118AgentChat() {
     </div>
   ) : null;
 
-  // Dictation error banner — the user-facing half of onVoiceError. Mirrors the
-  // authBanner pattern (inline controlled UI feedback, dismissable) instead of
-  // hiding STT failures in the console where the user never sees them.
+  // Voice error banner — covers both recording errors and STT failures.
+  // Dismissable inline banner; the message is always a controlled string (no
+  // tokens, no PHI, no raw stack traces).
   const voiceErrorBanner = voiceError ? (
     <div
       style={{
@@ -153,7 +196,7 @@ export function Og118AgentChat() {
       <span style={{ color: '#fcd34d', fontSize: '0.85rem' }}>{voiceError}</span>
       <button
         onClick={() => setVoiceError(null)}
-        aria-label="Descartar error de dictado"
+        aria-label="Descartar error de voz"
         style={{
           border: 'none',
           background: 'transparent',
@@ -171,13 +214,6 @@ export function Og118AgentChat() {
   // Voice bar (B3-VOICE-OG118-2) — rich TTS playback, a reusable fi-glass
   // primitive (DD-002 / framework-first-canary: og118 consumes, never
   // re-implements). og118 owns only layout/color via CSS.
-  //   • RichAudioPlayer: full transport + scrubber, shown while a TTS clip is
-  //     loaded. fi-glass owns the <audio> element and the object-URL lifecycle.
-  // The static placeholder AudioVisualizer (B3-VOICE-OG118-2) is GONE: it was an
-  // always-at-rest equalizer that lied about reacting to the mic. B3-VOICE-
-  // FIGLASS-5 wires a REAL live equalizer inside AgentConversationSurface (fed by
-  // the dictation analyser's frequency bands), so the honest reactive bars now
-  // live in the composer next to the mic — styled below via voiceVisualizer*.
   const voiceBar = voice.audioUrl ? (
     <div className="og-voice-bar">
       <RichAudioPlayer
@@ -190,6 +226,105 @@ export function Og118AgentChat() {
       />
     </div>
   ) : null;
+
+  // B3-VOICE-OG118-6: audio queue panel — shown above the composer when
+  // there are pending (non-deleted) artifacts. Privacy notice, item list, and
+  // a "clear transcribed" action are all provided by the fi-glass primitive.
+  const hasPendingAudios = queue.artifacts.filter((a) => a.state !== 'deleted').length > 0;
+  const audioQueuePanel = hasPendingAudios ? (
+    <AudioQueuePanel
+      queue={queue}
+      className="og-audio-queue"
+    />
+  ) : null;
+
+  // B3-VOICE-OG118-6: durable mic controls for the composer row.
+  // Three states — idle, recording, paused — each with the appropriate action
+  // buttons. The live equalizer (AudioVisualizer) is embedded here so it sits
+  // in the same composer row as the mic button, exactly where the direct-
+  // dictation visualizer was (B3-VOICE-FIGLASS-5). og118 tints via CSS only;
+  // no internal fi-glass DOM is reached.
+  const isActivelyRecording = recording.artifact?.state === 'recording';
+  const isPaused = recording.artifact?.state === 'paused';
+  const micBtnStyle: React.CSSProperties = {
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.375rem',
+    borderRadius: 8,
+    color: 'var(--og-accent, #34d399)',
+  };
+  const durableMicSlot = (
+    <div className="og-durable-mic" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {isActivelyRecording && (
+        <AudioVisualizer
+          levels={recording.bands}
+          active
+          variant="bars"
+          label="Nivel del micrófono"
+          className="og-voice-visualizer"
+          barClassName="og-voice-bar-bar"
+        />
+      )}
+      {!isActivelyRecording && !isPaused && (
+        <ComposerMicSlot
+          available={!recording.isAtCapacity}
+          recording={false}
+          busy={false}
+          onStart={() => { void recording.startRecording(); }}
+          onStop={() => {}}
+          className="og-mic-slot"
+        />
+      )}
+      {isActivelyRecording && (
+        <>
+          <button
+            type="button"
+            onClick={recording.pauseRecording}
+            aria-label="Pausar grabación"
+            className="og-mic-pause"
+            style={micBtnStyle}
+          >
+            <Pause size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => { void recording.stopRecording().then(() => queue.reload()); }}
+            aria-label="Detener y guardar grabación"
+            className="og-mic-stop"
+            style={micBtnStyle}
+          >
+            <Square size={18} />
+          </button>
+        </>
+      )}
+      {isPaused && (
+        <>
+          <button
+            type="button"
+            onClick={recording.resumeRecording}
+            aria-label="Reanudar grabación"
+            className="og-mic-resume"
+            style={micBtnStyle}
+          >
+            <Play size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => { void recording.stopRecording().then(() => queue.reload()); }}
+            aria-label="Detener y guardar grabación"
+            className="og-mic-stop"
+            style={micBtnStyle}
+          >
+            <Square size={18} />
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   // Wait for the first hydration so we never send with a null session id nor
   // flash an empty start screen over a stored conversation.
@@ -233,29 +368,22 @@ export function Og118AgentChat() {
               {authBanner}
               {voiceErrorBanner}
               {voiceBar}
+              {audioQueuePanel}
             </>
           }
           composerAreaClassName="og-composer-area glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
-          // Dictation (B3-VOICE-OG118-4): hand the surface the voice adapter —
-          // its `transcribe` capability lights up the in-composer mic and feeds
-          // the transcript into the composer. og118 owns only the endpoint/auth
-          // (in og118VoiceAdapter) and the mic's color via og-mic-slot.
-          voiceAdapter={og118VoiceAdapter}
-          micSlotClassName="og-mic-slot"
-          // Live mic equalizer (B3-VOICE-FIGLASS-5): the surface renders the real
-          // reactive bars next to the mic while dictating; og118 only tints them.
-          voiceVisualizerClassName="og-voice-visualizer"
-          voiceVisualizerBarClassName="og-voice-bar-bar"
+          // B3-VOICE-OG118-6: durable mic replaces direct-dictation voiceAdapter.
+          // voiceAdapter is NOT passed here (no transcribe capability = no built-in
+          // direct-dictation mic). TTS is handled separately via useVoice above.
+          // micSlotOverride puts the durable controls in the same composer row slot.
+          micSlotOverride={durableMicSlot}
+          // B3-VOICE-OG118-6: pull-once transcript injection from the durable queue.
+          composerAppend={composerAppend}
+          onComposerAppendConsumed={() => setComposerAppend('')}
           // Visible send button (like AURITY), styled with the og emerald accent.
           sendButtonClassName="og-send-btn"
           sendButtonIconClassName="og-send-icon"
-          onVoiceError={(msg) => {
-            // Keep the console log for dev, but also surface a controlled,
-            // dismissable banner so the user actually sees a dictation failure.
-            console.error('[og118] stt', msg);
-            setVoiceError(msg);
-          }}
           // Per-role bubble tint via the fi-glass resolver slot (FIGLASS-3):
           // user turns get the emerald fill, assistant turns keep the frosted
           // glass card. Both classes ship in the glass-chat preset and the

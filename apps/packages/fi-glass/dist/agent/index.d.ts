@@ -312,6 +312,23 @@ interface AgentConversationSurfaceProps {
     /** aria-label for the send button. Default: "Enviar mensaje". */
     sendLabel?: string;
     /**
+     * B3-VOICE-OG118-6 — append text to the composer from an external source
+     * (e.g. a durable-queue transcription). When non-empty, the surface appends
+     * this text to the current input and calls `onComposerAppendConsumed`. Pull-once
+     * pattern: set to a string → surface consumes → consumer resets to ''.
+     */
+    composerAppend?: string;
+    /** Called immediately after the surface appends `composerAppend`. Reset to ''. */
+    onComposerAppendConsumed?: () => void;
+    /**
+     * B3-VOICE-OG118-6 — replace the built-in `ComposerMicSlot` + `useDictation`
+     * with custom content (e.g. a durable-recording button). When provided, no
+     * built-in mic is rendered and no dictation visualizer is shown. The `voiceAdapter`
+     * prop still gates TTS-only features; pass `undefined` or an adapter without
+     * `transcribe` to avoid a phantom built-in mic alongside the override.
+     */
+    micSlotOverride?: ReactNode;
+    /**
      * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
      * is set (a hung/timed-out or errored turn), the surface renders a recoverable
      * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
@@ -327,6 +344,6 @@ interface AgentConversationSurfaceProps {
     /** Class for the dismiss button. */
     dismissButtonClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

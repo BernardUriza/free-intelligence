@@ -631,4 +631,113 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-export { type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseDictationOptions, type UseDictationReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, createAudioPlayer, formatPlaybackTime, formatRecordingTime, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useDictation, useRecorder, useVoice };
+type AudioArtifactState = 'recording' | 'paused' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'failed' | 'deleted';
+interface AudioArtifact {
+    id: string;
+    mime: string;
+    size: number;
+    durationMs?: number;
+    createdAt: string;
+    updatedAt: string;
+    state: AudioArtifactState;
+    transcript?: string;
+    errorMessage?: string;
+}
+interface StoredAudioArtifact extends AudioArtifact {
+    blob: Blob;
+}
+interface AudioQueuePolicy {
+    maxItems: number;
+    maxBytes: number;
+    maxBytesPerItem: number;
+}
+declare const AUDIO_QUEUE_DEFAULTS: AudioQueuePolicy;
+declare function makeArtifactId(): string;
+declare function isPending(a: AudioArtifact): boolean;
+declare function isTerminal(a: AudioArtifact): boolean;
+declare function artifactLabel(state: AudioArtifactState): string;
+declare function formatArtifactSize(bytes: number): string;
+declare function formatArtifactDuration(ms?: number): string;
+
+interface AudioQueueStoreOptions {
+    dbName?: string;
+    storeName?: string;
+}
+declare class AudioQueueStore {
+    private readonly dbName;
+    private readonly storeName;
+    private dbPromise;
+    constructor(opts?: AudioQueueStoreOptions);
+    private open;
+    private run;
+    list(): Promise<StoredAudioArtifact[]>;
+    get(id: string): Promise<StoredAudioArtifact | null>;
+    put(artifact: StoredAudioArtifact): Promise<void>;
+    updateMeta(id: string, patch: Partial<Omit<AudioArtifact, 'id' | 'blob'>>): Promise<void>;
+    delete(id: string): Promise<void>;
+    clear(): Promise<void>;
+}
+
+interface UseDurableRecordingOptions {
+    store: AudioQueueStore;
+    policy?: AudioQueuePolicy;
+    deviceId?: string | null;
+    onSaved?: (artifact: AudioArtifact) => void;
+    onError?: (message: string) => void;
+}
+interface UseDurableRecordingReturn {
+    artifact: AudioArtifact | null;
+    recordingTime: number;
+    bands: number[];
+    audioLevel: number;
+    isSilent: boolean;
+    startRecording: () => Promise<void>;
+    pauseRecording: () => void;
+    resumeRecording: () => void;
+    stopRecording: () => Promise<AudioArtifact | null>;
+    cancelRecording: () => void;
+    isAtCapacity: boolean;
+}
+declare function useDurableRecording(opts: UseDurableRecordingOptions): UseDurableRecordingReturn;
+
+interface UseAudioQueueOptions {
+    store: AudioQueueStore;
+    adapter?: VoiceAdapter;
+    onTranscribed?: (id: string, text: string) => void;
+    onError?: (id: string, message: string) => void;
+}
+interface UseAudioQueueReturn {
+    artifacts: AudioArtifact[];
+    totalBytes: number;
+    isLoading: boolean;
+    transcribeArtifact: (id: string) => Promise<void>;
+    retryTranscription: (id: string) => Promise<void>;
+    getPlaybackUrl: (id: string) => Promise<string | null>;
+    deleteArtifact: (id: string) => Promise<void>;
+    clearTranscribed: () => Promise<void>;
+    reload: () => Promise<void>;
+}
+declare function useAudioQueue(opts: UseAudioQueueOptions): UseAudioQueueReturn;
+
+interface AudioQueuePanelProps {
+    queue: UseAudioQueueReturn;
+    /** CSS class applied to the root container */
+    className?: string;
+    /** Privacy notice text. Defaults to a generic local-storage notice. */
+    privacyNotice?: string;
+    /** Max visible items before scroll */
+    maxVisible?: number;
+}
+declare function AudioQueuePanel({ queue, className, privacyNotice, maxVisible, }: AudioQueuePanelProps): react.JSX.Element | null;
+
+interface AudioQueueItemProps {
+    artifact: AudioArtifact;
+    onTranscribe?: (id: string) => void;
+    onRetry?: (id: string) => void;
+    onDelete?: (id: string) => void;
+    onGetPlaybackUrl?: (id: string) => Promise<string | null>;
+    className?: string;
+}
+declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
+
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };
