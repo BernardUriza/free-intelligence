@@ -112,6 +112,21 @@ export interface AgentConversationSurfaceProps {
   sendButtonIconClassName?: string;
   /** aria-label for the send button. Default: "Enviar mensaje". */
   sendLabel?: string;
+  /**
+   * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
+   * is set (a hung/timed-out or errored turn), the surface renders a recoverable
+   * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
+   * the consumer's style/copy hooks; sensible defaults render without any.
+   */
+  errorClassName?: string;
+  /** Retry button copy. Default: "Reintentar". */
+  retryLabel?: string;
+  /** Dismiss button copy. Default: "Descartar". */
+  dismissLabel?: string;
+  /** Class for the retry button. */
+  retryButtonClassName?: string;
+  /** Class for the dismiss button. */
+  dismissButtonClassName?: string;
 }
 
 export function AgentConversationSurface({
@@ -138,8 +153,14 @@ export function AgentConversationSurface({
   sendButtonClassName,
   sendButtonIconClassName,
   sendLabel = 'Enviar mensaje',
+  errorClassName,
+  retryLabel = 'Reintentar',
+  dismissLabel = 'Descartar',
+  retryButtonClassName,
+  dismissButtonClassName,
 }: AgentConversationSurfaceProps) {
-  const { messages, turn, isStreaming, send, newConversation } = conversation;
+  const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
+    conversation;
   const [input, setInput] = useState('');
 
   // Dictation (STT) — only live when the adapter can transcribe. The composer
@@ -224,6 +245,70 @@ export function AgentConversationSurface({
                 <MessageContent isUser={false} content={turn.text} isStreaming />
               </MessageBubble>
             )}
+          </div>
+        )}
+
+        {/* B3-FIGLASS-8: recoverable failure. The watchdog/error already dropped
+            us out of streaming, so this replaces the zombie "thinking…" panel. */}
+        {turnError && (
+          <div
+            role="alert"
+            className={errorClassName}
+            style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              borderRadius: 10,
+              border: '1px solid rgba(248,113,113,0.35)',
+              background: 'rgba(248,113,113,0.08)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <span style={{ color: '#fca5a5', fontSize: '0.85rem', flex: 1, minWidth: 0 }}>
+              {turnError.message}
+            </span>
+            <button
+              type="button"
+              onClick={retry}
+              className={retryButtonClassName}
+              style={
+                retryButtonClassName
+                  ? undefined
+                  : {
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'transparent',
+                      color: '#e2e8f0',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }
+              }
+            >
+              {retryLabel}
+            </button>
+            <button
+              type="button"
+              onClick={dismissError}
+              className={dismissButtonClassName}
+              style={
+                dismissButtonClassName
+                  ? undefined
+                  : {
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#94a3b8',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }
+              }
+            >
+              {dismissLabel}
+            </button>
           </div>
         )}
       </div>
