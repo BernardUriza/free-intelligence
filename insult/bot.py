@@ -80,12 +80,51 @@ def _build(container: Container):
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s)))
 
+    # --- Debug server: start before Discord connects so the startup probe
+    # passes immediately regardless of Discord gateway latency.  setup_hook
+    # is called by discord.py BEFORE the WebSocket IDENTIFY handshake, so
+    # :8787 is open before the probe can fire its first check.
+    #
+    # Prior to this change the server started inside on_ready, which fires
+    # only after Discord sends READY.  During congestion or rate-limiting,
+    # READY could take 60-240 s; the probe (240 s threshold) killed the
+    # replica, triggering a restart that burned another IDENTIFY token and
+    # amplified the backlog — a self-reinforcing crash loop (ActivationFailed
+    # pattern first seen on revs 0000101/0000102, 2026-06-11).
+    #
+    # Health semantics after this change:
+    #   /debug/health before on_ready → 200, is_ready=null, pg.reachable=false
+    #   /debug/health after  on_ready → 200, is_ready=true,  pg.reachable=true
+    # The probe only needs the 200; monitoring/watchdog owns the is_ready check.
+    async def _setup_hook() -> None:
+        nonlocal _debug_runner
+        debug_token = container.settings.debug_token.get_secret_value()
+        if debug_token:
+            try:
+                _debug_runner = await start_debug_server(
+                    memory=memory,
+                    debug_token=debug_token,
+                    host=container.settings.debug_host,
+                    port=container.settings.debug_port,
+                    moltbook_ctx=MoltbookDebugContext(
+                        source_factory=moltbook.get_source,
+                        judge=container.judge_client,
+                        settings=container.settings,
+                    ),
+                )
+            except Exception:
+                log.exception("debug_server_start_failed")
+        else:
+            log.info("debug_server_disabled", reason="DEBUG_TOKEN not set")
+
+    bot.setup_hook = _setup_hook
+
     # --- Events ---
     _ready_fired = False
 
     @bot.event
     async def on_ready():
-        nonlocal _ready_fired, _debug_runner
+        nonlocal _ready_fired
         # Wire the health-state singleton with this bot reference so
         # /debug/health can answer is_ready / gateway_latency_ms. Called on
         # every on_ready (idempotent assign) so reconnects don't leave the
@@ -110,25 +149,6 @@ def _build(container: Container):
             if is_azure_configured():
                 container.siesta.add_listener(SiestaPresenceUpdater(bot))
                 container.siesta.start()
-            # Debug server — only starts if token is set (fail-closed)
-            debug_token = container.settings.debug_token.get_secret_value()
-            if debug_token:
-                try:
-                    _debug_runner = await start_debug_server(
-                        memory=memory,
-                        debug_token=debug_token,
-                        host=container.settings.debug_host,
-                        port=container.settings.debug_port,
-                        moltbook_ctx=MoltbookDebugContext(
-                            source_factory=moltbook.get_source,
-                            judge=container.judge_client,
-                            settings=container.settings,
-                        ),
-                    )
-                except Exception:
-                    log.exception("debug_server_start_failed")
-            else:
-                log.info("debug_server_disabled", reason="DEBUG_TOKEN not set")
             _ready_fired = True
         log.info(
             "bot_ready",
