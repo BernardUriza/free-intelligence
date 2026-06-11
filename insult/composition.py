@@ -27,7 +27,18 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
-from insult.core.character import build_adaptive_prompt, compose_extra_layers
+from insult.core.character import (
+    MutationStage,
+    build_adaptive_prompt,
+    compose_extra_layers,
+    deduplicate_opener,
+    enforce_length_variation,
+    preserve_react_markers,
+    strip_echoed_quotes,
+)
+from insult.core.character import (
+    run_pipeline as run_character_pipeline,
+)
 from insult.core.character.prompts import _format_other_people_block
 from insult.core.deep_memory import build_film_references_block, build_user_memory_block
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
@@ -274,6 +285,70 @@ class _CoreS1bPolicyAdapter:
         return detect_lifelessness(response, user_text)
 
 
+class _CoreOutputMutationAdapter:
+    """Adapts the post-LLM mutation stack (``insult.core.character`` engine +
+    mutators, host marker strippers) to the ``OutputMutationPort`` Protocol.
+
+    Owns the pipeline ORDER and the shrink guardrails as internal policy —
+    same stages, same ``max_shrink_pct``/``on_violation``/``must_preserve``,
+    same per-stage telemetry (``_structlog_sink`` events) as the inline
+    block it replaces. Stateless: all turn inputs arrive per call.
+    """
+
+    async def mutate(
+        self,
+        raw_text: str,
+        *,
+        user_text: str,
+        recent_response_lengths: list[int],
+        recent_openers: list[str],
+    ) -> str:
+        # Deferred import: the marker strippers live host-side
+        # (insult.cogs.chat.reactions/remembers) and a module-level import
+        # here is circular (cogs __init__ → cog.py → THIS module) — same
+        # shape as the Preset Engine / S1b adapters above.
+        from insult.cogs.chat.reactions import strip_reactions
+        from insult.cogs.chat.remembers import strip_remembers
+
+        return await run_character_pipeline(
+            [
+                MutationStage(
+                    name="strip_echoed_quotes",
+                    apply=lambda t, _ctx, _user_text=user_text: strip_echoed_quotes(t, _user_text),
+                    max_shrink_pct=0.30,
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="enforce_length_variation",
+                    apply=lambda t, _ctx, _lens=recent_response_lengths: enforce_length_variation(t, _lens),
+                    max_shrink_pct=0.50,
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="deduplicate_opener",
+                    apply=lambda t, _ctx, _openers=recent_openers: deduplicate_opener(t, _openers),
+                    max_shrink_pct=0.30,
+                    must_preserve=[preserve_react_markers],
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="strip_reactions",
+                    apply=lambda t, _ctx: strip_reactions(t),
+                    max_shrink_pct=None,
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="strip_remembers",
+                    apply=lambda t, _ctx: strip_remembers(t),
+                    max_shrink_pct=None,
+                    on_violation="skip_stage",
+                ),
+            ],
+            raw_text,
+            ctx={},
+        )
+
+
 class _CoreRetrievalAdapter:
     """Adapts ``insult.core.deep_memory`` to the ``RetrievalPort`` Protocol.
 
@@ -308,6 +383,12 @@ _FACTS_PORT = _CoreFactsAdapter()
 _STANCE_PORT = _CoreStanceAdapter()
 _ARC_PORT = _CoreArcAdapter()
 _RETRIEVAL_PORT = _CoreRetrievalAdapter()
+_OUTPUT_MUTATION_PORT = _CoreOutputMutationAdapter()
+
+
+def default_output_mutation_port() -> _CoreOutputMutationAdapter:
+    """Return the process-wide OutputMutationPort adapter for the turn pipeline."""
+    return _OUTPUT_MUTATION_PORT
 
 
 def default_arc_port() -> _CoreArcAdapter:

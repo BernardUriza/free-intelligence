@@ -40,7 +40,7 @@ from insult.cogs.chat._failure import (
     spawn_typing_keepalive,
 )
 from insult.cogs.chat.attachments import process_attachments
-from insult.cogs.chat.capability_ports import RetrievalPort, S1bPolicyPort
+from insult.cogs.chat.capability_ports import OutputMutationPort, RetrievalPort, S1bPolicyPort
 from insult.cogs.chat.context import (
     build_context,
     load_facts_smart,
@@ -61,25 +61,10 @@ from insult.cogs.chat.pipeline import (
     Stage,
     TurnCtx,
 )
-from insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, parse_reactions, strip_reactions
-from insult.cogs.chat.remembers import parse_remembers, persist_remembers, strip_remembers
+from insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, parse_reactions
+from insult.cogs.chat.remembers import parse_remembers, persist_remembers
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
-
-# PR-F NOTE: only the POST-LLM half of insult.core.character (the S4 mutation
-# engine + mutators) is still imported here — the pre-LLM half (adaptive
-# prompt + extra layers) moved behind S1bPolicyPort. The whole edge falls in
-# PR-G (OutputMutationPort); see .claude/plans/s1b_ground_truth.md.
-from insult.core.character import (
-    MutationStage,
-    deduplicate_opener,
-    enforce_length_variation,
-    preserve_react_markers,
-    strip_echoed_quotes,
-)
-from insult.core.character import (
-    run_pipeline as run_character_pipeline,
-)
 from insult.core.contracts import PresetModifier
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.errors import ErrorType, classify_error, get_error_response
@@ -700,7 +685,9 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
 # --- Stage 11: post-LLM mutations ---
 
 
-async def interpret_output(src: S4OutputInterpretationInput) -> S4OutputInterpretationResult:
+async def interpret_output(
+    src: S4OutputInterpretationInput, *, mutation: OutputMutationPort
+) -> S4OutputInterpretationResult:
     """S4 Output Interpretation — turn the model's raw text into the deliverable
     response + its side channels (reactions, remembered facts).
 
@@ -714,42 +701,15 @@ async def interpret_output(src: S4OutputInterpretationInput) -> S4OutputInterpre
     reactions = parse_reactions(src.raw_text)
     remembered_facts = parse_remembers(src.raw_text)
 
-    response = await run_character_pipeline(
-        [
-            MutationStage(
-                name="strip_echoed_quotes",
-                apply=lambda t, _ctx, _user_text=src.user_text: strip_echoed_quotes(t, _user_text),
-                max_shrink_pct=0.30,
-                on_violation="skip_stage",
-            ),
-            MutationStage(
-                name="enforce_length_variation",
-                apply=lambda t, _ctx, _lens=src.recent_response_lengths: enforce_length_variation(t, _lens),
-                max_shrink_pct=0.50,
-                on_violation="skip_stage",
-            ),
-            MutationStage(
-                name="deduplicate_opener",
-                apply=lambda t, _ctx, _openers=src.recent_openers: deduplicate_opener(t, _openers),
-                max_shrink_pct=0.30,
-                must_preserve=[preserve_react_markers],
-                on_violation="skip_stage",
-            ),
-            MutationStage(
-                name="strip_reactions",
-                apply=lambda t, _ctx: strip_reactions(t),
-                max_shrink_pct=None,
-                on_violation="skip_stage",
-            ),
-            MutationStage(
-                name="strip_remembers",
-                apply=lambda t, _ctx: strip_remembers(t),
-                max_shrink_pct=None,
-                on_violation="skip_stage",
-            ),
-        ],
+    # PR-G OutputMutationPort (capability seam): the guardrailed mutation
+    # pipeline that lived inline here (echo-strip, length variation, opener
+    # dedup, marker stripping — order + shrink guardrails) moved behind the
+    # port; the adapter in insult.composition owns it as internal policy.
+    response = await mutation.mutate(
         src.raw_text,
-        ctx={},
+        user_text=src.user_text,
+        recent_response_lengths=src.recent_response_lengths,
+        recent_openers=src.recent_openers,
     )
 
     if src.intent_unattended and response.strip():
@@ -785,7 +745,8 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
             recent_openers=ctx.recent_openers,
             recent_response_lengths=ctx.recent_response_lengths,
             intent_unattended=ctx.intent_unattended,
-        )
+        ),
+        mutation=ctx.deps.mutation,
     )
 
     if result.remembered_facts:

@@ -192,3 +192,38 @@ class S1bPolicyPort(Protocol):
     def assess_adherence(self, response: str, flow_analysis: FlowAnalysis) -> dict: ...
 
     def assess_lifelessness(self, response: str, user_text: str) -> dict: ...
+
+
+class OutputMutationPort(Protocol):
+    """Post-LLM text mutation as ONE logical operation (S4).
+
+    Absorbs the post-LLM half of ``insult.core.character``: the guardrailed
+    mutation pipeline (echo-strip → length variation → opener dedup →
+    marker stripping) the stage ran inline. The pipeline ORDER, the shrink
+    guardrails (``max_shrink_pct`` / ``on_violation`` / ``must_preserve``)
+    and the per-stage telemetry are internal policy of the adapter — the
+    pipeline hands raw model text in and receives the deliverable text out.
+
+    The ``[REACT:]`` / ``[REMEMBER:]`` PARSERS are NOT behind this port —
+    parse_reactions/parse_remembers stay host-side in the stage (they read
+    the raw text BEFORE mutation; the port only owns the mutation chain,
+    which includes stripping those markers from the visible text).
+
+    The mutators honor `.claude/rules/robustness.md` (quote-adjacency,
+    marker rescue, resistance tests) — those contracts travel WITH the
+    capability, enforced by the parity tests in
+    ``tests/test_output_mutation_port.py``.
+
+    Pure text computation (no I/O): failures propagate loud, exactly as the
+    inline pipeline did (each stage individually degrades via its own
+    ``on_violation="skip_stage"`` guardrail, never the whole call).
+    """
+
+    async def mutate(
+        self,
+        raw_text: str,
+        *,
+        user_text: str,
+        recent_response_lengths: list[int],
+        recent_openers: list[str],
+    ) -> str: ...
