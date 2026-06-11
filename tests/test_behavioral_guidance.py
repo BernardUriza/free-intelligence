@@ -145,7 +145,7 @@ def _ctx(result, text: str = ""):
     `text` defaults to "" so the animal-liberation corpus stays off unless a
     test deliberately puts an on-topic message in.
     """
-    return types.SimpleNamespace(preset=result.selection, preset_result=result, flow_analysis=None, text=text)
+    return types.SimpleNamespace(preset=result.selection, preset_result=result, flow_guidance="", text=text)
 
 
 async def test_build_guidance_includes_preset_prompt(monkeypatch):

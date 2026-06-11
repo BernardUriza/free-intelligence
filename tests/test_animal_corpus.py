@@ -91,7 +91,7 @@ def _ctx(text: str):
         vulnerable_overlay=False,
         guidance_block="",
     )
-    return types.SimpleNamespace(preset=sel, preset_result=result, flow_analysis=None, text=text)
+    return types.SimpleNamespace(preset=sel, preset_result=result, flow_guidance="", text=text)
 
 
 def test_corpus_injected_into_guidance_when_on_topic():

@@ -40,7 +40,7 @@ from insult.cogs.chat._failure import (
     spawn_typing_keepalive,
 )
 from insult.cogs.chat.attachments import process_attachments
-from insult.cogs.chat.capability_ports import RetrievalPort
+from insult.cogs.chat.capability_ports import RetrievalPort, S1bPolicyPort
 from insult.cogs.chat.context import (
     build_context,
     load_facts_smart,
@@ -65,10 +65,13 @@ from insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, par
 from insult.cogs.chat.remembers import parse_remembers, persist_remembers, strip_remembers
 from insult.cogs.chat.tasks import extract_user_facts
 from insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
+
+# PR-F NOTE: only the POST-LLM half of insult.core.character (the S4 mutation
+# engine + mutators) is still imported here — the pre-LLM half (adaptive
+# prompt + extra layers) moved behind S1bPolicyPort. The whole edge falls in
+# PR-G (OutputMutationPort); see .claude/plans/s1b_ground_truth.md.
 from insult.core.character import (
     MutationStage,
-    build_adaptive_prompt,
-    compose_extra_layers,
     deduplicate_opener,
     enforce_length_variation,
     preserve_react_markers,
@@ -77,11 +80,9 @@ from insult.core.character import (
 from insult.core.character import (
     run_pipeline as run_character_pipeline,
 )
-from insult.core.character.prompts import _format_other_people_block
 from insult.core.contracts import PresetModifier
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.errors import ErrorType, classify_error, get_error_response
-from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
@@ -289,23 +290,38 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
     ctx.preset_result = await ctx.preset_task
     effective_preset = ctx.preset_result.selection
 
-    system_prompt, preset = build_adaptive_prompt(
-        ctx.deps.settings.system_prompt,
-        ctx.profile,
-        len(ctx.context),
+    # Stance read pulled ahead of compose(): it is an independent data-plane
+    # read and compose() is pure computation — same data, same renders.
+    ctx.stances = await ctx.deps.memory.get_stances(ctx.channel_id, ctx.user_id, limit=5)
+
+    bundle = ctx.deps.policy.compose(
+        base_prompt=ctx.deps.settings.system_prompt,
+        profile=ctx.profile,
+        context_len=len(ctx.context),
         preset=effective_preset,
-        current_message=ctx.text,
-        recent_messages=ctx.recent,
+        text=ctx.text,
+        recent=ctx.recent,
         user_facts=ctx.user_facts,
+        context_key=ctx.context_key,
         server_pulse=ctx.server_pulse,
         recent_response_lengths=ctx.recent_response_lengths,
+        arc_block=ctx.deps.arc.render_block(ctx.arc_state),
+        stance_block=ctx.deps.stance.render_block(ctx.stances) if ctx.stances else "",
+        facts_block=ctx.deps.facts.render_block(ctx.user_name, ctx.user_facts),
+        other_participants_facts=ctx.other_participants_facts,
+        serenityops_snapshot=ctx.serenityops_snapshot,
+        serenityops_user_name=ctx.user_name,
     )
-    ctx.preset = preset
+    ctx.preset = bundle.preset
+    ctx.flow_analysis = bundle.flow_analysis
+    ctx.flow_guidance = bundle.flow_guidance
+    ctx.system_prompt = bundle.system_prompt
+
     log.info(
         "preset_classified",
-        preset=preset.display_label,
-        preset_internal=preset.mode.value,
-        modifiers=[m.value for m in preset.modifiers],
+        preset=ctx.preset.display_label,
+        preset_internal=ctx.preset.mode.value,
+        modifiers=[m.value for m in ctx.preset.modifiers],
         classifier_source=ctx.preset_result.classifier_source,
         classifier_ms=ctx.preset_result.classifier_ms,
         disclosure_severity=ctx.disclosure.severity,
@@ -313,8 +329,6 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         arc_phase=ctx.deps.arc.phase(ctx.arc_state),
         elapsed_ms=ctx.elapsed_ms(),
     )
-
-    ctx.flow_analysis = analyze_flows(ctx.text, ctx.recent, preset, ctx.deps.expression_history, ctx.context_key)
     log.info(
         "stage_flows_analyzed",
         pressure=ctx.flow_analysis.pressure.pressure_level,
@@ -327,25 +341,12 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         elapsed_ms=ctx.elapsed_ms(),
     )
 
-    ctx.stances = await ctx.deps.memory.get_stances(ctx.channel_id, ctx.user_id, limit=5)
-
-    ctx.system_prompt = compose_extra_layers(
-        system_prompt,
-        flow_prompt=build_flow_prompt(ctx.flow_analysis),
-        arc_prompt=ctx.deps.arc.render_block(ctx.arc_state),
-        stance_prompt=ctx.deps.stance.render_block(ctx.stances) if ctx.stances else "",
-        facts_prompt=ctx.deps.facts.render_block(ctx.user_name, ctx.user_facts),
-        other_participants_facts=ctx.other_participants_facts,
-        serenityops_snapshot=ctx.serenityops_snapshot,
-        serenityops_user_name=ctx.user_name,
-    )
-
     if ctx.profile and ctx.profile.is_confident:
         log.info(
             "style_adapted",
             user_id=ctx.user_id,
-            preset=preset.display_label,
-            preset_modifiers=[m.value for m in preset.modifiers],
+            preset=ctx.preset.display_label,
+            preset_modifiers=[m.value for m in ctx.preset.modifiers],
             language=ctx.profile.detected_language,
             formality=round(ctx.profile.formality, 2),
             technical=round(ctx.profile.technical_level, 2),
@@ -408,7 +409,9 @@ async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
 # ``ctx.deps.retrieval`` and no longer imports ``insult.core.deep_memory``.
 
 
-async def assemble_knowledge(src: S2KnowledgeAssemblyInput, *, retrieval: RetrievalPort) -> S2KnowledgeAssemblyResult:
+async def assemble_knowledge(
+    src: S2KnowledgeAssemblyInput, *, retrieval: RetrievalPort, policy: S1bPolicyPort
+) -> S2KnowledgeAssemblyResult:
     """S2 Knowledge Assembly — bundle the per-turn knowledge fragments injected
     into the runner payload.
 
@@ -424,7 +427,7 @@ async def assemble_knowledge(src: S2KnowledgeAssemblyInput, *, retrieval: Retrie
     combined = "\n\n".join(b for b in (relevant_memory, film_refs) if b) or None
     other_people = None
     if src.other_participants_facts:
-        other_people = _format_other_people_block(src.other_participants_facts) or None
+        other_people = policy.other_people_block(src.other_participants_facts) or None
     return S2KnowledgeAssemblyResult(
         relevant_memory_block=relevant_memory,
         film_references_block=film_refs,
@@ -450,10 +453,8 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     there's nothing to add — the runner then behaves exactly as before.
     """
     parts = [ctx.preset_result.guidance_block]
-    if ctx.flow_analysis is not None:
-        flow_prompt = build_flow_prompt(ctx.flow_analysis)
-        if flow_prompt:
-            parts.append(flow_prompt)
+    if ctx.flow_guidance:
+        parts.append(ctx.flow_guidance)
     # Universal values corpus (shared with ALICE): the animal-liberation frame
     # activates by TOPIC, not by user. Appended LAST and AFTER the vulnerability
     # overlay on purpose — the corpus itself yields to safety, so safety
@@ -551,6 +552,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     other_participants_facts=ctx.other_participants_facts,
                 ),
                 retrieval=ctx.deps.retrieval,
+                policy=ctx.deps.policy,
             )
             if knowledge.combined_memory:
                 llm_kwargs["relevant_memory"] = knowledge.combined_memory
@@ -1034,7 +1036,7 @@ async def _stage_deliver(ctx: TurnCtx) -> None:
 
 
 async def _stage_telemetry(ctx: TurnCtx) -> None:
-    validate_flow_adherence(ctx.response_text, ctx.flow_analysis)
+    ctx.deps.policy.assess_adherence(ctx.response_text, ctx.flow_analysis)
 
     # F2 (2026-05-11): soft-monitor for "competent but flat" replies. We do
     # NOT block, retry, or gate on this — F2 just measures whether the flat-
@@ -1043,7 +1045,7 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
     #   | where event_s == "lifelessness_check"
     #   | summarize count() by band_s, preset_s
     # Once we have a week of data we decide F3 retry policy.
-    lifelessness = detect_lifelessness(ctx.response_text, ctx.text)
+    lifelessness = ctx.deps.policy.assess_lifelessness(ctx.response_text, ctx.text)
     log.info(
         "lifelessness_check",
         preset=ctx.preset.display_label,
