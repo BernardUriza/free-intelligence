@@ -250,3 +250,107 @@ def test_upstream_error_maps_to_502_without_secret(client: TestClient) -> None:
     body = resp.text
     assert FAKE_KEY not in body
     assert resp.json()["detail"]["code"] == "STT_UPSTREAM_ERROR"
+
+
+# --- MIME validation unit tests (pure, no I/O) --------------------------------
+
+
+def test_validate_mime_rejects_video() -> None:
+    with pytest.raises(stt_module.STTValidationError, match="unsupported"):
+        stt_module.validate_mime("video/mp4")
+
+
+def test_validate_mime_rejects_text() -> None:
+    with pytest.raises(stt_module.STTValidationError, match="unsupported"):
+        stt_module.validate_mime("text/plain")
+
+
+def test_validate_mime_rejects_binary() -> None:
+    with pytest.raises(stt_module.STTValidationError, match="unsupported"):
+        stt_module.validate_mime("application/octet-stream")
+
+
+def test_validate_mime_accepts_webm() -> None:
+    stt_module.validate_mime("audio/webm")  # must not raise
+
+
+def test_validate_mime_accepts_wav() -> None:
+    stt_module.validate_mime("audio/wav")  # must not raise
+
+
+def test_validate_mime_accepts_mp3() -> None:
+    stt_module.validate_mime("audio/mpeg")  # must not raise
+
+
+def test_validate_mime_strips_codec_params() -> None:
+    stt_module.validate_mime("audio/webm; codecs=opus")  # must not raise
+
+
+def test_validate_mime_strips_codec_params_wav() -> None:
+    stt_module.validate_mime("audio/wav; charset=binary")  # must not raise
+
+
+def test_safe_filename_webm() -> None:
+    assert stt_module.safe_filename_for_mime("audio/webm") == "chunk.webm"
+
+
+def test_safe_filename_wav() -> None:
+    assert stt_module.safe_filename_for_mime("audio/wav") == "chunk.wav"
+
+
+def test_safe_filename_mp3() -> None:
+    assert stt_module.safe_filename_for_mime("audio/mpeg") == "chunk.mp3"
+
+
+def test_safe_filename_strips_params() -> None:
+    assert stt_module.safe_filename_for_mime("audio/webm; codecs=opus") == "chunk.webm"
+
+
+def test_safe_filename_unknown_falls_back_to_webm() -> None:
+    assert stt_module.safe_filename_for_mime("application/octet-stream") == "chunk.webm"
+
+
+# --- MIME route-layer contract tests ------------------------------------------
+
+
+def _upload_wav(data: bytes = FAKE_AUDIO) -> dict:
+    return {"audio": ("chunk.wav", data, "audio/wav")}
+
+
+def test_unsupported_mime_returns_400(client: TestClient) -> None:
+    _override_provider(_FakeProvider())
+    resp = client.post(
+        "/stt/transcribe",
+        files={"audio": ("video.mp4", FAKE_AUDIO, "video/mp4")},
+    )
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["code"] == "STT_INVALID_REQUEST"
+    assert "unsupported" in detail["message"]
+
+
+def test_wav_upload_passes_wav_filename_to_provider(client: TestClient) -> None:
+    fake = _FakeProvider("wav transcription")
+    _override_provider(fake)
+    resp = client.post("/stt/transcribe", files=_upload_wav())
+    assert resp.status_code == 200
+    assert resp.json() == {"text": "wav transcription"}
+    assert fake.calls[0]["filename"] == "chunk.wav"
+    assert fake.calls[0]["content_type"] == "audio/wav"
+
+
+def test_webm_with_codec_param_accepted(client: TestClient) -> None:
+    _override_provider(_FakeProvider())
+    files = {"audio": ("chunk.webm", FAKE_AUDIO, "audio/webm; codecs=opus")}
+    resp = client.post("/stt/transcribe", files=files)
+    assert resp.status_code == 200
+
+
+def test_binary_mime_returns_400_not_502(client: TestClient) -> None:
+    _override_provider(_FakeProvider())
+    resp = client.post(
+        "/stt/transcribe",
+        files={"audio": ("blob", FAKE_AUDIO, "application/octet-stream")},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["code"] == "STT_INVALID_REQUEST"

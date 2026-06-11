@@ -25,13 +25,14 @@ from pydantic import BaseModel
 
 from runner import build_runner
 from stt import (
+    DEFAULT_UPLOAD_CONTENT_TYPE,
     STTNotConfiguredError,
     STTProvider,
     STTUpstreamError,
     STTValidationError,
 )
 from stt import build_provider as build_stt_provider
-from stt import validate_audio
+from stt import safe_filename_for_mime, validate_audio, validate_mime
 from tts import (
     DEFAULT_FORMAT,
     TTSNotConfiguredError,
@@ -269,8 +270,10 @@ async def stt_transcribe(
         )
 
     data = await audio.read()
+    content_type = audio.content_type or DEFAULT_UPLOAD_CONTENT_TYPE
     try:
         validate_audio(data)
+        validate_mime(content_type)
     except STTValidationError as exc:
         raise HTTPException(
             status_code=400,
@@ -280,8 +283,8 @@ async def stt_transcribe(
     try:
         text = await provider.transcribe(
             data,
-            filename=audio.filename or "chunk.webm",
-            content_type=audio.content_type or "audio/webm",
+            filename=safe_filename_for_mime(content_type),
+            content_type=content_type,
         )
     except STTNotConfiguredError as exc:
         raise HTTPException(

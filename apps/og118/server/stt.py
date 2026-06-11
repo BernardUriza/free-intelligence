@@ -46,6 +46,40 @@ MIN_AUDIO_BYTES = 64
 DEFAULT_UPLOAD_FILENAME = "chunk.webm"
 DEFAULT_UPLOAD_CONTENT_TYPE = "audio/webm"
 
+# MIME types the Azure OpenAI Whisper deployment accepts. Conservative list:
+# only types a browser can actually produce (webm, wav) plus common cross-browser
+# formats. Unsupported types get a 400 with a stable code so the frontend can
+# conserve the artifact and show a recoverable error instead of a silent 502.
+SUPPORTED_MIME_TYPES: frozenset[str] = frozenset(
+    {
+        "audio/webm",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/flac",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/m4a",
+    }
+)
+
+# Maps a MIME base type to the extension Azure uses to pick the right decoder.
+# Anything not in this table falls back to the webm default.
+_MIME_TO_EXT: dict[str, str] = {
+    "audio/webm": "webm",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mp3": "mp3",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/flac": "flac",
+    "audio/mp4": "mp4",
+    "audio/x-m4a": "m4a",
+    "audio/m4a": "m4a",
+}
+
 
 # --- Errors (mapped to safe HTTP status by the route; never carry secrets) ----
 
@@ -83,6 +117,28 @@ def validate_audio(data: bytes) -> None:
         raise STTValidationError(
             f"audio too large ({len(data)} bytes; max {MAX_AUDIO_BYTES})"
         )
+
+
+def validate_mime(content_type: str) -> None:
+    """Validate the audio MIME type is one the provider accepts. Strips codec
+    parameters before checking (e.g. 'audio/webm; codecs=opus' → 'audio/webm').
+    Raises STTValidationError with a stable, client-facing message so the
+    frontend can show a recoverable error and conserve the artifact for retry."""
+    base = content_type.split(";")[0].strip().lower()
+    if base not in SUPPORTED_MIME_TYPES:
+        raise STTValidationError(
+            f"unsupported audio MIME type: {base!r}; "
+            f"accepted: {', '.join(sorted(SUPPORTED_MIME_TYPES))}"
+        )
+
+
+def safe_filename_for_mime(content_type: str) -> str:
+    """Derive a safe upload filename from a MIME type so the provider picks the
+    right decoder. Strips codec parameters before mapping. Falls back to the
+    webm default for unknown types (callers should validate_mime first)."""
+    base = content_type.split(";")[0].strip().lower()
+    ext = _MIME_TO_EXT.get(base, "webm")
+    return f"chunk.{ext}"
 
 
 # --- Config (read once from env; None when not configured) ---------------------
