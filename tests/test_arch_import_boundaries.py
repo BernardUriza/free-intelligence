@@ -184,7 +184,12 @@ def _violations() -> list[tuple[str, str]]:
 # in the composition adapter built WITH expression_history (state stays
 # host-owned), the S5 validators ride the same port as the assess facet, and
 # the private other-people block renders behind other_people_block(); the
-# stages→character entry survives only for its post-LLM S4 mutation half.)
+# stages→character entry survives only for its post-LLM S4 mutation half;
+# -1 via PR-G OutputMutationPort (same design doc): the guardrailed S4
+# mutation pipeline (echo-strip → length variation → opener dedup → marker
+# strips, with max_shrink/must_preserve policy) moved into the composition
+# adapter — stages drops its LAST character import and the edge falls. The
+# [REACT:]/[REMEMBER:] parsers stay host-side in the stage, untouched.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -193,13 +198,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.__main__", "insult.core.memory"),
         ("insult.__main__", "insult.core.memory_consolidator"),
         ("insult.app", "insult.core.memory"),
-        # PR-F S1bPolicyPort removed stages→flows AND the pre-LLM half of
-        # stages→character (adaptive prompt + extra layers + the private
-        # other-people block). This entry survives ONLY for the post-LLM S4
-        # mutation half (run_pipeline/MutationStage/formatting mutators) —
-        # it falls in PR-G (OutputMutationPort). Do NOT read this line as
-        # license to re-import character prompt builders into stages.
-        ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
     }
 )

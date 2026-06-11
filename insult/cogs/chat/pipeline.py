@@ -58,7 +58,12 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.capability_ports import PresetEnginePort, RetrievalPort, S1bPolicyPort
+    from insult.cogs.chat.capability_ports import (
+        OutputMutationPort,
+        PresetEnginePort,
+        RetrievalPort,
+        S1bPolicyPort,
+    )
     from insult.cogs.chat.ports import ArcPort, FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
@@ -113,6 +118,7 @@ class TurnRuntimeDeps:
     retrieval: RetrievalPort
     preset_engine: PresetEnginePort
     policy: S1bPolicyPort
+    mutation: OutputMutationPort
     agent_client: Any = None
     judge_client: Any = None
 

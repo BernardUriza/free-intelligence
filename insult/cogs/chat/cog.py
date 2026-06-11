@@ -36,6 +36,7 @@ from insult.composition import (
     build_s1b_policy_port,
     default_arc_port,
     default_facts_port,
+    default_output_mutation_port,
     default_retrieval_port,
     default_stance_port,
 )
@@ -138,6 +139,7 @@ class ChatCog(commands.Cog):
                     retrieval=default_retrieval_port(),
                     preset_engine=self._preset_engine,
                     policy=self._s1b_policy,
+                    mutation=default_output_mutation_port(),
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                 ),
