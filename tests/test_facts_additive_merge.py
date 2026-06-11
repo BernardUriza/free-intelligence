@@ -105,6 +105,69 @@ def test_merge_defaults_missing_category_to_general():
 
 
 # --------------------------------------------------------------------------
+# PR-1 facts dedup (2026-06-11): existing copies are folded, never re-emitted
+# --------------------------------------------------------------------------
+
+
+def test_merge_dedupes_existing_copies():
+    """POSITIVE (PR-1): byte-identical-normalized copies in `existing` collapse
+    to one row, so the snapshot stops re-inserting them on every save. Prod had
+    31,590 live rows over 1,517 distinct facts (20.8x) from exactly this."""
+    existing = [
+        {"id": 1, "fact": "Tiene un perro rescatado", "category": "personal"},
+        {"id": 2, "fact": "Tiene un perro rescatado", "category": "personal"},
+        {"id": 3, "fact": "  tiene   UN perro rescatado ", "category": "personal"},
+        {"id": 4, "fact": "Vive en GDL", "category": "location"},
+    ]
+    merged, added = merge_facts_additive(existing, [])
+    assert added == []
+    assert [f["fact"] for f in merged] == ["Tiene un perro rescatado", "Vive en GDL"]
+
+
+def test_merge_existing_dedup_keeps_first_occurrence_verbatim():
+    """The surviving row is the FIRST occurrence, preserved verbatim (id and
+    casing intact) — dedup never rewrites the fact it keeps."""
+    existing = [
+        {"id": 7, "fact": "Le gusta el CINE de terror", "category": "interests"},
+        {"id": 9, "fact": "le gusta el cine de terror", "category": "interests"},
+    ]
+    merged, _ = merge_facts_additive(existing, [])
+    assert merged == [{"id": 7, "fact": "Le gusta el CINE de terror", "category": "interests"}]
+
+
+def test_merge_double_pass_is_idempotent():
+    """IDEMPOTENCE (the gate test): re-running the merge over its own output —
+    the same turn re-executed — must not change the fact count."""
+    existing = [
+        {"fact": "A", "category": "general"},
+        {"fact": "A", "category": "general"},
+        {"fact": "B", "category": "general"},
+    ]
+    incoming = [{"fact": "C", "category": "general"}]
+    once, _ = merge_facts_additive(existing, incoming)
+    twice, added_twice = merge_facts_additive(once, incoming)
+    assert twice == once
+    assert added_twice == []
+
+
+def test_merge_distinct_texts_never_collapse():
+    """RESISTANCE (PR-1): near-miss rewordings are DISTINCT facts and must all
+    survive — only byte-identical-normalized copies fold. Collapsing these is
+    the consolidator's job, gated separately."""
+    existing = [
+        {"fact": "Aprecia a su perro rescatado, mostrando dedicación en su cuidado", "category": "personal"},
+        {
+            "fact": "Aprecia a su perro rescatado, mostrando dedicación y paciencia en su cuidado",
+            "category": "personal",
+        },
+        {"fact": "Bernard aprecia a su perro rescatado, mostrando dedicación en su cuidado.", "category": "personal"},
+    ]
+    merged, added = merge_facts_additive(existing, [])
+    assert len(merged) == 3, "rewordings are not duplicates; none may be dropped"
+    assert added == []
+
+
+# --------------------------------------------------------------------------
 # Flow test: extract_user_facts must save the SUPERSET, never the subset
 # --------------------------------------------------------------------------
 
