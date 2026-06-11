@@ -58,7 +58,7 @@ import discord
 import structlog
 
 if TYPE_CHECKING:
-    from insult.cogs.chat.capability_ports import RetrievalPort
+    from insult.cogs.chat.capability_ports import PresetEnginePort, RetrievalPort
     from insult.cogs.chat.ports import ArcPort, FactsPort, StancePort
 
 from insult.cogs.chat._failure import (
@@ -111,6 +111,7 @@ class TurnRuntimeDeps:
     stance: StancePort
     arc: ArcPort
     retrieval: RetrievalPort
+    preset_engine: PresetEnginePort
     agent_client: Any = None
     judge_client: Any = None
 
@@ -163,13 +164,14 @@ class TurnCtx:
     disclosure: Any = None
     arc_state: Any = None
     preset: Any = None
-    # Background task running classify_preset_llm() in parallel with the
-    # disclosure / arc / facts I/O so the Haiku call latency is masked.
-    # Awaited in `_stage_classify_and_analyze` with a timeout; on failure
-    # the regex classifier becomes the result. Set to None when the LLM
-    # middleware is disabled via settings or when the cog is in a path
-    # that doesn't use it.
+    # Background task running PresetEnginePort.resolve() in parallel with
+    # the disclosure / arc I/O so the Haiku call latency is masked. The
+    # engine owns timeout/fallback/shadow-run internally; the pipeline only
+    # owns the scheduling (create_task in stage 06, await in stage 08).
     preset_task: Any = None
+    # PresetEngineResult awaited from preset_task: selection (contracts
+    # vocabulary) + classifier telemetry scalars + rendered guidance_block.
+    preset_result: Any = None
     flow_analysis: Any = None
     stances: list = field(default_factory=list)
 

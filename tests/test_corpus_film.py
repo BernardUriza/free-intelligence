@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import types
 
+from insult.cogs.chat.capability_ports import PresetEngineResult
 from insult.cogs.chat.stages import _build_behavioral_guidance
 from insult.core import deep_memory
 from insult.core.presets import PresetMode, PresetSelection
@@ -92,7 +93,16 @@ def test_loader_strips_authoring_comment():
 
 def _ctx(text: str):
     sel = PresetSelection(mode=PresetMode.DEFAULT_ABRASIVE, reason="fallback")
-    return types.SimpleNamespace(preset=sel, flow_analysis=None, text=text)
+    # The preset fragment arrives pre-rendered from the Preset Engine; its
+    # content is irrelevant to the corpus gating these tests exercise.
+    result = PresetEngineResult(
+        selection=sel,
+        classifier_source="regex",
+        classifier_ms=0,
+        vulnerable_overlay=False,
+        guidance_block="",
+    )
+    return types.SimpleNamespace(preset=sel, preset_result=result, flow_analysis=None, text=text)
 
 
 def test_frame_injected_into_guidance_when_on_topic():

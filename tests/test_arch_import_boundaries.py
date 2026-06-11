@@ -173,7 +173,12 @@ def _violations() -> list[tuple[str, str]]:
 # finished retrieval blocks through insult.cogs.chat.capability_ports —
 # rendering policy moved into insult.core.deep_memory.build_user_memory_block,
 # the adapter in insult.composition owns the best-effort boundary + the
-# lexical film gate.)
+# lexical film gate; -2 via PR-E PresetEnginePort (second capability seam,
+# same design doc): stages drops presets AND presets_llm together — the
+# dual-strategy arbitration (LLM timeout/fallback + regex shadow-run +
+# divergence telemetry) and guidance rendering live in the composition
+# adapter built WITH judge_client+settings; the PresetSelection/PresetModifier
+# vocabulary re-points to insult.core.contracts, which is legal for host.)
 # They are TOLERATED for now; the guard below fails only on NEW violations.
 # When a phase removes one, DELETE its line here — the guard will tell you to
 # (a baseline entry no longer present is reported so the ratchet only tightens).
@@ -184,8 +189,6 @@ BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("insult.app", "insult.core.memory"),
         ("insult.cogs.chat.stages", "insult.core.character"),
         ("insult.cogs.chat.stages", "insult.core.flows"),
-        ("insult.cogs.chat.stages", "insult.core.presets"),
-        ("insult.cogs.chat.stages", "insult.core.presets_llm"),
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
     }
 )

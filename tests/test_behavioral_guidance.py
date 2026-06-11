@@ -124,26 +124,40 @@ async def test_chat_omits_guidance_key_when_none(_patch_httpx):
 
 
 # --- _build_behavioral_guidance: the stages-side reconstruction ------------
+# (Preset + overlay composition now lives in the Preset Engine adapter; here
+# stages only passes the pre-rendered fragment through. The overlay
+# positive/resistance pair runs against the REAL engine path via a patched
+# regex classifier — same assertions, same prod reason prefix.)
 
 
-def _ctx(selection: PresetSelection, text: str = ""):
+def _engine_for(monkeypatch, selection: PresetSelection):
+    """Preset Engine wired for the regex-only path, classifying as `selection`."""
+    from insult.composition import build_preset_engine_port
+
+    monkeypatch.setattr("insult.composition.classify_preset", lambda *a, **k: selection)
+    settings = types.SimpleNamespace(preset_classifier_llm_enabled=False)
+    return build_preset_engine_port(judge_client=None, settings=settings)
+
+
+def _ctx(result, text: str = ""):
     """Minimal stand-in for TurnCtx: only the attrs the builder reads.
 
     `text` defaults to "" so the animal-liberation corpus stays off unless a
     test deliberately puts an on-topic message in.
     """
-    return types.SimpleNamespace(preset=selection, flow_analysis=None, text=text)
+    return types.SimpleNamespace(preset=result.selection, preset_result=result, flow_analysis=None, text=text)
 
 
-def test_build_guidance_includes_preset_prompt():
+async def test_build_guidance_includes_preset_prompt(monkeypatch):
     from insult.cogs.chat.stages import _build_behavioral_guidance
 
     sel = PresetSelection(mode=PresetMode.DEFAULT_ABRASIVE, reason="fallback")
-    out = _build_behavioral_guidance(_ctx(sel))
+    result = await _engine_for(monkeypatch, sel).resolve("x", [], [])
+    out = _build_behavioral_guidance(_ctx(result))
     assert build_preset_prompt(sel) in out
 
 
-def test_build_guidance_adds_overlay_for_vulnerable_selection():
+async def test_build_guidance_adds_overlay_for_vulnerable_selection(monkeypatch):
     """Positive case: a chronic-vulnerable selection (the exact reason prefix
     prod emitted, score 11) must carry the safety overlay."""
     from insult.cogs.chat.stages import _build_behavioral_guidance
@@ -152,15 +166,19 @@ def test_build_guidance_adds_overlay_for_vulnerable_selection():
         mode=PresetMode.RELATIONAL_PROBE,
         reason="chronic_nonacute_move_allowed: score=11",
     )
-    out = _build_behavioral_guidance(_ctx(sel))
+    result = await _engine_for(monkeypatch, sel).resolve("x", [], [])
+    assert result.vulnerable_overlay is True
+    out = _build_behavioral_guidance(_ctx(result))
     assert build_vulnerable_overlay_prompt() in out
 
 
-def test_build_guidance_no_overlay_for_normal_selection():
+async def test_build_guidance_no_overlay_for_normal_selection(monkeypatch):
     """Resistance case: an ordinary preset (non-overlay reason) must NOT drag
     in the vulnerability overlay — otherwise everyone gets crisis treatment."""
     from insult.cogs.chat.stages import _build_behavioral_guidance
 
     sel = PresetSelection(mode=PresetMode.PLAYFUL_ROAST, reason="humor_signals")
-    out = _build_behavioral_guidance(_ctx(sel))
+    result = await _engine_for(monkeypatch, sel).resolve("x", [], [])
+    assert result.vulnerable_overlay is False
+    out = _build_behavioral_guidance(_ctx(result))
     assert build_vulnerable_overlay_prompt() not in out

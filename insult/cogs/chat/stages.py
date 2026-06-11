@@ -78,17 +78,11 @@ from insult.core.character import (
     run_pipeline as run_character_pipeline,
 )
 from insult.core.character.prompts import _format_other_people_block
+from insult.core.contracts import PresetModifier
 from insult.core.delivery import MESSAGE_DELIMITER, send_response
 from insult.core.errors import ErrorType, classify_error, get_error_response
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from insult.core.llm import WEB_SEARCH_TOOL
-from insult.core.presets import (
-    PresetModifier,
-    build_preset_prompt,
-    build_vulnerable_overlay_prompt,
-    is_vulnerable_overlay_selection,
-)
-from insult.core.presets_llm import classify_preset_llm
 from insult.core.reminders import detect_reminder_intent
 from insult.core.routing import ModelTier, select_model
 from insult.core.triviality import is_trivial
@@ -251,22 +245,14 @@ async def _stage_load_facts(ctx: TurnCtx) -> None:
         log.exception("serenityops_snapshot_load_failed", user_id=ctx.user_id)
         ctx.serenityops_snapshot = None
 
-    # Launch the LLM preset classifier as a background task so its Haiku
-    # latency overlaps with the remaining pre-LLM stages (disclosure scan,
-    # arc load, flow analysis setup). `_stage_classify_and_analyze` awaits
-    # the task with a timeout and falls back to the regex classifier on
-    # failure. Disabled-by-flag path leaves ctx.preset_task as None and
-    # the awaiter goes straight to regex.
-    if getattr(ctx.deps.settings, "preset_classifier_llm_enabled", False) and ctx.deps.judge_client is not None:
-        ctx.preset_task = asyncio.create_task(
-            classify_preset_llm(
-                ctx.text,
-                ctx.recent,
-                ctx.user_facts,
-                ctx.deps.judge_client,
-                model=getattr(ctx.deps.settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
-            )
-        )
+    # Launch the Preset Engine as a background task so its Haiku latency
+    # overlaps with the remaining pre-LLM stages (disclosure scan, arc
+    # load). The ENGINE owns timeout/fallback/shadow-run internally
+    # (PresetEnginePort contract); the pipeline owns only this scheduling —
+    # the carry between stage 06 and stage 08 is a plain asyncio.Task.
+    # Disabled-flag / no-judge paths resolve fast inside the engine (pure
+    # regex), so the task is created unconditionally.
+    ctx.preset_task = asyncio.create_task(ctx.deps.preset_engine.resolve(ctx.text, ctx.recent, ctx.user_facts))
 
 
 # --- Stage 07: disclosure scan + arc state ---
@@ -297,48 +283,11 @@ async def _stage_scan_disclosure(ctx: TurnCtx) -> None:
 
 
 async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
-    # Resolve the LLM classifier task launched in stage 06 (if enabled).
-    # Strategy: await with a hard timeout. On timeout / API error / invalid
-    # JSON, the regex classifier (which still runs inside build_adaptive_prompt
-    # when preset is None) becomes the result. Telemetry logs source +
-    # divergence so we can measure how often the LLM agrees with regex.
-    llm_preset = None
-    classifier_source = "regex"
-    classifier_ms = 0
-    if ctx.preset_task is not None:
-        classifier_start = time.monotonic()
-        timeout_s = float(getattr(ctx.deps.settings, "preset_classifier_timeout_ms", 1500)) / 1000.0
-        try:
-            llm_preset = await asyncio.wait_for(ctx.preset_task, timeout=timeout_s)
-        except TimeoutError:
-            ctx.preset_task.cancel()
-            log.warning("preset_llm_timeout_fallback", timeout_s=timeout_s)
-            llm_preset = None
-        except Exception:
-            log.exception("preset_llm_task_failed_fallback")
-            llm_preset = None
-        classifier_ms = int((time.monotonic() - classifier_start) * 1000)
-        if llm_preset is not None:
-            classifier_source = "llm"
-
-    # Shadow-run the regex classifier ALWAYS so we can detect LLM/regex
-    # divergence (F5 hybrid recommendation). Cost is ~0.1ms vs the Haiku
-    # 300ms — trivial. The regex is also the fallback when llm_preset is None.
-    from insult.core.presets import classify_preset as _classify_regex
-
-    regex_preset = _classify_regex(ctx.text, ctx.recent, ctx.user_facts)
-    effective_preset = llm_preset if llm_preset is not None else regex_preset
-
-    if llm_preset is not None and llm_preset.mode != regex_preset.mode:
-        log.info(
-            "preset_llm_regex_divergence",
-            llm_mode=llm_preset.mode.value,
-            regex_mode=regex_preset.mode.value,
-            llm_reason=llm_preset.reason,
-            regex_reason=regex_preset.reason,
-            llm_modifiers=[m.value for m in llm_preset.modifiers],
-            regex_modifiers=[m.value for m in regex_preset.modifiers],
-        )
+    # Settle the Preset Engine task launched in stage 06. The engine already
+    # arbitrated LLM-vs-regex (timeout, fallback, shadow-run, divergence
+    # telemetry) inside resolve(); what arrives here is the final result.
+    ctx.preset_result = await ctx.preset_task
+    effective_preset = ctx.preset_result.selection
 
     system_prompt, preset = build_adaptive_prompt(
         ctx.deps.settings.system_prompt,
@@ -357,8 +306,8 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         preset=preset.display_label,
         preset_internal=preset.mode.value,
         modifiers=[m.value for m in preset.modifiers],
-        classifier_source=classifier_source,
-        classifier_ms=classifier_ms,
+        classifier_source=ctx.preset_result.classifier_source,
+        classifier_ms=ctx.preset_result.classifier_ms,
         disclosure_severity=ctx.disclosure.severity,
         disclosure_category=ctx.disclosure.category,
         arc_phase=ctx.deps.arc.phase(ctx.arc_state),
@@ -494,13 +443,13 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
     a vulnerable user's relational_probe + overlay was computed and dropped).
 
     We reconstruct ONLY the behavioral layer (not persona/facts, which the
-    runner already has) from the same public builders `build_adaptive_prompt`
-    uses, so the two paths can't drift. Returns "" when there's nothing to
-    add — the runner then behaves exactly as before.
+    runner already has). The preset + vulnerability-overlay fragment arrives
+    pre-rendered from the Preset Engine (`ctx.preset_result.guidance_block`,
+    same core builders `build_adaptive_prompt` uses, so the two paths can't
+    drift); flow + corpus guidance are appended here. Returns "" when
+    there's nothing to add — the runner then behaves exactly as before.
     """
-    parts = [build_preset_prompt(ctx.preset)]
-    if is_vulnerable_overlay_selection(ctx.preset):
-        parts.append(build_vulnerable_overlay_prompt())
+    parts = [ctx.preset_result.guidance_block]
     if ctx.flow_analysis is not None:
         flow_prompt = build_flow_prompt(ctx.flow_analysis)
         if flow_prompt:
@@ -584,7 +533,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     "agent_behavioral_guidance_built",
                     preset=ctx.preset.display_label,
                     modifiers=[m.value for m in ctx.preset.modifiers],
-                    vulnerable_overlay=is_vulnerable_overlay_selection(ctx.preset),
+                    vulnerable_overlay=ctx.preset_result.vulnerable_overlay,
                     guidance_chars=len(guidance),
                 )
             # S2 Knowledge Assembly: bundle the per-turn knowledge fragments

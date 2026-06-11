@@ -20,13 +20,27 @@ Design plan: ``.claude/plans/s2_s5_domain_facets_multipr.md``.
 
 from __future__ import annotations
 
+import asyncio
+import time
+from typing import TYPE_CHECKING, Any
+
 import structlog
 
 from insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from insult.core.deep_memory import build_film_references_block, build_user_memory_block
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
+from insult.core.presets import (
+    build_preset_prompt,
+    build_vulnerable_overlay_prompt,
+    classify_preset,
+    is_vulnerable_overlay_selection,
+)
+from insult.core.presets_llm import classify_preset_llm
 from insult.core.stance_log import StanceExtraction, build_stance_prompt, extract_stances
 from shared.corpus import detect_film_topic
+
+if TYPE_CHECKING:
+    from insult.cogs.chat.capability_ports import PresetEngineResult
 
 log = structlog.get_logger()
 
@@ -85,6 +99,94 @@ class _CoreFactsAdapter:
         return merge_facts_additive
 
 
+class _CorePresetEngineAdapter:
+    """Adapts the preset classification stack (``insult.core.presets`` +
+    ``insult.core.presets_llm``) to the ``PresetEnginePort`` Protocol.
+
+    NOT a stateless singleton like the other adapters: it is constructed at
+    the composition root WITH its runtime deps (the judge client and the
+    settings handle), because the LLM strategy needs both and neither exists
+    at import time. The flag/model/timeout are read per-call (parity with
+    the inline implementation: a settings change needs no rewire).
+
+    Encapsulates the dual-strategy arbitration the pipeline must not see:
+    LLM attempt (timeout + cancel) → regex fallback, permanent regex
+    shadow-run, divergence telemetry — same event names as the inline
+    stage-08 block this replaces (``preset_llm_timeout_fallback``,
+    ``preset_llm_task_failed_fallback``, ``preset_llm_regex_divergence``).
+    """
+
+    def __init__(self, judge_client: Any, settings: Any) -> None:
+        self._judge = judge_client
+        self._settings = settings
+
+    async def resolve(self, text: str, recent: list[dict], user_facts: list[dict]) -> PresetEngineResult:
+        # Deferred import: a module-level `from insult.cogs.chat...` here is
+        # circular — importing any insult.cogs.chat submodule runs the cogs
+        # package __init__, which imports cog.py, which imports THIS module.
+        # By first resolve() call every package is fully initialized.
+        from insult.cogs.chat.capability_ports import PresetEngineResult
+
+        llm_preset = None
+        classifier_source = "regex"
+        classifier_ms = 0
+        if getattr(self._settings, "preset_classifier_llm_enabled", False) and self._judge is not None:
+            classifier_start = time.monotonic()
+            timeout_s = float(getattr(self._settings, "preset_classifier_timeout_ms", 1500)) / 1000.0
+            task = asyncio.create_task(
+                classify_preset_llm(
+                    text,
+                    recent,
+                    user_facts,
+                    self._judge,
+                    model=getattr(self._settings, "preset_classifier_model", "claude-haiku-4-5-20251001"),
+                )
+            )
+            try:
+                llm_preset = await asyncio.wait_for(task, timeout=timeout_s)
+            except TimeoutError:
+                task.cancel()
+                log.warning("preset_llm_timeout_fallback", timeout_s=timeout_s)
+                llm_preset = None
+            except Exception:
+                log.exception("preset_llm_task_failed_fallback")
+                llm_preset = None
+            classifier_ms = int((time.monotonic() - classifier_start) * 1000)
+            if llm_preset is not None:
+                classifier_source = "llm"
+
+        # Shadow-run the regex classifier ALWAYS so we can detect LLM/regex
+        # divergence (F5 hybrid recommendation). Cost is ~0.1ms vs the Haiku
+        # 300ms — trivial. The regex is also the fallback when llm_preset is
+        # None. Pure regex, no I/O: if THIS raises it is a code bug and it
+        # propagates loud (same behavior as the inline version).
+        regex_preset = classify_preset(text, recent, user_facts)
+        selection = llm_preset if llm_preset is not None else regex_preset
+
+        if llm_preset is not None and llm_preset.mode != regex_preset.mode:
+            log.info(
+                "preset_llm_regex_divergence",
+                llm_mode=llm_preset.mode.value,
+                regex_mode=regex_preset.mode.value,
+                llm_reason=llm_preset.reason,
+                regex_reason=regex_preset.reason,
+                llm_modifiers=[m.value for m in llm_preset.modifiers],
+                regex_modifiers=[m.value for m in regex_preset.modifiers],
+            )
+
+        overlay = is_vulnerable_overlay_selection(selection)
+        parts = [build_preset_prompt(selection)]
+        if overlay:
+            parts.append(build_vulnerable_overlay_prompt())
+        return PresetEngineResult(
+            selection=selection,
+            classifier_source=classifier_source,
+            classifier_ms=classifier_ms,
+            vulnerable_overlay=overlay,
+            guidance_block="\n\n".join(p for p in parts if p),
+        )
+
+
 class _CoreRetrievalAdapter:
     """Adapts ``insult.core.deep_memory`` to the ``RetrievalPort`` Protocol.
 
@@ -139,3 +241,12 @@ def default_stance_port() -> _CoreStanceAdapter:
 def default_retrieval_port() -> _CoreRetrievalAdapter:
     """Return the process-wide RetrievalPort adapter for the turn pipeline."""
     return _RETRIEVAL_PORT
+
+
+def build_preset_engine_port(judge_client: Any, settings: Any) -> _CorePresetEngineAdapter:
+    """Build the PresetEnginePort adapter with its runtime deps.
+
+    Unlike the stateless ``default_*`` singletons, this one closes over the
+    judge client and the settings handle — call it once where they are born
+    (the cog wires the Container's handles at construction time)."""
+    return _CorePresetEngineAdapter(judge_client, settings)
