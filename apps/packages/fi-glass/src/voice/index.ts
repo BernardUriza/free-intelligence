@@ -63,3 +63,42 @@ export {
 export { useRecorder } from './useRecorder';
 export { useAudioAnalysis } from './useAudioAnalysis';
 export { makeRecorder } from './makeRecorder';
+
+// B3-VOICE-FIGLASS-9: durable local audio capture queue.
+// Separates capture (useDurableRecording) from transcription (useAudioQueue).
+// Audio persists in IndexedDB until transcribed or explicitly deleted.
+export {
+  type AudioArtifact,
+  type StoredAudioArtifact,
+  type AudioArtifactState,
+  type AudioQueuePolicy,
+  AUDIO_QUEUE_DEFAULTS,
+  makeArtifactId,
+  isPending,
+  isTerminal,
+  artifactLabel,
+  formatArtifactSize,
+  formatArtifactDuration,
+} from './audioArtifact';
+export {
+  AudioQueueStore,
+  type AudioQueueStoreOptions,
+} from './AudioQueueStore';
+export {
+  useDurableRecording,
+  type UseDurableRecordingOptions,
+  type UseDurableRecordingReturn,
+} from './useDurableRecording';
+export {
+  useAudioQueue,
+  type UseAudioQueueOptions,
+  type UseAudioQueueReturn,
+} from './useAudioQueue';
+export {
+  AudioQueuePanel,
+  type AudioQueuePanelProps,
+} from './AudioQueuePanel';
+export {
+  AudioQueueItem,
+  type AudioQueueItemProps,
+} from './AudioQueueItem';
