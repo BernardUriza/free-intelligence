@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 import structlog
 
 from insult.core.patterns import COMMON_STOPWORDS
+from insult.core.prompts_loader import load_prompt
 
 log = structlog.get_logger()
 
@@ -211,7 +212,7 @@ def build_stance_prompt(stances: list[dict]) -> str:
     )
     selected = sorted_stances[:_MAX_STANCES_IN_PROMPT]
 
-    lines = ["## Your Prior Positions (maintain consistency \u2014 if you change your mind, acknowledge the shift)"]
+    lines = [load_prompt("stance_prior_positions_header")]
     for s in selected:
         topic = s.get("topic", "unknown")
         position = s.get("position", "")
