@@ -13,7 +13,7 @@
  * or to drop voice (there is none to drop here).
  */
 
-import { type CSSProperties, type KeyboardEvent } from 'react';
+import { type CSSProperties, type KeyboardEvent, type Ref } from 'react';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 export interface ComposerProps {
@@ -37,6 +37,12 @@ export interface ComposerProps {
   wrapperStyle?: CSSProperties;
   /** Class for the <textarea> itself */
   textareaClassName?: string;
+  /**
+   * Typed ref to the inner <textarea> (B3-FIGLASS-10) so the owner can manage
+   * focus (e.g. refocus after dictation/send/stream) without touching DOM
+   * internals.
+   */
+  textareaRef?: Ref<HTMLTextAreaElement>;
 }
 
 export function Composer({
@@ -50,6 +56,7 @@ export function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  textareaRef,
 }: ComposerProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -61,6 +68,7 @@ export function Composer({
   return (
     <div className={areaClassName}>
       <AutoResizeTextarea
+        ref={textareaRef}
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
         onKeyDown={handleKeyDown}

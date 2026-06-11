@@ -264,12 +264,14 @@ function MessageList({
 
 // src/composer/AutoResizeTextarea.tsx
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState as useState2
 } from "react";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
-function AutoResizeTextarea({
+var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   value,
   onChange,
   maxRows = 5,
@@ -279,8 +281,9 @@ function AutoResizeTextarea({
   wrapperStyle,
   className = "",
   ...props
-}) {
+}, ref) {
   const textareaRef = useRef(null);
+  useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState2(1);
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -320,7 +323,7 @@ function AutoResizeTextarea({
       maxLength
     ] })
   ] });
-}
+});
 
 // src/composer/Composer.tsx
 import { jsx as jsx6 } from "react/jsx-runtime";
@@ -334,7 +337,8 @@ function Composer({
   areaClassName,
   wrapperClassName,
   wrapperStyle,
-  textareaClassName
+  textareaClassName,
+  textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -345,6 +349,7 @@ function Composer({
   return /* @__PURE__ */ jsx6("div", { className: areaClassName, children: /* @__PURE__ */ jsx6(
     AutoResizeTextarea,
     {
+      ref: textareaRef,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
@@ -360,7 +365,7 @@ function Composer({
 }
 
 // src/voice/recording/RecordingButton.tsx
-import { forwardRef } from "react";
+import { forwardRef as forwardRef2 } from "react";
 import { Loader2 } from "lucide-react";
 
 // src/voice/recording/types.ts
@@ -446,7 +451,7 @@ var STATUS_TEXT_EN = {
 
 // src/voice/recording/RecordingButton.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
-var RecordingButton = forwardRef(
+var RecordingButton = forwardRef2(
   function RecordingButton2({
     size = "md",
     bgColor,

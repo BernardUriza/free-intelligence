@@ -502,17 +502,19 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useRef as useRef6, useState as useState9 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect8, useRef as useRef6, useState as useState9 } from "react";
 import { Send, Loader2 as Loader27 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
+  forwardRef,
   useEffect as useEffect3,
+  useImperativeHandle,
   useRef as useRef2,
   useState as useState3
 } from "react";
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-function AutoResizeTextarea({
+var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   value,
   onChange,
   maxRows = 5,
@@ -522,8 +524,9 @@ function AutoResizeTextarea({
   wrapperStyle,
   className = "",
   ...props
-}) {
+}, ref) {
   const textareaRef = useRef2(null);
+  useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState3(1);
   useEffect3(() => {
     if (!textareaRef.current) return;
@@ -563,7 +566,7 @@ function AutoResizeTextarea({
       maxLength
     ] })
   ] });
-}
+});
 
 // src/composer/Composer.tsx
 import { jsx as jsx6 } from "react/jsx-runtime";
@@ -577,7 +580,8 @@ function Composer({
   areaClassName,
   wrapperClassName,
   wrapperStyle,
-  textareaClassName
+  textareaClassName,
+  textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -588,6 +592,7 @@ function Composer({
   return /* @__PURE__ */ jsx6("div", { className: areaClassName, children: /* @__PURE__ */ jsx6(
     AutoResizeTextarea,
     {
+      ref: textareaRef,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
@@ -835,7 +840,7 @@ var MessageBubble = memo3(function MessageBubble2({
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingButton.tsx
-import { forwardRef } from "react";
+import { forwardRef as forwardRef2 } from "react";
 import { Loader2 } from "lucide-react";
 
 // src/voice/recording/types.ts
@@ -864,7 +869,7 @@ var BUTTON_SIZES = {
 
 // src/voice/recording/RecordingButton.tsx
 import { jsx as jsx11 } from "react/jsx-runtime";
-var RecordingButton = forwardRef(
+var RecordingButton = forwardRef2(
   function RecordingButton2({
     size = "md",
     bgColor,
@@ -1502,6 +1507,15 @@ function AgentConversationSurface({
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState9("");
+  const inputRef = useRef6(null);
+  const refocusComposer = useCallback6(() => {
+    const el = inputRef.current;
+    if (!el || el.disabled) return;
+    const active = document.activeElement;
+    const isOtherTextEntry = active instanceof HTMLElement && active !== el && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+    if (isOtherTextEntry) return;
+    el.focus();
+  }, []);
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
   const baseInputRef = useRef6("");
   const dictation = useDictation(voiceAdapter, {
@@ -1515,6 +1529,16 @@ function AgentConversationSurface({
     baseInputRef.current = input;
     void dictation.startRecording();
   };
+  const wasStreaming = useRef6(false);
+  useEffect8(() => {
+    if (wasStreaming.current && !isStreaming) refocusComposer();
+    wasStreaming.current = isStreaming;
+  }, [isStreaming, refocusComposer]);
+  const wasTranscribing = useRef6(false);
+  useEffect8(() => {
+    if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
+    wasTranscribing.current = dictation.isTranscribing;
+  }, [dictation.isTranscribing, refocusComposer]);
   const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
   const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
   const hasThread = messages.length > 0 || isStreaming;
@@ -1643,7 +1667,8 @@ function AgentConversationSurface({
             onSend,
             areaClassName: composerAreaClassName,
             textareaClassName: composerTextareaClassName,
-            wrapperStyle: { flex: "1 1 0%", minWidth: 0 }
+            wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+            textareaRef: inputRef
           }
         ) }),
         micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
