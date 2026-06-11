@@ -223,6 +223,10 @@ export function Og118AgentChat() {
           conversation={{ ...conversation, newConversation: lib.newConversation }}
           composerPlaceholder="Pregúntale a og118 (verás su plan en vivo)…"
           newChatLabel="Nuevo chat"
+          // The sidebar's "+ Nuevo chat" is the single new-chat CTA (B3-OG118-5);
+          // the surface's floating button would duplicate it. The sidebar stays
+          // visible on mobile (narrow, not hidden), so no affordance is lost.
+          showNewChatButton={false}
           emptyState={<Og118StartScreen />}
           aboveComposer={
             <>
