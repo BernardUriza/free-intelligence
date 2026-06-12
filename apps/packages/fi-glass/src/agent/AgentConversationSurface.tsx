@@ -344,10 +344,10 @@ export function AgentConversationSurface({
   const canSend = input.trim().length > 0 && !isStreaming;
 
   return (
-    // B3-FIGLASS-15: the ROOT is full-width — the 760px cap lives on INNER
-    // content wrappers (transcript + composer), never on the scroll container,
-    // so the scrollbar renders at the viewport edge like ChatGPT/AURITY /chat
-    // instead of glued to the centered column.
+    // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
+    // gutter) lives on INNER content wrappers (transcript + composer), never on
+    // the scroll container, so the scrollbar renders at the viewport edge like
+    // ChatGPT/AURITY /chat instead of glued to the centered column.
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
       {/* Relative anchor: hosts the scroll area + the floating jump-to-latest
           button, so the button stays glued to the transcript's bottom edge. */}
@@ -358,7 +358,7 @@ export function AgentConversationSurface({
         >
           <div
             ref={autoScroll ? stick.contentRef : undefined}
-            style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}
+            style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}
           >
         {idle ? (
           emptyState
@@ -487,9 +487,9 @@ export function AgentConversationSurface({
       </div>
 
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {/* Composer column shares the transcript's 760px center cap (the
+        {/* Composer column shares the transcript's fluid center cap (the
             section itself spans full width so its top border does too). */}
-        <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
+        <div style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}>
         {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button

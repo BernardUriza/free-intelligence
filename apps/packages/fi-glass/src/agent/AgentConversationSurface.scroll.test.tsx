@@ -2,10 +2,10 @@
  * Tests for the viewport scroll-container contract (B3-FIGLASS-15).
  *
  * The scrollbar must render at the VIEWPORT edge, not glued to the centered
- * column: overflow-y lives on a full-width container, while the 760px center
- * cap lives on INNER content wrappers (transcript + composer column). These
- * SSR assertions pin that structure so the overflow never silently moves back
- * onto a width-capped node.
+ * column: overflow-y lives on a full-width container, while the fluid center
+ * cap (100% minus a 60px gutter) lives on INNER content wrappers (transcript +
+ * composer column). These SSR assertions pin that structure so the overflow
+ * never silently moves back onto a width-capped node.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -45,8 +45,8 @@ describe('<AgentConversationSurface> viewport scroll container (B3-FIGLASS-15)',
     expect(overflowNode).not.toContain('max-width');
   });
 
-  it('caps the transcript and the composer column at 760px via inner wrappers', () => {
-    const caps = html.match(/max-width:760px/g) ?? [];
+  it('caps the transcript and the composer column fluidly via inner wrappers', () => {
+    const caps = html.match(/max-width:calc\(100% - 60px\)/g) ?? [];
     // One for the transcript content wrapper + one for the composer column.
     expect(caps.length).toBe(2);
   });
