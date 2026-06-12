@@ -1781,7 +1781,7 @@ function useDurableRecording(opts) {
     recorderRef.current?.pauseRecording();
     stopTimer();
     pausedElapsedRef.current = Date.now() - startTimeRef.current;
-    updateArtifact({ state: "paused" });
+    updateArtifact({ state: "paused", durationMs: pausedElapsedRef.current });
   }, [stopTimer, updateArtifact]);
   const resumeRecording = useCallback4(() => {
     if (artifactRef.current?.state !== "paused") return;
@@ -2210,31 +2210,9 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState8, useCallback as useCallback7, useEffect as useEffect7 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
-var BAR_HEIGHTS = [
-  0.4,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.8,
-  0.45,
-  1,
-  0.55,
-  0.75,
-  0.5,
-  0.85,
-  0.4,
-  0.65,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.45,
-  0.8
-];
+import { useState as useState8, useEffect as useEffect7 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 function AudioDraftPlayer({
   artifact,
   onGetPlaybackUrl,
@@ -2245,80 +2223,75 @@ function AudioDraftPlayer({
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
-  const [playing, setPlaying] = useState8(false);
-  const [audioEl, setAudioEl] = useState8(null);
-  useEffect7(() => {
-    return () => {
-      audioEl?.pause();
-    };
-  }, [audioEl]);
-  const handlePlay = useCallback7(async () => {
-    if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
-      setPlaying(false);
-      return;
-    }
-    const el = new Audio();
-    const url = await onGetPlaybackUrl(artifact.id);
-    if (!url) return;
-    el.src = url;
-    setAudioEl(el);
-    setPlaying(true);
-    const cleanup = () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    };
-    el.addEventListener("ended", cleanup, { once: true });
-    el.addEventListener("error", cleanup, { once: true });
-    el.play().catch(() => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
-  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
+  const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
+  const [playbackUrl, setPlaybackUrl] = useState8(null);
+  useEffect7(() => {
+    if (!onGetPlaybackUrl || !hasBlob) {
+      setPlaybackUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let url = null;
+    void onGetPlaybackUrl(artifact.id).then((resolved) => {
+      if (cancelled) {
+        if (resolved) URL.revokeObjectURL(resolved);
+        return;
+      }
+      url = resolved;
+      setPlaybackUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setPlaybackUrl(null);
+    };
+  }, [artifact.id, hasBlob, onGetPlaybackUrl]);
   return /* @__PURE__ */ jsxs9(
     "div",
     {
-      className: `fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`,
+      className: `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
       role: "group",
       "aria-label": "Audio grabado",
       children: [
-        /* @__PURE__ */ jsx13(
-          "button",
-          {
-            type: "button",
-            onClick: handlePlay,
-            disabled: !canPlay,
-            "aria-label": isPaused ? "Grabaci\xF3n en pausa" : playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
-            className: "fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
-            children: isSaving || isBusy ? /* @__PURE__ */ jsx13(Loader210, { className: "w-5 h-5 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx13(CirclePause, { className: "w-5 h-5 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx13(Pause3, { className: "w-5 h-5 text-white/90" }) : /* @__PURE__ */ jsx13(Play5, { className: "w-5 h-5 text-white/90 ml-0.5" })
-          }
-        ),
-        /* @__PURE__ */ jsxs9("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsx13("div", { className: "flex items-end gap-[3px] h-8", "aria-hidden": "true", children: BAR_HEIGHTS.map((h, i) => /* @__PURE__ */ jsx13(
-            "span",
-            {
-              className: `flex-1 rounded-full transition-colors duration-150 ${playing ? "bg-emerald-400/80" : isPaused ? "bg-yellow-400/50" : "bg-white/40"}`,
-              style: { height: `${Math.round(h * 100)}%` }
-            },
-            i
-          )) }),
-          /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-1.5 mt-1.5 text-xs text-white/50", children: [
-            /* @__PURE__ */ jsx13("span", { className: "tabular-nums", children: formatArtifactDuration(artifact.durationMs) }),
-            artifact.size > 0 && /* @__PURE__ */ jsxs9(Fragment2, { children: [
-              /* @__PURE__ */ jsx13("span", { className: "text-white/20", children: "\xB7" }),
-              /* @__PURE__ */ jsx13("span", { children: formatArtifactSize(artifact.size) })
-            ] }),
-            isPaused && /* @__PURE__ */ jsx13("span", { className: "text-yellow-400/70 font-medium", children: "En pausa" }),
-            isSaving && /* @__PURE__ */ jsx13("span", { className: "text-amber-400/70", children: "Guardando\u2026" }),
-            isBusy && /* @__PURE__ */ jsx13("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" }),
-            isFailed && artifact.errorMessage && /* @__PURE__ */ jsx13("span", { className: "text-red-400/70 truncate", children: artifact.errorMessage })
+        isPaused ? (
+          // Paused recording: no blob exists yet (RecordRTC only yields it on
+          // stop), so there is nothing to play — show an honest status instead
+          // of a dead control: pulsing dot + recorded-so-far time.
+          /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx13(
+              "span",
+              {
+                className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
+                "aria-hidden": "true"
+              }
+            ),
+            /* @__PURE__ */ jsx13("span", { className: "text-sm tabular-nums text-white/80", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx13("span", { className: "text-xs font-medium text-amber-300/80", children: "Grabaci\xF3n en pausa" })
           ] })
+        ) : /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsx13(
+            RichAudioPlayer,
+            {
+              source: playbackUrl ? { url: playbackUrl } : null,
+              className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
+              buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
+              iconClassName: "w-4 h-4",
+              progressClassName: "flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+            }
+          ),
+          /* @__PURE__ */ jsxs9("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
+            artifact.size > 0 && /* @__PURE__ */ jsx13("span", { children: formatArtifactSize(artifact.size) }),
+            isSaving && /* @__PURE__ */ jsxs9("span", { className: "inline-flex items-center gap-1 text-amber-400/70", children: [
+              /* @__PURE__ */ jsx13(Loader210, { className: "w-3.5 h-3.5 animate-spin", "aria-hidden": true }),
+              "Guardando\u2026"
+            ] }),
+            isBusy && /* @__PURE__ */ jsx13("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" })
+          ] }),
+          isFailed && artifact.errorMessage && /* @__PURE__ */ jsx13("span", { role: "alert", className: "text-xs text-red-400/80 truncate shrink min-w-0", children: artifact.errorMessage })
         ] }),
         /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-1 shrink-0", children: [
           onDiscard && !isBusy && /* @__PURE__ */ jsx13(
@@ -2337,7 +2310,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95",
+              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95",
               children: [
                 /* @__PURE__ */ jsx13(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"

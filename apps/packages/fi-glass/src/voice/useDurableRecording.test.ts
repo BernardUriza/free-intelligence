@@ -213,6 +213,19 @@ describe('useDurableRecording — pause / resume', () => {
 
     expect(result.current.artifact?.state).toBe('recording');
   });
+
+  it('pause persists the elapsed durationMs on the artifact (B3-VOICE-FIGLASS-17)', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    act(() => { result.current.pauseRecording(); });
+
+    // The paused draft must carry the recorded-so-far time so the UI can show
+    // a real duration instead of "--:--" (it used to be written only on stop).
+    expect(result.current.artifact?.durationMs).toBeTypeOf('number');
+    expect(result.current.artifact?.durationMs).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('useDurableRecording — cancel', () => {

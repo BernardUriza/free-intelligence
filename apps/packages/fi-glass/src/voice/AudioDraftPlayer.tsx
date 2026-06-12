@@ -1,6 +1,7 @@
 'use client';
 
 // B3-VOICE-FIGLASS-10 — Inline audio draft player.
+// B3-VOICE-FIGLASS-17 — The draft plays through the SAME primitive as TTS.
 //
 // When a recording stops, the freshly-saved artifact becomes a DRAFT shown
 // inline in the composer (the WhatsApp pattern: record -> stop -> preview),
@@ -12,16 +13,25 @@
 // WhatsApp sends audio AS a message while og118 transcribes it — the component
 // never assumes the verb. The consumer wires the callbacks; the AudioQueuePanel
 // stays for the extended backlog of older/failed artifacts.
+//
+// The og118 daily-driver audit (DD-VOICE-LOOP-COMPLETE) killed the home-grown
+// mini-player: static decorative bars stretched edge-to-edge under the fluid
+// column cap, the paused state showed a dead disabled pseudo-play button, and
+// the duration read "--:--". Playback is now RichAudioPlayer — the exact
+// primitive TTS uses (skip ±10s, scrubber, mm:ss readout) — and the paused
+// state is an honest indicator (pulsing dot + recorded time + Resume), because
+// RecordRTC cannot hand out a partial blob mid-recording.
 
-import { useState, useCallback, useEffect } from 'react';
-import { Play, Pause, Trash2, Loader2, RotateCcw, ArrowUp, CirclePause } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Play, Trash2, Loader2, RotateCcw, ArrowUp } from 'lucide-react';
 import type { AudioArtifact } from './audioArtifact';
 import { formatArtifactDuration, formatArtifactSize } from './audioArtifact';
+import { RichAudioPlayer } from './RichAudioPlayer';
 
 export interface AudioDraftPlayerProps {
   /** The draft artifact (the just-recorded, not-yet-acted-on audio). */
   artifact: AudioArtifact;
-  /** Resolve a playback object URL for the artifact (caller revokes). */
+  /** Resolve a playback object URL for the artifact (revoked here on unmount). */
   onGetPlaybackUrl?: (id: string) => Promise<string | null>;
   /** Primary action — transcribe / send / use the draft. */
   onPrimary?: (id: string) => void;
@@ -37,14 +47,6 @@ export interface AudioDraftPlayerProps {
   className?: string;
 }
 
-// Static decorative bars — the durable queue stores no per-sample waveform, so
-// these are a fixed visual motif (not real amplitudes). Deterministic heights
-// keep the SSR/CSR markup identical (no Math.random at module/render time).
-const BAR_HEIGHTS = [
-  0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.45, 1.0, 0.55, 0.75,
-  0.5, 0.85, 0.4, 0.65, 0.7, 0.5, 0.9, 0.6, 0.45, 0.8,
-];
-
 export function AudioDraftPlayer({
   artifact,
   onGetPlaybackUrl,
@@ -55,115 +57,88 @@ export function AudioDraftPlayer({
   primaryActionLabel = 'Transcribir',
   className = '',
 }: AudioDraftPlayerProps) {
-  const [playing, setPlaying] = useState(false);
-  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
-
-  // Stop playback if the artifact transitions out of a playable state.
-  useEffect(() => {
-    return () => {
-      audioEl?.pause();
-    };
-  }, [audioEl]);
-
-  const handlePlay = useCallback(async () => {
-    if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
-      setPlaying(false);
-      return;
-    }
-    // Create the element synchronously within the user-gesture task so browsers
-    // with strict autoplay policies allow play() even after the await below.
-    const el = new Audio();
-    const url = await onGetPlaybackUrl(artifact.id);
-    if (!url) return;
-    el.src = url;
-    setAudioEl(el);
-    setPlaying(true);
-    const cleanup = () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    };
-    el.addEventListener('ended', cleanup, { once: true });
-    el.addEventListener('error', cleanup, { once: true });
-    el.play().catch(() => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
-
   const isPaused = artifact.state === 'paused';
   const isSaving = artifact.state === 'stopping';
   const isBusy =
     artifact.state === 'transcribing' || artifact.state === 'uploading';
   const isFailed = artifact.state === 'failed';
-  const canPlay =
-    !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
+  const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
+
+  // Resolve the playback URL once per artifact and feed it to RichAudioPlayer
+  // as its source; the object URL is revoked when the draft unmounts or the
+  // artifact changes (the player engine releases its element on source swap).
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!onGetPlaybackUrl || !hasBlob) {
+      setPlaybackUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let url: string | null = null;
+    void onGetPlaybackUrl(artifact.id).then((resolved) => {
+      if (cancelled) {
+        if (resolved) URL.revokeObjectURL(resolved);
+        return;
+      }
+      url = resolved;
+      setPlaybackUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setPlaybackUrl(null);
+    };
+  }, [artifact.id, hasBlob, onGetPlaybackUrl]);
 
   return (
     <div
-      className={`fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`}
+      className={`fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`}
       role="group"
       aria-label="Audio grabado"
     >
-      {/* Play / saving / busy / paused indicator */}
-      <button
-        type="button"
-        onClick={handlePlay}
-        disabled={!canPlay}
-        aria-label={
-          isPaused
-            ? 'Grabación en pausa'
-            : playing
-            ? 'Pausar reproducción'
-            : 'Reproducir grabación'
-        }
-        className="fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-      >
-        {isSaving || isBusy ? (
-          <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-        ) : isPaused ? (
-          <CirclePause className="w-5 h-5 text-yellow-400" />
-        ) : playing ? (
-          <Pause className="w-5 h-5 text-white/90" />
-        ) : (
-          <Play className="w-5 h-5 text-white/90 ml-0.5" />
-        )}
-      </button>
-
-      {/* Waveform bars + meta */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-end gap-[3px] h-8" aria-hidden="true">
-          {BAR_HEIGHTS.map((h, i) => (
-            <span
-              key={i}
-              className={`flex-1 rounded-full transition-colors duration-150 ${
-                playing
-                  ? 'bg-emerald-400/80'
-                  : isPaused
-                  ? 'bg-yellow-400/50'
-                  : 'bg-white/40'
-              }`}
-              style={{ height: `${Math.round(h * 100)}%` }}
-            />
-          ))}
+      {isPaused ? (
+        // Paused recording: no blob exists yet (RecordRTC only yields it on
+        // stop), so there is nothing to play — show an honest status instead
+        // of a dead control: pulsing dot + recorded-so-far time.
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <span
+            className="fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"
+            aria-hidden="true"
+          />
+          <span className="text-sm tabular-nums text-white/80">
+            {formatArtifactDuration(artifact.durationMs)}
+          </span>
+          <span className="text-xs font-medium text-amber-300/80">
+            Grabación en pausa
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-white/50">
-          <span className="tabular-nums">{formatArtifactDuration(artifact.durationMs)}</span>
-          {artifact.size > 0 && (
-            <>
-              <span className="text-white/20">·</span>
-              <span>{formatArtifactSize(artifact.size)}</span>
-            </>
-          )}
-          {isPaused && <span className="text-yellow-400/70 font-medium">En pausa</span>}
-          {isSaving && <span className="text-amber-400/70">Guardando…</span>}
-          {isBusy && <span className="text-blue-400/70">Transcribiendo…</span>}
+      ) : (
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Playback through the SAME primitive the TTS player uses. */}
+          <RichAudioPlayer
+            source={playbackUrl ? { url: playbackUrl } : null}
+            className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
+            buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+            iconClassName="w-4 h-4"
+            progressClassName="flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <div className="hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45">
+            {artifact.size > 0 && <span>{formatArtifactSize(artifact.size)}</span>}
+            {isSaving && (
+              <span className="inline-flex items-center gap-1 text-amber-400/70">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                Guardando…
+              </span>
+            )}
+            {isBusy && <span className="text-blue-400/70">Transcribiendo…</span>}
+          </div>
           {isFailed && artifact.errorMessage && (
-            <span className="text-red-400/70 truncate">{artifact.errorMessage}</span>
+            <span role="alert" className="text-xs text-red-400/80 truncate shrink min-w-0">
+              {artifact.errorMessage}
+            </span>
           )}
         </div>
-      </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0">
@@ -182,7 +157,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={onResume}
             aria-label="Reanudar grabación"
-            className="fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95"
+            className="fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95"
           >
             <Play className="w-3.5 h-3.5 ml-0.5" />
             Reanudar

@@ -747,7 +747,7 @@ declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onG
 interface AudioDraftPlayerProps {
     /** The draft artifact (the just-recorded, not-yet-acted-on audio). */
     artifact: AudioArtifact;
-    /** Resolve a playback object URL for the artifact (caller revokes). */
+    /** Resolve a playback object URL for the artifact (revoked here on unmount). */
     onGetPlaybackUrl?: (id: string) => Promise<string | null>;
     /** Primary action — transcribe / send / use the draft. */
     onPrimary?: (id: string) => void;

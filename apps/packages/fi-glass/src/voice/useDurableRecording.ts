@@ -220,7 +220,10 @@ export function useDurableRecording(
     recorderRef.current?.pauseRecording();
     stopTimer();
     pausedElapsedRef.current = Date.now() - startTimeRef.current;
-    updateArtifact({ state: 'paused' });
+    // B3-VOICE-FIGLASS-17: persist the elapsed time on the artifact so the
+    // paused draft shows the real recorded duration instead of "--:--"
+    // (durationMs used to be written only on stop).
+    updateArtifact({ state: 'paused', durationMs: pausedElapsedRef.current });
   }, [stopTimer, updateArtifact]);
 
   const resumeRecording = useCallback(() => {
