@@ -61,7 +61,7 @@ class AliceSettings(BaseSettings):
     )
 
     # --- REST /invite endpoint ---
-    invite_host: str = Field(default="0.0.0.0")  # noqa: S104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
+    invite_host: str = Field(default="0.0.0.0")  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
     invite_port: int = Field(default=8788)
     insult_to_alice_token: str = Field(
         default="",
