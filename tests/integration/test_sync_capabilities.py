@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS = ROOT / "scripts"
 
 # Importing the script as a module requires scripts/ on sys.path.

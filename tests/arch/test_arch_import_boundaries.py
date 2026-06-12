@@ -22,7 +22,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Host-facing modules: the lightweight Discord plumbing (demux-to-be). Globs
 # ending in /** expand to every .py beneath. Only existing files are tested.

@@ -20,7 +20,7 @@ import pytest
 
 from personas.insult.composition import default_output_mutation_port
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 pytestmark = pytest.mark.asyncio

@@ -14,7 +14,7 @@ from pathlib import Path
 from personas.insult.composition import default_facts_port
 from personas.insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 

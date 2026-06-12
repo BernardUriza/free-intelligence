@@ -20,7 +20,7 @@ from pathlib import Path
 from personas.insult.composition import build_s1b_policy_port
 from personas.insult.core.contracts.history import ExpressionHistory
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 # The ONLY character symbols stages may still import — the post-LLM S4

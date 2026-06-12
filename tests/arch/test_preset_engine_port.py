@@ -21,7 +21,7 @@ from pathlib import Path
 from personas.insult.composition import build_preset_engine_port
 from personas.insult.core.presets import PresetMode, PresetSelection, build_preset_prompt
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 _SEL_LLM = PresetSelection(mode=PresetMode.INTELLECTUAL_PRESSURE, reason="llm_pick")

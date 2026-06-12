@@ -15,7 +15,7 @@ from pathlib import Path
 from personas.insult.composition import default_arc_port
 from personas.insult.core.arc_tracker import ArcState, arc_to_dict, build_arc_prompt, update_arc
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 
