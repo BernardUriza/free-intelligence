@@ -93,3 +93,25 @@ export async function getWorkflowHistory(
   if (!res.ok) throw new Error(`/history returned ${res.status}`);
   return res.json();
 }
+
+// ── SSE audit stream ────────────────────────────────────────────────
+
+export interface WorkflowStreamEvent {
+  event_type?: string;
+  agent?: string;
+  summary?: string;
+  handoff_ref?: string | null;
+  occurred_at?: string;
+  run_id?: string;
+  data?: unknown;
+}
+
+export function getWorkflowEventsUrl(runId: string, base: string = API_BASE): string {
+  return `${base}/workflow/${runId}/events`;
+}
+
+// The terminal sentinel the backend appends after the run settles. Casing
+// and shape are matched leniently — do not assume one serialization.
+export function isStreamEnd(event: unknown): boolean {
+  return JSON.stringify(event).toLowerCase().includes('stream_end');
+}

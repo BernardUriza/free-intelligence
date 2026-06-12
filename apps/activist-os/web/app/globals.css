@@ -46,6 +46,11 @@ body {
     radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--fi-accent), transparent 92%), transparent 70%);
 }
 
+#synapse {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none; opacity: .9;
+}
+
 .fi-glass-panel {
   background: var(--fi-surface);
   border: 1px solid var(--fi-border);

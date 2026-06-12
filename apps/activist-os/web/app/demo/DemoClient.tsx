@@ -1,18 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   API_BASE,
+  getWorkflowEventsUrl,
   getWorkflowHistory,
+  isStreamEnd,
   startWorkflow,
   type Handoff,
   type WorkflowHistory,
+  type WorkflowStreamEvent,
 } from '@/lib/activist-api';
 import { SourceBadge, TransportBadge, type SourceState } from '@/components/demo/StatusBadge';
 import { CoordinationHistory } from '@/components/demo/CoordinationHistory';
 import { SafetyGateCard } from '@/components/demo/SafetyGateCard';
 import { CampaignPacketCard } from '@/components/demo/CampaignPacketCard';
+import { LiveEventLog } from '@/components/demo/LiveEventLog';
 
 // Reproducible mock — hand-written demo copy lives ONLY here, behind the
 // MOCK FALLBACK badge. The live API derives artifacts from real payloads.
@@ -80,6 +84,25 @@ function msgClass(h: Handoff): string {
   );
 }
 
+// Derive a provisional handoff entry from a streamed handoff_sent audit event.
+// The summary format is "{from} → {to}: {type}". Parsed leniently — the final
+// render always comes from /history, this only feeds the live timeline.
+function handoffFromEvent(e: WorkflowStreamEvent, index: number): Handoff | null {
+  if ((e.event_type ?? '').toLowerCase() !== 'handoff_sent') return null;
+  const m = /([\w.]+)\s*(?:→|->)\s*([\w.]+)\s*:\s*([\w.]+)/.exec(e.summary ?? '');
+  if (!m) return null;
+  const clean = (s: string) => s.split('.').pop()!.toLowerCase();
+  return {
+    index,
+    from_agent: clean(m[1]),
+    to_agent: clean(m[2]),
+    type: clean(m[3]),
+    virtual: false,
+    band_room_id: null,
+    band_message_id: null,
+  };
+}
+
 function ConversationSurface({ handoffs, roomId }: { handoffs: Handoff[]; roomId: string | null }) {
   return (
     <section className="fi-glass-panel p-4 space-y-2.5">
@@ -127,10 +150,10 @@ export default function DemoClient() {
   const urlRunId = searchParams.get('run_id');
   const apiBase = searchParams.get('api') || API_BASE;
 
-  const [source, setSource] = useState<SourceState>(urlRunId ? 'STARTING' : 'MOCK FALLBACK');
+  const [source, setSource] = useState<SourceState>(urlRunId ? 'STREAMING' : 'MOCK FALLBACK');
   const [history, setHistory] = useState<WorkflowHistory | null>(urlRunId ? null : MOCK_HISTORY);
   const [sourceLabel, setSourceLabel] = useState(
-    urlRunId ? `loading · ${apiBase}` : 'reproducible mock (pass ?run_id=… for a live run)',
+    urlRunId ? `streaming · ${apiBase}` : 'reproducible mock (pass ?run_id=… for a live run)',
   );
   const [concern, setConcern] = useState(DEFAULT_CONCERN);
   const [startStatus, setStartStatus] = useState(
@@ -140,6 +163,14 @@ export default function DemoClient() {
   // Hide the start panel once a run owns the URL (deep link or just-started run).
   const [activeRunId, setActiveRunId] = useState<string | null>(urlRunId);
   const [errorDetail, setErrorDetail] = useState('');
+  const [liveEvents, setLiveEvents] = useState<WorkflowStreamEvent[]>([]);
+  const [sseNote, setSseNote] = useState('');
+  const esRef = useRef<EventSource | null>(null);
+
+  const closeStream = useCallback(() => {
+    esRef.current?.close();
+    esRef.current = null;
+  }, []);
 
   const showLive = useCallback((data: WorkflowHistory, base: string) => {
     setHistory(data);
@@ -147,22 +178,89 @@ export default function DemoClient() {
     setSourceLabel(`live · ${base}`);
   }, []);
 
-  // Deep link: fetch the run's history. A failed fetch is an ERROR state —
-  // never a silent mock fallback (the run was explicitly requested).
+  const showError = useCallback((base: string, detail: string) => {
+    setSource('ERROR');
+    setSourceLabel(`error · ${base}`);
+    setErrorDetail(detail);
+    setHistory(null);
+  }, []);
+
+  // Final render: one /history fetch after the stream closes (or as fallback).
+  const finalize = useCallback(
+    async (runId: string) => {
+      try {
+        showLive(await getWorkflowHistory(runId, apiBase), apiBase);
+      } catch (err) {
+        showError(apiBase, `Could not fetch run ${runId}: ${String(err)}`);
+      }
+    },
+    [apiBase, showLive, showError],
+  );
+
+  // Polling fallback — current behavior preserved for when SSE fails.
+  const pollFallback = useCallback(
+    async (runId: string) => {
+      setSseNote('Live stream unavailable; using history polling.');
+      let data: WorkflowHistory | null = null;
+      for (let i = 0; i < 16; i++) {
+        try {
+          data = await getWorkflowHistory(runId, apiBase);
+          if (['completed', 'blocked', 'error'].includes(data.status)) break;
+        } catch {
+          // run may not be registered yet
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      if (data) showLive(data, apiBase);
+      else showError(apiBase, `Run ${runId}: stream failed and history never became available.`);
+    },
+    [apiBase, showLive, showError],
+  );
+
+  // SSE-first: replayed events feed the live timeline; stream_end triggers
+  // the final /history render. ERROR only when both SSE and history fail.
+  const openStream = useCallback(
+    (runId: string) => {
+      closeStream();
+      setLiveEvents([]);
+      setSource('STREAMING');
+      setSourceLabel(`streaming · ${apiBase}`);
+      const es = new EventSource(getWorkflowEventsUrl(runId, apiBase));
+      esRef.current = es;
+      let gotEnd = false;
+      es.onmessage = ev => {
+        let parsed: WorkflowStreamEvent;
+        try {
+          parsed = JSON.parse(ev.data);
+        } catch {
+          parsed = { data: ev.data };
+        }
+        if (isStreamEnd(parsed)) {
+          gotEnd = true;
+          es.close();
+          esRef.current = null;
+          void finalize(runId);
+          return;
+        }
+        setLiveEvents(prev => [...prev, parsed]);
+      };
+      es.onerror = () => {
+        es.close();
+        esRef.current = null;
+        if (!gotEnd) void pollFallback(runId);
+      };
+    },
+    [apiBase, closeStream, finalize, pollFallback],
+  );
+
+  // Deep link: stream first; the backend replays a finished run's events and
+  // closes with stream_end, which lands the final /history render.
   useEffect(() => {
     if (!urlRunId) return;
-    let cancelled = false;
-    getWorkflowHistory(urlRunId, apiBase)
-      .then(data => { if (!cancelled) showLive(data, apiBase); })
-      .catch(err => {
-        if (cancelled) return;
-        setSource('ERROR');
-        setSourceLabel(`error · ${apiBase}`);
-        setErrorDetail(`Could not fetch run ${urlRunId}: ${String(err)}`);
-        setHistory(null);
-      });
-    return () => { cancelled = true; };
-  }, [urlRunId, apiBase, showLive]);
+    openStream(urlRunId);
+    return closeStream;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlRunId]);
 
   async function handleStart() {
     setStarting(true);
@@ -174,20 +272,8 @@ export default function DemoClient() {
       url.searchParams.set('run_id', run_id);
       window.history.replaceState(null, '', url);
       setActiveRunId(run_id);
-      // Stub agents finish in milliseconds; poll briefly until the run settles.
-      let data: WorkflowHistory | null = null;
-      for (let i = 0; i < 16; i++) {
-        try {
-          data = await getWorkflowHistory(run_id, apiBase);
-          if (['completed', 'blocked', 'error'].includes(data.status)) break;
-        } catch {
-          // run may not be registered yet
-        }
-        await new Promise(r => setTimeout(r, 500));
-      }
-      if (!data) throw new Error('history never became available');
-      showLive(data, apiBase);
       setStartStatus('');
+      openStream(run_id);
     } catch (err) {
       console.error('workflow start failed:', err);
       setSource('ERROR');
@@ -200,11 +286,12 @@ export default function DemoClient() {
 
   const roomId = history?.handoffs.find(h => h.band_room_id)?.band_room_id ?? null;
   const hasVirtual = history?.handoffs.some(h => h.virtual) ?? false;
+  const liveHandoffs = liveEvents
+    .map((e, i) => handoffFromEvent(e, i))
+    .filter((h): h is Handoff => h !== null);
 
   return (
     <div className="min-h-screen">
-      <div className="fi-shell-bg" />
-
       <header className="max-w-[1500px] mx-auto px-5 pt-6 pb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -215,10 +302,13 @@ export default function DemoClient() {
         <SourceBadge state={source} />
         <span className="fi-badge fi-badge--provenance">PROVENANCE</span>
         {hasVirtual && <span className="fi-badge fi-badge--virtual">VIRTUAL REPORTER</span>}
-        {history && (
+        {(history || activeRunId) && (
           <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>
-            run {history.run_id}
+            run {history?.run_id ?? activeRunId}
           </span>
+        )}
+        {sseNote && (
+          <span className="fi-mono text-xs" style={{ color: 'var(--fi-safety)' }}>{sseNote}</span>
         )}
         <span className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)' }}>
           {sourceLabel}
@@ -266,6 +356,19 @@ export default function DemoClient() {
             </p>
           </div>
         </section>
+      )}
+
+      {source === 'STREAMING' && !history && (
+        <main className="max-w-[1500px] mx-auto px-5 pb-10 grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)_360px] gap-4 items-start">
+          <CoordinationHistory handoffs={liveHandoffs} />
+          <LiveEventLog events={liveEvents} />
+          <section className="fi-glass-panel p-4 space-y-2">
+            <p className="panel-title">Artifacts</p>
+            <p className="text-xs" style={{ color: 'var(--fi-faint)' }}>
+              Derived after the run settles — artifacts render from the final coordination history.
+            </p>
+          </section>
+        </main>
       )}
 
       {history && (
