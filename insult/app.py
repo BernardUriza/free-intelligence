@@ -8,11 +8,12 @@ import discord
 import structlog
 from discord.ext import commands
 
+from insult.composition import create_memory_store
 from insult.config import Settings, settings
 from insult.core.contracts.history import ExpressionHistory
+from insult.core.contracts.memory import MemoryLifecyclePort
 from insult.core.llm.agent_client import AgentRunnerClient
 from insult.core.llm.runner_judge_client import RunnerJudgeClient
-from insult.core.memory import MemoryStore
 from insult.core.routing import OpusBudget
 from insult.core.siesta import SiestaPoller
 
@@ -36,7 +37,7 @@ class Container:
     """
 
     settings: Settings
-    memory: MemoryStore
+    memory: MemoryLifecyclePort
     bot: commands.Bot
     siesta: SiestaPoller
     # Per-bot shared runtime singletons. They are mutated across turns, so
@@ -54,7 +55,7 @@ def create_app() -> Container:
     intents.message_content = True
 
     bot = commands.Bot(command_prefix=settings.command_prefix, intents=intents)
-    memory = MemoryStore(settings.postgres_url.get_secret_value())
+    memory = create_memory_store(settings.postgres_url.get_secret_value())
     siesta = SiestaPoller()
     expression_history = ExpressionHistory()
     opus_budget = OpusBudget(cap=getattr(settings, "opus_24h_cap", 20))

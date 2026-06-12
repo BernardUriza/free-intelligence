@@ -195,9 +195,10 @@ def _violations() -> list[tuple[str, str]]:
 # (a baseline entry no longer present is reported so the ratchet only tightens).
 BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
     {
-        ("insult.__main__", "insult.core.memory"),
-        ("insult.__main__", "insult.core.memory_consolidator"),
-        ("insult.app", "insult.core.memory"),
+        # governance edges closed 2026-06-12 (PR-gov):
+        #   __main__ → memory          — routed via composition.create_memory_store()
+        #   __main__ → memory_consolidator — re-exported from composition
+        #   app      → memory          — routed via composition.create_memory_store()
         ("insult.cogs.chat.voice", "insult.core.transcribe"),
     }
 )

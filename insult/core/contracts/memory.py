@@ -83,3 +83,18 @@ class DebugMemoryPort(Protocol):
         opportunities: dict | None,
         client_version: str | None = None,
     ) -> int: ...
+
+
+@runtime_checkable
+class MemoryLifecyclePort(Protocol):
+    """Lifecycle surface of the memory store visible to the host plumbing layer.
+
+    app.py and bot.py need only open and close the connection pool — all
+    smart-layer reads/writes go through cogs that receive the concrete store
+    by injection.  Keeping this minimal is intentional: the governance goal
+    is to sever the host→insult.core.memory import edge, not to model the
+    full store interface here.
+    """
+
+    async def connect(self) -> None: ...
+    async def close(self) -> None: ...

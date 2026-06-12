@@ -42,11 +42,11 @@ def run():
 @app.command()
 def db_stats():
     """Show memory database statistics."""
+    from insult.composition import create_memory_store
     from insult.config import settings
-    from insult.core.memory import MemoryStore
 
     async def _stats():
-        store = MemoryStore(settings.postgres_url.get_secret_value())
+        store = create_memory_store(settings.postgres_url.get_secret_value())
         await store.connect()
         stats = await store.get_stats()
         await store.close()
@@ -66,13 +66,13 @@ def db_clean(
     """Clean old messages from memory database."""
     import time
 
+    from insult.composition import create_memory_store
     from insult.config import settings
-    from insult.core.memory import MemoryStore
 
     cutoff = time.time() - (before_days * 86400)
 
     async def _clean():
-        store = MemoryStore(settings.postgres_url.get_secret_value())
+        store = create_memory_store(settings.postgres_url.get_secret_value())
         await store.connect()
 
         if dry_run:
@@ -104,19 +104,15 @@ def consolidate_facts(
     gone.
     """
 
+    from insult.composition import consolidate_all_users, consolidate_user_facts, create_memory_store
     from insult.config import settings
-    from insult.core.memory import MemoryStore
-    from insult.core.memory_consolidator import (
-        consolidate_all_users,
-        consolidate_user_facts,
-    )
 
     async def _run():
         # Post-PG migration: no more blob download/upload — the consolidator
         # writes straight to the shared Postgres database. Concurrent runs
         # with the live bot are safe because Postgres handles MVCC; the
         # SQLite single-writer race is gone.
-        store = MemoryStore(settings.postgres_url.get_secret_value())
+        store = create_memory_store(settings.postgres_url.get_secret_value())
         await store.connect()
         # v3.9.82: consolidator delegates LLM execution to the runner's
         # /v1/judge endpoint instead of holding its own Anthropic API

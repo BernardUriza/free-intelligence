@@ -71,6 +71,12 @@ from insult.core.character.prompts import _format_other_people_block
 from insult.core.deep_memory import build_film_references_block, build_user_memory_block
 from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
+from insult.core.memory_consolidator import (
+    consolidate_all_users as consolidate_all_users,
+)
+from insult.core.memory_consolidator import (
+    consolidate_user_facts as consolidate_user_facts,
+)
 from insult.core.presets import (
     build_preset_prompt,
     build_vulnerable_overlay_prompt,
@@ -455,3 +461,28 @@ def build_preset_engine_port(judge_client: Any, settings: Any) -> _CorePresetEng
     judge client and the settings handle — call it once where they are born
     (the cog wires the Container's handles at construction time)."""
     return _CorePresetEngineAdapter(judge_client, settings)
+
+
+# ---------------------------------------------------------------------------
+# Governance bridges — app.py / __main__.py are host-facing and must not
+# import insult.core.memory or insult.core.memory_consolidator directly.
+# This module is the composition root (not host-facing), so it is the ONE
+# sanctioned place to cross that boundary for DI / admin CLI purposes.
+# ---------------------------------------------------------------------------
+
+
+def create_memory_store(postgres_url: str) -> Any:
+    """Construct a MemoryStore without exposing the concrete type to hosts.
+
+    Returns an object satisfying ``MemoryLifecyclePort`` (connect/close).
+    Typed as ``Any`` so host callers (app.py) can hold the reference in a
+    ``MemoryLifecyclePort``-annotated field without importing MemoryStore.
+    """
+    from insult.core.memory import MemoryStore  # pragma: no cover
+
+    return MemoryStore(postgres_url)  # pragma: no cover
+
+
+# consolidate_all_users and consolidate_user_facts are re-exported at the top
+# import block above so __main__.py can reach them via composition without a
+# direct insult.core.memory_consolidator import.
