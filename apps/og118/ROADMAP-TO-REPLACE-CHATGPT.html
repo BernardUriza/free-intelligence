@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#229 mergeados + staging live · FIGLASS-11 smoke automatizado PASS (pendiente audio humano) · B3-FIGLASS-12 (autoscroll + collapse + fade-in) en PR</p>
+  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#231 mergeados + staging live · FIGLASS-12 smoke staging PASS · pendientes: audio humano FIGLASS-11, header/badge en PR #232, page-depth preset en PR #233</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -291,6 +291,10 @@
       <div class="item-body"><div class="item-text done">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
       <div class="item-note">PR #230 merged (3c3a8549) + SWA deployed + smoke staging PASS: pin a 1px al cargar, ScrollToBottomButton aparece al scrollear arriba y regresa con spring, mensaje real de 4.5k chars clampeado a 264px con mask fade + expande con "Mostrar más" (ARIA), fade-in fi-msg-show computado en bubbles, consola limpia. og118 heredó las 3 capabilities sin tocar el consumer. Nits LOW del Gatekeeper (const nombrada + focus-visible ring) en PR #231.</div></div>
       <span class="item-tag">B3-FIGLASS-12</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-FIGLASS-13 — glass-chat page-depth preset: gradiente layered + burbujas glassy + watermark de marca</div>
+      <div class="item-note">El preset venía del chat WIDGET de Aurity, no de la página /chat (deuda confesada en su propio header). Evolucionado en fi-glass: fondo layered (glow radial + barrido navy diagonal, tokens re-tinteables), burbuja user translúcida esmeralda 32% con borde suave + blur (adiós verde WhatsApp), assistant slate suavizado, watermark de marca opcional (fixed, 8%, z -1, imagen del consumer). og118 consume con puros tokens en body.glass-chat + watermark-og118.svg. E2e local PASS. En PR #233, pendiente CI + merge + deploy + visual staging. Excluye el composer-box refactor de la sesión paralela.</div></div>
+      <span class="item-tag">B3-FIGLASS-13</span></label>
   </div>
 
   <!-- DAILY DRIVER -->
