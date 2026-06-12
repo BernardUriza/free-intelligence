@@ -96,7 +96,7 @@ export function AudioDraftPlayer({
 
   return (
     <div
-      className={`fi-audio-draft flex items-center gap-3 p-2.5 rounded-xl bg-white/5 border border-white/10 ${className}`}
+      className={`fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`}
       role="group"
       aria-label="Audio grabado"
     >
@@ -112,41 +112,49 @@ export function AudioDraftPlayer({
             ? 'Pausar reproducción'
             : 'Reproducir grabación'
         }
-        className="fi-audio-draft-play shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
       >
         {isSaving || isBusy ? (
-          <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
         ) : isPaused ? (
-          <CirclePause className="w-4 h-4 text-yellow-400" />
+          <CirclePause className="w-5 h-5 text-yellow-400" />
         ) : playing ? (
-          <Pause className="w-4 h-4 text-white/90" />
+          <Pause className="w-5 h-5 text-white/90" />
         ) : (
-          <Play className="w-4 h-4 text-white/90 ml-0.5" />
+          <Play className="w-5 h-5 text-white/90 ml-0.5" />
         )}
       </button>
 
       {/* Waveform bars + meta */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-[2px] h-6" aria-hidden="true">
+        <div className="flex items-end gap-[3px] h-8" aria-hidden="true">
           {BAR_HEIGHTS.map((h, i) => (
             <span
               key={i}
-              className={`flex-1 rounded-full transition-colors ${
-                playing ? 'bg-emerald-400/70' : 'bg-white/25'
+              className={`flex-1 rounded-full transition-colors duration-150 ${
+                playing
+                  ? 'bg-emerald-400/80'
+                  : isPaused
+                  ? 'bg-yellow-400/50'
+                  : 'bg-white/40'
               }`}
               style={{ height: `${Math.round(h * 100)}%` }}
             />
           ))}
         </div>
-        <div className="flex items-center gap-2 mt-1 text-[11px] text-white/50">
-          <span>{formatArtifactDuration(artifact.durationMs)}</span>
-          <span className="text-white/30">·</span>
-          <span>{formatArtifactSize(artifact.size)}</span>
-          {isPaused && <span className="text-yellow-400/80">· En pausa</span>}
-          {isSaving && <span className="text-amber-400/80">· Guardando…</span>}
-          {isBusy && <span className="text-blue-400/80">· Transcribiendo…</span>}
+        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-white/50">
+          <span className="tabular-nums">{formatArtifactDuration(artifact.durationMs)}</span>
+          {artifact.size > 0 && (
+            <>
+              <span className="text-white/20">·</span>
+              <span>{formatArtifactSize(artifact.size)}</span>
+            </>
+          )}
+          {isPaused && <span className="text-yellow-400/70 font-medium">En pausa</span>}
+          {isSaving && <span className="text-amber-400/70">Guardando…</span>}
+          {isBusy && <span className="text-blue-400/70">Transcribiendo…</span>}
           {isFailed && artifact.errorMessage && (
-            <span className="text-red-400/80 truncate">· {artifact.errorMessage}</span>
+            <span className="text-red-400/70 truncate">{artifact.errorMessage}</span>
           )}
         </div>
       </div>
@@ -158,7 +166,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={() => onDiscard(artifact.id)}
             aria-label="Descartar grabación"
-            className="fi-audio-draft-discard p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-white/10 transition-colors"
+            className="fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -168,7 +176,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={onResume}
             aria-label="Reanudar grabación"
-            className="fi-audio-draft-resume flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-colors"
+            className="fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95"
           >
             <Play className="w-3.5 h-3.5 ml-0.5" />
             Reanudar
@@ -178,7 +186,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={() => onRetry(artifact.id)}
             aria-label="Reintentar"
-            className="fi-audio-draft-retry p-1.5 rounded-lg text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors"
+            className="fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -188,7 +196,7 @@ export function AudioDraftPlayer({
               type="button"
               onClick={() => onPrimary(artifact.id)}
               disabled={isSaving || isBusy}
-              className="fi-audio-draft-primary flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
             >
               <ArrowUp className="w-3.5 h-3.5" />
               {primaryActionLabel}
