@@ -14,7 +14,11 @@
 import { Sparkles } from 'lucide-react';
 import type { ChatMessage } from '@free-intelligence/core';
 
-const AVATAR_BASE: React.CSSProperties = {
+// Deliberately UNANNOTATED (no React.CSSProperties): CI resolves two csstype
+// versions (3.1.x and 3.2.x), and a CSSProperties object from one is not
+// assignable to a style prop typed by the other. Inference sidesteps the
+// duplicate-csstype clash entirely; `as const` keeps literal types spreadable.
+const AVATAR_BASE = {
   width: 22,
   height: 22,
   borderRadius: 6,
@@ -24,7 +28,7 @@ const AVATAR_BASE: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 600,
   flexShrink: 0,
-};
+} as const;
 
 /** "14:32" in the user's locale; empty for unparseable/missing timestamps. */
 function formatTime(iso: string): string {
