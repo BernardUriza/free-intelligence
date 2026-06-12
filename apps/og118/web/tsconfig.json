@@ -24,10 +24,10 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "fi-glass/agent": ["../../../packages/fi-glass/src/agent/index.ts"],
-      "fi-glass/conversation": ["../../../packages/fi-glass/src/conversation/index.ts"],
-      "fi-glass/messages": ["../../../packages/fi-glass/src/messages/index.ts"],
-      "fi-glass/voice": ["../../../packages/fi-glass/src/voice/index.ts"]
+      "fi-glass/agent": ["../../packages/fi-glass/src/agent/index.ts"],
+      "fi-glass/conversation": ["../../packages/fi-glass/src/conversation/index.ts"],
+      "fi-glass/messages": ["../../packages/fi-glass/src/messages/index.ts"],
+      "fi-glass/voice": ["../../packages/fi-glass/src/voice/index.ts"]
     }
   },
   "include": [
