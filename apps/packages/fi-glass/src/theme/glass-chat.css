@@ -30,14 +30,33 @@
   --glass-chat-accent-text: #6ee7b7;
 
   /* Shell surfaces. */
-  --glass-chat-body: #020617; /* slate-950 */
+  --glass-chat-body: #020617; /* slate-950 — flat fallback */
   --glass-chat-surface: rgba(30, 41, 59, 0.6); /* slate-800/60 */
   --glass-chat-surface-border: rgba(71, 85, 105, 0.4); /* slate-600/40 */
 
-  /* Message bubbles. */
-  --glass-chat-bubble-user: #059669; /* emerald-600 */
-  --glass-chat-bubble-assistant: rgba(30, 41, 59, 0.7); /* slate-800/70 */
-  --glass-chat-bubble-border: rgba(71, 85, 105, 0.6); /* slate-600/60 */
+  /* Page depth (B3-FIGLASS-13 — /chat-page parity, not the widget). The body
+     is a layered gradient: a soft radial accent glow over a diagonal navy
+     sweep (slate-950 → slate-900 → slate-950), instead of a flat fill. A
+     consumer re-tints the glow by overriding --glass-chat-bg-glow. */
+  --glass-chat-bg-from: #020617; /* slate-950 */
+  --glass-chat-bg-mid: #0f172a; /* slate-900 */
+  --glass-chat-bg-glow: rgba(8, 145, 178, 0.07); /* cyan accent, barely-there */
+
+  /* Message bubbles — glassy, not solid (B3-FIGLASS-13). The user bubble is
+     a translucent emerald wash with a soft emerald border; the assistant a
+     softer slate with a quieter border. The old solid emerald read as a loud
+     WhatsApp green against the layered page background. */
+  --glass-chat-bubble-user: rgba(5, 150, 105, 0.32); /* emerald-600/32 */
+  --glass-chat-bubble-user-border: rgba(52, 211, 153, 0.25); /* emerald-400/25 */
+  --glass-chat-bubble-assistant: rgba(30, 41, 59, 0.55); /* slate-800/55 */
+  --glass-chat-bubble-border: rgba(71, 85, 105, 0.35); /* slate-600/35 */
+
+  /* Optional brand watermark (B3-FIGLASS-13). The framework owns placement,
+     opacity and the soft blur; the consumer owns the brand by setting the
+     image:  :root { --glass-chat-watermark-image: url('/my-brand.svg'); }
+     and rendering `<div class="glass-chat-watermark" aria-hidden />`. */
+  --glass-chat-watermark-image: none;
+  --glass-chat-watermark-opacity: 0.08;
 
   /* Text. */
   --glass-chat-text: #ffffff;
@@ -45,13 +64,40 @@
 
   /* Elevation (≈ shadow-2xl). */
   --glass-chat-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  --glass-chat-radius: 14px;
+  --glass-chat-radius: 16px; /* rounded-2xl — matches AURITY's chat-input-floating-box */
 }
 
-/* Root scope: a consumer wraps its chat surface in `.glass-chat` to opt in. */
+/* Root scope: a consumer wraps its chat surface in `.glass-chat` to opt in.
+   Layered page depth (radial glow over diagonal navy) — the flat
+   --glass-chat-body remains as the underlying base color. */
 .glass-chat {
-  background: var(--glass-chat-body);
+  background:
+    radial-gradient(1100px 550px at 72% 22%, var(--glass-chat-bg-glow), transparent 60%),
+    linear-gradient(
+      135deg,
+      var(--glass-chat-bg-from),
+      var(--glass-chat-bg-mid),
+      var(--glass-chat-bg-from)
+    );
+  background-color: var(--glass-chat-body);
   color: var(--glass-chat-text);
+}
+
+/* Optional fixed brand watermark behind the transcript. Inert (no pointer
+   events) and invisible until the consumer sets --glass-chat-watermark-image. */
+.glass-chat-watermark {
+  position: fixed;
+  inset: 0;
+  background-image: var(--glass-chat-watermark-image);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--glass-chat-watermark-opacity);
+  pointer-events: none;
+  /* Negative z-index: paints above the page background but below ALL in-flow
+     content with zero consumer coordination (no z-index choreography needed). */
+  z-index: -1;
+  filter: blur(0.5px);
 }
 
 /* Header band: the signature emerald→cyan gradient. */
@@ -87,11 +133,15 @@
   color: var(--glass-chat-text-muted);
 }
 
-/* Message bubbles. */
+/* Message bubbles. The user bubble is frosted like the assistant's — the
+   translucent emerald wash needs the blur to read as glass over the layered
+   page background instead of a flat tint. */
 .glass-chat-bubble-user {
   background: var(--glass-chat-bubble-user);
   color: var(--glass-chat-text);
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-chat-bubble-user-border);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
 }
 .glass-chat-bubble-assistant {
   background: var(--glass-chat-bubble-assistant);
@@ -118,6 +168,7 @@
 /* Smaller blur on narrow viewports, consistent with the base material. */
 @media (max-width: 768px) {
   .glass-chat-composer,
+  .glass-chat-bubble-user,
   .glass-chat-bubble-assistant {
     backdrop-filter: blur(var(--glass-blur-compact, 8px));
     -webkit-backdrop-filter: blur(var(--glass-blur-compact, 8px));

@@ -233,10 +233,20 @@ interface AgentConversationSurfaceProps {
     aboveComposer?: ReactNode;
     /** Pass-through styling/icons for the live-turn AgentPanel. */
     agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
-    /** Composer wrapper class (style hook for the app). */
+    /**
+     * Floating composer box class (style hook for the app) — the single frosted
+     * container that wraps BOTH the textarea row and the controls row (mic/send),
+     * mirroring the shell's `chat-input-floating-box` (AURITY). Apply the
+     * glass-chat preset here (`glass-chat-composer`), not on `composerAreaClassName`:
+     * the controls belong INSIDE the box, not floating next to it.
+     */
+    composerBoxClassName?: string;
+    /** Composer textarea-row wrapper class (spacing inside the box). */
     composerAreaClassName?: string;
     /** Composer textarea class (style hook for the app). */
     composerTextareaClassName?: string;
+    /** Controls-row class (the mic/send row inside the box; layout stays framework-owned). */
+    composerControlsClassName?: string;
     /**
      * When true (and no `renderActions` override), each transcript message gets a
      * default {@link CopyButton} in the bubble's actions slot. Default: false
@@ -373,7 +383,7 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 interface ScrollToBottomButtonProps {
     onClick: () => void;

@@ -43,10 +43,20 @@ export interface AgentConversationSurfaceProps {
   aboveComposer?: ReactNode;
   /** Pass-through styling/icons for the live-turn AgentPanel. */
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
-  /** Composer wrapper class (style hook for the app). */
+  /**
+   * Floating composer box class (style hook for the app) — the single frosted
+   * container that wraps BOTH the textarea row and the controls row (mic/send),
+   * mirroring the shell's `chat-input-floating-box` (AURITY). Apply the
+   * glass-chat preset here (`glass-chat-composer`), not on `composerAreaClassName`:
+   * the controls belong INSIDE the box, not floating next to it.
+   */
+  composerBoxClassName?: string;
+  /** Composer textarea-row wrapper class (spacing inside the box). */
   composerAreaClassName?: string;
   /** Composer textarea class (style hook for the app). */
   composerTextareaClassName?: string;
+  /** Controls-row class (the mic/send row inside the box; layout stays framework-owned). */
+  composerControlsClassName?: string;
   /**
    * When true (and no `renderActions` override), each transcript message gets a
    * default {@link CopyButton} in the bubble's actions slot. Default: false
@@ -192,8 +202,10 @@ export function AgentConversationSurface({
   emptyState,
   aboveComposer,
   agentPanelProps,
+  composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
+  composerControlsClassName,
   showCopyAction = false,
   renderHeader,
   renderBadge,
@@ -493,77 +505,87 @@ export function AgentConversationSurface({
             {aboveComposer}
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: (micAvailable || micSlotOverride != null) ? 8 : 0 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Composer
-              message={input}
-              loading={isStreaming}
-              placeholder={composerPlaceholder}
-              onMessageChange={setInput}
-              onSend={onSend}
-              areaClassName={composerAreaClassName}
-              textareaClassName={composerTextareaClassName}
-              // The input fills the composer area regardless of how the consumer
-              // styles it (e.g. a flex area): growth is owned here, in the
-              // framework, not patched in by a consumer reaching into `.relative`.
-              wrapperStyle={{ flex: '1 1 0%', minWidth: 0 }}
-              // Typed focus handle (B3-FIGLASS-10): the surface refocuses the
-              // input after dictation/send/stream — no internal-DOM reach.
-              textareaRef={inputRef}
-            />
-          </div>
-          {/* Built-in dictation visualizer — suppressed when micSlotOverride is used */}
-          {micSlotOverride == null && micAvailable && dictation.isRecording && (
-            // Live equalizer: reacts to the mic's frequency bands so the user
-            // sees they're being heard. Only mounted while recording, fed by the
-            // analyser the dictation hook already runs — no extra Web Audio here.
-            <AudioVisualizer
-              levels={dictation.bands}
-              active={dictation.isRecording}
-              variant="bars"
-              label="Nivel del micrófono"
-              className={voiceVisualizerClassName}
-              barClassName={voiceVisualizerBarClassName}
-            />
-          )}
-          {/* micSlotOverride replaces the built-in ComposerMicSlot + dictation */}
-          {micSlotOverride != null
-            ? micSlotOverride
-            : micAvailable && (
-              <ComposerMicSlot
-                available
-                recording={dictation.isRecording}
-                busy={dictation.isTranscribing}
-                onStart={startDictation}
-                onStop={() => void dictation.stopRecording()}
-                className={micSlotClassName}
-                buttonClassName={micButtonClassName}
-              />
-            )}
-          {showSendButton && (
-            // Explicit send affordance (mirrors the shell/AURITY composer). Enter
-            // still sends; this is the visible button. Disabled until there's
-            // trimmed text and nothing is streaming.
-            <button
-              type="button"
-              onClick={onSend}
-              disabled={!canSend}
-              aria-label={sendLabel}
-              className={sendButtonClassName}
+        {/* Floating composer box — ONE container wrapping the textarea row and
+            the controls row, mirroring the shell's chat-input-floating-box
+            (AURITY). The canary audit found mic/send floating OUTSIDE the
+            frosted box as siblings; the box structure is framework-owned so
+            every consumer inherits the corrected anatomy. */}
+        <div className={composerBoxClassName}>
+          <Composer
+            message={input}
+            loading={isStreaming}
+            placeholder={composerPlaceholder}
+            onMessageChange={setInput}
+            onSend={onSend}
+            areaClassName={composerAreaClassName}
+            textareaClassName={composerTextareaClassName}
+            // The input fills the composer area regardless of how the consumer
+            // styles it (e.g. a flex area): growth is owned here, in the
+            // framework, not patched in by a consumer reaching into `.relative`.
+            wrapperStyle={{ flex: '1 1 0%', minWidth: 0 }}
+            // Typed focus handle (B3-FIGLASS-10): the surface refocuses the
+            // input after dictation/send/stream — no internal-DOM reach.
+            textareaRef={inputRef}
+          />
+          {(showSendButton || micSlotOverride != null || micAvailable) && (
+            <div
+              className={composerControlsClassName}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}
             >
-              {isStreaming ? (
-                <Loader2
-                  className={
-                    sendButtonIconClassName
-                      ? `${sendButtonIconClassName} animate-spin`
-                      : 'animate-spin'
-                  }
-                  aria-hidden
+              {/* Built-in dictation visualizer — suppressed when micSlotOverride is used */}
+              {micSlotOverride == null && micAvailable && dictation.isRecording && (
+                // Live equalizer: reacts to the mic's frequency bands so the user
+                // sees they're being heard. Only mounted while recording, fed by the
+                // analyser the dictation hook already runs — no extra Web Audio here.
+                <AudioVisualizer
+                  levels={dictation.bands}
+                  active={dictation.isRecording}
+                  variant="bars"
+                  label="Nivel del micrófono"
+                  className={voiceVisualizerClassName}
+                  barClassName={voiceVisualizerBarClassName}
                 />
-              ) : (
-                <Send className={sendButtonIconClassName} aria-hidden />
               )}
-            </button>
+              {/* micSlotOverride replaces the built-in ComposerMicSlot + dictation */}
+              {micSlotOverride != null
+                ? micSlotOverride
+                : micAvailable && (
+                  <ComposerMicSlot
+                    available
+                    recording={dictation.isRecording}
+                    busy={dictation.isTranscribing}
+                    onStart={startDictation}
+                    onStop={() => void dictation.stopRecording()}
+                    className={micSlotClassName}
+                    buttonClassName={micButtonClassName}
+                  />
+                )}
+              {showSendButton && (
+                // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+                // still sends; this is the visible button. Disabled until there's
+                // trimmed text and nothing is streaming.
+                <button
+                  type="button"
+                  onClick={onSend}
+                  disabled={!canSend}
+                  aria-label={sendLabel}
+                  className={sendButtonClassName}
+                >
+                  {isStreaming ? (
+                    <Loader2
+                      className={
+                        sendButtonIconClassName
+                          ? `${sendButtonIconClassName} animate-spin`
+                          : 'animate-spin'
+                      }
+                      aria-hidden
+                    />
+                  ) : (
+                    <Send className={sendButtonIconClassName} aria-hidden />
+                  )}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
