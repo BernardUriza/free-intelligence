@@ -226,6 +226,12 @@ class TurnCtx:
     recent_openers: list = field(default_factory=list)
     recent_response_lengths: list = field(default_factory=list)
 
+    # --- Multi-persona routing ---
+    # Set by Stage 01 when the message starts with "@vultur " or "~vultur ".
+    # The runner loads shared/personas/vultur.md instead of the default Insult
+    # persona. None = Insult (default).
+    persona_id: str | None = None
+
     # --- Telemetry / outcome ---
     delivery_mode: str = ""  # "text" | "reaction" | "silent"
 

@@ -87,6 +87,9 @@ _REMINDER_TOOL_NAMES = {"create_reminder", "list_reminders", "cancel_reminder"}
 # --- Stage 01: identity binding (no I/O, just derive fields from message) ---
 
 
+_VULTUR_PREFIXES = ("@vultur ", "~vultur ")
+
+
 async def _stage_bind_identity(ctx: TurnCtx) -> None:
     msg = ctx.message
     ctx.channel_id = str(msg.channel.id)
@@ -96,6 +99,14 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
     ctx.channel_name = msg.channel.name if hasattr(msg.channel, "name") else None
     ctx.context_key = f"{ctx.channel_id}:{ctx.user_id}"
 
+    # Multi-persona routing: @vultur / ~vultur prefix → route to Vultur persona.
+    lowered = ctx.text.lower()
+    for prefix in _VULTUR_PREFIXES:
+        if lowered.startswith(prefix):
+            ctx.persona_id = "vultur"
+            ctx.text = ctx.text[len(prefix) :].strip()
+            break
+
     log.info(
         "chat_turn_start",
         text_len=len(ctx.text),
@@ -104,6 +115,7 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
         is_voice=bool(msg.flags.voice),
         guild_id=ctx.guild_id,
         channel_name=ctx.channel_name,
+        persona_id=ctx.persona_id,
     )
 
 
@@ -512,6 +524,8 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         if backend == "agent_runner":
             llm_kwargs["channel_id"] = ctx.channel_id
             llm_kwargs["user_id"] = ctx.user_id
+            if ctx.persona_id:
+                llm_kwargs["persona_id"] = ctx.persona_id
             guidance = _build_behavioral_guidance(ctx)
             if guidance:
                 llm_kwargs["behavioral_guidance"] = guidance
