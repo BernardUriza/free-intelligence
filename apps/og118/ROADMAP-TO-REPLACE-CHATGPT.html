@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#228 mergeados + staging live · B3-VOICE-FIGLASS-11 en PR #229 (CI verde + Gatekeeper APPROVED LOW, gated al go de Bernard · pending deploy + smoke)</p>
+  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#229 mergeados + staging live · B3-VOICE-FIGLASS-11 smoke automatizado PASS — pendiente audio humano (play/pause/transcribe con grabación real)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -283,9 +283,9 @@
       <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-10 — AudioDraftPlayer inline en el compositor</div>
       <div class="item-note">Mini-reproductor inline (play + waveform + delete + Transcribir) al parar, patrón WhatsApp. fi-glass AudioDraftPlayer + AudioQueuePanel.excludeIds. PR #226 · verificado visualmente con DevTools · pendiente CI + merge + deploy.</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-10</span></label>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
-      <div class="item-note">Bug audit: play no reproducía (await rompía autoplay policy — Audio() ahora se crea antes del await). Gap UX: fi-surface-above-composer wrapper con marginBottom en AgentConversationSurface. 12 tests nuevos, 173/173 verdes. En código, pending deploy a staging + smoke.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
+      <div class="item-note">PR #229 merged (848c8895) + SWA deployed. Smoke automatizado PASS: gap player→composer 18.6px (fi-surface-above-composer), consola limpia, red 9/9×200, delete borra artifact de IndexedDB + player se desmonta, textarea full-width sin regresión. Pendiente verificación humana de audio (play/pause/transcribe con grabación real).</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-11</span></label>
   </div>
 
