@@ -40,6 +40,9 @@ jobs:
       - name: Install (frozen)
         run: pnpm install --frozen-lockfile
 
+      - name: Build fi-glass (workspace dep)
+        run: pnpm --filter fi-glass build
+
       - name: Build static export
         env:
           NEXT_PUBLIC_OG118_API: ${{ vars.OG118_API_URL }}
