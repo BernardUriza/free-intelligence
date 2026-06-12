@@ -139,3 +139,10 @@
 @media (prefers-reduced-motion: reduce) {
   .fi-msg-appear { animation: none; }
 }
+
+/* Focus ring for the floating jump-to-latest button (a11y — the default skin
+   is inline-styled and inline styles can't express :focus-visible). */
+.fi-scroll-to-bottom:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}

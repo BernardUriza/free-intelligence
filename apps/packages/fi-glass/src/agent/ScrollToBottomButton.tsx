@@ -59,7 +59,9 @@ export function ScrollToBottomButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={className}
+      // fi-scroll-to-bottom is always present: glass-chat.css hangs the
+      // :focus-visible ring off it (inline styles can't express focus states).
+      className={className ? `fi-scroll-to-bottom ${className}` : 'fi-scroll-to-bottom'}
       style={className ? placement : { ...placement, ...skin }}
     >
       <ChevronDown size={16} className={iconClassName} aria-hidden />

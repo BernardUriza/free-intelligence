@@ -709,6 +709,7 @@ function normalizeStreamedMarkdown(content) {
 // src/messages/CollapsibleText.tsx
 import { useEffect as useEffect4, useId, useRef as useRef3, useState as useState4 } from "react";
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
   children,
   maxHeight = 264,
@@ -725,7 +726,7 @@ function CollapsibleText({
   useEffect4(() => {
     const el = contentRef.current;
     if (!el) return;
-    const measure = () => setOverflowing(el.scrollHeight > maxHeight + 16);
+    const measure = () => setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);
@@ -1625,7 +1626,7 @@ function ScrollToBottomButton({
       type: "button",
       onClick,
       "aria-label": label,
-      className,
+      className: className ? `fi-scroll-to-bottom ${className}` : "fi-scroll-to-bottom",
       style: className ? placement : { ...placement, ...skin },
       children: /* @__PURE__ */ jsx25(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }

@@ -15,15 +15,16 @@ describe('ScrollToBottomButton', () => {
   it('renders default skin + placement with the default aria-label', () => {
     const html = renderToStaticMarkup(<ScrollToBottomButton onClick={() => {}} />);
     expect(html).toContain('aria-label="Ir al final"');
+    expect(html).toContain('class="fi-scroll-to-bottom"');
     expect(html).toContain('position:absolute');
     expect(html).toContain('border-radius:9999px');
   });
 
-  it('keeps placement but drops the skin when a consumer class is set', () => {
+  it('keeps placement + focus-ring class but drops the skin when a consumer class is set', () => {
     const html = renderToStaticMarkup(
       <ScrollToBottomButton onClick={() => {}} className="og-jump" label="Al fondo" />,
     );
-    expect(html).toContain('class="og-jump"');
+    expect(html).toContain('class="fi-scroll-to-bottom og-jump"');
     expect(html).toContain('aria-label="Al fondo"');
     expect(html).toContain('position:absolute');
     expect(html).not.toContain('border-radius:9999px');
