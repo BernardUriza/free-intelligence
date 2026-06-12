@@ -45,6 +45,29 @@ logs and isolates the failure.
 ``COSMETIC`` stages run inline but their failures are swallowed —
 ``StageFailure`` becomes a ``stage_cosmetic_failed`` warning and the
 pipeline continues.
+
+Turn lifecycle — S1 through S5
+-------------------------------
+Only S2, S4, and S5 have explicit Input/Result DTOs here. S1 and S3
+operate directly on ``TurnCtx`` because:
+
+- S1 (Intake): bind_identity → process_attachments → memory_store →
+  ensure_not_trivial → build_context → load_facts. These stages
+  populate ``TurnCtx`` itself; there is no meaningful input boundary
+  to carve out — ``TurnCtx`` IS the intake accumulator.
+- S3 (Prompt construction): classify_and_analyze + resolve_tools_and_model.
+  The prompt is assembled inline from multiple ``TurnCtx`` fields via
+  ``_build_behavioral_guidance``; a dedicated DTO would only proxy the
+  same fields. When S3 grows a stable, testable seam it will earn one.
+
+S2, S4, and S5 have DTOs because they each have a pure-function
+implementation (``assemble_knowledge``, ``interpret_output``,
+``assimilate_turn``) that is unit-tested in isolation. The DTO is the
+boundary that makes that isolation possible.
+
+Domain objects produced by S1 stages (``DisclosureResult``, ``PolicyBundle``)
+live in their own modules (``disclosure.py``, ``capability_ports.py``) because
+they belong to domain/capability services, not to the pipeline contract.
 """
 
 from __future__ import annotations
