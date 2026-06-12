@@ -17,6 +17,9 @@ export interface AudioQueuePanelProps {
   privacyNotice?: string;
   /** Max visible items before scroll */
   maxVisible?: number;
+  /** Artifact ids to hide from the panel (e.g. the active draft shown inline
+   * via AudioDraftPlayer, so it is not duplicated in the backlog list). */
+  excludeIds?: string[];
 }
 
 const DEFAULT_PRIVACY_NOTICE =
@@ -27,6 +30,7 @@ export function AudioQueuePanel({
   className = '',
   privacyNotice = DEFAULT_PRIVACY_NOTICE,
   maxVisible = 6,
+  excludeIds = [],
 }: AudioQueuePanelProps) {
   const {
     artifacts,
@@ -39,7 +43,9 @@ export function AudioQueuePanel({
     getPlaybackUrl,
   } = queue;
 
-  const visible = artifacts.filter((a) => a.state !== 'deleted');
+  const visible = artifacts.filter(
+    (a) => a.state !== 'deleted' && !excludeIds.includes(a.id),
+  );
   const hasTranscribed = visible.some((a) => a.state === 'transcribed');
 
   if (isLoading) {

@@ -102,3 +102,12 @@ export {
   AudioQueueItem,
   type AudioQueueItemProps,
 } from './AudioQueueItem';
+
+// B3-VOICE-FIGLASS-10: inline audio draft player. The just-recorded artifact
+// shows up as a draft in the composer (record -> stop -> preview, the WhatsApp
+// pattern) instead of disappearing into the queue panel. Primary action is
+// configurable (transcribe / send / use) so the verb stays consumer-owned.
+export {
+  AudioDraftPlayer,
+  type AudioDraftPlayerProps,
+} from './AudioDraftPlayer';

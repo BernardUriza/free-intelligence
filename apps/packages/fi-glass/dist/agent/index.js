@@ -502,8 +502,8 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback9, useEffect as useEffect10, useRef as useRef8, useState as useState12 } from "react";
-import { Send, Loader2 as Loader210 } from "lucide-react";
+import { useCallback as useCallback10, useEffect as useEffect11, useRef as useRef8, useState as useState13 } from "react";
+import { Send, Loader2 as Loader211 } from "lucide-react";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
@@ -1500,8 +1500,13 @@ import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 // src/voice/AudioQueuePanel.tsx
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 
-// src/agent/AgentConversationSurface.tsx
+// src/voice/AudioDraftPlayer.tsx
+import { useState as useState12, useCallback as useCallback9, useEffect as useEffect10 } from "react";
+import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+
+// src/agent/AgentConversationSurface.tsx
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 function AgentConversationSurface({
   conversation,
   composerPlaceholder,
@@ -1537,9 +1542,9 @@ function AgentConversationSurface({
   dismissButtonClassName
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
-  const [input, setInput] = useState12("");
+  const [input, setInput] = useState13("");
   const inputRef = useRef8(null);
-  const refocusComposer = useCallback9(() => {
+  const refocusComposer = useCallback10(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
     const active = document.activeElement;
@@ -1547,7 +1552,7 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect10(() => {
+  useEffect11(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -1566,12 +1571,12 @@ function AgentConversationSurface({
     void dictation.startRecording();
   };
   const wasStreaming = useRef8(false);
-  useEffect10(() => {
+  useEffect11(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
   const wasTranscribing = useRef8(false);
-  useEffect10(() => {
+  useEffect11(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
@@ -1585,23 +1590,23 @@ function AgentConversationSurface({
     send(t);
   };
   const canSend = input.trim().length > 0 && !isStreaming;
-  return /* @__PURE__ */ jsxs17("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
-    /* @__PURE__ */ jsxs17("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: [
-      idle ? emptyState : /* @__PURE__ */ jsxs17("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-        messages.map((m, i) => /* @__PURE__ */ jsx23(
+  return /* @__PURE__ */ jsxs18("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
+    /* @__PURE__ */ jsxs18("div", { style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" }, children: [
+      idle ? emptyState : /* @__PURE__ */ jsxs18("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+        messages.map((m, i) => /* @__PURE__ */ jsx24(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader?.(m),
             badge: renderBadge?.(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx23(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx24(CopyButton, { content: m.content }) : void 0),
             className: resolveBubbleClass(m),
-            children: /* @__PURE__ */ jsx23(MessageContent, { isUser: m.role === "user", content: m.content })
+            children: /* @__PURE__ */ jsx24(MessageContent, { isUser: m.role === "user", content: m.content })
           },
           i
         )),
-        isStreaming && /* @__PURE__ */ jsx23(AgentPanel, { turn, ...agentPanelProps }),
-        isStreaming && turn.text && /* @__PURE__ */ jsx23(
+        isStreaming && /* @__PURE__ */ jsx24(AgentPanel, { turn, ...agentPanelProps }),
+        isStreaming && turn.text && /* @__PURE__ */ jsx24(
           MessageBubble,
           {
             role: "assistant",
@@ -1610,11 +1615,11 @@ function AgentConversationSurface({
               content: turn.text,
               timestamp: ""
             }),
-            children: /* @__PURE__ */ jsx23(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+            children: /* @__PURE__ */ jsx24(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
           }
         )
       ] }),
-      turnError && /* @__PURE__ */ jsxs17(
+      turnError && /* @__PURE__ */ jsxs18(
         "div",
         {
           role: "alert",
@@ -1631,8 +1636,8 @@ function AgentConversationSurface({
             gap: "0.75rem"
           },
           children: [
-            /* @__PURE__ */ jsx23("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
-            /* @__PURE__ */ jsx23(
+            /* @__PURE__ */ jsx24("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
+            /* @__PURE__ */ jsx24(
               "button",
               {
                 type: "button",
@@ -1650,7 +1655,7 @@ function AgentConversationSurface({
                 children: retryLabel
               }
             ),
-            /* @__PURE__ */ jsx23(
+            /* @__PURE__ */ jsx24(
               "button",
               {
                 type: "button",
@@ -1672,8 +1677,8 @@ function AgentConversationSurface({
         }
       )
     ] }),
-    /* @__PURE__ */ jsxs17("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
-      hasThread && showNewChatButton && /* @__PURE__ */ jsx23("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx23(
+    /* @__PURE__ */ jsxs18("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
+      hasThread && showNewChatButton && /* @__PURE__ */ jsx24("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx24(
         "button",
         {
           onClick: newConversation,
@@ -1692,8 +1697,8 @@ function AgentConversationSurface({
         }
       ) }),
       aboveComposer,
-      /* @__PURE__ */ jsxs17("div", { style: { display: "flex", alignItems: "flex-end", gap: micAvailable || micSlotOverride != null ? 8 : 0 }, children: [
-        /* @__PURE__ */ jsx23("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx23(
+      /* @__PURE__ */ jsxs18("div", { style: { display: "flex", alignItems: "flex-end", gap: micAvailable || micSlotOverride != null ? 8 : 0 }, children: [
+        /* @__PURE__ */ jsx24("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx24(
           Composer,
           {
             message: input,
@@ -1710,7 +1715,7 @@ function AgentConversationSurface({
         micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
         // sees they're being heard. Only mounted while recording, fed by the
         // analyser the dictation hook already runs — no extra Web Audio here.
-        /* @__PURE__ */ jsx23(
+        /* @__PURE__ */ jsx24(
           AudioVisualizer,
           {
             levels: dictation.bands,
@@ -1721,7 +1726,7 @@ function AgentConversationSurface({
             barClassName: voiceVisualizerBarClassName
           }
         ),
-        micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx23(
+        micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx24(
           ComposerMicSlot,
           {
             available: true,
@@ -1736,7 +1741,7 @@ function AgentConversationSurface({
         showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
         // still sends; this is the visible button. Disabled until there's
         // trimmed text and nothing is streaming.
-        /* @__PURE__ */ jsx23(
+        /* @__PURE__ */ jsx24(
           "button",
           {
             type: "button",
@@ -1744,13 +1749,13 @@ function AgentConversationSurface({
             disabled: !canSend,
             "aria-label": sendLabel,
             className: sendButtonClassName,
-            children: isStreaming ? /* @__PURE__ */ jsx23(
-              Loader210,
+            children: isStreaming ? /* @__PURE__ */ jsx24(
+              Loader211,
               {
                 className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
                 "aria-hidden": true
               }
-            ) : /* @__PURE__ */ jsx23(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+            ) : /* @__PURE__ */ jsx24(Send, { className: sendButtonIconClassName, "aria-hidden": true })
           }
         )
       ] })
