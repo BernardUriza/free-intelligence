@@ -2224,7 +2224,7 @@ function useDurableRecording(opts) {
     recorderRef.current?.pauseRecording();
     stopTimer();
     pausedElapsedRef.current = Date.now() - startTimeRef.current;
-    updateArtifact({ state: "paused" });
+    updateArtifact({ state: "paused", durationMs: pausedElapsedRef.current });
   }, [stopTimer, updateArtifact]);
   const resumeRecording = useCallback5(() => {
     if (artifactRef.current?.state !== "paused") return;
@@ -2653,31 +2653,9 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState11, useCallback as useCallback8, useEffect as useEffect9 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment2, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
-var BAR_HEIGHTS = [
-  0.4,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.8,
-  0.45,
-  1,
-  0.55,
-  0.75,
-  0.5,
-  0.85,
-  0.4,
-  0.65,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.45,
-  0.8
-];
+import { useState as useState11, useEffect as useEffect9 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function AudioDraftPlayer({
   artifact,
   onGetPlaybackUrl,
@@ -2688,80 +2666,75 @@ function AudioDraftPlayer({
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
-  const [playing, setPlaying] = useState11(false);
-  const [audioEl, setAudioEl] = useState11(null);
-  useEffect9(() => {
-    return () => {
-      audioEl?.pause();
-    };
-  }, [audioEl]);
-  const handlePlay = useCallback8(async () => {
-    if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
-      setPlaying(false);
-      return;
-    }
-    const el = new Audio();
-    const url = await onGetPlaybackUrl(artifact.id);
-    if (!url) return;
-    el.src = url;
-    setAudioEl(el);
-    setPlaying(true);
-    const cleanup = () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    };
-    el.addEventListener("ended", cleanup, { once: true });
-    el.addEventListener("error", cleanup, { once: true });
-    el.play().catch(() => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
-  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
+  const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
+  const [playbackUrl, setPlaybackUrl] = useState11(null);
+  useEffect9(() => {
+    if (!onGetPlaybackUrl || !hasBlob) {
+      setPlaybackUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let url = null;
+    void onGetPlaybackUrl(artifact.id).then((resolved) => {
+      if (cancelled) {
+        if (resolved) URL.revokeObjectURL(resolved);
+        return;
+      }
+      url = resolved;
+      setPlaybackUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setPlaybackUrl(null);
+    };
+  }, [artifact.id, hasBlob, onGetPlaybackUrl]);
   return /* @__PURE__ */ jsxs14(
     "div",
     {
-      className: `fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`,
+      className: `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
       role: "group",
       "aria-label": "Audio grabado",
       children: [
-        /* @__PURE__ */ jsx20(
-          "button",
-          {
-            type: "button",
-            onClick: handlePlay,
-            disabled: !canPlay,
-            "aria-label": isPaused ? "Grabaci\xF3n en pausa" : playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
-            className: "fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
-            children: isSaving || isBusy ? /* @__PURE__ */ jsx20(Loader210, { className: "w-5 h-5 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx20(CirclePause, { className: "w-5 h-5 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx20(Pause3, { className: "w-5 h-5 text-white/90" }) : /* @__PURE__ */ jsx20(Play5, { className: "w-5 h-5 text-white/90 ml-0.5" })
-          }
-        ),
-        /* @__PURE__ */ jsxs14("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsx20("div", { className: "flex items-end gap-[3px] h-8", "aria-hidden": "true", children: BAR_HEIGHTS.map((h, i) => /* @__PURE__ */ jsx20(
-            "span",
-            {
-              className: `flex-1 rounded-full transition-colors duration-150 ${playing ? "bg-emerald-400/80" : isPaused ? "bg-yellow-400/50" : "bg-white/40"}`,
-              style: { height: `${Math.round(h * 100)}%` }
-            },
-            i
-          )) }),
-          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-1.5 mt-1.5 text-xs text-white/50", children: [
-            /* @__PURE__ */ jsx20("span", { className: "tabular-nums", children: formatArtifactDuration(artifact.durationMs) }),
-            artifact.size > 0 && /* @__PURE__ */ jsxs14(Fragment2, { children: [
-              /* @__PURE__ */ jsx20("span", { className: "text-white/20", children: "\xB7" }),
-              /* @__PURE__ */ jsx20("span", { children: formatArtifactSize(artifact.size) })
-            ] }),
-            isPaused && /* @__PURE__ */ jsx20("span", { className: "text-yellow-400/70 font-medium", children: "En pausa" }),
-            isSaving && /* @__PURE__ */ jsx20("span", { className: "text-amber-400/70", children: "Guardando\u2026" }),
-            isBusy && /* @__PURE__ */ jsx20("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" }),
-            isFailed && artifact.errorMessage && /* @__PURE__ */ jsx20("span", { className: "text-red-400/70 truncate", children: artifact.errorMessage })
+        isPaused ? (
+          // Paused recording: no blob exists yet (RecordRTC only yields it on
+          // stop), so there is nothing to play — show an honest status instead
+          // of a dead control: pulsing dot + recorded-so-far time.
+          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx20(
+              "span",
+              {
+                className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
+                "aria-hidden": "true"
+              }
+            ),
+            /* @__PURE__ */ jsx20("span", { className: "text-sm tabular-nums text-white/80", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx20("span", { className: "text-xs font-medium text-amber-300/80", children: "Grabaci\xF3n en pausa" })
           ] })
+        ) : /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsx20(
+            RichAudioPlayer,
+            {
+              source: playbackUrl ? { url: playbackUrl } : null,
+              className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
+              buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
+              iconClassName: "w-4 h-4",
+              progressClassName: "flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+            }
+          ),
+          /* @__PURE__ */ jsxs14("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
+            artifact.size > 0 && /* @__PURE__ */ jsx20("span", { children: formatArtifactSize(artifact.size) }),
+            isSaving && /* @__PURE__ */ jsxs14("span", { className: "inline-flex items-center gap-1 text-amber-400/70", children: [
+              /* @__PURE__ */ jsx20(Loader210, { className: "w-3.5 h-3.5 animate-spin", "aria-hidden": true }),
+              "Guardando\u2026"
+            ] }),
+            isBusy && /* @__PURE__ */ jsx20("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" })
+          ] }),
+          isFailed && artifact.errorMessage && /* @__PURE__ */ jsx20("span", { role: "alert", className: "text-xs text-red-400/80 truncate shrink min-w-0", children: artifact.errorMessage })
         ] }),
         /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-1 shrink-0", children: [
           onDiscard && !isBusy && /* @__PURE__ */ jsx20(
@@ -2780,7 +2753,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95",
+              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95",
               children: [
                 /* @__PURE__ */ jsx20(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
@@ -2815,10 +2788,10 @@ function AudioDraftPlayer({
 }
 
 // src/shell/ChatWidget.tsx
-import { useCallback as useCallback10 } from "react";
+import { useCallback as useCallback9 } from "react";
 
 // src/shell/useChatWidgetState.ts
-import { useState as useState12, useCallback as useCallback9 } from "react";
+import { useState as useState12, useCallback as useCallback8 } from "react";
 function useChatWidgetState({
   initialOpen,
   initialMode
@@ -2828,34 +2801,34 @@ function useChatWidgetState({
   const [isHistoryOpen, setIsHistoryOpen] = useState12(false);
   const [conversationStarted, setConversationStarted] = useState12(false);
   const [isStartingConversation, _setIsStartingConversation] = useState12(false);
-  const open = useCallback9(() => {
+  const open = useCallback8(() => {
     setIsOpen(true);
   }, []);
-  const close = useCallback9(() => {
+  const close = useCallback8(() => {
     setIsOpen(false);
     setViewMode("normal");
   }, []);
-  const minimize = useCallback9(() => {
+  const minimize = useCallback8(() => {
     if (viewMode === "expanded") {
       setViewMode("normal");
     }
   }, [viewMode]);
-  const maximize = useCallback9(() => {
+  const maximize = useCallback8(() => {
     setViewMode(viewMode === "expanded" ? "normal" : "expanded");
   }, [viewMode]);
-  const toggleDenseMode = useCallback9(() => {
+  const toggleDenseMode = useCallback8(() => {
     setViewMode(viewMode === "dense" ? "fullscreen" : "dense");
   }, [viewMode]);
-  const openHistory = useCallback9(() => {
+  const openHistory = useCallback8(() => {
     setIsHistoryOpen(true);
   }, []);
-  const closeHistory = useCallback9(() => {
+  const closeHistory = useCallback8(() => {
     setIsHistoryOpen(false);
   }, []);
-  const startConversation = useCallback9(() => {
+  const startConversation = useCallback8(() => {
     setConversationStarted(true);
   }, []);
-  const onMessagesLoaded = useCallback9((hasMessages) => {
+  const onMessagesLoaded = useCallback8((hasMessages) => {
     if (hasMessages) {
       setConversationStarted(true);
     }
@@ -3052,7 +3025,7 @@ import { Loader2 as Loader213 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -3078,7 +3051,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs16(Fragment3, { children: [
+    return /* @__PURE__ */ jsxs16(Fragment2, { children: [
       /* @__PURE__ */ jsx22("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
       /* @__PURE__ */ jsx22(
         "div",
@@ -3119,7 +3092,7 @@ function ChatWidgetContainer(props) {
 
 // src/shell/ChatWidgetHeader.tsx
 import { X, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -3154,7 +3127,7 @@ function ChatWidgetHeader({
         subtitle && /* @__PURE__ */ jsx23("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx23("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs17(Fragment4, { children: [
+    /* @__PURE__ */ jsx23("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs17(Fragment3, { children: [
       showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx23("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx23(Search, { className: "h-4 w-4" }) }),
       mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx23("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs17("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
         /* @__PURE__ */ jsx23("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
@@ -3175,7 +3148,7 @@ function ChatWidgetHeader({
 import { useState as useState13, useRef as useRef8, useEffect as useEffect10 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -3235,7 +3208,7 @@ function ChatToolbar({
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs18(Fragment5, { children: [
+          /* @__PURE__ */ jsxs18(Fragment4, { children: [
             /* @__PURE__ */ jsx24(
               "div",
               {
@@ -3296,7 +3269,7 @@ function ChatToolbar({
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs18(Fragment5, { children: [
+                  showCopyCurl && /* @__PURE__ */ jsxs18(Fragment4, { children: [
                     /* @__PURE__ */ jsx24("div", { className: "chat-dropdown-divider" }),
                     /* @__PURE__ */ jsxs18(
                       "button",
@@ -3425,7 +3398,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -3471,19 +3444,19 @@ function ChatFilePreview({
       /* @__PURE__ */ jsx25("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs19("div", { className: "flex items-center gap-2 fi-text-xs", children: [
         /* @__PURE__ */ jsx25("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isUploading && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isProcessing && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isCompleted && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isError && error && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
@@ -3512,7 +3485,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -3562,10 +3535,10 @@ function ChatStartScreen({
         /* @__PURE__ */ jsx26("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx26("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs20(Fragment7, { children: [
+    /* @__PURE__ */ jsx26("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs20(Fragment6, { children: [
       /* @__PURE__ */ jsx26("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs20(Fragment7, { children: [
+    ] }) : /* @__PURE__ */ jsxs20(Fragment6, { children: [
       /* @__PURE__ */ jsx26(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
@@ -3778,7 +3751,7 @@ function ChatWidget({
   const loadingInitial = chatHook.loadingInitial ?? false;
   const customEmptyState = chatHook.customEmptyState;
   const customQuickReplies = chatHook.customQuickReplies;
-  const handleOpen = useCallback10(() => {
+  const handleOpen = useCallback9(() => {
     widgetState.open();
     widgetState.onMessagesLoaded(messageCount > 0);
   }, [widgetState, messageCount]);
@@ -3856,7 +3829,7 @@ function ChatSurface(props) {
 
 // src/persona-selector/PersonaSelector.tsx
 import {
-  useCallback as useCallback11,
+  useCallback as useCallback10,
   useEffect as useEffect11,
   useId as useId2,
   useRef as useRef9,
@@ -3864,7 +3837,7 @@ import {
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment8, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -3896,7 +3869,7 @@ function PersonaSelector({
   const reactId = useId2();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
-  const close = useCallback11(() => setIsOpen(false), []);
+  const close = useCallback10(() => setIsOpen(false), []);
   useEffect11(() => {
     if (!isOpen) return;
     const handle = (event) => {
@@ -3968,7 +3941,7 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx30(Fragment8, { children: renderLoading() }) : /* @__PURE__ */ jsx30("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx30(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx30("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;

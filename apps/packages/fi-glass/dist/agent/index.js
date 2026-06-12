@@ -502,7 +502,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback10, useEffect as useEffect12, useRef as useRef9, useState as useState14 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect12, useRef as useRef9, useState as useState14 } from "react";
 import { Send, Loader2 as Loader211 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -1590,9 +1590,9 @@ import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState13, useCallback as useCallback9, useEffect as useEffect11 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { useState as useState13, useEffect as useEffect11 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
@@ -1688,7 +1688,7 @@ function AgentConversationSurface({
   const [input, setInput] = useState14("");
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
   const inputRef = useRef9(null);
-  const refocusComposer = useCallback10(() => {
+  const refocusComposer = useCallback9(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
     const active = document.activeElement;
