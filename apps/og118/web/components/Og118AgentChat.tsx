@@ -48,6 +48,7 @@ import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118MessageActions } from './Og118MessageActions';
+import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 
 // Module-level singletons. Constructors are SSR-safe (they store config only,
 // never touch IndexedDB), so one stable instance shared across renders and
@@ -439,6 +440,11 @@ export function Og118AgentChat() {
               ? 'glass-chat-bubble-user'
               : 'glass-chat-bubble-assistant'
           }
+          // Header (avatar + author + time) and model badge fill the
+          // MessageBubble slots that were sitting empty — app-specific
+          // identity/branding, so the wiring lives here, not in fi-glass.
+          renderHeader={(m) => <Og118MessageHeader message={m} />}
+          renderBadge={(m) => <Og118ModelBadge message={m} />}
           // Copy stays on every message; Speak is added on assistant messages
           // only. renderActions overrides the default showCopyAction.
           renderActions={(m) => (

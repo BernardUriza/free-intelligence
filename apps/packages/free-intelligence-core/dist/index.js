@@ -122,7 +122,13 @@ function makeUserMessage(text) {
   return { role: "user", content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
 }
 function foldAssistantTurn(turn) {
-  return { role: "assistant", content: turn.text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
+  const model = turn.meta?.model;
+  return {
+    role: "assistant",
+    content: turn.text,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    ...model ? { metadata: { model } } : {}
+  };
 }
 
 // src/conversation/helpers.ts
