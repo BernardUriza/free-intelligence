@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>og118 → Reemplazar ChatGPT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0a0f1e;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; font-weight: 700; color: #34d399; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+
+  .objective {
+    border: 1px solid rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.06);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #a7f3d0;
+    line-height: 1.6;
+  }
+  .objective strong { color: #34d399; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 0.75rem 1.25rem;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .section-title { font-size: 0.9rem; font-weight: 600; }
+  .section-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .badge-done { background: rgba(52,211,153,0.15); color: #34d399; }
+  .badge-active { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-pending { background: rgba(100,116,139,0.2); color: #94a3b8; }
+  .badge-blocked { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .item:last-child { border-bottom: none; }
+  .item:hover { background: rgba(255,255,255,0.03); }
+
+  .item input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .item input[type="checkbox"]:checked {
+    background: #34d399;
+    border-color: #34d399;
+  }
+  .item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 0px;
+    width: 6px; height: 10px;
+    border: 2px solid #0a0f1e;
+    border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+  }
+  .item-text.done { color: #475569; text-decoration: line-through; }
+  .item-note {
+    font-size: 0.75rem;
+    color: #475569;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+  }
+  .item-tag {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: #64748b;
+    font-family: monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .gate-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .gate-dot {
+    width: 8px; height: 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+  .dot-green { background: #34d399; }
+  .dot-yellow { background: #fbbf24; }
+  .dot-gray { background: #475569; }
+
+  .progress-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 1rem 1.25rem 0.75rem;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #34d399, #059669);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-label {
+    font-size: 0.72rem;
+    color: #475569;
+    padding: 0 1.25rem 0.75rem;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #334155;
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>og118 → Reemplazar ChatGPT</h1>
+  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#228 mergeados + staging live · B3-VOICE-FIGLASS-11 en PR #229 (CI verde + Gatekeeper APPROVED LOW, gated al go de Bernard · pending deploy + smoke)</p>
+
+  <div class="objective">
+    <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
+  </div>
+
+  <!-- GATES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Gates de producción</span>
+      <span class="section-badge badge-active">EN CURSO</span>
+    </div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 0 — Inventario read-only ✓</div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
+    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
+    <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 3 — Auth real (network/identity) — pendiente decisión de Bernard</div>
+    <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 4 — Cutover público og118.ai + DNS — pendiente Gate 3</div>
+  </div>
+
+  <!-- SMOKE INTERACTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Smoke interactivo B3-VOICE-OG118-6</span>
+      <span class="section-badge badge-active">LISTO PARA BERNARD</span>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar" style="width:0%"></div></div>
+    <div class="progress-label" id="smoke-progress">0/12 completados</div>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Presionar micrófono → pide permiso de mic solo al iniciar</div></div>
+      <span class="item-tag">smoke-1</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Grabar unos segundos → barras vivas (visualizador reactivo)</div></div>
+      <span class="item-tag">smoke-2</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Pausar → audio se congela, botón cambia a Resume</div></div>
+      <span class="item-tag">smoke-3</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Reanudar → continúa el mismo artifact (no uno nuevo)</div></div>
+      <span class="item-tag">smoke-4</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Detener → artifact aparece en AudioQueuePanel con privacidad notice</div></div>
+      <span class="item-tag">smoke-5</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Reproducir audio local del artifact → se escucha</div></div>
+      <span class="item-tag">smoke-6</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Refrescar la página → artifact sigue en cola (IndexedDB durable)</div></div>
+      <span class="item-tag">smoke-7</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Transcribir → texto cae en el composer (composerAppend)</div>
+      <div class="item-note">Si falla: ver si es MIME (backend espera webm, recibe wav) → B3-VOICE-BACKEND-2</div></div>
+      <span class="item-tag">smoke-8</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Artifact transcrito desaparece de la cola (clearTranscribed / deleteArtifact)</div></div>
+      <span class="item-tag">smoke-9</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">TTS: botón Speak en mensaje assistant sigue funcionando</div></div>
+      <span class="item-tag">smoke-10</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Copy / sidebar / transcript / Markdown / focus recovery intactos</div></div>
+      <span class="item-tag">smoke-11</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Consola devtools limpia durante toda la sesión (sin errores rojos)</div></div>
+      <span class="item-tag">smoke-12</span></label>
+  </div>
+
+  <!-- BACKEND STT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Backend STT — contrato MIME real</span>
+      <span class="section-badge badge-done">MERGEADO</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">/stt/transcribe acepta audio/wav, webm, mp3, ogg, flac — MIME validado, extensión derivada</div>
+      <div class="item-note">B3-VOICE-BACKEND-2 · PR #216 · mergeado 2026-06-12 · staging live /health=200</div></div>
+      <span class="item-tag">B3-VOICE-BACKEND-2</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Backend devuelve texto no vacío para grabaciones cortas (≥ 2 seg)</div></div>
+      <span class="item-tag">contract</span></label>
+  </div>
+
+  <!-- UX TRANSITIONS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">UX de voz — Estados de transición</span>
+      <span class="section-badge badge-done">PR #217 MERGEADO</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Estado 'stopping' — spinner ámbar entre Stop y artifact en cola (~500ms)</div>
+      <div class="item-note">fi-glass AudioArtifactState + useDurableRecording + AudioQueueItem · PR #217</div></div>
+      <span class="item-tag">B3-VOICE-UX</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">isStarting — mic button busy mientras getUserMedia en vuelo</div>
+      <div class="item-note">fi-glass useDurableRecording + og118 ComposerMicSlot · PR #217</div></div>
+      <span class="item-tag">B3-VOICE-UX</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-10 — AudioDraftPlayer inline en el compositor</div>
+      <div class="item-note">Mini-reproductor inline (play + waveform + delete + Transcribir) al parar, patrón WhatsApp. fi-glass AudioDraftPlayer + AudioQueuePanel.excludeIds. PR #226 · verificado visualmente con DevTools · pendiente CI + merge + deploy.</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-10</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
+      <div class="item-note">Bug audit: play no reproducía (await rompía autoplay policy — Audio() ahora se crea antes del await). Gap UX: fi-surface-above-composer wrapper con marginBottom en AgentConversationSurface. 12 tests nuevos, 173/173 verdes. En código, pending deploy a staging + smoke.</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-11</span></label>
+  </div>
+
+  <!-- DAILY DRIVER -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Daily driver audit — ¿Puede Bernard reemplazar ChatGPT hoy?</span>
+      <span class="section-badge badge-pending">PENDIENTE SMOKE</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">og118 responde preguntas generales con la misma calidad que ChatGPT</div>
+      <div class="item-note">Modelo actual: verificar cuál está detrás del backend ACA</div></div>
+      <span class="item-tag">DD-001</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Dictado por voz → texto en composer → enviar → respuesta con TTS → flujo completo</div>
+      <div class="item-note">El bucle que reemplaza la conversación de voz con ChatGPT</div></div>
+      <span class="item-tag">DD-voice</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Contexto largo funciona (Bernard lleva sesiones largas de trabajo con el coagent)</div></div>
+      <span class="item-tag">DD-context</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Sidebar de conversaciones: fácil crear / cambiar / borrar threads</div></div>
+      <span class="item-tag">DD-nav</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Acceso desde móvil (Capacitor / browser móvil) sin regresiones</div></div>
+      <span class="item-tag">DD-mobile</span></label>
+  </div>
+
+  <!-- FI-GLASS FRAMEWORK -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">fi-glass — Primitivas que og118 aún no empuja al framework</span>
+      <span class="section-badge badge-pending">PENDIENTE DAILYDRIVER</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Post-transcription lifecycle: ¿clearTranscribed() debe ser automático o manual?</div>
+      <div class="item-note">Subir el contrato al framework si es reutilizable</div></div>
+      <span class="item-tag">figlass-queue</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Accessibility: form field sin id/name (warning actual) → fix en fi-glass AutoResizeTextarea</div>
+      <div class="item-note">Issue: textarea sin `id` ni `name` en el composer</div></div>
+      <span class="item-tag">figlass-a11y</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">composerAppend/micSlotOverride: Gatekeeper marcó que deben ser genéricos — auditar si son consumer-specific o reusable</div></div>
+      <span class="item-tag">figlass-contract</span></label>
+  </div>
+
+  <!-- GATE 3 / GATE 4 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Gate 3 + 4 — Auth real + Cutover público</span>
+      <span class="section-badge badge-blocked">DECISIÓN DE BERNARD</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Gate 3: Reemplazar bearer speed-bump por auth real (Azure AD / Auth0 / magic link)</div>
+      <div class="item-note">Actualmente: OG118_ACCESS_TOKEN en localStorage. No es Gate 3 real.</div></div>
+      <span class="item-tag">gate-3</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Gate 4: og118.ai apunta al SWA de producción + landing switch</div>
+      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final.</div></div>
+      <span class="item-tag">gate-4</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">ACA backend: arreglar el deploy de Azure Container Apps (falla en todos los merges)</div>
+      <div class="item-note">Falla pre-existente — no bloquea staging pero sí producción</div></div>
+      <span class="item-tag">infra-aca</span></label>
+  </div>
+
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11</footer>
+</div>
+
+<script>
+  const sections = { smoke: { total: 12, prefix: 'smoke-progress' } };
+
+  function updateProgress(section, checkbox) {
+    const wrap = checkbox.closest('.section');
+    const all = wrap.querySelectorAll('input[type="checkbox"]');
+    const checked = [...all].filter(c => c.checked).length;
+    const bar = wrap.querySelector('.progress-bar');
+    const label = wrap.querySelector('.progress-label');
+    if (bar) bar.style.width = (checked / all.length * 100) + '%';
+    if (label) label.textContent = checked + '/' + all.length + ' completados';
+    // Strike text when checked
+    const itemText = checkbox.closest('.item').querySelector('.item-text');
+    if (itemText) {
+      itemText.classList.toggle('done', checkbox.checked);
+    }
+  }
+
+  // Wire all checkboxes to toggle strike-through
+  document.querySelectorAll('.item input[type="checkbox"]').forEach(cb => {
+    if (!cb.getAttribute('onchange')) {
+      cb.addEventListener('change', () => {
+        const itemText = cb.closest('.item').querySelector('.item-text');
+        if (itemText) itemText.classList.toggle('done', cb.checked);
+      });
+    }
+  });
+</script>
+</body>
+</html>

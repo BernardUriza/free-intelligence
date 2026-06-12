@@ -1696,7 +1696,7 @@ function AgentConversationSurface({
           children: newChatLabel
         }
       ) }),
-      aboveComposer,
+      aboveComposer && /* @__PURE__ */ jsx24("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
       /* @__PURE__ */ jsxs18("div", { style: { display: "flex", alignItems: "flex-end", gap: micAvailable || micSlotOverride != null ? 8 : 0 }, children: [
         /* @__PURE__ */ jsx24("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx24(
           Composer,

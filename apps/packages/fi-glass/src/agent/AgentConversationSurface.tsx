@@ -413,7 +413,11 @@ export function AgentConversationSurface({
             </button>
           </div>
         )}
-        {aboveComposer}
+        {aboveComposer && (
+          <div className="fi-surface-above-composer" style={{ marginBottom: '0.5rem' }}>
+            {aboveComposer}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: (micAvailable || micSlotOverride != null) ? 8 : 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <Composer

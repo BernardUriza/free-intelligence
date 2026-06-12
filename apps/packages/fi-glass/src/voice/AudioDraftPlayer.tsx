@@ -72,18 +72,24 @@ export function AudioDraftPlayer({
       setPlaying(false);
       return;
     }
+    // Create the element synchronously within the user-gesture task so browsers
+    // with strict autoplay policies allow play() even after the await below.
+    const el = new Audio();
     const url = await onGetPlaybackUrl(artifact.id);
     if (!url) return;
-    const el = new Audio(url);
+    el.src = url;
     setAudioEl(el);
     setPlaying(true);
-    el.play().catch(() => setPlaying(false));
     const cleanup = () => {
       setPlaying(false);
       URL.revokeObjectURL(url);
     };
-    el.addEventListener('ended', cleanup);
-    el.addEventListener('error', cleanup);
+    el.addEventListener('ended', cleanup, { once: true });
+    el.addEventListener('error', cleanup, { once: true });
+    el.play().catch(() => {
+      setPlaying(false);
+      URL.revokeObjectURL(url);
+    });
   }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
 
   const isPaused = artifact.state === 'paused';

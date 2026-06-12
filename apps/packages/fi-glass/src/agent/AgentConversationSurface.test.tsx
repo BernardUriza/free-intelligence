@@ -256,3 +256,28 @@ describe('<AgentConversationSurface> composer input fill (B3-FIGLASS-6)', () => 
     expect(html).toMatch(/min-width:\s*0/);
   });
 });
+
+describe('<AgentConversationSurface> aboveComposer gap (B3-VOICE-FIGLASS-11)', () => {
+  // The draft player and any above-composer content must breathe — a stable
+  // wrapper class + marginBottom separates them from the textarea row. This
+  // belongs to the framework contract, not to consumer CSS.
+  it('wraps non-null aboveComposer in fi-surface-above-composer with bottom margin', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        aboveComposer={<div data-testid="above">draft</div>}
+      />
+    );
+    expect(html).toContain('fi-surface-above-composer');
+    expect(html).toContain('draft');
+    // margin-bottom is present (framework owns the spacing, not consumer CSS)
+    expect(html).toMatch(/margin-bottom/);
+  });
+
+  it('omits the wrapper entirely when aboveComposer is not provided', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    expect(html).not.toContain('fi-surface-above-composer');
+  });
+});
