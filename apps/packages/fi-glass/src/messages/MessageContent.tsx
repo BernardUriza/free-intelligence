@@ -28,54 +28,29 @@ export interface MessageContentProps {
   renderMarkdown?: (content: string) => ReactNode;
 }
 
-/** Default markdown component overrides (glass styling). */
+/** Default markdown component overrides (glass styling).
+ * Props are inferred from the Partial<Components> context so each slot
+ * accepts ExtraProps (node?) without an explicit annotation. */
 const mdComponents: Partial<Components> = {
-  p: ({ children }: { children?: ReactNode }) => (
-    <p className={markdownStyles.p}>{children}</p>
-  ),
-  strong: ({ children }: { children?: ReactNode }) => (
-    <strong className={markdownStyles.strong}>{children}</strong>
-  ),
-  em: ({ children }: { children?: ReactNode }) => (
-    <em className={markdownStyles.em}>{children}</em>
-  ),
-  code: ({ children }: { children?: ReactNode }) => (
-    <code className={markdownStyles.code}>{children}</code>
-  ),
-  pre: ({ children }: { children?: ReactNode }) => (
-    <pre className={markdownStyles.pre}>{children}</pre>
-  ),
-  ul: ({ children }: { children?: ReactNode }) => (
-    <ul className={markdownStyles.ul}>{children}</ul>
-  ),
-  ol: ({ children }: { children?: ReactNode }) => (
-    <ol className={markdownStyles.ol}>{children}</ol>
-  ),
-  li: ({ children }: { children?: ReactNode }) => (
+  p: ({ children }) => <p className={markdownStyles.p}>{children}</p>,
+  strong: ({ children }) => <strong className={markdownStyles.strong}>{children}</strong>,
+  em: ({ children }) => <em className={markdownStyles.em}>{children}</em>,
+  code: ({ children }) => <code className={markdownStyles.code}>{children}</code>,
+  pre: ({ children }) => <pre className={markdownStyles.pre}>{children}</pre>,
+  ul: ({ children }) => <ul className={markdownStyles.ul}>{children}</ul>,
+  ol: ({ children }) => <ol className={markdownStyles.ol}>{children}</ol>,
+  li: ({ children }) => (
     <li className={markdownStyles.li}>
       <span className={markdownStyles.bullet}>•</span>
       <span className="flex-1">{children}</span>
     </li>
   ),
-  h1: ({ children }: { children?: ReactNode }) => (
-    <h1 className={markdownStyles.h1}>{children}</h1>
-  ),
-  h2: ({ children }: { children?: ReactNode }) => (
-    <h2 className={markdownStyles.h2}>{children}</h2>
-  ),
-  h3: ({ children }: { children?: ReactNode }) => (
-    <h3 className={markdownStyles.h3}>{children}</h3>
-  ),
-  blockquote: ({ children }: { children?: ReactNode }) => (
-    <blockquote className={markdownStyles.blockquote}>{children}</blockquote>
-  ),
-  a: ({ href, children }: { href?: string; children?: ReactNode }) => (
-    <a
-      href={href}
-      className={markdownStyles.link}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
+  h1: ({ children }) => <h1 className={markdownStyles.h1}>{children}</h1>,
+  h2: ({ children }) => <h2 className={markdownStyles.h2}>{children}</h2>,
+  h3: ({ children }) => <h3 className={markdownStyles.h3}>{children}</h3>,
+  blockquote: ({ children }) => <blockquote className={markdownStyles.blockquote}>{children}</blockquote>,
+  a: ({ href, children }) => (
+    <a href={href} className={markdownStyles.link} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
