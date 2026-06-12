@@ -1538,6 +1538,7 @@ function artifactLabel(state) {
   const map = {
     recording: "Grabando",
     paused: "En pausa",
+    stopping: "Guardando...",
     saved: "Guardado",
     queued: "En cola",
     uploading: "Subiendo",
@@ -1660,6 +1661,7 @@ function useDurableRecording(opts) {
   const [recordingTime, setRecordingTime] = useState5(0);
   const [currentStream, setCurrentStream] = useState5(null);
   const [isAtCapacity, setIsAtCapacity] = useState5(false);
+  const [isStarting, setIsStarting] = useState5(false);
   const recorderRef = useRef5(null);
   const streamRef = useRef5(null);
   const timerRef = useRef5(null);
@@ -1710,6 +1712,7 @@ function useDurableRecording(opts) {
   );
   const startRecording = useCallback4(async () => {
     if (artifact?.state === "recording" || artifact?.state === "paused") return;
+    setIsStarting(true);
     try {
       const stored = await store.list();
       const pending = stored.filter(
@@ -1769,6 +1772,8 @@ function useDurableRecording(opts) {
     } catch (err) {
       releaseStream();
       onError?.(err instanceof Error ? err.message : "No se pudo iniciar la grabaci\xF3n.");
+    } finally {
+      setIsStarting(false);
     }
   }, [artifact, store, policy, deviceId, onError, releaseStream]);
   const pauseRecording = useCallback4(() => {
@@ -1796,6 +1801,7 @@ function useDurableRecording(opts) {
     }
     stopTimer();
     const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
+    updateArtifact({ state: "stopping" });
     releaseStream();
     return new Promise((resolve) => {
       if (!recorderRef.current) {
@@ -1865,6 +1871,7 @@ function useDurableRecording(opts) {
     bands,
     audioLevel,
     isSilent,
+    isStarting,
     startRecording,
     pauseRecording,
     resumeRecording,
@@ -2010,6 +2017,8 @@ function StateIcon({ state }) {
       return /* @__PURE__ */ jsx11(Mic3, { className: `${base} text-red-400 animate-pulse` });
     case "paused":
       return /* @__PURE__ */ jsx11(PauseCircle, { className: `${base} text-yellow-400` });
+    case "stopping":
+      return /* @__PURE__ */ jsx11(Loader28, { className: `${base} text-amber-400 animate-spin` });
     case "transcribed":
       return /* @__PURE__ */ jsx11(CheckCircle2, { className: `${base} text-green-400` });
     case "failed":

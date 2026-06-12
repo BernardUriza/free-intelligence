@@ -631,7 +631,7 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-type AudioArtifactState = 'recording' | 'paused' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'failed' | 'deleted';
+type AudioArtifactState = 'recording' | 'paused' | 'stopping' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'failed' | 'deleted';
 interface AudioArtifact {
     id: string;
     mime: string;
@@ -691,6 +691,7 @@ interface UseDurableRecordingReturn {
     bands: number[];
     audioLevel: number;
     isSilent: boolean;
+    isStarting: boolean;
     startRecording: () => Promise<void>;
     pauseRecording: () => void;
     resumeRecording: () => void;

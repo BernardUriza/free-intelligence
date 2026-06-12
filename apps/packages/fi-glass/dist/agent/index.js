@@ -723,16 +723,7 @@ var mdComponents = {
   h2: ({ children }) => /* @__PURE__ */ jsx7("h2", { className: markdownStyles.h2, children }),
   h3: ({ children }) => /* @__PURE__ */ jsx7("h3", { className: markdownStyles.h3, children }),
   blockquote: ({ children }) => /* @__PURE__ */ jsx7("blockquote", { className: markdownStyles.blockquote, children }),
-  a: ({ href, children }) => /* @__PURE__ */ jsx7(
-    "a",
-    {
-      href,
-      className: markdownStyles.link,
-      target: "_blank",
-      rel: "noopener noreferrer",
-      children
-    }
-  )
+  a: ({ href, children }) => /* @__PURE__ */ jsx7("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
   return /* @__PURE__ */ jsx7(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
