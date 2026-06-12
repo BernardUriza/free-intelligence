@@ -16,6 +16,34 @@ governance question — those are the legacy container imports; this is the
 purpose-built seam for the S2/S5 domain ports.
 
 Design plan: ``.claude/plans/s2_s5_domain_facets_multipr.md``.
+
+Adapter map
+-----------
+All adapters live here. ``cog.py`` is the sole consumer — it imports the
+``default_*`` factory functions and the two ``build_*`` builders. No other
+module wires domain services to ports.
+
++--------------------------------+----------+----------------------------------+
+| Adapter                        | Lifecycle | Factory                          |
++================================+==========+==================================+
+| ``_CoreFactsAdapter``          | stateless | ``default_facts_port()``         |
++--------------------------------+----------+----------------------------------+
+| ``_CoreStanceAdapter``         | stateless | ``default_stance_port()``        |
++--------------------------------+----------+----------------------------------+
+| ``_CoreArcAdapter``            | stateless | ``default_arc_port()``           |
++--------------------------------+----------+----------------------------------+
+| ``_CoreRetrievalAdapter``      | stateless | ``default_retrieval_port()``     |
++--------------------------------+----------+----------------------------------+
+| ``_CoreOutputMutationAdapter`` | stateless | ``default_output_mutation_port``  |
++--------------------------------+----------+----------------------------------+
+| ``_CorePresetEngineAdapter``   | stateful  | ``build_preset_engine_port()``   |
++--------------------------------+----------+----------------------------------+
+| ``_CoreS1bPolicyAdapter``      | stateful  | ``build_s1b_policy_port()``      |
++--------------------------------+----------+----------------------------------+
+
+Stateless adapters close over nothing — a single process-wide instance is
+sufficient. Stateful adapters close over runtime deps (``ExpressionHistory``,
+``judge_client``, ``settings``); they are built once per cog instance.
 """
 
 from __future__ import annotations
