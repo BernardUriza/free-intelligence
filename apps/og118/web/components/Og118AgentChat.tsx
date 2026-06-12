@@ -38,6 +38,7 @@ import {
   useDurableRecording,
   useAudioQueue,
   AudioQueuePanel,
+  AudioDraftPlayer,
   ComposerMicSlot,
   AudioVisualizer,
 } from 'fi-glass/voice';
@@ -230,10 +231,38 @@ export function Og118AgentChat() {
   // B3-VOICE-OG118-6: audio queue panel — shown above the composer when
   // there are pending (non-deleted) artifacts. Privacy notice, item list, and
   // a "clear transcribed" action are all provided by the fi-glass primitive.
-  const hasPendingAudios = queue.artifacts.filter((a) => a.state !== 'deleted').length > 0;
-  const audioQueuePanel = hasPendingAudios ? (
+  // B3-VOICE-FIGLASS-10: the most recent not-yet-transcribed artifact is the
+  // active DRAFT — shown inline in the composer as a mini player (record -> stop
+  // -> preview). Older/pending artifacts stay in the backlog panel below.
+  const draftArtifact = [...queue.artifacts]
+    .reverse()
+    .find(
+      (a) =>
+        a.state === 'stopping' ||
+        a.state === 'queued' ||
+        a.state === 'transcribing' ||
+        a.state === 'uploading' ||
+        a.state === 'failed',
+    );
+  const audioDraftPlayer = draftArtifact ? (
+    <AudioDraftPlayer
+      artifact={draftArtifact}
+      onGetPlaybackUrl={queue.getPlaybackUrl}
+      onPrimary={queue.transcribeArtifact}
+      onRetry={queue.retryTranscription}
+      onDiscard={queue.deleteArtifact}
+      primaryActionLabel="Transcribir"
+      className="og-audio-draft"
+    />
+  ) : null;
+
+  const backlogCount = queue.artifacts.filter(
+    (a) => a.state !== 'deleted' && a.id !== draftArtifact?.id,
+  ).length;
+  const audioQueuePanel = backlogCount > 0 ? (
     <AudioQueuePanel
       queue={queue}
+      excludeIds={draftArtifact ? [draftArtifact.id] : []}
       className="og-audio-queue"
     />
   ) : null;
@@ -385,6 +414,7 @@ export function Og118AgentChat() {
               {authBanner}
               {voiceErrorBanner}
               {voiceBar}
+              {audioDraftPlayer}
               {audioQueuePanel}
             </>
           }

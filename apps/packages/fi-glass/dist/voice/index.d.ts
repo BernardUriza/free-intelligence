@@ -728,8 +728,11 @@ interface AudioQueuePanelProps {
     privacyNotice?: string;
     /** Max visible items before scroll */
     maxVisible?: number;
+    /** Artifact ids to hide from the panel (e.g. the active draft shown inline
+     * via AudioDraftPlayer, so it is not duplicated in the backlog list). */
+    excludeIds?: string[];
 }
-declare function AudioQueuePanel({ queue, className, privacyNotice, maxVisible, }: AudioQueuePanelProps): react.JSX.Element | null;
+declare function AudioQueuePanel({ queue, className, privacyNotice, maxVisible, excludeIds, }: AudioQueuePanelProps): react.JSX.Element | null;
 
 interface AudioQueueItemProps {
     artifact: AudioArtifact;
@@ -741,4 +744,21 @@ interface AudioQueueItemProps {
 }
 declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
 
-export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };
+interface AudioDraftPlayerProps {
+    /** The draft artifact (the just-recorded, not-yet-acted-on audio). */
+    artifact: AudioArtifact;
+    /** Resolve a playback object URL for the artifact (caller revokes). */
+    onGetPlaybackUrl?: (id: string) => Promise<string | null>;
+    /** Primary action — transcribe / send / use the draft. */
+    onPrimary?: (id: string) => void;
+    /** Discard the draft (deletes the real artifact). */
+    onDiscard?: (id: string) => void;
+    /** Retry a failed primary action. */
+    onRetry?: (id: string) => void;
+    /** Label for the primary action button (default: "Transcribir"). */
+    primaryActionLabel?: string;
+    className?: string;
+}
+declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
+
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };
