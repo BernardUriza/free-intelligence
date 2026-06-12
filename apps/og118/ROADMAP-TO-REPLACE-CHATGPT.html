@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#229 mergeados + staging live · B3-VOICE-FIGLASS-11 smoke automatizado PASS — pendiente audio humano (play/pause/transcribe con grabación real)</p>
+  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#229 mergeados + staging live · FIGLASS-11 smoke automatizado PASS (pendiente audio humano) · B3-FIGLASS-12 (autoscroll + collapse + fade-in) en PR</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -287,6 +287,10 @@
       <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
       <div class="item-note">PR #229 merged (848c8895) + SWA deployed. Smoke automatizado PASS: gap player→composer 18.6px (fi-surface-above-composer), consola limpia, red 9/9×200, delete borra artifact de IndexedDB + player se desmonta, textarea full-width sin regresión. Pendiente verificación humana de audio (play/pause/transcribe con grabación real).</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-11</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
+      <div class="item-note">Tres capabilities reusables en fi-glass (og118 hereda sin tocar consumer): (1) pin-to-bottom durante streaming vía use-stick-to-bottom + ScrollToBottomButton flotante — consume por fin el config.autoScroll fantasma; (2) CollapsibleText: mensajes user largos clampean a 264px con mask-image fade + "Mostrar más" (disclosure ARIA, ingeniería inversa del DOM de chatgpt.com); (3) fade-in de entrada de mensajes (keyframe fi-msg-show, opacity-only, respeta prefers-reduced-motion). 179/179 tests, e2e local verificado con DevTools (pin 1px, clamp 774→264, spring-back 4.5px). En PR, pendiente CI + merge + deploy + smoke staging.</div></div>
+      <span class="item-tag">B3-FIGLASS-12</span></label>
   </div>
 
   <!-- DAILY DRIVER -->

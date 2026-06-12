@@ -46,3 +46,8 @@ export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
 } from './AgentConversationSurface';
+// B3-FIGLASS-12: floating jump-to-latest affordance (pin-to-bottom UX).
+export {
+  ScrollToBottomButton,
+  type ScrollToBottomButtonProps,
+} from './ScrollToBottomButton';

@@ -6,6 +6,8 @@ export { MessageContent, type MessageContentProps } from './MessageContent';
 export { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 export { CopyButton, type CopyButtonProps } from './CopyButton';
 export { MessageBubble, type MessageBubbleProps } from './MessageBubble';
+// B3-FIGLASS-12: ChatGPT-style "show more" disclosure clamp for long content.
+export { CollapsibleText, type CollapsibleTextProps } from './CollapsibleText';
 export {
   MessageList,
   type MessageListProps,

@@ -89,6 +89,19 @@ interface MessageContentProps {
     isStreaming?: boolean;
     /** Override how assistant content is rendered (default: markdown). */
     renderMarkdown?: (content: string) => ReactNode;
+    /**
+     * B3-FIGLASS-12 — clamp long content behind a "show more" disclosure
+     * (ChatGPT parity for long pasted user messages). Never combine with
+     * `isStreaming`: a live answer must stay fully visible while it grows.
+     */
+    collapsible?: boolean;
+    /** Collapsed max height in px when `collapsible`. Default 264. */
+    collapsedMaxHeight?: number;
+    /** Disclosure copy (app-owned). Defaults: "Mostrar más" / "Mostrar menos". */
+    showMoreLabel?: string;
+    showLessLabel?: string;
+    /** Class for the disclosure toggle button. */
+    collapseToggleClassName?: string;
 }
 declare const MessageContent: react.NamedExoticComponent<MessageContentProps>;
 
@@ -156,6 +169,23 @@ interface MessageBubbleProps {
 }
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
 
+interface CollapsibleTextProps {
+    children: ReactNode;
+    /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
+    maxHeight?: number;
+    /** Height in px of the fade-out mask at the bottom of clamped content. Default 48. */
+    fadeHeight?: number;
+    /** Toggle copy when collapsed. Default: "Mostrar más". */
+    showMoreLabel?: string;
+    /** Toggle copy when expanded. Default: "Mostrar menos". */
+    showLessLabel?: string;
+    /** Wrapper class (style hook for the app). */
+    className?: string;
+    /** Toggle button class. When set, the unstyled default is dropped. */
+    toggleClassName?: string;
+}
+declare function CollapsibleText({ children, maxHeight, fadeHeight, showMoreLabel, showLessLabel, className, toggleClassName, }: CollapsibleTextProps): react.JSX.Element;
+
 interface MessageListGroup<T> {
     /** Stable key for the group (also passed to renderDivider). */
     key: string;
@@ -180,4 +210,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles, normalizeStreamedMarkdown };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles, normalizeStreamedMarkdown };

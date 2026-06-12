@@ -16,6 +16,7 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { messageStyles, markdownStyles } from './styles';
 import { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
+import { CollapsibleText } from './CollapsibleText';
 
 export interface MessageContentProps {
   /** Is this a user message */
@@ -26,6 +27,19 @@ export interface MessageContentProps {
   isStreaming?: boolean;
   /** Override how assistant content is rendered (default: markdown). */
   renderMarkdown?: (content: string) => ReactNode;
+  /**
+   * B3-FIGLASS-12 — clamp long content behind a "show more" disclosure
+   * (ChatGPT parity for long pasted user messages). Never combine with
+   * `isStreaming`: a live answer must stay fully visible while it grows.
+   */
+  collapsible?: boolean;
+  /** Collapsed max height in px when `collapsible`. Default 264. */
+  collapsedMaxHeight?: number;
+  /** Disclosure copy (app-owned). Defaults: "Mostrar más" / "Mostrar menos". */
+  showMoreLabel?: string;
+  showLessLabel?: string;
+  /** Class for the disclosure toggle button. */
+  collapseToggleClassName?: string;
 }
 
 /** Default markdown component overrides (glass styling).
@@ -72,19 +86,37 @@ export const MessageContent = memo(function MessageContent({
   content,
   isStreaming = false,
   renderMarkdown = defaultRenderMarkdown,
+  collapsible = false,
+  collapsedMaxHeight,
+  showMoreLabel,
+  showLessLabel,
+  collapseToggleClassName,
 }: MessageContentProps) {
   const { content: styles } = messageStyles;
+
+  const body = isUser ? (
+    // User: plain text, preserve whitespace
+    <p className="whitespace-pre-wrap">{content}</p>
+  ) : (
+    // Assistant: markdown (overridable)
+    renderMarkdown(content)
+  );
 
   return (
     <div
       className={`${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`}
     >
-      {isUser ? (
-        // User: plain text, preserve whitespace
-        <p className="whitespace-pre-wrap">{content}</p>
+      {collapsible && !isStreaming ? (
+        <CollapsibleText
+          maxHeight={collapsedMaxHeight}
+          showMoreLabel={showMoreLabel}
+          showLessLabel={showLessLabel}
+          toggleClassName={collapseToggleClassName}
+        >
+          {body}
+        </CollapsibleText>
       ) : (
-        // Assistant: markdown (overridable)
-        renderMarkdown(content)
+        body
       )}
 
       {/* Streaming cursor */}
