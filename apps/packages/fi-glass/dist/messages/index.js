@@ -98,58 +98,141 @@ function normalizeStreamedMarkdown(content) {
   ).join("");
 }
 
-// src/messages/MessageContent.tsx
+// src/messages/CollapsibleText.tsx
+import { useEffect, useId, useRef, useState } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
+function CollapsibleText({
+  children,
+  maxHeight = 264,
+  fadeHeight = 48,
+  showMoreLabel = "Mostrar m\xE1s",
+  showLessLabel = "Mostrar menos",
+  className,
+  toggleClassName
+}) {
+  const contentId = useId();
+  const contentRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const measure = () => setOverflowing(el.scrollHeight > maxHeight + 16);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [maxHeight]);
+  const clamped = overflowing && !expanded;
+  const mask = `linear-gradient(rgb(0,0,0) calc(100% - ${fadeHeight}px), transparent)`;
+  return /* @__PURE__ */ jsxs("div", { className, children: [
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        id: contentId,
+        ref: contentRef,
+        style: clamped ? {
+          maxHeight,
+          overflow: "hidden",
+          maskImage: mask,
+          WebkitMaskImage: mask
+        } : void 0,
+        children
+      }
+    ),
+    overflowing && /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        "aria-expanded": expanded,
+        "aria-controls": contentId,
+        onClick: () => setExpanded((e) => !e),
+        className: toggleClassName,
+        style: toggleClassName ? void 0 : {
+          marginTop: "0.25rem",
+          padding: 0,
+          border: "none",
+          background: "transparent",
+          color: "#94a3b8",
+          fontSize: "0.8rem",
+          cursor: "pointer",
+          textDecoration: "underline",
+          textUnderlineOffset: 2
+        },
+        children: expanded ? showLessLabel : showMoreLabel
+      }
+    )
+  ] });
+}
+
+// src/messages/MessageContent.tsx
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var mdComponents = {
-  p: ({ children }) => /* @__PURE__ */ jsx("p", { className: markdownStyles.p, children }),
-  strong: ({ children }) => /* @__PURE__ */ jsx("strong", { className: markdownStyles.strong, children }),
-  em: ({ children }) => /* @__PURE__ */ jsx("em", { className: markdownStyles.em, children }),
-  code: ({ children }) => /* @__PURE__ */ jsx("code", { className: markdownStyles.code, children }),
-  pre: ({ children }) => /* @__PURE__ */ jsx("pre", { className: markdownStyles.pre, children }),
-  ul: ({ children }) => /* @__PURE__ */ jsx("ul", { className: markdownStyles.ul, children }),
-  ol: ({ children }) => /* @__PURE__ */ jsx("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx("span", { className: "flex-1", children })
+  p: ({ children }) => /* @__PURE__ */ jsx2("p", { className: markdownStyles.p, children }),
+  strong: ({ children }) => /* @__PURE__ */ jsx2("strong", { className: markdownStyles.strong, children }),
+  em: ({ children }) => /* @__PURE__ */ jsx2("em", { className: markdownStyles.em, children }),
+  code: ({ children }) => /* @__PURE__ */ jsx2("code", { className: markdownStyles.code, children }),
+  pre: ({ children }) => /* @__PURE__ */ jsx2("pre", { className: markdownStyles.pre, children }),
+  ul: ({ children }) => /* @__PURE__ */ jsx2("ul", { className: markdownStyles.ul, children }),
+  ol: ({ children }) => /* @__PURE__ */ jsx2("ol", { className: markdownStyles.ol, children }),
+  li: ({ children }) => /* @__PURE__ */ jsxs2("li", { className: markdownStyles.li, children: [
+    /* @__PURE__ */ jsx2("span", { className: markdownStyles.bullet, children: "\u2022" }),
+    /* @__PURE__ */ jsx2("span", { className: "flex-1", children })
   ] }),
-  h1: ({ children }) => /* @__PURE__ */ jsx("h1", { className: markdownStyles.h1, children }),
-  h2: ({ children }) => /* @__PURE__ */ jsx("h2", { className: markdownStyles.h2, children }),
-  h3: ({ children }) => /* @__PURE__ */ jsx("h3", { className: markdownStyles.h3, children }),
-  blockquote: ({ children }) => /* @__PURE__ */ jsx("blockquote", { className: markdownStyles.blockquote, children }),
-  a: ({ href, children }) => /* @__PURE__ */ jsx("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
+  h1: ({ children }) => /* @__PURE__ */ jsx2("h1", { className: markdownStyles.h1, children }),
+  h2: ({ children }) => /* @__PURE__ */ jsx2("h2", { className: markdownStyles.h2, children }),
+  h3: ({ children }) => /* @__PURE__ */ jsx2("h3", { className: markdownStyles.h3, children }),
+  blockquote: ({ children }) => /* @__PURE__ */ jsx2("blockquote", { className: markdownStyles.blockquote, children }),
+  a: ({ href, children }) => /* @__PURE__ */ jsx2("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx2(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
   content,
   isStreaming = false,
-  renderMarkdown = defaultRenderMarkdown
+  renderMarkdown = defaultRenderMarkdown,
+  collapsible = false,
+  collapsedMaxHeight,
+  showMoreLabel,
+  showLessLabel,
+  collapseToggleClassName
 }) {
   const { content: styles } = messageStyles;
-  return /* @__PURE__ */ jsxs(
+  const body = isUser ? (
+    // User: plain text, preserve whitespace
+    /* @__PURE__ */ jsx2("p", { className: "whitespace-pre-wrap", children: content })
+  ) : (
+    // Assistant: markdown (overridable)
+    renderMarkdown(content)
+  );
+  return /* @__PURE__ */ jsxs2(
     "div",
     {
       className: `${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`,
       children: [
-        isUser ? (
-          // User: plain text, preserve whitespace
-          /* @__PURE__ */ jsx("p", { className: "whitespace-pre-wrap", children: content })
-        ) : (
-          // Assistant: markdown (overridable)
-          renderMarkdown(content)
-        ),
-        isStreaming && /* @__PURE__ */ jsx("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
+        collapsible && !isStreaming ? /* @__PURE__ */ jsx2(
+          CollapsibleText,
+          {
+            maxHeight: collapsedMaxHeight,
+            showMoreLabel,
+            showLessLabel,
+            toggleClassName: collapseToggleClassName,
+            children: body
+          }
+        ) : body,
+        isStreaming && /* @__PURE__ */ jsx2("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
       ]
     }
   );
 });
 
 // src/messages/CopyButton.tsx
-import { memo as memo2, useCallback, useState } from "react";
+import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
-import { jsx as jsx2 } from "react/jsx-runtime";
+import { jsx as jsx3 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
   onError,
@@ -161,7 +244,7 @@ var CopyButton = memo2(function CopyButton2({
   copiedLabel = "Copiado",
   resetMs = 2e3
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState2(false);
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -176,21 +259,21 @@ var CopyButton = memo2(function CopyButton2({
       onError?.(err);
     }
   }, [content, onError, resetMs]);
-  return /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsx3(
     "button",
     {
       onClick: handleCopy,
       className: `${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
-      children: copied ? /* @__PURE__ */ jsx2(Check, { className: icon }) : /* @__PURE__ */ jsx2(Copy, { className: icon })
+      children: copied ? /* @__PURE__ */ jsx3(Check, { className: icon }) : /* @__PURE__ */ jsx3(Copy, { className: icon })
     }
   );
 });
 
 // src/messages/MessageBubble.tsx
 import { memo as memo3 } from "react";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -203,17 +286,17 @@ var MessageBubble = memo3(function MessageBubble2({
 }) {
   const { message: styles } = messageStyles;
   const isUser = role === "user";
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs3(
     "article",
     {
-      className: `${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
+      className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
       children: [
-        header && /* @__PURE__ */ jsx3("div", { className: "flex items-center gap-2 mb-1", children: header }),
-        reasoning && /* @__PURE__ */ jsx3("div", { className: "mt-3 mb-3", children: reasoning }),
+        header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        reasoning && /* @__PURE__ */ jsx4("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
-        badge && /* @__PURE__ */ jsx3("div", { className: "mt-2", children: badge }),
+        badge && /* @__PURE__ */ jsx4("div", { className: "mt-2", children: badge }),
         actions
       ]
     }
@@ -221,7 +304,7 @@ var MessageBubble = memo3(function MessageBubble2({
 });
 
 // src/messages/MessageList.tsx
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -231,16 +314,17 @@ function MessageList({
   header,
   footer
 }) {
-  return /* @__PURE__ */ jsxs3("div", { className: containerClassName, children: [
+  return /* @__PURE__ */ jsxs4("div", { className: containerClassName, children: [
     header,
-    groups.map((group) => /* @__PURE__ */ jsxs3("div", { children: [
+    groups.map((group) => /* @__PURE__ */ jsxs4("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx4("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx5("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
 }
 export {
+  CollapsibleText,
   CopyButton,
   MessageBubble,
   MessageContent,

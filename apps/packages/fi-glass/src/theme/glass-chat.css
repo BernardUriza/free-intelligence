@@ -123,3 +123,19 @@
     -webkit-backdrop-filter: blur(var(--glass-blur-compact, 8px));
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Message entry fade-in (B3-FIGLASS-12 — ChatGPT parity).
+   Applied by MessageBubble on mount; opacity-only so native CSS scroll
+   anchoring is never suppressed (transform/position changes would disable it).
+--------------------------------------------------------------------------- */
+@keyframes fi-msg-show {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fi-msg-appear {
+  animation: fi-msg-show 0.3s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fi-msg-appear { animation: none; }
+}

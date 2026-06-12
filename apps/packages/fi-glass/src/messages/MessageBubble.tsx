@@ -55,7 +55,11 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <article
-      className={`${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ''}`}
+      // fi-msg-appear: 0.3s opacity fade-in on mount (B3-FIGLASS-12, ChatGPT
+      // parity). Defined in theme/glass-chat.css — a consumer that doesn't
+      // import it gets an instant appear (graceful no-op). Opacity only: a
+      // transform here would suppress native CSS scroll anchoring.
+      className={`fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ''}`}
       role="article"
       aria-label={ariaLabel}
     >

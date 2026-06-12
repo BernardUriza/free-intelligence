@@ -14,11 +14,13 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { useStickToBottom } from 'use-stick-to-bottom';
 import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
 import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
 import type { AgentConversation } from './useAgentConversation';
 
 export interface AgentConversationSurfaceProps {
@@ -151,6 +153,35 @@ export interface AgentConversationSurfaceProps {
   retryButtonClassName?: string;
   /** Class for the dismiss button. */
   dismissButtonClassName?: string;
+  /**
+   * B3-FIGLASS-12 — pin-to-bottom scroll during streaming (ChatGPT parity).
+   * The transcript stays pinned to the newest content while a turn streams;
+   * the user scrolling up unpins it; a floating button jumps back. Powered by
+   * use-stick-to-bottom (ResizeObserver + spring, no overflow-anchor — Safari
+   * doesn't support it). Default true. This finally consumes the autoscroll
+   * promise that config.ts declared and nothing implemented.
+   */
+  autoScroll?: boolean;
+  /** aria-label for the floating scroll-to-bottom button. Default: "Ir al final". */
+  scrollToBottomLabel?: string;
+  /** Visual class for the scroll-to-bottom button (placement stays framework-owned). */
+  scrollToBottomClassName?: string;
+  /** Icon class for the scroll-to-bottom button. */
+  scrollToBottomIconClassName?: string;
+  /**
+   * B3-FIGLASS-12 — clamp long USER messages behind a "show more" disclosure
+   * (ChatGPT parity: max-height + mask-image fade + aria-expanded toggle).
+   * Assistant messages and the live streaming bubble are never clamped.
+   * Default true.
+   */
+  collapseUserMessages?: boolean;
+  /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
+  collapseMaxHeight?: number;
+  /** Disclosure copy (app-owned). Defaults: "Mostrar más" / "Mostrar menos". */
+  showMoreLabel?: string;
+  showLessLabel?: string;
+  /** Class for the disclosure toggle button. */
+  collapseToggleClassName?: string;
 }
 
 export function AgentConversationSurface({
@@ -186,10 +217,24 @@ export function AgentConversationSurface({
   dismissLabel = 'Descartar',
   retryButtonClassName,
   dismissButtonClassName,
+  autoScroll = true,
+  scrollToBottomLabel = 'Ir al final',
+  scrollToBottomClassName,
+  scrollToBottomIconClassName,
+  collapseUserMessages = true,
+  collapseMaxHeight,
+  showMoreLabel,
+  showLessLabel,
+  collapseToggleClassName,
 }: AgentConversationSurfaceProps) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
+
+  // B3-FIGLASS-12 — pin-to-bottom. The hook is called unconditionally (hooks
+  // rule); when autoScroll is off the refs simply never attach, so it observes
+  // nothing. isAtBottom starts true → no phantom button on first paint/SSR.
+  const stick = useStickToBottom({ initial: 'instant', resize: 'smooth' });
 
   // B3-FIGLASS-10 — composer focus recovery. The daily-driver audit's "Enter no
   // envía": clicking the mic/send button leaves focus ON the button, so the next
@@ -288,7 +333,14 @@ export function AgentConversationSurface({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxWidth: 760, margin: '0 auto' }}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1rem' }}>
+      {/* Relative anchor: hosts the scroll area + the floating jump-to-latest
+          button, so the button stays glued to the transcript's bottom edge. */}
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div
+          ref={autoScroll ? stick.scrollRef : undefined}
+          style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1rem' }}
+        >
+          <div ref={autoScroll ? stick.contentRef : undefined}>
         {idle ? (
           emptyState
         ) : (
@@ -306,7 +358,18 @@ export function AgentConversationSurface({
                 }
                 className={resolveBubbleClass(m)}
               >
-                <MessageContent isUser={m.role === 'user'} content={m.content} />
+                <MessageContent
+                  isUser={m.role === 'user'}
+                  content={m.content}
+                  // B3-FIGLASS-12: only USER messages clamp (ChatGPT parity) —
+                  // a long pasted prompt folds behind "Mostrar más"; assistant
+                  // answers always render whole.
+                  collapsible={collapseUserMessages && m.role === 'user'}
+                  collapsedMaxHeight={collapseMaxHeight}
+                  showMoreLabel={showMoreLabel}
+                  showLessLabel={showLessLabel}
+                  collapseToggleClassName={collapseToggleClassName}
+                />
               </MessageBubble>
             ))}
 
@@ -389,6 +452,18 @@ export function AgentConversationSurface({
               {dismissLabel}
             </button>
           </div>
+        )}
+          </div>
+        </div>
+        {/* Floating jump-to-latest: only when pinning is on and the user has
+            scrolled away from the bottom (use-stick-to-bottom's isAtBottom). */}
+        {autoScroll && !stick.isAtBottom && (
+          <ScrollToBottomButton
+            onClick={() => void stick.scrollToBottom()}
+            label={scrollToBottomLabel}
+            className={scrollToBottomClassName}
+            iconClassName={scrollToBottomIconClassName}
+          />
         )}
       </div>
 

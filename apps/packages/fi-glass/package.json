@@ -52,16 +52,17 @@
     "src/theme"
   ],
   "dependencies": {
-    "@free-intelligence/core": "workspace:*"
+    "@free-intelligence/core": "workspace:*",
+    "use-stick-to-bottom": "^1.1.6"
   },
   "peerDependencies": {
+    "framer-motion": ">=11.0.0",
+    "lucide-react": ">=0.400.0",
     "react": ">=18",
     "react-dom": ">=18",
-    "lucide-react": ">=0.400.0",
-    "framer-motion": ">=11.0.0",
     "react-markdown": ">=9.0.0",
-    "remark-gfm": ">=4.0.0",
-    "recordrtc": ">=5.0.0"
+    "recordrtc": ">=5.0.0",
+    "remark-gfm": ">=4.0.0"
   },
   "peerDependenciesMeta": {
     "recordrtc": {

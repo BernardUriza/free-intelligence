@@ -343,7 +343,47 @@ interface AgentConversationSurfaceProps {
     retryButtonClassName?: string;
     /** Class for the dismiss button. */
     dismissButtonClassName?: string;
+    /**
+     * B3-FIGLASS-12 — pin-to-bottom scroll during streaming (ChatGPT parity).
+     * The transcript stays pinned to the newest content while a turn streams;
+     * the user scrolling up unpins it; a floating button jumps back. Powered by
+     * use-stick-to-bottom (ResizeObserver + spring, no overflow-anchor — Safari
+     * doesn't support it). Default true. This finally consumes the autoscroll
+     * promise that config.ts declared and nothing implemented.
+     */
+    autoScroll?: boolean;
+    /** aria-label for the floating scroll-to-bottom button. Default: "Ir al final". */
+    scrollToBottomLabel?: string;
+    /** Visual class for the scroll-to-bottom button (placement stays framework-owned). */
+    scrollToBottomClassName?: string;
+    /** Icon class for the scroll-to-bottom button. */
+    scrollToBottomIconClassName?: string;
+    /**
+     * B3-FIGLASS-12 — clamp long USER messages behind a "show more" disclosure
+     * (ChatGPT parity: max-height + mask-image fade + aria-expanded toggle).
+     * Assistant messages and the live streaming bubble are never clamped.
+     * Default true.
+     */
+    collapseUserMessages?: boolean;
+    /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
+    collapseMaxHeight?: number;
+    /** Disclosure copy (app-owned). Defaults: "Mostrar más" / "Mostrar menos". */
+    showMoreLabel?: string;
+    showLessLabel?: string;
+    /** Class for the disclosure toggle button. */
+    collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerAreaClassName, composerTextareaClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+interface ScrollToBottomButtonProps {
+    onClick: () => void;
+    /** Accessible label. Default: "Ir al final". */
+    label?: string;
+    /** Visual class. When set, the default skin is dropped (placement stays). */
+    className?: string;
+    /** Icon class. */
+    iconClassName?: string;
+}
+declare function ScrollToBottomButton({ onClick, label, className, iconClassName, }: ScrollToBottomButtonProps): react.JSX.Element;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
