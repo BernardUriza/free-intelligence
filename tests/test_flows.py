@@ -1,6 +1,6 @@
 """Tests for insult.core.flows — 4-flow behavioral analysis pipeline."""
 
-from insult.core.flows import (
+from personas.insult.core.flows import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,
@@ -24,7 +24,7 @@ from insult.core.flows import (
     detect_lifelessness,
     validate_flow_adherence,
 )
-from insult.core.presets import PresetMode, PresetSelection
+from personas.insult.core.presets import PresetMode, PresetSelection
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
@@ -797,7 +797,7 @@ class TestPhase2Enhancements:
         msg = "pues no se que pensar de todo esto la verdad"
         # After the v3.5.6 flows-package refactor, `random` is imported inside
         # the ExpressionAnalyzer module. The monkeypatch target moves with it.
-        with patch("insult.core.flows.analyzers.expression.random.random", return_value=0.1):
+        with patch("personas.insult.core.flows.analyzers.expression.random.random", return_value=0.1):
             shape, reason, _ = _select_shape(msg, _preset(), pressure, epistemic, [])
         assert shape == ResponseShape.EXPRESSIVE_THINKING
         assert "expressive_mode" in reason

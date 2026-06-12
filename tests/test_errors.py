@@ -1,6 +1,6 @@
 """Tests for insult.core.errors — in-character error responses."""
 
-from insult.core.errors import classify_error, get_error_response
+from personas.insult.core.errors import classify_error, get_error_response
 
 
 class TestGetErrorResponse:

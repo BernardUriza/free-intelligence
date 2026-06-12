@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.memory_consolidator import (
+from personas.insult.core.memory_consolidator import (
     SOFT_DELETE_RETENTION_SECONDS,
     consolidate_all_users,
     consolidate_user_facts,
@@ -49,7 +49,7 @@ def _mock_anthropic(judge_plan: list[dict]) -> MagicMock:
     LLMClient wrapper rather than the raw Anthropic client (post-v3.7.62
     consolidator routes through utility_call for cache + retry, with
     JSON output unaffected by the user-facing guards)."""
-    from insult.core.llm import LLMResponse
+    from personas.insult.core.llm import LLMResponse
 
     llm = MagicMock()
     llm.utility_call = AsyncMock(return_value=LLMResponse(text=json.dumps(judge_plan), stop_reason="end_turn"))
@@ -196,7 +196,7 @@ class TestConsolidateAllUsers:
         # Mock a NOOP-only plan so nothing changes — we only verify orchestration
         client = MagicMock()
 
-        from insult.core.llm import LLMResponse
+        from personas.insult.core.llm import LLMResponse
 
         def _build_response(system, messages, **kwargs):
             # echo the input fact ids back as NOOPs by inspecting the user prompt

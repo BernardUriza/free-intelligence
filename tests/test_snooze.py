@@ -1,6 +1,6 @@
 """Tests for insult.core.snooze — emoji→delta mapping for reminder snooze."""
 
-from insult.core.snooze import SNOOZE_DELTAS_SECONDS, SNOOZE_EMOJIS, snooze_delta_for_emoji
+from personas.insult.core.snooze import SNOOZE_DELTAS_SECONDS, SNOOZE_EMOJIS, snooze_delta_for_emoji
 
 
 def test_clock_emoji_maps_to_10_minutes():

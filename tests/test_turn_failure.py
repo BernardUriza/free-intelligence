@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from insult.cogs.chat._failure import (
+from personas.insult.cogs.chat._failure import (
     FailureClass,
     classify_discord_exception,
     emit_typing_safe,

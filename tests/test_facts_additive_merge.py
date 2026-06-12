@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.cogs.chat.tasks import extract_user_facts
-from insult.core.facts import merge_facts_additive
+from personas.insult.cogs.chat.tasks import extract_user_facts
+from personas.insult.core.facts import merge_facts_additive
 
 # --------------------------------------------------------------------------
 # Pure-function tests for merge_facts_additive (no DB)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
+from personas.insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
 
 
 def test_awake_singleton_is_inactive():

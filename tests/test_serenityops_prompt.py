@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 
-from insult.core.character.prompts import (
+from personas.insult.core.character.prompts import (
     _format_serenityops_block,
     compose_extra_layers,
 )

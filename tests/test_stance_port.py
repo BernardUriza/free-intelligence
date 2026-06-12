@@ -12,11 +12,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from insult.composition import default_stance_port
-from insult.core.stance_log import build_stance_prompt, extract_stances
+from personas.insult.composition import default_stance_port
+from personas.insult.core.stance_log import build_stance_prompt, extract_stances
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 
 # --- Positive: the adapter delegates faithfully to insult.core.stance_log -----
@@ -46,7 +46,7 @@ def test_stance_port_derive_matches_core() -> None:
     ]
 
 
-# --- Resistance: stages.py must NOT import insult.core.stance_log -------------
+# --- Resistance: stages.py must NOT import personas.insult.core.stance_log -------------
 
 
 def _imports_of(path: Path) -> set[str]:
@@ -67,5 +67,7 @@ def test_stages_does_not_import_core_stance_log() -> None:
     someone re-coupled stages to insult.core.stance_log — route it through
     ctx.deps.stance."""
     imports = _imports_of(STAGES)
-    offenders = {m for m in imports if m == "insult.core.stance_log" or m.startswith("insult.core.stance_log.")}
-    assert not offenders, f"stages.py must not import insult.core.stance_log (found {offenders})"
+    offenders = {
+        m for m in imports if m == "personas.insult.core.stance_log" or m.startswith("personas.insult.core.stance_log.")
+    }
+    assert not offenders, f"stages.py must not import personas.insult.core.stance_log (found {offenders})"

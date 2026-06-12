@@ -20,9 +20,8 @@ RUN mamba env update -n base -f environment.yml \
  && find /opt/conda/ -follow -type f -name '*.a' -delete \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
-# Copy app code. shared/ is imported by insult/__main__.py and
-# insult/core/llm/retry.py since v3.9.8 — must be present at runtime.
-COPY insult/ insult/
+# Copy app code. personas/insult/ contains the bot; shared/ is imported at runtime.
+COPY personas/ personas/
 COPY shared/ shared/
 COPY persona.md .
 
@@ -30,4 +29,4 @@ COPY persona.md .
 # now but the dir is still referenced by some import-time code).
 RUN mkdir -p storage
 
-CMD ["python", "-m", "insult", "run"]
+CMD ["python", "-m", "personas.insult", "run"]

@@ -1,6 +1,6 @@
 """Tests for guild_setup: fact classifier, cyberpunk formatter, channel posting."""
 
-from insult.core.guild_setup import (
+from personas.insult.core.guild_setup import (
     filter_safe_facts,
     format_fact_logged,
     format_reminder_delivered,

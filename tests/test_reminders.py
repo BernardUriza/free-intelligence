@@ -5,7 +5,7 @@ from datetime import UTC
 
 import pytest
 
-from insult.core.reminders import (
+from personas.insult.core.reminders import (
     ACK_MAX_RETRIES,
     ACK_TIMEOUT_SECONDS,
     REMINDER_TOOLS,

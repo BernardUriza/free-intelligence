@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.agent import mcp_tools
+from personas.insult.agent import mcp_tools
 
 _get = mcp_tools.get_agent_facts.handler
 _add = mcp_tools.add_agent_fact.handler

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from insult.core.language import _META_PREAMBLE_RE
+from personas.insult.core.language import _META_PREAMBLE_RE
 
 
 def _strip_once(text: str) -> str:

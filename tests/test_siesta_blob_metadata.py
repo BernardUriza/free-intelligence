@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from insult.core.siesta.coordination.blob_metadata import (
+from personas.insult.core.siesta.coordination.blob_metadata import (
     _build_metadata,
     parse_metadata,
 )
-from insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
+from personas.insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
 
 
 def test_roundtrip_active_snapshot_preserves_all_fields():

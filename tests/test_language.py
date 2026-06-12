@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.language import language_cure
+from personas.insult.core.language import language_cure
 
 
 @pytest.fixture

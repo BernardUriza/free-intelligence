@@ -11,11 +11,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from insult.composition import default_facts_port
-from insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
+from personas.insult.composition import default_facts_port
+from personas.insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 
 # --- Positive: the adapter delegates faithfully to insult.core.facts ----------
@@ -42,7 +42,7 @@ def test_facts_port_render_block_empty() -> None:
     assert port.render_block("Alex", []) == build_facts_prompt("Alex", [])
 
 
-# --- Resistance: stages.py must NOT import insult.core.facts ------------------
+# --- Resistance: stages.py must NOT import personas.insult.core.facts ------------------
 
 
 def _imports_of(path: Path) -> set[str]:
@@ -62,5 +62,5 @@ def test_stages_does_not_import_core_facts() -> None:
     FactsPort Protocol, not on the concrete facts module. If this fails, someone
     re-coupled stages to insult.core.facts — route it through ctx.deps.facts."""
     imports = _imports_of(STAGES)
-    offenders = {m for m in imports if m == "insult.core.facts" or m.startswith("insult.core.facts.")}
-    assert not offenders, f"stages.py must not import insult.core.facts (found {offenders})"
+    offenders = {m for m in imports if m == "personas.insult.core.facts" or m.startswith("personas.insult.core.facts.")}
+    assert not offenders, f"stages.py must not import personas.insult.core.facts (found {offenders})"

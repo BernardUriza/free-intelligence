@@ -97,7 +97,7 @@ def test_split_response_strips_whitespace_around_parts():
 
 def test_insult_delivery_reexports_match_shared():
     """Insult's re-exports must stay identical so callers keep working."""
-    from insult.core import delivery as insult_delivery
+    from personas.insult.core import delivery as insult_delivery
 
     assert insult_delivery.DISCORD_MAX_CHARS == DISCORD_MAX_CHARS
     assert insult_delivery.MESSAGE_DELIMITER == MESSAGE_DELIMITER

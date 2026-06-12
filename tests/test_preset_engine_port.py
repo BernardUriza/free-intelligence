@@ -18,11 +18,11 @@ import asyncio
 import types
 from pathlib import Path
 
-from insult.composition import build_preset_engine_port
-from insult.core.presets import PresetMode, PresetSelection, build_preset_prompt
+from personas.insult.composition import build_preset_engine_port
+from personas.insult.core.presets import PresetMode, PresetSelection, build_preset_prompt
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 _SEL_LLM = PresetSelection(mode=PresetMode.INTELLECTUAL_PRESSURE, reason="llm_pick")
 _SEL_REGEX = PresetSelection(mode=PresetMode.DEFAULT_ABRASIVE, reason="fallback")
@@ -37,7 +37,7 @@ def _settings(enabled: bool, timeout_ms: int = 1500):
 
 
 def _patch_regex(monkeypatch, sel=_SEL_REGEX):
-    monkeypatch.setattr("insult.composition.classify_preset", lambda *a, **k: sel)
+    monkeypatch.setattr("personas.insult.composition.classify_preset", lambda *a, **k: sel)
 
 
 # --- Resistance: the boundary holds at the AST level -------------------------
@@ -51,11 +51,13 @@ def test_stages_does_not_import_presets_nor_presets_llm() -> None:
     tree = ast.parse(STAGES.read_text(encoding="utf-8"), filename=str(STAGES))
     offenders: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("insult.core.presets"):
+        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("personas.insult.core.presets"):
             offenders.append(f"line {node.lineno}: from {node.module} import ...")
         elif isinstance(node, ast.Import):
             offenders.extend(
-                f"line {node.lineno}: import {a.name}" for a in node.names if a.name.startswith("insult.core.presets")
+                f"line {node.lineno}: import {a.name}"
+                for a in node.names
+                if a.name.startswith("personas.insult.core.presets")
             )
     assert not offenders, "stages.py reaches into presets/presets_llm again:\n" + "\n".join(offenders)
 
@@ -82,7 +84,7 @@ async def test_llm_path_wins_when_it_answers(monkeypatch) -> None:
     async def _fake_llm(*a, **k):
         return _SEL_LLM
 
-    monkeypatch.setattr("insult.composition.classify_preset_llm", _fake_llm)
+    monkeypatch.setattr("personas.insult.composition.classify_preset_llm", _fake_llm)
     engine = build_preset_engine_port(judge_client=object(), settings=_settings(True))
     result = await engine.resolve("hola", [], [])
     assert result.selection is _SEL_LLM
@@ -97,7 +99,7 @@ async def test_llm_timeout_falls_back_to_regex(monkeypatch) -> None:
     async def _hung_llm(*a, **k):
         await asyncio.sleep(30)
 
-    monkeypatch.setattr("insult.composition.classify_preset_llm", _hung_llm)
+    monkeypatch.setattr("personas.insult.composition.classify_preset_llm", _hung_llm)
     engine = build_preset_engine_port(judge_client=object(), settings=_settings(True, timeout_ms=20))
     result = await engine.resolve("hola", [], [])
     assert result.selection is _SEL_REGEX
@@ -111,7 +113,7 @@ async def test_llm_error_falls_back_to_regex(monkeypatch) -> None:
     async def _boom(*a, **k):
         raise RuntimeError("judge down")
 
-    monkeypatch.setattr("insult.composition.classify_preset_llm", _boom)
+    monkeypatch.setattr("personas.insult.composition.classify_preset_llm", _boom)
     engine = build_preset_engine_port(judge_client=object(), settings=_settings(True))
     result = await engine.resolve("hola", [], [])
     assert result.selection is _SEL_REGEX

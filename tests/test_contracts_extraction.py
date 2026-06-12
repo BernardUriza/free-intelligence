@@ -22,33 +22,33 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_preset_enum_identity_across_all_import_paths() -> None:
-    from insult.core.contracts.presets import PresetMode as Canonical
-    from insult.core.contracts.presets import PresetModifier as CanonicalMod
-    from insult.core.contracts.presets import PresetSelection as CanonicalSel
-    from insult.core.presets import PresetMode as ViaBarrel
-    from insult.core.presets.types import PresetMode as ViaShim
+    from personas.insult.core.contracts.presets import PresetMode as Canonical
+    from personas.insult.core.contracts.presets import PresetModifier as CanonicalMod
+    from personas.insult.core.contracts.presets import PresetSelection as CanonicalSel
+    from personas.insult.core.presets import PresetMode as ViaBarrel
+    from personas.insult.core.presets.types import PresetMode as ViaShim
 
     # Same class object everywhere — not just equal, identical.
     assert Canonical is ViaShim is ViaBarrel
     # Members are the same singletons too.
     assert Canonical.ARC is ViaShim.ARC is ViaBarrel.ARC
 
-    from insult.core.presets import PresetModifier as ViaBarrelMod
-    from insult.core.presets import PresetSelection as ViaBarrelSel
-    from insult.core.presets.types import PresetModifier as ViaShimMod
-    from insult.core.presets.types import PresetSelection as ViaShimSel
+    from personas.insult.core.presets import PresetModifier as ViaBarrelMod
+    from personas.insult.core.presets import PresetSelection as ViaBarrelSel
+    from personas.insult.core.presets.types import PresetModifier as ViaShimMod
+    from personas.insult.core.presets.types import PresetSelection as ViaShimSel
 
     assert CanonicalMod is ViaShimMod is ViaBarrelMod
     assert CanonicalSel is ViaShimSel is ViaBarrelSel
 
 
 def test_flow_enum_identity_across_all_import_paths() -> None:
-    from insult.core.contracts.flows import FlowAnalysis as Canonical
-    from insult.core.contracts.flows import UserState as CanonicalState
-    from insult.core.flows import FlowAnalysis as ViaBarrel
-    from insult.core.flows import UserState as ViaBarrelState
-    from insult.core.flows.types import FlowAnalysis as ViaShim
-    from insult.core.flows.types import UserState as ViaShimState
+    from personas.insult.core.contracts.flows import FlowAnalysis as Canonical
+    from personas.insult.core.contracts.flows import UserState as CanonicalState
+    from personas.insult.core.flows import FlowAnalysis as ViaBarrel
+    from personas.insult.core.flows import UserState as ViaBarrelState
+    from personas.insult.core.flows.types import FlowAnalysis as ViaShim
+    from personas.insult.core.flows.types import UserState as ViaShimState
 
     assert Canonical is ViaShim is ViaBarrel
     assert CanonicalState is ViaShimState is ViaBarrelState
@@ -56,9 +56,9 @@ def test_flow_enum_identity_across_all_import_paths() -> None:
 
 
 def test_expression_history_identity_across_all_import_paths() -> None:
-    from insult.core.contracts.history import ExpressionHistory as Canonical
-    from insult.core.flows import ExpressionHistory as ViaBarrel
-    from insult.core.flows.history import ExpressionHistory as ViaShim
+    from personas.insult.core.contracts.history import ExpressionHistory as Canonical
+    from personas.insult.core.flows import ExpressionHistory as ViaBarrel
+    from personas.insult.core.flows.history import ExpressionHistory as ViaShim
 
     # Same class object across contracts / flows.history shim / flows barrel.
     assert Canonical is ViaShim is ViaBarrel
@@ -67,10 +67,10 @@ def test_expression_history_identity_across_all_import_paths() -> None:
 def test_server_pulse_helpers_identity_across_import_paths() -> None:
     # The host imports these from the neutral module; summaries.py re-exports
     # them for backwards compatibility. Same function objects both ways.
-    from insult.core.server_pulse import build_server_pulse as canonical_pulse
-    from insult.core.server_pulse import filter_by_permissions as canonical_filter
-    from insult.core.summaries import build_server_pulse as shim_pulse
-    from insult.core.summaries import filter_by_permissions as shim_filter
+    from personas.insult.core.server_pulse import build_server_pulse as canonical_pulse
+    from personas.insult.core.server_pulse import filter_by_permissions as canonical_filter
+    from personas.insult.core.summaries import build_server_pulse as shim_pulse
+    from personas.insult.core.summaries import filter_by_permissions as shim_filter
 
     assert canonical_pulse is shim_pulse
     assert canonical_filter is shim_filter
@@ -81,8 +81,8 @@ def test_memory_store_satisfies_debug_memory_port() -> None:
     host-side DebugMemoryPort — otherwise the debug_server handlers would
     call methods the store doesn't have. Asserts every port method exists on
     the store class so the port can't silently drift from the real surface."""
-    from insult.core.contracts.memory import DebugMemoryPort
-    from insult.core.memory import MemoryStore
+    from personas.insult.core.contracts.memory import DebugMemoryPort
+    from personas.insult.core.memory import MemoryStore
 
     port_methods = [
         name
@@ -98,7 +98,7 @@ def test_routing_uses_the_canonical_enum_members() -> None:
     """The router compares preset.mode against PresetMode members. If routing
     imported a *different* PresetMode object, those `in`/`==` checks would
     silently never match. This asserts the wiring is shared end to end."""
-    from insult.core.contracts.flows import (
+    from personas.insult.core.contracts.flows import (
         AwarenessAnalysis,
         ConversationPattern,
         EpistemicAnalysis,
@@ -110,8 +110,8 @@ def test_routing_uses_the_canonical_enum_members() -> None:
         StyleFlavor,
         UserState,
     )
-    from insult.core.contracts.presets import PresetMode, PresetSelection
-    from insult.core.routing import ModelTier, select_model
+    from personas.insult.core.contracts.presets import PresetMode, PresetSelection
+    from personas.insult.core.routing import ModelTier, select_model
 
     flow = FlowAnalysis(
         epistemic=EpistemicAnalysis(0.0, 0.0, 0.0, False, 0, EpistemicMove.NONE, ""),
@@ -135,7 +135,7 @@ def test_routing_uses_the_canonical_enum_members() -> None:
 def test_contracts_package_is_a_stdlib_only_leaf() -> None:
     """The neutral contracts must not import any insult.* module — that would
     re-couple the host-importable layer to smart/persona internals."""
-    pkg = REPO_ROOT / "insult" / "core" / "contracts"
+    pkg = REPO_ROOT / "personas" / "insult" / "core" / "contracts"
     for path in pkg.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
@@ -146,6 +146,6 @@ def test_contracts_package_is_a_stdlib_only_leaf() -> None:
                 mods = [node.module]
             for m in mods:
                 # The package barrel may import its own submodules; nothing else.
-                assert not (m.startswith("insult.") and not m.startswith("insult.core.contracts")), (
+                assert not (m.startswith("personas.insult.") and not m.startswith("personas.insult.core.contracts")), (
                     f"{path.name} imports {m} — contracts must stay a neutral leaf"
                 )

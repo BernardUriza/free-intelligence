@@ -50,7 +50,7 @@ async def _connect() -> asyncpg.Connection:
 async def backfill(*, user_id: str | None, dry_run: bool) -> int:
     from pgvector import Vector
 
-    from insult.core.vectors import get_embedding_model
+    from personas.insult.core.vectors import get_embedding_model
 
     model = get_embedding_model()
     conn = await _connect()

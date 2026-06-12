@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from insult.core.proactive import (
+from personas.insult.core.proactive import (
     ConversationState,
     _detect_conversation_mood,
     _elapsed_description,
@@ -446,7 +446,7 @@ class TestLanguageAntiPatterns:
 
     @pytest.fixture()
     def detect(self):
-        from insult.core.character import detect_anti_patterns
+        from personas.insult.core.character import detect_anti_patterns
 
         return detect_anti_patterns
 

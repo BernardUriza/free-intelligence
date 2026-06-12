@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from insult.core.flows import (
+from personas.insult.core.flows import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,
@@ -14,8 +14,8 @@ from insult.core.flows import (
     StyleFlavor,
     UserState,
 )
-from insult.core.presets import PresetMode, PresetSelection
-from insult.core.routing import ModelTier, OpusBudget, select_model
+from personas.insult.core.presets import PresetMode, PresetSelection
+from personas.insult.core.routing import ModelTier, OpusBudget, select_model
 
 CASUAL = "haiku-test"
 DEPTH = "sonnet-test"

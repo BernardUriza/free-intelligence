@@ -20,7 +20,7 @@ def test_module_imports_clean():
     boot-time error in environments where embeddings are intentionally
     not configured (CI, smoke tests, dev without secrets).
     """
-    mod = importlib.import_module("insult.core.deep_memory")
+    mod = importlib.import_module("personas.insult.core.deep_memory")
     # Defaults are env-driven; importing must NOT raise.
     assert mod.EMBEDDING_DIM == 1536
     assert mod.EMBEDDING_DEPLOYMENT  # default or env-overridden
@@ -36,7 +36,7 @@ def test_azure_openai_embedder_satisfies_fi_core_protocol():
     """
     from fi_core.rag import Embedder
 
-    from insult.core.deep_memory import AzureOpenAIEmbedder
+    from personas.insult.core.deep_memory import AzureOpenAIEmbedder
 
     emb = AzureOpenAIEmbedder()
     assert isinstance(emb, Embedder)
@@ -50,7 +50,7 @@ def test_azure_openai_embedder_construction_is_lazy():
     would crash. Construction stores config; `_get_client()` is what
     actually builds the SDK client (and only on first embed call).
     """
-    from insult.core.deep_memory import AzureOpenAIEmbedder
+    from personas.insult.core.deep_memory import AzureOpenAIEmbedder
 
     emb = AzureOpenAIEmbedder(endpoint="https://example.invalid/", api_key="fake", deployment="x")
     assert emb._client is None
@@ -62,7 +62,7 @@ def test_azure_openai_embedder_construction_is_lazy():
 @pytest.mark.asyncio
 async def test_azure_openai_embedder_rejects_empty_text():
     """Protocol contract: empty input is a programmer error, raise loudly."""
-    from insult.core.deep_memory import AzureOpenAIEmbedder
+    from personas.insult.core.deep_memory import AzureOpenAIEmbedder
 
     emb = AzureOpenAIEmbedder(endpoint="https://x/", api_key="k", deployment="d")
     with pytest.raises(ValueError, match="non-empty"):
@@ -81,7 +81,7 @@ async def test_azure_openai_embedder_raises_when_unconfigured():
     """
     import os
 
-    from insult.core.deep_memory import AzureOpenAIEmbedder
+    from personas.insult.core.deep_memory import AzureOpenAIEmbedder
 
     # Clear env so the embedder has nothing to fall back on
     saved = {k: os.environ.pop(k, None) for k in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY")}
@@ -102,7 +102,7 @@ def test_chunk_text_for_embedding_short_text_returns_empty_or_single():
     string is well below; the wrapper should return [] (matches fi-core
     PARAGRAPH_AWARE behavior), not crash.
     """
-    from insult.core.deep_memory import chunk_text_for_embedding
+    from personas.insult.core.deep_memory import chunk_text_for_embedding
 
     assert chunk_text_for_embedding("") == []
     assert chunk_text_for_embedding("  ") == []
@@ -112,7 +112,7 @@ def test_chunk_text_for_embedding_short_text_returns_empty_or_single():
 
 def test_chunk_text_for_embedding_long_text_produces_multiple_chunks():
     """Real-sized conversation text produces multiple paragraph-aware chunks."""
-    from insult.core.deep_memory import chunk_text_for_embedding
+    from personas.insult.core.deep_memory import chunk_text_for_embedding
 
     # ~800 tokens of representative conversation text
     text = "\n\n".join(f"[2026-05-{day:02d} 10:00] bernard: " + " ".join(["palabra"] * 30) for day in range(1, 21))
@@ -125,7 +125,7 @@ def test_chunk_text_for_embedding_long_text_produces_multiple_chunks():
 @pytest.mark.asyncio
 async def test_query_user_memory_empty_args_returns_empty():
     """Defensive: bad args never hit the API or the DB."""
-    from insult.core.deep_memory import query_user_memory
+    from personas.insult.core.deep_memory import query_user_memory
 
     assert await query_user_memory(user_id="", query="x", top_k=5) == []
     assert await query_user_memory(user_id="abc", query="", top_k=5) == []
@@ -136,7 +136,7 @@ async def test_query_user_memory_empty_args_returns_empty():
 @pytest.mark.asyncio
 async def test_ingest_new_user_messages_empty_user_returns_zero():
     """DM-6: defensive — bad user_id returns 0, never raises."""
-    from insult.core.deep_memory import ingest_new_user_messages
+    from personas.insult.core.deep_memory import ingest_new_user_messages
 
     assert await ingest_new_user_messages("") == 0
 
@@ -151,7 +151,7 @@ async def test_ingest_new_user_messages_without_pg_returns_zero():
     """
     import os
 
-    from insult.core.deep_memory import ingest_new_user_messages
+    from personas.insult.core.deep_memory import ingest_new_user_messages
 
     saved = os.environ.pop("POSTGRES_URL", None)
     try:
@@ -164,7 +164,7 @@ async def test_ingest_new_user_messages_without_pg_returns_zero():
 @pytest.mark.asyncio
 async def test_insert_chunks_empty_inputs_returns_zero():
     """Same defensive shape on the insert side."""
-    from insult.core.deep_memory import insert_chunks
+    from personas.insult.core.deep_memory import insert_chunks
 
     assert await insert_chunks(user_id="", source_type="message", source_ref="r", chunks=["x"]) == 0
     assert await insert_chunks(user_id="u", source_type="invalid_type", source_ref="r", chunks=["x"]) == 0

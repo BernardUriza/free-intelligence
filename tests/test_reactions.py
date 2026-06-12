@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from insult.cogs.chat import ChatCog
-from insult.cogs.chat.reactions import add_reactions, parse_reactions, strip_reactions
-from insult.core.llm import LLMResponse
+from personas.insult.cogs.chat import ChatCog
+from personas.insult.cogs.chat.reactions import add_reactions, parse_reactions, strip_reactions
+from personas.insult.core.llm import LLMResponse
 
 # --- parse_reactions ---
 
@@ -98,19 +98,19 @@ class TestAddReactions:
         msg.add_reaction = AsyncMock()
         return msg
 
-    @patch("insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_adds_single_reaction(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀"])
         mock_message.add_reaction.assert_called_once_with("💀")
 
-    @patch("insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_adds_multiple_reactions(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀", "🔥"])
         assert mock_message.add_reaction.call_count == 2
         mock_message.add_reaction.assert_any_call("💀")
         mock_message.add_reaction.assert_any_call("🔥")
 
-    @patch("insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_stops_on_http_error(self, mock_sleep, mock_message):
         import discord
 
@@ -120,7 +120,7 @@ class TestAddReactions:
         # Stops after first failure, doesn't try second
         assert mock_message.add_reaction.call_count == 1
 
-    @patch("insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.cogs.chat.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_has_initial_delay(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀"])
         # First sleep call is the initial human-like delay

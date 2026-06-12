@@ -2,7 +2,7 @@
 
 import time
 
-from insult.core.summaries import build_server_pulse, filter_by_permissions
+from personas.insult.core.summaries import build_server_pulse, filter_by_permissions
 
 
 class TestBuildServerPulse:

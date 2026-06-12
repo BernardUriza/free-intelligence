@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from insult.core.moltbook_outbound import (
+from personas.insult.core.moltbook_outbound import (
     OutboundDraft,
     SalienceSignal,
     assign_subject_codes,

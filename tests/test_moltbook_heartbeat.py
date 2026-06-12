@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from insult.core.moltbook_engagement import (
+from personas.insult.core.moltbook_engagement import (
     _filter_reply_candidates,
     build_reply_to_commenter,
     reply_to_own_post_commenters,
@@ -212,7 +212,7 @@ async def test_reply_dedup_via_world_scans_short_circuits_llm(monkeypatch):
     judge.utility_call = AsyncMock(side_effect=AssertionError("LLM should not be invoked when dedup matches"))
 
     # Block redact_with_llm at module scope so a code-path leak is caught here.
-    import insult.core.moltbook_engagement as eng
+    import personas.insult.core.moltbook_engagement as eng
 
     monkeypatch.setattr(eng, "redact_with_llm", AsyncMock(side_effect=AssertionError("redact must not run")))
 
@@ -252,7 +252,7 @@ async def test_orchestrator_publishes_and_persists_world_scan(monkeypatch):
 
     judge.utility_call = AsyncMock(return_value=_FakeResp())
 
-    import insult.core.moltbook_engagement as eng
+    import personas.insult.core.moltbook_engagement as eng
 
     monkeypatch.setattr(eng, "redact_with_llm", AsyncMock(return_value="real reply text, in english."))
     monkeypatch.setattr(eng, "regex_privacy_strip", lambda t, f: t)
@@ -295,7 +295,7 @@ async def test_orchestrator_skips_when_outbound_gate_blocks(monkeypatch):
         activity=[],
         comments_by_post={},
     )
-    import insult.core.moltbook_engagement as eng
+    import personas.insult.core.moltbook_engagement as eng
 
     monkeypatch.setattr(eng, "is_outbound_blocked", AsyncMock(return_value=("vulnerability", "u1")))
 
@@ -317,7 +317,7 @@ async def test_orchestrator_no_activity_returns_empty(monkeypatch):
     no replies, no notifications-read calls."""
     source, memory, judge = _orchestrator_deps(activity=[], comments_by_post={})
 
-    import insult.core.moltbook_engagement as eng
+    import personas.insult.core.moltbook_engagement as eng
 
     monkeypatch.setattr(eng, "is_outbound_blocked", AsyncMock(return_value=(None, None)))
 

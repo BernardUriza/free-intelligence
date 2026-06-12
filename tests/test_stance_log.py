@@ -2,7 +2,7 @@
 
 import time
 
-from insult.core.stance_log import (
+from personas.insult.core.stance_log import (
     MAX_STANCES_PER_CONTEXT,
     _extract_topic,
     build_stance_prompt,

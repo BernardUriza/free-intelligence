@@ -126,7 +126,7 @@ async def _embed_with_retry(chunk: str, sem: asyncio.Semaphore) -> list[float] |
     on failure). A single network blip in a ~2400-chunk run must NOT kill the
     job, so we retry a few times with a short backoff before giving up on this
     chunk. Returns the vector or None (the chunk is then skipped, not fatal)."""
-    from insult.core.deep_memory import embed_text
+    from personas.insult.core.deep_memory import embed_text
 
     async with sem:
         for attempt in range(_EMBED_RETRIES):
@@ -242,7 +242,7 @@ async def main() -> int:
         return 2
 
     # Import here so module-load errors surface as fatals with a clear stack.
-    from insult.core.deep_memory import FILM_CORPUS_NAMESPACE, chunk_text_for_embedding
+    from personas.insult.core.deep_memory import FILM_CORPUS_NAMESPACE, chunk_text_for_embedding
 
     missing = [fn for _, fn in _SOURCES if not (_CORPUS_DIR / fn).exists()]
     if missing:

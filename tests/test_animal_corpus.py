@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import types
 
-from insult.cogs.chat.capability_ports import PresetEngineResult
-from insult.cogs.chat.stages import _build_behavioral_guidance
-from insult.core.presets import PresetMode, PresetSelection
+from personas.insult.cogs.chat.capability_ports import PresetEngineResult
+from personas.insult.cogs.chat.stages import _build_behavioral_guidance
+from personas.insult.core.presets import PresetMode, PresetSelection
 from shared.corpus import (
     animal_liberation_guidance,
     detect_animal_topic,

@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from insult.cogs.chat import MAX_MESSAGE_LENGTH, ChatCog
-from insult.core.llm import LLMResponse
+from personas.insult.cogs.chat import MAX_MESSAGE_LENGTH, ChatCog
+from personas.insult.core.llm import LLMResponse
 
 
 class TestChatCog:
@@ -133,11 +133,11 @@ class TestChatCog:
         assert "allowed_domains" not in web_search_tools[0]
         assert "blocked_domains" not in web_search_tools[0]
 
-    @patch("insult.cogs.chat.tools.send_response", new_callable=AsyncMock)
+    @patch("personas.insult.cogs.chat.tools.send_response", new_callable=AsyncMock)
     async def test_inaugurate_channel_generates_message(self, mock_send, cog):
         """inaugurate_channel (now a free function in tools.py) should call
         the runner's one-shot /v1/judge and send the response to the channel."""
-        from insult.cogs.chat.tools import inaugurate_channel
+        from personas.insult.cogs.chat.tools import inaugurate_channel
 
         cog.judge_client.utility_call = AsyncMock(return_value=LLMResponse(text="Bienvenidos a este canal."))
         mock_channel = MagicMock()

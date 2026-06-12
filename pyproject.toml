@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.21.38"
+version = "4.21.39"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -41,32 +41,32 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["insult"]
+source = ["personas"]
 omit = [
-    "insult/__main__.py",  # CLI entry point
-    "insult/bot.py",       # Discord lifecycle (requires real bot)
-    "insult/app.py",       # DI container (requires real deps)
-    "insult/config.py",    # Pydantic settings singleton
-    "insult/core/llm.py",  # API client (integration test territory)
-    "insult/core/memory.py",  # SQLite I/O (integration test territory)
-    "insult/core/backup.py",  # Azure Blob Storage I/O
-    "insult/cogs/utility.py",  # Discord commands (requires real bot context)
-    "insult/cogs/chat/ports.py",  # Pure Protocol interface (TYPE_CHECKING-only import, no runtime body)
-    "insult/cogs/voice.py",    # Voice TTS (requires real Discord + Azure OpenAI)
-    "insult/core/proactive.py",  # Proactive messaging (requires real bot + LLM, integration test territory)
-    "insult/core/vectors.py",  # sqlite-vec + sentence-transformers I/O (vector search)
-    "insult/core/metrics.py",  # Azure Blob I/O (dashboard export)
-    "insult/core/debug_server.py",  # aiohttp debug endpoints (integration test territory)
-    "insult/agent/mcp_tools.py",  # F4: in-process MCP tools (live PG required, integration test territory)
-    "insult/agent/runner.py",  # FastAPI service + Claude Agent SDK (live SDK + PG required)
-    "insult/agent/workspace_renderer.py",  # PG → markdown projector (live PG + filesystem required)
-    "insult/core/siesta/coordination/pg_state.py",  # F4: Siesta coordination via PG (live PG required, tests in test_siesta_pg_state.py skip without POSTGRES_URL)
-    "insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
-    "insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
-    "insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
-    "insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
-    "insult/tasks/*.py",  # Background task orchestrators (moltbook/reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
-    "insult/agent/router_runtime.py",  # Agent routing runtime — live Claude Agent SDK + PG required (same criterion as agent/runner.py)
+    "personas/insult/__main__.py",  # CLI entry point
+    "personas/insult/bot.py",       # Discord lifecycle (requires real bot)
+    "personas/insult/app.py",       # DI container (requires real deps)
+    "personas/insult/config.py",    # Pydantic settings singleton
+    "personas/insult/core/llm.py",  # API client (integration test territory)
+    "personas/insult/core/memory.py",  # SQLite I/O (integration test territory)
+    "personas/insult/core/backup.py",  # Azure Blob Storage I/O
+    "personas/insult/cogs/utility.py",  # Discord commands (requires real bot context)
+    "personas/insult/cogs/chat/ports.py",  # Pure Protocol interface (TYPE_CHECKING-only import, no runtime body)
+    "personas/insult/cogs/voice.py",    # Voice TTS (requires real Discord + Azure OpenAI)
+    "personas/insult/core/proactive.py",  # Proactive messaging (requires real bot + LLM, integration test territory)
+    "personas/insult/core/vectors.py",  # sqlite-vec + sentence-transformers I/O (vector search)
+    "personas/insult/core/metrics.py",  # Azure Blob I/O (dashboard export)
+    "personas/insult/core/debug_server.py",  # aiohttp debug endpoints (integration test territory)
+    "personas/insult/agent/mcp_tools.py",  # F4: in-process MCP tools (live PG required, integration test territory)
+    "personas/insult/agent/runner.py",  # FastAPI service + Claude Agent SDK (live SDK + PG required)
+    "personas/insult/agent/workspace_renderer.py",  # PG → markdown projector (live PG + filesystem required)
+    "personas/insult/core/siesta/coordination/pg_state.py",  # F4: Siesta coordination via PG (live PG required, tests in test_siesta_pg_state.py skip without POSTGRES_URL)
+    "personas/insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
+    "personas/insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
+    "personas/insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
+    "personas/insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
+    "personas/insult/tasks/*.py",  # Background task orchestrators (moltbook/reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
+    "personas/insult/agent/router_runtime.py",  # Agent routing runtime — live Claude Agent SDK + PG required (same criterion as agent/runner.py)
 ]
 
 [tool.coverage.report]

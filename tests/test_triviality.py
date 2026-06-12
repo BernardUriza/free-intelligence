@@ -1,6 +1,6 @@
 """Tests for trivial-message detection (cost guard in chat.py)."""
 
-from insult.core.triviality import is_trivial
+from personas.insult.core.triviality import is_trivial
 
 
 class TestIsTrivialTrue:
@@ -105,6 +105,6 @@ class TestIsTrivialFalse:
     def test_whitelist_and_trivial_sets_are_disjoint(self):
         # The assertion fires at module import if violated. This test ensures
         # the invariant is covered even if someone removes the `assert` one day.
-        from insult.core.triviality import _SHORT_NON_TRIVIAL, _TRIVIAL_TOKENS
+        from personas.insult.core.triviality import _SHORT_NON_TRIVIAL, _TRIVIAL_TOKENS
 
         assert not (_TRIVIAL_TOKENS & _SHORT_NON_TRIVIAL)

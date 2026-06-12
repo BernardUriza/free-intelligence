@@ -19,10 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from insult.composition import default_retrieval_port
+from personas.insult.composition import default_retrieval_port
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 pytestmark = pytest.mark.asyncio
 
@@ -50,12 +50,12 @@ def test_stages_does_not_import_deep_memory() -> None:
 
 async def test_user_memory_block_delegates_to_core_builder(monkeypatch) -> None:
     """Positive: the adapter returns exactly what the core builder renders."""
-    from insult.core.deep_memory import build_user_memory_block
+    from personas.insult.core.deep_memory import build_user_memory_block
 
     async def _fake(*, user_id, query, top_k):
         return [{"chunk_text": "Larisa es la terapeuta de Alex", "similarity": 0.82}]
 
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", _fake)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", _fake)
     port = default_retrieval_port()
     via_port = await port.user_memory_block(user_id="U1", text="cuéntame de Larisa Guerrero")
     via_core = await build_user_memory_block(user_id="U1", text="cuéntame de Larisa Guerrero")
@@ -73,7 +73,7 @@ async def test_film_block_on_topic_delegates(monkeypatch) -> None:
     async def _fake_block(text):
         return "REFERENCIAS\n- chunk"
 
-    monkeypatch.setattr("insult.composition.build_film_references_block", _fake_block)
+    monkeypatch.setattr("personas.insult.composition.build_film_references_block", _fake_block)
     out = await default_retrieval_port().film_references_block("qué opinas de la película Stalker")
     assert out == "REFERENCIAS\n- chunk"
 
@@ -87,7 +87,7 @@ async def test_film_block_off_topic_skips_without_embed(monkeypatch) -> None:
         called["n"] += 1
         return "should not happen"
 
-    monkeypatch.setattr("insult.composition.build_film_references_block", _fake_block)
+    monkeypatch.setattr("personas.insult.composition.build_film_references_block", _fake_block)
     out = await default_retrieval_port().film_references_block("hoy comí tacos de canasta")
     assert out is None
     assert called["n"] == 0, "off-topic must not trigger corpus retrieval"
@@ -99,6 +99,6 @@ async def test_film_block_failure_returns_none(monkeypatch) -> None:
     async def _boom(text):
         raise RuntimeError("pgvector down")
 
-    monkeypatch.setattr("insult.composition.build_film_references_block", _boom)
+    monkeypatch.setattr("personas.insult.composition.build_film_references_block", _boom)
     out = await default_retrieval_port().film_references_block("el montaje de esa película es brutal")
     assert out is None

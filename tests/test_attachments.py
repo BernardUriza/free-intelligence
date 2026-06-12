@@ -3,7 +3,7 @@
 import io
 from unittest.mock import AsyncMock
 
-from insult.cogs.chat.attachments import (
+from personas.insult.cogs.chat.attachments import (
     MAX_ATTACHMENT_SIZE,
     AttachmentType,
     classify_attachment,

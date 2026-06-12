@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core import metrics
+from personas.insult.core import metrics
 
 
 @pytest.fixture(autouse=True)

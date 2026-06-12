@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core.sources import (
+from personas.insult.core.sources import (
     Comment,
     Post,
     Source,
@@ -20,7 +20,7 @@ from insult.core.sources import (
     list_sources,
     register_source,
 )
-from insult.core.sources.registry import _clear
+from personas.insult.core.sources.registry import _clear
 
 
 class _FakeSource(Source):

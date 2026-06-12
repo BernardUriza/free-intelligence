@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from insult.core.transcribe import transcribe_voice_message
+from personas.insult.core.transcribe import transcribe_voice_message
 
 
 class TestTranscribeVoiceMessage:
@@ -26,7 +26,7 @@ class TestTranscribeVoiceMessage:
         mock_client = AsyncMock()
         mock_client.audio.transcriptions.create = AsyncMock(return_value=mock_response)
 
-        with patch("insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
+        with patch("personas.insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
             result = await transcribe_voice_message(
                 b"fake-ogg-data",
                 endpoint="https://test.openai.azure.com",
@@ -45,7 +45,7 @@ class TestTranscribeVoiceMessage:
         mock_client = AsyncMock()
         mock_client.audio.transcriptions.create = AsyncMock(return_value=mock_response)
 
-        with patch("insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
+        with patch("personas.insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
             result = await transcribe_voice_message(
                 b"fake-ogg-data",
                 endpoint="https://test.openai.azure.com",
@@ -59,7 +59,7 @@ class TestTranscribeVoiceMessage:
         mock_client = AsyncMock()
         mock_client.audio.transcriptions.create = AsyncMock(side_effect=Exception("API error"))
 
-        with patch("insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
+        with patch("personas.insult.core.transcribe.AsyncAzureOpenAI", return_value=mock_client):
             result = await transcribe_voice_message(
                 b"fake-ogg-data",
                 endpoint="https://test.openai.azure.com",

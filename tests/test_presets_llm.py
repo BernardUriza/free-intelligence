@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.core.presets import PresetMode, PresetModifier
-from insult.core.presets_llm import (
+from personas.insult.core.presets import PresetMode, PresetModifier
+from personas.insult.core.presets_llm import (
     _build_user_turn_block,
     _extract_json,
     _parse_classifier_response,

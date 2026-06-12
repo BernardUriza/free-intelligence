@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from insult.core.debug_server import build_app
+from personas.insult.core.debug_server import build_app
 
 TOKEN = "test-token-xyz"  # noqa: S105 — fixture token, not a real secret
 
@@ -100,7 +100,7 @@ async def test_health_exposes_pr1_fields(client):
     """PR 1: /debug/health must expose readiness + bot-responsive signals
     so the KQL alert and Container Apps probe can distinguish liveness
     from readiness from zombie-handler."""
-    from insult.core.health_state import _reset_for_tests
+    from personas.insult.core.health_state import _reset_for_tests
 
     _reset_for_tests()
     resp = await client.get("/debug/health")
@@ -222,7 +222,7 @@ async def test_health_pg_timeout_does_not_500():
 
 async def test_health_reflects_recorded_turn(client):
     """After a turn is recorded, the endpoint reports a fresh age."""
-    from insult.core.health_state import _reset_for_tests, get_state
+    from personas.insult.core.health_state import _reset_for_tests, get_state
 
     _reset_for_tests()
     get_state().record_turn_end("ok")
@@ -240,7 +240,7 @@ async def test_health_reflects_bot_ref(client):
     """When the bot ref is wired, is_ready and gateway_latency_ms are set."""
     from unittest.mock import MagicMock
 
-    from insult.core.health_state import _reset_for_tests, get_state
+    from personas.insult.core.health_state import _reset_for_tests, get_state
 
     _reset_for_tests()
     bot = MagicMock()
@@ -556,7 +556,7 @@ async def test_patch_reminder_not_found(client, memory_with_data):
 @pytest.fixture
 def moltbook_ctx_unconfigured(memory_with_data):
     """No source — endpoints should 503 to signal 'lane not enabled here'."""
-    from insult.core.debug_server import MoltbookDebugContext
+    from personas.insult.core.debug_server import MoltbookDebugContext
 
     return MoltbookDebugContext(
         source_factory=lambda: None,
@@ -568,8 +568,8 @@ def moltbook_ctx_unconfigured(memory_with_data):
 @pytest.fixture
 def moltbook_ctx_ready(memory_with_data):
     """Source + llm + settings populated for happy-path tests."""
-    from insult.core.debug_server import MoltbookDebugContext
-    from insult.core.sources.base import Post
+    from personas.insult.core.debug_server import MoltbookDebugContext
+    from personas.insult.core.sources.base import Post
 
     fake_source = MagicMock()
     fake_source.fetch_feed = AsyncMock(
@@ -621,7 +621,7 @@ def moltbook_ctx_ready(memory_with_data):
 
 @pytest.fixture
 async def client_with_moltbook(memory_with_data, moltbook_ctx_ready):
-    from insult.core.debug_server import build_app
+    from personas.insult.core.debug_server import build_app
 
     app = build_app(memory_with_data, TOKEN, moltbook_ctx=moltbook_ctx_ready)
     async with TestClient(TestServer(app)) as c:
@@ -630,7 +630,7 @@ async def client_with_moltbook(memory_with_data, moltbook_ctx_ready):
 
 @pytest.fixture
 async def client_unconfigured(memory_with_data, moltbook_ctx_unconfigured):
-    from insult.core.debug_server import build_app
+    from personas.insult.core.debug_server import build_app
 
     app = build_app(memory_with_data, TOKEN, moltbook_ctx=moltbook_ctx_unconfigured)
     async with TestClient(TestServer(app)) as c:
@@ -715,7 +715,7 @@ async def test_moltbook_post_rejects_wrong_hash(client_with_moltbook):
 
 
 async def test_moltbook_post_publishes_with_correct_hash(client_with_moltbook):
-    from insult.core.debug_server import _draft_hash
+    from personas.insult.core.debug_server import _draft_hash
 
     title, content, submolt = "T", "C", "m/x"
     h = _draft_hash(title, content, submolt)
@@ -741,7 +741,7 @@ async def test_moltbook_post_503_when_unconfigured(client_unconfigured):
 
 async def test_draft_hash_is_stable():
     """Same inputs → same hash. Used by the operator to confirm preview."""
-    from insult.core.debug_server import _draft_hash
+    from personas.insult.core.debug_server import _draft_hash
 
     a = _draft_hash("title", "content", "m/x")
     b = _draft_hash("title", "content", "m/x")
@@ -750,7 +750,7 @@ async def test_draft_hash_is_stable():
 
 async def test_draft_hash_differs_on_any_change():
     """Changing any of (title, content, submolt) changes the hash."""
-    from insult.core.debug_server import _draft_hash
+    from personas.insult.core.debug_server import _draft_hash
 
     base = _draft_hash("title", "content", "m/x")
     assert _draft_hash("TITLE", "content", "m/x") != base

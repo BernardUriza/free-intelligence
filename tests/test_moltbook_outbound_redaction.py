@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from insult.core.moltbook_outbound import redact_with_llm
+from personas.insult.core.moltbook_outbound import redact_with_llm
 
 
 def _judge_returning(text: str):

@@ -12,14 +12,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.sources import (
+from personas.insult.core.sources import (
     SourceAuthError,
     SourceError,
     SourceNotFoundError,
     SourceRateLimitError,
     SourceTransientError,
 )
-from insult.core.sources.moltbook import MoltbookSource
+from personas.insult.core.sources.moltbook import MoltbookSource
 
 # ---------------------------------------------------------------------------
 # Mock infrastructure — fakes aiohttp's request → response context manager
@@ -85,7 +85,7 @@ def fast_source():
 def _make_fast_source(responses: list[_MockResponse], **kwargs: Any) -> MoltbookSource:
     """Patch asyncio.sleep on the moltbook module so retries don't burn
     real wall time. Tests pass their own response sequence."""
-    import insult.core.sources.moltbook as mod
+    import personas.insult.core.sources.moltbook as mod
 
     mod.asyncio.sleep = AsyncMock()  # type: ignore[assignment]
     session = _make_session(responses)
@@ -626,7 +626,7 @@ async def test_rate_limiter_sleeps_20s_between_writes():
     """1 write / 20s — confirm the limiter inserts a sleep when the
     last write was less than 20s ago. The patched `asyncio.sleep` lets
     us inspect the requested wait without burning real time."""
-    import insult.core.sources.moltbook as mod
+    import personas.insult.core.sources.moltbook as mod
 
     src = _make_fast_source(
         [

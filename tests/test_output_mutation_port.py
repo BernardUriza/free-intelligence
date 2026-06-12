@@ -18,10 +18,10 @@ from pathlib import Path
 
 import pytest
 
-from insult.composition import default_output_mutation_port
+from personas.insult.composition import default_output_mutation_port
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 pytestmark = pytest.mark.asyncio
 
@@ -81,16 +81,16 @@ async def test_mutate_preserves_intentional_quote() -> None:
 
 async def _inline_reference(raw: str, user_text: str) -> str:
     """The exact pipeline the stage ran inline pre-PR-G, for parity checks."""
-    from insult.cogs.chat.reactions import strip_reactions
-    from insult.cogs.chat.remembers import strip_remembers
-    from insult.core.character import (
+    from personas.insult.cogs.chat.reactions import strip_reactions
+    from personas.insult.cogs.chat.remembers import strip_remembers
+    from personas.insult.core.character import (
         MutationStage,
         deduplicate_opener,
         enforce_length_variation,
         preserve_react_markers,
         strip_echoed_quotes,
     )
-    from insult.core.character import run_pipeline as run_character_pipeline
+    from personas.insult.core.character import run_pipeline as run_character_pipeline
 
     return await run_character_pipeline(
         [

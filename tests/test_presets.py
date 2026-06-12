@@ -1,6 +1,6 @@
 """Tests for insult.core.presets — preset classification and prompt building."""
 
-from insult.core.presets import (
+from personas.insult.core.presets import (
     PresetMode,
     PresetModifier,
     build_preset_prompt,

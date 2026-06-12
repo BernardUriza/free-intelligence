@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from insult.core.health_state import HealthState, _reset_for_tests, get_state
+from personas.insult.core.health_state import HealthState, _reset_for_tests, get_state
 
 
 @pytest.fixture(autouse=True)

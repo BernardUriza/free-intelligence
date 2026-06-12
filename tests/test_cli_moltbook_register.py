@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from insult.__main__ import app
-from insult.core.sources.base import SourceError, SourceRateLimitError
+from personas.insult.__main__ import app
+from personas.insult.core.sources.base import SourceError, SourceRateLimitError
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def runner():
     return CliRunner()
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_happy_path_prints_credentials_and_instructions(mock_register, runner):
     mock_register.return_value = {
         "api_key": "moltbook_sk_live_xyz123",
@@ -38,7 +38,7 @@ def test_happy_path_prints_credentials_and_instructions(mock_register, runner):
     assert "MOLTBOOK_API_KEY" in out  # .env hint shown
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_passes_default_name_and_description(mock_register, runner):
     mock_register.return_value = {
         "api_key": "moltbook_x",
@@ -51,7 +51,7 @@ def test_passes_default_name_and_description(mock_register, runner):
     assert "Discord" in args[1]
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_overrides_name_and_description_via_flags(mock_register, runner):
     mock_register.return_value = {
         "api_key": "moltbook_x",
@@ -67,7 +67,7 @@ def test_overrides_name_and_description_via_flags(mock_register, runner):
     assert args[1] == "test agent"
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_source_error_exits_nonzero(mock_register, runner):
     mock_register.side_effect = SourceError("name already taken")
     result = runner.invoke(app, ["moltbook-register"])
@@ -75,7 +75,7 @@ def test_source_error_exits_nonzero(mock_register, runner):
     assert "name already taken" in result.stderr or "name already taken" in result.stdout
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_rate_limit_error_exits_nonzero(mock_register, runner):
     """SourceRateLimitError is a SourceError — handled by the same branch.
     Exit code stays 1 (not 2) so monitoring can distinguish 'caller bug'
@@ -85,7 +85,7 @@ def test_rate_limit_error_exits_nonzero(mock_register, runner):
     assert result.exit_code == 1
 
 
-@patch("insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
+@patch("personas.insult.core.sources.moltbook.MoltbookSource.register_agent", new_callable=AsyncMock)
 def test_value_error_exits_with_code_2(mock_register, runner):
     """ValueError comes from input validation in register_agent (blank
     name/description). Exit code 2 separates 'bad operator input' from

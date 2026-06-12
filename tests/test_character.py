@@ -1,6 +1,6 @@
 """Tests for insult.core.character — break detection, sanitization, adaptive prompt, anti-patterns."""
 
-from insult.core.character import (
+from personas.insult.core.character import (
     IDENTITY_REINFORCE_THRESHOLD,
     build_adaptive_prompt,
     deduplicate_opener,
@@ -14,8 +14,8 @@ from insult.core.character import (
     strip_echoed_quotes,
     strip_lists,
 )
-from insult.core.presets import PresetMode
-from insult.core.style import UserStyleProfile
+from personas.insult.core.presets import PresetMode
+from personas.insult.core.style import UserStyleProfile
 
 # --- Character Break Detection ---
 
@@ -242,7 +242,7 @@ class TestBuildAdaptivePrompt:
     def test_cache_boundary_stripped_from_responses(self):
         # Regression: CACHE_BOUNDARY marker must not leak to users if the LLM
         # ever echoes the prompt structure back (defense in depth).
-        from insult.core.character import CACHE_BOUNDARY, strip_metadata
+        from personas.insult.core.character import CACHE_BOUNDARY, strip_metadata
 
         text = f"Respuesta normal.{CACHE_BOUNDARY}Más texto después."
         cleaned = strip_metadata(text)
@@ -256,7 +256,7 @@ class TestBuildAdaptivePrompt:
         # "<input>X</input>\n\n<output>X</output>" as scratchpad. The collapsed
         # output should contain only the inner payload, no tags, no duplication
         # when input == output.
-        from insult.core.character import strip_metadata
+        from personas.insult.core.character import strip_metadata
 
         duplicated = (
             "<input>La pobreza siempre cobró en carne.</input>\n\n<output>La pobreza siempre cobró en carne.</output>"
@@ -272,14 +272,14 @@ class TestBuildAdaptivePrompt:
     def test_standalone_scratchpad_tags_also_stripped(self):
         # Catches partial leaks where only one tag shows up (e.g. model opens
         # <thinking> and forgets to close, or only <output> on its own).
-        from insult.core.character import strip_metadata
+        from personas.insult.core.character import strip_metadata
 
         for tag in ["<thinking>", "</thinking>", "<scratchpad>", "<draft>", "<reasoning>"]:
             assert tag not in strip_metadata(f"Texto {tag} más texto.")
 
     def test_length_hint_suppressed_when_correction_fires(self):
         # v3.4.3: stacking length_hint on top of Correction Protocol over-compressed.
-        from insult.core.character import build_adaptive_prompt as bap
+        from personas.insult.core.character import build_adaptive_prompt as bap
 
         prompt, _ = bap(
             self.BASE_PROMPT,

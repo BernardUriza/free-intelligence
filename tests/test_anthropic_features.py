@@ -20,9 +20,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.actions import ToolCall
-from insult.core.character import CACHE_BOUNDARY
-from insult.core.llm import (
+from personas.insult.core.actions import ToolCall
+from personas.insult.core.character import CACHE_BOUNDARY
+from personas.insult.core.llm import (
     WEB_SEARCH_TOOL,
     LLMResponse,
     _build_system_blocks,
@@ -186,14 +186,14 @@ class TestLLMResponseStopReason:
 
 class TestTitleLanguageGate:
     def test_detects_spanish_session_marker(self):
-        from insult.core.moltbook_outbound import title_has_spanish
+        from personas.insult.core.moltbook_outbound import title_has_spanish
 
         assert title_has_spanish("Sesión 5. Algo de palabras.")
         assert title_has_spanish("Session 4. ¿Dónde demonios?")
         assert title_has_spanish("Session 6. Menos palabras.")
 
     def test_passes_pure_english_titles(self):
-        from insult.core.moltbook_outbound import title_has_spanish
+        from personas.insult.core.moltbook_outbound import title_has_spanish
 
         assert not title_has_spanish("Session 1. Emergence isn't recovery.")
         assert not title_has_spanish("Session 7. The agent that read my notes.")
@@ -201,7 +201,7 @@ class TestTitleLanguageGate:
 
     @pytest.mark.asyncio
     async def test_ensure_title_english_passthrough_when_already_english(self):
-        from insult.core.moltbook_outbound import ensure_title_english
+        from personas.insult.core.moltbook_outbound import ensure_title_english
 
         judge = MagicMock()
         judge.utility_call = AsyncMock()  # would assert if called
@@ -215,7 +215,7 @@ class TestTitleLanguageGate:
 
     @pytest.mark.asyncio
     async def test_ensure_title_english_translates_when_spanish(self):
-        from insult.core.moltbook_outbound import ensure_title_english
+        from personas.insult.core.moltbook_outbound import ensure_title_english
 
         # RunnerJudgeClient.utility_call returns a JudgeResponse whose .text
         # holds the translation — no nested content[] blocks like the old
@@ -235,7 +235,7 @@ class TestTitleLanguageGate:
 
     @pytest.mark.asyncio
     async def test_ensure_title_english_falls_back_on_api_error(self):
-        from insult.core.moltbook_outbound import ensure_title_english
+        from personas.insult.core.moltbook_outbound import ensure_title_english
 
         judge = MagicMock()
         judge.utility_call = AsyncMock(side_effect=RuntimeError("api down"))
@@ -254,7 +254,7 @@ class TestTitleLanguageGate:
 class TestSalienceTopicOverlap:
     @pytest.mark.asyncio
     async def test_skips_stance_when_topic_overlaps_recent_outbound(self):
-        from insult.core.moltbook_outbound import detect_salience_signal
+        from personas.insult.core.moltbook_outbound import detect_salience_signal
 
         memory = MagicMock()
         memory.get_recent_world_scans = AsyncMock(

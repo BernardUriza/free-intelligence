@@ -73,7 +73,7 @@ REQUIRES_PG = pytest.mark.skipif(
 if PG_CTL is not None:
     from pytest_postgresql import factories
 
-    _SCHEMA = Path(__file__).resolve().parent.parent / "insult" / "core" / "memory" / "postgres_schema.sql"
+    _SCHEMA = Path(__file__).resolve().parent.parent / "personas" / "insult" / "core" / "memory" / "postgres_schema.sql"
 
     # `load` accepts `Path` instances (treated as SQL files) OR `"pkg.mod:fn"`
     # callable specs. Passing `str(_SCHEMA)` makes pytest-postgresql think
@@ -98,7 +98,7 @@ async def pg_memory_store(postgresql_socket):
     canonical `postgres_schema.sql` so we exercise the same DDL that prod
     sees — placeholder errors, index names, type coercions all matter here.
     """
-    from insult.core.memory import MemoryStore
+    from personas.insult.core.memory import MemoryStore
 
     info = postgresql_socket.info
     # asyncpg DSN format: `postgresql://user@host:port/dbname`. pytest-postgresql

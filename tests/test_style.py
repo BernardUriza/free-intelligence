@@ -2,7 +2,7 @@
 
 import pytest
 
-from insult.core.style import (
+from personas.insult.core.style import (
     UserStyleProfile,
     _compute_formality,
     _compute_technical_level,

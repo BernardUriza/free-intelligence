@@ -17,11 +17,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from insult.composition import build_s1b_policy_port
-from insult.core.contracts.history import ExpressionHistory
+from personas.insult.composition import build_s1b_policy_port
+from personas.insult.core.contracts.history import ExpressionHistory
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 # The ONLY character symbols stages may still import — the post-LLM S4
 # mutation half that PR-G (OutputMutationPort) will remove. Anything beyond
@@ -100,7 +100,7 @@ def _compose_kwargs(**overrides) -> dict:
 
 
 def _make_selection():
-    from insult.core.presets import classify_preset
+    from personas.insult.core.presets import classify_preset
 
     return classify_preset("explícame por qué mi refactor no es sobreingeniería", [], [])
 
@@ -109,7 +109,7 @@ def test_compose_returns_full_bundle() -> None:
     """Positive: one compose() call yields the composed system prompt with
     every supplied layer embedded, the flow guidance rendered ONCE from the
     bundle's own analysis, and the preset passed through unchanged."""
-    from insult.core.flows import build_flow_prompt
+    from personas.insult.core.flows import build_flow_prompt
 
     selection = _make_selection()
     port = build_s1b_policy_port(ExpressionHistory())
@@ -150,7 +150,7 @@ def test_compose_skips_empty_layers() -> None:
 def test_other_people_block_delegates_to_core_renderer() -> None:
     """Positive: same render as the core formatter (the S2 path consumes the
     port, never the private symbol)."""
-    from insult.core.character.prompts import _format_other_people_block
+    from personas.insult.core.character.prompts import _format_other_people_block
 
     facts = {"Alex": [{"fact": "Su cumpleaños es el 11 de junio", "category": "identity"}]}
     port = build_s1b_policy_port(ExpressionHistory())
@@ -164,7 +164,7 @@ def test_other_people_block_delegates_to_core_renderer() -> None:
 def test_assess_facets_match_core_validators() -> None:
     """Positive: the S5 facet returns exactly what the core validators return
     for the same inputs (pure functions — parity is deterministic)."""
-    from insult.core.flows import detect_lifelessness, validate_flow_adherence
+    from personas.insult.core.flows import detect_lifelessness, validate_flow_adherence
 
     selection = _make_selection()
     port = build_s1b_policy_port(ExpressionHistory())

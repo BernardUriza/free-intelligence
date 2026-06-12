@@ -1,7 +1,7 @@
 """Tests for _build_system_blocks — the prompt-cache segmentation helper in llm.py."""
 
-from insult.core.character import CACHE_BOUNDARY
-from insult.core.llm import _build_system_blocks
+from personas.insult.core.character import CACHE_BOUNDARY
+from personas.insult.core.llm import _build_system_blocks
 
 
 class TestBuildSystemBlocks:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from insult.core.sources._moltbook_verify import (
+from personas.insult.core.sources._moltbook_verify import (
     _decode_obfuscated,
     _replace_word_numbers,
     solve_math_challenge,

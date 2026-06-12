@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from insult.core.arc_tracker import (
+from personas.insult.core.arc_tracker import (
     ArcState,
     EmotionalPhase,
     arc_from_dict,

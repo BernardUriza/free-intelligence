@@ -1,6 +1,6 @@
 """Tests for insult.cogs.chat.disclosure — pre-LLM disclosure detection."""
 
-from insult.cogs.chat.disclosure import scan_disclosure
+from personas.insult.cogs.chat.disclosure import scan_disclosure
 
 
 class TestScanDisclosure:

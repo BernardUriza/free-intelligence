@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core.presets import PresetModifier, classify_preset
-from insult.core.synthesis_detector import detect_synthesis
+from personas.insult.core.presets import PresetModifier, classify_preset
+from personas.insult.core.synthesis_detector import detect_synthesis
 
 
 class TestStrongPatterns:

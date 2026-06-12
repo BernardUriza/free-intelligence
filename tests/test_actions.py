@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from insult.core.actions import (
+from personas.insult.core.actions import (
     CHANNEL_TOOLS,
     ToolCall,
     execute_create_channel,
@@ -119,7 +119,7 @@ class TestExecuteCreateChannel:
         user.display_name = "TestUser"
         return user
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_creates_private_channel(self, _sleep, mock_guild, mock_user):
         tool_call = ToolCall(id="tc_1", name="create_channel", input={"name": "mi espacio", "channel_type": "private"})
         result = await execute_create_channel(mock_guild, tool_call, mock_user)
@@ -128,21 +128,21 @@ class TestExecuteCreateChannel:
         call_kwargs = mock_guild.create_text_channel.call_args
         assert "overwrites" in call_kwargs.kwargs or len(call_kwargs.args) > 1
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_creates_topic_channel(self, _sleep, mock_guild, mock_user):
         tool_call = ToolCall(id="tc_2", name="create_channel", input={"name": "adhd-focus", "channel_type": "topic"})
         result = await execute_create_channel(mock_guild, tool_call, mock_user)
         assert result is not None
         mock_guild.create_text_channel.assert_called_once_with("adhd-focus")
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_creates_category(self, _sleep, mock_guild, mock_user):
         tool_call = ToolCall(id="tc_3", name="create_channel", input={"name": "bienestar", "channel_type": "category"})
         result = await execute_create_channel(mock_guild, tool_call, mock_user)
         assert result is not None
         mock_guild.create_category.assert_called_once_with("bienestar")
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_missing_permissions_returns_none(self, _sleep, mock_guild, mock_user):
         mock_guild.me.guild_permissions.manage_channels = False
         tool_call = ToolCall(id="tc_4", name="create_channel", input={"name": "test", "channel_type": "private"})
@@ -150,14 +150,14 @@ class TestExecuteCreateChannel:
         assert result is None
         mock_guild.create_text_channel.assert_not_called()
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_channel_limit_returns_none(self, _sleep, mock_guild, mock_user):
         mock_guild.channels = [MagicMock() for _ in range(460)]
         tool_call = ToolCall(id="tc_5", name="create_channel", input={"name": "test", "channel_type": "topic"})
         result = await execute_create_channel(mock_guild, tool_call, mock_user)
         assert result is None
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_defaults_to_private_on_invalid_type(self, _sleep, mock_guild, mock_user):
         tool_call = ToolCall(id="tc_6", name="create_channel", input={"name": "test", "channel_type": "invalid"})
         result = await execute_create_channel(mock_guild, tool_call, mock_user)
@@ -165,7 +165,7 @@ class TestExecuteCreateChannel:
         call_kwargs = mock_guild.create_text_channel.call_args
         assert "overwrites" in call_kwargs.kwargs or len(call_kwargs.args) > 1
 
-    @patch("insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("personas.insult.core.actions.asyncio.sleep", new_callable=AsyncMock)
     async def test_sanitizes_channel_name(self, _sleep, mock_guild, mock_user):
         tool_call = ToolCall(
             id="tc_7", name="create_channel", input={"name": "Mi Canal Especial!!!", "channel_type": "topic"}

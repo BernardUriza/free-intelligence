@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core.character import (
+from personas.insult.core.character import (
     MutationStage,
     PipelineViolationError,
     deduplicate_opener,

@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.core.facts import extract_facts
+from personas.insult.core.facts import extract_facts
 
 
 @pytest.mark.asyncio

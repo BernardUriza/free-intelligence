@@ -17,9 +17,9 @@ import types
 import httpx
 import pytest
 
-from insult.agent.runner import _frame_turn_text
-from insult.core.llm.agent_client import AgentRunnerClient
-from insult.core.presets import (
+from personas.insult.agent.runner import _frame_turn_text
+from personas.insult.core.llm.agent_client import AgentRunnerClient
+from personas.insult.core.presets import (
     PresetMode,
     PresetSelection,
     build_preset_prompt,
@@ -132,9 +132,9 @@ async def test_chat_omits_guidance_key_when_none(_patch_httpx):
 
 def _engine_for(monkeypatch, selection: PresetSelection):
     """Preset Engine wired for the regex-only path, classifying as `selection`."""
-    from insult.composition import build_preset_engine_port
+    from personas.insult.composition import build_preset_engine_port
 
-    monkeypatch.setattr("insult.composition.classify_preset", lambda *a, **k: selection)
+    monkeypatch.setattr("personas.insult.composition.classify_preset", lambda *a, **k: selection)
     settings = types.SimpleNamespace(preset_classifier_llm_enabled=False)
     return build_preset_engine_port(judge_client=None, settings=settings)
 
@@ -149,7 +149,7 @@ def _ctx(result, text: str = ""):
 
 
 async def test_build_guidance_includes_preset_prompt(monkeypatch):
-    from insult.cogs.chat.stages import _build_behavioral_guidance
+    from personas.insult.cogs.chat.stages import _build_behavioral_guidance
 
     sel = PresetSelection(mode=PresetMode.DEFAULT_ABRASIVE, reason="fallback")
     result = await _engine_for(monkeypatch, sel).resolve("x", [], [])
@@ -160,7 +160,7 @@ async def test_build_guidance_includes_preset_prompt(monkeypatch):
 async def test_build_guidance_adds_overlay_for_vulnerable_selection(monkeypatch):
     """Positive case: a chronic-vulnerable selection (the exact reason prefix
     prod emitted, score 11) must carry the safety overlay."""
-    from insult.cogs.chat.stages import _build_behavioral_guidance
+    from personas.insult.cogs.chat.stages import _build_behavioral_guidance
 
     sel = PresetSelection(
         mode=PresetMode.RELATIONAL_PROBE,
@@ -175,7 +175,7 @@ async def test_build_guidance_adds_overlay_for_vulnerable_selection(monkeypatch)
 async def test_build_guidance_no_overlay_for_normal_selection(monkeypatch):
     """Resistance case: an ordinary preset (non-overlay reason) must NOT drag
     in the vulnerability overlay — otherwise everyone gets crisis treatment."""
-    from insult.cogs.chat.stages import _build_behavioral_guidance
+    from personas.insult.cogs.chat.stages import _build_behavioral_guidance
 
     sel = PresetSelection(mode=PresetMode.PLAYFUL_ROAST, reason="humor_signals")
     result = await _engine_for(monkeypatch, sel).resolve("x", [], [])

@@ -12,7 +12,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from insult.cogs.chat.batch import addressed_to_alice
+from personas.insult.cogs.chat.batch import addressed_to_alice
 
 ALICE_ID = "1503983124982534284"
 

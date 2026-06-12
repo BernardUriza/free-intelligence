@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core import llm as llm_mod
-from insult.core.llm import _resolve_family, get_usage_report, record_usage
+from personas.insult.core import llm as llm_mod
+from personas.insult.core.llm import _resolve_family, get_usage_report, record_usage
 
 
 @pytest.fixture(autouse=True)

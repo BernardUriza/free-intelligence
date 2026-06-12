@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from insult.core.vectors import EMBEDDING_DIM, MODEL_NAME, EmbeddingModel, get_embedding_model
+from personas.insult.core.vectors import EMBEDDING_DIM, MODEL_NAME, EmbeddingModel, get_embedding_model
 
 
 class TestEmbeddingModel:
-    @patch("insult.core.vectors.EmbeddingModel._ensure_model")
+    @patch("personas.insult.core.vectors.EmbeddingModel._ensure_model")
     def test_embed_returns_correct_dim(self, _mock_ensure):
         """embed() should return a list of floats with EMBEDDING_DIM dimensions."""
         model = EmbeddingModel()
@@ -29,7 +29,7 @@ class TestEmbeddingModel:
         assert len(out) == EMBEDDING_DIM
         assert all(isinstance(x, float) for x in out)
 
-    @patch("insult.core.vectors.EmbeddingModel._ensure_model")
+    @patch("personas.insult.core.vectors.EmbeddingModel._ensure_model")
     def test_embed_batch_handles_empty(self, _mock_ensure):
         """embed_batch([]) short-circuits and returns []; never loads the model."""
         model = EmbeddingModel()

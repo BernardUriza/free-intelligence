@@ -8,13 +8,13 @@ classification.
 
 from __future__ import annotations
 
-from insult.core.memory_consolidator import ConsolidationReport, FactOperation
-from insult.core.siesta.diary.generator import (
+from personas.insult.core.memory_consolidator import ConsolidationReport, FactOperation
+from personas.insult.core.siesta.diary.generator import (
     PLACEHOLDER_ON_LLM_FAILURE,
     _resolve_status,
     _summarize_reports,
 )
-from insult.core.siesta.diary.prompts import build_user_prompt
+from personas.insult.core.siesta.diary.prompts import build_user_prompt
 
 
 def _ok_report(

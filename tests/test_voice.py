@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.cogs.voice import _VERSION_TAG_RE, build_arbor_tts_payload, pick_tts_voice, resolve_full_response
+from personas.insult.cogs.voice import _VERSION_TAG_RE, build_arbor_tts_payload, pick_tts_voice, resolve_full_response
 
 
 class TestPickTtsVoice:

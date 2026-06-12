@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from insult.core.contracts.history import ExpressionHistory
-from insult.core.llm import LLMResponse
-from insult.core.routing import OpusBudget
-from insult.core.style import UserStyleProfile
+from personas.insult.core.contracts.history import ExpressionHistory
+from personas.insult.core.llm import LLMResponse
+from personas.insult.core.routing import OpusBudget
+from personas.insult.core.style import UserStyleProfile
 
 # Pull in the Postgres-backed fixture (`pg_memory_store`) plus its supporting
 # pytest-postgresql factories. The module is import-safe even when pg_ctl is
@@ -135,7 +135,7 @@ def mock_siesta():
     Tests that need to exercise the siesta-skipped path can override
     ``cog.siesta.is_active`` to return True directly.
     """
-    from insult.core.siesta import AWAKE
+    from personas.insult.core.siesta import AWAKE
 
     siesta = MagicMock()
     siesta.is_active = MagicMock(return_value=False)

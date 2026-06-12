@@ -16,8 +16,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from insult.core.siesta.coordination import pg_state
-from insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
+from personas.insult.core.siesta.coordination import pg_state
+from personas.insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
 
 # Tests are gated on POSTGRES_URL being set (CI provides it via the
 # postgres service container). On dev laptops without PG these skip.

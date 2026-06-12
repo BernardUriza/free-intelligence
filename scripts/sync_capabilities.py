@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PERSONA = ROOT / "persona.md"
-INSULT = ROOT / "insult"
+INSULT = ROOT / "personas" / "insult"
 
 START_MARKER = "<!-- CAPABILITIES:START -->"
 END_MARKER = "<!-- CAPABILITIES:END -->"

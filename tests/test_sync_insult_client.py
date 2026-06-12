@@ -31,7 +31,7 @@ import pytest
 import yaml
 from aiohttp.test_utils import TestServer
 
-from insult.core.debug_server import build_app
+from personas.insult.core.debug_server import build_app
 
 CLIENT = Path(__file__).resolve().parent.parent / "tools" / "serenityops-sync-client" / "sync_insult.py"
 

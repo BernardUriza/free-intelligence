@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.agent import mcp_tools
+from personas.insult.agent import mcp_tools
 
 _handler = mcp_tools.deep_memory.handler
 
@@ -31,7 +31,7 @@ _handler = mcp_tools.deep_memory.handler
 @pytest.mark.parametrize("reserved", ["__chatgpt_archive__", "__corpus_film__", "__anything__"])
 async def test_reserved_namespace_is_blocked_before_query(reserved, monkeypatch):
     spy = AsyncMock(return_value=[])
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", spy)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", spy)
 
     out = await _handler({"user_id": reserved, "query": "lo que sea"})
 
@@ -45,7 +45,7 @@ async def test_reserved_namespace_is_blocked_before_query(reserved, monkeypatch)
 @pytest.mark.asyncio
 async def test_real_discord_id_still_reaches_query(monkeypatch):
     spy = AsyncMock(return_value=[])
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", spy)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", spy)
 
     await _handler({"user_id": "907264175246569543", "query": "cine de autor"})
 
@@ -56,7 +56,7 @@ async def test_real_discord_id_still_reaches_query(monkeypatch):
 @pytest.mark.asyncio
 async def test_missing_user_id_still_errors(monkeypatch):
     spy = AsyncMock(return_value=[])
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", spy)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", spy)
 
     out = await _handler({"user_id": "", "query": "x"})
     spy.assert_not_awaited()

@@ -14,7 +14,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from insult.core.llm.agent_client import AgentRunnerClient
+from personas.insult.core.llm.agent_client import AgentRunnerClient
 
 # --- AgentRunnerClient.chat: relevant_memory prepended to user_text --------
 
@@ -95,13 +95,13 @@ def _patch_query(monkeypatch, hits=None, raises=False):
             raise RuntimeError("pgvector down")
         return hits or []
 
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", _fake)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", _fake)
 
 
 async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
     """Positive: hits above the similarity floor become a labeled, bulleted
     block."""
-    from insult.composition import default_retrieval_port
+    from personas.insult.composition import default_retrieval_port
 
     _patch_query(
         monkeypatch,
@@ -123,7 +123,7 @@ async def test_prefetch_returns_block_for_relevant_hits(monkeypatch):
 async def test_prefetch_skips_trivial_message(monkeypatch):
     """Resistance: a too-short message is skipped WITHOUT even hitting the
     embedder/query (no wasted Azure call on 'okok')."""
-    from insult.composition import default_retrieval_port
+    from personas.insult.composition import default_retrieval_port
 
     called = {"n": 0}
 
@@ -131,7 +131,7 @@ async def test_prefetch_skips_trivial_message(monkeypatch):
         called["n"] += 1
         return [{"chunk_text": "x", "similarity": 0.9}]
 
-    monkeypatch.setattr("insult.core.deep_memory.query_user_memory", _fake)
+    monkeypatch.setattr("personas.insult.core.deep_memory.query_user_memory", _fake)
     out = await default_retrieval_port().user_memory_block(user_id="U1", text="okok")
     assert out is None
     assert called["n"] == 0, "trivial message must not trigger a query/embed"
@@ -140,7 +140,7 @@ async def test_prefetch_skips_trivial_message(monkeypatch):
 async def test_prefetch_drops_below_threshold_hits(monkeypatch):
     """Resistance: weak (low-similarity) hits are noise — dropped, returns
     None rather than injecting irrelevant history every turn."""
-    from insult.composition import default_retrieval_port
+    from personas.insult.composition import default_retrieval_port
 
     _patch_query(monkeypatch, hits=[{"chunk_text": "unrelated", "similarity": 0.10}])
     out = await default_retrieval_port().user_memory_block(user_id="U1", text="una pregunta cualquiera larga")
@@ -149,7 +149,7 @@ async def test_prefetch_drops_below_threshold_hits(monkeypatch):
 
 async def test_prefetch_none_on_retrieval_failure(monkeypatch):
     """Resistance: a retrieval error never breaks the turn — returns None."""
-    from insult.composition import default_retrieval_port
+    from personas.insult.composition import default_retrieval_port
 
     _patch_query(monkeypatch, raises=True)
     out = await default_retrieval_port().user_memory_block(user_id="U1", text="mensaje suficientemente largo aquí")

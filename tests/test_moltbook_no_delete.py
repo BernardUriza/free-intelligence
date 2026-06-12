@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from insult.core.sources.moltbook import MoltbookSource
+from personas.insult.core.sources.moltbook import MoltbookSource
 
 
 @pytest.mark.asyncio

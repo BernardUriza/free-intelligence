@@ -45,41 +45,41 @@ HOST_FACING_PATTERNS: list[str] = [
 
 # Smart/persona/runner internals the host must never reach into.
 FORBIDDEN_MODULES: list[str] = [
-    "insult.core.memory",
-    "insult.core.deep_memory",
-    "insult.core.vectors",
-    "insult.core.facts",
+    "personas.insult.core.memory",
+    "personas.insult.core.deep_memory",
+    "personas.insult.core.vectors",
+    "personas.insult.core.facts",
     # NOTE: the [REMEMBER:] marker pipeline relocated to insult.cogs.chat.remembers
     # (host-side post-LLM marker parse + strip + a persist that takes the memory
     # store INJECTED — it owns no persistence, same shape as the reactions adapter).
     # No longer a smart module, so insult.core.remembers is intentionally absent here.
-    "insult.core.transcribe",
-    "insult.core.attachments",
-    "insult.core.summaries",
-    "insult.core.memory_consolidator",
-    "insult.core.character",
-    "insult.core.presets",
+    "personas.insult.core.transcribe",
+    "personas.insult.core.attachments",
+    "personas.insult.core.summaries",
+    "personas.insult.core.memory_consolidator",
+    "personas.insult.core.character",
+    "personas.insult.core.presets",
     # NOTE: attachment processing relocated to insult.cogs.chat.attachments
     # (host-side Discord ingest adapter, zero persona/memory/LLM). No longer a
     # smart module, so insult.core.attachments is intentionally absent here.
-    "insult.core.presets_llm",
-    "insult.core.flows",
-    "insult.core.vulnerability",
+    "personas.insult.core.presets_llm",
+    "personas.insult.core.flows",
+    "personas.insult.core.vulnerability",
     # NOTE: disclosure scanning relocated to insult.cogs.chat.disclosure
     # (host-side pre-LLM regex classifier, zero persona/memory/LLM — same shape
     # as triviality). No longer a smart module, so insult.core.disclosure is
     # intentionally absent here.
-    "insult.core.arc_tracker",
-    "insult.core.style",
-    "insult.core.proactive",
+    "personas.insult.core.arc_tracker",
+    "personas.insult.core.style",
+    "personas.insult.core.proactive",
     # NOTE: the [REACT:] marker pipeline + Discord reaction egress relocated to
     # insult.cogs.chat.reactions (host-side: parse/strip markers + add_reactions
     # via the Discord API, pure stdlib+discord, zero persona/memory/LLM — same
     # shape as attachments/disclosure). No longer a smart module, so
     # insult.core.reactions is intentionally absent here.
-    "insult.core.language",
-    "insult.core.stance_log",
-    "insult.agent",
+    "personas.insult.core.language",
+    "personas.insult.core.stance_log",
+    "personas.insult.agent",
 ]
 
 

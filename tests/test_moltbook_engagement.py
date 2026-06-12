@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from insult.core.moltbook_engagement import (
+from personas.insult.core.moltbook_engagement import (
     EngagementCandidate,
     _already_engaged_post_ids,
     _tokenize_topic,
     extract_engagement_keywords,
     search_candidates,
 )
-from insult.core.sources.base import Post
+from personas.insult.core.sources.base import Post
 
 
 @dataclass

@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from insult.core.moltbook_inbound import (
+from personas.insult.core.moltbook_inbound import (
     InboundDigestResult,
     build_inbound_digest,
     fetch_inbound_digest,
@@ -18,7 +18,7 @@ from insult.core.moltbook_inbound import (
     rank_for_users,
     render_digest_message,
 )
-from insult.core.sources.base import Post, SourceTransientError
+from personas.insult.core.sources.base import Post, SourceTransientError
 
 
 def _post(

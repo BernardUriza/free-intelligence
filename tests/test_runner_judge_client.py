@@ -17,7 +17,7 @@ import json
 import httpx
 import pytest
 
-from insult.core.llm.runner_judge_client import (
+from personas.insult.core.llm.runner_judge_client import (
     JudgeResponse,
     RunnerJudgeClient,
 )

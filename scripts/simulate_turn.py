@@ -60,17 +60,17 @@ structlog.configure(
 
 # Config is loaded at import — must come after env setup. The project's
 # .env takes priority thanks to Pydantic Settings custom source ordering.
-from insult.config import settings  # noqa: E402
-from insult.core.character import build_adaptive_prompt  # noqa: E402
-from insult.core.facts import build_facts_prompt  # noqa: E402
-from insult.core.flows import (  # noqa: E402
+from personas.insult.config import settings  # noqa: E402
+from personas.insult.core.character import build_adaptive_prompt  # noqa: E402
+from personas.insult.core.facts import build_facts_prompt  # noqa: E402
+from personas.insult.core.flows import (  # noqa: E402
     ExpressionHistory,
     analyze_flows,
     build_flow_prompt,
 )
-from insult.core.memory import MemoryStore  # noqa: E402
+from personas.insult.core.memory import MemoryStore  # noqa: E402
 
-DEFAULT_DB = "/tmp/memory-live.db"
+DEFAULT_DB = "/tmp/memory-live.db"  # noqa: S108
 DEFAULT_CHANNEL = "1489180895264116736"  # #general
 
 
@@ -179,7 +179,7 @@ async def simulate(
                 report["live_rtt_seconds"] = round(elapsed, 2)
                 report["live_output_tokens"] = resp.usage.output_tokens
                 report["live_stop_reason"] = resp.stop_reason
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 report["live_rtt_seconds"] = ">35"
                 report["live_status"] = "TIMEOUT"
             except Exception as e:
@@ -221,7 +221,9 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--user-id", required=True, help="Discord user_id to simulate")
     parser.add_argument("--message", required=True, help="Text of the simulated user turn")
-    parser.add_argument("--channel-id", default=DEFAULT_CHANNEL, help=f"Channel ID (default {DEFAULT_CHANNEL} = #general)")
+    parser.add_argument(
+        "--channel-id", default=DEFAULT_CHANNEL, help=f"Channel ID (default {DEFAULT_CHANNEL} = #general)"
+    )
     parser.add_argument("--db", default=DEFAULT_DB, help=f"Path to SQLite DB (default {DEFAULT_DB})")
     parser.add_argument("--live", action="store_true", help="Do a real API call and measure RTT (costs credit)")
     parser.add_argument("--compare", help="Second user_id to simulate side-by-side")
@@ -241,7 +243,7 @@ async def main() -> None:
         print_report(r2)
 
         # Side-by-side delta
-        print("\n=== DELTA (user1 − user2) ===")
+        print("\n=== DELTA (user1 - user2) ===")
         print(f"  facts count:       {r1['facts_count'] - r2['facts_count']:+d}")
         print(f"  system chars:      {r1['system_total_chars'] - r2['system_total_chars']:+,}")
         print(f"  input tokens:      {r1['total_input_tokens'] - r2['total_input_tokens']:+,}")

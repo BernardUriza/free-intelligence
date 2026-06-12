@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from insult.cogs.utility import UtilityCog
+from personas.insult.cogs.utility import UtilityCog
 
 
 @pytest.fixture

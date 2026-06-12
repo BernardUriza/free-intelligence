@@ -13,7 +13,7 @@ instead of Insult. Two safety-critical properties, each with a resistance case:
 
 from __future__ import annotations
 
-from insult.agent import runner
+from personas.insult.agent import runner
 
 
 def test_pool_key_insult_is_bare_channel():

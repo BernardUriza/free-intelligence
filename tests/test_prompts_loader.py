@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from insult.core import prompts_loader
-from insult.core.prompts_loader import (
+from personas.insult.core import prompts_loader
+from personas.insult.core.prompts_loader import (
     clear_prompt_cache,
     list_available_prompts,
     load_prompt,

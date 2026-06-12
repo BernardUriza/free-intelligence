@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import discord
 
-from insult.core.siesta.presence.discord import build_activity_text, status_for
-from insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
+from personas.insult.core.siesta.presence.discord import build_activity_text, status_for
+from personas.insult.core.siesta.state import AWAKE, SiestaPhase, SiestaSnapshot
 
 
 def test_build_text_empty_when_awake():

@@ -12,11 +12,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from insult.composition import default_arc_port
-from insult.core.arc_tracker import ArcState, arc_to_dict, build_arc_prompt, update_arc
+from personas.insult.composition import default_arc_port
+from personas.insult.core.arc_tracker import ArcState, arc_to_dict, build_arc_prompt, update_arc
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STAGES = REPO_ROOT / "insult" / "cogs" / "chat" / "stages.py"
+STAGES = REPO_ROOT / "personas" / "insult" / "cogs" / "chat" / "stages.py"
 
 
 # --- Positive: the adapter delegates faithfully to insult.core.arc_tracker ----
@@ -61,7 +61,7 @@ def test_arc_port_advance_matches_core() -> None:
     assert via_port == via_core
 
 
-# --- Resistance 1: stages.py must NOT import insult.core.arc_tracker ----------
+# --- Resistance 1: stages.py must NOT import personas.insult.core.arc_tracker ----------
 
 
 def _ast(path: Path) -> ast.Module:
@@ -73,11 +73,15 @@ def test_stages_does_not_import_core_arc_tracker() -> None:
     route it through ctx.deps.arc."""
     offenders: set[str] = set()
     for node in ast.walk(_ast(STAGES)):
-        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("insult.core.arc_tracker"):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("personas.insult.core.arc_tracker")
+        ):
             offenders.add(node.module)
         elif isinstance(node, ast.Import):
-            offenders.update(a.name for a in node.names if a.name.startswith("insult.core.arc_tracker"))
-    assert not offenders, f"stages.py must not import insult.core.arc_tracker (found {offenders})"
+            offenders.update(a.name for a in node.names if a.name.startswith("personas.insult.core.arc_tracker"))
+    assert not offenders, f"stages.py must not import personas.insult.core.arc_tracker (found {offenders})"
 
 
 # --- Resistance 2: the OPACITY invariant — stages never reads arc fields ------

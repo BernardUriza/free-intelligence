@@ -2,7 +2,7 @@
 
 import pytest
 
-from insult.core.quality import _jaccard_similarity, check_quality
+from personas.insult.core.quality import _jaccard_similarity, check_quality
 
 # ---------------------------------------------------------------------------
 # Quality checks

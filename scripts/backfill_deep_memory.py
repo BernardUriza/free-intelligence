@@ -60,9 +60,7 @@ def _fmt_ts(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%d %H:%M")
 
 
-async def discover_active_users(
-    conn: asyncpg.Connection, days: int, min_msgs: int
-) -> list[tuple[str, str, int]]:
+async def discover_active_users(conn: asyncpg.Connection, days: int, min_msgs: int) -> list[tuple[str, str, int]]:
     """Find users with >= min_msgs messages in the last `days`.
 
     Returns [(user_id, last_seen_user_name, count), ...] sorted by
@@ -146,14 +144,12 @@ async def main() -> int:
     if not pg_url:
         print("FATAL: POSTGRES_URL not set", file=sys.stderr)
         return 2
-    if not args.dry_run and (
-        not os.environ.get("AZURE_OPENAI_ENDPOINT") or not os.environ.get("AZURE_OPENAI_KEY")
-    ):
+    if not args.dry_run and (not os.environ.get("AZURE_OPENAI_ENDPOINT") or not os.environ.get("AZURE_OPENAI_KEY")):
         print("FATAL: AZURE_OPENAI_ENDPOINT / KEY not set", file=sys.stderr)
         return 2
 
     # Import here so module-load errors surface as fatals with a clear stack.
-    from insult.core.deep_memory import chunk_text_for_embedding, insert_chunks
+    from personas.insult.core.deep_memory import chunk_text_for_embedding, insert_chunks
 
     total_chunks_inserted = 0
     started = time.monotonic()
@@ -165,10 +161,7 @@ async def main() -> int:
             print(f"=== Explicit users: {[u[0] for u in users]} ===")
         else:
             users = await discover_active_users(conn, days=args.days, min_msgs=args.min_msgs)
-            print(
-                f"=== Auto-discovered {len(users)} users with >={args.min_msgs} "
-                f"msgs in last {args.days}d ==="
-            )
+            print(f"=== Auto-discovered {len(users)} users with >={args.min_msgs} msgs in last {args.days}d ===")
             for uid, name, n in users:
                 print(f"  {name} ({uid}): {n} msgs")
 
@@ -185,10 +178,7 @@ async def main() -> int:
 
             first_ts = msgs[0]["timestamp"]
             last_ts = msgs[-1]["timestamp"]
-            print(
-                f"  pulled {len(msgs)} msgs, "
-                f"{_fmt_ts(first_ts)} → {_fmt_ts(last_ts)}"
-            )
+            print(f"  pulled {len(msgs)} msgs, {_fmt_ts(first_ts)} → {_fmt_ts(last_ts)}")
 
             doc = "\n\n".join(format_message_block(m) for m in msgs)
             print(f"  doc size: {len(doc):,} chars (~{len(doc.split()):,} words)")

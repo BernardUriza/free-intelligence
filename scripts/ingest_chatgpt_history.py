@@ -195,7 +195,7 @@ async def _embed_request(texts: list[str], sem: asyncio.Semaphore) -> list[list[
     Returns vectors aligned by `resp.data[i].index`; None only on dim mismatch.
     Raises the SDK error (RateLimitError / BadRequestError / …) so the caller
     can branch."""
-    from insult.core.deep_memory import EMBEDDING_DIM, _get_default_embedder
+    from personas.insult.core.deep_memory import EMBEDDING_DIM, _get_default_embedder
 
     emb = _get_default_embedder()
     client = emb._get_client()
@@ -352,7 +352,7 @@ async def main() -> int:
         print("FATAL: AZURE_OPENAI_ENDPOINT / KEY not set", file=sys.stderr)
         return 2
 
-    from insult.core.deep_memory import chunk_text_for_embedding
+    from personas.insult.core.deep_memory import chunk_text_for_embedding
 
     classification = load_classification()
     print(f"classification: {len(classification)} keep=True conversations")

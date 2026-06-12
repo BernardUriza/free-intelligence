@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from insult.core import html_artifacts
+from personas.insult.core import html_artifacts
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("POSTGRES_URL"),

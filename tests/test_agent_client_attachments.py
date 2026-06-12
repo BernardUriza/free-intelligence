@@ -8,7 +8,7 @@ new split (`_last_user_text` vs `_last_user_attachments`).
 
 from __future__ import annotations
 
-from insult.core.llm.agent_client import (
+from personas.insult.core.llm.agent_client import (
     _last_user_attachments,
     _last_user_text,
 )
