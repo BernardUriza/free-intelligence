@@ -135,11 +135,24 @@
 
 /* Message bubbles. The user bubble is frosted like the assistant's — the
    translucent emerald wash needs the blur to read as glass over the layered
-   page background instead of a flat tint. */
+   page background instead of a flat tint.
+
+   B3-FIGLASS-14 — /chat-page bubble GEOMETRY, not just tint. AURITY's /chat
+   renders real bubbles: capped at 85% width, user hugging the right
+   (margin-left auto) with a clipped bottom-right corner, assistant on the
+   left with a clipped bottom-left corner. The base messageStyles render
+   full-width Claude-style rows; these preset classes (loaded after Tailwind
+   utilities in the consumer) override the row geometry into bubbles. */
 .glass-chat-bubble-user {
   background: var(--glass-chat-bubble-user);
   color: var(--glass-chat-text);
   border: 1px solid var(--glass-chat-bubble-user-border);
+  max-width: 85%;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: 0;
+  border-radius: var(--glass-chat-radius);
+  border-bottom-right-radius: 4px;
   backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
 }
@@ -147,6 +160,11 @@
   background: var(--glass-chat-bubble-assistant);
   color: var(--glass-chat-text);
   border: 1px solid var(--glass-chat-bubble-border);
+  max-width: 85%;
+  margin-left: 0;
+  margin-right: auto;
+  border-radius: var(--glass-chat-radius);
+  border-bottom-left-radius: 4px;
   backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
 }

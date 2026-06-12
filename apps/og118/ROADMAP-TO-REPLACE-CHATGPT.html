@@ -291,10 +291,14 @@
       <div class="item-body"><div class="item-text done">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
       <div class="item-note">PR #230 merged (3c3a8549) + SWA deployed + smoke staging PASS: pin a 1px al cargar, ScrollToBottomButton aparece al scrollear arriba y regresa con spring, mensaje real de 4.5k chars clampeado a 264px con mask fade + expande con "Mostrar más" (ARIA), fade-in fi-msg-show computado en bubbles, consola limpia. og118 heredó las 3 capabilities sin tocar el consumer. Nits LOW del Gatekeeper (const nombrada + focus-visible ring) en PR #231.</div></div>
       <span class="item-tag">B3-FIGLASS-12</span></label>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">B3-FIGLASS-13 — glass-chat page-depth preset: gradiente layered + burbujas glassy + watermark de marca</div>
-      <div class="item-note">El preset venía del chat WIDGET de Aurity, no de la página /chat (deuda confesada en su propio header). Evolucionado en fi-glass: fondo layered (glow radial + barrido navy diagonal, tokens re-tinteables), burbuja user translúcida esmeralda 32% con borde suave + blur (adiós verde WhatsApp), assistant slate suavizado, watermark de marca opcional (fixed, 8%, z -1, imagen del consumer). og118 consume con puros tokens en body.glass-chat + watermark-og118.svg. E2e local PASS. En PR #233, pendiente CI + merge + deploy + visual staging. Excluye el composer-box refactor de la sesión paralela.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-13 — glass-chat page-depth preset: gradiente layered + burbujas glassy + watermark de marca</div>
+      <div class="item-note">PR #233 merged (036908be) + deploy SWA verde: fondo layered (glow radial re-tinteable + barrido navy), burbuja user translúcida esmeralda 32% + blur, watermark de marca opcional (fixed, 8%, z -1). Incluyó el composer floating-box de la sesión paralela (controles dentro de la caja frosted). og118 consume con puros tokens. Header/badge (#232) y hotfix csstype (#234) merged y deployed también.</div></div>
       <span class="item-tag">B3-FIGLASS-13</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-FIGLASS-14 — bubble geometry /chat parity: alineación + 85% cap + muescas</div>
+      <div class="item-note">El preset tinteaba filas full-width estilo Claude; Aurity /chat usa burbujas reales. Ahora el preset es dueño de la GEOMETRÍA: user a la derecha (margin auto), assistant a la izquierda, ambos cap 85%, esquinas con muesca asimétrica (br/bl 4px), encogen a contenido en columna flex (efecto WhatsApp natural). E2e local medido: 85% exacto en mensajes largos, rightGap 0 user, muescas computadas, watermark+header+badge+composer todo junto en el screenshot. En PR, pendiente merge + deploy + visual staging de Bernard.</div></div>
+      <span class="item-tag">B3-FIGLASS-14</span></label>
   </div>
 
   <!-- DAILY DRIVER -->
