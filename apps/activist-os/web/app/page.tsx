@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getHealthFull, type HealthFull } from '@/lib/api';
+import { getHealthFull, type HealthFull } from '@/lib/activist-api';
 
 type ApiState =
   | { status: 'loading' }

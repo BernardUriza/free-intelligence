@@ -35,3 +35,75 @@ body {
   color: var(--fi-text);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Demo shell primitives (ported from web/demo.html) ─────────────── */
+
+.fi-shell-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(60rem 60rem at 12% -10%, color-mix(in srgb, var(--fi-accent), transparent 86%), transparent 70%),
+    radial-gradient(50rem 50rem at 95% 0%, color-mix(in srgb, var(--fi-evidence), transparent 90%), transparent 70%),
+    radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--fi-accent), transparent 92%), transparent 70%);
+}
+
+.fi-glass-panel {
+  background: var(--fi-surface);
+  border: 1px solid var(--fi-border);
+  backdrop-filter: blur(var(--fi-blur));
+  -webkit-backdrop-filter: blur(var(--fi-blur));
+  border-radius: var(--fi-radius-lg);
+}
+
+.fi-mono { font-family: var(--fi-font-mono); }
+
+.fi-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: var(--fi-font-mono);
+  font-size: .66rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .26rem .58rem; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.fi-badge::before { content: ""; width: .42rem; height: .42rem; border-radius: 999px; background: currentColor; }
+.fi-badge--band      { color: var(--fi-accent);   border-color: color-mix(in srgb, var(--fi-accent), transparent 60%);   background: color-mix(in srgb, var(--fi-accent), transparent 90%); }
+.fi-badge--local     { color: var(--fi-muted);    border-color: var(--fi-border);                                        background: var(--fi-surface); }
+.fi-badge--vetoed    { color: var(--fi-veto);     border-color: color-mix(in srgb, var(--fi-veto), transparent 60%);     background: color-mix(in srgb, var(--fi-veto), transparent 90%); }
+.fi-badge--approved  { color: var(--fi-approved); border-color: color-mix(in srgb, var(--fi-approved), transparent 60%); background: color-mix(in srgb, var(--fi-approved), transparent 90%); }
+.fi-badge--virtual   { color: var(--fi-evidence); border-color: color-mix(in srgb, var(--fi-evidence), transparent 60%); background: color-mix(in srgb, var(--fi-evidence), transparent 90%); }
+.fi-badge--provenance{ color: var(--fi-safety);   border-color: color-mix(in srgb, var(--fi-safety), transparent 60%);   background: color-mix(in srgb, var(--fi-safety), transparent 90%); }
+
+.hist-step {
+  display: flex; align-items: flex-start; gap: .65rem;
+  padding: .5rem .65rem; border-radius: var(--fi-radius-sm);
+  border: 1px solid var(--fi-border-soft);
+  background: var(--fi-surface);
+  font-size: .8rem;
+}
+.hist-step .dot {
+  flex: none; width: .55rem; height: .55rem; margin-top: .32rem;
+  border-radius: 999px; background: var(--fi-faint);
+}
+.hist-step--veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 50%); }
+.hist-step--veto .dot     { background: var(--fi-veto); }
+.hist-step--approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 50%); }
+.hist-step--approved .dot { background: var(--fi-approved); }
+.hist-step--virtual  { border-style: dashed; }
+.hist-step--virtual .dot  { background: var(--fi-evidence); }
+
+.msg {
+  border: 1px solid var(--fi-border-soft);
+  background: var(--fi-surface);
+  border-radius: var(--fi-radius-md);
+  padding: .7rem .9rem;
+}
+.msg--veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 45%); }
+.msg--approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 45%); }
+.msg--virtual  { border-style: dashed; opacity: .9; }
+.msg .mention { color: var(--fi-accent); font-weight: 600; }
+.msg .agent   { font-weight: 700; }
+
+.panel-title {
+  font-family: var(--fi-font-mono);
+  font-size: .7rem; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
