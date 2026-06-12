@@ -64,7 +64,7 @@
 
   /* Elevation (≈ shadow-2xl). */
   --glass-chat-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  --glass-chat-radius: 14px;
+  --glass-chat-radius: 16px; /* rounded-2xl — matches AURITY's chat-input-floating-box */
 }
 
 /* Root scope: a consumer wraps its chat surface in `.glass-chat` to opt in.
