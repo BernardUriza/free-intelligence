@@ -34,7 +34,7 @@ module wires domain services to ports.
 +--------------------------------+----------+----------------------------------+
 | ``_CoreRetrievalAdapter``      | stateless | ``default_retrieval_port()``     |
 +--------------------------------+----------+----------------------------------+
-| ``_CoreOutputMutationAdapter`` | stateless | ``default_output_mutation_port``  |
+| ``_CoreOutputMutationAdapter`` | stateless | ``default_output_mutation_port()`` |
 +--------------------------------+----------+----------------------------------+
 | ``_CorePresetEngineAdapter``   | stateful  | ``build_preset_engine_port()``   |
 +--------------------------------+----------+----------------------------------+
