@@ -303,6 +303,14 @@
       <div class="item-body"><div class="item-text done">B3-FIGLASS-15 — composer collapsed height + viewport scroll container</div>
       <div class="item-note">PR #236 merged (4fb19794) + CI 5/5 + deploy SWA verde (run 27444945964) + smoke staging PASS. Causa raíz: (1) lineHeight 20px hardcodeado en AutoResizeTextarea vs 24px real → textarea vacío computaba 2 rows; ahora mide el line-height computado con floor de 1 row. (2) overflow-y vivía en la columna de 760px → scrollbar a 320px del borde; ahora el scroll container es full-width y el cap 760 vive en wrappers internos. Smoke medido en staging: textarea vacío 24px (1 row), composer box 90px, scroller único full-width 1400px con barra a 0px del viewport, sin doble scroll, pin 1px al cargar, scroll arriba no arrastra, «Ir al final» regresa a 0px, consola limpia. 184/184 tests (5 nuevos).</div></div>
       <span class="item-tag">B3-FIGLASS-15</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-16 — AutoResizeTextarea shrink on delete</div>
+      <div class="item-note">Destapado por el smoke de FIGLASS-15: el textarea crecía al escribir pero jamás encogía al borrar (atorado en 120px). Causa: el atributo rows del render anterior pone piso al scrollHeight → la medición nunca baja; jsdom (scrollHeight 0) lo ocultaba. Fix: reset rows=1 + height auto ANTES de medir, restore imperativo después. Tests con mock fiel al DOM (scrollHeight = max(líneas, rows) × lineHeight): grow 1→5, shrink 5→1, delete-all, maxRows tras ciclo, send reset — 189/189. PR #239 merged (bbf4d295) + deploy verde + smoke staging PASS: 24→120→24→24px (box 90→186→90→90), cero caja fantasma, consola limpia. El cap fluido calc(100% - 60px) ordenado por Bernard entró aparte en PR #238 (merged d0a85988 + smoke PASS: wrappers 1308px, barra sigue a 0px).</div></div>
+      <span class="item-tag">B3-FIGLASS-16</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-OG118-MOBILE-1 — responsive sidebar collapse</div>
+      <div class="item-note">Hallazgo del smoke mobile (390×844): el sidebar desktop no colapsa → columna de chat ~222px y textarea 161px. Consumer/product responsive, NO regresión de FIGLASS-15 (100dvh OK, sin overflow horizontal ni doble scroll). Corte ordenado por el coagent como separado: sidebar colapsa o drawer en mobile, chat ocupa ancho útil, sin romper desktop, sin tocar fi-glass salvo que falte slot real.</div></div>
+      <span class="item-tag">B3-OG118-MOBILE-1</span></label>
   </div>
 
   <!-- DAILY DRIVER -->
