@@ -19,7 +19,7 @@ export default defineConfig({
     'src/conversation/index.ts',
   ],
   format: ['esm'],
-  dts: true,
+  dts: { compilerOptions: { skipLibCheck: true } },
   splitting: false,
   treeshake: false,
   sourcemap: true,
