@@ -30,6 +30,8 @@ export interface UseDurableRecordingReturn {
   bands: number[];
   audioLevel: number;
   isSilent: boolean;
+  // True while getUserMedia is in-flight (pressed mic, waiting for permission)
+  isStarting: boolean;
   // Actions
   startRecording: () => Promise<void>;
   pauseRecording: () => void;
@@ -76,6 +78,7 @@ export function useDurableRecording(
   const [recordingTime, setRecordingTime] = useState(0);
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
   const [isAtCapacity, setIsAtCapacity] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const recorderRef = useRef<RTCInstance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -136,6 +139,7 @@ export function useDurableRecording(
   const startRecording = useCallback(async () => {
     if (artifact?.state === 'recording' || artifact?.state === 'paused') return;
 
+    setIsStarting(true);
     try {
       // Check capacity before requesting mic
       const stored = await store.list();
@@ -206,6 +210,8 @@ export function useDurableRecording(
     } catch (err) {
       releaseStream();
       onError?.(err instanceof Error ? err.message : 'No se pudo iniciar la grabación.');
+    } finally {
+      setIsStarting(false);
     }
   }, [artifact, store, policy, deviceId, onError, releaseStream]);
 
@@ -238,6 +244,11 @@ export function useDurableRecording(
 
     stopTimer();
     const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
+
+    // Signal to the UI that stop is in-flight before the async RecordRTC callback.
+    // Without this the artifact stays in 'recording' during the ~500ms blob + IDB
+    // save, and the user sees no feedback after pressing Stop.
+    updateArtifact({ state: 'stopping' });
 
     // Release mic immediately (before await — keeps browser mic indicator clean)
     releaseStream();
@@ -317,6 +328,7 @@ export function useDurableRecording(
     bands,
     audioLevel,
     isSilent,
+    isStarting,
     startRecording,
     pauseRecording,
     resumeRecording,

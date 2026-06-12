@@ -5,6 +5,7 @@
 export type AudioArtifactState =
   | 'recording'
   | 'paused'
+  | 'stopping'    // async stop in-flight (RecordRTC + IndexedDB save, ~500ms)
   | 'saved'
   | 'queued'
   | 'uploading'
@@ -58,6 +59,7 @@ export function artifactLabel(state: AudioArtifactState): string {
   const map: Record<AudioArtifactState, string> = {
     recording: 'Grabando',
     paused: 'En pausa',
+    stopping: 'Guardando...',
     saved: 'Guardado',
     queued: 'En cola',
     uploading: 'Subiendo',
