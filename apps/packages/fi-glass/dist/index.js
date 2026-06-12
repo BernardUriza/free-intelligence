@@ -113,6 +113,7 @@ function normalizeStreamedMarkdown(content) {
 // src/messages/CollapsibleText.tsx
 import { useEffect, useId, useRef, useState } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
+var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
   children,
   maxHeight = 264,
@@ -129,7 +130,7 @@ function CollapsibleText({
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    const measure = () => setOverflowing(el.scrollHeight > maxHeight + 16);
+    const measure = () => setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);

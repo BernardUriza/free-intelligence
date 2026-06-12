@@ -17,6 +17,10 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
+// A message one line over the clamp reads better whole than clamped with a
+// toggle that reveals a single hidden line — so overflow only counts past this.
+const OVERFLOW_TOLERANCE_PX = 16;
+
 export interface CollapsibleTextProps {
   children: ReactNode;
   /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
@@ -50,9 +54,8 @@ export function CollapsibleText({
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    // 16px tolerance: a message one line over the clamp reads better whole than
-    // clamped with a toggle that reveals a single hidden line.
-    const measure = () => setOverflowing(el.scrollHeight > maxHeight + 16);
+    const measure = () =>
+      setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(measure);
