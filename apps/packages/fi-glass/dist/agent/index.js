@@ -1733,10 +1733,10 @@ function AgentConversationSurface({
   };
   const canSend = input.trim().length > 0 && !isStreaming;
   return (
-    // B3-FIGLASS-15: the ROOT is full-width — the 760px cap lives on INNER
-    // content wrappers (transcript + composer), never on the scroll container,
-    // so the scrollbar renders at the viewport edge like ChatGPT/AURITY /chat
-    // instead of glued to the centered column.
+    // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
+    // gutter) lives on INNER content wrappers (transcript + composer), never on
+    // the scroll container, so the scrollbar renders at the viewport edge like
+    // ChatGPT/AURITY /chat instead of glued to the centered column.
     /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", height: "100dvh" }, children: [
       /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
         /* @__PURE__ */ jsx26(
@@ -1748,7 +1748,7 @@ function AgentConversationSurface({
               "div",
               {
                 ref: autoScroll ? stick.contentRef : void 0,
-                style: { maxWidth: 760, margin: "0 auto", width: "100%" },
+                style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" },
                 children: [
                   idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
                     messages.map((m, i) => /* @__PURE__ */ jsx26(
@@ -1860,7 +1860,7 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: 760, margin: "0 auto", width: "100%" }, children: [
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" }, children: [
         hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
           "button",
           {
