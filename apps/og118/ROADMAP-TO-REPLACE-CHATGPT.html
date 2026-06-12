@@ -287,9 +287,9 @@
       <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
       <div class="item-note">PR #229 merged (848c8895) + SWA deployed. Smoke automatizado PASS: gap player→composer 18.6px (fi-surface-above-composer), consola limpia, red 9/9×200, delete borra artifact de IndexedDB + player se desmonta, textarea full-width sin regresión. Pendiente verificación humana de audio (play/pause/transcribe con grabación real).</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-11</span></label>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
-      <div class="item-note">Tres capabilities reusables en fi-glass (og118 hereda sin tocar consumer): (1) pin-to-bottom durante streaming vía use-stick-to-bottom + ScrollToBottomButton flotante — consume por fin el config.autoScroll fantasma; (2) CollapsibleText: mensajes user largos clampean a 264px con mask-image fade + "Mostrar más" (disclosure ARIA, ingeniería inversa del DOM de chatgpt.com); (3) fade-in de entrada de mensajes (keyframe fi-msg-show, opacity-only, respeta prefers-reduced-motion). 179/179 tests, e2e local verificado con DevTools (pin 1px, clamp 774→264, spring-back 4.5px). En PR, pendiente CI + merge + deploy + smoke staging.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
+      <div class="item-note">PR #230 merged (3c3a8549) + SWA deployed + smoke staging PASS: pin a 1px al cargar, ScrollToBottomButton aparece al scrollear arriba y regresa con spring, mensaje real de 4.5k chars clampeado a 264px con mask fade + expande con "Mostrar más" (ARIA), fade-in fi-msg-show computado en bubbles, consola limpia. og118 heredó las 3 capabilities sin tocar el consumer. Nits LOW del Gatekeeper (const nombrada + focus-visible ring) en PR #231.</div></div>
       <span class="item-tag">B3-FIGLASS-12</span></label>
   </div>
 
