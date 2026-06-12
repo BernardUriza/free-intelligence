@@ -37,6 +37,8 @@ function StateIcon({ state }: { state: AudioArtifact['state'] }) {
       return <Mic className={`${base} text-red-400 animate-pulse`} />;
     case 'paused':
       return <PauseCircle className={`${base} text-yellow-400`} />;
+    case 'stopping':
+      return <Loader2 className={`${base} text-amber-400 animate-spin`} />;
     case 'transcribed':
       return <CheckCircle2 className={`${base} text-green-400`} />;
     case 'failed':

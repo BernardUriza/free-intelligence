@@ -25,7 +25,7 @@
  */
 
 import { useState } from 'react';
-import { Pause, Play, Square } from 'lucide-react';
+import { Loader2, Pause, Play, Square } from 'lucide-react';
 import { AgentConversationSurface, useAgentConversation } from 'fi-glass/agent';
 import {
   IndexedDBConversationLibrary,
@@ -246,6 +246,7 @@ export function Og118AgentChat() {
   // no internal fi-glass DOM is reached.
   const isActivelyRecording = recording.artifact?.state === 'recording';
   const isPaused = recording.artifact?.state === 'paused';
+  const isStopping = recording.artifact?.state === 'stopping';
   const micBtnStyle = {
     border: 'none',
     background: 'transparent',
@@ -269,15 +270,31 @@ export function Og118AgentChat() {
           barClassName="og-voice-bar-bar"
         />
       )}
-      {!isActivelyRecording && !isPaused && (
+      {!isActivelyRecording && !isPaused && !isStopping && (
         <ComposerMicSlot
           available={!recording.isAtCapacity}
           recording={false}
-          busy={false}
+          busy={recording.isStarting}
           onStart={() => { void recording.startRecording(); }}
           onStop={() => {}}
           className="og-mic-slot"
         />
+      )}
+      {isStopping && (
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: '0.75rem',
+            color: 'var(--og-accent-muted, #a3a3a3)',
+          }}
+          aria-live="polite"
+          aria-label="Guardando audio"
+        >
+          <Loader2 size={14} className="animate-spin" style={{ color: '#f59e0b' }} />
+          Guardando...
+        </span>
       )}
       {isActivelyRecording && (
         <>
