@@ -11,6 +11,17 @@
   --og-accent: #34d399;
 }
 
+/* B3-FIGLASS-13: the page depth (layered gradient + watermark) now comes from
+   the reusable .glass-chat preset; og118 only re-tints it via tokens.
+   Consumer owns the brand, framework owns the treatment. Set on body.glass-chat
+   (not :root): the element's own value beats the preset's :root defaults
+   regardless of CSS import order (glass-chat.css loads after this file). */
+body.glass-chat {
+  --glass-chat-bg-glow: rgba(52, 211, 153, 0.06); /* og emerald, not preset cyan */
+  --glass-chat-bg-from: var(--og-bg-deep);
+  --glass-chat-watermark-image: url('/watermark-og118.svg');
+}
+
 html,
 body {
   margin: 0;
@@ -19,9 +30,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 70% 30%, rgba(52, 211, 153, 0.06), transparent 60%),
-    linear-gradient(160deg, var(--og-bg-mid), var(--og-bg-deep));
+  /* Background depth comes from .glass-chat (applied in layout.tsx). */
   color: #e2e8f0;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
