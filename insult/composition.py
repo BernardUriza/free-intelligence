@@ -40,6 +40,8 @@ module wires domain services to ports.
 +--------------------------------+----------+----------------------------------+
 | ``_CoreS1bPolicyAdapter``      | stateful  | ``build_s1b_policy_port()``      |
 +--------------------------------+----------+----------------------------------+
+| ``_CoreTranscriptionAdapter``  | stateless | ``default_transcription_port()`` |
++--------------------------------+----------+----------------------------------+
 
 Stateless adapters close over nothing — a single process-wide instance is
 sufficient. Stateful adapters close over runtime deps (``ExpressionHistory``,
@@ -486,3 +488,37 @@ def create_memory_store(postgres_url: str) -> Any:
 # consolidate_all_users and consolidate_user_facts are re-exported at the top
 # import block above so __main__.py can reach them via composition without a
 # direct insult.core.memory_consolidator import.
+
+
+class _CoreTranscriptionAdapter:
+    """Adapts ``insult.core.transcribe`` to the ``TranscriptionPort`` Protocol.
+
+    Closes the last ``host → smart`` import-boundary violation:
+    ``insult.cogs.chat.voice`` calls ``default_transcription_port().transcribe()``
+    instead of importing ``transcribe_voice_message`` directly.
+    """
+
+    async def transcribe(
+        self,
+        audio_data: bytes,
+        *,
+        endpoint: str,
+        api_key: str,
+        deployment: str,
+    ) -> str | None:
+        from insult.core.transcribe import transcribe_voice_message  # pragma: no cover
+
+        return await transcribe_voice_message(  # pragma: no cover
+            audio_data,
+            endpoint=endpoint,
+            api_key=api_key,
+            deployment=deployment,
+        )
+
+
+_TRANSCRIPTION_PORT = _CoreTranscriptionAdapter()
+
+
+def default_transcription_port() -> _CoreTranscriptionAdapter:
+    """Return the process-wide TranscriptionPort adapter."""
+    return _TRANSCRIPTION_PORT

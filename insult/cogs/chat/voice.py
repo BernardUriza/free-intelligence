@@ -2,8 +2,9 @@
 
 Only entry point: `transcribe_voice(message, settings)` — returns the
 transcribed string, or None on any failure (with a log.exception). The
-transcribe backend lives in `insult.core.transcribe`; this module is the
-Discord-side wrapper that pulls the audio bytes and logs timing.
+backend is reached through the ``TranscriptionPort`` (see
+``insult.cogs.voice.ports``) via ``insult.composition.default_transcription_port()``,
+keeping this module free of direct ``insult.core.transcribe`` imports.
 """
 
 from __future__ import annotations
@@ -18,14 +19,15 @@ log = structlog.get_logger()
 
 async def transcribe_voice(message: discord.Message, settings) -> str | None:
     """Read the first attachment as audio and send it through Whisper."""
-    from insult.core.transcribe import transcribe_voice_message
+    from insult.composition import default_transcription_port
 
+    port = default_transcription_port()
     started = time.monotonic()
     audio_bytes = 0
     try:
         audio_data = await message.attachments[0].read()
         audio_bytes = len(audio_data)
-        result = await transcribe_voice_message(
+        result = await port.transcribe(
             audio_data,
             endpoint=settings.azure_openai_endpoint,
             api_key=settings.azure_openai_key.get_secret_value(),

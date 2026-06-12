@@ -22,8 +22,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Host-facing modules: the lightweight Discord plumbing (demux-to-be). Globs
@@ -195,11 +193,13 @@ def _violations() -> list[tuple[str, str]]:
 # (a baseline entry no longer present is reported so the ratchet only tightens).
 BASELINE_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
     {
-        # governance edges closed 2026-06-12 (PR-gov):
+        # All governance edges closed (PR-gov 2026-06-12):
         #   __main__ → memory          — routed via composition.create_memory_store()
         #   __main__ → memory_consolidator — re-exported from composition
         #   app      → memory          — routed via composition.create_memory_store()
-        ("insult.cogs.chat.voice", "insult.core.transcribe"),
+        # voice → transcribe closed (PR-voice 2026-06-12):
+        #   cogs.chat.voice → transcribe — routed via composition.default_transcription_port()
+        # Ratchet: 14 → 4 → 1 → 0. Program complete.
     }
 )
 
@@ -234,13 +234,12 @@ def test_no_new_host_to_smart_import_violations() -> None:
         )
 
 
-@pytest.mark.xfail(
-    reason="legacy host→persona coupling (26 known); target is 0 after the demux destilado. "
-    "Tracked actively by test_no_new_host_to_smart_import_violations.",
-    strict=False,
-)
 def test_host_facing_modules_do_not_import_smart_internals() -> None:
-    """STRICT goal — ZERO host→smart imports. xfail until the refactor lands;
-    flips to xpass when the destilado finishes, signalling the boundary is clean."""
+    """STRICT goal reached — ZERO host→smart imports (2026-06-12, ratchet 14→0).
+
+    Was xfail during the demux destilado refactor; the xfail is removed now
+    that all 14 violations are gone and the boundary is clean. This is a
+    permanent regression gate: any new host→smart import will fail both this
+    test and ``test_no_new_host_to_smart_import_violations``."""
     violations = _violations()
     assert not violations, f"{len(violations)} host→smart import-boundary violation(s) remain"
