@@ -532,6 +532,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   useEffect3(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
+    textarea.rows = 1;
     textarea.style.height = "auto";
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
@@ -541,6 +542,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
     );
     setRows(newRows);
+    textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
     textarea.style.width = "100%";
   }, [value, maxRows]);
