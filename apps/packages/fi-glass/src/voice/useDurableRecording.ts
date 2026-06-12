@@ -250,16 +250,21 @@ export function useDurableRecording(
     // save, and the user sees no feedback after pressing Stop.
     updateArtifact({ state: 'stopping' });
 
-    // Release mic immediately (before await — keeps browser mic indicator clean)
-    releaseStream();
+    // NOTE: releaseStream() must NOT be called before stopRecording() — stopping
+    // the MediaStream tracks puts MediaRecorder in an invalid state and RecordRTC
+    // throws InvalidStateError, which escapes the Promise and leaves the artifact
+    // stuck in 'stopping'. We release the stream INSIDE the callback after the
+    // blob is obtained so the mic indicator still clears promptly.
 
     return new Promise<AudioArtifact | null>((resolve) => {
       if (!recorderRef.current) {
+        releaseStream();
         resolve(null);
         return;
       }
 
       recorderRef.current.stopRecording(async () => {
+        releaseStream(); // release mic now that RecordRTC has the blob
         const blob = recorderRef.current?.getBlob() ?? null;
         recorderRef.current = null;
 

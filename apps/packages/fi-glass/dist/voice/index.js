@@ -1802,13 +1802,14 @@ function useDurableRecording(opts) {
     stopTimer();
     const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
     updateArtifact({ state: "stopping" });
-    releaseStream();
     return new Promise((resolve) => {
       if (!recorderRef.current) {
+        releaseStream();
         resolve(null);
         return;
       }
       recorderRef.current.stopRecording(async () => {
+        releaseStream();
         const blob = recorderRef.current?.getBlob() ?? null;
         recorderRef.current = null;
         if (!blob || blob.size === 0) {
