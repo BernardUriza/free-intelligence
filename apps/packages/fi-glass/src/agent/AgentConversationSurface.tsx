@@ -344,7 +344,11 @@ export function AgentConversationSurface({
   const canSend = input.trim().length > 0 && !isStreaming;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxWidth: 760, margin: '0 auto' }}>
+    // B3-FIGLASS-15: the ROOT is full-width — the 760px cap lives on INNER
+    // content wrappers (transcript + composer), never on the scroll container,
+    // so the scrollbar renders at the viewport edge like ChatGPT/AURITY /chat
+    // instead of glued to the centered column.
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
       {/* Relative anchor: hosts the scroll area + the floating jump-to-latest
           button, so the button stays glued to the transcript's bottom edge. */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -352,7 +356,10 @@ export function AgentConversationSurface({
           ref={autoScroll ? stick.scrollRef : undefined}
           style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1rem' }}
         >
-          <div ref={autoScroll ? stick.contentRef : undefined}>
+          <div
+            ref={autoScroll ? stick.contentRef : undefined}
+            style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}
+          >
         {idle ? (
           emptyState
         ) : (
@@ -480,6 +487,9 @@ export function AgentConversationSurface({
       </div>
 
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Composer column shares the transcript's 760px center cap (the
+            section itself spans full width so its top border does too). */}
+        <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
         {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button
@@ -587,6 +597,7 @@ export function AgentConversationSurface({
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

@@ -69,10 +69,17 @@ export const AutoResizeTextarea = forwardRef<
     const textarea = textareaRef.current;
     textarea.style.height = 'auto';
 
-    const lineHeight = 20; // Approximate line height
-    const newRows = Math.min(
-      Math.ceil(textarea.scrollHeight / lineHeight),
-      maxRows
+    // B3-FIGLASS-15: measure the REAL line height instead of assuming 20px.
+    // The old hardcode made an empty textarea compute ceil(24/20) = 2 rows with
+    // the default 16px/24px font — a permanently inflated empty composer. The
+    // floor of 1 row also guards jsdom (scrollHeight 0) and any glitched
+    // measurement from ever collapsing the input to 0.
+    const computed = window.getComputedStyle(textarea);
+    const parsed = parseFloat(computed.lineHeight);
+    const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+    const newRows = Math.max(
+      1,
+      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows),
     );
 
     setRows(newRows);
