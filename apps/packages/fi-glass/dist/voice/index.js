@@ -2212,7 +2212,7 @@ function AudioQueuePanel({
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState8, useCallback as useCallback7, useEffect as useEffect7 } from "react";
 import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 var BAR_HEIGHTS = [
   0.4,
   0.7,
@@ -2280,7 +2280,7 @@ function AudioDraftPlayer({
   return /* @__PURE__ */ jsxs9(
     "div",
     {
-      className: `fi-audio-draft flex items-center gap-3 p-2.5 rounded-xl bg-white/5 border border-white/10 ${className}`,
+      className: `fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`,
       role: "group",
       "aria-label": "Audio grabado",
       children: [
@@ -2291,30 +2291,29 @@ function AudioDraftPlayer({
             onClick: handlePlay,
             disabled: !canPlay,
             "aria-label": isPaused ? "Grabaci\xF3n en pausa" : playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
-            className: "fi-audio-draft-play shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
-            children: isSaving || isBusy ? /* @__PURE__ */ jsx13(Loader210, { className: "w-4 h-4 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx13(CirclePause, { className: "w-4 h-4 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx13(Pause3, { className: "w-4 h-4 text-white/90" }) : /* @__PURE__ */ jsx13(Play5, { className: "w-4 h-4 text-white/90 ml-0.5" })
+            className: "fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
+            children: isSaving || isBusy ? /* @__PURE__ */ jsx13(Loader210, { className: "w-5 h-5 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx13(CirclePause, { className: "w-5 h-5 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx13(Pause3, { className: "w-5 h-5 text-white/90" }) : /* @__PURE__ */ jsx13(Play5, { className: "w-5 h-5 text-white/90 ml-0.5" })
           }
         ),
         /* @__PURE__ */ jsxs9("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsx13("div", { className: "flex items-center gap-[2px] h-6", "aria-hidden": "true", children: BAR_HEIGHTS.map((h, i) => /* @__PURE__ */ jsx13(
+          /* @__PURE__ */ jsx13("div", { className: "flex items-end gap-[3px] h-8", "aria-hidden": "true", children: BAR_HEIGHTS.map((h, i) => /* @__PURE__ */ jsx13(
             "span",
             {
-              className: `flex-1 rounded-full transition-colors ${playing ? "bg-emerald-400/70" : "bg-white/25"}`,
+              className: `flex-1 rounded-full transition-colors duration-150 ${playing ? "bg-emerald-400/80" : isPaused ? "bg-yellow-400/50" : "bg-white/40"}`,
               style: { height: `${Math.round(h * 100)}%` }
             },
             i
           )) }),
-          /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2 mt-1 text-[11px] text-white/50", children: [
-            /* @__PURE__ */ jsx13("span", { children: formatArtifactDuration(artifact.durationMs) }),
-            /* @__PURE__ */ jsx13("span", { className: "text-white/30", children: "\xB7" }),
-            /* @__PURE__ */ jsx13("span", { children: formatArtifactSize(artifact.size) }),
-            isPaused && /* @__PURE__ */ jsx13("span", { className: "text-yellow-400/80", children: "\xB7 En pausa" }),
-            isSaving && /* @__PURE__ */ jsx13("span", { className: "text-amber-400/80", children: "\xB7 Guardando\u2026" }),
-            isBusy && /* @__PURE__ */ jsx13("span", { className: "text-blue-400/80", children: "\xB7 Transcribiendo\u2026" }),
-            isFailed && artifact.errorMessage && /* @__PURE__ */ jsxs9("span", { className: "text-red-400/80 truncate", children: [
-              "\xB7 ",
-              artifact.errorMessage
-            ] })
+          /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-1.5 mt-1.5 text-xs text-white/50", children: [
+            /* @__PURE__ */ jsx13("span", { className: "tabular-nums", children: formatArtifactDuration(artifact.durationMs) }),
+            artifact.size > 0 && /* @__PURE__ */ jsxs9(Fragment2, { children: [
+              /* @__PURE__ */ jsx13("span", { className: "text-white/20", children: "\xB7" }),
+              /* @__PURE__ */ jsx13("span", { children: formatArtifactSize(artifact.size) })
+            ] }),
+            isPaused && /* @__PURE__ */ jsx13("span", { className: "text-yellow-400/70 font-medium", children: "En pausa" }),
+            isSaving && /* @__PURE__ */ jsx13("span", { className: "text-amber-400/70", children: "Guardando\u2026" }),
+            isBusy && /* @__PURE__ */ jsx13("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" }),
+            isFailed && artifact.errorMessage && /* @__PURE__ */ jsx13("span", { className: "text-red-400/70 truncate", children: artifact.errorMessage })
           ] })
         ] }),
         /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-1 shrink-0", children: [
@@ -2324,7 +2323,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onDiscard(artifact.id),
               "aria-label": "Descartar grabaci\xF3n",
-              className: "fi-audio-draft-discard p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-white/10 transition-colors",
+              className: "fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors",
               children: /* @__PURE__ */ jsx13(Trash23, { className: "w-4 h-4" })
             }
           ),
@@ -2334,7 +2333,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-colors",
+              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95",
               children: [
                 /* @__PURE__ */ jsx13(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
@@ -2346,7 +2345,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onRetry(artifact.id),
               "aria-label": "Reintentar",
-              className: "fi-audio-draft-retry p-1.5 rounded-lg text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors",
+              className: "fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors",
               children: /* @__PURE__ */ jsx13(RotateCcw3, { className: "w-4 h-4" })
             }
           ) : onPrimary && /* @__PURE__ */ jsxs9(
@@ -2355,7 +2354,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onPrimary(artifact.id),
               disabled: isSaving || isBusy,
-              className: "fi-audio-draft-primary flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+              className: "fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
               children: [
                 /* @__PURE__ */ jsx13(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel
