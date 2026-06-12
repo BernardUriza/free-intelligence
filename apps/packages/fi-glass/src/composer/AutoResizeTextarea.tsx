@@ -67,6 +67,13 @@ export const AutoResizeTextarea = forwardRef<
     if (!textareaRef.current) return;
 
     const textarea = textareaRef.current;
+    // B3-FIGLASS-16: reset to the MINIMAL state before measuring. The rows
+    // attribute left over from the previous render sets the textarea's
+    // intrinsic height, and scrollHeight can never report less than that — so
+    // a textarea that had grown to 5 rows kept measuring 5 rows forever, even
+    // after its content was deleted (grew on type, never shrank on delete).
+    // One row + auto height makes scrollHeight track the content alone.
+    textarea.rows = 1;
     textarea.style.height = 'auto';
 
     // B3-FIGLASS-15: measure the REAL line height instead of assuming 20px.
@@ -83,6 +90,9 @@ export const AutoResizeTextarea = forwardRef<
     );
 
     setRows(newRows);
+    // Restore rows imperatively too: when newRows equals the previous render's
+    // value React skips the attribute, which would leave the reset `1` behind.
+    textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
     // Fill the wrapper width. Set imperatively (not via the style prop) so it
     // never collides with the imperative height above on re-render — a composer
