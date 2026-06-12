@@ -60,7 +60,13 @@ def _build(container: Container):
     bot._reset_proactive_backoff = proactive_state.reset
 
     # --- Graceful Shutdown ---
+    _shutdown_started = False
+
     async def graceful_shutdown(sig: signal.Signals):
+        nonlocal _shutdown_started
+        if _shutdown_started:
+            return
+        _shutdown_started = True
         log.info("shutdown_signal", signal=sig.name)
         for loop in background_loops:
             if loop.is_running():
