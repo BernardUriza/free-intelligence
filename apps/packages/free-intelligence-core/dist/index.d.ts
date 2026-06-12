@@ -362,6 +362,9 @@ declare function makeUserMessage(text: string): ChatMessage;
  * Fold a finished turn's answer into an assistant message. Keeps only the
  * material-agnostic content (no AgentTurnState snapshot) — a future gate can add
  * per-turn glass-box rendering without bloating the ChatMessage contract now.
+ * Model provenance survives the fold: `turn.meta.model` lands in
+ * `metadata.model` so a shell's badge slot ("Powered by …") has real data after
+ * persistence, not just during the live turn.
  */
 declare function foldAssistantTurn(turn: AgentTurnState): ChatMessage;
 
