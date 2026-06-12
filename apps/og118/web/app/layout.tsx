@@ -35,7 +35,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/* glass-chat: the reusable page-depth treatment (layered navy gradient,
+          B3-FIGLASS-13); the watermark layer renders og118's brand via the
+          --glass-chat-watermark-image token set in globals.css. */}
+      <body className="glass-chat">
+        <div className="glass-chat-watermark" aria-hidden />
+        {children}
+      </body>
     </html>
   );
 }

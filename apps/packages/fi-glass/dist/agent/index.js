@@ -1643,8 +1643,10 @@ function AgentConversationSurface({
   emptyState,
   aboveComposer,
   agentPanelProps,
+  composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
+  composerControlsClassName,
   showCopyAction = false,
   renderHeader,
   renderBadge,
@@ -1864,8 +1866,8 @@ function AgentConversationSurface({
         }
       ) }),
       aboveComposer && /* @__PURE__ */ jsx26("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-      /* @__PURE__ */ jsxs19("div", { style: { display: "flex", alignItems: "flex-end", gap: micAvailable || micSlotOverride != null ? 8 : 0 }, children: [
-        /* @__PURE__ */ jsx26("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx26(
+      /* @__PURE__ */ jsxs19("div", { className: composerBoxClassName, children: [
+        /* @__PURE__ */ jsx26(
           Composer,
           {
             message: input,
@@ -1878,51 +1880,60 @@ function AgentConversationSurface({
             wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
             textareaRef: inputRef
           }
-        ) }),
-        micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
-        // sees they're being heard. Only mounted while recording, fed by the
-        // analyser the dictation hook already runs — no extra Web Audio here.
-        /* @__PURE__ */ jsx26(
-          AudioVisualizer,
-          {
-            levels: dictation.bands,
-            active: dictation.isRecording,
-            variant: "bars",
-            label: "Nivel del micr\xF3fono",
-            className: voiceVisualizerClassName,
-            barClassName: voiceVisualizerBarClassName
-          }
         ),
-        micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx26(
-          ComposerMicSlot,
+        (showSendButton || micSlotOverride != null || micAvailable) && /* @__PURE__ */ jsxs19(
+          "div",
           {
-            available: true,
-            recording: dictation.isRecording,
-            busy: dictation.isTranscribing,
-            onStart: startDictation,
-            onStop: () => void dictation.stopRecording(),
-            className: micSlotClassName,
-            buttonClassName: micButtonClassName
-          }
-        ),
-        showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
-        // still sends; this is the visible button. Disabled until there's
-        // trimmed text and nothing is streaming.
-        /* @__PURE__ */ jsx26(
-          "button",
-          {
-            type: "button",
-            onClick: onSend,
-            disabled: !canSend,
-            "aria-label": sendLabel,
-            className: sendButtonClassName,
-            children: isStreaming ? /* @__PURE__ */ jsx26(
-              Loader211,
-              {
-                className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
-                "aria-hidden": true
-              }
-            ) : /* @__PURE__ */ jsx26(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+            className: composerControlsClassName,
+            style: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 },
+            children: [
+              micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
+              // sees they're being heard. Only mounted while recording, fed by the
+              // analyser the dictation hook already runs — no extra Web Audio here.
+              /* @__PURE__ */ jsx26(
+                AudioVisualizer,
+                {
+                  levels: dictation.bands,
+                  active: dictation.isRecording,
+                  variant: "bars",
+                  label: "Nivel del micr\xF3fono",
+                  className: voiceVisualizerClassName,
+                  barClassName: voiceVisualizerBarClassName
+                }
+              ),
+              micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx26(
+                ComposerMicSlot,
+                {
+                  available: true,
+                  recording: dictation.isRecording,
+                  busy: dictation.isTranscribing,
+                  onStart: startDictation,
+                  onStop: () => void dictation.stopRecording(),
+                  className: micSlotClassName,
+                  buttonClassName: micButtonClassName
+                }
+              ),
+              showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+              // still sends; this is the visible button. Disabled until there's
+              // trimmed text and nothing is streaming.
+              /* @__PURE__ */ jsx26(
+                "button",
+                {
+                  type: "button",
+                  onClick: onSend,
+                  disabled: !canSend,
+                  "aria-label": sendLabel,
+                  className: sendButtonClassName,
+                  children: isStreaming ? /* @__PURE__ */ jsx26(
+                    Loader211,
+                    {
+                      className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
+                      "aria-hidden": true
+                    }
+                  ) : /* @__PURE__ */ jsx26(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+                }
+              )
+            ]
           }
         )
       ] })

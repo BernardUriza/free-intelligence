@@ -22,18 +22,28 @@ interface GlassChatPreset {
     accentTo: string;
     /** Accent text color. */
     accentText: string;
-    /** Shell body background. */
+    /** Shell body background (flat fallback under the layered gradient). */
     body: string;
+    /** Page gradient edge color (B3-FIGLASS-13). */
+    bgFrom: string;
+    /** Page gradient mid color. */
+    bgMid: string;
+    /** Radial accent glow over the page gradient (consumer re-tints this). */
+    bgGlow: string;
     /** Frosted composer/surface fill. */
     surface: string;
     /** Frosted surface border. */
     surfaceBorder: string;
-    /** User bubble fill. */
+    /** User bubble fill (translucent emerald wash, not solid). */
     bubbleUser: string;
+    /** User bubble border. */
+    bubbleUserBorder: string;
     /** Assistant bubble fill. */
     bubbleAssistant: string;
     /** Assistant bubble border. */
     bubbleBorder: string;
+    /** Brand watermark opacity (image is consumer-supplied via CSS var). */
+    watermarkOpacity: string;
     /** Primary text color. */
     text: string;
     /** Muted/secondary text color. */

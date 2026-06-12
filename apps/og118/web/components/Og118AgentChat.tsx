@@ -414,8 +414,12 @@ export function Og118AgentChat() {
               {audioQueuePanel}
             </>
           }
-          composerAreaClassName="og-composer-area glass-chat-composer"
+          // The frosted preset goes on the BOX (textarea + controls row inside
+          // one floating container, AURITY anatomy); og118 owns only spacing.
+          composerBoxClassName="og-composer-box glass-chat-composer"
+          composerAreaClassName="og-composer-area"
           composerTextareaClassName="glass-chat-composer-input"
+          composerControlsClassName="og-composer-controls"
           // B3-VOICE-OG118-6: durable mic replaces direct-dictation voiceAdapter.
           // voiceAdapter is NOT passed here (no transcribe capability = no built-in
           // direct-dictation mic). TTS is handled separately via useVoice above.
