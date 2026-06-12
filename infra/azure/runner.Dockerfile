@@ -48,14 +48,17 @@ RUN npm install -g --silent @playwright/mcp \
  && npx -y playwright install --with-deps chromium \
  && chmod -R a+rX /opt/playwright-browsers
 
-# Copy shared/ and insult/ — runner needs:
+# Copy shared/ and personas/insult/ — runner needs:
 #   - shared/* for chunking, retry, logging setup
-#   - insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner
-#   - insult/core/memory/* for asyncpg repos that the renderer queries
-# alice/ is NOT copied — runner is bot-agnostic; only the workspace
-# matters at agent-loop time.
+#   - personas/insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner
+#   - personas/insult/core/memory/* for asyncpg repos that the renderer queries
+# personas/alice/ is NOT copied — runner is bot-agnostic; only the workspace
+# matters at agent-loop time. personas/__init__.py is copied so `personas`
+# is an importable package (the demux moved insult/ → personas/insult/ in
+# p3-personas v4.21.x; the runner's internal imports are `from personas.insult.*`).
 COPY shared/ shared/
-COPY insult/ insult/
+COPY personas/__init__.py personas/__init__.py
+COPY personas/insult/ personas/insult/
 
 # Persona file lives in the repo (not in workspace mount) so it ships
 # with the image. Renderer NEVER overwrites it.
