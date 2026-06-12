@@ -3,4 +3,5 @@ packages:
   - 'libs/*'
   - 'apps/packages/*'
   - 'apps/og118/web'
+  - 'apps/activist-os/web'
   - 'apps/aurity/packages/*'
