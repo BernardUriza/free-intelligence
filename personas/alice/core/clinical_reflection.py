@@ -29,7 +29,7 @@ from pathlib import Path
 import structlog
 from fi_runner import CodexBackend, GravityScore, PermissionMode, Runner, ToolPolicy, triage_guard
 
-from alice.config import settings
+from personas.alice.config import settings
 
 log = structlog.get_logger()
 

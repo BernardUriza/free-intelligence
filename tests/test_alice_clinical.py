@@ -14,8 +14,8 @@ import discord
 import pytest
 from fi_core.cognitive import PSYCHIATRY, PatientContext
 
-from alice.cogs.chat import AliceChatCog
-from alice.core.clinical_reflection import ClinicalReflection
+from personas.alice.cogs.chat import AliceChatCog
+from personas.alice.core.clinical_reflection import ClinicalReflection
 
 CLINIC_CHANNEL_ID = "999"
 

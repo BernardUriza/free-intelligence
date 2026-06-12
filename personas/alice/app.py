@@ -17,11 +17,11 @@ import discord
 import structlog
 from discord.ext import commands
 
-from alice.config import AliceSettings, settings
-from alice.core.clinical_reflection import ClinicalReflector
-from alice.core.llm import AliceLLMClient
-from alice.core.memory import AliceMemory
-from alice.core.persona_loader import PersonaLoader, get_persona_loader
+from personas.alice.config import AliceSettings, settings
+from personas.alice.core.clinical_reflection import ClinicalReflector
+from personas.alice.core.llm import AliceLLMClient
+from personas.alice.core.memory import AliceMemory
+from personas.alice.core.persona_loader import PersonaLoader, get_persona_loader
 
 log = structlog.get_logger()
 

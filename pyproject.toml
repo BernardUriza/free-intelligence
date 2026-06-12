@@ -67,6 +67,15 @@ omit = [
     "personas/insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
     "personas/insult/tasks/*.py",  # Background task orchestrators (moltbook/reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
     "personas/insult/agent/router_runtime.py",  # Agent routing runtime — live Claude Agent SDK + PG required (same criterion as agent/runner.py)
+    # personas/alice — same omit criteria as personas/insult equivalents
+    "personas/alice/__main__.py",   # CLI entry point
+    "personas/alice/bot.py",        # Discord lifecycle (requires real bot)
+    "personas/alice/app.py",        # DI container (requires real deps)
+    "personas/alice/config.py",     # Pydantic settings singleton
+    "personas/alice/core/llm.py",   # API client (integration test territory)
+    "personas/alice/core/memory.py",  # Postgres I/O (integration test territory)
+    "personas/alice/core/metrics.py",  # Azure Blob I/O (dashboard export)
+    "personas/alice/api/server.py",  # FastAPI /invite endpoint (requires real bot)
 ]
 
 [tool.coverage.report]

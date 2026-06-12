@@ -20,11 +20,11 @@ from __future__ import annotations
 
 def test_alice_package_imports_cleanly():
     """All ALICE modules load without ImportError."""
-    import alice
-    from alice import bot, config  # noqa: F401
-    from alice.api import server  # noqa: F401
-    from alice.cogs import chat  # noqa: F401
-    from alice.core import clinical_reflection, llm, memory, persona_loader  # noqa: F401
+    import personas.alice as alice
+    from personas.alice import bot, config  # noqa: F401
+    from personas.alice.api import server  # noqa: F401
+    from personas.alice.cogs import chat  # noqa: F401
+    from personas.alice.core import clinical_reflection, llm, memory, persona_loader  # noqa: F401
 
     # Guard against the 819f909 breakage: app.py imports ClinicalReflector, so the
     # symbol must exist or the whole package fails to load at boot.

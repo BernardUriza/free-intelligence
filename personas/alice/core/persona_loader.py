@@ -19,7 +19,7 @@ from pathlib import Path
 
 import structlog
 
-from alice.config import settings
+from personas.alice.config import settings
 
 log = structlog.get_logger()
 

@@ -44,10 +44,10 @@ jobs:
             .
 
       - name: Build alice-bot image
-        # ALICE is a sibling Discord bot (alice/ subpackage). Until this step
+        # ALICE is a sibling Discord bot (personas/alice/ subpackage). Until this step
         # was added in v3.9.18 her image only got rebuilt by manual
         # `az acr build alice-bot:vX.Y.Z` from Bernard's laptop, which meant
-        # every alice/ change required a separate push-then-rebuild ritual.
+        # every personas/alice/ change required a separate push-then-rebuild ritual.
         # Now she ships with the same SHA as Insult.
         run: |
           az acr build \

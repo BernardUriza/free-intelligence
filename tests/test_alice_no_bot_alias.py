@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from alice.cogs.chat import AliceChatCog
+from personas.alice.cogs.chat import AliceChatCog
 
 ALICE_ID = 1503983124982534284
 

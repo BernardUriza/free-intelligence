@@ -25,7 +25,7 @@ from contextlib import suppress
 import structlog
 from discord.ext import tasks
 
-from alice.app import Container, create_container
+from personas.alice.app import Container, create_container
 
 log = structlog.get_logger()
 
@@ -39,7 +39,7 @@ async def _start_invite_server(container: Container) -> None:
     # Imported here so unit tests can build a Container without uvicorn.
     import uvicorn
 
-    from alice.api.server import build_app
+    from personas.alice.api.server import build_app
 
     app = build_app(container)
     config = uvicorn.Config(
@@ -79,7 +79,7 @@ async def _main() -> None:
 
     # 2) Cog (lazy import to avoid pulling discord.py at module-load time
     # when tests only need to construct the Container).
-    from alice.cogs.chat import AliceChatCog
+    from personas.alice.cogs.chat import AliceChatCog
 
     chat_cog = AliceChatCog(
         bot=container.bot,

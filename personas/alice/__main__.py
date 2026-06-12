@@ -17,7 +17,7 @@ configure_structlog(processors_extra=None)
 
 import typer  # noqa: E402
 
-from alice.bot import run as bot_run  # noqa: E402
+from personas.alice.bot import run as bot_run  # noqa: E402
 
 app = typer.Typer(help="ALICE — Artificial Lucid Intelligence for Cognitive Empathy")
 
@@ -31,7 +31,7 @@ def run() -> None:
 @app.command()
 def version() -> None:
     """Print ALICE's version (forces Typer into subcommand mode)."""
-    from alice import __version__
+    from personas.alice import __version__
 
     typer.echo(__version__)
 

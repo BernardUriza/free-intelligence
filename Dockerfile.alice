@@ -11,12 +11,12 @@
 # memory: reference_dockerfile_base_mcr).
 #
 # Differences from Insult's image:
-# - Only copies the `alice/` package + persona, not `insult/`. ALICE
+# - Only copies the `personas/alice/` package + persona, not `insult/`. ALICE
 #   doesn't import from Insult at runtime (the bridge goes the other
 #   way: Insult → ALICE via REST).
 # - Exposes port 8788 for the FastAPI /invite endpoint that Insult
 #   calls. Insult's container does NOT expose anything (Discord-only).
-# - Entrypoint runs `python -m alice run` which boots Discord + the
+# - Entrypoint runs `python -m personas.alice run` which boots Discord + the
 #   FastAPI server in the same asyncio loop.
 
 FROM quay.io/condaforge/miniforge3:26.1.1-3
@@ -44,14 +44,14 @@ RUN mamba install -n base -y nodejs \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
 # Copy ALICE's code + persona AND the shared/ package. Since v3.9.8
-# `alice/__main__.py` and `alice/cogs/chat.py` import from `shared.*`
+# `personas/alice/__main__.py` and `personas/alice/cogs/chat.py` import from `shared.*`
 # (logging_setup, text chunking, llm retry). Insult's code is NOT
 # copied — the bridge between bots is REST, not a Python import.
-COPY alice/ alice/
+COPY personas/alice/ personas/alice/
 COPY shared/ shared/
 
 # Expose the /invite endpoint port. Discord traffic uses outbound only,
 # so we don't EXPOSE for that.
 EXPOSE 8788
 
-CMD ["python", "-m", "alice", "run"]
+CMD ["python", "-m", "personas.alice", "run"]

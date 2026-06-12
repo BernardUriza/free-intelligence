@@ -37,7 +37,7 @@ from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from alice.app import Container
+    from personas.alice.app import Container
 
 log = structlog.get_logger()
 

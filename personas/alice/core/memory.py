@@ -30,7 +30,7 @@ import time
 import asyncpg
 import structlog
 
-from alice.config import settings
+from personas.alice.config import settings
 
 log = structlog.get_logger()
 

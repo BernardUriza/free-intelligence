@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import structlog
 from fi_runner import CodexBackend, PermissionMode, RetryPolicy, Runner, ToolPolicy, antidrift_guard, packs
 
-from alice.config import settings
+from personas.alice.config import settings
 
 log = structlog.get_logger()
 

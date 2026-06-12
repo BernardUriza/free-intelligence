@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from alice.cogs.chat import AliceChatCog
-from alice.config import settings as alice_settings
+from personas.alice.cogs.chat import AliceChatCog
+from personas.alice.config import settings as alice_settings
 
 
 def _make_cog(*, silent_s=None, raises=False):

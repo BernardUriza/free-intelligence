@@ -35,11 +35,11 @@ import discord
 import structlog
 from discord.ext import commands
 
-from alice.config import settings as alice_settings
-from alice.core.clinical_reflection import ClinicalReflector
-from alice.core.llm import AliceLLMClient
-from alice.core.memory import AliceMemory
-from alice.core.persona_loader import PersonaLoader
+from personas.alice.config import settings as alice_settings
+from personas.alice.core.clinical_reflection import ClinicalReflector
+from personas.alice.core.llm import AliceLLMClient
+from personas.alice.core.memory import AliceMemory
+from personas.alice.core.persona_loader import PersonaLoader
 from shared.corpus import (
     animal_liberation_guidance,
     animal_tactics_guidance,
@@ -452,7 +452,7 @@ class AliceChatCog(commands.Cog):
         # can correlate the visible reply with the deployed image. Same
         # affordance Insult uses (`VERSION_TAG` in `core/delivery.py`).
         chunks = chunk_paragraph_aware(text, max_chars=1900)
-        from alice import __version__ as _alice_version
+        from personas.alice import __version__ as _alice_version
 
         version_tag = f"\n-# ᵃ{_alice_version.replace('.', '·')}"
         for i, chunk in enumerate(chunks):
