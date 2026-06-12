@@ -1502,7 +1502,7 @@ import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState12, useCallback as useCallback9, useEffect as useEffect10 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/agent/AgentConversationSurface.tsx

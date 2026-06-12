@@ -853,7 +853,7 @@ import { jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState10, useCallback as useCallback8, useEffect as useEffect8 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
 import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/shell/ChatToolbar.tsx
