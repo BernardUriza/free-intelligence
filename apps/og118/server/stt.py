@@ -46,27 +46,13 @@ MIN_AUDIO_BYTES = 64
 DEFAULT_UPLOAD_FILENAME = "chunk.webm"
 DEFAULT_UPLOAD_CONTENT_TYPE = "audio/webm"
 
-# MIME types the Azure OpenAI Whisper deployment accepts. Conservative list:
-# only types a browser can actually produce (webm, wav) plus common cross-browser
-# formats. Unsupported types get a 400 with a stable code so the frontend can
-# conserve the artifact and show a recoverable error instead of a silent 502.
-SUPPORTED_MIME_TYPES: frozenset[str] = frozenset(
-    {
-        "audio/webm",
-        "audio/wav",
-        "audio/x-wav",
-        "audio/mp3",
-        "audio/mpeg",
-        "audio/ogg",
-        "audio/flac",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/m4a",
-    }
-)
-
 # Maps a MIME base type to the extension Azure uses to pick the right decoder.
-# Anything not in this table falls back to the webm default.
+# This is the SINGLE SOURCE OF TRUTH for accepted audio formats — conservative:
+# only types a browser can actually produce (webm, wav) plus common cross-browser
+# formats. Adding a format here makes it both accepted (validate_mime) and mapped
+# to a coherent upload extension (safe_filename_for_mime) at once; the two cannot
+# drift. Anything not in this table is rejected with a 400 (stable code) so the
+# frontend can conserve the artifact and show a recoverable error, not a 502.
 _MIME_TO_EXT: dict[str, str] = {
     "audio/webm": "webm",
     "audio/wav": "wav",
@@ -79,6 +65,10 @@ _MIME_TO_EXT: dict[str, str] = {
     "audio/x-m4a": "m4a",
     "audio/m4a": "m4a",
 }
+
+# Derived from the map's keys so the accepted set and the extension map can never
+# go out of sync (one source of truth — see _MIME_TO_EXT above).
+SUPPORTED_MIME_TYPES: frozenset[str] = frozenset(_MIME_TO_EXT)
 
 
 # --- Errors (mapped to safe HTTP status by the route; never carry secrets) ----
