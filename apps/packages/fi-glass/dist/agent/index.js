@@ -533,10 +533,12 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.style.height = "auto";
-    const lineHeight = 20;
-    const newRows = Math.min(
-      Math.ceil(textarea.scrollHeight / lineHeight),
-      maxRows
+    const computed = window.getComputedStyle(textarea);
+    const parsed = parseFloat(computed.lineHeight);
+    const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+    const newRows = Math.max(
+      1,
+      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
     );
     setRows(newRows);
     textarea.style.height = `${newRows * lineHeight}px`;
@@ -1730,215 +1732,228 @@ function AgentConversationSurface({
     send(t);
   };
   const canSend = input.trim().length > 0 && !isStreaming;
-  return /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", height: "100dvh", maxWidth: 760, margin: "0 auto" }, children: [
-    /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-      /* @__PURE__ */ jsx26(
-        "div",
-        {
-          ref: autoScroll ? stick.scrollRef : void 0,
-          style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
-          children: /* @__PURE__ */ jsxs19("div", { ref: autoScroll ? stick.contentRef : void 0, children: [
-            idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-              messages.map((m, i) => /* @__PURE__ */ jsx26(
-                MessageBubble,
-                {
-                  role: m.role,
-                  header: renderHeader?.(m),
-                  badge: renderBadge?.(m),
-                  actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
-                  className: resolveBubbleClass(m),
-                  children: /* @__PURE__ */ jsx26(
-                    MessageContent,
-                    {
-                      isUser: m.role === "user",
-                      content: m.content,
-                      collapsible: collapseUserMessages && m.role === "user",
-                      collapsedMaxHeight: collapseMaxHeight,
-                      showMoreLabel,
-                      showLessLabel,
-                      collapseToggleClassName
-                    }
-                  )
-                },
-                i
-              )),
-              isStreaming && /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }),
-              isStreaming && turn.text && /* @__PURE__ */ jsx26(
-                MessageBubble,
-                {
-                  role: "assistant",
-                  className: resolveBubbleClass({
-                    role: "assistant",
-                    content: turn.text,
-                    timestamp: ""
-                  }),
-                  children: /* @__PURE__ */ jsx26(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
-                }
-              )
-            ] }),
-            turnError && /* @__PURE__ */ jsxs19(
+  return (
+    // B3-FIGLASS-15: the ROOT is full-width — the 760px cap lives on INNER
+    // content wrappers (transcript + composer), never on the scroll container,
+    // so the scrollbar renders at the viewport edge like ChatGPT/AURITY /chat
+    // instead of glued to the centered column.
+    /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", height: "100dvh" }, children: [
+      /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
+        /* @__PURE__ */ jsx26(
+          "div",
+          {
+            ref: autoScroll ? stick.scrollRef : void 0,
+            style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
+            children: /* @__PURE__ */ jsxs19(
               "div",
               {
-                role: "alert",
-                className: errorClassName,
-                style: {
-                  marginTop: "1rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: 10,
-                  border: "1px solid rgba(248,113,113,0.35)",
-                  background: "rgba(248,113,113,0.08)",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: "0.75rem"
-                },
+                ref: autoScroll ? stick.contentRef : void 0,
+                style: { maxWidth: 760, margin: "0 auto", width: "100%" },
                 children: [
-                  /* @__PURE__ */ jsx26("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
-                  /* @__PURE__ */ jsx26(
-                    "button",
-                    {
-                      type: "button",
-                      onClick: retry,
-                      className: retryButtonClassName,
-                      style: retryButtonClassName ? void 0 : {
-                        padding: "0.35rem 0.75rem",
-                        borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "transparent",
-                        color: "#e2e8f0",
-                        fontSize: "0.8rem",
-                        cursor: "pointer"
+                  idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+                    messages.map((m, i) => /* @__PURE__ */ jsx26(
+                      MessageBubble,
+                      {
+                        role: m.role,
+                        header: renderHeader?.(m),
+                        badge: renderBadge?.(m),
+                        actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
+                        className: resolveBubbleClass(m),
+                        children: /* @__PURE__ */ jsx26(
+                          MessageContent,
+                          {
+                            isUser: m.role === "user",
+                            content: m.content,
+                            collapsible: collapseUserMessages && m.role === "user",
+                            collapsedMaxHeight: collapseMaxHeight,
+                            showMoreLabel,
+                            showLessLabel,
+                            collapseToggleClassName
+                          }
+                        )
                       },
-                      children: retryLabel
-                    }
-                  ),
-                  /* @__PURE__ */ jsx26(
-                    "button",
+                      i
+                    )),
+                    isStreaming && /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }),
+                    isStreaming && turn.text && /* @__PURE__ */ jsx26(
+                      MessageBubble,
+                      {
+                        role: "assistant",
+                        className: resolveBubbleClass({
+                          role: "assistant",
+                          content: turn.text,
+                          timestamp: ""
+                        }),
+                        children: /* @__PURE__ */ jsx26(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+                      }
+                    )
+                  ] }),
+                  turnError && /* @__PURE__ */ jsxs19(
+                    "div",
                     {
-                      type: "button",
-                      onClick: dismissError,
-                      className: dismissButtonClassName,
-                      style: dismissButtonClassName ? void 0 : {
-                        padding: "0.35rem 0.75rem",
-                        borderRadius: 8,
-                        border: "none",
-                        background: "transparent",
-                        color: "#94a3b8",
-                        fontSize: "0.8rem",
-                        cursor: "pointer"
+                      role: "alert",
+                      className: errorClassName,
+                      style: {
+                        marginTop: "1rem",
+                        padding: "0.75rem 1rem",
+                        borderRadius: 10,
+                        border: "1px solid rgba(248,113,113,0.35)",
+                        background: "rgba(248,113,113,0.08)",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: "0.75rem"
                       },
-                      children: dismissLabel
+                      children: [
+                        /* @__PURE__ */ jsx26("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
+                        /* @__PURE__ */ jsx26(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: retry,
+                            className: retryButtonClassName,
+                            style: retryButtonClassName ? void 0 : {
+                              padding: "0.35rem 0.75rem",
+                              borderRadius: 8,
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              background: "transparent",
+                              color: "#e2e8f0",
+                              fontSize: "0.8rem",
+                              cursor: "pointer"
+                            },
+                            children: retryLabel
+                          }
+                        ),
+                        /* @__PURE__ */ jsx26(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: dismissError,
+                            className: dismissButtonClassName,
+                            style: dismissButtonClassName ? void 0 : {
+                              padding: "0.35rem 0.75rem",
+                              borderRadius: 8,
+                              border: "none",
+                              background: "transparent",
+                              color: "#94a3b8",
+                              fontSize: "0.8rem",
+                              cursor: "pointer"
+                            },
+                            children: dismissLabel
+                          }
+                        )
+                      ]
                     }
                   )
                 ]
               }
             )
-          ] })
-        }
-      ),
-      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx26(
-        ScrollToBottomButton,
-        {
-          onClick: () => void stick.scrollToBottom(),
-          label: scrollToBottomLabel,
-          className: scrollToBottomClassName,
-          iconClassName: scrollToBottomIconClassName
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs19("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: [
-      hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
-        "button",
-        {
-          onClick: newConversation,
-          disabled: isStreaming,
-          style: {
-            padding: "0.35rem 0.75rem",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "transparent",
-            color: "#94a3b8",
-            fontSize: "0.8rem",
-            cursor: isStreaming ? "not-allowed" : "pointer",
-            opacity: isStreaming ? 0.5 : 1
-          },
-          children: newChatLabel
-        }
-      ) }),
-      aboveComposer && /* @__PURE__ */ jsx26("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-      /* @__PURE__ */ jsxs19("div", { className: composerBoxClassName, children: [
-        /* @__PURE__ */ jsx26(
-          Composer,
-          {
-            message: input,
-            loading: isStreaming,
-            placeholder: composerPlaceholder,
-            onMessageChange: setInput,
-            onSend,
-            areaClassName: composerAreaClassName,
-            textareaClassName: composerTextareaClassName,
-            wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
-            textareaRef: inputRef
           }
         ),
-        (showSendButton || micSlotOverride != null || micAvailable) && /* @__PURE__ */ jsxs19(
-          "div",
+        autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx26(
+          ScrollToBottomButton,
           {
-            className: composerControlsClassName,
-            style: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 },
-            children: [
-              micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
-              // sees they're being heard. Only mounted while recording, fed by the
-              // analyser the dictation hook already runs — no extra Web Audio here.
-              /* @__PURE__ */ jsx26(
-                AudioVisualizer,
-                {
-                  levels: dictation.bands,
-                  active: dictation.isRecording,
-                  variant: "bars",
-                  label: "Nivel del micr\xF3fono",
-                  className: voiceVisualizerClassName,
-                  barClassName: voiceVisualizerBarClassName
-                }
-              ),
-              micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx26(
-                ComposerMicSlot,
-                {
-                  available: true,
-                  recording: dictation.isRecording,
-                  busy: dictation.isTranscribing,
-                  onStart: startDictation,
-                  onStop: () => void dictation.stopRecording(),
-                  className: micSlotClassName,
-                  buttonClassName: micButtonClassName
-                }
-              ),
-              showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
-              // still sends; this is the visible button. Disabled until there's
-              // trimmed text and nothing is streaming.
-              /* @__PURE__ */ jsx26(
-                "button",
-                {
-                  type: "button",
-                  onClick: onSend,
-                  disabled: !canSend,
-                  "aria-label": sendLabel,
-                  className: sendButtonClassName,
-                  children: isStreaming ? /* @__PURE__ */ jsx26(
-                    Loader211,
-                    {
-                      className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
-                      "aria-hidden": true
-                    }
-                  ) : /* @__PURE__ */ jsx26(Send, { className: sendButtonIconClassName, "aria-hidden": true })
-                }
-              )
-            ]
+            onClick: () => void stick.scrollToBottom(),
+            label: scrollToBottomLabel,
+            className: scrollToBottomClassName,
+            iconClassName: scrollToBottomIconClassName
           }
         )
-      ] })
+      ] }),
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: 760, margin: "0 auto", width: "100%" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
+          "button",
+          {
+            onClick: newConversation,
+            disabled: isStreaming,
+            style: {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "transparent",
+              color: "#94a3b8",
+              fontSize: "0.8rem",
+              cursor: isStreaming ? "not-allowed" : "pointer",
+              opacity: isStreaming ? 0.5 : 1
+            },
+            children: newChatLabel
+          }
+        ) }),
+        aboveComposer && /* @__PURE__ */ jsx26("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsxs19("div", { className: composerBoxClassName, children: [
+          /* @__PURE__ */ jsx26(
+            Composer,
+            {
+              message: input,
+              loading: isStreaming,
+              placeholder: composerPlaceholder,
+              onMessageChange: setInput,
+              onSend,
+              areaClassName: composerAreaClassName,
+              textareaClassName: composerTextareaClassName,
+              wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+              textareaRef: inputRef
+            }
+          ),
+          (showSendButton || micSlotOverride != null || micAvailable) && /* @__PURE__ */ jsxs19(
+            "div",
+            {
+              className: composerControlsClassName,
+              style: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 },
+              children: [
+                micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
+                // sees they're being heard. Only mounted while recording, fed by the
+                // analyser the dictation hook already runs — no extra Web Audio here.
+                /* @__PURE__ */ jsx26(
+                  AudioVisualizer,
+                  {
+                    levels: dictation.bands,
+                    active: dictation.isRecording,
+                    variant: "bars",
+                    label: "Nivel del micr\xF3fono",
+                    className: voiceVisualizerClassName,
+                    barClassName: voiceVisualizerBarClassName
+                  }
+                ),
+                micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx26(
+                  ComposerMicSlot,
+                  {
+                    available: true,
+                    recording: dictation.isRecording,
+                    busy: dictation.isTranscribing,
+                    onStart: startDictation,
+                    onStop: () => void dictation.stopRecording(),
+                    className: micSlotClassName,
+                    buttonClassName: micButtonClassName
+                  }
+                ),
+                showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+                // still sends; this is the visible button. Disabled until there's
+                // trimmed text and nothing is streaming.
+                /* @__PURE__ */ jsx26(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: onSend,
+                    disabled: !canSend,
+                    "aria-label": sendLabel,
+                    className: sendButtonClassName,
+                    children: isStreaming ? /* @__PURE__ */ jsx26(
+                      Loader211,
+                      {
+                        className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
+                        "aria-hidden": true
+                      }
+                    ) : /* @__PURE__ */ jsx26(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+                  }
+                )
+              ]
+            }
+          )
+        ] })
+      ] }) })
     ] })
-  ] });
+  );
 }
 export {
   AgentConversationSurface,

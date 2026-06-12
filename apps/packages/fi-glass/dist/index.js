@@ -364,10 +364,12 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.style.height = "auto";
-    const lineHeight = 20;
-    const newRows = Math.min(
-      Math.ceil(textarea.scrollHeight / lineHeight),
-      maxRows
+    const computed = window.getComputedStyle(textarea);
+    const parsed = parseFloat(computed.lineHeight);
+    const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+    const newRows = Math.max(
+      1,
+      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
     );
     setRows(newRows);
     textarea.style.height = `${newRows * lineHeight}px`;
