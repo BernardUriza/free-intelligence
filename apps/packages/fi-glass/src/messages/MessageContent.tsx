@@ -12,7 +12,7 @@
  */
 
 import { memo, type ReactNode } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { messageStyles, markdownStyles } from './styles';
 import { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
@@ -29,7 +29,7 @@ export interface MessageContentProps {
 }
 
 /** Default markdown component overrides (glass styling). */
-const mdComponents = {
+const mdComponents: Partial<Components> = {
   p: ({ children }: { children?: ReactNode }) => (
     <p className={markdownStyles.p}>{children}</p>
   ),
