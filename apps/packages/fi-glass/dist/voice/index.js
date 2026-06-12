@@ -2211,7 +2211,7 @@ function AudioQueuePanel({
 
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState8, useCallback as useCallback7, useEffect as useEffect7 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 var BAR_HEIGHTS = [
   0.4,
@@ -2241,6 +2241,7 @@ function AudioDraftPlayer({
   onPrimary,
   onDiscard,
   onRetry,
+  onResume,
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
@@ -2271,10 +2272,11 @@ function AudioDraftPlayer({
     el.addEventListener("ended", cleanup);
     el.addEventListener("error", cleanup);
   }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+  const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
-  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy;
+  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
   return /* @__PURE__ */ jsxs9(
     "div",
     {
@@ -2288,9 +2290,9 @@ function AudioDraftPlayer({
             type: "button",
             onClick: handlePlay,
             disabled: !canPlay,
-            "aria-label": playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
+            "aria-label": isPaused ? "Grabaci\xF3n en pausa" : playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
             className: "fi-audio-draft-play shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
-            children: isSaving || isBusy ? /* @__PURE__ */ jsx13(Loader210, { className: "w-4 h-4 animate-spin text-amber-400" }) : playing ? /* @__PURE__ */ jsx13(Pause3, { className: "w-4 h-4 text-white/90" }) : /* @__PURE__ */ jsx13(Play5, { className: "w-4 h-4 text-white/90 ml-0.5" })
+            children: isSaving || isBusy ? /* @__PURE__ */ jsx13(Loader210, { className: "w-4 h-4 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx13(CirclePause, { className: "w-4 h-4 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx13(Pause3, { className: "w-4 h-4 text-white/90" }) : /* @__PURE__ */ jsx13(Play5, { className: "w-4 h-4 text-white/90 ml-0.5" })
           }
         ),
         /* @__PURE__ */ jsxs9("div", { className: "flex-1 min-w-0", children: [
@@ -2306,6 +2308,7 @@ function AudioDraftPlayer({
             /* @__PURE__ */ jsx13("span", { children: formatArtifactDuration(artifact.durationMs) }),
             /* @__PURE__ */ jsx13("span", { className: "text-white/30", children: "\xB7" }),
             /* @__PURE__ */ jsx13("span", { children: formatArtifactSize(artifact.size) }),
+            isPaused && /* @__PURE__ */ jsx13("span", { className: "text-yellow-400/80", children: "\xB7 En pausa" }),
             isSaving && /* @__PURE__ */ jsx13("span", { className: "text-amber-400/80", children: "\xB7 Guardando\u2026" }),
             isBusy && /* @__PURE__ */ jsx13("span", { className: "text-blue-400/80", children: "\xB7 Transcribiendo\u2026" }),
             isFailed && artifact.errorMessage && /* @__PURE__ */ jsxs9("span", { className: "text-red-400/80 truncate", children: [
@@ -2325,7 +2328,19 @@ function AudioDraftPlayer({
               children: /* @__PURE__ */ jsx13(Trash23, { className: "w-4 h-4" })
             }
           ),
-          isFailed && onRetry ? /* @__PURE__ */ jsx13(
+          onResume ? /* @__PURE__ */ jsxs9(
+            "button",
+            {
+              type: "button",
+              onClick: onResume,
+              "aria-label": "Reanudar grabaci\xF3n",
+              className: "fi-audio-draft-resume flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-colors",
+              children: [
+                /* @__PURE__ */ jsx13(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
+                "Reanudar"
+              ]
+            }
+          ) : isFailed && onRetry ? /* @__PURE__ */ jsx13(
             "button",
             {
               type: "button",

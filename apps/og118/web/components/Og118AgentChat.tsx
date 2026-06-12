@@ -231,9 +231,14 @@ export function Og118AgentChat() {
   // B3-VOICE-OG118-6: audio queue panel — shown above the composer when
   // there are pending (non-deleted) artifacts. Privacy notice, item list, and
   // a "clear transcribed" action are all provided by the fi-glass primitive.
-  // B3-VOICE-FIGLASS-10: the most recent not-yet-transcribed artifact is the
-  // active DRAFT — shown inline in the composer as a mini player (record -> stop
-  // -> preview). Older/pending artifacts stay in the backlog panel below.
+  // B3-VOICE-FIGLASS-10: two draft modes:
+  // 1. PAUSED RECORDING — the active useDurableRecording artifact in 'paused'
+  //    state (no blob yet). Shows the draft player with waveform + Reanudar.
+  // 2. SAVED DRAFT — the most recent queue artifact that hasn't been acted on
+  //    (queued/stopping/transcribing/uploading/failed). Shows the full player.
+  const pausedRecordingArtifact =
+    recording.artifact?.state === 'paused' ? recording.artifact : null;
+
   const draftArtifact = [...queue.artifacts]
     .reverse()
     .find(
@@ -244,7 +249,17 @@ export function Og118AgentChat() {
         a.state === 'uploading' ||
         a.state === 'failed',
     );
-  const audioDraftPlayer = draftArtifact ? (
+
+  const audioDraftPlayer = pausedRecordingArtifact ? (
+    <AudioDraftPlayer
+      artifact={pausedRecordingArtifact}
+      onResume={recording.resumeRecording}
+      onPrimary={() => { void recording.stopRecording().then(() => queue.reload()); }}
+      onDiscard={() => { recording.cancelRecording(); }}
+      primaryActionLabel="Guardar"
+      className="og-audio-draft og-audio-draft--paused"
+    />
+  ) : draftArtifact ? (
     <AudioDraftPlayer
       artifact={draftArtifact}
       onGetPlaybackUrl={queue.getPlaybackUrl}
@@ -347,28 +362,8 @@ export function Og118AgentChat() {
           </button>
         </>
       )}
-      {isPaused && (
-        <>
-          <button
-            type="button"
-            onClick={recording.resumeRecording}
-            aria-label="Reanudar grabación"
-            className="og-mic-resume"
-            style={micBtnStyle}
-          >
-            <Play size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => { void recording.stopRecording().then(() => queue.reload()); }}
-            aria-label="Detener y guardar grabación"
-            className="og-mic-stop"
-            style={micBtnStyle}
-          >
-            <Square size={18} />
-          </button>
-        </>
-      )}
+      {/* When paused, AudioDraftPlayer (above composer) owns the Resume/Stop
+          controls — no duplicate buttons here. */}
     </div>
   );
 

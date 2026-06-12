@@ -14,7 +14,7 @@
 // stays for the extended backlog of older/failed artifacts.
 
 import { useState, useCallback, useEffect } from 'react';
-import { Play, Pause, Trash2, Loader2, RotateCcw, ArrowUp } from 'lucide-react';
+import { Play, Pause, Trash2, Loader2, RotateCcw, ArrowUp, CirclePause } from 'lucide-react';
 import type { AudioArtifact } from './audioArtifact';
 import { formatArtifactDuration, formatArtifactSize } from './audioArtifact';
 
@@ -29,6 +29,9 @@ export interface AudioDraftPlayerProps {
   onDiscard?: (id: string) => void;
   /** Retry a failed primary action. */
   onRetry?: (id: string) => void;
+  /** Resume a paused recording. When provided, a Resume button replaces the
+   * primary action (the user hasn't finished recording yet). */
+  onResume?: () => void;
   /** Label for the primary action button (default: "Transcribir"). */
   primaryActionLabel?: string;
   className?: string;
@@ -48,6 +51,7 @@ export function AudioDraftPlayer({
   onPrimary,
   onDiscard,
   onRetry,
+  onResume,
   primaryActionLabel = 'Transcribir',
   className = '',
 }: AudioDraftPlayerProps) {
@@ -82,12 +86,13 @@ export function AudioDraftPlayer({
     el.addEventListener('error', cleanup);
   }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
 
+  const isPaused = artifact.state === 'paused';
   const isSaving = artifact.state === 'stopping';
   const isBusy =
     artifact.state === 'transcribing' || artifact.state === 'uploading';
   const isFailed = artifact.state === 'failed';
   const canPlay =
-    !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy;
+    !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
 
   return (
     <div
@@ -95,16 +100,24 @@ export function AudioDraftPlayer({
       role="group"
       aria-label="Audio grabado"
     >
-      {/* Play / saving / busy control */}
+      {/* Play / saving / busy / paused indicator */}
       <button
         type="button"
         onClick={handlePlay}
         disabled={!canPlay}
-        aria-label={playing ? 'Pausar reproducción' : 'Reproducir grabación'}
+        aria-label={
+          isPaused
+            ? 'Grabación en pausa'
+            : playing
+            ? 'Pausar reproducción'
+            : 'Reproducir grabación'
+        }
         className="fi-audio-draft-play shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isSaving || isBusy ? (
           <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+        ) : isPaused ? (
+          <CirclePause className="w-4 h-4 text-yellow-400" />
         ) : playing ? (
           <Pause className="w-4 h-4 text-white/90" />
         ) : (
@@ -129,6 +142,7 @@ export function AudioDraftPlayer({
           <span>{formatArtifactDuration(artifact.durationMs)}</span>
           <span className="text-white/30">·</span>
           <span>{formatArtifactSize(artifact.size)}</span>
+          {isPaused && <span className="text-yellow-400/80">· En pausa</span>}
           {isSaving && <span className="text-amber-400/80">· Guardando…</span>}
           {isBusy && <span className="text-blue-400/80">· Transcribiendo…</span>}
           {isFailed && artifact.errorMessage && (
@@ -149,7 +163,17 @@ export function AudioDraftPlayer({
             <Trash2 className="w-4 h-4" />
           </button>
         )}
-        {isFailed && onRetry ? (
+        {onResume ? (
+          <button
+            type="button"
+            onClick={onResume}
+            aria-label="Reanudar grabación"
+            className="fi-audio-draft-resume flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-colors"
+          >
+            <Play className="w-3.5 h-3.5 ml-0.5" />
+            Reanudar
+          </button>
+        ) : isFailed && onRetry ? (
           <button
             type="button"
             onClick={() => onRetry(artifact.id)}
