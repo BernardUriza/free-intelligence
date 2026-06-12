@@ -238,11 +238,7 @@ export function useDurableRecording(
 
   const stopRecording = useCallback(async (): Promise<AudioArtifact | null> => {
     const current = artifactRef.current;
-    if (
-      current?.state !== 'recording' &&
-      current?.state !== 'paused' &&
-      current?.state !== 'stopping'
-    ) {
+    if (current?.state !== 'recording' && current?.state !== 'paused') {
       return null;
     }
 
