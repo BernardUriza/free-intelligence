@@ -299,9 +299,9 @@
       <div class="item-body"><div class="item-text done">B3-FIGLASS-14 — bubble geometry /chat parity: alineación + 85% cap + muescas</div>
       <div class="item-note">PR #235 merged (e7744f8c) + deploy verde + verificado en el CSS servido de staging (margin auto, 85% cap, muescas 4px). User derecha / assistant izquierda, encogen a contenido (efecto WhatsApp). og118 heredó sin tocar consumer.</div></div>
       <span class="item-tag">B3-FIGLASS-14</span></label>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">B3-FIGLASS-15 — composer collapsed height + viewport scroll container</div>
-      <div class="item-note">Screenshot de Bernard destapó 2 defectos estructurales (dialogados con el coagent, corte ordenado por él): (1) lineHeight 20px hardcodeado en AutoResizeTextarea vs 24px real → textarea vacío computaba 2 rows; ahora mide el line-height computado con floor de 1 row (vacío = 24px, box 106→90px). (2) overflow-y vivía en la columna de 760px → scrollbar a 320px del borde; ahora el scroll container es full-width y el cap 760 vive en wrappers internos (transcript + columna del composer) → barra a 0px del viewport. Riesgo use-stick-to-bottom verificado: pin al cargar, botón aparece/desaparece, spring-back a 1px. 184/184 tests (5 nuevos). En PR, pendiente CI + merge + deploy + visual staging.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-15 — composer collapsed height + viewport scroll container</div>
+      <div class="item-note">PR #236 merged (4fb19794) + CI 5/5 + deploy SWA verde (run 27444945964) + smoke staging PASS. Causa raíz: (1) lineHeight 20px hardcodeado en AutoResizeTextarea vs 24px real → textarea vacío computaba 2 rows; ahora mide el line-height computado con floor de 1 row. (2) overflow-y vivía en la columna de 760px → scrollbar a 320px del borde; ahora el scroll container es full-width y el cap 760 vive en wrappers internos. Smoke medido en staging: textarea vacío 24px (1 row), composer box 90px, scroller único full-width 1400px con barra a 0px del viewport, sin doble scroll, pin 1px al cargar, scroll arriba no arrastra, «Ir al final» regresa a 0px, consola limpia. 184/184 tests (5 nuevos).</div></div>
       <span class="item-tag">B3-FIGLASS-15</span></label>
   </div>
 
