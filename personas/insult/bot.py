@@ -8,6 +8,7 @@ objects, wire the Discord events to them, and own start/cancel lifecycle.
 import asyncio
 import os
 import signal
+import sys
 
 import structlog
 from discord.ext import commands
@@ -155,9 +156,11 @@ def _build(container: Container):
                 await memory.connect()
         except TimeoutError:
             log.error("boot_connect_timeout", timeout_s=boot_timeout)
+            sys.stdout.flush()  # os._exit skips buffer flush — guarantee the diagnostic lands
             os._exit(1)
         except Exception as e:
             log.error("boot_connect_failed", error=str(e), error_type=type(e).__name__)
+            sys.stdout.flush()  # os._exit skips buffer flush — guarantee the diagnostic lands
             os._exit(1)
         if not _ready_fired:
             _bind_signals()
