@@ -631,7 +631,7 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-type AudioArtifactState = 'recording' | 'paused' | 'stopping' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'failed' | 'deleted';
+type AudioArtifactState = 'recording' | 'paused' | 'stopping' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'archived' | 'failed' | 'deleted';
 interface AudioArtifact {
     id: string;
     mime: string;
@@ -718,6 +718,7 @@ interface UseAudioQueueReturn {
     retryTranscription: (id: string) => Promise<void>;
     getPlaybackUrl: (id: string) => Promise<string | null>;
     deleteArtifact: (id: string) => Promise<void>;
+    archiveArtifact: (id: string) => Promise<void>;
     clearTranscribed: () => Promise<void>;
     reload: () => Promise<void>;
 }
@@ -745,10 +746,13 @@ interface AudioQueueItemProps {
     onTranscribe?: (id: string) => void;
     onRetry?: (id: string) => void;
     onDelete?: (id: string) => void;
+    /** Mark a transcribed artifact as used/sent — hides it from the queue
+     * without deleting the audio. */
+    onArchive?: (id: string) => void;
     onGetPlaybackUrl?: (id: string) => Promise<string | null>;
     className?: string;
 }
-declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
+declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onArchive, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
 
 interface AudioDraftPlayerProps {
     /** The draft artifact (the just-recorded, not-yet-acted-on audio). */

@@ -29,7 +29,10 @@ export interface UseAudioQueueReturn {
   getPlaybackUrl: (id: string) => Promise<string | null>;
   // Remove an artifact from the queue and IndexedDB
   deleteArtifact: (id: string) => Promise<void>;
-  // Remove all transcribed artifacts from IndexedDB
+  // Mark a transcribed artifact as used/sent — hides it from the queue UI
+  // without deleting the audio (it stays in IndexedDB until cleared).
+  archiveArtifact: (id: string) => Promise<void>;
+  // Remove all transcribed AND archived artifacts from IndexedDB
   clearTranscribed: () => Promise<void>;
   // Reload from IndexedDB (call after useDurableRecording saves a new artifact)
   reload: () => Promise<void>;
@@ -140,10 +143,23 @@ export function useAudioQueue(opts: UseAudioQueueOptions): UseAudioQueueReturn {
     [store],
   );
 
+  const archiveArtifact = useCallback(
+    async (id: string) => {
+      const a = artifacts.find((x) => x.id === id);
+      if (!a || a.state !== 'transcribed') return;
+      patchLocal(id, { state: 'archived' });
+      await store.updateMeta(id, { state: 'archived' });
+    },
+    [artifacts, store, patchLocal],
+  );
+
   const clearTranscribed = useCallback(async () => {
-    const toDelete = artifacts.filter((a) => a.state === 'transcribed');
+    // "Used" artifacts: transcribed still on screen + archived hidden ones.
+    const used = (a: AudioArtifact) =>
+      a.state === 'transcribed' || a.state === 'archived';
+    const toDelete = artifacts.filter(used);
     await Promise.all(toDelete.map((a) => store.delete(a.id)));
-    setArtifacts((prev) => prev.filter((a) => a.state !== 'transcribed'));
+    setArtifacts((prev) => prev.filter((a) => !used(a)));
   }, [artifacts, store]);
 
   const reload = useCallback(async () => {
@@ -163,6 +179,7 @@ export function useAudioQueue(opts: UseAudioQueueOptions): UseAudioQueueReturn {
     retryTranscription,
     getPlaybackUrl,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     reload,
   };

@@ -18,6 +18,7 @@ import type { AudioQueueStore } from './AudioQueueStore';
 import type { AudioArtifact, AudioQueuePolicy } from './audioArtifact';
 import {
   makeArtifactId,
+  isPending,
   AUDIO_QUEUE_DEFAULTS,
 } from './audioArtifact';
 import { useAudioAnalysis } from './useAudioAnalysis';
@@ -115,9 +116,7 @@ export function useDurableRecording(
   // Check capacity against store on mount and when policy changes
   useEffect(() => {
     store.list().then((stored) => {
-      const pending = stored.filter(
-        (a) => a.state !== 'transcribed' && a.state !== 'deleted',
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       setIsAtCapacity(
         pending.length >= policy.maxItems || totalBytes >= policy.maxBytes,
@@ -183,9 +182,7 @@ export function useDurableRecording(
     try {
       // Check capacity before requesting mic
       const stored = await store.list();
-      const pending = stored.filter(
-        (a) => a.state !== 'transcribed' && a.state !== 'deleted',
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
         setIsAtCapacity(true);
