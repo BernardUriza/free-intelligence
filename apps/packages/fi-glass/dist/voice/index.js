@@ -2143,7 +2143,8 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect7, useState as useState8 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState7, useCallback as useCallback6 } from "react";
@@ -2286,16 +2287,17 @@ function AudioQueueItem({
 // src/voice/AudioQueuePanel.tsx
 import { jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 var DEFAULT_PRIVACY_NOTICE = "Tu audio se guarda localmente hasta que lo transcribas o elimines. No se env\xEDa al servidor hasta que lo solicites.";
+var DEFAULT_PRIVACY_NOTICE_MS = 35e3;
 function AudioQueuePanel({
   queue,
   className = "",
   privacyNotice = DEFAULT_PRIVACY_NOTICE,
+  privacyNoticeMs = DEFAULT_PRIVACY_NOTICE_MS,
   maxVisible = 6,
   excludeIds = []
 }) {
   const {
     artifacts,
-    totalBytes,
     isLoading,
     transcribeArtifact,
     retryTranscription,
@@ -2303,18 +2305,25 @@ function AudioQueuePanel({
     clearTranscribed,
     getPlaybackUrl
   } = queue;
+  const [showNotice, setShowNotice] = useState8(true);
+  useEffect7(() => {
+    if (!privacyNoticeMs) return;
+    const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
+    return () => clearTimeout(t);
+  }, [privacyNoticeMs]);
   const visible = artifacts.filter(
     (a) => a.state !== "deleted" && !excludeIds.includes(a.id)
   );
   const hasTranscribed = visible.some((a) => a.state === "transcribed");
+  const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
   if (isLoading) {
     return /* @__PURE__ */ jsx12("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx12(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
   }
   if (visible.length === 0) return null;
   return /* @__PURE__ */ jsxs8("div", { className: `space-y-2 ${className}`, children: [
-    /* @__PURE__ */ jsxs8("div", { className: "flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20", children: [
-      /* @__PURE__ */ jsx12(ShieldAlert, { className: "w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" }),
-      /* @__PURE__ */ jsx12("p", { className: "text-[11px] text-yellow-200/70 leading-relaxed", children: privacyNotice })
+    showNotice && /* @__PURE__ */ jsxs8("div", { className: "fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20", children: [
+      /* @__PURE__ */ jsx12(Info, { className: "w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx12("p", { className: "text-[11px] text-blue-200/70 leading-relaxed", children: privacyNotice })
     ] }),
     /* @__PURE__ */ jsxs8("div", { className: "flex items-center justify-between px-1", children: [
       /* @__PURE__ */ jsxs8("span", { className: "text-xs text-white/50", children: [
@@ -2322,7 +2331,7 @@ function AudioQueuePanel({
         " audio",
         visible.length !== 1 ? "s" : "",
         " \xB7 ",
-        formatArtifactSize(totalBytes)
+        formatArtifactSize(visibleBytes)
       ] }),
       hasTranscribed && /* @__PURE__ */ jsxs8(
         "button",
@@ -2358,7 +2367,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState8, useEffect as useEffect7 } from "react";
+import { useState as useState9, useEffect as useEffect8 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2377,8 +2386,8 @@ function AudioDraftPlayer({
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
-  const [playbackUrl, setPlaybackUrl] = useState8(null);
-  useEffect7(() => {
+  const [playbackUrl, setPlaybackUrl] = useState9(null);
+  useEffect8(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;

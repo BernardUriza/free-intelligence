@@ -2586,7 +2586,8 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect9, useState as useState11 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState10, useCallback as useCallback7 } from "react";
@@ -2729,16 +2730,17 @@ function AudioQueueItem({
 // src/voice/AudioQueuePanel.tsx
 import { jsx as jsx19, jsxs as jsxs13 } from "react/jsx-runtime";
 var DEFAULT_PRIVACY_NOTICE = "Tu audio se guarda localmente hasta que lo transcribas o elimines. No se env\xEDa al servidor hasta que lo solicites.";
+var DEFAULT_PRIVACY_NOTICE_MS = 35e3;
 function AudioQueuePanel({
   queue,
   className = "",
   privacyNotice = DEFAULT_PRIVACY_NOTICE,
+  privacyNoticeMs = DEFAULT_PRIVACY_NOTICE_MS,
   maxVisible = 6,
   excludeIds = []
 }) {
   const {
     artifacts,
-    totalBytes,
     isLoading,
     transcribeArtifact,
     retryTranscription,
@@ -2746,18 +2748,25 @@ function AudioQueuePanel({
     clearTranscribed,
     getPlaybackUrl
   } = queue;
+  const [showNotice, setShowNotice] = useState11(true);
+  useEffect9(() => {
+    if (!privacyNoticeMs) return;
+    const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
+    return () => clearTimeout(t);
+  }, [privacyNoticeMs]);
   const visible = artifacts.filter(
     (a) => a.state !== "deleted" && !excludeIds.includes(a.id)
   );
   const hasTranscribed = visible.some((a) => a.state === "transcribed");
+  const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
   if (isLoading) {
     return /* @__PURE__ */ jsx19("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx19(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
   }
   if (visible.length === 0) return null;
   return /* @__PURE__ */ jsxs13("div", { className: `space-y-2 ${className}`, children: [
-    /* @__PURE__ */ jsxs13("div", { className: "flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20", children: [
-      /* @__PURE__ */ jsx19(ShieldAlert, { className: "w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" }),
-      /* @__PURE__ */ jsx19("p", { className: "text-[11px] text-yellow-200/70 leading-relaxed", children: privacyNotice })
+    showNotice && /* @__PURE__ */ jsxs13("div", { className: "fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20", children: [
+      /* @__PURE__ */ jsx19(Info, { className: "w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx19("p", { className: "text-[11px] text-blue-200/70 leading-relaxed", children: privacyNotice })
     ] }),
     /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between px-1", children: [
       /* @__PURE__ */ jsxs13("span", { className: "text-xs text-white/50", children: [
@@ -2765,7 +2774,7 @@ function AudioQueuePanel({
         " audio",
         visible.length !== 1 ? "s" : "",
         " \xB7 ",
-        formatArtifactSize(totalBytes)
+        formatArtifactSize(visibleBytes)
       ] }),
       hasTranscribed && /* @__PURE__ */ jsxs13(
         "button",
@@ -2801,7 +2810,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState11, useEffect as useEffect9 } from "react";
+import { useState as useState12, useEffect as useEffect10 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2820,8 +2829,8 @@ function AudioDraftPlayer({
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
-  const [playbackUrl, setPlaybackUrl] = useState11(null);
-  useEffect9(() => {
+  const [playbackUrl, setPlaybackUrl] = useState12(null);
+  useEffect10(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -2963,16 +2972,16 @@ function AudioDraftPlayer({
 import { useCallback as useCallback9 } from "react";
 
 // src/shell/useChatWidgetState.ts
-import { useState as useState12, useCallback as useCallback8 } from "react";
+import { useState as useState13, useCallback as useCallback8 } from "react";
 function useChatWidgetState({
   initialOpen,
   initialMode
 }) {
-  const [isOpen, setIsOpen] = useState12(initialOpen);
-  const [viewMode, setViewMode] = useState12(initialMode);
-  const [isHistoryOpen, setIsHistoryOpen] = useState12(false);
-  const [conversationStarted, setConversationStarted] = useState12(false);
-  const [isStartingConversation, _setIsStartingConversation] = useState12(false);
+  const [isOpen, setIsOpen] = useState13(initialOpen);
+  const [viewMode, setViewMode] = useState13(initialMode);
+  const [isHistoryOpen, setIsHistoryOpen] = useState13(false);
+  const [conversationStarted, setConversationStarted] = useState13(false);
+  const [isStartingConversation, _setIsStartingConversation] = useState13(false);
   const open = useCallback8(() => {
     setIsOpen(true);
   }, []);
@@ -3317,7 +3326,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState13, useRef as useRef8, useEffect as useEffect10 } from "react";
+import { useState as useState14, useRef as useRef8, useEffect as useEffect11 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
@@ -3349,10 +3358,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState13(false);
+  const [overflowOpen, setOverflowOpen] = useState14(false);
   const overflowButtonRef = useRef8(null);
-  const [dropdownPosition, setDropdownPosition] = useState13({ top: 0, left: 0 });
-  useEffect10(() => {
+  const [dropdownPosition, setDropdownPosition] = useState14({ top: 0, left: 0 });
+  useEffect11(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -4002,10 +4011,10 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback10,
-  useEffect as useEffect11,
+  useEffect as useEffect12,
   useId as useId2,
   useRef as useRef9,
-  useState as useState14
+  useState as useState15
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
@@ -4034,15 +4043,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState14(false);
-  const [position, setPosition] = useState14({ top: 0, left: 0, width: 0 });
+  const [isOpen, setIsOpen] = useState15(false);
+  const [position, setPosition] = useState15({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef9(null);
   const contentRef = useRef9(null);
   const reactId = useId2();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback10(() => setIsOpen(false), []);
-  useEffect11(() => {
+  useEffect12(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -4054,7 +4063,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect11(() => {
+  useEffect12(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -4074,7 +4083,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect11(() => {
+  useEffect12(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;

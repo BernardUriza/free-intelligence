@@ -502,7 +502,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback9, useEffect as useEffect12, useRef as useRef9, useState as useState14 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect13, useRef as useRef9, useState as useState15 } from "react";
 import { Send, Loader2 as Loader211 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -1569,7 +1569,8 @@ import { useState as useState10, useRef as useRef8, useCallback as useCallback6,
 import { useState as useState11, useEffect as useEffect10, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect11, useState as useState13 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState12, useCallback as useCallback8 } from "react";
@@ -1590,7 +1591,7 @@ import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState13, useEffect as useEffect11 } from "react";
+import { useState as useState14, useEffect as useEffect12 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
@@ -1685,7 +1686,7 @@ function AgentConversationSurface({
   collapseToggleClassName
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
-  const [input, setInput] = useState14("");
+  const [input, setInput] = useState15("");
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
   const inputRef = useRef9(null);
   const refocusComposer = useCallback9(() => {
@@ -1696,7 +1697,7 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect12(() => {
+  useEffect13(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -1715,12 +1716,12 @@ function AgentConversationSurface({
     void dictation.startRecording();
   };
   const wasStreaming = useRef9(false);
-  useEffect12(() => {
+  useEffect13(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
   const wasTranscribing = useRef9(false);
-  useEffect12(() => {
+  useEffect13(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
