@@ -33,6 +33,8 @@ Why a pool and not a single connection:
 
 from __future__ import annotations
 
+import asyncio
+import time
 from pathlib import Path
 
 import asyncpg
@@ -59,6 +61,7 @@ class ConnectionManager:
         self._max_size = max_size
         self._pool: asyncpg.Pool | None = None
         self._vectors_available: bool = False
+        self._prewarm_task: asyncio.Task | None = None
 
     @property
     def pool(self) -> asyncpg.Pool | None:
@@ -82,7 +85,23 @@ class ConnectionManager:
         so every connection acquired from the pool can pass Python
         sequences as `VECTOR(N)` parameters and receive them as
         `numpy.ndarray` / list-of-floats.
+
+        Every boundary here emits a structured log (`pg_pool_creating` →
+        `pg_pool_created` → `pg_schema_applying` → `pg_schema_applied` →
+        `memory_connected_pg`) so a boot that stalls inside any step is
+        diagnosable from telemetry alone — no blind spot. This exists because
+        on 2026-06-13 a boot deadlocked somewhere in here with ZERO logs
+        between `debug_server_started` and the success line, making the root
+        cause unprovable. Never let a critical span go dark again.
         """
+        # Idempotent across gateway reconnects: on_ready can fire more than
+        # once, and rebuilding the pool would orphan the previous one (a
+        # connection leak) and needlessly re-run the schema. The pool persists.
+        if self._pool is not None:
+            log.info("pg_connect_skipped_already_connected", pool_size=self._max_size)
+            return
+
+        log.info("pg_pool_creating", min_size=self._min_size, max_size=self._max_size)
         self._pool = await asyncpg.create_pool(
             dsn=self._postgres_url,
             min_size=self._min_size,
@@ -90,12 +109,15 @@ class ConnectionManager:
             command_timeout=30,
             init=self._init_connection,
         )
+        log.info("pg_pool_created", min_size=self._min_size, max_size=self._max_size)
 
         # Run schema. Safe on existing DBs (everything IF NOT EXISTS).
         if _SCHEMA_PATH.exists():
             schema_sql = _SCHEMA_PATH.read_text(encoding="utf-8")
+            log.info("pg_schema_applying")
             async with self._pool.acquire() as conn:
                 await conn.execute(schema_sql)
+            log.info("pg_schema_applied")
 
         # Confirm pgvector is queryable — best-effort flag for repos
         # that need semantic search.
@@ -108,31 +130,29 @@ class ConnectionManager:
             self._vectors_available = False
             log.warning("memory_connected_pg_no_vectors", reason=str(e))
 
-        # Pre-warm the embedding model so the FIRST user turn doesn't eat the
-        # ~10s `sentence-transformers/all-MiniLM-L6-v2` lazy-load latency. We
-        # only warm when pgvector is available (the only path that calls into
-        # the model); otherwise the model would stay unused in RAM.
-        #
-        # Runs in a thread because the encode call is sync CPU work — letting
-        # it block the event loop during boot would stall Discord's gateway
-        # heartbeat. The .embed() warmup also forces sentence-transformers to
-        # download the model from HuggingFace if it's not in /root/.cache,
-        # which is the slowest part on a fresh container. After this returns,
-        # `stage_facts_loaded` on the first turn drops from ~10s to <200ms.
+        # Pre-warm the embedding model OFF the critical boot path. The warmup
+        # forces sentence-transformers to download `all-MiniLM-L6-v2` from
+        # HuggingFace on a fresh container — a slow, network-dependent step that
+        # MUST NOT gate `bot_ready`. Fire-and-forget: the first turn falls back
+        # to the lazy load if the warmup hasn't finished. (Previously this was
+        # `await`-ed inside connect(), so a slow/hung HF download blocked the
+        # whole bot from becoming ready — a boot stall vector.)
         if self._vectors_available:
-            import asyncio
-            import time as _time
+            self._prewarm_task = asyncio.create_task(self._prewarm_embeddings())
 
-            from personas.insult.core.vectors import get_embedding_model
+    async def _prewarm_embeddings(self) -> None:
+        """Warm the embedding model in the background. Runs in a thread because
+        the encode is sync CPU work; never blocks the event loop heartbeat.
+        Non-fatal — failure just means the first turn pays the lazy-load cost."""
+        from personas.insult.core.vectors import get_embedding_model
 
-            warmup_start = _time.monotonic()
-            try:
-                await asyncio.to_thread(lambda: get_embedding_model().embed("boot warmup"))
-                log.info("embedding_model_prewarmed", elapsed_ms=int((_time.monotonic() - warmup_start) * 1000))
-            except Exception as e:
-                # Failing to pre-warm is not fatal — the lazy path still works,
-                # the user just pays the latency on their first message.
-                log.warning("embedding_prewarm_failed", error=str(e))
+        warmup_start = time.monotonic()
+        log.info("embedding_prewarm_start")
+        try:
+            await asyncio.to_thread(lambda: get_embedding_model().embed("boot warmup"))
+            log.info("embedding_model_prewarmed", elapsed_ms=int((time.monotonic() - warmup_start) * 1000))
+        except Exception as e:
+            log.warning("embedding_prewarm_failed", error=str(e))
 
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
         """Per-connection setup. Runs once when a connection joins the

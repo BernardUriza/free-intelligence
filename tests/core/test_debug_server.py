@@ -108,7 +108,10 @@ async def test_health_exposes_pr1_fields(client):
     # All keys must be present even on cold-start (None values are fine).
     for key in (
         "status",
+        "healthy",
         "is_ready",
+        "serving",
+        "guild_count",
         "gateway_latency_ms",
         "last_turn_age_s",
         "last_turn_within_15min",
@@ -125,6 +128,10 @@ async def test_health_exposes_pr1_fields(client):
     assert data["turns_total"] == 0
     assert data["is_ready"] is None
     assert data["gateway_latency_ms"] is None
+    # No bot wired and on_ready never completed → unambiguously not healthy.
+    assert data["healthy"] is False
+    assert data["serving"] is False
+    assert data["guild_count"] is None
     # PG block always present, shape consistent across reachable/unreachable.
     assert "reachable" in data["pg"]
     assert "latency_ms" in data["pg"]
@@ -246,11 +253,61 @@ async def test_health_reflects_bot_ref(client):
     bot = MagicMock()
     bot.is_ready = MagicMock(return_value=True)
     bot.latency = 0.025  # 25 ms
+    bot.guilds = [object()]
     get_state().set_bot(bot)
     resp = await client.get("/debug/health")
     data = await resp.json()
     assert data["is_ready"] is True
     assert data["gateway_latency_ms"] == 25.0
+    # set_bot alone (boot still mid-on_ready) must NOT read healthy.
+    assert data["serving"] is False
+    assert data["healthy"] is False
+    _reset_for_tests()
+
+
+async def test_health_zombie_ready_but_not_serving(client):
+    """The 2026-06-13 outage shape, end-to-end through the endpoint: the
+    gateway is ready (is_ready=true, real latency, in a guild) but on_ready
+    hung before wiring the cogs, so serving was never marked. The endpoint
+    must report healthy=false — the false-positive that misled diagnosis."""
+    from unittest.mock import MagicMock
+
+    from personas.insult.core.health_state import _reset_for_tests, get_state
+
+    _reset_for_tests()
+    bot = MagicMock()
+    bot.is_ready = MagicMock(return_value=True)
+    bot.latency = 0.0151
+    bot.guilds = [object()]
+    get_state().set_bot(bot)  # mark_serving() intentionally NOT called
+    resp = await client.get("/debug/health")
+    data = await resp.json()
+    assert data["is_ready"] is True
+    assert data["gateway_latency_ms"] == 15.1
+    assert data["guild_count"] == 1
+    assert data["serving"] is False
+    assert data["healthy"] is False
+    _reset_for_tests()
+
+
+async def test_health_fully_wired_is_healthy(client):
+    """Positive case: set_bot + mark_serving + in a guild → healthy=true."""
+    from unittest.mock import MagicMock
+
+    from personas.insult.core.health_state import _reset_for_tests, get_state
+
+    _reset_for_tests()
+    bot = MagicMock()
+    bot.is_ready = MagicMock(return_value=True)
+    bot.latency = 0.02
+    bot.guilds = [object()]
+    state = get_state()
+    state.set_bot(bot)
+    state.mark_serving()
+    resp = await client.get("/debug/health")
+    data = await resp.json()
+    assert data["serving"] is True
+    assert data["healthy"] is True
     _reset_for_tests()
 
 

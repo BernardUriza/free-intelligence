@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     preset_classifier_model: str = "claude-haiku-4-5-20251001"
     preset_classifier_timeout_ms: int = 1500
 
+    # Boot: hard ceiling for the data-plane connect on on_ready. The healthy
+    # critical path (pool + schema + pgvector, prewarm now off-path) is ~2s, so
+    # this is deliberately generous — if connect() exceeds it, the replica is
+    # wedged and must fail fast (exit non-zero → fresh replica) rather than
+    # linger as a zombie that /debug/health reports "ok". See the 2026-06-13
+    # boot-hang incident.
+    boot_connect_timeout_s: float = 45.0
+
     # Memory
     memory_recent_limit: int = 50
     memory_relevant_limit: int = 5

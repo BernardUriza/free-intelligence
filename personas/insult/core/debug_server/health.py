@@ -19,7 +19,16 @@ async def _handle_health(request: web.Request) -> web.Response:
 
     Distinguishes failure modes that previously collapsed into "alive":
     - ``status=ok`` alone = process up, event loop ticking.
-    - ``is_ready=true`` = Discord gateway connected.
+    - ``is_ready=true`` = Discord gateway ready event fired. NOT proof the
+      bot can serve — ``set_bot`` runs at the TOP of ``on_ready``, before
+      the cogs/``on_message`` are attached.
+    - ``serving=true`` (2026-06-13) = ``on_ready`` finished wiring the
+      message pipeline end-to-end. Catches the boot-hang where ``is_ready``
+      and ``gateway_latency_ms`` read green but no handler is attached.
+    - ``guild_count`` = bot is in ≥1 guild. ``0`` with ``is_ready=true`` is
+      a half-open gateway.
+    - ``healthy`` = the single honest verdict (is_ready AND serving AND
+      guild_count>0 AND real latency). Trust THIS over ``is_ready`` alone.
     - ``last_turn_within_15min=true`` = ``on_message`` actually
       processed something recently (catches the zombie-handler case
       that produced the 2026-05-08T23:59 outage).
@@ -40,7 +49,10 @@ async def _handle_health(request: web.Request) -> web.Response:
     return web.json_response(
         {
             "status": "ok",
+            "healthy": state.is_healthy(),
             "is_ready": state.is_bot_ready(),
+            "serving": state.is_serving(),
+            "guild_count": state.guild_count(),
             "gateway_latency_ms": state.gateway_latency_ms(),
             "last_turn_age_s": state.last_turn_age_s(),
             "last_turn_within_15min": state.last_turn_within(15 * 60),

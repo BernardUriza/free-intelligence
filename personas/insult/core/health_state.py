@@ -43,14 +43,31 @@ class HealthState:
         self._bot_ref: Any = None
         self._started_at: float = time.monotonic()
         self._turns_total: int = 0
+        self._serving: bool = False
 
     # ---------- write ----------
 
     def set_bot(self, bot: Any) -> None:
         """Wire the discord.py Bot reference so ``is_bot_ready`` and
-        ``gateway_latency_ms`` can answer. Called once during boot
-        after the Bot is constructed."""
+        ``gateway_latency_ms`` can answer. Called at the TOP of
+        ``on_ready``, BEFORE the message pipeline (cogs/``on_message``) is
+        attached — so ``is_bot_ready`` going True does NOT mean the bot can
+        serve. ``mark_serving`` is the signal for that."""
         self._bot_ref = bot
+
+    def mark_serving(self) -> None:
+        """Mark that ``on_ready`` finished wiring the bot end-to-end (cogs
+        added, listeners attached, background loops started). This is the
+        only signal that distinguishes "Discord gateway ready event fired"
+        from "the bot can actually process a message". Set at the END of
+        ``on_ready``; sticky-true across reconnects (cogs persist).
+
+        Exists because on 2026-06-13 a replica hung mid-``on_ready`` AFTER
+        ``set_bot`` but BEFORE the cogs were attached: ``/debug/health``
+        read ``is_ready=true`` + ``gateway_latency_ms=15.1`` + ``pg ok``
+        while the bot silently ate every message. ``is_ready`` was a false
+        positive; ``serving`` would have been False."""
+        self._serving = True
 
     def record_turn_end(self, outcome: str = "ok") -> None:
         """Mark that ``cog.py`` just emitted a ``chat_turn_end``.
@@ -88,6 +105,43 @@ class HealthState:
         if callable(is_ready):
             return bool(is_ready())
         return None
+
+    def is_serving(self) -> bool:
+        """True once ``on_ready`` finished wiring the message pipeline.
+        False during the boot window between ``set_bot`` and the end of
+        ``on_ready`` — exactly the window where ``is_bot_ready`` can lie."""
+        return self._serving
+
+    def guild_count(self) -> int | None:
+        """Number of guilds the bot is in, or ``None`` when the bot ref
+        isn't wired yet. A live bot is in ≥1 guild; ``0`` with
+        ``is_ready=true`` is a half-open gateway (zombie), not a healthy
+        idle bot."""
+        if self._bot_ref is None:
+            return None
+        guilds = getattr(self._bot_ref, "guilds", None)
+        if guilds is None:
+            return None
+        try:
+            return len(guilds)
+        except TypeError:
+            return None
+
+    def is_healthy(self) -> bool:
+        """Single honest verdict combining every readiness signal, so a
+        reader (human or synthetic monitor) cannot cherry-pick one green
+        field. True iff: Discord ready event fired AND the message pipeline
+        is wired (``serving``) AND the bot is in ≥1 guild AND the gateway
+        heartbeat is a real number.
+
+        This is the field to trust over ``is_ready`` alone — the latter was
+        the false positive that masked the 2026-06-13 boot-hang outage."""
+        return bool(
+            self.is_bot_ready()
+            and self._serving
+            and (self.guild_count() or 0) > 0
+            and self.gateway_latency_ms() is not None
+        )
 
     def gateway_latency_ms(self) -> float | None:
         """Discord WebSocket heartbeat latency in milliseconds, or

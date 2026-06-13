@@ -115,6 +115,68 @@ class TestBotIntegration:
         assert s.gateway_latency_ms() is None
 
 
+class TestServingAndHealthy:
+    """The 2026-06-13 false-positive guard: is_ready can be True while the
+    bot has not finished wiring its message pipeline. ``serving`` and the
+    derived ``healthy`` verdict close that hole."""
+
+    @staticmethod
+    def _ready_bot(*, guilds: int = 1, latency: float = 0.015) -> MagicMock:
+        bot = MagicMock()
+        bot.is_ready = MagicMock(return_value=True)
+        bot.latency = latency
+        bot.guilds = list(range(guilds))
+        return bot
+
+    def test_fresh_state_is_not_serving(self):
+        s = HealthState()
+        assert s.is_serving() is False
+
+    def test_mark_serving_flips_true(self):
+        s = HealthState()
+        s.mark_serving()
+        assert s.is_serving() is True
+
+    def test_guild_count_none_without_bot(self):
+        s = HealthState()
+        assert s.guild_count() is None
+
+    def test_guild_count_reads_bot(self):
+        s = HealthState()
+        s.set_bot(self._ready_bot(guilds=3))
+        assert s.guild_count() == 3
+
+    def test_healthy_true_when_fully_wired(self):
+        s = HealthState()
+        s.set_bot(self._ready_bot())
+        s.mark_serving()
+        assert s.is_healthy() is True
+
+    def test_healthy_false_when_ready_but_not_serving(self):
+        """THE regression case. on_ready hung after set_bot but before the
+        cogs were attached: is_ready=True, gateway latency real, in a guild
+        — but serving never marked. Must read unhealthy."""
+        s = HealthState()
+        s.set_bot(self._ready_bot())
+        # mark_serving() deliberately NOT called — boot hung mid-on_ready.
+        assert s.is_bot_ready() is True
+        assert s.gateway_latency_ms() is not None
+        assert s.guild_count() == 1
+        assert s.is_serving() is False
+        assert s.is_healthy() is False
+
+    def test_healthy_false_when_serving_but_zero_guilds(self):
+        s = HealthState()
+        s.set_bot(self._ready_bot(guilds=0))
+        s.mark_serving()
+        assert s.is_healthy() is False
+
+    def test_healthy_false_when_no_bot_ref(self):
+        s = HealthState()
+        s.mark_serving()
+        assert s.is_healthy() is False
+
+
 class TestSingleton:
     def test_get_state_returns_same_instance(self):
         a = get_state()

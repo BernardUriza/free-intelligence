@@ -6,6 +6,7 @@ objects, wire the Discord events to them, and own start/cancel lifecycle.
 """
 
 import asyncio
+import os
 import signal
 
 import structlog
@@ -142,7 +143,22 @@ def _build(container: Container):
         # No DB download on startup. Postgres is external and persistent — the
         # new container's memory.connect() just opens a pool against the managed
         # PG server. Cero race condition on swap.
-        await memory.connect()
+        #
+        # Hard timeout + fail-fast: if connect() wedges (the 2026-06-13 boot
+        # hang), DO NOT let on_ready stall forever — that produced a silent
+        # zombie that /debug/health reported "ok". A half-booted replica must
+        # die so the platform starts a fresh one (proven to boot clean), never
+        # linger. (no gráficos chafos: down → clearly down.)
+        boot_timeout = container.settings.boot_connect_timeout_s
+        try:
+            async with asyncio.timeout(boot_timeout):
+                await memory.connect()
+        except TimeoutError:
+            log.error("boot_connect_timeout", timeout_s=boot_timeout)
+            os._exit(1)
+        except Exception as e:
+            log.error("boot_connect_failed", error=str(e), error_type=type(e).__name__)
+            os._exit(1)
         if not _ready_fired:
             _bind_signals()
             await bot.add_cog(ChatCog(container))
@@ -165,6 +181,11 @@ def _build(container: Container):
             memory_recent=container.settings.memory_recent_limit,
             memory_relevant=container.settings.memory_relevant_limit,
         )
+        # End-to-end wiring complete (cogs/on_message attached, loops
+        # started). Only now is /debug/health allowed to report serving=true
+        # / healthy=true. If on_ready hangs above this line, the endpoint
+        # stays serving=false even though is_ready/gateway_latency are green.
+        _get_health_state().mark_serving()
 
     @bot.event
     async def on_socket_event_type(event_type: str):
