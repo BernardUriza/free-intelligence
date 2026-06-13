@@ -1640,6 +1640,99 @@ var AudioQueueStore = class {
 
 // src/voice/useDurableRecording.ts
 import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect5 } from "react";
+
+// src/voice/wav.ts
+function blobToArrayBuffer(blob) {
+  if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+function readFourCC(view, offset) {
+  return String.fromCharCode(
+    view.getUint8(offset),
+    view.getUint8(offset + 1),
+    view.getUint8(offset + 2),
+    view.getUint8(offset + 3)
+  );
+}
+function parseWav(buffer) {
+  const view = new DataView(buffer);
+  if (buffer.byteLength < 44 || readFourCC(view, 0) !== "RIFF" || readFourCC(view, 8) !== "WAVE") {
+    throw new Error("Not a RIFF/WAVE file");
+  }
+  let fmt = null;
+  let data = null;
+  let offset = 12;
+  while (offset + 8 <= buffer.byteLength) {
+    const id = readFourCC(view, offset);
+    const size = view.getUint32(offset + 4, true);
+    const body = offset + 8;
+    if (id === "fmt ") {
+      fmt = {
+        audioFormat: view.getUint16(body, true),
+        numChannels: view.getUint16(body + 2, true),
+        sampleRate: view.getUint32(body + 4, true),
+        bitsPerSample: view.getUint16(body + 14, true)
+      };
+    } else if (id === "data") {
+      const end = Math.min(body + size, buffer.byteLength);
+      data = new Uint8Array(buffer.slice(body, end));
+    }
+    offset = body + size + size % 2;
+  }
+  if (!fmt || !data) throw new Error("WAV missing fmt or data chunk");
+  return { ...fmt, data };
+}
+function buildWav(fmt, pcm) {
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const byteRate = fmt.sampleRate * fmt.numChannels * fmt.bitsPerSample / 8;
+  const blockAlign = fmt.numChannels * fmt.bitsPerSample / 8;
+  const writeFourCC = (offset, s) => {
+    for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+  writeFourCC(0, "RIFF");
+  view.setUint32(4, 36 + pcm.byteLength, true);
+  writeFourCC(8, "WAVE");
+  writeFourCC(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, fmt.audioFormat, true);
+  view.setUint16(22, fmt.numChannels, true);
+  view.setUint32(24, fmt.sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, fmt.bitsPerSample, true);
+  writeFourCC(36, "data");
+  view.setUint32(40, pcm.byteLength, true);
+  return new Blob([header, pcm.buffer], { type: "audio/wav" });
+}
+async function mergeWavBlobs(blobs) {
+  if (blobs.length === 0) throw new Error("No WAV segments to merge");
+  if (blobs.length === 1) return blobs[0];
+  const parsed = await Promise.all(
+    blobs.map(async (b) => parseWav(await blobToArrayBuffer(b)))
+  );
+  const first = parsed[0];
+  for (const p of parsed.slice(1)) {
+    if (p.audioFormat !== first.audioFormat || p.numChannels !== first.numChannels || p.sampleRate !== first.sampleRate || p.bitsPerSample !== first.bitsPerSample) {
+      throw new Error("WAV segments have mismatched formats");
+    }
+  }
+  const total = parsed.reduce((s, p) => s + p.data.byteLength, 0);
+  const pcm = new Uint8Array(total);
+  let cursor = 0;
+  for (const p of parsed) {
+    pcm.set(p.data, cursor);
+    cursor += p.data.byteLength;
+  }
+  return buildWav(first, pcm);
+}
+
+// src/voice/useDurableRecording.ts
 var MIC_TIMEOUT_MS = 15e3;
 async function loadRecordRTC() {
   const mod = await import("recordrtc");
@@ -1662,12 +1755,16 @@ function useDurableRecording(opts) {
   const [currentStream, setCurrentStream] = useState5(null);
   const [isAtCapacity, setIsAtCapacity] = useState5(false);
   const [isStarting, setIsStarting] = useState5(false);
+  const [pausedPreviewBlob, setPausedPreviewBlob] = useState5(null);
   const recorderRef = useRef5(null);
   const streamRef = useRef5(null);
   const timerRef = useRef5(null);
   const startTimeRef = useRef5(0);
   const pausedElapsedRef = useRef5(0);
   const artifactRef = useRef5(null);
+  const segmentsRef = useRef5([]);
+  const rtcCtorRef = useRef5(null);
+  const pauseOpRef = useRef5(Promise.resolve());
   useEffect5(() => {
     artifactRef.current = artifact;
   }, [artifact]);
@@ -1701,15 +1798,28 @@ function useDurableRecording(opts) {
   }, []);
   const updateArtifact = useCallback4(
     (patch) => {
-      setArtifact((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
-        artifactRef.current = updated;
-        return updated;
-      });
+      const prev = artifactRef.current;
+      if (!prev) return;
+      const updated = { ...prev, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+      artifactRef.current = updated;
+      setArtifact(updated);
     },
     []
   );
+  const startNewRecorderSegment = useCallback4((stream) => {
+    const RecordRTC = rtcCtorRef.current;
+    if (!RecordRTC) throw new Error("[useDurableRecording] RecordRTC not loaded");
+    const recorder = new RecordRTC(stream, {
+      type: "audio",
+      recorderType: RecordRTC.StereoAudioRecorder,
+      mimeType: "audio/wav",
+      numberOfAudioChannels: 1,
+      desiredSampRate: 16e3,
+      disableLogs: true
+    });
+    recorder.startRecording();
+    return recorder;
+  }, []);
   const startRecording = useCallback4(async () => {
     if (artifact?.state === "recording" || artifact?.state === "paused") return;
     setIsStarting(true);
@@ -1739,17 +1849,11 @@ function useDurableRecording(opts) {
       ]);
       streamRef.current = stream;
       setCurrentStream(stream);
-      const RecordRTC = await loadRecordRTC();
-      const recorder = new RecordRTC(stream, {
-        type: "audio",
-        recorderType: RecordRTC.StereoAudioRecorder,
-        mimeType: "audio/wav",
-        numberOfAudioChannels: 1,
-        desiredSampRate: 16e3,
-        disableLogs: true
-      });
-      recorderRef.current = recorder;
-      recorder.startRecording();
+      rtcCtorRef.current = await loadRecordRTC();
+      segmentsRef.current = [];
+      pauseOpRef.current = Promise.resolve();
+      setPausedPreviewBlob(null);
+      recorderRef.current = startNewRecorderSegment(stream);
       const now = Date.now();
       startTimeRef.current = now;
       pausedElapsedRef.current = 0;
@@ -1775,17 +1879,34 @@ function useDurableRecording(opts) {
     } finally {
       setIsStarting(false);
     }
-  }, [artifact, store, policy, deviceId, onError, releaseStream]);
+  }, [artifact, store, policy, deviceId, onError, releaseStream, startNewRecorderSegment]);
   const pauseRecording = useCallback4(() => {
     if (artifactRef.current?.state !== "recording") return;
-    recorderRef.current?.pauseRecording();
     stopTimer();
     pausedElapsedRef.current = Date.now() - startTimeRef.current;
     updateArtifact({ state: "paused", durationMs: pausedElapsedRef.current });
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    pauseOpRef.current = new Promise((resolve) => {
+      if (!recorder) {
+        resolve();
+        return;
+      }
+      recorder.stopRecording(() => {
+        const segment = recorder.getBlob();
+        if (segment && segment.size > 0) segmentsRef.current.push(segment);
+        void mergeWavBlobs(segmentsRef.current).then((preview) => {
+          if (artifactRef.current?.state === "paused") {
+            setPausedPreviewBlob(preview);
+          }
+        }).catch(() => {
+        }).finally(resolve);
+      });
+    });
   }, [stopTimer, updateArtifact]);
   const resumeRecording = useCallback4(() => {
     if (artifactRef.current?.state !== "paused") return;
-    recorderRef.current?.resumeRecording();
+    setPausedPreviewBlob(null);
     startTimeRef.current = Date.now() - pausedElapsedRef.current;
     timerRef.current = setInterval(() => {
       setRecordingTime(
@@ -1793,63 +1914,82 @@ function useDurableRecording(opts) {
       );
     }, 1e3);
     updateArtifact({ state: "recording" });
-  }, [updateArtifact]);
+    void pauseOpRef.current.then(() => {
+      if (artifactRef.current?.state !== "recording") return;
+      const stream = streamRef.current;
+      if (!stream) return;
+      try {
+        recorderRef.current = startNewRecorderSegment(stream);
+      } catch (err) {
+        updateArtifact({
+          state: "failed",
+          errorMessage: err instanceof Error ? err.message : "No se pudo reanudar la grabaci\xF3n."
+        });
+      }
+    });
+  }, [updateArtifact, startNewRecorderSegment]);
   const stopRecording = useCallback4(async () => {
     const current = artifactRef.current;
     if (current?.state !== "recording" && current?.state !== "paused") {
       return null;
     }
     stopTimer();
-    const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
+    const durationMs = current.state === "paused" ? pausedElapsedRef.current : Date.now() - startTimeRef.current;
     updateArtifact({ state: "stopping" });
-    return new Promise((resolve) => {
-      if (!recorderRef.current) {
-        releaseStream();
-        resolve(null);
-        return;
+    setPausedPreviewBlob(null);
+    await pauseOpRef.current;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      await new Promise((resolve) => recorder.stopRecording(resolve));
+      const segment = recorder.getBlob();
+      if (segment && segment.size > 0) segmentsRef.current.push(segment);
+    }
+    releaseStream();
+    const segments = segmentsRef.current;
+    segmentsRef.current = [];
+    let blob = null;
+    if (segments.length > 0) {
+      try {
+        blob = await mergeWavBlobs(segments);
+      } catch {
+        blob = null;
       }
-      recorderRef.current.stopRecording(async () => {
-        releaseStream();
-        const blob = recorderRef.current?.getBlob() ?? null;
-        recorderRef.current = null;
-        if (!blob || blob.size === 0) {
-          updateArtifact({ state: "failed", errorMessage: "Grabaci\xF3n vac\xEDa." });
-          resolve(null);
-          return;
-        }
-        if (blob.size > policy.maxBytesPerItem) {
-          updateArtifact({
-            state: "failed",
-            errorMessage: `Audio demasiado grande (${Math.round(blob.size / 1024 / 1024)} MB, m\xE1ximo ${Math.round(policy.maxBytesPerItem / 1024 / 1024)} MB).`
-          });
-          resolve(null);
-          return;
-        }
-        const finalArtifact = {
-          ...current,
-          size: blob.size,
-          durationMs,
-          state: "queued",
-          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-        };
-        updateArtifact({
-          size: blob.size,
-          durationMs,
-          state: "queued"
-        });
-        try {
-          await store.put({ ...finalArtifact, blob });
-          onSaved?.(finalArtifact);
-          setIsAtCapacity(false);
-          resolve(finalArtifact);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Error al guardar audio.";
-          updateArtifact({ state: "failed", errorMessage: msg });
-          onError?.(msg);
-          resolve(null);
-        }
+    }
+    if (!blob || blob.size === 0) {
+      updateArtifact({ state: "failed", errorMessage: "Grabaci\xF3n vac\xEDa." });
+      return null;
+    }
+    if (blob.size > policy.maxBytesPerItem) {
+      updateArtifact({
+        state: "failed",
+        errorMessage: `Audio demasiado grande (${Math.round(blob.size / 1024 / 1024)} MB, m\xE1ximo ${Math.round(policy.maxBytesPerItem / 1024 / 1024)} MB).`
       });
+      return null;
+    }
+    const finalArtifact = {
+      ...current,
+      size: blob.size,
+      durationMs,
+      state: "queued",
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    updateArtifact({
+      size: blob.size,
+      durationMs,
+      state: "queued"
     });
+    try {
+      await store.put({ ...finalArtifact, blob });
+      onSaved?.(finalArtifact);
+      setIsAtCapacity(false);
+      return finalArtifact;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al guardar audio.";
+      updateArtifact({ state: "failed", errorMessage: msg });
+      onError?.(msg);
+      return null;
+    }
   }, [store, policy, releaseStream, stopTimer, updateArtifact, onSaved, onError]);
   const cancelRecording = useCallback4(() => {
     stopTimer();
@@ -1862,6 +2002,8 @@ function useDurableRecording(opts) {
       }
       recorderRef.current = null;
     }
+    segmentsRef.current = [];
+    setPausedPreviewBlob(null);
     setArtifact(null);
     artifactRef.current = null;
     setRecordingTime(0);
@@ -1869,6 +2011,7 @@ function useDurableRecording(opts) {
   return {
     artifact,
     recordingTime,
+    pausedPreviewBlob,
     bands,
     audioLevel,
     isSilent,
@@ -2220,6 +2363,7 @@ function AudioDraftPlayer({
   onDiscard,
   onRetry,
   onResume,
+  pausedPreview = null,
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
@@ -2257,10 +2401,33 @@ function AudioDraftPlayer({
       role: "group",
       "aria-label": "Audio grabado",
       children: [
-        isPaused ? (
-          // Paused recording: no blob exists yet (RecordRTC only yields it on
-          // stop), so there is nothing to play — show an honest status instead
-          // of a dead control: pulsing dot + recorded-so-far time.
+        isPaused && pausedPreview ? (
+          // Paused with the recorded-so-far WAV in hand: play it back through
+          // the SAME primitive the TTS player uses. The pulsing dot keeps
+          // signalling that the recording session is still open.
+          /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx13(
+              "span",
+              {
+                className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
+                "aria-hidden": "true"
+              }
+            ),
+            /* @__PURE__ */ jsx13(
+              RichAudioPlayer,
+              {
+                source: pausedPreview,
+                className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
+                buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
+                iconClassName: "w-4 h-4",
+                progressClassName: "flex-1 min-w-0 h-1 accent-amber-400 cursor-pointer disabled:cursor-not-allowed"
+              }
+            ),
+            /* @__PURE__ */ jsx13("span", { className: "hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0", children: "En pausa" })
+          ] })
+        ) : isPaused ? (
+          // Paused but the preview WAV is still being spliced (or the consumer
+          // didn't wire one): honest status, never a dead play control.
           /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
             /* @__PURE__ */ jsx13(
               "span",
@@ -2373,6 +2540,7 @@ export {
   isTerminal,
   makeArtifactId,
   makeRecorder,
+  mergeWavBlobs,
   normalizeLevels,
   resampleLevels,
   useAudioAnalysis,

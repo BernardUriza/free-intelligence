@@ -688,6 +688,9 @@ interface UseDurableRecordingOptions {
 interface UseDurableRecordingReturn {
     artifact: AudioArtifact | null;
     recordingTime: number;
+    /** Everything recorded so far, available while state === 'paused' (null
+     * otherwise). A complete playable WAV — feed it to a player as a preview. */
+    pausedPreviewBlob: Blob | null;
     bands: number[];
     audioLevel: number;
     isSilent: boolean;
@@ -758,10 +761,23 @@ interface AudioDraftPlayerProps {
     /** Resume a paused recording. When provided, a Resume button replaces the
      * primary action (the user hasn't finished recording yet). */
     onResume?: () => void;
+    /** Everything recorded so far, available while paused (segmented pause).
+     * When set, the paused row plays it back through RichAudioPlayer. */
+    pausedPreview?: Blob | null;
     /** Label for the primary action button (default: "Transcribir"). */
     primaryActionLabel?: string;
     className?: string;
 }
-declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
+declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, pausedPreview, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
 
-export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };
+/**
+ * Concatenate same-format PCM WAV blobs into one WAV.
+ *
+ * A single segment is returned as-is (no parse, no copy) — the common case
+ * when the user never paused. Throws if segments disagree on sample rate,
+ * channels, or bit depth: that would splice garbage, and the recorder pins
+ * one format for the whole session, so a mismatch is a bug upstream.
+ */
+declare function mergeWavBlobs(blobs: Blob[]): Promise<Blob>;
+
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };

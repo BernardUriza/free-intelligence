@@ -234,7 +234,8 @@ export function Og118AgentChat() {
   // a "clear transcribed" action are all provided by the fi-glass primitive.
   // B3-VOICE-FIGLASS-10: two draft modes:
   // 1. PAUSED RECORDING — the active useDurableRecording artifact in 'paused'
-  //    state (no blob yet). Shows the draft player with waveform + Reanudar.
+  //    state. Segmented pause (FIGLASS-18) yields the recorded-so-far WAV as
+  //    pausedPreviewBlob, so the draft plays it back + Reanudar.
   // 2. SAVED DRAFT — the most recent queue artifact that hasn't been acted on
   //    (queued/stopping/transcribing/uploading/failed). Shows the full player.
   const pausedRecordingArtifact =
@@ -254,6 +255,7 @@ export function Og118AgentChat() {
   const audioDraftPlayer = pausedRecordingArtifact ? (
     <AudioDraftPlayer
       artifact={pausedRecordingArtifact}
+      pausedPreview={recording.pausedPreviewBlob}
       onResume={recording.resumeRecording}
       onPrimary={() => { void recording.stopRecording().then(() => queue.reload()); }}
       onDiscard={() => { recording.cancelRecording(); }}

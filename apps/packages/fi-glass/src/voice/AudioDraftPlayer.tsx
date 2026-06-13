@@ -18,9 +18,13 @@
 // mini-player: static decorative bars stretched edge-to-edge under the fluid
 // column cap, the paused state showed a dead disabled pseudo-play button, and
 // the duration read "--:--". Playback is now RichAudioPlayer — the exact
-// primitive TTS uses (skip ±10s, scrubber, mm:ss readout) — and the paused
-// state is an honest indicator (pulsing dot + recorded time + Resume), because
-// RecordRTC cannot hand out a partial blob mid-recording.
+// primitive TTS uses (skip ±10s, scrubber, mm:ss readout).
+//
+// B3-VOICE-FIGLASS-18: the paused state plays back everything recorded so far.
+// Segmented pause (useDurableRecording) yields a complete WAV at each pause,
+// passed in as `pausedPreview`; while it is being spliced (or when the consumer
+// doesn't provide one) the paused row falls back to the honest indicator
+// (pulsing dot + recorded time + Resume) — never a dead play control.
 
 import { useState, useEffect } from 'react';
 import { Play, Trash2, Loader2, RotateCcw, ArrowUp } from 'lucide-react';
@@ -42,6 +46,9 @@ export interface AudioDraftPlayerProps {
   /** Resume a paused recording. When provided, a Resume button replaces the
    * primary action (the user hasn't finished recording yet). */
   onResume?: () => void;
+  /** Everything recorded so far, available while paused (segmented pause).
+   * When set, the paused row plays it back through RichAudioPlayer. */
+  pausedPreview?: Blob | null;
   /** Label for the primary action button (default: "Transcribir"). */
   primaryActionLabel?: string;
   className?: string;
@@ -54,6 +61,7 @@ export function AudioDraftPlayer({
   onDiscard,
   onRetry,
   onResume,
+  pausedPreview = null,
   primaryActionLabel = 'Transcribir',
   className = '',
 }: AudioDraftPlayerProps) {
@@ -96,10 +104,29 @@ export function AudioDraftPlayer({
       role="group"
       aria-label="Audio grabado"
     >
-      {isPaused ? (
-        // Paused recording: no blob exists yet (RecordRTC only yields it on
-        // stop), so there is nothing to play — show an honest status instead
-        // of a dead control: pulsing dot + recorded-so-far time.
+      {isPaused && pausedPreview ? (
+        // Paused with the recorded-so-far WAV in hand: play it back through
+        // the SAME primitive the TTS player uses. The pulsing dot keeps
+        // signalling that the recording session is still open.
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span
+            className="fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"
+            aria-hidden="true"
+          />
+          <RichAudioPlayer
+            source={pausedPreview}
+            className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
+            buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+            iconClassName="w-4 h-4"
+            progressClassName="flex-1 min-w-0 h-1 accent-amber-400 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <span className="hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0">
+            En pausa
+          </span>
+        </div>
+      ) : isPaused ? (
+        // Paused but the preview WAV is still being spliced (or the consumer
+        // didn't wire one): honest status, never a dead play control.
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <span
             className="fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"
