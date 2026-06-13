@@ -729,13 +729,16 @@ interface AudioQueuePanelProps {
     className?: string;
     /** Privacy notice text. Defaults to a generic local-storage notice. */
     privacyNotice?: string;
+    /** How long the privacy notice stays visible, in ms. 0 keeps it forever.
+     * Default 35s — it is recurring info, not a warning the user must dismiss. */
+    privacyNoticeMs?: number;
     /** Max visible items before scroll */
     maxVisible?: number;
     /** Artifact ids to hide from the panel (e.g. the active draft shown inline
      * via AudioDraftPlayer, so it is not duplicated in the backlog list). */
     excludeIds?: string[];
 }
-declare function AudioQueuePanel({ queue, className, privacyNotice, maxVisible, excludeIds, }: AudioQueuePanelProps): react.JSX.Element | null;
+declare function AudioQueuePanel({ queue, className, privacyNotice, privacyNoticeMs, maxVisible, excludeIds, }: AudioQueuePanelProps): react.JSX.Element | null;
 
 interface AudioQueueItemProps {
     artifact: AudioArtifact;

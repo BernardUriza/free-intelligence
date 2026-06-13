@@ -464,7 +464,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState11, useRef as useRef7, useEffect as useEffect9 } from "react";
+import { useState as useState12, useRef as useRef7, useEffect as useEffect10 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 
@@ -835,7 +835,8 @@ import { useState as useState7, useRef as useRef6, useCallback as useCallback5, 
 import { useState as useState8, useEffect as useEffect7, useCallback as useCallback6 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect8, useState as useState10 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState9, useCallback as useCallback7 } from "react";
@@ -856,7 +857,7 @@ import { jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
 import { jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState10, useEffect as useEffect8 } from "react";
+import { useState as useState11, useEffect as useEffect9 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
 
@@ -890,10 +891,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState11(false);
+  const [overflowOpen, setOverflowOpen] = useState12(false);
   const overflowButtonRef = useRef7(null);
-  const [dropdownPosition, setDropdownPosition] = useState11({ top: 0, left: 0 });
-  useEffect9(() => {
+  const [dropdownPosition, setDropdownPosition] = useState12({ top: 0, left: 0 });
+  useEffect10(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
