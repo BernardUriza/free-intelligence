@@ -45,6 +45,7 @@ export function AudioQueuePanel({
     transcribeArtifact,
     retryTranscription,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     getPlaybackUrl,
   } = queue;
@@ -59,7 +60,10 @@ export function AudioQueuePanel({
   }, [privacyNoticeMs]);
 
   const visible = artifacts.filter(
-    (a) => a.state !== 'deleted' && !excludeIds.includes(a.id),
+    (a) =>
+      a.state !== 'deleted' &&
+      a.state !== 'archived' && // used/sent — hidden, kept until cleared
+      !excludeIds.includes(a.id),
   );
   const hasTranscribed = visible.some((a) => a.state === 'transcribed');
   // The header describes what the list SHOWS, so it must sum the same set.
@@ -117,6 +121,7 @@ export function AudioQueuePanel({
             onTranscribe={transcribeArtifact}
             onRetry={retryTranscription}
             onDelete={deleteArtifact}
+            onArchive={archiveArtifact}
             onGetPlaybackUrl={getPlaybackUrl}
           />
         ))}

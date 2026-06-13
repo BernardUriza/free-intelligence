@@ -275,7 +275,10 @@ export function Og118AgentChat() {
   ) : null;
 
   const backlogCount = queue.artifacts.filter(
-    (a) => a.state !== 'deleted' && a.id !== draftArtifact?.id,
+    (a) =>
+      a.state !== 'deleted' &&
+      a.state !== 'archived' && // sent-to-chat: hidden from the backlog
+      a.id !== draftArtifact?.id,
   ).length;
   const audioQueuePanel = backlogCount > 0 ? (
     <AudioQueuePanel

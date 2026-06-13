@@ -844,6 +844,7 @@ import {
   Mic as Mic3,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle as AlertCircle3,
   Loader2 as Loader28,
   Play as Play4,

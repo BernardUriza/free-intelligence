@@ -41,6 +41,7 @@ function makeQueue(artifacts: AudioArtifact[]): UseAudioQueueReturn {
     retryTranscription: vi.fn(),
     getPlaybackUrl: vi.fn(async () => null),
     deleteArtifact: vi.fn(),
+    archiveArtifact: vi.fn(),
     clearTranscribed: vi.fn(),
     reload: vi.fn(),
   } as unknown as UseAudioQueueReturn;
@@ -59,6 +60,42 @@ describe('<AudioQueuePanel> header', () => {
     expect(container.textContent).toContain('1 audio');
     expect(container.textContent).toContain('100.0 KB');
     expect(container.textContent).not.toContain('0 B');
+  });
+});
+
+// B3-VOICE-FIGLASS-19 — archived ("sent to chat") artifacts are hidden
+describe('<AudioQueuePanel> archived artifacts', () => {
+  it('hides archived items from the list, count and bytes', () => {
+    const { container } = render(
+      <AudioQueuePanel
+        queue={makeQueue([
+          makeArtifact({ id: 't1' }),
+          makeArtifact({ id: 'ar1', state: 'archived', size: 999999 }),
+        ])}
+      />,
+    );
+    expect(container.textContent).toContain('1 audio');
+    expect(container.textContent).toContain('100.0 KB');
+    expect(container.textContent).not.toContain('Enviado');
+  });
+
+  it('renders nothing when every artifact is archived', () => {
+    const { container } = render(
+      <AudioQueuePanel
+        queue={makeQueue([makeArtifact({ state: 'archived' })])}
+      />,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('offers "Marcar como enviado al chat" on transcribed items and wires archiveArtifact', () => {
+    const queue = makeQueue([makeArtifact({ id: 't1' })]);
+    const { container } = render(<AudioQueuePanel queue={queue} />);
+    const btn = container.querySelector('.fi-audio-item-archive') as HTMLButtonElement;
+    expect(btn).toBeInTheDocument();
+    expect(btn.getAttribute('aria-label')).toBe('Marcar como enviado al chat');
+    act(() => { btn.click(); });
+    expect(queue.archiveArtifact).toHaveBeenCalledWith('t1');
   });
 });
 

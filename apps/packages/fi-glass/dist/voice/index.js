@@ -1529,10 +1529,10 @@ function makeArtifactId() {
   return `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 function isPending(a) {
-  return a.state !== "transcribed" && a.state !== "deleted";
+  return a.state !== "transcribed" && a.state !== "archived" && a.state !== "deleted";
 }
 function isTerminal(a) {
-  return a.state === "transcribed" || a.state === "deleted";
+  return a.state === "transcribed" || a.state === "archived" || a.state === "deleted";
 }
 function artifactLabel(state) {
   const map = {
@@ -1544,6 +1544,7 @@ function artifactLabel(state) {
     uploading: "Subiendo",
     transcribing: "Transcribiendo",
     transcribed: "Transcrito",
+    archived: "Enviado",
     failed: "Fall\xF3",
     deleted: "Eliminado"
   };
@@ -1770,9 +1771,7 @@ function useDurableRecording(opts) {
   }, [artifact]);
   useEffect5(() => {
     store.list().then((stored) => {
-      const pending = stored.filter(
-        (a) => a.state !== "transcribed" && a.state !== "deleted"
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       setIsAtCapacity(
         pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
@@ -1825,9 +1824,7 @@ function useDurableRecording(opts) {
     setIsStarting(true);
     try {
       const stored = await store.list();
-      const pending = stored.filter(
-        (a) => a.state !== "transcribed" && a.state !== "deleted"
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
         setIsAtCapacity(true);
@@ -2119,10 +2116,20 @@ function useAudioQueue(opts) {
     },
     [store]
   );
+  const archiveArtifact = useCallback5(
+    async (id) => {
+      const a = artifacts.find((x) => x.id === id);
+      if (!a || a.state !== "transcribed") return;
+      patchLocal(id, { state: "archived" });
+      await store.updateMeta(id, { state: "archived" });
+    },
+    [artifacts, store, patchLocal]
+  );
   const clearTranscribed = useCallback5(async () => {
-    const toDelete = artifacts.filter((a) => a.state === "transcribed");
+    const used = (a) => a.state === "transcribed" || a.state === "archived";
+    const toDelete = artifacts.filter(used);
     await Promise.all(toDelete.map((a) => store.delete(a.id)));
-    setArtifacts((prev) => prev.filter((a) => a.state !== "transcribed"));
+    setArtifacts((prev) => prev.filter((a) => !used(a)));
   }, [artifacts, store]);
   const reload = useCallback5(async () => {
     setIsLoading(true);
@@ -2137,6 +2144,7 @@ function useAudioQueue(opts) {
     retryTranscription,
     getPlaybackUrl,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     reload
   };
@@ -2152,6 +2160,7 @@ import {
   Mic as Mic3,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle as AlertCircle3,
   Loader2 as Loader28,
   Play as Play4,
@@ -2185,6 +2194,7 @@ function AudioQueueItem({
   onTranscribe,
   onRetry,
   onDelete,
+  onArchive,
   onGetPlaybackUrl,
   className = ""
 }) {
@@ -2268,6 +2278,16 @@ function AudioQueueItem({
               children: /* @__PURE__ */ jsx11(RotateCcw2, { className: "w-3.5 h-3.5" })
             }
           ),
+          artifact.state === "transcribed" && onArchive && /* @__PURE__ */ jsx11(
+            "button",
+            {
+              onClick: () => onArchive(artifact.id),
+              className: "fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors",
+              "aria-label": "Marcar como enviado al chat",
+              title: "Marcar como enviado al chat",
+              children: /* @__PURE__ */ jsx11(CheckCheck, { className: "w-3.5 h-3.5" })
+            }
+          ),
           onDelete && artifact.state !== "recording" && artifact.state !== "paused" && /* @__PURE__ */ jsx11(
             "button",
             {
@@ -2302,6 +2322,7 @@ function AudioQueuePanel({
     transcribeArtifact,
     retryTranscription,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     getPlaybackUrl
   } = queue;
@@ -2312,7 +2333,8 @@ function AudioQueuePanel({
     return () => clearTimeout(t);
   }, [privacyNoticeMs]);
   const visible = artifacts.filter(
-    (a) => a.state !== "deleted" && !excludeIds.includes(a.id)
+    (a) => a.state !== "deleted" && a.state !== "archived" && // used/sent — hidden, kept until cleared
+    !excludeIds.includes(a.id)
   );
   const hasTranscribed = visible.some((a) => a.state === "transcribed");
   const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
@@ -2357,6 +2379,7 @@ function AudioQueuePanel({
             onTranscribe: transcribeArtifact,
             onRetry: retryTranscription,
             onDelete: deleteArtifact,
+            onArchive: archiveArtifact,
             onGetPlaybackUrl: getPlaybackUrl
           },
           artifact.id
