@@ -8,6 +8,9 @@
  * 3. Mic stream released BEFORE store.put (even when store throws).
  * 4. cancelRecording → artifact cleared, mic released.
  * 5. pauseRecording / resumeRecording → state transitions without losing artifact id.
+ * 6. Segmented pause (B3-VOICE-FIGLASS-18): pause yields a playable preview of
+ *    everything recorded so far; resume clears it; stop splices all segments
+ *    into one queued WAV.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -17,24 +20,47 @@ import { useDurableRecording } from './useDurableRecording';
 
 // ---------------------------------------------------------------------------
 // RecordRTC mock (hoisted — must be before any import that triggers the module)
+// Each instance yields a VALID minimal WAV: segmented pause splices segments
+// with mergeWavBlobs, which parses real RIFF headers.
 // ---------------------------------------------------------------------------
 vi.mock('recordrtc', () => {
-  const stopCbs: (() => void)[] = [];
-  let shouldCallStop = true;
+  let instanceCount = 0;
+
+  function makeFakeWav(seq: number): Blob {
+    const pcm = new Uint8Array([seq, seq, seq, seq]);
+    const header = new ArrayBuffer(44);
+    const view = new DataView(header);
+    const writeFourCC = (offset: number, s: string) => {
+      for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
+    };
+    writeFourCC(0, 'RIFF');
+    view.setUint32(4, 36 + pcm.byteLength, true);
+    writeFourCC(8, 'WAVE');
+    writeFourCC(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 16000, true);
+    view.setUint32(28, 32000, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeFourCC(36, 'data');
+    view.setUint32(40, pcm.byteLength, true);
+    return new Blob([header, pcm], { type: 'audio/wav' });
+  }
 
   class FakeRTC {
     static StereoAudioRecorder = class {};
     private blob: Blob;
 
     constructor(_stream: MediaStream, _opts: unknown) {
-      this.blob = new Blob(['wav-data'], { type: 'audio/wav' });
+      this.blob = makeFakeWav(++instanceCount);
     }
     startRecording() {}
     pauseRecording() {}
     resumeRecording() {}
     stopRecording(cb: () => void) {
-      stopCbs.push(cb);
-      if (shouldCallStop) cb();
+      cb();
     }
     getBlob() {
       return this.blob;
@@ -225,6 +251,105 @@ describe('useDurableRecording — pause / resume', () => {
     // a real duration instead of "--:--" (it used to be written only on stop).
     expect(result.current.artifact?.durationMs).toBeTypeOf('number');
     expect(result.current.artifact?.durationMs).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('useDurableRecording — segmented pause (B3-VOICE-FIGLASS-18)', () => {
+  it('pause exposes a playable preview of everything recorded so far', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    expect(result.current.pausedPreviewBlob).toBeNull();
+
+    await act(async () => { result.current.pauseRecording(); });
+
+    expect(result.current.artifact?.state).toBe('paused');
+    expect(result.current.pausedPreviewBlob).toBeInstanceOf(Blob);
+    expect(result.current.pausedPreviewBlob!.size).toBeGreaterThan(0);
+    expect(result.current.pausedPreviewBlob!.type).toBe('audio/wav');
+  });
+
+  it('keeps the mic stream alive across pause (resume needs it)', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+
+    expect(trackStopCalls).toBe(0);
+  });
+
+  it('resume clears the preview', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+    expect(result.current.pausedPreviewBlob).not.toBeNull();
+
+    await act(async () => { result.current.resumeRecording(); });
+
+    expect(result.current.artifact?.state).toBe('recording');
+    expect(result.current.pausedPreviewBlob).toBeNull();
+  });
+
+  it('pause → resume → stop splices both segments into one queued WAV', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+    await act(async () => { result.current.resumeRecording(); });
+
+    let returned: unknown;
+    await act(async () => { returned = await result.current.stopRecording(); });
+
+    expect(result.current.artifact?.state).toBe('queued');
+    expect(returned).not.toBeNull();
+    expect(store.put).toHaveBeenCalledOnce();
+    const saved = (store.put as ReturnType<typeof vi.fn>).mock.calls[0][0] as {
+      blob: Blob;
+    };
+    // Two 4-byte-PCM segments spliced: 44-byte header + 8 bytes of PCM.
+    expect(saved.blob.size).toBe(44 + 8);
+    expect(saved.blob.type).toBe('audio/wav');
+  });
+
+  it('skips the preview (honest fallback) when segments exceed the per-item cap', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() =>
+      useDurableRecording({
+        store,
+        policy: {
+          maxItems: 10,
+          maxBytes: 100 * 1024 * 1024,
+          maxBytesPerItem: 10, // below the 48-byte fake segment
+        },
+      }),
+    );
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+
+    expect(result.current.artifact?.state).toBe('paused');
+    expect(result.current.pausedPreviewBlob).toBeNull();
+  });
+
+  it('stop while paused saves the already-collected segment', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() => useDurableRecording({ store }));
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+
+    let returned: unknown;
+    await act(async () => { returned = await result.current.stopRecording(); });
+
+    expect(result.current.artifact?.state).toBe('queued');
+    expect(returned).not.toBeNull();
+    expect(result.current.pausedPreviewBlob).toBeNull();
+    expect(store.put).toHaveBeenCalledOnce();
   });
 });
 

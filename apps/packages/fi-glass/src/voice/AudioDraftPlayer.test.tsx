@@ -9,9 +9,11 @@
  *  - a playable draft renders the rich player (skip ±10s + scrubber), not
  *    decorative bars;
  *  - the playback URL is resolved per artifact and revoked on unmount;
- *  - a PAUSED recording shows an honest status (recorded time + "Grabación en
- *    pausa" + Resume) with NO dead play control and NO player (RecordRTC has
- *    no partial blob mid-recording);
+ *  - a PAUSED recording with a pausedPreview (segmented pause, FIGLASS-18)
+ *    plays everything recorded so far through the SAME rich player;
+ *  - a PAUSED recording WITHOUT a preview (still splicing / not wired) falls
+ *    back to an honest status (recorded time + "Grabación en pausa" + Resume)
+ *    with NO dead play control;
  *  - state transitions (saving/busy/failed) stay visible and recoverable.
  */
 
@@ -125,10 +127,50 @@ describe('<AudioDraftPlayer> playable draft (B3-VOICE-FIGLASS-17)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Paused recording → honest status, no dead controls (SSR)
+// Paused recording with a preview → plays back the recorded-so-far audio
 // ---------------------------------------------------------------------------
 
-describe('<AudioDraftPlayer> paused recording (B3-VOICE-FIGLASS-17)', () => {
+describe('<AudioDraftPlayer> paused with preview (B3-VOICE-FIGLASS-18)', () => {
+  const preview = new Blob(['wav'], { type: 'audio/wav' });
+  const pausedWithPreviewHtml = renderToStaticMarkup(
+    <AudioDraftPlayer
+      artifact={makeArtifact({ state: 'paused', size: 0, durationMs: 9835 })}
+      pausedPreview={preview}
+      onResume={() => {}}
+    />,
+  );
+
+  it('renders the rich player primitive for the recorded-so-far audio', () => {
+    expect(pausedWithPreviewHtml).toContain('data-fi-audio-player="rich"');
+    expect(pausedWithPreviewHtml).toContain('data-fi-audio-progress');
+  });
+
+  it('keeps signalling the open session: pulsing dot + Resume', () => {
+    expect(pausedWithPreviewHtml).toContain('fi-audio-draft-pauseddot');
+    expect(pausedWithPreviewHtml).toContain('aria-label="Reanudar grabación"');
+  });
+
+  it('loads the preview blob into the player on mount (jsdom)', async () => {
+    const createObjectURL = vi.fn(() => 'blob:preview-url');
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
+    await act(async () => {
+      render(
+        <AudioDraftPlayer
+          artifact={makeArtifact({ state: 'paused', size: 0 })}
+          pausedPreview={preview}
+          onResume={() => {}}
+        />,
+      );
+    });
+    expect(createObjectURL).toHaveBeenCalledWith(preview);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Paused recording without a preview → honest status, no dead controls (SSR)
+// ---------------------------------------------------------------------------
+
+describe('<AudioDraftPlayer> paused without preview (B3-VOICE-FIGLASS-17/18)', () => {
   const pausedHtml = renderToStaticMarkup(
     <AudioDraftPlayer
       artifact={makeArtifact({ state: 'paused', size: 0, durationMs: 9835 })}
@@ -146,7 +188,7 @@ describe('<AudioDraftPlayer> paused recording (B3-VOICE-FIGLASS-17)', () => {
     expect(pausedHtml).toContain('aria-label="Reanudar grabación"');
   });
 
-  it('renders NO player and NO dead play control while paused', () => {
+  it('renders NO player and NO dead play control while the preview is absent', () => {
     expect(pausedHtml).not.toContain('data-fi-audio-player');
     expect(pausedHtml).not.toContain('fi-audio-draft-play"');
   });

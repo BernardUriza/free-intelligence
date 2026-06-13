@@ -111,3 +111,7 @@ export {
   AudioDraftPlayer,
   type AudioDraftPlayerProps,
 } from './AudioDraftPlayer';
+
+// B3-VOICE-FIGLASS-18: segmented-pause WAV splicing. Exposed because any shell
+// that records same-format PCM WAV in stretches can reuse the merge.
+export { mergeWavBlobs } from './wav';
