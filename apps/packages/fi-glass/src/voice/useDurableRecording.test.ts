@@ -316,6 +316,26 @@ describe('useDurableRecording — segmented pause (B3-VOICE-FIGLASS-18)', () => 
     expect(saved.blob.type).toBe('audio/wav');
   });
 
+  it('skips the preview (honest fallback) when segments exceed the per-item cap', async () => {
+    const store = makeFakeStore(false);
+    const { result } = renderHook(() =>
+      useDurableRecording({
+        store,
+        policy: {
+          maxItems: 10,
+          maxBytes: 100 * 1024 * 1024,
+          maxBytesPerItem: 10, // below the 48-byte fake segment
+        },
+      }),
+    );
+
+    await act(async () => { await result.current.startRecording(); });
+    await act(async () => { result.current.pauseRecording(); });
+
+    expect(result.current.artifact?.state).toBe('paused');
+    expect(result.current.pausedPreviewBlob).toBeNull();
+  });
+
   it('stop while paused saves the already-collected segment', async () => {
     const store = makeFakeStore(false);
     const { result } = renderHook(() => useDurableRecording({ store }));

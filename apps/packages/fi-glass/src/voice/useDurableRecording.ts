@@ -270,6 +270,14 @@ export function useDurableRecording(
       recorder.stopRecording(() => {
         const segment = recorder.getBlob();
         if (segment && segment.size > 0) segmentsRef.current.push(segment);
+        // Long recordings: the splice doubles the bytes in memory. Past the
+        // per-item cap the final stop will reject the audio anyway, so skip
+        // the preview (honest fallback) instead of building a doomed blob.
+        const totalBytes = segmentsRef.current.reduce((s, b) => s + b.size, 0);
+        if (totalBytes > policy.maxBytesPerItem) {
+          resolve();
+          return;
+        }
         void mergeWavBlobs(segmentsRef.current)
           .then((preview) => {
             // Only surface the preview if we are still paused — the user may
@@ -285,7 +293,7 @@ export function useDurableRecording(
           .finally(resolve);
       });
     });
-  }, [stopTimer, updateArtifact]);
+  }, [stopTimer, updateArtifact, policy]);
 
   const resumeRecording = useCallback(() => {
     if (artifactRef.current?.state !== 'paused') return;

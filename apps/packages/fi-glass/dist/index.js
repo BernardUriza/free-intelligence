@@ -2338,6 +2338,11 @@ function useDurableRecording(opts) {
       recorder.stopRecording(() => {
         const segment = recorder.getBlob();
         if (segment && segment.size > 0) segmentsRef.current.push(segment);
+        const totalBytes = segmentsRef.current.reduce((s, b) => s + b.size, 0);
+        if (totalBytes > policy.maxBytesPerItem) {
+          resolve();
+          return;
+        }
         void mergeWavBlobs(segmentsRef.current).then((preview) => {
           if (artifactRef.current?.state === "paused") {
             setPausedPreviewBlob(preview);
@@ -2346,7 +2351,7 @@ function useDurableRecording(opts) {
         }).finally(resolve);
       });
     });
-  }, [stopTimer, updateArtifact]);
+  }, [stopTimer, updateArtifact, policy]);
   const resumeRecording = useCallback5(() => {
     if (artifactRef.current?.state !== "paused") return;
     setPausedPreviewBlob(null);
