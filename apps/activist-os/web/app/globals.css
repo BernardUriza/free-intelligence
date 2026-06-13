@@ -45,18 +45,45 @@ body {
     radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--fi-accent), transparent 92%), transparent 70%);
 }
 
+/* Dampened backdrop: lower brightness overall, and a mask gradient that
+   quiets the field behind the reading surfaces (center) — the background
+   accompanies, it does not interrupt. */
 #synapse {
   position: fixed; inset: 0; z-index: -1;
-  pointer-events: none; opacity: .9;
+  pointer-events: none; opacity: .6;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, rgba(0,0,0,.4) 0%, rgba(0,0,0,1) 78%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, rgba(0,0,0,.4) 0%, rgba(0,0,0,1) 78%);
 }
 
-/* ── Glass primitives ─────────────────────────────────────────────── */
+/* ── Glass primitives — three surface levels ──────────────────────────
+   Base (level 2): supporting cards. --primary (level 1): the surfaces the
+   demo is about. --critical: the Safety Gate. --ghost (level 3): asides. */
 .fi-glass-panel {
-  background: var(--fi-surface);
-  border: 1px solid var(--fi-border);
-  backdrop-filter: blur(var(--fi-blur));
-  -webkit-backdrop-filter: blur(var(--fi-blur));
+  background: rgba(8, 14, 22, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: var(--fi-radius-lg);
+}
+.fi-glass-panel--primary {
+  background: rgba(8, 14, 22, 0.78);
+  border-color: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+}
+.fi-glass-panel--critical {
+  background: rgba(9, 15, 24, 0.82);
+  border-color: color-mix(in srgb, var(--fi-veto), transparent 72%);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.30);
+}
+.fi-glass-panel--ghost {
+  background: rgba(8, 14, 22, 0.42);
+  border-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .fi-agent-node {
@@ -163,5 +190,38 @@ body {
 .panel-title {
   font-family: var(--fi-font-mono);
   font-size: .7rem; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+
+/* ── Semantic status bar — one labeled strip instead of scattered badges ── */
+.status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.1rem; }
+.status-item { display: inline-flex; align-items: center; gap: .45rem; }
+.status-key {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; font-weight: 500; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+
+/* ── Veto money shot — draft → blocked reason → approved rewrite, with a
+   visible revision-loop connector between the two stages ──────────────── */
+.stage-key {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+.veto-stage { padding: .9rem 1.05rem; }
+.veto-stage .stage-text { font-size: .9rem; }
+.veto-loop-connector {
+  display: flex; align-items: center; gap: .55rem;
+  padding-left: 1.05rem;
+}
+.veto-loop-connector::before {
+  content: ""; flex: none; width: 2px; height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(var(--fi-veto), var(--fi-approved));
+}
+.veto-loop-connector span {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; letter-spacing: .08em;
   text-transform: uppercase; color: var(--fi-faint);
 }

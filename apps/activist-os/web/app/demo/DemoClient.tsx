@@ -67,7 +67,7 @@ function handoffFromEvent(e: WorkflowStreamEvent, index: number): Handoff | null
 
 function ConversationSurface({ handoffs, roomId }: { handoffs: Handoff[]; roomId: string | null }) {
   return (
-    <section className="fi-glass-panel p-4 space-y-2.5">
+    <section className="fi-glass-panel fi-glass-panel--primary p-4 space-y-2.5">
       <div className="flex items-center gap-2 mb-1">
         <p className="panel-title">Agent Conversation Surface</p>
         {roomId && <span className="fi-mono text-[0.65rem] ml-auto" style={{ color: 'var(--fi-faint)' }}>room {roomId}</span>}
@@ -174,18 +174,41 @@ export default function DemoClient() {
           <img src="/branding/emblem.png" alt="Activist OS" width={28} height={28} style={{ borderRadius: 6, opacity: 0.92 }} />
           Activist OS — Coordination Demo
         </h1>
-        <TransportBadge transport={history?.transport ?? 'local'} />
-        <SourceBadge state={source} />
-        <span className="fi-badge fi-badge--provenance">PROVENANCE</span>
-        {hasVirtual && <span className="fi-badge fi-badge--virtual">VIRTUAL REPORTER</span>}
         {(history || activeRunId) && <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>run {history?.run_id ?? activeRunId}</span>}
         {sseNote && <span className="fi-mono text-xs" style={{ color: 'var(--fi-safety)' }}>{sseNote}</span>}
         <span className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)' }}>{sourceLabel}</span>
       </header>
 
+      <div className="max-w-[1500px] mx-auto px-5 pb-4">
+        <div className="status-bar fi-glass-panel px-4 py-2.5" style={{ borderRadius: 'var(--fi-radius-md)' }}>
+          <span className="status-item">
+            <span className="status-key">Transport</span>
+            <TransportBadge transport={history?.transport ?? 'local'} />
+          </span>
+          <span className="status-item">
+            <span className="status-key">Mode</span>
+            <SourceBadge state={source} />
+          </span>
+          <span className="status-item">
+            <span className="status-key">Safety</span>
+            <span className="fi-badge fi-badge--provenance">VETO LOOP</span>
+          </span>
+          <span className="status-item">
+            <span className="status-key">Provenance</span>
+            <span className="fi-badge fi-badge--provenance">ON</span>
+          </span>
+          <span className="status-item">
+            <span className="status-key">Reporter</span>
+            {hasVirtual
+              ? <span className="fi-badge fi-badge--virtual">VIRTUAL</span>
+              : <span className="fi-badge fi-badge--local">IN-ROOM</span>}
+          </span>
+        </div>
+      </div>
+
       {!activeRunId && (
         <section className="max-w-[1500px] mx-auto px-5 pb-4">
-          <div className="fi-glass-panel p-4 flex flex-wrap items-center gap-3">
+          <div className="fi-glass-panel fi-glass-panel--primary p-4 flex flex-wrap items-center gap-3">
             <label className="panel-title" htmlFor="concern-input">Describe a civic concern</label>
             <input id="concern-input" type="text" value={concern} onChange={e => setConcern(e.target.value)}
               className="flex-1 min-w-[280px] bg-transparent rounded-lg px-3 py-2 text-sm outline-none"
@@ -234,7 +257,7 @@ export default function DemoClient() {
             <SafetyGateCard safety={history.artifacts.safety_review} />
             <CampaignPacketCard packet={history.artifacts.campaign_packet} evidence={history.artifacts.evidence_brief} />
             {history.artifacts.campaign_packet?.reporter_virtual && (
-              <div className="fi-glass-panel p-4 space-y-1">
+              <div className="fi-glass-panel fi-glass-panel--ghost p-4 space-y-1">
                 <p className="panel-title">Why a virtual reporter?</p>
                 <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>Reporter is virtualized to respect Band room participant limits while preserving the canonical workflow history.</p>
               </div>

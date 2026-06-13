@@ -18,7 +18,7 @@ function stepLabel(h: Handoff): string {
 
 export function CoordinationHistory({ handoffs }: { handoffs: Handoff[] }) {
   return (
-    <section className="fi-glass-panel p-4 space-y-2">
+    <section className="fi-glass-panel fi-glass-panel--primary p-4 space-y-2">
       <p className="panel-title mb-2">Coordination History</p>
       <div className="space-y-1.5">
         {handoffs.map(h => (
