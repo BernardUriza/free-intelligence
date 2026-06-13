@@ -1,10 +1,4 @@
-export type SourceState =
-  | 'LIVE API'
-  | 'MOCK FALLBACK'
-  | 'STARTING'
-  | 'STREAMING'
-  | 'ERROR'
-  | 'IDLE';
+export type SourceState = 'LIVE API' | 'MOCK FALLBACK' | 'STARTING' | 'STREAMING' | 'ERROR' | 'IDLE';
 
 const SOURCE_CLASS: Record<SourceState, string> = {
   'LIVE API': 'fi-badge fi-badge--approved',

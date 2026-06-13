@@ -1,8 +1,7 @@
-// Centralized API client for the Activist OS FastAPI backend.
-// All fetches to the API go through here — components never call fetch() directly.
-
-export const API_BASE =
+const API_BASE =
   process.env.NEXT_PUBLIC_ACTIVIST_API_URL ?? 'http://localhost:8000';
+
+export { API_BASE };
 
 export interface HealthFull {
   status: string;
@@ -66,6 +65,24 @@ export interface WorkflowHistory {
   handoffs: Handoff[];
 }
 
+export interface WorkflowStreamEvent {
+  event_type?: string;
+  agent?: string;
+  summary?: string;
+  handoff_ref?: string | null;
+  occurred_at?: string;
+  run_id?: string;
+  data?: unknown;
+}
+
+export function getWorkflowEventsUrl(runId: string, base: string = API_BASE): string {
+  return `${base}/workflow/${runId}/events`;
+}
+
+export function isStreamEnd(event: unknown): boolean {
+  return JSON.stringify(event).toLowerCase().includes('stream_end');
+}
+
 export async function getHealthFull(base: string = API_BASE): Promise<HealthFull> {
   const res = await fetch(`${base}/health/full`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`/health/full returned ${res.status}`);
@@ -92,26 +109,4 @@ export async function getWorkflowHistory(
   const res = await fetch(`${base}/workflow/${runId}/history`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`/history returned ${res.status}`);
   return res.json();
-}
-
-// ── SSE audit stream ────────────────────────────────────────────────
-
-export interface WorkflowStreamEvent {
-  event_type?: string;
-  agent?: string;
-  summary?: string;
-  handoff_ref?: string | null;
-  occurred_at?: string;
-  run_id?: string;
-  data?: unknown;
-}
-
-export function getWorkflowEventsUrl(runId: string, base: string = API_BASE): string {
-  return `${base}/workflow/${runId}/events`;
-}
-
-// The terminal sentinel the backend appends after the run settles. Casing
-// and shape are matched leniently — do not assume one serialization.
-export function isStreamEnd(event: unknown): boolean {
-  return JSON.stringify(event).toLowerCase().includes('stream_end');
 }

@@ -18,8 +18,6 @@ import { SafetyGateCard } from '@/components/demo/SafetyGateCard';
 import { CampaignPacketCard } from '@/components/demo/CampaignPacketCard';
 import { LiveEventLog } from '@/components/demo/LiveEventLog';
 
-// Reproducible mock — hand-written demo copy lives ONLY here, behind the
-// MOCK FALLBACK badge. The live API derives artifacts from real payloads.
 const MOCK_HISTORY: WorkflowHistory = {
   run_id: 'demo-mock-run',
   status: 'completed',
@@ -36,27 +34,9 @@ const MOCK_HISTORY: WorkflowHistory = {
     { index: 7, from_agent: 'reporter', to_agent: 'system', type: 'packet_ready', virtual: true, band_room_id: null, band_message_id: null },
   ],
   artifacts: {
-    evidence_brief: {
-      title: 'Restaurant X claims 100% compostable packaging, but local waste systems do not process it.',
-      summary: '3 claims verified — 2 usable in campaign, 4 sources with provenance tiers attached.',
-      claims_count: 3,
-      sources_count: 4,
-    },
-    safety_review: {
-      draft_text: 'Restaurant X is lying to its customers about eco-friendly packaging.',
-      veto_reason: 'defamation: unsupported accusation against a named target — blocked.',
-      rewritten_text: "Available evidence does not support the restaurant's 'compostable' claim under local disposal conditions.",
-      approved: true,
-      veto_observed: true,
-    },
-    campaign_packet: {
-      title: 'Campaign packet — compostable packaging claim',
-      summary: 'Assembled from 8 coordinated handoffs; safety audit log included (approved).',
-      outreach_assets_count: 3,
-      volunteer_tasks_count: 4,
-      provenance_items_count: 4,
-      reporter_virtual: true,
-    },
+    evidence_brief: { title: 'Restaurant X claims 100% compostable packaging, but local waste systems do not process it.', summary: '3 claims verified — 2 usable in campaign, 4 sources with provenance tiers attached.', claims_count: 3, sources_count: 4 },
+    safety_review: { draft_text: 'Restaurant X is lying to its customers about eco-friendly packaging.', veto_reason: 'defamation: unsupported accusation against a named target — blocked.', rewritten_text: "Available evidence does not support the restaurant's 'compostable' claim under local disposal conditions.", approved: true, veto_observed: true },
+    campaign_packet: { title: 'Campaign packet — compostable packaging claim', summary: 'Assembled from 8 coordinated handoffs; safety audit log included (approved).', outreach_assets_count: 3, volunteer_tasks_count: 4, provenance_items_count: 4, reporter_virtual: true },
   },
 };
 
@@ -70,37 +50,19 @@ const HANDOFF_BLURBS: Record<string, string> = {
   packet_ready: 'Campaign packet compiled — audit log included.',
 };
 
-const DEFAULT_CONCERN =
-  'Cafe Verde claims its packaging is compostable, but the local waste facility does not accept compostable packaging.';
-
+const DEFAULT_CONCERN = 'Cafe Verde claims its packaging is compostable, but the local waste facility does not accept compostable packaging.';
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function msgClass(h: Handoff): string {
-  return (
-    'msg' +
-    (h.type === 'safety_veto' ? ' msg--veto' : '') +
-    (h.type === 'safety_approved' ? ' msg--approved' : '') +
-    (h.virtual ? ' msg--virtual' : '')
-  );
+  return 'msg' + (h.type === 'safety_veto' ? ' msg--veto' : '') + (h.type === 'safety_approved' ? ' msg--approved' : '') + (h.virtual ? ' msg--virtual' : '');
 }
 
-// Derive a provisional handoff entry from a streamed handoff_sent audit event.
-// The summary format is "{from} → {to}: {type}". Parsed leniently — the final
-// render always comes from /history, this only feeds the live timeline.
 function handoffFromEvent(e: WorkflowStreamEvent, index: number): Handoff | null {
   if ((e.event_type ?? '').toLowerCase() !== 'handoff_sent') return null;
   const m = /([\w.]+)\s*(?:→|->)\s*([\w.]+)\s*:\s*([\w.]+)/.exec(e.summary ?? '');
   if (!m) return null;
   const clean = (s: string) => s.split('.').pop()!.toLowerCase();
-  return {
-    index,
-    from_agent: clean(m[1]),
-    to_agent: clean(m[2]),
-    type: clean(m[3]),
-    virtual: false,
-    band_room_id: null,
-    band_message_id: null,
-  };
+  return { index, from_agent: clean(m[1]), to_agent: clean(m[2]), type: clean(m[3]), virtual: false, band_room_id: null, band_message_id: null };
 }
 
 function ConversationSurface({ handoffs, roomId }: { handoffs: Handoff[]; roomId: string | null }) {
@@ -108,36 +70,18 @@ function ConversationSurface({ handoffs, roomId }: { handoffs: Handoff[]; roomId
     <section className="fi-glass-panel p-4 space-y-2.5">
       <div className="flex items-center gap-2 mb-1">
         <p className="panel-title">Agent Conversation Surface</p>
-        {roomId && (
-          <span className="fi-mono text-[0.65rem] ml-auto" style={{ color: 'var(--fi-faint)' }}>
-            room {roomId}
-          </span>
-        )}
+        {roomId && <span className="fi-mono text-[0.65rem] ml-auto" style={{ color: 'var(--fi-faint)' }}>room {roomId}</span>}
       </div>
       <div className="space-y-2.5">
         {handoffs.map(h => (
           <div key={h.index} className={msgClass(h)}>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="agent text-sm">{cap(h.from_agent)}</span>
-              {h.virtual ? (
-                <span className="fi-mono text-[0.65rem]" style={{ color: 'var(--fi-evidence)' }}>
-                  [virtual · backend event]
-                </span>
-              ) : (
-                <span className="mention">@{cap(h.to_agent)}</span>
-              )}
-              <span className="fi-mono text-[0.65rem] uppercase" style={{ color: 'var(--fi-faint)' }}>
-                {h.type}
-              </span>
-              {h.band_message_id && (
-                <span className="fi-mono text-[0.6rem]" style={{ color: 'var(--fi-faint)' }}>
-                  msg {h.band_message_id}
-                </span>
-              )}
+              {h.virtual ? <span className="fi-mono text-[0.65rem]" style={{ color: 'var(--fi-evidence)' }}>[virtual · backend event]</span> : <span className="mention">@{cap(h.to_agent)}</span>}
+              <span className="fi-mono text-[0.65rem] uppercase" style={{ color: 'var(--fi-faint)' }}>{h.type}</span>
+              {h.band_message_id && <span className="fi-mono text-[0.6rem]" style={{ color: 'var(--fi-faint)' }}>msg {h.band_message_id}</span>}
             </div>
-            <p className="text-sm mt-1" style={{ color: 'var(--fi-muted)' }}>
-              {HANDOFF_BLURBS[h.type] || h.summary || ''}
-            </p>
+            <p className="text-sm mt-1" style={{ color: 'var(--fi-muted)' }}>{HANDOFF_BLURBS[h.type] || h.summary || ''}</p>
           </div>
         ))}
       </div>
@@ -152,109 +96,49 @@ export default function DemoClient() {
 
   const [source, setSource] = useState<SourceState>(urlRunId ? 'STREAMING' : 'MOCK FALLBACK');
   const [history, setHistory] = useState<WorkflowHistory | null>(urlRunId ? null : MOCK_HISTORY);
-  const [sourceLabel, setSourceLabel] = useState(
-    urlRunId ? `streaming · ${apiBase}` : 'reproducible mock (pass ?run_id=… for a live run)',
-  );
+  const [sourceLabel, setSourceLabel] = useState(urlRunId ? `streaming · ${apiBase}` : 'reproducible mock (pass ?run_id=… for a live run)');
   const [concern, setConcern] = useState(DEFAULT_CONCERN);
-  const [startStatus, setStartStatus] = useState(
-    urlRunId ? '' : 'IDLE — mock shown until a workflow runs.',
-  );
+  const [startStatus, setStartStatus] = useState(urlRunId ? '' : 'IDLE — mock shown until a workflow runs.');
   const [starting, setStarting] = useState(false);
-  // Hide the start panel once a run owns the URL (deep link or just-started run).
   const [activeRunId, setActiveRunId] = useState<string | null>(urlRunId);
   const [errorDetail, setErrorDetail] = useState('');
   const [liveEvents, setLiveEvents] = useState<WorkflowStreamEvent[]>([]);
   const [sseNote, setSseNote] = useState('');
   const esRef = useRef<EventSource | null>(null);
 
-  const closeStream = useCallback(() => {
-    esRef.current?.close();
-    esRef.current = null;
-  }, []);
+  const closeStream = useCallback(() => { esRef.current?.close(); esRef.current = null; }, []);
+  const showLive = useCallback((data: WorkflowHistory, base: string) => { setHistory(data); setSource('LIVE API'); setSourceLabel(`live · ${base}`); }, []);
+  const showError = useCallback((base: string, detail: string) => { setSource('ERROR'); setSourceLabel(`error · ${base}`); setErrorDetail(detail); setHistory(null); }, []);
 
-  const showLive = useCallback((data: WorkflowHistory, base: string) => {
-    setHistory(data);
-    setSource('LIVE API');
-    setSourceLabel(`live · ${base}`);
-  }, []);
+  const finalize = useCallback(async (runId: string) => {
+    try { showLive(await getWorkflowHistory(runId, apiBase), apiBase); }
+    catch (err) { showError(apiBase, `Could not fetch run ${runId}: ${String(err)}`); }
+  }, [apiBase, showLive, showError]);
 
-  const showError = useCallback((base: string, detail: string) => {
-    setSource('ERROR');
-    setSourceLabel(`error · ${base}`);
-    setErrorDetail(detail);
-    setHistory(null);
-  }, []);
+  const pollFallback = useCallback(async (runId: string) => {
+    setSseNote('Live stream unavailable; using history polling.');
+    let data: WorkflowHistory | null = null;
+    for (let i = 0; i < 16; i++) {
+      try { data = await getWorkflowHistory(runId, apiBase); if (['completed','blocked','error'].includes(data.status)) break; } catch {}
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (data) showLive(data, apiBase); else showError(apiBase, `Run ${runId}: stream failed and history never became available.`);
+  }, [apiBase, showLive, showError]);
 
-  // Final render: one /history fetch after the stream closes (or as fallback).
-  const finalize = useCallback(
-    async (runId: string) => {
-      try {
-        showLive(await getWorkflowHistory(runId, apiBase), apiBase);
-      } catch (err) {
-        showError(apiBase, `Could not fetch run ${runId}: ${String(err)}`);
-      }
-    },
-    [apiBase, showLive, showError],
-  );
+  const openStream = useCallback((runId: string) => {
+    closeStream(); setLiveEvents([]); setSource('STREAMING'); setSourceLabel(`streaming · ${apiBase}`);
+    const es = new EventSource(getWorkflowEventsUrl(runId, apiBase));
+    esRef.current = es;
+    let gotEnd = false;
+    es.onmessage = ev => {
+      let parsed: WorkflowStreamEvent;
+      try { parsed = JSON.parse(ev.data); } catch { parsed = { data: ev.data }; }
+      if (isStreamEnd(parsed)) { gotEnd = true; es.close(); esRef.current = null; void finalize(runId); return; }
+      setLiveEvents(prev => [...prev, parsed]);
+    };
+    es.onerror = () => { es.close(); esRef.current = null; if (!gotEnd) void pollFallback(runId); };
+  }, [apiBase, closeStream, finalize, pollFallback]);
 
-  // Polling fallback — current behavior preserved for when SSE fails.
-  const pollFallback = useCallback(
-    async (runId: string) => {
-      setSseNote('Live stream unavailable; using history polling.');
-      let data: WorkflowHistory | null = null;
-      for (let i = 0; i < 16; i++) {
-        try {
-          data = await getWorkflowHistory(runId, apiBase);
-          if (['completed', 'blocked', 'error'].includes(data.status)) break;
-        } catch {
-          // run may not be registered yet
-        }
-        await new Promise(r => setTimeout(r, 500));
-      }
-      if (data) showLive(data, apiBase);
-      else showError(apiBase, `Run ${runId}: stream failed and history never became available.`);
-    },
-    [apiBase, showLive, showError],
-  );
-
-  // SSE-first: replayed events feed the live timeline; stream_end triggers
-  // the final /history render. ERROR only when both SSE and history fail.
-  const openStream = useCallback(
-    (runId: string) => {
-      closeStream();
-      setLiveEvents([]);
-      setSource('STREAMING');
-      setSourceLabel(`streaming · ${apiBase}`);
-      const es = new EventSource(getWorkflowEventsUrl(runId, apiBase));
-      esRef.current = es;
-      let gotEnd = false;
-      es.onmessage = ev => {
-        let parsed: WorkflowStreamEvent;
-        try {
-          parsed = JSON.parse(ev.data);
-        } catch {
-          parsed = { data: ev.data };
-        }
-        if (isStreamEnd(parsed)) {
-          gotEnd = true;
-          es.close();
-          esRef.current = null;
-          void finalize(runId);
-          return;
-        }
-        setLiveEvents(prev => [...prev, parsed]);
-      };
-      es.onerror = () => {
-        es.close();
-        esRef.current = null;
-        if (!gotEnd) void pollFallback(runId);
-      };
-    },
-    [apiBase, closeStream, finalize, pollFallback],
-  );
-
-  // Deep link: stream first; the backend replays a finished run's events and
-  // closes with stream_end, which lands the final /history render.
   useEffect(() => {
     if (!urlRunId) return;
     openStream(urlRunId);
@@ -263,32 +147,24 @@ export default function DemoClient() {
   }, [urlRunId]);
 
   async function handleStart() {
-    setStarting(true);
-    setSource('STARTING');
-    setStartStatus('Starting workflow…');
+    setStarting(true); setSource('STARTING'); setStartStatus('Starting workflow…');
     try {
       const { run_id } = await startWorkflow(concern.trim(), apiBase);
       const url = new URL(window.location.href);
       url.searchParams.set('run_id', run_id);
       window.history.replaceState(null, '', url);
-      setActiveRunId(run_id);
-      setStartStatus('');
+      setActiveRunId(run_id); setStartStatus('');
       openStream(run_id);
     } catch (err) {
       console.error('workflow start failed:', err);
-      setSource('ERROR');
-      setErrorDetail(String(err));
+      setSource('ERROR'); setErrorDetail(String(err));
       setStartStatus('Could not start live workflow. Check API URL and backend logs.');
-    } finally {
-      setStarting(false);
-    }
+    } finally { setStarting(false); }
   }
 
   const roomId = history?.handoffs.find(h => h.band_room_id)?.band_room_id ?? null;
   const hasVirtual = history?.handoffs.some(h => h.virtual) ?? false;
-  const liveHandoffs = liveEvents
-    .map((e, i) => handoffFromEvent(e, i))
-    .filter((h): h is Handoff => h !== null);
+  const liveHandoffs = liveEvents.map((e, i) => handoffFromEvent(e, i)).filter((h): h is Handoff => h !== null);
 
   return (
     <div className="min-h-screen">
@@ -302,42 +178,21 @@ export default function DemoClient() {
         <SourceBadge state={source} />
         <span className="fi-badge fi-badge--provenance">PROVENANCE</span>
         {hasVirtual && <span className="fi-badge fi-badge--virtual">VIRTUAL REPORTER</span>}
-        {(history || activeRunId) && (
-          <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>
-            run {history?.run_id ?? activeRunId}
-          </span>
-        )}
-        {sseNote && (
-          <span className="fi-mono text-xs" style={{ color: 'var(--fi-safety)' }}>{sseNote}</span>
-        )}
-        <span className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)' }}>
-          {sourceLabel}
-        </span>
+        {(history || activeRunId) && <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>run {history?.run_id ?? activeRunId}</span>}
+        {sseNote && <span className="fi-mono text-xs" style={{ color: 'var(--fi-safety)' }}>{sseNote}</span>}
+        <span className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)' }}>{sourceLabel}</span>
       </header>
 
       {!activeRunId && (
         <section className="max-w-[1500px] mx-auto px-5 pb-4">
           <div className="fi-glass-panel p-4 flex flex-wrap items-center gap-3">
             <label className="panel-title" htmlFor="concern-input">Describe a civic concern</label>
-            <input
-              id="concern-input"
-              type="text"
-              value={concern}
-              onChange={e => setConcern(e.target.value)}
+            <input id="concern-input" type="text" value={concern} onChange={e => setConcern(e.target.value)}
               className="flex-1 min-w-[280px] bg-transparent rounded-lg px-3 py-2 text-sm outline-none"
-              style={{ border: '1px solid var(--fi-border)', color: 'var(--fi-text)' }}
-            />
-            <button
-              onClick={handleStart}
-              disabled={starting}
+              style={{ border: '1px solid var(--fi-border)', color: 'var(--fi-text)' }} />
+            <button onClick={handleStart} disabled={starting}
               className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide cursor-pointer disabled:opacity-50"
-              style={{
-                fontFamily: 'var(--fi-font-mono)',
-                color: 'var(--fi-accent)',
-                border: '1px solid color-mix(in srgb, var(--fi-accent), transparent 60%)',
-                background: 'color-mix(in srgb, var(--fi-accent), transparent 90%)',
-              }}
-            >
+              style={{ fontFamily: 'var(--fi-font-mono)', color: 'var(--fi-accent)', border: '1px solid color-mix(in srgb, var(--fi-accent), transparent 60%)', background: 'color-mix(in srgb, var(--fi-accent), transparent 90%)' }}>
               Run workflow
             </button>
             <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>{startStatus}</span>
@@ -350,10 +205,7 @@ export default function DemoClient() {
           <div className="fi-glass-panel p-6 space-y-2" style={{ borderColor: 'color-mix(in srgb, var(--fi-veto), transparent 45%)' }}>
             <p className="panel-title" style={{ color: 'var(--fi-veto)' }}>Error</p>
             <p className="text-sm" style={{ color: 'var(--fi-muted)' }}>{errorDetail}</p>
-            <p className="text-xs" style={{ color: 'var(--fi-faint)' }}>
-              The API at {apiBase} is unreachable or the run does not exist. No mock is shown for
-              an explicitly requested run.
-            </p>
+            <p className="text-xs" style={{ color: 'var(--fi-faint)' }}>The API at {apiBase} is unreachable or the run does not exist.</p>
           </div>
         </section>
       )}
@@ -364,9 +216,7 @@ export default function DemoClient() {
           <LiveEventLog events={liveEvents} />
           <section className="fi-glass-panel p-4 space-y-2">
             <p className="panel-title">Artifacts</p>
-            <p className="text-xs" style={{ color: 'var(--fi-faint)' }}>
-              Derived after the run settles — artifacts render from the final coordination history.
-            </p>
+            <p className="text-xs" style={{ color: 'var(--fi-faint)' }}>Derived after the run settles.</p>
           </section>
         </main>
       )}
@@ -379,41 +229,25 @@ export default function DemoClient() {
             <div className="fi-glass-panel p-4 space-y-2">
               <p className="panel-title">Evidence Brief</p>
               <p className="text-sm font-semibold">{history.artifacts.evidence_brief?.title}</p>
-              <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>
-                {history.artifacts.evidence_brief?.summary}
-              </p>
+              <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>{history.artifacts.evidence_brief?.summary}</p>
             </div>
             <SafetyGateCard safety={history.artifacts.safety_review} />
-            <CampaignPacketCard
-              packet={history.artifacts.campaign_packet}
-              evidence={history.artifacts.evidence_brief}
-            />
+            <CampaignPacketCard packet={history.artifacts.campaign_packet} evidence={history.artifacts.evidence_brief} />
             {history.artifacts.campaign_packet?.reporter_virtual && (
               <div className="fi-glass-panel p-4 space-y-1">
                 <p className="panel-title">Why a virtual reporter?</p>
-                <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>
-                  Reporter is virtualized to respect Band room participant limits while preserving
-                  the canonical workflow history. Its handoffs ride as Band room events, emitted by
-                  the backend.
-                </p>
+                <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>Reporter is virtualized to respect Band room participant limits while preserving the canonical workflow history.</p>
               </div>
             )}
           </section>
         </main>
       )}
 
-      <footer
-        className="max-w-[1500px] mx-auto px-5 pb-8 pt-4 flex items-center gap-3"
-        style={{ borderTop: '1px solid var(--fi-border-soft)', marginTop: '2rem' }}
-      >
+      <footer className="max-w-[1500px] mx-auto px-5 pb-8 pt-4 flex items-center gap-3" style={{ borderTop: '1px solid var(--fi-border-soft)', marginTop: '2rem' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/branding/logo-white.png" alt="Activist OS" style={{ height: 22, width: 'auto', opacity: 0.55 }} />
-        <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>
-          Evidence. Coordination. Safety.
-        </span>
-        <a href="/" className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)', textDecoration: 'none' }}>
-          ← Home
-        </a>
+        <span className="fi-mono text-xs" style={{ color: 'var(--fi-faint)' }}>Evidence. Coordination. Safety.</span>
+        <a href="/" className="fi-mono text-xs ml-auto" style={{ color: 'var(--fi-faint)', textDecoration: 'none' }}>← Home</a>
       </footer>
     </div>
   );

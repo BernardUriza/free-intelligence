@@ -36,8 +36,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Demo shell primitives (ported from web/demo.html) ─────────────── */
-
+/* ── Shell backdrop ───────────────────────────────────────────────── */
 .fi-shell-bg {
   position: fixed; inset: 0; z-index: -2;
   background:
@@ -51,6 +50,7 @@ body {
   pointer-events: none; opacity: .9;
 }
 
+/* ── Glass primitives ─────────────────────────────────────────────── */
 .fi-glass-panel {
   background: var(--fi-surface);
   border: 1px solid var(--fi-border);
@@ -59,24 +59,77 @@ body {
   border-radius: var(--fi-radius-lg);
 }
 
-.fi-mono { font-family: var(--fi-font-mono); }
+.fi-agent-node {
+  background: var(--fi-surface-strong);
+  border: 1px solid var(--fi-border);
+  border-radius: var(--fi-radius-md);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.fi-agent-node:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fi-accent), transparent 50%);
+  background: color-mix(in srgb, var(--fi-surface-strong), var(--fi-accent) 6%);
+}
 
+.fi-veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 45%); }
+.fi-safety   { border-color: color-mix(in srgb, var(--fi-safety), transparent 45%); }
+.fi-approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 45%); }
+.fi-evidence-b { border-color: color-mix(in srgb, var(--fi-evidence), transparent 45%); }
+
+/* ── Badges ───────────────────────────────────────────────────────── */
 .fi-badge {
   display: inline-flex; align-items: center; gap: .4rem;
   font-family: var(--fi-font-mono);
-  font-size: .66rem; font-weight: 600; letter-spacing: .04em;
+  font-size: .68rem; font-weight: 600; letter-spacing: .04em;
   text-transform: uppercase;
-  padding: .26rem .58rem; border-radius: 999px;
+  padding: .28rem .6rem; border-radius: 999px;
   border: 1px solid transparent;
 }
-.fi-badge::before { content: ""; width: .42rem; height: .42rem; border-radius: 999px; background: currentColor; }
-.fi-badge--band      { color: var(--fi-accent);   border-color: color-mix(in srgb, var(--fi-accent), transparent 60%);   background: color-mix(in srgb, var(--fi-accent), transparent 90%); }
-.fi-badge--local     { color: var(--fi-muted);    border-color: var(--fi-border);                                        background: var(--fi-surface); }
+.fi-badge::before { content: ""; width: .45rem; height: .45rem; border-radius: 999px; background: currentColor; }
+.fi-badge--verified  { color: var(--fi-evidence); border-color: color-mix(in srgb, var(--fi-evidence), transparent 60%); background: color-mix(in srgb, var(--fi-evidence), transparent 90%); }
+.fi-badge--review    { color: var(--fi-safety);   border-color: color-mix(in srgb, var(--fi-safety), transparent 60%);   background: color-mix(in srgb, var(--fi-safety), transparent 90%); }
 .fi-badge--vetoed    { color: var(--fi-veto);     border-color: color-mix(in srgb, var(--fi-veto), transparent 60%);     background: color-mix(in srgb, var(--fi-veto), transparent 90%); }
 .fi-badge--approved  { color: var(--fi-approved); border-color: color-mix(in srgb, var(--fi-approved), transparent 60%); background: color-mix(in srgb, var(--fi-approved), transparent 90%); }
+.fi-badge--band      { color: var(--fi-accent);   border-color: color-mix(in srgb, var(--fi-accent), transparent 60%);   background: color-mix(in srgb, var(--fi-accent), transparent 90%); }
+.fi-badge--local     { color: var(--fi-muted);    border-color: var(--fi-border); background: var(--fi-surface); }
 .fi-badge--virtual   { color: var(--fi-evidence); border-color: color-mix(in srgb, var(--fi-evidence), transparent 60%); background: color-mix(in srgb, var(--fi-evidence), transparent 90%); }
 .fi-badge--provenance{ color: var(--fi-safety);   border-color: color-mix(in srgb, var(--fi-safety), transparent 60%);   background: color-mix(in srgb, var(--fi-safety), transparent 90%); }
 
+/* ── Typography helpers ───────────────────────────────────────────── */
+.fi-eyebrow {
+  font-family: var(--fi-font-mono);
+  font-size: .75rem; font-weight: 500; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+.fi-mono   { font-family: var(--fi-font-mono); }
+.fi-arrow  { color: var(--fi-faint); font-family: var(--fi-font-mono); }
+.text-muted { color: var(--fi-muted); }
+.text-faint { color: var(--fi-faint); }
+
+/* ── CTA buttons ──────────────────────────────────────────────────── */
+.fi-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-weight: 600; font-size: .95rem;
+  padding: .8rem 1.4rem; border-radius: var(--fi-radius-sm);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  cursor: pointer; text-decoration: none;
+}
+.fi-btn--primary {
+  background: var(--fi-accent); color: #fff;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--fi-accent), transparent 60%);
+}
+.fi-btn--primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px color-mix(in srgb, var(--fi-accent), transparent 50%); }
+.fi-btn--ghost {
+  background: var(--fi-surface); color: var(--fi-text);
+  border: 1px solid var(--fi-border);
+}
+.fi-btn--ghost:hover { background: var(--fi-surface-strong); transform: translateY(-1px); }
+
+/* ── Entrance animation ───────────────────────────────────────────── */
+@keyframes fi-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.fi-rise { animation: fi-rise .6s ease both; }
+
+/* ── Demo shell primitives ────────────────────────────────────────── */
 .hist-step {
   display: flex; align-items: flex-start; gap: .65rem;
   padding: .5rem .65rem; border-radius: var(--fi-radius-sm);

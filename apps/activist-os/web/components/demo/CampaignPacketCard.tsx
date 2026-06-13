@@ -19,9 +19,7 @@ export function CampaignPacketCard({
       <p className="text-sm font-semibold">{packet.title}</p>
       <p className="text-xs" style={{ color: 'var(--fi-muted)' }}>{packet.summary}</p>
       <ul className="text-sm space-y-1.5" style={{ color: 'var(--fi-muted)' }}>
-        {items.map(text => (
-          <li key={text}>{text}</li>
-        ))}
+        {items.map(text => <li key={text}>{text}</li>)}
       </ul>
       <p className="text-xs pt-1" style={{ color: 'var(--fi-faint)' }}>
         Humans hold the send button — the system assembles, it never publishes.

@@ -1,16 +1,11 @@
 export default function ChecklistPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <div
-        className="rounded-2xl p-8 w-full max-w-2xl text-center"
-        style={{ background: 'var(--fi-surface)', border: '1px solid var(--fi-border)' }}
-      >
-        <p className="font-mono text-xs tracking-widest uppercase mb-3" style={{ color: 'var(--fi-faint)' }}>
-          Coming next
-        </p>
-        <h1 className="text-2xl font-bold mb-2">Pre-Kickoff Checklist</h1>
-        <p style={{ color: 'var(--fi-muted)' }} className="text-sm">
-          This route will replace <code className="font-mono">checklist.html</code>.
+      <div className="fi-glass-panel p-8 w-full max-w-2xl text-center space-y-3">
+        <p className="fi-eyebrow">Pre-kickoff checklist</p>
+        <h1 className="text-2xl font-bold">Checklist</h1>
+        <p className="text-sm" style={{ color: 'var(--fi-muted)' }}>
+          Full checklist available at the static shell while the React port is in progress.
         </p>
       </div>
     </main>
