@@ -2,7 +2,6 @@
   "name": "@free-intelligence/core",
   "version": "1.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "private": true,
   "type": "module",
   "description": "Material-agnostic substrate-facing layer: theme-token contract, agent event contract, fi-runner client. Consumed directly by apps and by every fi-<material> skin.",
   "main": "./dist/index.js",
