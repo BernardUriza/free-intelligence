@@ -300,6 +300,39 @@ _PLAYWRIGHT_ALLOWED_TOOLS = [
 ]
 
 
+# Built-in Claude Code tools the Insult runner MUST be able to call. WebSearch is
+# load-bearing: factual questions ("is there a sequel?", "more novels in this
+# saga?") are unanswerable without it, and the failure is SILENT — the agent
+# simply never searches and deflects with banter. fi_runner's allowlist is
+# builtin_allowed plus the MCP tools, so an empty builtin_allowed (the bug found
+# 2026-06-14) strips WebSearch with zero error. These are asserted at boot
+# (_lifespan) AND per session (_build_options) so a regression fails LOUDLY
+# instead of degrading to a bot that can't answer anything factual.
+_REQUIRED_BUILTIN_TOOLS = ("WebSearch", "WebFetch")
+
+
+def _verify_required_tools(options: Any) -> None:
+    """Raise loudly if the resolved allowlist is missing a required built-in.
+
+    This is the guardrail against the silent capability gap: rather than ship a
+    runner that boots ``healthy`` but deflects every factual question, crash with
+    a clear diagnostic the moment the capability is absent.
+    """
+    allowed = set(getattr(options, "allowed_tools", None) or [])
+    missing = [t for t in _REQUIRED_BUILTIN_TOOLS if t not in allowed]
+    if missing:
+        log.error(
+            "agent_runner_missing_required_tools",
+            missing=missing,
+            allowed=sorted(allowed),
+        )
+        raise RuntimeError(
+            f"Insult runner is missing required built-in tools {missing}; "
+            f"web search is load-bearing and must not degrade silently "
+            f"(allowed_tools={sorted(allowed)})"
+        )
+
+
 async def _build_options(persona: str, model: str | None = None) -> Any:
     """Construct ClaudeAgentOptions for a new channel session.
 
@@ -360,12 +393,17 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     ]
 
     backend = ClaudeCodeBackend(cwd=str(WORKSPACE_ROOT), setting_sources=["project"])
-    return backend.build_options(
+    options = backend.build_options(
         system_prompt=persona,
         mcp_servers=specs,
-        tool_policy=ToolPolicy(permission_mode=PermissionMode.BYPASS),
+        tool_policy=ToolPolicy(
+            permission_mode=PermissionMode.BYPASS,
+            builtin_allowed=list(_REQUIRED_BUILTIN_TOOLS),
+        ),
         model=model or DEFAULT_MODEL,
     )
+    _verify_required_tools(options)
+    return options
 
 
 _pool_models: dict[str, str] = {}  # channel_id → model id chosen at session creation
@@ -506,6 +544,12 @@ async def _lifespan(app: FastAPI):
         token_set=bool(RUNNER_AUTH_TOKEN),
         session_idle_timeout_s=SESSION_IDLE_TIMEOUT_S,
     )
+    # Capability self-check: a runner that boots "healthy" but can't web-search
+    # is a fake-green. Build options once and let _verify_required_tools crash
+    # startup LOUDLY if WebSearch is missing — the container fails to come up
+    # instead of silently deflecting every factual question (2026-06-14).
+    await _build_options("__boot_capability_check__")
+    log.info("agent_runner_capabilities_ok", required=list(_REQUIRED_BUILTIN_TOOLS))
     _reaper_task = asyncio.create_task(_reap_idle_sessions(), name="session_reaper")
     yield
 
