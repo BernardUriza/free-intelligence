@@ -7,9 +7,9 @@ no embedder). Each behavior gets a positive + a resistance case.
 
 from __future__ import annotations
 
-import shared.corpus.rag as rag
-from shared.corpus import animal_tactics_guidance
-from shared.corpus.rag import _load_chunks, retrieve_tactics
+import khimeras_shared.corpus.rag as rag
+from khimeras_shared.corpus import animal_tactics_guidance
+from khimeras_shared.corpus.rag import _load_chunks, retrieve_tactics
 
 
 def test_corpus_chunks_one_per_objection():

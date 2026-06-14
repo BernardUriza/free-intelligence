@@ -29,6 +29,11 @@ import anthropic
 import discord
 import structlog
 
+from khimeras_shared.corpus import (
+    animal_liberation_guidance,
+    animal_tactics_guidance,
+    film_criticism_guidance,
+)
 from personas.insult.cogs.chat._failure import (
     Criticality,
     FailureClass,
@@ -72,11 +77,6 @@ from personas.insult.core.llm import WEB_SEARCH_TOOL
 from personas.insult.core.reminders import detect_reminder_intent
 from personas.insult.core.routing import ModelTier, select_model
 from personas.insult.core.triviality import is_trivial
-from shared.corpus import (
-    animal_liberation_guidance,
-    animal_tactics_guidance,
-    film_criticism_guidance,
-)
 
 log = structlog.get_logger()
 
@@ -467,7 +467,7 @@ def _build_behavioral_guidance(ctx: TurnCtx) -> str:
         tactics = animal_tactics_guidance(ctx.text)
         if tactics:
             parts.append(tactics)
-    # Film-criticism (Vultur) method frame — same shared/corpus mechanism,
+    # Film-criticism (Vultur) method frame — same khimeras_shared/corpus mechanism,
     # topic-gated, expressed in Insult's own acid voice. Theory RAG (the 2 PDF
     # books) is retrieved separately and injected as `relevant_memory` so the
     # async embed call doesn't block this sync prompt builder.
