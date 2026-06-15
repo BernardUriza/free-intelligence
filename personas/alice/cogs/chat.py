@@ -35,17 +35,17 @@ import discord
 import structlog
 from discord.ext import commands
 
-from personas.alice.config import settings as alice_settings
-from personas.alice.core.clinical_reflection import ClinicalReflector
-from personas.alice.core.llm import AliceLLMClient
-from personas.alice.core.memory import AliceMemory
-from personas.alice.core.persona_loader import PersonaLoader
-from shared.corpus import (
+from khimeras_shared.corpus import (
     animal_liberation_guidance,
     animal_tactics_guidance,
     detect_film_topic,
     film_criticism_guidance,
 )
+from personas.alice.config import settings as alice_settings
+from personas.alice.core.clinical_reflection import ClinicalReflector
+from personas.alice.core.llm import AliceLLMClient
+from personas.alice.core.memory import AliceMemory
+from personas.alice.core.persona_loader import PersonaLoader
 from shared.text import chunk_paragraph_aware
 
 log = structlog.get_logger()
@@ -415,7 +415,7 @@ class AliceChatCog(commands.Cog):
                 system_prompt = f"{system_prompt}\n\n{tactics}"
                 log.info("alice_animal_tactics_injected", tactics_chars=len(tactics))
 
-        # Film-criticism (Vultur) method frame — topic-gated, same shared/corpus
+        # Film-criticism (Vultur) method frame — topic-gated, same khimeras_shared/corpus
         # mechanism. ALICE runs it cold/forensic. The theory RAG (the 2 PDF
         # books) is queried via Azure ada-002 (remote HTTP embed — NOT MiniLM
         # local, so no OOM risk at 1Gi) and injected underneath the frame.

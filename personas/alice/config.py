@@ -76,8 +76,10 @@ class AliceSettings(BaseSettings):
 
     # --- Persona ---
     persona_path: str = Field(
-        default="alice/persona.md",
-        description="Path to ALICE's system-prompt persona (mtime-aware reload).",
+        default="personas/alice/persona.md",
+        description="Path to ALICE's system-prompt persona (mtime-aware reload). "
+        "Post-demux path — the old 'alice/persona.md' broke ALICE's persona load "
+        "(alice_persona_missing) so she ran degraded and failed to answer mentions.",
     )
 
     # --- Sibling coexistence ---

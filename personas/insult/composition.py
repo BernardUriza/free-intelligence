@@ -56,6 +56,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from khimeras_shared.corpus import detect_film_topic
 from personas.insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from personas.insult.core.character import (
     MutationStage,
@@ -87,7 +88,6 @@ from personas.insult.core.presets import (
 )
 from personas.insult.core.presets_llm import classify_preset_llm
 from personas.insult.core.stance_log import StanceExtraction, build_stance_prompt, extract_stances
-from shared.corpus import detect_film_topic
 
 if TYPE_CHECKING:
     from personas.insult.cogs.chat.capability_ports import PolicyBundle, PresetEngineResult

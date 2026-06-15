@@ -86,6 +86,14 @@ class Settings(BaseSettings):
     # may weigh in on; this gate is only for "I'm talking to ALICE, not you".
     alice_aliases: list[str] = ["amix", "ali", "alicia"]
 
+    # Canary ingress probe (proves live Discord ingress/egress + routing — the
+    # contract /debug/health couldn't prove). A dedicated canary bot posts
+    # "CANARY insult <uuid>" in #canary; Insult echoes "CANARY_OK <uuid>" with no
+    # LLM. All three are Discord snowflake IDs (never names). Empty = feature off.
+    canary_channel_id: str = ""
+    canary_bot_user_id: str = ""
+    insult_bot_user_id: str = ""
+
     # Channel summaries (cross-channel awareness)
     summary_model: str = "claude-haiku-4-5-20251001"
     summary_interval_minutes: int = 15

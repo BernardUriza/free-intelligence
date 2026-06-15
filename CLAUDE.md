@@ -14,22 +14,22 @@ conda activate discord-bot                            # every shell
 All commands below assume the `discord-bot` env is active.
 
 ```bash
-# Run
-python -m insult run              # Start the bot
-python -m insult db-stats         # Show memory stats
-python -m insult db-clean         # Clean old data
+# Run  (post-demux: Insult is a persona package under personas/)
+python -m personas.insult run              # Start the bot
+python -m personas.insult db-stats         # Show memory stats
+python -m personas.insult db-clean         # Clean old data
 
 # Test
-pytest -v --cov                   # All tests + coverage report
-pytest tests/test_chat_cog.py -v  # Single test file
-pytest -k "test_detect_break" -v  # Single test by name
+pytest -v --cov                       # All tests + coverage report
+pytest tests/chat/test_chat_cog.py -v # Single test file (tests/ split: arch/ chat/ core/ integration/)
+pytest -k "test_detect_break" -v      # Single test by name
 
 # Lint & Format
 ruff check . && ruff format .     # Lint + format (run before every commit)
 ruff check --fix .                # Auto-fix lint issues
 
 # Full CI locally
-ruff check . && ruff format --check . && pytest -v --cov --cov-fail-under=80 && bandit -r insult/ -c pyproject.toml && pip-audit
+ruff check . && ruff format --check . && pytest -v --cov --cov-fail-under=80 && bandit -r personas/ -c pyproject.toml && pip-audit
 ```
 
 **Dependency changes**: edit `environment.yml`, then `mamba env update -f environment.yml`.
@@ -38,6 +38,17 @@ is conda-first (see memory). `fi-core` lives on the `bernardurizaorozco`
 Anaconda.org channel, declared in environment.yml's channels list.
 
 ## Architecture
+
+> **Post-demux tree (v4.21.39+)**: the flat `insult/` god-package was demuxed into
+> `personas/insult/` + `personas/alice/`, a light host `demux_ai/`, and shared
+> contracts `khimeras_shared/`. **Insult is now ONE persona, not the system.** The
+> inline paths in the flow descriptions below are now rooted at `personas/insult/`,
+> and `cogs/chat`, `core/{memory,presets,character,llm,flows}` are **packages** (not
+> single files). The canonical, current structure lives in
+> `.claude/rules/architecture.md` (incl. **Phase 3.5 Production Trust**: boot-zombie
+> fix DEPLOYED, Discord canary CODE-READY/deploy-GATED, constitution hook, no-fake-green
+> doctrines). The chat UI primitives are cross-repo: `@free-intelligence/core` +
+> `fi-glass` on public npm (free-intelligence PR #245), consumed by the python-bot template.
 
 **Nomenclature note (post-RENAME-1b / v3.9.30)**: this repo deploys to three Azure Container Apps with names that match their roles. The plumbing container is **`discord-bot`** — it batches Discord events and routes to runners, doing zero LLM work directly when `LEGACY_LLM_ENABLED=false`. The Insult persona lives in **`insult-runner`** (Claude Code Agent SDK). The ALICE persona lives in **`alice-bot`** (Azure OpenAI gpt-4.1). The ACR image artifact is still named `insult-bot:<sha>` (legacy). Full table + rationale in `.claude/rules/architecture.md`.
 

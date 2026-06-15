@@ -14,15 +14,15 @@ from __future__ import annotations
 
 import types
 
-from personas.insult.cogs.chat.capability_ports import PresetEngineResult
-from personas.insult.cogs.chat.stages import _build_behavioral_guidance
-from personas.insult.core import deep_memory
-from personas.insult.core.presets import PresetMode, PresetSelection
-from shared.corpus import (
+from khimeras_shared.corpus import (
     detect_film_topic,
     film_criticism_guidance,
     load_film_criticism_values,
 )
+from personas.insult.cogs.chat.capability_ports import PresetEngineResult
+from personas.insult.cogs.chat.stages import _build_behavioral_guidance
+from personas.insult.core import deep_memory
+from personas.insult.core.presets import PresetMode, PresetSelection
 
 # --- detector: positive cases ----------------------------------------------
 

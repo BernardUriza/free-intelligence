@@ -188,13 +188,13 @@ def animal_tactics_guidance(text: str | None, *, embed=None, top_k: int = 2) -> 
     """Phase B: return relevant fine-tactic blocks iff the topic is detected.
 
     Combines the topic gate with semantic/lexical retrieval (see
-    `shared.corpus.rag`). `embed` is the caller's sentence-transformers
+    `khimeras_shared.corpus.rag`). `embed` is the caller's sentence-transformers
     `EmbeddingModel.embed` (Insult) — omit for lexical fallback (ALICE).
     Returns "" when off-topic OR when nothing clears the relevance floor.
     """
     if not detect_animal_topic(text):
         return ""
-    from shared.corpus.rag import retrieve_tactics
+    from khimeras_shared.corpus.rag import retrieve_tactics
 
     blocks = retrieve_tactics(text, embed=embed, top_k=top_k)
     if not blocks:
