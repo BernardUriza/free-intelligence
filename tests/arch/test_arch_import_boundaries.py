@@ -357,18 +357,16 @@ def test_shared_never_imports_personas() -> None:
 
 # persona_gateway is explicit host wiring, but it still reaches into Insult
 # persona internals for capabilities that belong in the shared layer. Captured
-# as baseline 2026-06-15; the capability moves drop them one by one:
+# as baseline 2026-06-15; the capability moves dropped them one by one:
 #   - agent_client edge CLOSED in PR-1b (AgentRunnerClient → khimeras_shared.runner)
 #   - memory edge CLOSED in PR-1c (MemoryStore subsystem + neutral style/vectors
 #     deps → khimeras_shared.{memory,style,vectors}; old paths kept as re-export
 #     shims). Gateway now imports MemoryStore from khimeras_shared.memory.
-#   - config edge falls in the Etapa 3 wiring cleanup
-# DELETE entries as they go.
-GATEWAY_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("persona_gateway.gateway", "personas.insult.config"),
-    }
-)
+#   - config edge CLOSED in PR-2 (the 3 runtime-infra fields — postgres_url,
+#     insult_agent_runner_url/token — now come from the neutral env-backed
+#     khimeras_shared.persona.PersonaRuntimeConfig, NOT personas.insult.config).
+# Ratchet complete: gateway→persona is now ZERO, locked strict (empty baseline).
+GATEWAY_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset()
 
 
 def test_no_new_gateway_persona_imports() -> None:
@@ -389,4 +387,31 @@ def test_no_new_gateway_persona_imports() -> None:
     assert not stale, (
         "Baseline gateway→persona edge(s) gone — drop the entry in GATEWAY_PERSONA_BASELINE:\n"
         + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(stale))
+    )
+
+
+# demux_ai is the lightweight HOST (onboarding + routing). Like the gateway it
+# orchestrates personas, so it must NEVER import a persona's internals — sourcing
+# anything it needs from a persona would just relocate a host→persona edge into a
+# module the OTHER ratchets don't watch (a fake-green: the gateway goes green while
+# the debt hides here). Added in PR-2 when the gateway's config edge was severed,
+# so that win — the neutral khimeras_shared.persona.PersonaRuntimeConfig instead of
+# personas.insult.config — can't silently regress through this blind spot. demux_ai
+# is a near-empty skeleton today, so this is locked strict at ZERO from the start.
+DEMUX_ROOTS: tuple[str, ...] = ("demux_ai",)
+
+
+def test_demux_ai_never_imports_personas() -> None:
+    """STRICT — the demux host must never depend on any persona. Locked at zero so
+    the gateway→persona win (PR-2) cannot reappear via the untracked host module."""
+    found = [
+        (_module_name_for(f), imp)
+        for f in _scan_py(DEMUX_ROOTS)
+        for imp in _imported_modules(f)
+        if imp == "personas" or imp.startswith("personas.")
+    ]
+    assert not found, (
+        f"{len(found)} demux_ai→persona import(s) — the demux host must not depend on "
+        f"a persona; source neutral/infra needs from khimeras_shared instead:\n"
+        + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(found))
     )
