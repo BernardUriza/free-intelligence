@@ -58,7 +58,7 @@ from typing import Any
 import httpx
 import structlog
 
-from personas.insult.core.llm.parsing import LLMResponse
+from khimeras_shared.llm.types import LLMResponse
 
 log = structlog.get_logger()
 

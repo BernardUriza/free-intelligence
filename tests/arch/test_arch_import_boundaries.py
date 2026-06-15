@@ -355,13 +355,15 @@ def test_shared_never_imports_personas() -> None:
     )
 
 
-# persona_gateway is explicit host wiring, but it currently reaches into Insult
-# persona internals for capabilities (the runner client + memory store) that
-# belong in runner/ + khimeras_shared. Captured as baseline 2026-06-15; PR-1
-# moves those capabilities out and these edges fall. DELETE entries as they go.
+# persona_gateway is explicit host wiring, but it still reaches into Insult
+# persona internals for capabilities that belong in the shared layer. Captured
+# as baseline 2026-06-15; the capability moves drop them one by one:
+#   - agent_client edge CLOSED in PR-1b (AgentRunnerClient → khimeras_shared.runner)
+#   - memory edge falls in PR-1c (MemoryStore subsystem → khimeras_shared)
+#   - config edge falls in the Etapa 3 wiring cleanup
+# DELETE entries as they go.
 GATEWAY_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset(
     {
-        ("persona_gateway.gateway", "personas.insult.core.llm.agent_client"),
         ("persona_gateway.gateway", "personas.insult.core.memory"),
         ("persona_gateway.gateway", "personas.insult.config"),
     }

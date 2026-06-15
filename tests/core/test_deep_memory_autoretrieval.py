@@ -14,7 +14,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from personas.insult.core.llm.agent_client import AgentRunnerClient
+from khimeras_shared.runner.agent_client import AgentRunnerClient
 
 # --- AgentRunnerClient.chat: relevant_memory prepended to user_text --------
 

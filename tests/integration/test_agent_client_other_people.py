@@ -18,7 +18,7 @@ from typing import ClassVar
 
 import pytest
 
-from personas.insult.core.llm.agent_client import AgentRunnerClient
+from khimeras_shared.runner.agent_client import AgentRunnerClient
 
 
 class _FakeResp:
@@ -54,7 +54,7 @@ def _msgs(text: str) -> list[dict]:
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr("personas.insult.core.llm.agent_client.httpx.AsyncClient", _FakeClient)
+    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _FakeClient)
     _FakeClient.captured = {}
     return AgentRunnerClient("http://runner", "tok")
 

@@ -28,7 +28,7 @@ import re
 import discord
 import structlog
 
-from personas.insult.core.llm.agent_client import AgentRunnerClient
+from khimeras_shared.runner.agent_client import AgentRunnerClient
 from personas.insult.core.memory import MemoryStore
 from shared.personas import Persona, all_personas
 
