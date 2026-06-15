@@ -29,7 +29,7 @@ import asyncpg
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from personas.insult.core.memory.connection import ConnectionManager
+    from khimeras_shared.memory.connection import ConnectionManager
 
 
 class BaseRepository:

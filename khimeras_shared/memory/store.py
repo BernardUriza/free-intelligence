@@ -17,9 +17,9 @@ Why a facade rather than "import the repos directly everywhere":
 
 from __future__ import annotations
 
-from personas.insult.core.memory.connection import ConnectionManager
-from personas.insult.core.memory.context import build_context, format_relative_time
-from personas.insult.core.memory.repositories import (
+from khimeras_shared.memory.connection import ConnectionManager
+from khimeras_shared.memory.context import build_context, format_relative_time
+from khimeras_shared.memory.repositories import (
     ChannelSummariesRepository,
     DisclosureRepository,
     FactsRepository,
@@ -31,7 +31,7 @@ from personas.insult.core.memory.repositories import (
     SerenityOpsRepository,
     WorldScansRepository,
 )
-from personas.insult.core.style import UserStyleProfile
+from khimeras_shared.style import UserStyleProfile
 
 
 class MemoryStore:

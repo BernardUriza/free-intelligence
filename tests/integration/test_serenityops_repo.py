@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from personas.insult.core.memory.repositories.serenityops import _decode_jsonb, _hash_token
+from khimeras_shared.memory.repositories.serenityops import _decode_jsonb, _hash_token
 
 
 class TestHashToken:

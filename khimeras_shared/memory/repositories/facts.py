@@ -48,13 +48,13 @@ from typing import TYPE_CHECKING, Any
 import asyncpg
 import structlog
 
-from personas.insult.core.memory.base import BaseRepository
-from personas.insult.core.memory.minilm_embedder import MiniLMEmbedder
+from khimeras_shared.memory.base import BaseRepository
+from khimeras_shared.memory.minilm_embedder import MiniLMEmbedder
 
 if TYPE_CHECKING:
     from fi_core.memory.types import Fact
 
-    from personas.insult.core.memory.connection import ConnectionManager
+    from khimeras_shared.memory.connection import ConnectionManager
 
 log = structlog.get_logger()
 

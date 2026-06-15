@@ -28,8 +28,8 @@ import re
 import discord
 import structlog
 
+from khimeras_shared.memory import MemoryStore
 from khimeras_shared.runner.agent_client import AgentRunnerClient
-from personas.insult.core.memory import MemoryStore
 from shared.personas import Persona, all_personas
 
 # NOTE: `insult.config.settings` is imported lazily inside `_build_shared()`,

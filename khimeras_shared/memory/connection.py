@@ -11,7 +11,7 @@ Architecture:
 - Connection string supplied via `POSTGRES_URL` env var (Pydantic
   Settings reads it). Format:
   `postgresql://user:pass@host:5432/dbname?sslmode=require`
-- Schema lives in `insult/core/memory/postgres_schema.sql` and is
+- Schema lives in `khimeras_shared/memory/postgres_schema.sql` and is
   applied once at startup (idempotent — `CREATE TABLE IF NOT EXISTS`).
 - pgvector enabled at the Azure server level (azure.extensions=VECTOR);
   this module verifies it loaded with `CREATE EXTENSION IF NOT EXISTS vector`.
@@ -144,7 +144,7 @@ class ConnectionManager:
         """Warm the embedding model in the background. Runs in a thread because
         the encode is sync CPU work; never blocks the event loop heartbeat.
         Non-fatal — failure just means the first turn pays the lazy-load cost."""
-        from personas.insult.core.vectors import get_embedding_model
+        from khimeras_shared.vectors import get_embedding_model
 
         warmup_start = time.monotonic()
         log.info("embedding_prewarm_start")

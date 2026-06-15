@@ -13,8 +13,8 @@ import time
 import asyncpg
 import structlog
 
-from personas.insult.core.memory.base import BaseRepository
-from personas.insult.core.style import UserStyleProfile
+from khimeras_shared.memory.base import BaseRepository
+from khimeras_shared.style import UserStyleProfile
 
 log = structlog.get_logger()
 

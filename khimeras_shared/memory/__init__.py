@@ -13,13 +13,13 @@ External callers should keep importing MemoryStore from this package —
 the facade makes the refactor transparent. Internal modules that want a
 specific domain can import the relevant repository directly:
 
-    from personas.insult.core.memory.repositories import FactsRepository
+    from khimeras_shared.memory.repositories import FactsRepository
 
 See `store.py` for the rationale on keeping the facade rather than
 switching every callsite to direct-repository injection.
 """
 
-from personas.insult.core.memory.context import build_context, format_relative_time
-from personas.insult.core.memory.store import MemoryStore
+from khimeras_shared.memory.context import build_context, format_relative_time
+from khimeras_shared.memory.store import MemoryStore
 
 __all__ = ["MemoryStore", "build_context", "format_relative_time"]

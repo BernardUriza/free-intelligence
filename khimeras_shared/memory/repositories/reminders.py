@@ -15,7 +15,7 @@ import time
 import asyncpg
 import structlog
 
-from personas.insult.core.memory.base import BaseRepository
+from khimeras_shared.memory.base import BaseRepository
 
 log = structlog.get_logger()
 
