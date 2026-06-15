@@ -18,25 +18,41 @@ Apps with names that now match their logical roles:
 
 **Pre-rename history:** the plumbing container was originally `insult-bot` (it was Insult, before the runner split). After F3 cutover (v3.9.25) it became a stateless plumbing layer; the name became confusing. RENAME-1b executed the physical rename via scale-to-0 → create new → delete old, with ~30s of Discord-visible downtime.
 
-## Project Structure
-- `insult/config.py` — Pydantic Settings singleton, all config via .env
-- `insult/app.py` — DI container (Container dataclass), wires all deps
-- `insult/bot.py` — Discord lifecycle, events, signal handling, health check
-- `insult/cogs/chat.py` — on_message listener + !chat command, reactions, response chunking
-- `insult/cogs/utility.py` — !ping, !memoria, !buscar, !perfil commands
-- `insult/core/llm.py` — Claude API client (async) + character break retry + anti-pattern monitoring
-- `insult/core/memory.py` — Longitudinal memory (SQLite, append-only) + user profiles + user facts
-- `insult/core/character.py` — Break detection, anti-pattern detection, sanitization, adaptive prompt building with preset integration
-- `insult/core/presets.py` — Behavioral preset system: 6 modes + 2 modifiers, rule-based classifier, prompt guidance
-- `insult/core/errors.py` — In-character error responses, error classification
-- `insult/core/style.py` — User style profiling (EMA, language, formality, tech level)
-- `insult/core/attachments.py` — Discord attachment processing (images, text, PDFs)
-- `insult/core/facts.py` — LLM-based fact extraction from conversations, prompt building
-- `insult/core/flows.py` — 4-flow behavioral analysis: Epistemic Control, Adaptive Pressure, Dynamic Expression, Conversational Awareness
-- `insult/core/proactive.py` — Proactive messaging (periodic check-ins based on time/activity)
-- `persona.md` — System prompt for the Insult persona (root of project)
-- `tests/` — pytest suite (unit + cog tests with mocked DI container)
-- `pyproject.toml` — ruff config, pytest config, coverage config, bandit config
+## Project Structure (post-demux, v4.21.39+)
+
+The monorepo demuxed from a flat `insult/` god-package into per-persona packages
+under `personas/`, a light host (`demux_ai/`), and shared contracts
+(`khimeras_shared/`). **Insult is now ONE persona, not the name of the system.**
+The old flat `insult/...` paths below the move no longer exist.
+
+- `demux_ai/` — light host: onboarding + routing (gpt-4.1/CodexBackend). Skeleton today (`__init__.py`).
+- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline + `chat/canary.py`, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
+- `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
+- `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the insult-runner) via `persona_id`. `gateway.py`.
+- `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
+- `khimeras_shared/` — shared contracts/infra REAL (2+ consumers). Near-empty today (`__init__.py`); only migrate when insult + alice + host consume the SAME contract.
+- `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
+- `tests/` — `arch/` (import-boundary ratchet at **0**), `chat/`, `core/`, `integration/`, `agent/`, `shared/`.
+- `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`, `canary-job.sh` (gated).
+- `pyproject.toml` — ruff, pytest, coverage, bandit config.
+
+## Production Trust / Observability (Phase 3.5)
+
+Born from the 2026-06-13 incident: the bot died mute for 14 min while `/health`
+reported `is_ready:true` (a proxy that lied). The real liveness contract is
+"responds in Discord", never an internal flag.
+
+- **Boot-zombie observability** — DEPLOYED (v4.21.44/45): honest `serving`/`healthy`/`guild_count`, boot instrumentation (`pg_pool_creating→bot_ready`), fail-fast `os._exit`, prewarm off the critical path.
+- **Discord real canary** — CODE READY, deploy **GATED / in-progress**: `personas/insult/cogs/chat/canary.py` intercepts `CANARY insult <uuid>` from the canary bot in `#canary` and echoes `CANARY_OK <uuid>` (no LLM, before batch/pipeline); the ACA Job runner `scripts/canary_probe.py` (+ `infra/azure/canary-job.sh`) verifies the reply by author ID + nonce, exit non-zero on failure. NOT yet deployed.
+- **Constitution enforcement** — `UserPromptSubmit` hook injects the 9 articles of `engineering-playbook/rules/00-constitution.md` each turn.
+- **Operational rigor doctrines** (playbook) — no fake-green / total instrumentation (`observability-logging.md`); rigor hierarchy `Chrome DevTools > proxy` + fix-Chrome-don't-route-around-it (`verify-before-assuming.md`).
+
+## Frontend / fi-glass (cross-repo)
+
+The chat UI primitives do NOT live in this repo. They ship from `free-intelligence`
+as **public npm** packages — `@free-intelligence/core@1.1.1` (agent event contract +
+`applyAgentEvent` reducer) and `fi-glass@1.1.1` (the glass chat surface) — consumed by
+the `python-bot` template's `web/`. Publish workflow lands via free-intelligence PR #245.
 
 ## Patterns
 - DI container via `Container` dataclass in `app.py` — all deps injected into cogs

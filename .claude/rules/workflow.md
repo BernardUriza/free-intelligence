@@ -7,6 +7,54 @@
 > (legacy OCI repo name, not yet renamed). See `.claude/rules/architecture.md`
 > § Nomenclature for the full table.
 
+## Demux Progress Tracker — keep the HTML checklist in sync
+
+The living roadmap toward the post-demux monorepo is an HTML checklist at
+`~/Desktop/khimeras-demux-checklist.html` (kept on the Desktop on purpose —
+visible to Finder and file pickers per `.claude/rules/artifact_delivery.md`).
+
+**Every time work lands that advances (or changes) any item on that roadmap,
+update the HTML in the same turn.** "Lands" means merged/deployed/validated —
+not just started. Update means:
+
+- Set `checked` on the `<input>` of completed items (edit the file directly;
+  user-toggled state lives in localStorage and takes precedence, so editing
+  the HTML never clobbers Bernard's manual checks).
+- Add new checklist items when new work is discovered or scoped (new PRs,
+  new gates from the coagent, new decisions), in the phase where they belong.
+- Update phase tags (`EN CURSO` / `GATED` / `FUTURO` / `DONE`) and the note
+  blocks when a gate opens, closes, or changes owner.
+- Keep the target-tree block at the top in sync if the agreed structure
+  evolves.
+
+Scope: anything touching facts dedup (PR-1/2/3), the import-boundary ratchet,
+the internal reshaping of `insult/`, the physical demux (`personas/`,
+`demux_ai/`, `khimeras_shared/`), shared/fi-core promotion, or infra/deploy
+alignment. If a turn ends with one of those advanced but the HTML untouched,
+the turn is incomplete.
+
+Registered 2026-06-11 at Bernard's request ("cada que avances en algo
+actualizas ese html") right after the checklist was created.
+
+## What to do next — read the checklist, never ask
+
+**NEVER ask Bernard "¿qué sigue?" / "what's next?" / "what do we attack?"**
+The checklist at `~/Desktop/khimeras-demux-checklist.html` IS the answer.
+
+When a work session ends or the current task completes:
+1. Read the checklist — open it, scan unchecked items top-to-bottom.
+2. Identify the next unchecked item that has no explicit gate blocking it
+   (gate = coagent hold, explicit "GATED" tag, or a dependency on an
+   unfinished predecessor).
+3. Start that item. Announce the plan, execute.
+
+The checklist is maintained in real time (rule above). It reflects the
+current agreed roadmap. Bernard does not need to relay it — it is always
+available and always current.
+
+This rule was registered 2026-06-12 after Claude ended a turn with
+"¿qué atacamos?" when the next unblocked item was visible in the HTML.
+
 ## CI Pipeline
 4 layers in GitHub Actions, all must pass on every push/PR:
 1. **Ruff Lint & Format** — fastest, runs first, blocks everything else
