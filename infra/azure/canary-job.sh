@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Insult canary — Azure Container Apps Job (cron */5) creation.
+#
+# ⚠️ GATED / NOT auto-run. This is Bernard's call: it touches Azure + a real
+# Discord bot token (secret). Run it by hand once the canary bot exists and its
+# token is in hand. Mirrors the existing `fact-consolidation` ACA Job: SAME
+# image (insultacr.azurecr.io/insult-bot), separate cron, one-shot command.
+#
+# The job runs:  python -m scripts.canary_probe
+# which posts `CANARY insult <uuid>` in #canary and requires the Insult bot to
+# echo `CANARY_OK <uuid>`; exit non-zero on any failure (timeout/wrong author/
+# wrong nonce). cd.yml should also get a `job update` step to keep the image SHA
+# in sync (mirror the fact-consolidation update step) — added separately.
+#
+# Prereqs (all Discord snowflake IDs, never names):
+#   CANARY_BOT_TOKEN     token of the DEDICATED canary bot user
+#   CANARY_CHANNEL_ID    the #canary channel id
+#   INSULT_BOT_USER_ID   the Insult bot user id whose reply we require
+#   CANARY_OPS_WEBHOOK_URL  (optional) Discord webhook for failure alerts
+set -euo pipefail
+
+RG=insult-rg
+JOB=insult-canary
+ACR_IMAGE=insultacr.azurecr.io/insult-bot:latest
+
+: "${CANARY_BOT_TOKEN:?set CANARY_BOT_TOKEN}"
+: "${CANARY_CHANNEL_ID:?set CANARY_CHANNEL_ID}"
+: "${INSULT_BOT_USER_ID:?set INSULT_BOT_USER_ID}"
+CANARY_OPS_WEBHOOK_URL="${CANARY_OPS_WEBHOOK_URL:-}"
+
+# Resolve the managed environment from the existing discord-bot app — never
+# hardcode the env name (the FQDN is nicecliff-10074f57.* but the resource name
+# is read from Azure, not guessed).
+ENV_ID=$(az containerapp show --name discord-bot --resource-group "$RG" \
+  --query "properties.environmentId" -o tsv)
+echo "Managed environment: $ENV_ID"
+
+az containerapp job create \
+  --name "$JOB" \
+  --resource-group "$RG" \
+  --environment "$ENV_ID" \
+  --trigger-type Schedule \
+  --cron-expression "*/5 * * * *" \
+  --replica-timeout 60 \
+  --replica-retry-limit 0 \
+  --replica-completion-count 1 \
+  --parallelism 1 \
+  --image "$ACR_IMAGE" \
+  --cpu 0.25 --memory 0.5Gi \
+  --command "python" --args "-m" "scripts.canary_probe" \
+  --secrets "canary-token=$CANARY_BOT_TOKEN" \
+            "ops-webhook=${CANARY_OPS_WEBHOOK_URL}" \
+  --env-vars \
+    "CANARY_BOT_TOKEN=secretref:canary-token" \
+    "CANARY_CHANNEL_ID=$CANARY_CHANNEL_ID" \
+    "INSULT_BOT_USER_ID=$INSULT_BOT_USER_ID" \
+    "CANARY_TIMEOUT_SECONDS=45" \
+    "CANARY_OPS_WEBHOOK_URL=secretref:ops-webhook"
+
+echo "Created job $JOB. Manual test:  az containerapp job start --name $JOB --resource-group $RG"
+echo "Then watch:  az containerapp job execution list --name $JOB --resource-group $RG -o table"
