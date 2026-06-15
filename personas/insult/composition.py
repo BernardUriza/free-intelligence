@@ -57,6 +57,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from khimeras_shared.corpus import detect_film_topic
+from khimeras_shared.corpus.film_references import build_film_references_block
 from personas.insult.core.arc_tracker import ArcState, arc_from_dict, arc_to_dict, build_arc_prompt, update_arc
 from personas.insult.core.character import (
     MutationStage,
@@ -71,7 +72,7 @@ from personas.insult.core.character import (
     run_pipeline as run_character_pipeline,
 )
 from personas.insult.core.character.prompts import _format_other_people_block
-from personas.insult.core.deep_memory import build_film_references_block, build_user_memory_block
+from personas.insult.core.deep_memory import build_user_memory_block
 from personas.insult.core.facts import build_facts_prompt, extract_facts, merge_facts_additive
 from personas.insult.core.flows import analyze_flows, build_flow_prompt, detect_lifelessness, validate_flow_adherence
 from personas.insult.core.memory_consolidator import (

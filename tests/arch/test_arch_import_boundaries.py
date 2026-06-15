@@ -314,15 +314,12 @@ def _cross_persona_violations() -> list[tuple[str, str]]:
     return sorted(set(found))
 
 
-# Known persona→other-persona edge captured 2026-06-15. ALICE reaches into the
-# Insult film-criticism corpus helper. Resolved in PR-1 by moving
-# build_film_references_block to khimeras_shared (a neutral capability both
-# personas consume). DELETE this line when PR-1 lands.
-CROSS_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("personas.alice.cogs.chat", "personas.insult.core.deep_memory"),
-    }
-)
+# Persona→other-persona edges: NONE. The ALICE→Insult film-criticism edge was
+# closed in PR-1 (2026-06-15) by moving build_film_references_block + the RAG
+# primitives to khimeras_shared.corpus.{film_references,pg_rag} — a neutral
+# capability both personas consume. Empty baseline = the ratchet now fails on
+# ANY cross-persona import (test_no_new_cross_persona_imports), zero tolerated.
+CROSS_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset()
 
 
 def test_no_new_cross_persona_imports() -> None:
