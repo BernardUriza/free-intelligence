@@ -381,15 +381,19 @@ import {
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
 function useAgentConversation(agent, options = {}) {
   const {
+    externalMessages,
     conversationId,
     initialMessages,
     onMessagesChange,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError
   } = options;
+  const controlled = externalMessages !== void 0;
   const [messages, setMessages] = useState2(
     initialMessages ?? []
   );
+  const controlledRef = useRef(controlled);
+  controlledRef.current = controlled;
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
   const pending = useRef(false);
@@ -403,6 +407,7 @@ function useAgentConversation(agent, options = {}) {
   const skipPersist = useRef(true);
   const mounted = useRef(false);
   const revertOptimistic = useCallback(() => {
+    if (controlledRef.current) return;
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       return last?.role === "user" ? prev.slice(0, -1) : prev;
@@ -415,12 +420,14 @@ function useAgentConversation(agent, options = {}) {
       lastSent.current = t;
       setTurnError(null);
       setTimedOut(false);
-      skipPersist.current = true;
-      setMessages((prev) => [...prev, makeUserMessage(t)]);
+      if (!controlled) {
+        skipPersist.current = true;
+        setMessages((prev) => [...prev, makeUserMessage(t)]);
+      }
       pending.current = true;
       void agent.send(t);
     },
-    [agent]
+    [agent, controlled]
   );
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
@@ -442,6 +449,7 @@ function useAgentConversation(agent, options = {}) {
       }
       return;
     }
+    if (controlledRef.current) return;
     if (agent.turn.text) {
       skipPersist.current = false;
       setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
@@ -467,6 +475,7 @@ function useAgentConversation(agent, options = {}) {
       mounted.current = true;
       return;
     }
+    if (controlledRef.current) return;
     skipPersist.current = true;
     pending.current = false;
     setTurnError(null);
@@ -475,6 +484,7 @@ function useAgentConversation(agent, options = {}) {
     agent.reset?.();
   }, [conversationId]);
   useEffect2(() => {
+    if (controlledRef.current) return;
     if (skipPersist.current) {
       skipPersist.current = false;
       return;
@@ -485,12 +495,12 @@ function useAgentConversation(agent, options = {}) {
     skipPersist.current = true;
     setTurnError(null);
     setTimedOut(false);
-    setMessages([]);
+    if (!controlled) setMessages([]);
     pending.current = false;
     agent.reset?.();
-  }, [agent]);
+  }, [agent, controlled]);
   return {
-    messages,
+    messages: externalMessages ?? messages,
     turn: agent.turn,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,

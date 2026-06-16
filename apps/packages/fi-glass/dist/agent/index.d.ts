@@ -167,11 +167,25 @@ interface TurnError {
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 declare const DEFAULT_TURN_TIMEOUT_MS = 60000;
 interface UseAgentConversationOptions {
-    /** Identity of the active conversation. When it changes, the thread re-hydrates. */
+    /**
+     * Controlled mode: when provided, the CONSUMER owns the visible thread. The
+     * hook returns these verbatim as `conversation.messages` and stops folding —
+     * `send` drives `agent.send(text)` but pushes no optimistic message and folds
+     * no finished turn (the consumer maps its own transport into this transcript).
+     * For workflow adapters whose single send yields many agent-handoff messages
+     * (the 1-send -> 8+ messages case the single-turn fold cannot express; the
+     * Activist OS canary that surfaced this). Mutually exclusive with
+     * `initialMessages`/`conversationId`/`onMessagesChange` (those are bypassed —
+     * the consumer owns persistence); if both `externalMessages` and
+     * `initialMessages` are passed, `externalMessages` wins. Undefined =
+     * uncontrolled (the hook owns the thread, byte-identical to before).
+     */
+    externalMessages?: ChatMessage[];
+    /** Identity of the active conversation. When it changes, the thread re-hydrates. (Ignored in controlled mode.) */
     conversationId?: string | null;
-    /** Messages to seed the thread with (the active conversation's stored transcript). */
+    /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
     initialMessages?: ChatMessage[];
-    /** Called when the thread changes from real activity (fold/revert) — a persist hook. */
+    /** Called when the thread changes from real activity (fold/revert) — a persist hook. (Not called in controlled mode.) */
     onMessagesChange?: (messages: ChatMessage[]) => void;
     /**
      * Idle watchdog in ms: if the live turn's state does not change for this long

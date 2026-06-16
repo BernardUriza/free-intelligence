@@ -34,6 +34,31 @@
  *    its own, so a failed/hung turn never becomes a durable lone user message.
  *    `onMessagesChange` fires when a turn folds (user + assistant together) or
  *    when a revert returns the thread to its pre-send state.
+ *
+ * FIGLASS-CONTROLLED adds an OPTIONAL CONTROLLED / external-transcript mode
+ * (surfaced by the Activist OS canary: a governed multi-agent WORKFLOW where one
+ * `send` produces 8+ agent-handoff messages, not 1 assistant turn). The default
+ * UNCONTROLLED mode folds exactly one assistant message per send, which collapses
+ * an 8-message workflow into a single bubble. When the consumer passes
+ * `externalMessages`, IT owns the visible thread (it maps its own transport into
+ * a transcript) and this hook stops owning it:
+ *  - `conversation.messages` returns `externalMessages` verbatim — no internal
+ *    array, no optimistic push, no fold;
+ *  - `send(text)` still drives the turn via `agent.send(text)` but does NOT push
+ *    an optimistic user message and does NOT fold the finished turn (the
+ *    consumer's `externalMessages` already reflects truth);
+ *  - `turn` / `isStreaming` / `turnError` / `retry` / `dismissError` /
+ *    `newConversation` still work — the idle watchdog and the transport-error
+ *    recovery stay live so a hung/failed workflow is recoverable; the
+ *    optimistic-revert in the failure paths is simply a no-op (there is nothing
+ *    to revert), and the fold-on-success is skipped;
+ *  - the internal-thread persistence machinery (`initialMessages`,
+ *    `conversationId`, `onMessagesChange`) is bypassed — the consumer owns
+ *    persistence. `initialMessages` and `externalMessages` are mutually
+ *    exclusive: if both are passed, `externalMessages` wins (controlled mode).
+ *  - FULLY BACKWARD COMPATIBLE: with `externalMessages` undefined, behavior is
+ *    byte-identical to the uncontrolled mode above. Existing consumers (og118,
+ *    insult_ai, aurity) are untouched.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -66,11 +91,25 @@ export interface TurnError {
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 
 export interface UseAgentConversationOptions {
-  /** Identity of the active conversation. When it changes, the thread re-hydrates. */
+  /**
+   * Controlled mode: when provided, the CONSUMER owns the visible thread. The
+   * hook returns these verbatim as `conversation.messages` and stops folding —
+   * `send` drives `agent.send(text)` but pushes no optimistic message and folds
+   * no finished turn (the consumer maps its own transport into this transcript).
+   * For workflow adapters whose single send yields many agent-handoff messages
+   * (the 1-send -> 8+ messages case the single-turn fold cannot express; the
+   * Activist OS canary that surfaced this). Mutually exclusive with
+   * `initialMessages`/`conversationId`/`onMessagesChange` (those are bypassed —
+   * the consumer owns persistence); if both `externalMessages` and
+   * `initialMessages` are passed, `externalMessages` wins. Undefined =
+   * uncontrolled (the hook owns the thread, byte-identical to before).
+   */
+  externalMessages?: ChatMessage[];
+  /** Identity of the active conversation. When it changes, the thread re-hydrates. (Ignored in controlled mode.) */
   conversationId?: string | null;
-  /** Messages to seed the thread with (the active conversation's stored transcript). */
+  /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
   initialMessages?: ChatMessage[];
-  /** Called when the thread changes from real activity (fold/revert) — a persist hook. */
+  /** Called when the thread changes from real activity (fold/revert) — a persist hook. (Not called in controlled mode.) */
   onMessagesChange?: (messages: ChatMessage[]) => void;
   /**
    * Idle watchdog in ms: if the live turn's state does not change for this long
@@ -117,6 +156,7 @@ export function useAgentConversation(
   options: UseAgentConversationOptions = {},
 ): AgentConversation {
   const {
+    externalMessages,
     conversationId,
     initialMessages,
     onMessagesChange,
@@ -124,9 +164,17 @@ export function useAgentConversation(
     isAppHandledError,
   } = options;
 
+  // Controlled mode: the consumer owns the visible thread via externalMessages.
+  // The hook then drives the turn (and its recovery) but never owns/folds/persists
+  // the transcript. `externalMessages` wins over `initialMessages` if both passed.
+  const controlled = externalMessages !== undefined;
+
   const [messages, setMessages] = useState<ChatMessage[]>(
     initialMessages ?? [],
   );
+  // Read the latest controlled flag inside effects without re-arming them on it.
+  const controlledRef = useRef(controlled);
+  controlledRef.current = controlled;
   const [turnError, setTurnError] = useState<TurnError | null>(null);
   // The conversation's own "the watchdog killed this turn" flag. Lets us drop
   // out of streaming even when the transport's isStreaming is stuck true.
@@ -159,6 +207,8 @@ export function useAgentConversation(
   // both failure paths (timeout watchdog + transport error). Returns the thread
   // to its pre-send state so persistence never records an unanswered turn.
   const revertOptimistic = useCallback(() => {
+    // Controlled mode never pushed an optimistic message — nothing to revert.
+    if (controlledRef.current) return;
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       return last?.role === 'user' ? prev.slice(0, -1) : prev;
@@ -172,12 +222,16 @@ export function useAgentConversation(
       lastSent.current = t;
       setTurnError(null);
       setTimedOut(false);
-      skipPersist.current = true; // the optimistic push is not a confirmed turn
-      setMessages((prev) => [...prev, makeUserMessage(t)]);
+      if (!controlled) {
+        // Uncontrolled: push the user message optimistically (and gate persist).
+        // Controlled: the consumer's externalMessages already reflects the send.
+        skipPersist.current = true; // the optimistic push is not a confirmed turn
+        setMessages((prev) => [...prev, makeUserMessage(t)]);
+      }
       pending.current = true;
       void agent.send(t);
     },
-    [agent],
+    [agent, controlled],
   );
 
   const retry = useCallback(() => {
@@ -208,6 +262,9 @@ export function useAgentConversation(
       }
       return;
     }
+    // Controlled mode never folds: the consumer's externalMessages already holds
+    // the (possibly multi-message) turn it mapped from its own transport.
+    if (controlledRef.current) return;
     if (agent.turn.text) {
       // Clean finish with an answer: fold it in. This is the confirmed turn —
       // let persistence record user + assistant together (skipPersist stays
@@ -248,6 +305,9 @@ export function useAgentConversation(
       mounted.current = true;
       return;
     }
+    // Controlled mode: the consumer owns the thread + persistence, so a
+    // conversationId change never re-hydrates an internal array.
+    if (controlledRef.current) return;
     skipPersist.current = true;
     pending.current = false;
     setTurnError(null);
@@ -259,7 +319,9 @@ export function useAgentConversation(
   }, [conversationId]);
 
   // Notify on confirmed message changes; skip the seed/hydration/optimistic emits.
+  // Controlled mode never persists via this hook — the consumer owns persistence.
   useEffect(() => {
+    if (controlledRef.current) return;
     if (skipPersist.current) {
       skipPersist.current = false;
       return;
@@ -273,13 +335,15 @@ export function useAgentConversation(
     skipPersist.current = true;
     setTurnError(null);
     setTimedOut(false);
-    setMessages([]);
+    // Controlled mode: the consumer owns the thread, so clearing the internal
+    // array is a no-op for what's shown; still reset the live turn/session.
+    if (!controlled) setMessages([]);
     pending.current = false;
     agent.reset?.();
-  }, [agent]);
+  }, [agent, controlled]);
 
   return {
-    messages,
+    messages: externalMessages ?? messages,
     turn: agent.turn,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
