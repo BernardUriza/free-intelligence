@@ -478,6 +478,34 @@ mode that bit us or that production-product post-mortems documented.
     [discord-api-types RESTJSONErrorCodes](https://discord-api-types.dev/api/discord-api-types-v10/enum/RESTJSONErrorCodes)
     before quoting an error code as fact.
 
+## Test surface — ALWAYS #general, NEVER the Insult DM
+
+**Every real-contract bot verification runs in `#general` of the Khimeras server
+(channel `1489180895264116736`), NOT in the direct-message channel with Insult.**
+
+The DM (`@me/1489130575422820352`) is a TRAP for verification: it exercises the
+simplest possible turn — single author, no other participants, no "Other People"
+fact block, no multi-user batching, no cross-persona interplay. **It never
+fails**, so a green DM reply proves almost nothing. `#general` is where the real
+distortion lives (the multi-user context build, the failover branch, the
+behavioral guidance assembly), and it is where reported P0s actually surface.
+
+How to apply when driving Discord in the debug Chrome (`:9333`,
+[[reference_discord_web_send_via_chrome]]):
+- Open `https://discord.com/channels/<guild>/1489180895264116736` (#general),
+  not the DM.
+- Send the probe there, confirm Insult (voice A) replies with the expected
+  version tag — NOT an ALICE failover.
+- A DM check is acceptable ONLY as a quick "is the process alive at all" smoke,
+  never as the verification of record. If a fix is "verified", it was verified in
+  #general.
+
+**Why (2026-06-16):** the khimeras_shared deploy-gap P0 manifested in #general
+(every turn fell over to ALICE there). The fix was first "verified" via the
+Insult DM — which replied fine because the DM path is the one that never breaks.
+Bernard: *"tú estás siempre probando Insult directo y eso pues nunca ha fallado"*.
+The DM is the blind spot; #general is the test surface.
+
 ## E2E Testing with Discord MCP
 When you need to verify that the bot actually works end-to-end (not just unit tests), use the Discord MCP server to interact with a real Discord server. This Mac is the server.
 
