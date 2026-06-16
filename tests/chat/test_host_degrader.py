@@ -68,6 +68,29 @@ class TestHostDegrader:
 
 
 # --------------------------------------------------------------------------
+# Composition — the inert contract: disabled → None (no demux/gpt-4.1 load)
+# --------------------------------------------------------------------------
+
+
+class TestBuildHostDegraderPort:
+    def test_disabled_returns_none(self):
+        from personas.insult.composition import build_host_degrader_port
+
+        settings = MagicMock()
+        settings.host_router_enabled = False
+        assert build_host_degrader_port(settings) is None
+
+    def test_missing_flag_defaults_to_none(self):
+        """Settings without the attr at all → still inert (getattr default)."""
+        from personas.insult.composition import build_host_degrader_port
+
+        class _Bare:
+            pass
+
+        assert build_host_degrader_port(_Bare()) is None
+
+
+# --------------------------------------------------------------------------
 # Stages integration — honest-degradation tail consumes the degrader port
 # --------------------------------------------------------------------------
 

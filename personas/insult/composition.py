@@ -481,10 +481,19 @@ def build_host_degrader_port(settings: Any) -> Any | None:
     ``HostDegraderPort | None`` without importing the concrete. The concrete
     ``HostDegrader`` already satisfies the Protocol, so no adapter is needed."""
     if not getattr(settings, "host_router_enabled", False):
+        # Decision point: log the inert state so a deploy's logs reveal at a
+        # glance that the gpt-4.1 degrader is NOT wired (no spend, no router).
+        log.info("host_degrader_disabled")
         return None
+    # Enabled boot path: constructing HostDegrader → HostRouterLLM → CodexBackend
+    # is a blocking model-client setup at cog __init__ time. Bracket it so a hang
+    # or crash here is never a silent boot blind spot (boot-zombie doctrine).
+    log.info("host_degrader_building")  # pragma: no cover
     from demux_ai.host_degrader import HostDegrader  # pragma: no cover
 
-    return HostDegrader()  # pragma: no cover
+    degrader = HostDegrader()  # pragma: no cover
+    log.info("host_degrader_built")  # pragma: no cover
+    return degrader  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------

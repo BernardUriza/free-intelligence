@@ -70,7 +70,7 @@ class HostDegrader:
         to the user. ``user_text`` is the last user message so the notice can
         match the user's language. Raises ``HostRouterError`` if the host router
         itself fails — the caller owns the conservative fallback."""
-        log.info("host_degrade_start", reason=reason)
+        log.info("host_degrade_start", reason=reason, user_text_len=len(user_text))
         result = await self._router.complete(_DEGRADE_INSTRUCTION, user_text)
         text = result.text.strip()
         log.info(
