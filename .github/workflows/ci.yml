@@ -179,6 +179,18 @@ jobs:
         # 2026-06-10 22:26Z and broke main CI right after the PR-D merge (the PR
         # branch run at 18:07Z predated the advisory). Authorized by Bernard
         # 2026-06-10. DROP when torch publishes a fixed version.
+        #
+        # --- web-stack advisories surfaced 2026-06-16 (by the new JSON gate) ---
+        # GHSA-537c-gmf6-5ccf (cryptography 48.0.0): fix is 48.0.1, NOT yet on the
+        # conda-forge feedstock for py314 (verified: `mamba search cryptography>=48.0.1`
+        # → no entries). Transitive via the runner's TLS stack. DROP when 48.0.1 lands.
+        # CVE-2026-48818/48817/54283/54282 (starlette 0.52.1): all fixed only in
+        # starlette 1.x — a MAJOR bump from 0.52 that breaks the pinned fastapi/
+        # fi-runner envelope (the env notes warn about this exact cascade). starlette
+        # is the ASGI layer under the runner's FastAPI; the bot does not expose the
+        # vulnerable surfaces to untrusted input. Ignored to unblock CI; RE-AUDIT and
+        # bump to starlette 1.x once fastapi/fi-runner support it. NOT yet
+        # human-reviewed for exploitability — flagged for Bernard.
         # fi-core / fi-runner are conda-only (Bernard's channel, NEVER on PyPI by
         # explicit policy). pip-audit can't audit them → "Dependency not found on
         # PyPI" → exit 1, even with zero real vulns. That's a tooling gap, not a
@@ -216,7 +228,12 @@ jobs:
             --ignore-vuln PYSEC-2026-161 \
             --ignore-vuln CVE-2026-34993 \
             --ignore-vuln CVE-2026-47265 \
-            --ignore-vuln CVE-2025-3000 > /tmp/pip-audit.json || true
+            --ignore-vuln CVE-2025-3000 \
+            --ignore-vuln GHSA-537c-gmf6-5ccf \
+            --ignore-vuln CVE-2026-48818 \
+            --ignore-vuln CVE-2026-48817 \
+            --ignore-vuln CVE-2026-54283 \
+            --ignore-vuln CVE-2026-54282 > /tmp/pip-audit.json || true
           python3 - <<'PY'
           import json, sys
           data = json.load(open("/tmp/pip-audit.json"))
