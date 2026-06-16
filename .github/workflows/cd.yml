@@ -195,8 +195,50 @@ jobs:
                 exit 1
               fi
               echo "OK insult-runner: /health + DELETE /v1/session both green"
+
+              # 3) REAL /v1/turn — exercises the AGENT LOOP, the exact path
+              # that 502'd 2026-06-16 with
+              # ModuleNotFoundError('khimeras_shared') after the demux shipped
+              # the image without COPY khimeras_shared/. /health and DELETE
+              # /v1/session never import the persona stack, so they reported
+              # green while every real turn died and fell over to ALICE for
+              # ~2h. A real turn is the only check that proves the serving
+              # contract. Retries because the new revision needs ~30-90s to
+              # warm. Session is deleted after so the pool stays clean; the
+              # runner does NOT write bot memory (that is discord-bot's job),
+              # so this is side-effect-free against prod data.
+              SMOKE_CH="cd-smoke-${{ github.run_id }}"
+              TURN_OK=""
+              for attempt in 1 2 3 4 5 6; do
+                BODY=$(curl -sS -m 120 -w '\nHTTP_CODE:%{http_code}' -X POST \
+                  "https://$FQDN/v1/turn" \
+                  -H "Authorization: Bearer $TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"channel_id\":\"$SMOKE_CH\",\"user_id\":\"cd-smoke\",\"user_text\":\"ping\"}" 2>&1 \
+                  || echo "HTTP_CODE:000")
+                CODE=$(echo "$BODY" | grep -o 'HTTP_CODE:[0-9]*' | cut -d: -f2)
+                echo "turn attempt $attempt -> HTTP $CODE"
+                if echo "$BODY" | grep -qiE "ModuleNotFoundError|No module named"; then
+                  echo "FAIL insult-runner: agent loop ModuleNotFoundError — broken image deploy"
+                  echo "$BODY" | head -5
+                  curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
+                    -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
+                  exit 1
+                fi
+                if [ "$CODE" = "200" ] && echo "$BODY" | grep -q '"text"'; then
+                  TURN_OK=1; break
+                fi
+                sleep 15
+              done
+              curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
+                -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
+              if [ -z "$TURN_OK" ]; then
+                echo "FAIL insult-runner: /v1/turn never returned a healthy 200 (agent loop down)"
+                exit 1
+              fi
+              echo "OK insult-runner: real /v1/turn served — agent loop alive"
             else
-              echo "WARN insult-runner: token unavailable, skipping DELETE check"
+              echo "WARN insult-runner: token unavailable, skipping DELETE + turn checks"
             fi
           else
             echo "INFO insult-runner: not yet provisioned, skipping health check"
