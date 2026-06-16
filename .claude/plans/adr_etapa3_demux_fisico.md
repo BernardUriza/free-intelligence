@@ -87,3 +87,32 @@ Passed during PR/CD path before merge, NOT re-run locally during ADR authoring:
 - optional `demux_ai/jobs` wrapper
 - exploitability review de los CVEs de cryptography / starlette
 - Tier B semantic judge permanece congelado
+
+## Addendum — post-merge incident (2026-06-16)
+
+This ADR's first draft recorded "behavior change: 0 / prod healthy". That was a
+fake-green and must be corrected: **PR #26 shipped BOTH container images without
+`COPY khimeras_shared/`**, so the demux that this ADR documents did, in fact,
+break production.
+
+- **Symptom:** `insult-runner` returned `502 ModuleNotFoundError: No module
+  named 'khimeras_shared'` on every turn from ~14:19Z; Insult was effectively
+  down ~2h, masked by failover to ALICE. The root `Dockerfile` (discord-bot
+  plumbing) had the same omission, so every new plumbing revision crashlooped on
+  boot — only a 22h-old pre-demux revision still serving hid it.
+- **Why it stayed invisible:** `/debug/health` reflects the plumbing, not the
+  runner's serving contract — it returned 200 the whole time. Real-contract
+  verification (a Discord round-trip in #general) was the only check that caught
+  it.
+- **Fix:** `COPY khimeras_shared/` added to `infra/azure/runner.Dockerfile`
+  (v4.21.62) and root `Dockerfile` (v4.21.63). Regression guard
+  `tests/arch/test_runner_dockerfile_copies_imports.py` (parametrized over both
+  Dockerfiles) fails CI if a local package `personas.insult` imports is not in a
+  COPY allowlist. ALICE's failover plumbing-leak ("Insult se trabó. Yo te
+  contesto.") removed from her persona (v4.21.64). Verified live in #general:
+  Insult voz A, `ᵛ⁴·²¹·⁶³`, no failover.
+- **Lesson:** a Dockerfile COPY list is a manual allowlist that drifts from the
+  import graph. The CI ratchet now catches this class pre-deploy. A real
+  post-deploy smoke test (boot the new image + run a minimal turn, fail CD on
+  502/ModuleNotFound/unexpected fallback) is the next hardening unit (PR-4a) —
+  `/health` alone is insufficient.
