@@ -31,6 +31,11 @@ RUN mamba env update -n base -f environment.yml \
 COPY personas/ personas/
 COPY shared/ shared/
 COPY khimeras_shared/ khimeras_shared/
+# demux_ai/ — PR-4b slice 3: the persona composition root can import
+# `demux_ai.host_degrader` when `host_router_enabled` is True. Gated off in prod,
+# but the file must ship so flipping the flag never 502s with ModuleNotFoundError.
+# Enforced by tests/arch/test_runner_dockerfile_copies_imports.py.
+COPY demux_ai/ demux_ai/
 COPY persona.md .
 
 # Create storage dir (legacy SQLite path — Postgres is authoritative

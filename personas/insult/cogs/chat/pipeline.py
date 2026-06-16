@@ -82,6 +82,7 @@ import structlog
 
 if TYPE_CHECKING:
     from personas.insult.cogs.chat.capability_ports import (
+        HostDegraderPort,
         OutputMutationPort,
         PresetEnginePort,
         RetrievalPort,
@@ -144,6 +145,10 @@ class TurnRuntimeDeps:
     mutation: OutputMutationPort
     agent_client: Any = None
     judge_client: Any = None
+    # Host degrader (gpt-4.1 honest-degradation capability). INERT by default:
+    # None unless ``host_router_enabled`` is True, in which case the
+    # honest-degradation tail asks it for the notice instead of the static one.
+    host_degrader: HostDegraderPort | None = None
 
 
 @dataclass

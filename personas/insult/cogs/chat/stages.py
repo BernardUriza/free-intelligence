@@ -36,6 +36,7 @@ from khimeras_shared.corpus import (
 )
 from personas.insult.cogs.chat._failure import (
     Criticality,
+    FailoverReason,
     FailureClass,
     StageFailure,
     StageStop,
@@ -640,7 +641,36 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             alice_failover_enabled=alice_failover_enabled,
             attempt_alice=decision.attempt_alice,
         )
-        await send_with_reaction_fallback(ctx.message, get_error_response(classify_error(e)))
+
+        # The notice text. Default: the static in-character operational message
+        # (today's behavior, the conservative fallback). When the gpt-4.1 host
+        # degrader is wired (PR-4b slice 3, host_router_enabled) it AUTHORS the
+        # notice instead — but the happy path is untouched: this only runs after
+        # every persona path is exhausted. A host-router failure is matched BY
+        # NAME ("HostRouterError" → ROUTER_ERROR) so this hot path never imports
+        # demux_ai, and ANY degrader failure falls back to the static notice —
+        # never a fake-green and never silent.
+        degradation_text = get_error_response(classify_error(e))
+        host_degrader = ctx.deps.host_degrader
+        if host_degrader is not None:
+            try:
+                degradation_text = await host_degrader.degrade(reason=decision.reason.value, user_text=ctx.text)
+                log.info(
+                    "host_degrade_used",
+                    channel_id=ctx.channel_id,
+                    failover_reason=decision.reason.value,
+                )
+            except Exception as router_exc:
+                is_router_error = type(router_exc).__name__ == "HostRouterError"
+                log.warning(
+                    "host_degrade_failed",
+                    channel_id=ctx.channel_id,
+                    failover_reason=(FailoverReason.ROUTER_ERROR.value if is_router_error else decision.reason.value),
+                    router_error=is_router_error,
+                    error_type=type(router_exc).__name__,
+                    error_msg=str(router_exc)[:200],
+                )
+        await send_with_reaction_fallback(ctx.message, degradation_text)
         raise StageFailure(
             stage="call_llm",
             failure_class=failure_class,

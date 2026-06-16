@@ -66,6 +66,13 @@ RUN npm install -g --silent @playwright/mcp \
 # p3-personas v4.21.x; the runner's internal imports are `from personas.insult.*`).
 COPY shared/ shared/
 COPY khimeras_shared/ khimeras_shared/
+# demux_ai/ — PR-4b slice 3 wired the gpt-4.1 host degrader into the persona's
+# composition root (`build_host_degrader_port` defers `from demux_ai.host_degrader
+# import HostDegrader`). The import is gated behind `host_router_enabled` (False in
+# prod, so it never runs today), but the file MUST be in the image so flipping the
+# flag live doesn't 502 with `ModuleNotFoundError: No module named 'demux_ai'`.
+# Enforced by tests/arch/test_runner_dockerfile_copies_imports.py.
+COPY demux_ai/ demux_ai/
 COPY personas/__init__.py personas/__init__.py
 COPY personas/insult/ personas/insult/
 

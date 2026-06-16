@@ -164,6 +164,14 @@ class Settings(BaseSettings):
     # user sees a continuation in voice B instead of a canned error.
     alice_failover_enabled: bool = True
 
+    # PR-4b slice 3 — INERT switch for the gpt-4.1 host degrader. False (default)
+    # keeps the honest-degradation tail on the static in-character notice and
+    # NEVER builds/calls the host router → zero gpt-4.1 spend, zero prod change.
+    # Flipping it True wires demux_ai.host_degrader (live gpt-4.1) into the tail
+    # of a fully-failed turn only — never the happy path. That flip is a separate
+    # gated act (real spend), not part of shipping the wiring.
+    host_router_enabled: bool = False
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,

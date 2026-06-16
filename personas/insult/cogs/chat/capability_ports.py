@@ -227,3 +227,27 @@ class OutputMutationPort(Protocol):
         recent_response_lengths: list[int],
         recent_openers: list[str],
     ) -> str: ...
+
+
+class HostDegraderPort(Protocol):
+    """The demux host's gpt-4.1 honest-degradation capability as the pipeline
+    consumes it (PR-4b slice 3).
+
+    Runs ONLY at the tail of a failed turn — after every persona path is
+    exhausted — to produce a neutral, honest "can't serve this turn right now"
+    notice that NEVER impersonates a persona. Concrete impl lives host-side in
+    ``demux_ai.host_degrader.HostDegrader`` (gpt-4.1 over Azure); the pipeline
+    depends only on this Protocol and receives the adapter via
+    ``TurnRuntimeDeps.host_degrader`` — ``None`` when ``host_router_enabled`` is
+    False (prod default), which keeps the honest-degradation path the static
+    in-character notice and never calls gpt-4.1.
+
+    Unlike the best-effort ``RetrievalPort`` (which never raises), ``degrade``
+    MAY raise: a host-router failure surfaces as ``HostRouterError`` (the slice-2
+    ``ROUTER_ERROR`` taxonomy). The pipeline catches it BY NAME — never importing
+    ``demux_ai`` on the hot path — and falls back conservatively to the static
+    notice. The degrader must not swallow its own failure into a fake-green
+    string.
+    """
+
+    async def degrade(self, *, reason: str, user_text: str) -> str: ...

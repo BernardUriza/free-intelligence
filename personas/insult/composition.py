@@ -466,6 +466,27 @@ def build_preset_engine_port(judge_client: Any, settings: Any) -> _CorePresetEng
     return _CorePresetEngineAdapter(judge_client, settings)
 
 
+def build_host_degrader_port(settings: Any) -> Any | None:
+    """Build the HostDegraderPort (gpt-4.1 honest-degradation) — or ``None``.
+
+    PR-4b slice 3, INERT by default. Returns ``None`` unless
+    ``settings.host_router_enabled`` is True; the cog forwards that None onto
+    ``TurnRuntimeDeps.host_degrader``, and the honest-degradation tail keeps using
+    the static in-character notice. The ``demux_ai`` import is DEFERRED inside the
+    enabled branch so the host router + its heavy ``fi_runner`` backend are never
+    loaded when the flag is off — the whole gpt-4.1 path stays cold in prod.
+
+    Typed ``Any`` (like ``create_memory_store``) so this composition root is the
+    ONE place that touches ``demux_ai.host_degrader``; hosts hold the handle as a
+    ``HostDegraderPort | None`` without importing the concrete. The concrete
+    ``HostDegrader`` already satisfies the Protocol, so no adapter is needed."""
+    if not getattr(settings, "host_router_enabled", False):
+        return None
+    from demux_ai.host_degrader import HostDegrader  # pragma: no cover
+
+    return HostDegrader()  # pragma: no cover
+
+
 # ---------------------------------------------------------------------------
 # Governance bridges — app.py / __main__.py are host-facing and must not
 # import personas.insult.core.memory or insult.core.memory_consolidator directly.

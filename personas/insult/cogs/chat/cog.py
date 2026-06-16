@@ -33,6 +33,7 @@ from personas.insult.cogs.chat.tools import ALL_TOOLS
 from personas.insult.cogs.chat.turn import run_turn
 from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
+    build_host_degrader_port,
     build_preset_engine_port,
     build_s1b_policy_port,
     default_arc_port,
@@ -68,6 +69,9 @@ class ChatCog(commands.Cog):
         # S1b Policy adapter: built once with the anti-repetition ledger
         # (host-owned state; the capability only consults it).
         self._s1b_policy = build_s1b_policy_port(self._expression_history)
+        # Host degrader (gpt-4.1 honest-degradation). None unless
+        # host_router_enabled — INERT in prod, so demux_ai/fi_runner never load.
+        self._host_degrader = build_host_degrader_port(self.settings)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -148,6 +152,7 @@ class ChatCog(commands.Cog):
                     mutation=default_output_mutation_port(),
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
+                    host_degrader=self._host_degrader,
                 ),
             )
         except BaseException as e:
