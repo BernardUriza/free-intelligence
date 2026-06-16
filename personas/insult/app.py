@@ -8,11 +8,11 @@ import discord
 import structlog
 from discord.ext import commands
 
+from khimeras_shared.runner.agent_client import AgentRunnerClient
 from personas.insult.composition import create_memory_store
 from personas.insult.config import Settings, settings
 from personas.insult.core.contracts.history import ExpressionHistory
 from personas.insult.core.contracts.memory import MemoryLifecyclePort
-from personas.insult.core.llm.agent_client import AgentRunnerClient
 from personas.insult.core.llm.runner_judge_client import RunnerJudgeClient
 from personas.insult.core.routing import OpusBudget
 from personas.insult.core.siesta import SiestaPoller

@@ -7,10 +7,14 @@ Side-effect actions use tool_use because reliability is critical.
 
 import asyncio
 import re
-from dataclasses import dataclass
 
 import discord
 import structlog
+
+# ToolCall now lives in the shared LLM contract (khimeras_shared.llm.types). It
+# is re-exported here so existing callers (parsing, tests) keep importing it from
+# `personas.insult.core.actions` unchanged.
+from khimeras_shared.llm.types import ToolCall as ToolCall
 
 log = structlog.get_logger()
 
@@ -92,20 +96,6 @@ CHANNEL_TOOLS = [
         },
     },
 ]
-
-
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ToolCall:
-    """A tool_use block from the Claude API response."""
-
-    id: str
-    name: str
-    input: dict
 
 
 # ---------------------------------------------------------------------------

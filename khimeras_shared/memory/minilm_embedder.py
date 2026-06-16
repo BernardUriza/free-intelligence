@@ -46,6 +46,6 @@ class MiniLMEmbedder:
         NULL embedding, so a raise here never corrupts a write)."""
         if not text or not text.strip():
             raise ValueError("MiniLMEmbedder.embed: text must be non-empty")
-        from personas.insult.core.vectors import get_embedding_model
+        from khimeras_shared.vectors import get_embedding_model
 
         return await asyncio.to_thread(get_embedding_model().embed, text)

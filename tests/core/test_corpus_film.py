@@ -17,11 +17,11 @@ import types
 from khimeras_shared.corpus import (
     detect_film_topic,
     film_criticism_guidance,
+    film_references,
     load_film_criticism_values,
 )
 from personas.insult.cogs.chat.capability_ports import PresetEngineResult
 from personas.insult.cogs.chat.stages import _build_behavioral_guidance
-from personas.insult.core import deep_memory
 from personas.insult.core.presets import PresetMode, PresetSelection
 
 # --- detector: positive cases ----------------------------------------------
@@ -123,9 +123,9 @@ def test_frame_absent_from_guidance_when_off_topic():
 async def test_film_references_block_none_on_trivial_query():
     """Too-short queries are not worth an embed call — gate returns None
     without touching the DB."""
-    assert await deep_memory.build_film_references_block("cine") is None
-    assert await deep_memory.build_film_references_block("") is None
-    assert await deep_memory.build_film_references_block(None) is None
+    assert await film_references.build_film_references_block("cine") is None
+    assert await film_references.build_film_references_block("") is None
+    assert await film_references.build_film_references_block(None) is None
 
 
 async def test_query_corpus_empty_when_embed_unavailable(monkeypatch):
@@ -135,8 +135,8 @@ async def test_query_corpus_empty_when_embed_unavailable(monkeypatch):
     async def _no_embed(_text):
         return None
 
-    monkeypatch.setattr(deep_memory, "embed_text", _no_embed)
-    assert await deep_memory.query_corpus("montaje de la película de Tarkovsky") == []
+    monkeypatch.setattr(film_references, "embed_text", _no_embed)
+    assert await film_references.query_corpus("montaje de la película de Tarkovsky") == []
 
 
 async def test_film_references_block_none_when_no_hits(monkeypatch):
@@ -146,6 +146,6 @@ async def test_film_references_block_none_when_no_hits(monkeypatch):
     async def _no_hits(_query, **_kw):
         return []
 
-    monkeypatch.setattr(deep_memory, "query_corpus", _no_hits)
-    out = await deep_memory.build_film_references_block("analiza la estructura narrativa de esta película larga")
+    monkeypatch.setattr(film_references, "query_corpus", _no_hits)
+    out = await film_references.build_film_references_block("analiza la estructura narrativa de esta película larga")
     assert out is None

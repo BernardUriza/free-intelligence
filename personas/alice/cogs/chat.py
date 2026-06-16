@@ -425,7 +425,7 @@ class AliceChatCog(commands.Cog):
             log.info("alice_film_corpus_injected", corpus_chars=len(film))
             if detect_film_topic(topic_text):
                 try:
-                    from personas.insult.core.deep_memory import build_film_references_block
+                    from khimeras_shared.corpus.film_references import build_film_references_block
 
                     refs = await build_film_references_block(topic_text)
                     if refs:

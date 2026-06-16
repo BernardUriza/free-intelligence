@@ -26,21 +26,28 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Host-facing modules: the lightweight Discord plumbing (demux-to-be). Globs
 # ending in /** expand to every .py beneath. Only existing files are tested.
+#
+# Post-demux (Etapa 3, 2026-06-15): these paths were re-pointed from the dead
+# flat `insult/` tree to `personas/insult/`. Before the re-point they resolved
+# to ZERO existing files, so the whole boundary guard passed vacuously — a
+# fake-green. _resolve_host_files() now also FAILS LOUD on an empty result
+# (test_host_facing_patterns_resolve_to_real_files) so a future tree move that
+# orphans these globs can never silently disable the guard again.
 HOST_FACING_PATTERNS: list[str] = [
-    "insult/bot.py",
-    "insult/app.py",
-    "insult/__main__.py",
-    "insult/config.py",
-    "insult/cogs/chat/**",
-    "insult/core/routing.py",
-    "insult/core/triviality.py",
-    "insult/core/delivery.py",
-    "insult/core/errors.py",
-    "insult/core/guild_setup.py",
-    "insult/core/health_state.py",
-    "insult/core/debug_server/**",
-    "insult/core/metrics.py",
-    "insult/core/backup.py",
+    "personas/insult/bot.py",
+    "personas/insult/app.py",
+    "personas/insult/__main__.py",
+    "personas/insult/config.py",
+    "personas/insult/cogs/chat/**",
+    "personas/insult/core/routing.py",
+    "personas/insult/core/triviality.py",
+    "personas/insult/core/delivery.py",
+    "personas/insult/core/errors.py",
+    "personas/insult/core/guild_setup.py",
+    "personas/insult/core/health_state.py",
+    "personas/insult/core/debug_server/**",
+    "personas/insult/core/metrics.py",
+    "personas/insult/core/backup.py",
 ]
 
 # Smart/persona/runner internals the host must never reach into.
@@ -243,3 +250,168 @@ def test_host_facing_modules_do_not_import_smart_internals() -> None:
     test and ``test_no_new_host_to_smart_import_violations``."""
     violations = _violations()
     assert not violations, f"{len(violations)} host→smart import-boundary violation(s) remain"
+
+
+def test_host_facing_patterns_resolve_to_real_files() -> None:
+    """ANTI-FAKE-GREEN guard (Etapa 3, 2026-06-15).
+
+    The host→smart ratchet is only meaningful if HOST_FACING_PATTERNS actually
+    match real files. Before the demux re-point these globs pointed at the dead
+    flat ``insult/`` tree, resolved to an EMPTY set, and every host→smart test
+    passed vacuously. This guard makes an empty resolution a hard FAIL so a
+    future tree move that orphans the globs surfaces immediately instead of
+    silently disabling the boundary checks."""
+    files = _resolve_host_files()
+    assert files, (
+        "HOST_FACING_PATTERNS resolved to ZERO files — the host→smart ratchet is "
+        "testing nothing (fake-green). The repo tree moved and these globs are "
+        "stale; re-point them at the current host plumbing."
+    )
+
+
+# --- Cross-boundary fitness functions (Etapa 3 demux físico, 2026-06-15) -------
+#
+# The host→smart ratchet above guards ONE edge (insult plumbing → insult smart
+# internals). Etapa 3 adds the inter-package boundaries the coagent mandated:
+#   - a persona must NOT import another persona,
+#   - shared/khimeras_shared must NOT import any persona,
+#   - the persona_gateway (explicit host wiring) imports of persona internals
+#     are tracked toward removal in the capability moves (PR-1).
+PERSONA_ROOTS: tuple[str, ...] = ("personas/insult", "personas/alice")
+SHARED_ROOTS: tuple[str, ...] = ("shared", "khimeras_shared")
+
+
+def _scan_py(roots: tuple[str, ...]) -> list[Path]:
+    files: list[Path] = []
+    for r in roots:
+        base = REPO_ROOT / r
+        if base.is_dir():
+            files.extend(p for p in base.rglob("*.py") if "__pycache__" not in p.parts)
+    return sorted(files)
+
+
+def _persona_of(module: str) -> str | None:
+    if module.startswith("personas.insult"):
+        return "personas.insult"
+    if module.startswith("personas.alice"):
+        return "personas.alice"
+    return None
+
+
+def _cross_persona_violations() -> list[tuple[str, str]]:
+    """(importer_module, imported_persona_module) where a persona reaches into
+    a DIFFERENT persona package."""
+    found: list[tuple[str, str]] = []
+    for f in _scan_py(PERSONA_ROOTS):
+        mod = _module_name_for(f)
+        own = _persona_of(mod)
+        if own is None:
+            continue
+        other = "personas.alice" if own == "personas.insult" else "personas.insult"
+        for imp in _imported_modules(f):
+            if imp == other or imp.startswith(other + "."):
+                found.append((mod, imp))
+    return sorted(set(found))
+
+
+# Persona→other-persona edges: NONE. The ALICE→Insult film-criticism edge was
+# closed in PR-1 (2026-06-15) by moving build_film_references_block + the RAG
+# primitives to khimeras_shared.corpus.{film_references,pg_rag} — a neutral
+# capability both personas consume. Empty baseline = the ratchet now fails on
+# ANY cross-persona import (test_no_new_cross_persona_imports), zero tolerated.
+CROSS_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset()
+
+
+def test_no_new_cross_persona_imports() -> None:
+    """A persona must not import another persona's internals. Tolerates the known
+    baseline, fails on any NEW cross-persona edge; ratchet only tightens."""
+    current = set(_cross_persona_violations())
+    new = current - CROSS_PERSONA_BASELINE
+    assert not new, (
+        f"{len(new)} NEW cross-persona import(s) — a persona must not know another "
+        f"persona. Move the shared capability to khimeras_shared:\n"
+        + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(new))
+    )
+    stale = CROSS_PERSONA_BASELINE - current
+    assert not stale, (
+        "Baseline cross-persona edge(s) gone — drop the entry in CROSS_PERSONA_BASELINE "
+        "to lock the win:\n" + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(stale))
+    )
+
+
+def test_shared_never_imports_personas() -> None:
+    """STRICT — shared/khimeras_shared must never depend on any persona (currently
+    clean; locked at zero). Capability/shared code is consumed BY personas, never
+    the reverse."""
+    found = [
+        (_module_name_for(f), imp)
+        for f in _scan_py(SHARED_ROOTS)
+        for imp in _imported_modules(f)
+        if imp == "personas" or imp.startswith("personas.")
+    ]
+    assert not found, (
+        f"{len(found)} shared→persona import(s) — shared/khimeras_shared must not "
+        f"depend on personas:\n" + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(found))
+    )
+
+
+# persona_gateway is explicit host wiring, but it still reaches into Insult
+# persona internals for capabilities that belong in the shared layer. Captured
+# as baseline 2026-06-15; the capability moves dropped them one by one:
+#   - agent_client edge CLOSED in PR-1b (AgentRunnerClient → khimeras_shared.runner)
+#   - memory edge CLOSED in PR-1c (MemoryStore subsystem + neutral style/vectors
+#     deps → khimeras_shared.{memory,style,vectors}; old paths kept as re-export
+#     shims). Gateway now imports MemoryStore from khimeras_shared.memory.
+#   - config edge CLOSED in PR-2 (the 3 runtime-infra fields — postgres_url,
+#     insult_agent_runner_url/token — now come from the neutral env-backed
+#     khimeras_shared.persona.PersonaRuntimeConfig, NOT personas.insult.config).
+# Ratchet complete: gateway→persona is now ZERO, locked strict (empty baseline).
+GATEWAY_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset()
+
+
+def test_no_new_gateway_persona_imports() -> None:
+    """persona_gateway may do explicit wiring, but its reach into Insult persona
+    internals is tracked toward removal (PR-1 capability moves). Fails on NEW
+    edges, requires deleting baselined ones once the capability moves out."""
+    current = {
+        (_module_name_for(f), imp)
+        for f in _scan_py(("persona_gateway",))
+        for imp in _imported_modules(f)
+        if (imp == "personas" or imp.startswith("personas."))
+    }
+    new = current - GATEWAY_PERSONA_BASELINE
+    assert not new, f"{len(new)} NEW persona_gateway→persona import(s):\n" + "\n".join(
+        f"  {m} ─imports→ {i}" for m, i in sorted(new)
+    )
+    stale = GATEWAY_PERSONA_BASELINE - current
+    assert not stale, (
+        "Baseline gateway→persona edge(s) gone — drop the entry in GATEWAY_PERSONA_BASELINE:\n"
+        + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(stale))
+    )
+
+
+# demux_ai is the lightweight HOST (onboarding + routing). Like the gateway it
+# orchestrates personas, so it must NEVER import a persona's internals — sourcing
+# anything it needs from a persona would just relocate a host→persona edge into a
+# module the OTHER ratchets don't watch (a fake-green: the gateway goes green while
+# the debt hides here). Added in PR-2 when the gateway's config edge was severed,
+# so that win — the neutral khimeras_shared.persona.PersonaRuntimeConfig instead of
+# personas.insult.config — can't silently regress through this blind spot. demux_ai
+# is a near-empty skeleton today, so this is locked strict at ZERO from the start.
+DEMUX_ROOTS: tuple[str, ...] = ("demux_ai",)
+
+
+def test_demux_ai_never_imports_personas() -> None:
+    """STRICT — the demux host must never depend on any persona. Locked at zero so
+    the gateway→persona win (PR-2) cannot reappear via the untracked host module."""
+    found = [
+        (_module_name_for(f), imp)
+        for f in _scan_py(DEMUX_ROOTS)
+        for imp in _imported_modules(f)
+        if imp == "personas" or imp.startswith("personas.")
+    ]
+    assert not found, (
+        f"{len(found)} demux_ai→persona import(s) — the demux host must not depend on "
+        f"a persona; source neutral/infra needs from khimeras_shared instead:\n"
+        + "\n".join(f"  {m} ─imports→ {i}" for m, i in sorted(found))
+    )

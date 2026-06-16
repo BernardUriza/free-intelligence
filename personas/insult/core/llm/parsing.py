@@ -15,21 +15,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
-from personas.insult.core.actions import ToolCall
+# LLMResponse + ToolCall now live in the shared LLM contract
+# (khimeras_shared.llm.types). They are imported (and re-exported via the
+# `insult.core.llm` barrel) so existing callers keep working; only the cache-
+# boundary / response-parsing BEHAVIOR below stays persona-side.
+from khimeras_shared.llm.types import LLMResponse, ToolCall
 from personas.insult.core.character import CACHE_BOUNDARY
-
-
-@dataclass
-class LLMResponse:
-    """Structured response from the LLM — text + optional tool calls."""
-
-    text: str
-    tool_calls: list[ToolCall] = field(default_factory=list)
-    model_used: str = ""  # populated by chat() — reflects the model that actually produced the text
-    stop_reason: str = ""  # raw API stop_reason; "max_tokens" / "end_turn" / "tool_use" / "pause_turn"
-
 
 # Web search tool definition — Claude's native server-side search.
 #

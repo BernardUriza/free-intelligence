@@ -1,17 +1,19 @@
 """LLM client subpackage — runner-backed, no direct-Anthropic client.
 
 The legacy direct-Anthropic Messages-API client was deleted once
-the agent runner became the sole LLM backend. What remains are the runner
-HTTP clients plus the still-shared building blocks:
+the agent runner became the sole LLM backend. The conversational turn client
+``AgentRunnerClient`` moved to ``khimeras_shared.runner.agent_client`` (Etapa 3
+PR-1b) — it is persona-neutral transport. What remains here are the still-
+persona-side building blocks:
 
 Submodules:
-- ``agent_client``: ``AgentRunnerClient`` → POST /v1/turn (chat turns).
 - ``runner_judge_client``: ``RunnerJudgeClient`` → POST /v1/judge (one-shot
   text-only utility calls: facts, summaries, moltbook, proactive, reminders).
 - ``pricing``: per-family token tracking + USD cost estimation.
 - ``retry``: retry-after parsing + Full Jitter backoff timing.
-- ``parsing``: LLMResponse, WEB_SEARCH_TOOL, system-block builder,
-  Messages API response parser (still consumed by the runner clients).
+- ``parsing``: WEB_SEARCH_TOOL, system-block builder, Messages API response
+  parser, and a re-export of the shared ``LLMResponse`` contract (still consumed
+  by the runner clients).
 
 This __init__ is a barrel — public symbols are re-exported so existing
 imports (``from personas.insult.core.llm import LLMResponse / get_usage_report``)

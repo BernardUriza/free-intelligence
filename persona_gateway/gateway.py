@@ -28,14 +28,15 @@ import re
 import discord
 import structlog
 
-from personas.insult.core.llm.agent_client import AgentRunnerClient
-from personas.insult.core.memory import MemoryStore
+from khimeras_shared.memory import MemoryStore
+from khimeras_shared.persona import PersonaRuntimeConfig
+from khimeras_shared.runner.agent_client import AgentRunnerClient
 from shared.personas import Persona, all_personas
 
-# NOTE: `insult.config.settings` is imported lazily inside `_build_shared()`,
-# NOT at module top-level. Constructing the Settings singleton requires a `.env`
-# (DISCORD_TOKEN etc.); importing it here would crash test collection in CI,
-# which has no .env. The pure helpers + PersonaClient must import cleanly.
+# Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
+# `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
+# longer reaches into `personas.insult.config`. All fields default to empty, so
+# this import is safe at module top-level even when no `.env` is present (CI).
 
 log = structlog.get_logger()
 
@@ -236,11 +237,11 @@ class PersonaClient(discord.Client):
 
 def _build_shared() -> tuple[MemoryStore, AgentRunnerClient]:
     """Construct the deps shared by all persona-bots (same wiring as Insult)."""
-    from personas.insult.config import settings  # lazy: needs .env, see module note
+    config = PersonaRuntimeConfig.from_env()
 
-    memory = MemoryStore(settings.postgres_url.get_secret_value())
-    runner_url = settings.insult_agent_runner_url
-    runner_token = settings.insult_agent_runner_token.get_secret_value()
+    memory = MemoryStore(config.postgres_url.get_secret_value())
+    runner_url = config.insult_agent_runner_url
+    runner_token = config.insult_agent_runner_token.get_secret_value()
     if not (runner_url and runner_token):
         raise RuntimeError("persona gateway requires INSULT_AGENT_RUNNER_URL + token")
     agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)

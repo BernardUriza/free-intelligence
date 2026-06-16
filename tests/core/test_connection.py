@@ -14,8 +14,8 @@ import asyncio
 import pytest
 import structlog
 
-from personas.insult.core.memory import connection as conn_mod
-from personas.insult.core.memory.connection import ConnectionManager
+from khimeras_shared.memory import connection as conn_mod
+from khimeras_shared.memory.connection import ConnectionManager
 
 
 class _FakeConn:
@@ -61,7 +61,7 @@ def fake_pool(monkeypatch):
         def embed(self, _text):
             return [0.0]
 
-    import personas.insult.core.vectors as vectors_mod
+    import khimeras_shared.vectors as vectors_mod
 
     monkeypatch.setattr(vectors_mod, "get_embedding_model", lambda: _FakeModel())
     return created
@@ -124,7 +124,7 @@ async def test_prewarm_runs_off_critical_path(fake_pool):
 async def test_prewarm_failure_is_non_fatal(fake_pool, monkeypatch):
     """If the embedding model blows up, connect() still succeeds — the prewarm
     is best-effort, the lazy path covers the first turn."""
-    import personas.insult.core.vectors as vectors_mod
+    import khimeras_shared.vectors as vectors_mod
 
     def _boom():
         raise RuntimeError("HF unreachable")

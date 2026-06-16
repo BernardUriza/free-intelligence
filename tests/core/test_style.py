@@ -2,7 +2,7 @@
 
 import pytest
 
-from personas.insult.core.style import (
+from khimeras_shared.style import (
     UserStyleProfile,
     _compute_formality,
     _compute_technical_level,
