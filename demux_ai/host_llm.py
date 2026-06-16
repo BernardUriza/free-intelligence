@@ -36,6 +36,14 @@ DEFAULT_API_VERSION = "2024-10-21"
 _KEY_ENV = "AZURE_OPENAI_API_KEY"
 
 
+class HostRouterError(Exception):
+    """The host router (gpt-4.1) failed while classifying / routing / producing
+    degradation text. Distinct from a persona-runner failure: this is the
+    RECEPTIONIST brain breaking, not a persona's. Consumers classify it as
+    ``FailoverReason.ROUTER_ERROR`` so logs never conflate a downed persona
+    runner with a downed host router."""
+
+
 @dataclass(frozen=True)
 class HostLLMResult:
     """Token-accounted result of a host-router completion.
@@ -104,7 +112,19 @@ class HostRouterLLM:
             model=chosen_model,
         )
         start = time.monotonic()
-        result = await runner.run(user_text)
+        try:
+            result = await runner.run(user_text)
+        except Exception as e:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            log.warning(
+                "host_router_llm_error",
+                model=chosen_model,
+                error_type=type(e).__name__,
+                error_msg=str(e)[:200],
+                latency_ms=latency_ms,
+                backend="codex",
+            )
+            raise HostRouterError(f"host router {chosen_model} failed: {type(e).__name__}: {e}") from e
         latency_ms = int((time.monotonic() - start) * 1000)
 
         usage = result.usage or {}

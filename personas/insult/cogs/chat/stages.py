@@ -40,6 +40,7 @@ from personas.insult.cogs.chat._failure import (
     StageFailure,
     StageStop,
     classify_discord_exception,
+    decide_failover,
     send_with_reaction_fallback,
     spawn_typing_indicator,
     spawn_typing_keepalive,
@@ -566,22 +567,27 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             failure_class = FailureClass.LLM_FAILED
         elapsed = int((time.monotonic() - llm_start) * 1000)
 
-        # ALICE failover: if the agent runner timed out / 5xx'd / rate-limited,
-        # invite ALICE to take this turn instead of leaving the user stuck with
-        # an in-character error. ALICE reads the recent channel from Postgres
-        # and replies with her own persona — user sees a continuation in voice
-        # B instead of a half-canned "ando hasta el queso" from voice A.
-        # Only triggers on agent_runner backend failures, NOT BadRequestError
-        # (which is usually a malformed request that ALICE can't fix either).
+        # PR-4b slice 2: decide failover by POLICY, not by "any agent failure".
+        # A real sibling-persona (ALICE) failover is attempted ONLY when the
+        # runner PROCESS is genuinely down (RunnerDownError → runner_down). A
+        # persona-turn error (4xx / invalid JSON → persona_error) means Insult's
+        # brain is alive but THIS turn broke — failing over would fabricate a
+        # 'fake ALICE'; we degrade honestly instead. BadRequestError keeps its
+        # own no-failover path (a malformed request ALICE can't fix either).
         alice_failover_enabled = getattr(ctx.deps.settings, "alice_failover_enabled", True)
-        is_agent_failure = backend == "agent_runner" and failure_class == FailureClass.LLM_FAILED
-        if alice_failover_enabled and is_agent_failure:
-            log.warning(
-                "agent_runner_fallover_to_alice",
-                error_type=type(e).__name__,
-                error_msg=str(e)[:200],
-                elapsed_ms=elapsed,
-            )
+        decision = decide_failover(e, backend=backend, alice_failover_enabled=alice_failover_enabled)
+        log.warning(
+            "turn_backend_failed",
+            backend=backend,
+            failover_reason=decision.reason.value,
+            attempt_alice=decision.attempt_alice,
+            failure_class=failure_class.value,
+            error_type=type(e).__name__,
+            error_msg=str(e)[:200],
+            elapsed_ms=elapsed,
+        )
+
+        if decision.attempt_alice:
             try:
                 from personas.insult.core.alice_tool import execute_invoke_alice
 
@@ -600,20 +606,40 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     channel_name=ctx.channel_name,
                 )
                 if ok:
-                    log.info("alice_failover_invoked", channel_id=ctx.channel_id)
-                    # Mark this as a successful turn from the user's POV — ALICE
-                    # will deliver async. discord-bot doesn't send anything itself.
+                    # Real ALICE (her own container) accepted the turn (202) —
+                    # she will deliver asynchronously; discord-bot sends nothing.
+                    log.info(
+                        "alice_failover_invoked",
+                        channel_id=ctx.channel_id,
+                        failover_reason=decision.reason.value,
+                    )
                     ctx.delivery_mode = "alice_failover"
                     raise StageStop("alice_failover") from e
-                log.warning("alice_failover_rejected", channel_id=ctx.channel_id)
+                # ALICE's /invite did NOT accept (non-202 / unreachable) → she is
+                # NOT really available. Fall through to honest degradation rather
+                # than dropping the turn silently.
+                log.warning(
+                    "alice_failover_unavailable",
+                    channel_id=ctx.channel_id,
+                    failover_reason=decision.reason.value,
+                )
             except StageStop:
                 raise
             except Exception:
                 log.exception("alice_failover_internal_error")
-                # Fall through to the legacy error path below
+                # Fall through to honest degradation below.
 
-        # In-character user notice via the reaction-fallback path so a
-        # rate-limited channel still produces *some* signal.
+        # Honest degradation — no persona could serve this turn. NEVER silent,
+        # NEVER a fabricated persona voice: an in-character (non-impersonating)
+        # operational notice via the reaction-fallback path, plus a distinct,
+        # queryable event carrying WHY the turn degraded.
+        log.warning(
+            "honest_degradation",
+            channel_id=ctx.channel_id,
+            failover_reason=decision.reason.value,
+            alice_failover_enabled=alice_failover_enabled,
+            attempt_alice=decision.attempt_alice,
+        )
         await send_with_reaction_fallback(ctx.message, get_error_response(classify_error(e)))
         raise StageFailure(
             stage="call_llm",

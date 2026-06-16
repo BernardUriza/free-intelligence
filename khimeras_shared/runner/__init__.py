@@ -8,6 +8,11 @@ infra layer rather than inside any persona. Moved here in Etapa 3 PR-1b.
 
 from __future__ import annotations
 
-from khimeras_shared.runner.agent_client import AgentRunnerClient, AgentRunnerError
+from khimeras_shared.runner.agent_client import (
+    AgentRunnerClient,
+    AgentRunnerError,
+    PersonaTurnError,
+    RunnerDownError,
+)
 
-__all__ = ["AgentRunnerClient", "AgentRunnerError"]
+__all__ = ["AgentRunnerClient", "AgentRunnerError", "PersonaTurnError", "RunnerDownError"]

@@ -104,6 +104,75 @@ class FailureClass(Enum):
     UNEXPECTED = "unexpected"  # uncategorized — investigate
 
 
+class FailoverReason(Enum):
+    """Why a turn could not be served by its primary backend — the typed
+    distinction PR-4b slice 2 introduced so the failover decision and the
+    logs stop lying about what actually broke.
+
+    - ``RUNNER_DOWN``: the insult-runner process is unreachable (connect
+      refused / read timeout / 5xx). Insult's Claude brain is genuinely
+      down, so a sibling persona on a DIFFERENT provider (ALICE on Azure
+      OpenAI) may legitimately take the turn.
+    - ``PERSONA_ERROR``: the runner answered but rejected THIS turn (4xx /
+      invalid JSON). The brain is alive; failing over to ALICE would
+      fabricate a 'fake ALICE'. Degrade honestly instead.
+    - ``ROUTER_ERROR``: the demux host router (gpt-4.1) itself failed while
+      classifying / routing. Reserved for when the live host router is wired
+      into the turn path (later slice); the type exists now so the taxonomy
+      is complete and greppable.
+    - ``UNKNOWN``: anything uncategorized — investigate, never silently
+      failover.
+    """
+
+    RUNNER_DOWN = "runner_down"
+    PERSONA_ERROR = "persona_error"
+    ROUTER_ERROR = "router_error"
+    UNKNOWN = "unknown"
+
+
+def classify_failover_reason(exc: BaseException) -> FailoverReason:
+    """Map a turn-backend exception onto a ``FailoverReason``.
+
+    ``RunnerDownError`` / ``PersonaTurnError`` are matched by isinstance (a
+    cheap import from ``khimeras_shared``). The host router error is matched
+    by class name so this hot-path module never has to import
+    ``demux_ai.host_llm`` (which pulls in the heavy ``fi_runner`` backend);
+    the host router is not wired into the turn path yet, so a name match is
+    sufficient and keeps the boundary clean."""
+    from khimeras_shared.runner.agent_client import PersonaTurnError, RunnerDownError
+
+    if isinstance(exc, RunnerDownError):
+        return FailoverReason.RUNNER_DOWN
+    if isinstance(exc, PersonaTurnError):
+        return FailoverReason.PERSONA_ERROR
+    if type(exc).__name__ == "HostRouterError":
+        return FailoverReason.ROUTER_ERROR
+    return FailoverReason.UNKNOWN
+
+
+@dataclass(frozen=True)
+class FailoverDecision:
+    """The pure outcome of classifying a turn-backend failure: WHY it failed
+    and WHETHER a real sibling-persona failover may be attempted. Carries no
+    I/O — the stage performs the actual ALICE invite / honest degradation
+    based on this."""
+
+    reason: FailoverReason
+    attempt_alice: bool
+
+
+def decide_failover(exc: BaseException, *, backend: str, alice_failover_enabled: bool) -> FailoverDecision:
+    """Pure failover policy. A sibling-persona (ALICE) failover is attempted
+    ONLY when the runner process is genuinely DOWN — never for a persona-turn
+    error (that would fabricate a 'fake ALICE'), never when failover is
+    disabled, never for a non-agent backend. The honest-degradation path is
+    the caller's responsibility whenever ``attempt_alice`` is False OR the
+    real ALICE invite is rejected."""
+    reason = classify_failover_reason(exc)
+    attempt_alice = alice_failover_enabled and backend == "agent_runner" and reason is FailoverReason.RUNNER_DOWN
+    return FailoverDecision(reason=reason, attempt_alice=attempt_alice)
+
+
 @dataclass
 class StageFailure(Exception):  # noqa: N818 — explicit "Failure" suffix replaces "Error"
     """Structured failure surfaced from a stage. Carrying it as an
@@ -295,9 +364,13 @@ def spawn_typing_keepalive(
 
 
 __all__ = [
+    "FailoverDecision",
+    "FailoverReason",
     "FailureClass",
     "StageFailure",
     "classify_discord_exception",
+    "classify_failover_reason",
+    "decide_failover",
     "emit_typing_safe",
     "send_with_reaction_fallback",
     "spawn_typing_indicator",

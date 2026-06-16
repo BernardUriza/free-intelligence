@@ -64,7 +64,26 @@ log = structlog.get_logger()
 
 
 class AgentRunnerError(Exception):
-    """Raised when the runner returns 5xx or invalid JSON."""
+    """Base — a turn call to the runner failed. Kept as the common base so
+    existing ``except AgentRunnerError`` / ``except Exception`` catch sites
+    keep working; callers that need the runner-down vs persona-turn split
+    branch on the two subclasses below."""
+
+
+class RunnerDownError(AgentRunnerError):
+    """The runner PROCESS is unreachable: connection refused, read timeout,
+    or a 5xx from the container. Insult's brain is genuinely down, so a
+    sibling persona on a DIFFERENT provider/container (ALICE on Azure
+    OpenAI) can legitimately take this turn — the failover is real, not an
+    impersonation."""
+
+
+class PersonaTurnError(AgentRunnerError):
+    """The runner is UP and answered, but THIS turn was rejected: a 4xx (the
+    request reached the runner and was refused) or invalid JSON. ALICE
+    cannot fix a malformed / over-quota / misbehaving turn, so failing over
+    to her would fabricate a 'fake ALICE'. The caller must degrade honestly
+    instead of failing over (closes the 2026-06 'ALICE falsa' class)."""
 
 
 def _last_user_text(messages: list[dict]) -> str:
@@ -302,14 +321,18 @@ class AgentRunnerClient:
                 user_id=user_id,
                 channel_id=channel_id,
             )
-            raise AgentRunnerError(f"runner read timeout after {self._timeout_s}s") from e
+            # A read timeout means the runner never answered — treat the brain
+            # as down so a real sibling persona can take the turn.
+            raise RunnerDownError(f"runner read timeout after {self._timeout_s}s") from e
         except httpx.HTTPError as e:
             log.exception(
                 "agent_runner_client_http_error",
                 error_type=type(e).__name__,
                 elapsed_ms=int((time.monotonic() - start) * 1000),
             )
-            raise AgentRunnerError(f"runner http error: {type(e).__name__}: {e}") from e
+            # Connection refused / DNS / transport error → the runner process
+            # is unreachable. RunnerDownError so failover is allowed.
+            raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
 
         elapsed_ms = int((time.monotonic() - start) * 1000)
 
@@ -320,7 +343,8 @@ class AgentRunnerClient:
                 body_preview=resp.text[:200],
                 elapsed_ms=elapsed_ms,
             )
-            raise AgentRunnerError(f"runner {resp.status_code}: {resp.text[:200]}")
+            # 5xx = the container is failing to serve. Brain down → failover OK.
+            raise RunnerDownError(f"runner {resp.status_code}: {resp.text[:200]}")
         if resp.status_code >= 400:
             log.error(
                 "agent_runner_client_4xx",
@@ -328,13 +352,19 @@ class AgentRunnerClient:
                 body_preview=resp.text[:200],
                 elapsed_ms=elapsed_ms,
             )
-            raise AgentRunnerError(f"runner {resp.status_code}: {resp.text[:200]}")
+            # 4xx = the runner received and REJECTED this turn (the brain is
+            # alive). A sibling persona can't fix a bad request → degrade
+            # honestly, never a fake-ALICE failover.
+            raise PersonaTurnError(f"runner {resp.status_code}: {resp.text[:200]}")
 
         try:
             data = resp.json()
         except ValueError as e:
             log.exception("agent_runner_client_invalid_json", body_preview=resp.text[:200])
-            raise AgentRunnerError("runner returned invalid JSON") from e
+            # The runner answered but emitted garbage — it's reachable but
+            # broken. Surface it as a persona-turn error so it's NOT masked by
+            # a sibling failover; this is a bug to SEE, not to paper over.
+            raise PersonaTurnError("runner returned invalid JSON") from e
 
         text = data.get("text", "") or ""
         log.info(
