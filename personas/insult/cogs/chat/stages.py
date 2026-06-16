@@ -654,12 +654,26 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         host_degrader = ctx.deps.host_degrader
         if host_degrader is not None:
             try:
-                degradation_text = await host_degrader.degrade(reason=decision.reason.value, user_text=ctx.text)
-                log.info(
-                    "host_degrade_used",
-                    channel_id=ctx.channel_id,
-                    failover_reason=decision.reason.value,
-                )
+                degraded = await host_degrader.degrade(reason=decision.reason.value, user_text=ctx.text)
+                # A blank result is NOT an exception, so the except below can't
+                # catch it — but an empty notice is a degraded signal too: it
+                # would send "" to Discord (400 → only a ⏳ reaction), losing the
+                # honest message. Adopt the degrader text ONLY when it is
+                # non-blank; otherwise keep the static notice. This completes the
+                # conservative fallback (blank → static, exception → static).
+                if degraded and degraded.strip():
+                    degradation_text = degraded
+                    log.info(
+                        "host_degrade_used",
+                        channel_id=ctx.channel_id,
+                        failover_reason=decision.reason.value,
+                    )
+                else:
+                    log.warning(
+                        "host_degrade_blank",
+                        channel_id=ctx.channel_id,
+                        failover_reason=decision.reason.value,
+                    )
             except Exception as router_exc:
                 is_router_error = type(router_exc).__name__ == "HostRouterError"
                 log.warning(

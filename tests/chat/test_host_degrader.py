@@ -172,6 +172,22 @@ async def test_enabled_degrader_authors_the_notice():
 
 
 @pytest.mark.asyncio
+async def test_enabled_degrader_blank_result_falls_back_to_static():
+    """host_degrader returns a blank/whitespace notice (NOT an exception) →
+    keep the static notice, never send "" to Discord. Resistance case for the
+    conservative-fallback completeness guard."""
+    degrader = MagicMock()
+    degrader.degrade = AsyncMock(return_value="   \n  ")
+    ctx = _mk_llm_ctx(host_degrader=degrader)
+
+    with pytest.raises(StageFailure):
+        await stages._stage_call_llm(ctx)
+
+    degrader.degrade.assert_awaited_once()
+    ctx.message.channel.send.assert_awaited_once_with(_STATIC)
+
+
+@pytest.mark.asyncio
 async def test_enabled_degrader_router_error_falls_back_to_static():
     """host_degrader raises HostRouterError (ROUTER_ERROR) → conservative
     fallback to the static notice, never silent, never the raised error."""
