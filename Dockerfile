@@ -20,9 +20,17 @@ RUN mamba env update -n base -f environment.yml \
  && find /opt/conda/ -follow -type f -name '*.a' -delete \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
-# Copy app code. personas/insult/ contains the bot; shared/ is imported at runtime.
+# Copy app code. personas/insult/ contains the bot; shared/ + khimeras_shared/
+# are imported at runtime. khimeras_shared/ is MANDATORY: the demux (PR #26,
+# Etapa 3) moved neutral capabilities there and personas.insult.app imports
+# `from khimeras_shared.runner.agent_client import AgentRunnerClient` at boot —
+# omitting it makes the plumbing crashloop on start with
+# `ModuleNotFoundError: No module named 'khimeras_shared'` (prod near-miss
+# 2026-06-16: a pre-demux revision kept serving so /health stayed green while
+# every new discord-bot revision failed to boot).
 COPY personas/ personas/
 COPY shared/ shared/
+COPY khimeras_shared/ khimeras_shared/
 COPY persona.md .
 
 # Create storage dir (legacy SQLite path — Postgres is authoritative

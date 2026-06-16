@@ -1,16 +1,21 @@
-"""Runner image packaging invariant — the COPY allowlist must not drift.
+"""Image packaging invariant — the COPY allowlists must not drift.
 
 Prod P0 (2026-06-16): the Etapa 3 demux (PR #26) moved neutral capabilities
 into ``khimeras_shared``; ``personas.insult`` now transitively imports
-``khimeras_shared.*``, but ``infra/azure/runner.Dockerfile`` was never updated
-to ``COPY khimeras_shared/``. The insult-runner image shipped without the
-package and 502'd on EVERY turn with ``ModuleNotFoundError: No module named
-'khimeras_shared'`` for ~2h while /health stayed green on the plumbing.
+``khimeras_shared.*``, but NEITHER Dockerfile was updated to
+``COPY khimeras_shared/``:
 
-Root cause: the runner image's file allowlist is a MANUAL list that drifts from
-the actual import graph. This test makes the drift fail in CI instead of in
-prod: every LOCAL top-level package that ``personas.insult`` imports must be
-copied into the runner image.
+  * ``infra/azure/runner.Dockerfile`` (insult-runner) → the agent loop 502'd on
+    EVERY turn with ``ModuleNotFoundError: No module named 'khimeras_shared'``
+    for ~2h while /health stayed green; all Insult turns fell over to ALICE.
+  * ``Dockerfile`` (discord-bot plumbing) → every NEW revision crashlooped on
+    boot (``app.py`` imports ``khimeras_shared.runner.agent_client`` at start);
+    only a pre-demux revision still serving masked it.
+
+Root cause: BOTH images carry a MANUAL COPY allowlist that drifts from the
+actual import graph. This test makes the drift fail in CI instead of in prod:
+every LOCAL top-level package that ``personas.insult`` imports must be copied
+into BOTH images that run the insult code.
 """
 
 from __future__ import annotations
@@ -19,9 +24,12 @@ import ast
 import re
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 INSULT_PKG = REPO_ROOT / "personas" / "insult"
 RUNNER_DOCKERFILE = REPO_ROOT / "infra" / "azure" / "runner.Dockerfile"
+PLUMBING_DOCKERFILE = REPO_ROOT / "Dockerfile"
 
 # Local top-level packages that live in the repo root and are import roots the
 # runner could need. Anything imported from outside this set is a third-party
@@ -52,10 +60,10 @@ def _imported_local_top_levels() -> set[str]:
     return found
 
 
-def _dockerfile_copy_roots() -> set[str]:
+def _dockerfile_copy_roots(dockerfile: Path) -> set[str]:
     roots: set[str] = set()
     copy_re = re.compile(r"^\s*COPY\s+(.+)$")
-    for line in RUNNER_DOCKERFILE.read_text(encoding="utf-8").splitlines():
+    for line in dockerfile.read_text(encoding="utf-8").splitlines():
         m = copy_re.match(line)
         if not m:
             continue
@@ -66,13 +74,20 @@ def _dockerfile_copy_roots() -> set[str]:
     return roots
 
 
-def test_runner_dockerfile_copies_every_local_package_insult_imports() -> None:
+@pytest.mark.parametrize(
+    ("dockerfile", "image"),
+    [
+        (RUNNER_DOCKERFILE, "insult-runner"),
+        (PLUMBING_DOCKERFILE, "discord-bot plumbing"),
+    ],
+)
+def test_dockerfile_copies_every_local_package_insult_imports(dockerfile: Path, image: str) -> None:
     imported = _imported_local_top_levels()
-    copied = _dockerfile_copy_roots()
+    copied = _dockerfile_copy_roots(dockerfile)
     missing = sorted(imported - copied)
     assert not missing, (
-        "infra/azure/runner.Dockerfile is missing COPY for local package(s) that "
-        f"personas.insult imports: {missing}. Without these the runner agent loop "
-        "502s with ModuleNotFoundError on every turn (prod P0 2026-06-16). Add "
-        "`COPY <pkg>/ <pkg>/` to the Dockerfile."
+        f"{dockerfile.relative_to(REPO_ROOT)} ({image}) is missing COPY for local "
+        f"package(s) that personas.insult imports: {missing}. Without these the "
+        "image fails with ModuleNotFoundError at runtime (prod P0 2026-06-16). "
+        "Add `COPY <pkg>/ <pkg>/` to the Dockerfile."
     )
