@@ -48,8 +48,16 @@ RUN npm install -g --silent @playwright/mcp \
  && npx -y playwright install --with-deps chromium \
  && chmod -R a+rX /opt/playwright-browsers
 
-# Copy shared/ and personas/insult/ — runner needs:
+# Copy shared/, khimeras_shared/ and personas/insult/ — runner needs:
 #   - shared/* for chunking, retry, logging setup
+#   - khimeras_shared/* for the neutral capabilities the demux (PR #26, Etapa 3)
+#     pulled out of insult/: runner.agent_client, persona.app contracts, prompts
+#     loader, memory/vectors/style/corpus, memory_consolidation. The runner
+#     imports `from personas.insult.*` which now transitively imports
+#     `from khimeras_shared.*` — OMITTING this dir makes the agent loop 502 with
+#     `ModuleNotFoundError: No module named 'khimeras_shared'` on EVERY turn
+#     (prod P0, 2026-06-16: PR #26 shipped without this COPY → all Insult turns
+#     fell over to ALICE for ~2h while /health stayed green on the plumbing).
 #   - personas/insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner
 #   - personas/insult/core/memory/* for asyncpg repos that the renderer queries
 # personas/alice/ is NOT copied — runner is bot-agnostic; only the workspace
@@ -57,6 +65,7 @@ RUN npm install -g --silent @playwright/mcp \
 # is an importable package (the demux moved insult/ → personas/insult/ in
 # p3-personas v4.21.x; the runner's internal imports are `from personas.insult.*`).
 COPY shared/ shared/
+COPY khimeras_shared/ khimeras_shared/
 COPY personas/__init__.py personas/__init__.py
 COPY personas/insult/ personas/insult/
 
