@@ -1,9 +1,10 @@
-"""Unit tests for the demux host launcher (PR-3 runtime wiring).
+"""Unit tests for the demux host launcher (PR-3 runtime wiring + PR-3c IoC).
 
-The host's contract: select a persona explicitly, then boot its app entrypoint
-WITHOUT statically importing any persona. The no-static-import half is enforced
-by ``tests/arch/test_arch_import_boundaries.py``; here we test the selection
-logic and the importlib-based launch, mocking out the actual persona boot.
+The host's contract: select a persona explicitly, then boot it through the
+neutral ``khimeras_shared.persona.app.PersonaAppFactory`` contract WITHOUT
+statically importing any persona. The no-static-import half is enforced by
+``tests/arch/test_arch_import_boundaries.py``; here we test the selection logic
+and the importlib-based factory launch, mocking out the actual persona boot.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import pytest
 
 from demux_ai import host, registry
+from khimeras_shared.persona.app import PersonaApp, PersonaAppFactory
 
 
 def test_registry_has_insult_and_alice():
@@ -22,12 +24,12 @@ def test_default_persona_is_insult():
     assert registry.DEFAULT_PERSONA == "insult"
 
 
-def test_entrypoints_are_module_callable_strings():
-    for app in registry.all_persona_apps():
-        module, sep, attr = app.entrypoint.partition(":")
-        assert sep == ":", f"{app.persona_id} entrypoint not 'module:callable'"
-        assert module.startswith(f"personas.{app.persona_id}"), app.entrypoint
-        assert attr, app.entrypoint
+def test_entrypoints_point_at_persona_factories():
+    for spec in registry.all_persona_apps():
+        module, sep, attr = spec.entrypoint.partition(":")
+        assert sep == ":", f"{spec.persona_id} entrypoint not 'module:callable'"
+        assert module == f"personas.{spec.persona_id}.persona_app", spec.entrypoint
+        assert attr == "build_app", spec.entrypoint
 
 
 def test_resolve_persona_defaults_to_insult(monkeypatch):
@@ -56,59 +58,91 @@ def test_resolve_persona_unknown_raises(monkeypatch):
         host.resolve_persona("ghost")
 
 
-def test_load_entrypoint_malformed_raises():
+def test_load_factory_malformed_raises():
     with pytest.raises(ValueError, match="malformed entrypoint"):
-        host._load_entrypoint("personas.insult.__main__")
+        host._load_factory("personas.insult.persona_app")
 
 
-def test_load_entrypoint_non_callable_raises(monkeypatch):
+def test_load_factory_non_callable_raises(monkeypatch):
     class FakeModule:
-        not_callable = 42
+        build_app = 42
 
     monkeypatch.setattr(host.importlib, "import_module", lambda name: FakeModule())
     with pytest.raises(ValueError, match="does not resolve to a callable"):
-        host._load_entrypoint("fake.module:not_callable")
+        host._load_factory("fake.module:build_app")
 
 
-def test_launch_resolves_then_calls_entrypoint(monkeypatch):
-    """launch() must select insult by default and call the resolved callable —
-    without ever importing a real persona (importlib is mocked)."""
+def _fake_module_with_factory(captured: dict):
+    class FakeApp:
+        def run(self):
+            captured["ran"] = True
+
+    class FakeModule:
+        @staticmethod
+        def build_app():
+            captured["built"] = True
+            return FakeApp()
+
+    return FakeModule
+
+
+def test_launch_resolves_factory_then_runs_app(monkeypatch):
+    """launch() selects insult by default, calls its factory, and runs the
+    returned app — without importing a real persona (importlib is mocked)."""
     monkeypatch.delenv(host.PERSONA_ENV, raising=False)
     monkeypatch.setattr(host, "configure_structlog", lambda *a, **k: None)
 
-    booted = {"called": False}
-
-    class FakeMain:
-        @staticmethod
-        def run():
-            booted["called"] = True
-
-    captured = {}
+    captured: dict = {}
 
     def fake_import(name):
         captured["module"] = name
-        return FakeMain
+        return _fake_module_with_factory(captured)
 
     monkeypatch.setattr(host.importlib, "import_module", fake_import)
 
     host.launch()
 
-    assert booted["called"] is True
-    assert captured["module"] == "personas.insult.__main__"
+    assert captured["module"] == "personas.insult.persona_app"
+    assert captured.get("built") is True
+    assert captured.get("ran") is True
 
 
 def test_launch_explicit_alice(monkeypatch):
     monkeypatch.setattr(host, "configure_structlog", lambda *a, **k: None)
-    captured = {}
+    captured: dict = {}
 
-    class FakeMain:
-        @staticmethod
-        def run():
-            captured["ran"] = True
-
-    monkeypatch.setattr(host.importlib, "import_module", lambda name: captured.update(module=name) or FakeMain)
+    monkeypatch.setattr(
+        host.importlib,
+        "import_module",
+        lambda name: captured.update(module=name) or _fake_module_with_factory(captured),
+    )
 
     host.launch("alice")
 
-    assert captured["module"] == "personas.alice.__main__"
+    assert captured["module"] == "personas.alice.persona_app"
     assert captured.get("ran") is True
+
+
+# --- PR-3c IoC contract -------------------------------------------------------
+
+
+def test_insult_factory_returns_persona_app():
+    from personas.insult.persona_app import build_app
+
+    app = build_app()
+    assert isinstance(app, PersonaApp)  # runtime_checkable: has run()
+    assert app.persona_id == "insult"
+
+
+def test_alice_factory_returns_persona_app():
+    from personas.alice.persona_app import build_app
+
+    app = build_app()
+    assert isinstance(app, PersonaApp)
+    assert app.persona_id == "alice"
+
+
+def test_build_app_is_a_persona_app_factory():
+    from personas.insult.persona_app import build_app
+
+    assert isinstance(build_app, PersonaAppFactory)  # runtime_checkable: callable
