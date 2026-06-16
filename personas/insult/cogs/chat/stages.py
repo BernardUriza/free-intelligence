@@ -85,6 +85,13 @@ log = structlog.get_logger()
 
 _REMINDER_TOOL_NAMES = {"create_reminder", "list_reminders", "cancel_reminder"}
 
+# Upper bound for the host degrader (gpt-4.1) in the honest-degradation tail. The
+# notice is a 2-sentence completion and the static fallback is instant, so the
+# already-failed turn must never hang waiting on it. A timeout falls into the
+# conservative fallback below (TimeoutError → static notice), same as any other
+# degrader failure.
+HOST_DEGRADE_TIMEOUT_S = 12.0
+
 
 # --- Stage 01: identity binding (no I/O, just derive fields from message) ---
 
@@ -654,7 +661,10 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         host_degrader = ctx.deps.host_degrader
         if host_degrader is not None:
             try:
-                degraded = await host_degrader.degrade(reason=decision.reason.value, user_text=ctx.text)
+                degraded = await asyncio.wait_for(
+                    host_degrader.degrade(reason=decision.reason.value, user_text=ctx.text),
+                    HOST_DEGRADE_TIMEOUT_S,
+                )
                 # A blank result is NOT an exception, so the except below can't
                 # catch it — but an empty notice is a degraded signal too: it
                 # would send "" to Discord (400 → only a ⏳ reaction), losing the

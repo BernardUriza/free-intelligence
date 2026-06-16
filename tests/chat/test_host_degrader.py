@@ -17,6 +17,7 @@ fully-failed turn, behind ``host_router_enabled`` (default False). This pins:
 
 from __future__ import annotations
 
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
@@ -184,6 +185,27 @@ async def test_enabled_degrader_blank_result_falls_back_to_static():
         await stages._stage_call_llm(ctx)
 
     degrader.degrade.assert_awaited_once()
+    ctx.message.channel.send.assert_awaited_once_with(_STATIC)
+
+
+@pytest.mark.asyncio
+async def test_enabled_degrader_timeout_falls_back_to_static(monkeypatch):
+    """host_degrader hangs past HOST_DEGRADE_TIMEOUT_S → asyncio.wait_for raises
+    TimeoutError → conservative fallback to the static notice. The already-failed
+    turn must never hang waiting on the degrader."""
+    monkeypatch.setattr(stages, "HOST_DEGRADE_TIMEOUT_S", 0.05)
+
+    async def _slow(*, reason, user_text):
+        await asyncio.sleep(0.5)
+        return "too late to matter"
+
+    degrader = MagicMock()
+    degrader.degrade = _slow
+    ctx = _mk_llm_ctx(host_degrader=degrader)
+
+    with pytest.raises(StageFailure):
+        await stages._stage_call_llm(ctx)
+
     ctx.message.channel.send.assert_awaited_once_with(_STATIC)
 
 
