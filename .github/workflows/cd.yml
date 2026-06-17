@@ -9,6 +9,10 @@ name: CD
 #                       FastAPI + claude-agent-sdk + OAuth Max.
 #   * alice-bot       — ALICE persona runner (Azure OpenAI gpt-4.1).
 #                       Passive: only fires on mention or /invite from Insult.
+#   * vultur-gateway  — persona_gateway: one Discord bot user per sibling
+#                       persona (Vultur…), sharing the insult-runner brain via
+#                       persona_id. Durable home replacing the old ephemeral
+#                       local-Mac process ("Vultur no responde" class).
 # The ACR image repo `insult-bot` (the OCI artifact name) is retained for
 # now since renaming the ACR repo is a separate operation; the Container
 # App that consumes it is `discord-bot`. See .claude/rules/architecture.md
@@ -58,6 +62,20 @@ jobs:
             --file Dockerfile.alice \
             .
 
+      - name: Build vultur-gateway image
+        # The persona gateway (Vultur + future siblings). Thin HTTP client of the
+        # insult-runner — no LLM layer, so a lighter image than ALICE (no codex).
+        # Ships with the same SHA as the rest so a persona_gateway/ or shared
+        # change can't lag behind on a hand-pushed tag.
+        run: |
+          az acr build \
+            --registry insultacr \
+            --resource-group insult-rg \
+            --image vultur-gateway:${{ github.sha }} \
+            --image vultur-gateway:latest \
+            --file Dockerfile.gateway \
+            .
+
       - name: Build insult-runner image
         # The Agent SDK runner. Lives in its own Container App `insult-runner`
         # inside `insult-env`. Reads the workspace mount populated by the
@@ -89,6 +107,18 @@ jobs:
             --name alice-bot \
             --resource-group insult-rg \
             --image insultacr.azurecr.io/alice-bot:${{ github.sha }}
+
+      - name: Deploy vultur-gateway
+        # Continue-on-error so a not-yet-provisioned gateway never breaks the
+        # Insult/ALICE deploy (same posture as insult-runner). The Container App
+        # is created out-of-band once (az containerapp create); CD only updates
+        # its image thereafter.
+        continue-on-error: true
+        run: |
+          az containerapp update \
+            --name vultur-gateway \
+            --resource-group insult-rg \
+            --image insultacr.azurecr.io/vultur-gateway:${{ github.sha }}
 
       - name: Deploy insult-runner
         # New revision picks up the latest workspace-files mount + secrets.
@@ -148,6 +178,25 @@ jobs:
             exit 1
           else
             echo "WARN alice-bot: could not confirm gateway_ready, check manually"
+          fi
+
+          # --- vultur-gateway (best-effort; created out-of-band) ---
+          echo ""
+          echo "=== vultur-gateway ==="
+          if az containerapp show -n vultur-gateway -g insult-rg --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n vultur-gateway -g insult-rg --query "properties.latestRevisionName" -o tsv
+            GW_LOGS=$(az containerapp logs show -n vultur-gateway -g insult-rg --tail 30 2>&1 || true)
+            echo "$GW_LOGS" | tail -10
+            if echo "$GW_LOGS" | grep -q "persona_gateway_starting"; then
+              echo "OK vultur-gateway: persona_gateway_starting event present"
+            elif echo "$GW_LOGS" | grep -q "critical\|CRITICAL\|Traceback\|persona_gateway_nothing_to_start"; then
+              echo "FAIL vultur-gateway: crash or no-token on startup"
+              exit 1
+            else
+              echo "WARN vultur-gateway: could not confirm startup, check manually"
+            fi
+          else
+            echo "INFO vultur-gateway: not yet provisioned, skipping health check"
           fi
 
           # --- Runner (best-effort, doesn't fail the deploy yet) ---

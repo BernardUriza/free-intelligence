@@ -1,0 +1,43 @@
+# Khimeras persona gateway — one Discord bot user per sibling persona (Vultur…).
+#
+# Durable host for the sibling personas that share ONE brain (the insult-runner)
+# via persona_id. Before this image they ran ONLY as an ephemeral local process
+# on Bernard's Mac — so a Mac restart or a trimmed .env silently took Vultur
+# offline (the "Vultur no responde" class). This gives the gateway the same
+# always-on Azure Container App home that alice-bot has.
+#
+# Conda base + environment.yml shared with Insult/ALICE (memory:
+# feedback_no_pypi_only_conda) — one dependency tree, ACR layer cache reuse.
+# Quay.io over Docker Hub to dodge the anonymous-pull rate limit (memory:
+# reference_dockerfile_base_mcr).
+#
+# Differences from the ALICE image:
+# - NO Node.js / codex layer. The gateway does NOT run an LLM: it is a thin HTTP
+#   client of the insult-runner (AgentRunnerClient → /v1/turn). All cognition
+#   stays in the runner; the gateway only relays Discord ↔ runner + persists to
+#   the shared Postgres. So it skips ALICE's `@openai/codex` install entirely.
+# - Copies persona_gateway/ + khimeras_shared/ + shared/ — the gateway imports
+#   `khimeras_shared.{memory,persona,runner}` and `shared.personas`, never a
+#   persona package (personas.insult/alice). The COPY set is enforced against the
+#   real import graph by tests/arch/test_runner_dockerfile_copies_imports.py so a
+#   missing package can't ship a ModuleNotFound image (the PR #26 P0 class).
+# - No EXPOSE / ingress: Discord traffic is outbound only, like Insult's plumbing.
+
+FROM quay.io/condaforge/miniforge3:26.1.1-3
+
+SHELL ["/bin/bash", "-l", "-c"]
+WORKDIR /app
+
+COPY environment.yml .
+RUN mamba env update -n base -f environment.yml \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.a' -delete \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
+
+# The gateway's import graph: persona_gateway → khimeras_shared.{memory,persona,
+# runner} + shared.personas. No persona package (the runner owns persona DNA).
+COPY persona_gateway/ persona_gateway/
+COPY khimeras_shared/ khimeras_shared/
+COPY shared/ shared/
+
+CMD ["python", "-m", "persona_gateway", "run"]

@@ -28,8 +28,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 INSULT_PKG = REPO_ROOT / "personas" / "insult"
+GATEWAY_PKG = REPO_ROOT / "persona_gateway"
 RUNNER_DOCKERFILE = REPO_ROOT / "infra" / "azure" / "runner.Dockerfile"
 PLUMBING_DOCKERFILE = REPO_ROOT / "Dockerfile"
+GATEWAY_DOCKERFILE = REPO_ROOT / "Dockerfile.gateway"
 
 # Local top-level packages that live in the repo root and are import roots the
 # runner could need. Anything imported from outside this set is a third-party
@@ -43,9 +45,9 @@ LOCAL_TOP_LEVEL_PACKAGES = {
 }
 
 
-def _imported_local_top_levels() -> set[str]:
+def _imported_local_top_levels(pkg_root: Path) -> set[str]:
     found: set[str] = set()
-    for py in INSULT_PKG.rglob("*.py"):
+    for py in pkg_root.rglob("*.py"):
         tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -75,19 +77,23 @@ def _dockerfile_copy_roots(dockerfile: Path) -> set[str]:
 
 
 @pytest.mark.parametrize(
-    ("dockerfile", "image"),
+    ("dockerfile", "pkg_root", "label"),
     [
-        (RUNNER_DOCKERFILE, "insult-runner"),
-        (PLUMBING_DOCKERFILE, "discord-bot plumbing"),
+        (RUNNER_DOCKERFILE, INSULT_PKG, "insult-runner / personas.insult"),
+        (PLUMBING_DOCKERFILE, INSULT_PKG, "discord-bot plumbing / personas.insult"),
+        # vultur-gateway runs persona_gateway, which imports its own set
+        # (khimeras_shared, shared) — a DIFFERENT import root than insult, so it
+        # gets its own scan against Dockerfile.gateway. Same P0 guard.
+        (GATEWAY_DOCKERFILE, GATEWAY_PKG, "vultur-gateway / persona_gateway"),
     ],
 )
-def test_dockerfile_copies_every_local_package_insult_imports(dockerfile: Path, image: str) -> None:
-    imported = _imported_local_top_levels()
+def test_dockerfile_copies_every_local_package_imported(dockerfile: Path, pkg_root: Path, label: str) -> None:
+    imported = _imported_local_top_levels(pkg_root)
     copied = _dockerfile_copy_roots(dockerfile)
     missing = sorted(imported - copied)
     assert not missing, (
-        f"{dockerfile.relative_to(REPO_ROOT)} ({image}) is missing COPY for local "
-        f"package(s) that personas.insult imports: {missing}. Without these the "
+        f"{dockerfile.relative_to(REPO_ROOT)} ({label}) is missing COPY for local "
+        f"package(s) that {pkg_root.name} imports: {missing}. Without these the "
         "image fails with ModuleNotFoundError at runtime (prod P0 2026-06-16). "
         "Add `COPY <pkg>/ <pkg>/` to the Dockerfile."
     )
