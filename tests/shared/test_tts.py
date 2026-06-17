@@ -11,7 +11,44 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from khimeras_shared.tts import build_azure_tts_client, synthesize_azure_tts
+from khimeras_shared.tts import (
+    build_azure_tts_client,
+    should_auto_tts,
+    split_for_tts,
+    synthesize_azure_tts,
+)
+
+
+class TestShouldAutoTts:
+    def test_long_reply_fires(self):
+        assert should_auto_tts("x" * 1900, min_chars=1800, arbor_active=False) is True
+
+    def test_short_reply_does_not_fire(self):
+        assert should_auto_tts("x" * 1799, min_chars=1800, arbor_active=False) is False
+
+    def test_zero_threshold_is_off(self):
+        # RESISTANCE: 0 disables the feature even for a huge reply.
+        assert should_auto_tts("x" * 9000, min_chars=0, arbor_active=False) is False
+
+    def test_arbor_active_forbids_auto(self):
+        # RESISTANCE: Arbor stays on-demand (voice.md) — never auto-fire.
+        assert should_auto_tts("x" * 9000, min_chars=1800, arbor_active=True) is False
+
+
+class TestSplitForTts:
+    def test_empty_is_no_segments(self):
+        assert split_for_tts("") == []
+
+    def test_fits_in_one_segment(self):
+        assert split_for_tts("hola", cap=4096) == ["hola"]
+
+    def test_long_text_splits_and_preserves_everything(self):
+        text = ("palabra " * 2000).strip()  # ~16k chars
+        segs = split_for_tts(text, cap=4096)
+        assert len(segs) > 1
+        assert all(len(s) <= 4096 for s in segs)
+        # No content lost (modulo whitespace at split boundaries).
+        assert "".join(s.replace(" ", "") for s in segs) == text.replace(" ", "")
 
 
 class TestBuildAzureTtsClient:

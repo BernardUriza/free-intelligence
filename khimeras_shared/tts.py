@@ -34,6 +34,48 @@ def build_azure_tts_client(*, endpoint: str, api_key: str) -> AsyncAzureOpenAI |
     )
 
 
+def should_auto_tts(text: str, *, min_chars: int, arbor_active: bool) -> bool:
+    """Whether a delivered reply should auto-speak (one audio of the full text).
+
+    Auto-TTS fires for LONG replies so a wall of text comes with a voice clip you
+    can listen to instead of reading. Two hard gates:
+
+    - ``min_chars <= 0`` disables the feature entirely (the off switch).
+    - ``arbor_active`` (an ``arbor_tts_url`` is configured) FORBIDS auto-fire:
+      Arbor drives a personal ChatGPT session and ``voice.md`` mandates it stays
+      on-demand only (automatic traffic flags the account). Auto-TTS is an
+      Azure-only capability; with Arbor on, 🔊 stays manual.
+    """
+    if min_chars <= 0 or arbor_active:
+        return False
+    return len(text.strip()) >= min_chars
+
+
+def split_for_tts(text: str, *, cap: int = _MAX_TTS_CHARS) -> list[str]:
+    """Split ``text`` into ≤``cap`` segments on paragraph/space boundaries so a
+    reply longer than Azure's 4096-char limit is spoken IN FULL across several
+    audio clips, never silently truncated. Returns ``[]`` for empty text and a
+    single-element list when it already fits."""
+    text = text.strip()
+    if not text:
+        return []
+    if len(text) <= cap:
+        return [text]
+    parts: list[str] = []
+    remaining = text
+    while len(remaining) > cap:
+        cut = remaining.rfind("\n", 0, cap)
+        if cut < cap // 2:
+            cut = remaining.rfind(" ", 0, cap)
+        if cut < cap // 2:
+            cut = cap
+        parts.append(remaining[:cut].strip())
+        remaining = remaining[cut:].strip()
+    if remaining:
+        parts.append(remaining)
+    return parts
+
+
 async def synthesize_azure_tts(
     client: AsyncAzureOpenAI,
     text: str,
@@ -54,4 +96,10 @@ async def synthesize_azure_tts(
     return response.content
 
 
-__all__ = ["AZURE_TTS_API_VERSION", "build_azure_tts_client", "synthesize_azure_tts"]
+__all__ = [
+    "AZURE_TTS_API_VERSION",
+    "build_azure_tts_client",
+    "should_auto_tts",
+    "split_for_tts",
+    "synthesize_azure_tts",
+]

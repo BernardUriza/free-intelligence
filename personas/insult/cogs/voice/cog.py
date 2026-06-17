@@ -16,7 +16,7 @@ import structlog
 from discord.ext import commands
 from openai import AsyncAzureOpenAI
 
-from khimeras_shared.tts import build_azure_tts_client, synthesize_azure_tts
+from khimeras_shared.tts import build_azure_tts_client, should_auto_tts, split_for_tts, synthesize_azure_tts
 from shared.personas.registry import sibling_bot_user_ids
 
 if TYPE_CHECKING:
@@ -263,3 +263,42 @@ class VoiceCog(commands.Cog):
         # DMChannel has no `.name`; fall back to a safe descriptor.
         channel_label = getattr(channel, "name", None) or f"dm:{channel.id}"
         log.info("tts_sent", text_len=len(text), channel=channel_label)
+
+    @commands.Cog.listener("on_message")
+    async def auto_speak_long_reply(self, message: discord.Message) -> None:
+        """Auto-TTS: speak Insult's OWN long replies so a wall of text ships a
+        voice clip. Azure-only and OFF by default (auto_tts_min_chars=0).
+
+        Fires on the reply's final chunk (the version tag marks it);
+        ``resolve_full_response`` reassembles the full pre-chunk text so one
+        audio (split into ≤4096 segments) covers the whole reply. Suppressed when
+        Arbor is active (voice.md: Arbor stays manual/on-demand)."""
+        min_chars = getattr(self.settings, "auto_tts_min_chars", 0)
+        if min_chars <= 0 or self.bot.user is None:
+            return
+        if message.author.id != self.bot.user.id:
+            return  # only Insult's own messages
+        if not _VERSION_TAG_RE.search(message.content):
+            return  # not a reply's final (version-tagged) chunk
+        full = await resolve_full_response(self.memory, str(message.channel.id), message.content)
+        text = _VERSION_TAG_RE.sub("", full or message.content).strip()
+        if not should_auto_tts(text, min_chars=min_chars, arbor_active=bool(self.settings.arbor_tts_url)):
+            return
+        client = self._get_tts_client()
+        if client is None:
+            return
+        segments = split_for_tts(text)
+        try:
+            async with message.channel.typing():
+                for idx, segment in enumerate(segments):
+                    audio_bytes = await synthesize_azure_tts(
+                        client,
+                        segment,
+                        voice=self.settings.tts_voice,
+                        deployment=self.settings.azure_openai_tts_deployment,
+                    )
+                    fname = f"personas.insult{'' if len(segments) == 1 else f'-{idx + 1}'}.mp3"
+                    await message.channel.send(file=discord.File(io.BytesIO(audio_bytes), filename=fname))
+            log.info("tts_auto_sent", text_len=len(text), segments=len(segments))
+        except Exception:
+            log.exception("tts_auto_failed")

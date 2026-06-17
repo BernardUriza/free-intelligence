@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     azure_openai_tts_deployment: str = "tts"
     azure_openai_whisper_deployment: str = "whisper"
     tts_voice: str = "onyx"  # alloy, echo, fable, onyx, nova, shimmer
+    # Auto-speak Insult's OWN replies at/above this length so a wall of text
+    # ships a voice clip you can listen to instead of reading. 0 = off (manual 🔊
+    # only). Azure-only — auto-fire is suppressed when arbor_tts_url is set
+    # (voice.md: Arbor stays on-demand, automatic traffic flags the account).
+    auto_tts_min_chars: int = 0
     # Optional external Arbor voice service. When ARBOR_TTS_URL is set, the
     # 🔊 reaction TTS path calls this service instead of Azure OpenAI speech.
     arbor_tts_url: str = ""
