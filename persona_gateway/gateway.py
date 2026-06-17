@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import io
 import os
 import re
 
@@ -31,7 +32,10 @@ import structlog
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.runner.agent_client import AgentRunnerClient
+from khimeras_shared.tts import build_azure_tts_client, synthesize_azure_tts
 from shared.personas import Persona, all_personas
+
+SPEAK_EMOJI = "🔊"
 
 # Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
 # `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
@@ -118,11 +122,18 @@ class PersonaClient(discord.Client):
         agent_client: AgentRunnerClient,
         *,
         intents: discord.Intents,
+        tts_client=None,
+        tts_deployment: str = "",
     ) -> None:
         super().__init__(intents=intents)
         self.persona = persona
         self.memory = memory
         self.agent_client = agent_client
+        # TTS: this persona owns its OWN voice. None when Azure TTS env is unset
+        # → 🔊 on its messages is silently skipped (voice off), never spoken by
+        # Insult (Insult's VoiceCog skips sibling-authored messages).
+        self.tts_client = tts_client
+        self.tts_deployment = tts_deployment
 
     async def on_ready(self) -> None:
         log.info(
@@ -132,6 +143,53 @@ class PersonaClient(discord.Client):
             bot_name=str(self.user) if self.user else None,
             guilds=len(self.guilds),
         )
+
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        """🔊 on one of THIS persona's own messages → speak it in the persona's
+        own voice, posted by the persona bot with its own typing.
+
+        Guards: only the 🔊 emoji, never our own reaction, and ONLY our own
+        messages (a 🔊 on an Insult/human message belongs to Insult's VoiceCog —
+        we skip it so the two don't double-speak). Voice is off (no-op) when no
+        Azure TTS client was wired."""
+        if str(payload.emoji) != SPEAK_EMOJI:
+            return
+        if self.user is None or payload.user_id == self.user.id:
+            return
+        if self.tts_client is None:
+            return
+        channel = self.get_channel(payload.channel_id)
+        if channel is None:
+            with contextlib.suppress(discord.HTTPException):
+                channel = await self.fetch_channel(payload.channel_id)
+        if channel is None:
+            return
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except discord.HTTPException:
+            return
+        if message.author.id != self.user.id:
+            return  # not this persona's message — Insult owns its own 🔊
+        text = message.content.strip()
+        if not text:
+            return
+        try:
+            async with channel.typing():
+                audio = await synthesize_azure_tts(
+                    self.tts_client,
+                    text,
+                    voice=self.persona.tts_voice,
+                    deployment=self.tts_deployment,
+                )
+            await channel.send(file=discord.File(io.BytesIO(audio), filename=f"{self.persona.persona_id}.mp3"))
+            log.info(
+                "persona_gateway_tts_sent",
+                persona_id=self.persona.persona_id,
+                voice=self.persona.tts_voice,
+                chars=len(text),
+            )
+        except Exception:
+            log.exception("persona_gateway_tts_failed", persona_id=self.persona.persona_id)
 
     async def on_message(self, message: discord.Message) -> None:
         if not should_respond(message, self.user):
@@ -235,8 +293,13 @@ class PersonaClient(discord.Client):
         )
 
 
-def _build_shared() -> tuple[MemoryStore, AgentRunnerClient]:
-    """Construct the deps shared by all persona-bots (same wiring as Insult)."""
+def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, str]:
+    """Construct the deps shared by all persona-bots (same wiring as Insult).
+
+    Also builds the Azure TTS client so each persona can speak its own 🔊 audio.
+    TTS is OPTIONAL — when the AZURE_OPENAI_* env is unset the client is None and
+    voice is simply off (the gateway still runs); it is never delegated to Insult.
+    """
     config = PersonaRuntimeConfig.from_env()
 
     memory = MemoryStore(config.postgres_url.get_secret_value())
@@ -245,11 +308,18 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient]:
     if not (runner_url and runner_token):
         raise RuntimeError("persona gateway requires INSULT_AGENT_RUNNER_URL + token")
     agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)
-    return memory, agent_client
+
+    tts_client = build_azure_tts_client(
+        endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+        api_key=os.environ.get("AZURE_OPENAI_KEY", ""),
+    )
+    tts_deployment = os.environ.get("AZURE_OPENAI_TTS_DEPLOYMENT", "tts")
+    log.info("persona_gateway_tts_configured", enabled=tts_client is not None, deployment=tts_deployment)
+    return memory, agent_client, tts_client, tts_deployment
 
 
 async def _main() -> None:
-    memory, agent_client = _build_shared()
+    memory, agent_client, tts_client, tts_deployment = _build_shared()
     await memory.connect()
 
     intents = discord.Intents.default()
@@ -261,7 +331,14 @@ async def _main() -> None:
         if not token:
             log.warning("persona_gateway_no_token", persona_id=persona.persona_id, env=persona.token_env)
             continue
-        client = PersonaClient(persona, memory, agent_client, intents=intents)
+        client = PersonaClient(
+            persona,
+            memory,
+            agent_client,
+            intents=intents,
+            tts_client=tts_client,
+            tts_deployment=tts_deployment,
+        )
         starts.append(client.start(token))
         log.info("persona_gateway_starting", persona_id=persona.persona_id)
 

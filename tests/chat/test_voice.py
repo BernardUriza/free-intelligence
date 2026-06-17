@@ -14,6 +14,27 @@ from unittest.mock import AsyncMock
 import pytest
 
 from personas.insult.cogs.voice import _VERSION_TAG_RE, build_arbor_tts_payload, pick_tts_voice, resolve_full_response
+from shared.personas.registry import sibling_bot_user_ids
+
+
+class TestSiblingSkipPredicate:
+    """Insult's VoiceCog skips 🔊 on sibling-authored messages (Vultur owns its
+    own voice via the gateway). The skip uses ``sibling_bot_user_ids()``; if a
+    sibling's id falls out of the registry Insult would speak for it again in
+    onyx — exactly the bug this guards. Predicate-level so it doesn't need the
+    full Discord reaction-handler mock (the end-to-end path is verified live)."""
+
+    def test_vultur_is_a_sibling_so_insult_skips(self):
+        # Vultur's bot user id (registry.py) — Insult must recognize it as a
+        # sibling and NOT speak its messages.
+        assert "1512687836766404618" in sibling_bot_user_ids()
+
+    def test_human_and_insult_ids_are_not_siblings(self):
+        # RESISTANCE: Bernard's id and a non-registered id are NOT siblings, so
+        # 🔊 on a human/Insult message still gets spoken by Insult.
+        sibs = sibling_bot_user_ids()
+        assert "907264175246569543" not in sibs  # Bernard
+        assert "0" not in sibs
 
 
 class TestPickTtsVoice:

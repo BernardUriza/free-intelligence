@@ -16,6 +16,9 @@ import structlog
 from discord.ext import commands
 from openai import AsyncAzureOpenAI
 
+from khimeras_shared.tts import build_azure_tts_client, synthesize_azure_tts
+from shared.personas.registry import sibling_bot_user_ids
+
 if TYPE_CHECKING:
     from personas.insult.app import Container
 
@@ -129,13 +132,7 @@ class VoiceCog(commands.Cog):
             return self._tts_client
         endpoint = self.settings.azure_openai_endpoint
         key = self.settings.azure_openai_key.get_secret_value()
-        if not endpoint or not key:
-            return None
-        self._tts_client = AsyncAzureOpenAI(
-            azure_endpoint=endpoint,
-            api_key=key,
-            api_version="2024-12-01-preview",
-        )
+        self._tts_client = build_azure_tts_client(endpoint=endpoint, api_key=key)
         return self._tts_client
 
     @commands.Cog.listener()
@@ -184,6 +181,19 @@ class VoiceCog(commands.Cog):
             log.warning("tts_skipped", reason="message_not_found", message_id=payload.message_id)
             return
 
+        # Sibling personas (Vultur…) own their OWN voice via the persona_gateway.
+        # Insult must NOT speak for them — doing so renders a sibling's text in
+        # Insult's onyx with Insult's typing (the "Vultur TTS sonó como Insult"
+        # bug). The gateway's own VoiceClient handles 🔊 on its messages.
+        if str(message.author.id) in sibling_bot_user_ids():
+            log.info(
+                "tts_skipped",
+                reason="sibling_persona",
+                message_id=payload.message_id,
+                author_id=message.author.id,
+            )
+            return
+
         text = message.content.strip()
         if not text:
             log.info(
@@ -225,13 +235,12 @@ class VoiceCog(commands.Cog):
                     if not client:
                         log.warning("tts_not_configured")
                         return
-                    tts_response = await client.audio.speech.create(
-                        model=self.settings.azure_openai_tts_deployment,
+                    audio_bytes = await synthesize_azure_tts(
+                        client,
+                        text,
                         voice=voice,
-                        input=text[:4096],
-                        response_format="mp3",
+                        deployment=self.settings.azure_openai_tts_deployment,
                     )
-                    audio_bytes = tts_response.content
                 log.info(
                     "tts_generated",
                     text_len=len(text),

@@ -35,6 +35,10 @@ class Persona:
     # (e.g. someone types "vultur" as a keyword). Keep short: false-positive risk.
     aliases: list[str] = field(default_factory=list)
     avatar: str | None = None
+    # Azure TTS voice for this persona's own 🔊 audio (the gateway's VoiceClient
+    # speaks the persona's messages in THIS voice — onyx=Insult, nova=ALICE are
+    # taken, so siblings pick a distinct one). The persona owns its voice.
+    tts_voice: str = "echo"
 
 
 # Insult is NOT here — it is the omnipresent host, not a sibling persona.
