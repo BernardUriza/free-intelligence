@@ -25,12 +25,12 @@ under `personas/`, a light host (`demux_ai/`), and shared contracts
 (`khimeras_shared/`). **Insult is now ONE persona, not the name of the system.**
 The old flat `insult/...` paths below the move no longer exist.
 
-- `demux_ai/` — light host: onboarding + routing (gpt-4.1/CodexBackend). Skeleton today (`__init__.py`).
+- `demux_ai/` — light host: explicit persona selection + gpt-4.1 routing. Live modules: `host.py`, `host_llm.py` (the gpt-4.1 host-router model client, PR-4b slice 1+), `registry.py`, `__main__.py` (`python -m demux_ai run`). No longer a skeleton.
 - `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline + `chat/canary.py`, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
 - `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
 - `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the insult-runner) via `persona_id`. `gateway.py`.
 - `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
-- `khimeras_shared/` — shared contracts/infra REAL (2+ consumers). Near-empty today (`__init__.py`); only migrate when insult + alice + host consume the SAME contract.
+- `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `memory_consolidation.py`. Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
 - `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
 - `tests/` — `arch/` (import-boundary ratchet at **0**), `chat/`, `core/`, `integration/`, `agent/`, `shared/`.
 - `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`, `canary-job.sh` (gated).
