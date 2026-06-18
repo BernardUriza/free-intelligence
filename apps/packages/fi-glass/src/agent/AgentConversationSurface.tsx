@@ -12,7 +12,7 @@
  * and copy props.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useStickToBottom } from 'use-stick-to-bottom';
 import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
@@ -23,9 +23,21 @@ import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import type { AgentConversation } from './useAgentConversation';
 
+export type AgentConversationSurfaceLayout = 'viewport' | 'contained';
+
 export interface AgentConversationSurfaceProps {
   /** The conversation state + actions from `useAgentConversation`. */
   conversation: AgentConversation;
+  /**
+   * FG-2 (canary-driven, activist-os): how the surface root sizes itself.
+   *  - `"viewport"` (DEFAULT): root is `height: 100dvh` — the full-page behavior
+   *    every existing consumer relies on.
+   *  - `"contained"`: root is `height: 100%` + `minHeight: 0` + `overflow: hidden`,
+   *    so it fills whatever fixed-height cell an app shell gives it (header + main
+   *    + artifacts rail + footer) and scrolls the transcript internally instead of
+   *    forcing page scroll.
+   */
+  layout?: AgentConversationSurfaceLayout;
   /** Composer placeholder copy (app-owned). */
   composerPlaceholder?: string;
   /** Label for the new-conversation button. Default: "New chat". */
@@ -196,6 +208,7 @@ export interface AgentConversationSurfaceProps {
 
 export function AgentConversationSurface({
   conversation,
+  layout = 'viewport',
   composerPlaceholder,
   newChatLabel = 'New chat',
   showNewChatButton = true,
@@ -343,12 +356,20 @@ export function AgentConversationSurface({
   };
   const canSend = input.trim().length > 0 && !isStreaming;
 
+  // FG-2: the root sizes itself per `layout`. "viewport" keeps the full-page
+  // 100dvh (backward-compatible default); "contained" fills its parent cell and
+  // clips at the root so the transcript region scrolls internally, never the page.
+  const rootStyle: CSSProperties =
+    layout === 'contained'
+      ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }
+      : { display: 'flex', flexDirection: 'column', height: '100dvh' };
+
   return (
     // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
     // gutter) lives on INNER content wrappers (transcript + composer), never on
     // the scroll container, so the scrollbar renders at the viewport edge like
     // ChatGPT/AURITY /chat instead of glued to the centered column.
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+    <div style={rootStyle}>
       {/* Relative anchor: hosts the scroll area + the floating jump-to-latest
           button, so the button stays glued to the transcript's bottom edge. */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

@@ -1653,6 +1653,7 @@ function ScrollToBottomButton({
 import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 function AgentConversationSurface({
   conversation,
+  layout = "viewport",
   composerPlaceholder,
   newChatLabel = "New chat",
   showNewChatButton = true,
@@ -1746,12 +1747,13 @@ function AgentConversationSurface({
     send(t);
   };
   const canSend = input.trim().length > 0 && !isStreaming;
+  const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
   return (
     // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
     // gutter) lives on INNER content wrappers (transcript + composer), never on
     // the scroll container, so the scrollbar renders at the viewport edge like
     // ChatGPT/AURITY /chat instead of glued to the centered column.
-    /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", height: "100dvh" }, children: [
+    /* @__PURE__ */ jsxs19("div", { style: rootStyle, children: [
       /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
         /* @__PURE__ */ jsx26(
           "div",
@@ -1969,9 +1971,64 @@ function AgentConversationSurface({
     ] })
   );
 }
+
+// src/agent/AgentWorkspaceShell.tsx
+import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+function AgentWorkspaceShell({
+  visual = "aurora",
+  density = "comfortable",
+  header,
+  conversation,
+  rail,
+  footer,
+  className,
+  style
+}) {
+  const rootStyle = {
+    display: "flex",
+    flexDirection: "column",
+    height: "100dvh",
+    minHeight: 0,
+    overflow: "hidden"
+  };
+  const mainStyle = {
+    display: "grid",
+    gridTemplateColumns: rail ? "minmax(0, 1fr) minmax(280px, 360px)" : "minmax(0, 1fr)",
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflow: "hidden"
+  };
+  const conversationStyle = { minHeight: 0, overflow: "hidden" };
+  const railStyle = { minHeight: 0, overflowY: "auto" };
+  const rootClassName = [
+    "fi-agent-workspace",
+    `fi-visual-${visual}`,
+    `fi-density-${density}`,
+    className
+  ].filter(Boolean).join(" ");
+  return /* @__PURE__ */ jsxs20(
+    "div",
+    {
+      "data-fi-workspace": "agent",
+      "data-fi-visual": visual,
+      "data-fi-density": density,
+      className: rootClassName,
+      style: { ...rootStyle, ...style },
+      children: [
+        header != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs20("div", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx27("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        ] }),
+        footer != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "footer", children: footer })
+      ]
+    }
+  );
+}
 export {
   AgentConversationSurface,
   AgentPanel,
+  AgentWorkspaceShell,
   DEFAULT_TURN_TIMEOUT_MS,
   PlanChecklist,
   ScrollToBottomButton,
