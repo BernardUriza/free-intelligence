@@ -78,6 +78,34 @@ def classify_decision(*, shadow_reason: str, diverged: object) -> str:
     return BUCKET_AGREE_OTHER
 
 
+# slice A.2 — the GENUINE-divergence taxonomy. The gpt-4.1 host brain decides a
+# target INDEPENDENTLY of the live prefix rule, so (unlike the deterministic
+# shadow) its decision CAN disagree with where the turn went — and that
+# disagreement finally yields the intent buckets the coagent named.
+LLM_BUCKET_AGREE = "llm_agree"
+LLM_BUCKET_MISSING_VULTUR = "llm_missing_vultur"  # live=insult, brain=vultur
+LLM_BUCKET_FALSE_VULTUR = "llm_false_vultur"  # live=vultur, brain=insult
+LLM_BUCKET_OTHER_DIVERGENCE = "llm_other_divergence"
+
+
+def classify_llm_decision(*, current_target: str, llm_shadow_target: str, llm_diverged: object) -> str:
+    """Bucket one ``llm_shadow_router_decision`` row — pure, no I/O.
+
+    Agreement (the brain matched the live route) is benign. A genuine divergence
+    is split by direction into the intent taxonomy the deterministic shadow could
+    never produce: ``missing_vultur`` (live kept it on Insult, the brain would
+    have handed it to the film specialist) and ``false_vultur`` (the explicit
+    ``~vultur`` prefix forced Vultur, the brain judged Insult enough). Any other
+    diverged pair is surfaced rather than hidden."""
+    if not _as_bool(llm_diverged):
+        return LLM_BUCKET_AGREE
+    if current_target == "insult" and llm_shadow_target == "vultur":
+        return LLM_BUCKET_MISSING_VULTUR
+    if current_target == "vultur" and llm_shadow_target == "insult":
+        return LLM_BUCKET_FALSE_VULTUR
+    return LLM_BUCKET_OTHER_DIVERGENCE
+
+
 def build_query(hours: int) -> str:
     """KQL for the shadow_router_decision events over the last ``hours``.
 
@@ -99,6 +127,28 @@ def build_query(hours: int) -> str:
           guild=tostring(p.guild_id),
           explicit_vultur_trigger=tostring(p.explicit_vultur_trigger),
           route_input_len=tostring(p.route_input_len)
+| order by TimeGenerated asc"""
+
+
+def build_llm_query(hours: int) -> str:
+    """KQL for the gpt-4.1 ``llm_shadow_router_decision`` events (slice A.2) over the
+    last ``hours``. Projects the host brain's independent target + divergence flag
+    next to where the turn actually went, plus the channel partition and token
+    counts for spend accounting."""
+    return f"""ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago({int(hours)}h)
+| extend p = parse_json(Log_s)
+| where tostring(p.event) == "llm_shadow_router_decision"
+| project TimeGenerated,
+          current=tostring(p.current_target),
+          llm_shadow_target=tostring(p.llm_shadow_target),
+          llm_shadow_reason=tostring(p.llm_shadow_reason),
+          llm_diverged=tostring(p.llm_diverged),
+          channel=tostring(p.channel_id),
+          guild=tostring(p.guild_id),
+          route_input_len=tostring(p.route_input_len),
+          llm_input_tokens=tostring(p.llm_input_tokens),
+          llm_output_tokens=tostring(p.llm_output_tokens)
 | order by TimeGenerated asc"""
 
 
@@ -135,9 +185,9 @@ def _access_token() -> str:
     return out.stdout.strip()
 
 
-def fetch_rows(hours: int) -> list[dict]:
-    """Run the KQL and return rows as dicts. Raises on auth/query failure."""
-    body = json.dumps({"query": build_query(hours)}).encode()
+def _fetch(query: str) -> list[dict]:
+    """Run a KQL query and return rows as dicts. Raises on auth/query failure."""
+    body = json.dumps({"query": query}).encode()
     req = urllib.request.Request(
         _LOGANALYTICS,
         data=body,
@@ -152,6 +202,16 @@ def fetch_rows(hours: int) -> list[dict]:
     return [dict(zip(cols, row, strict=False)) for row in tables[0]["rows"]]
 
 
+def fetch_rows(hours: int) -> list[dict]:
+    """Deterministic ``shadow_router_decision`` rows over the last ``hours``."""
+    return _fetch(build_query(hours))
+
+
+def fetch_llm_rows(hours: int) -> list[dict]:
+    """gpt-4.1 ``llm_shadow_router_decision`` rows over the last ``hours`` (slice A.2)."""
+    return _fetch(build_llm_query(hours))
+
+
 def summarize(rows: list[dict]) -> Counter:
     counts: Counter = Counter()
     for r in rows:
@@ -162,6 +222,58 @@ def summarize(rows: list[dict]) -> Counter:
             )
         ] += 1
     return counts
+
+
+def summarize_llm(rows: list[dict]) -> Counter:
+    counts: Counter = Counter()
+    for r in rows:
+        counts[
+            classify_llm_decision(
+                current_target=r.get("current", ""),
+                llm_shadow_target=r.get("llm_shadow_target", ""),
+                llm_diverged=r.get("llm_diverged", "false"),
+            )
+        ] += 1
+    return counts
+
+
+def _print_llm_section(rows: list[dict], channel_id: str) -> None:
+    """Report the gpt-4.1 shadow (slice A.2) — the genuine-divergence taxonomy.
+
+    Only #general rows are record-grade (same discipline as the deterministic
+    section). Silent when there is no LLM-shadow traffic — the flag may be OFF
+    (no spend) or simply no turns yet."""
+    if not rows:
+        print(
+            "\n  gpt-4.1 LLM shadow (slice A.2): no llm_shadow_router_decision events "
+            "(flag off = no spend, or no traffic yet)."
+        )
+        return
+    in_channel, _off = partition_by_channel(rows, channel_id)
+    print(f"\n  gpt-4.1 LLM shadow (slice A.2): {len(rows)} events, {len(in_channel)} in #general")
+    if not in_channel:
+        print("    NO #general LLM-shadow traffic yet — genuine-divergence taxonomy not yet measurable.")
+        return
+    total = len(in_channel)
+    counts = summarize_llm(in_channel)
+    for bucket in (
+        LLM_BUCKET_MISSING_VULTUR,
+        LLM_BUCKET_FALSE_VULTUR,
+        LLM_BUCKET_OTHER_DIVERGENCE,
+        LLM_BUCKET_AGREE,
+    ):
+        n = counts.get(bucket, 0)
+        if n:
+            print(f"    {bucket:24s} {n:5d}  ({100 * n / total:.1f}%)")
+    diverged = [r for r in in_channel if _as_bool(r.get("llm_diverged", "false"))]
+    if diverged:
+        print(f"\n  ⚠️  {len(diverged)} GENUINE divergence(s) — host brain disagreed with live routing (review):")
+        for r in diverged:
+            print(
+                f"    {r.get('TimeGenerated', '')}  live={r.get('current')}  brain={r.get('llm_shadow_target')}  reason={r.get('llm_shadow_reason')}"
+            )
+    else:
+        print("    0 genuine divergences yet — the host brain agreed with live routing on every #general turn.")
 
 
 def _print_buckets(rows: list[dict]) -> None:
@@ -205,10 +317,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  off-channel (DM/other — WEAK sanity only): {len(off_channel)}")
 
     if total == 0:
-        print("\n  (no shadow traffic at all yet — let real turns accumulate)")
-        return 0
-
-    if not in_channel:
+        print("\n  (no deterministic shadow traffic at all yet — let real turns accumulate)")
+    elif not in_channel:
         # The honest distinction the coagent asked for: traffic EXISTS but none
         # is record-grade. NOT the same as "no traffic" — do not fake the gate.
         print(
@@ -217,16 +327,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         off_channels = sorted({r.get("channel", "?") for r in off_channel})
         print(f"  off-channel ids seen: {', '.join(off_channels)}")
-        return 0
+    else:
+        print(f"\n  #general breakdown ({len(in_channel)} rows):")
+        _print_buckets(in_channel)
+        print(
+            "\nNOTE: the deterministic shadow mirrors the live @vultur rule by construction, so "
+            "~all rows agree — a diverged row here is a live-routing bug, not an intent gap. The "
+            "intent taxonomy (missing-vultur / false-vultur) comes from the gpt-4.1 LLM shadow below."
+        )
 
-    print(f"\n  #general breakdown ({len(in_channel)} rows):")
-    _print_buckets(in_channel)
-
-    print(
-        "\nNOTE: the deterministic shadow mirrors the live @vultur rule, so ~all rows agree. "
-        "The intent taxonomy (missing-vultur / false-vultur / ambiguous) needs the gpt-4.1 "
-        "shadow classifier (slice 4, spend-gated) — not derivable from this data alone."
-    )
+    # slice A.2 — the gpt-4.1 LLM shadow section (the genuine-divergence taxonomy).
+    _print_llm_section(fetch_llm_rows(args.hours), args.channel)
     return 0
 
 

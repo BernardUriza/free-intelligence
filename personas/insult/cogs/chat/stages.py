@@ -99,6 +99,36 @@ HOST_DEGRADE_TIMEOUT_S = 12.0
 _VULTUR_PREFIXES = ("@vultur ", "~vultur ")
 
 
+async def _run_llm_shadow_decision(
+    llm_shadow_route: Any,
+    raw_text: str,
+    current_target: str,
+    guild_id: str | None,
+    channel_id: str,
+) -> None:
+    """Run the gpt-4.1 LLM shadow route (HOST 5/6 slice A.2) and LOG its decision
+    next to where the turn ACTUALLY went. Runs as a BACKGROUND task so the Azure
+    call never delays the user's reply (no observable behavior change, no cutover).
+    Wrapped: a shadow fault logs ``llm_shadow_router_failed`` and is invisible to
+    the turn — it must never raise into the pipeline."""
+    try:
+        decision = await llm_shadow_route(raw_text)
+        log.info(
+            "llm_shadow_router_decision",
+            current_target=current_target,
+            llm_shadow_target=decision.target,
+            llm_shadow_reason=decision.reason,
+            llm_diverged=decision.target != current_target,
+            guild_id=guild_id,
+            channel_id=channel_id,
+            route_input_len=len(raw_text),
+            llm_input_tokens=decision.input_tokens,
+            llm_output_tokens=decision.output_tokens,
+        )
+    except Exception:
+        log.exception("llm_shadow_router_failed")
+
+
 async def _stage_bind_identity(ctx: TurnCtx) -> None:
     msg = ctx.message
     ctx.channel_id = str(msg.channel.id)
@@ -152,6 +182,20 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
             )
         except Exception:
             log.exception("shadow_router_failed")
+
+    # HOST 5/6 slice A.2 — gpt-4.1 LLM SHADOW router. The deterministic shadow
+    # above mirrors the live @vultur rule by construction, so it can never diverge;
+    # this one asks the host BRAIN to pick a target INDEPENDENTLY, so a genuine
+    # divergence is finally observable. Spend-gated (llm_shadow_route is None unless
+    # llm_shadow_router_enabled) and run OFF the critical path via spawn_task — the
+    # Azure call must never delay the reply. Behavior-neutral: never changes routing.
+    llm_shadow_route = getattr(ctx.deps, "llm_shadow_route", None)
+    if llm_shadow_route is not None:
+        current_target = ctx.persona_id or "insult"
+        ctx.deps.spawn_task(
+            _run_llm_shadow_decision(llm_shadow_route, raw_text, current_target, ctx.guild_id, ctx.channel_id),
+            name="llm_shadow_router",
+        )
 
 
 # --- Stage 02: emit typing (BACKGROUND — never blocks LLM) ---

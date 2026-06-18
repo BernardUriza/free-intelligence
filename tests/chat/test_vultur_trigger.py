@@ -29,7 +29,13 @@ def _make_ctx(text: str) -> TurnCtx:
     msg.channel.name = "general"
     msg.attachments = []
     msg.flags.voice = False
-    return TurnCtx(message=msg, text=text, turn_start=time.monotonic(), deps=MagicMock())
+    ctx = TurnCtx(message=msg, text=text, turn_start=time.monotonic(), deps=MagicMock())
+    # Both shadow routers OFF by default — a MagicMock attr is truthy, which would
+    # otherwise fire the deterministic shadow (Mock route) and spawn an un-awaited
+    # LLM-shadow coro. Tests that exercise a shadow opt in explicitly.
+    ctx.deps.shadow_route = None
+    ctx.deps.llm_shadow_route = None
+    return ctx
 
 
 @pytest.mark.asyncio
@@ -128,3 +134,106 @@ async def test_shadow_fault_is_invisible_to_turn():
     assert ctx.text == "dame cine"
     assert any(e["event"] == "shadow_router_failed" for e in logs)
     assert not [e for e in logs if e["event"] == "shadow_router_decision"]
+
+
+# --- HOST 5/6 slice A.2: gpt-4.1 LLM shadow router (background + divergence) ---
+
+from types import SimpleNamespace  # noqa: E402
+
+from demux_ai.llm_shadow_router import LLMShadowDecision  # noqa: E402
+
+
+class _SpawnCapture:
+    """Stand-in for ctx.deps.spawn_task — captures the coroutine instead of
+    scheduling it, so a test can prove the LLM route runs OFF the critical path
+    (deferred) and then drain it deterministically."""
+
+    def __init__(self) -> None:
+        self.spawned: list[tuple[str | None, object]] = []
+
+    def __call__(self, coro, name=None) -> None:
+        self.spawned.append((name, coro))
+
+
+def _make_ctx_llm(text: str, *, route, spawn: _SpawnCapture) -> TurnCtx:
+    ctx = _make_ctx(text)
+    # Real-ish deps: deterministic shadow OFF (None), only the LLM shadow wired.
+    ctx.deps = SimpleNamespace(shadow_route=None, llm_shadow_route=route, spawn_task=spawn)
+    return ctx
+
+
+def _fake_route(target: str, reason: str = "llm_x"):
+    async def _route(_text: str) -> LLMShadowDecision:
+        return LLMShadowDecision(target=target, reason=reason, input_tokens=7, output_tokens=1)
+
+    return _route
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_runs_in_background_not_inline():
+    # The stage must SPAWN the gpt-4.1 route, never await it inline — the reply
+    # cannot wait on routing telemetry.
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("oye qué onda", route=_fake_route("insult"), spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert len(spawn.spawned) == 1
+    assert spawn.spawned[0][0] == "llm_shadow_router"
+    # not awaited yet → no decision logged at stage return (proves it's deferred)
+    assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]
+    spawn.spawned[0][1].close()
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_logs_genuine_divergence():
+    # current_target=insult (no prefix), host brain says vultur → diverged=True:
+    # the genuine-divergence signal the deterministic shadow can never produce.
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("recomiéndame algo de Lynch", route=_fake_route("vultur", "llm_vultur"), spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+        assert ctx.persona_id is None  # behavior-neutral: live routing untouched
+        await spawn.spawned[0][1]  # drain the background coro
+    d = next(e for e in logs if e["event"] == "llm_shadow_router_decision")
+    assert d["current_target"] == "insult"
+    assert d["llm_shadow_target"] == "vultur"
+    assert d["llm_shadow_reason"] == "llm_vultur"
+    assert d["llm_diverged"] is True
+    assert d["llm_input_tokens"] == 7
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_agreement_is_not_divergence():
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("hola insult", route=_fake_route("insult", "llm_insult"), spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+        await spawn.spawned[0][1]
+    d = next(e for e in logs if e["event"] == "llm_shadow_router_decision")
+    assert d["llm_diverged"] is False
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_disabled_emits_no_spawn():
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("hola", route=None, spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert spawn.spawned == []
+    assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_fault_is_invisible_to_turn():
+    async def _boom(_text):
+        raise RuntimeError("azure exploded")
+
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("@vultur dame cine", route=_boom, spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+        # the turn is unaffected — live routing already sent it to vultur
+        assert ctx.persona_id == "vultur"
+        await spawn.spawned[0][1]  # drain: must not raise
+    assert any(e["event"] == "llm_shadow_router_failed" for e in logs)
+    assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]

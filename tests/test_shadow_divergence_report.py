@@ -110,3 +110,51 @@ def test_build_query_projects_slice_a1_fields():
     q = sdr.build_query(24)
     for field in ("channel", "guild", "explicit_vultur_trigger", "route_input_len"):
         assert field in q
+
+
+# --- slice A.2: gpt-4.1 LLM shadow — the GENUINE divergence taxonomy -----------
+
+
+def test_llm_query_targets_the_llm_shadow_event():
+    q = sdr.build_llm_query(96)
+    assert "llm_shadow_router_decision" in q
+    assert "ago(96h)" in q
+    for field in ("llm_shadow_target", "llm_diverged", "current"):
+        assert field in q
+
+
+def test_classify_llm_agreement_when_brain_matches_live():
+    assert (
+        sdr.classify_llm_decision(current_target="insult", llm_shadow_target="insult", llm_diverged="false")
+        == sdr.LLM_BUCKET_AGREE
+    )
+
+
+def test_classify_llm_missing_vultur():
+    # live sent it to Insult, the host brain says Vultur → a "should have been
+    # Vultur" candidate. The signal the deterministic shadow can NEVER produce.
+    assert (
+        sdr.classify_llm_decision(current_target="insult", llm_shadow_target="vultur", llm_diverged="true")
+        == sdr.LLM_BUCKET_MISSING_VULTUR
+    )
+
+
+def test_classify_llm_false_vultur():
+    # the ~vultur prefix sent it to Vultur, the brain says Insult → a "didn't
+    # need Vultur" candidate.
+    assert (
+        sdr.classify_llm_decision(current_target="vultur", llm_shadow_target="insult", llm_diverged="true")
+        == sdr.LLM_BUCKET_FALSE_VULTUR
+    )
+
+
+def test_summarize_llm_counts_by_bucket():
+    rows = [
+        {"current": "insult", "llm_shadow_target": "insult", "llm_diverged": "false"},
+        {"current": "insult", "llm_shadow_target": "vultur", "llm_diverged": "true"},
+        {"current": "vultur", "llm_shadow_target": "insult", "llm_diverged": "true"},
+    ]
+    counts = sdr.summarize_llm(rows)
+    assert counts[sdr.LLM_BUCKET_AGREE] == 1
+    assert counts[sdr.LLM_BUCKET_MISSING_VULTUR] == 1
+    assert counts[sdr.LLM_BUCKET_FALSE_VULTUR] == 1

@@ -515,6 +515,30 @@ def build_shadow_router(settings: Any) -> Any | None:
     return shadow_route
 
 
+def build_llm_shadow_router(settings: Any) -> Any | None:
+    """Build the gpt-4.1 LLM shadow router callable — or ``None`` (HOST 5/6 slice A.2).
+
+    Returns the bound ``LLMShadowRouter.route`` (async ``str -> LLMShadowDecision``)
+    only when ``settings.llm_shadow_router_enabled`` is True; otherwise ``None`` and
+    the bind-identity stage runs no LLM shadow. Unlike ``build_shadow_router`` (free,
+    default ON), this one is default OFF: constructing the router builds
+    ``HostRouterLLM`` → ``CodexBackend`` (a blocking model-client setup) and every
+    ``route`` call SPENDS gpt-4.1 — so the build is bracketed by boot logs
+    (boot-zombie doctrine) and the ``demux_ai`` import is DEFERRED inside the enabled
+    branch so the heavy ``fi_runner`` backend stays cold in prod when off. Typed
+    ``Any`` so this composition root is the ONE place that touches the concrete; the
+    cog forwards the handle onto ``TurnRuntimeDeps.llm_shadow_route``."""
+    if not getattr(settings, "llm_shadow_router_enabled", False):
+        log.info("llm_shadow_router_disabled")
+        return None
+    log.info("llm_shadow_router_building")  # pragma: no cover
+    from demux_ai.llm_shadow_router import LLMShadowRouter  # pragma: no cover
+
+    router = LLMShadowRouter()  # pragma: no cover
+    log.info("llm_shadow_router_built")  # pragma: no cover
+    return router.route  # pragma: no cover
+
+
 # ---------------------------------------------------------------------------
 # Governance bridges — app.py / __main__.py are host-facing and must not
 # import personas.insult.core.memory or insult.core.memory_consolidator directly.

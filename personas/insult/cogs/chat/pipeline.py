@@ -154,6 +154,12 @@ class TurnRuntimeDeps:
     # bind-identity stage calls it to LOG ``shadow_router_decision`` (current vs
     # shadow target) — it never changes where the turn routes. No LLM, no spend.
     shadow_route: Callable[[str], Any] | None = None
+    # LLM shadow router (HOST 5/6 slice A.2). An ASYNC ``str -> LLMShadowDecision``
+    # callable (gpt-4.1 via demux_ai), or None when ``llm_shadow_router_enabled`` is
+    # False (default — it SPENDS). The bind-identity stage runs it OFF the critical
+    # path (a background task) to LOG ``llm_shadow_router_decision`` (current vs the
+    # host brain's independent target) — never changes routing, no cutover.
+    llm_shadow_route: Callable[[str], Any] | None = None
 
 
 @dataclass

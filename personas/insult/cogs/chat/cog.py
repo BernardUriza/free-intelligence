@@ -34,6 +34,7 @@ from personas.insult.cogs.chat.turn import run_turn
 from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
     build_host_degrader_port,
+    build_llm_shadow_router,
     build_preset_engine_port,
     build_s1b_policy_port,
     build_shadow_router,
@@ -76,6 +77,11 @@ class ChatCog(commands.Cog):
         # Deterministic shadow router (HOST 5/6 slice A). Pure callable or None —
         # the bind stage logs current vs shadow target; never changes routing.
         self._shadow_route = build_shadow_router(self.settings)
+        # gpt-4.1 LLM shadow router (HOST 5/6 slice A.2). None unless
+        # llm_shadow_router_enabled — default OFF (it SPENDS). When on, the bind
+        # stage runs it off the critical path to log the host brain's independent
+        # target vs current; never changes routing, no cutover.
+        self._llm_shadow_route = build_llm_shadow_router(self.settings)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -158,6 +164,7 @@ class ChatCog(commands.Cog):
                     judge_client=self.judge_client,
                     host_degrader=self._host_degrader,
                     shadow_route=self._shadow_route,
+                    llm_shadow_route=self._llm_shadow_route,
                 ),
             )
         except BaseException as e:

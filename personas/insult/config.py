@@ -186,6 +186,16 @@ class Settings(BaseSettings):
     # noisy; cutover (acting on the shadow target) is a separate, later slice.
     shadow_router_enabled: bool = True
 
+    # HOST 5/6 slice A.2 — the gpt-4.1 LLM shadow router. Defaults False (like the
+    # other gpt-4.1 flags): unlike the deterministic shadow above, this one calls
+    # Azure per turn and SPENDS. When True the cog builds demux_ai.llm_shadow_router
+    # (gpt-4.1) and the bind-identity stage runs it OFF the critical path (a
+    # background task) to LOG ``llm_shadow_router_decision`` (current vs the host
+    # brain's independent target) — never acted on, no cutover. Flipping it True in
+    # prod is the spend authorization itself, a deliberate gated act; the
+    # deterministic shadow keeps measuring agreement for free regardless.
+    llm_shadow_router_enabled: bool = False
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,
