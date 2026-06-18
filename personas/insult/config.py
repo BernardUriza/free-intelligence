@@ -177,6 +177,15 @@ class Settings(BaseSettings):
     # gated act (real spend), not part of shipping the wiring.
     host_router_enabled: bool = False
 
+    # HOST 5/6 slice A — the DETERMINISTIC shadow router. Defaults True (unlike the
+    # gpt-4.1 flags above, which default False to avoid spend): the shadow is pure
+    # config-only routing (no LLM, no Azure, zero cost) and behavior-NEUTRAL — it
+    # only LOGS what the host would route to (``shadow_router_decision``) next to
+    # where the turn actually goes. Defaulting it on is the point: a shadow gated
+    # off measures nothing. Flip False as a kill switch if the per-turn log proves
+    # noisy; cutover (acting on the shadow target) is a separate, later slice.
+    shadow_router_enabled: bool = True
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,

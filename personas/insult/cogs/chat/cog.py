@@ -36,6 +36,7 @@ from personas.insult.composition import (
     build_host_degrader_port,
     build_preset_engine_port,
     build_s1b_policy_port,
+    build_shadow_router,
     default_arc_port,
     default_facts_port,
     default_output_mutation_port,
@@ -72,6 +73,9 @@ class ChatCog(commands.Cog):
         # Host degrader (gpt-4.1 honest-degradation). None unless
         # host_router_enabled — INERT in prod, so demux_ai/fi_runner never load.
         self._host_degrader = build_host_degrader_port(self.settings)
+        # Deterministic shadow router (HOST 5/6 slice A). Pure callable or None —
+        # the bind stage logs current vs shadow target; never changes routing.
+        self._shadow_route = build_shadow_router(self.settings)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -153,6 +157,7 @@ class ChatCog(commands.Cog):
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                     host_degrader=self._host_degrader,
+                    shadow_route=self._shadow_route,
                 ),
             )
         except BaseException as e:

@@ -496,6 +496,25 @@ def build_host_degrader_port(settings: Any) -> Any | None:
     return degrader  # pragma: no cover
 
 
+def build_shadow_router(settings: Any) -> Any | None:
+    """Build the deterministic shadow router callable — or ``None`` (HOST 5/6 slice A).
+
+    Returns ``shadow_route`` (pure ``str -> ShadowDecision``) unless
+    ``settings.shadow_router_enabled`` is False (a kill switch — default ON, since
+    the shadow is config-only and behavior-neutral, so gating it off measures
+    nothing). The ``demux_ai`` import is DEFERRED here so this composition root
+    stays the ONE place that touches ``demux_ai``; the cog forwards the handle
+    onto ``TurnRuntimeDeps.shadow_route`` as ``Any | None`` without importing the
+    concrete. No gpt-4.1, no Azure, no spend — unlike ``build_host_degrader_port``,
+    nothing heavy loads on the enabled path."""
+    if not getattr(settings, "shadow_router_enabled", True):
+        log.info("shadow_router_disabled")
+        return None
+    from demux_ai.shadow_router import shadow_route
+
+    return shadow_route
+
+
 # ---------------------------------------------------------------------------
 # Governance bridges — app.py / __main__.py are host-facing and must not
 # import personas.insult.core.memory or insult.core.memory_consolidator directly.

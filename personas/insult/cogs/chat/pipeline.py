@@ -149,6 +149,11 @@ class TurnRuntimeDeps:
     # None unless ``host_router_enabled`` is True, in which case the
     # honest-degradation tail asks it for the notice instead of the static one.
     host_degrader: HostDegraderPort | None = None
+    # Deterministic shadow router (HOST 5/6 slice A). A pure ``str -> ShadowDecision``
+    # callable from demux_ai, or None when ``shadow_router_enabled`` is False. The
+    # bind-identity stage calls it to LOG ``shadow_router_decision`` (current vs
+    # shadow target) — it never changes where the turn routes. No LLM, no spend.
+    shadow_route: Callable[[str], Any] | None = None
 
 
 @dataclass

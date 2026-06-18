@@ -109,6 +109,10 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
     ctx.context_key = f"{ctx.channel_id}:{ctx.user_id}"
 
     # Multi-persona routing: @vultur / ~vultur prefix → route to Vultur persona.
+    # Keep the RAW text (pre-strip) so the shadow router below sees the same input
+    # the live rule did — otherwise it would never observe the prefix and falsely
+    # diverge on every Vultur turn.
+    raw_text = ctx.text
     lowered = ctx.text.lower()
     for prefix in _VULTUR_PREFIXES:
         if lowered.startswith(prefix):
@@ -126,6 +130,25 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
         channel_name=ctx.channel_name,
         persona_id=ctx.persona_id,
     )
+
+    # HOST 5/6 slice A — SHADOW router. Compute what the demux host WOULD route to
+    # and log it next to where the turn actually goes; NEVER change ctx.persona_id
+    # (no cutover, no observable behavior change). Wrapped so a shadow fault is
+    # invisible to the turn — the shadow must never break the happy path.
+    shadow_route = getattr(ctx.deps, "shadow_route", None)
+    if shadow_route is not None:
+        try:
+            current_target = ctx.persona_id or "insult"
+            decision = shadow_route(raw_text)
+            log.info(
+                "shadow_router_decision",
+                current_target=current_target,
+                shadow_target=decision.target,
+                shadow_reason=decision.reason,
+                diverged=decision.target != current_target,
+            )
+        except Exception:
+            log.exception("shadow_router_failed")
 
 
 # --- Stage 02: emit typing (BACKGROUND — never blocks LLM) ---
