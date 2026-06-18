@@ -45,9 +45,18 @@ export {
 export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
+  type AgentConversationSurfaceLayout,
 } from './AgentConversationSurface';
 // B3-FIGLASS-12: floating jump-to-latest affordance (pin-to-bottom UX).
 export {
   ScrollToBottomButton,
   type ScrollToBottomButtonProps,
 } from './ScrollToBottomButton';
+// FG-4: viewport-locked agent-workspace page primitive (composes a full page
+// from slots — header / main / conversation / rail / footer).
+export { AgentWorkspaceShell } from './AgentWorkspaceShell';
+export type {
+  AgentWorkspaceShellProps,
+  AgentWorkspaceShellVisual,
+  AgentWorkspaceShellDensity,
+} from './AgentWorkspaceShell';

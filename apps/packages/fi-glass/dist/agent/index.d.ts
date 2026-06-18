@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { ReactNode } from 'react';
+import { ReactNode, CSSProperties } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
@@ -227,9 +227,20 @@ interface AgentConversation {
 }
 declare function useAgentConversation(agent: AgentHook, options?: UseAgentConversationOptions): AgentConversation;
 
+type AgentConversationSurfaceLayout = 'viewport' | 'contained';
 interface AgentConversationSurfaceProps {
     /** The conversation state + actions from `useAgentConversation`. */
     conversation: AgentConversation;
+    /**
+     * FG-2 (canary-driven, activist-os): how the surface root sizes itself.
+     *  - `"viewport"` (DEFAULT): root is `height: 100dvh` — the full-page behavior
+     *    every existing consumer relies on.
+     *  - `"contained"`: root is `height: 100%` + `minHeight: 0` + `overflow: hidden`,
+     *    so it fills whatever fixed-height cell an app shell gives it (header + main
+     *    + artifacts rail + footer) and scrolls the transcript internally instead of
+     *    forcing page scroll.
+     */
+    layout?: AgentConversationSurfaceLayout;
     /** Composer placeholder copy (app-owned). */
     composerPlaceholder?: string;
     /** Label for the new-conversation button. Default: "New chat". */
@@ -397,7 +408,7 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 interface ScrollToBottomButtonProps {
     onClick: () => void;
@@ -410,4 +421,18 @@ interface ScrollToBottomButtonProps {
 }
 declare function ScrollToBottomButton({ onClick, label, className, iconClassName, }: ScrollToBottomButtonProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+type AgentWorkspaceShellVisual = 'aurora' | 'midnight' | 'clinical';
+type AgentWorkspaceShellDensity = 'compact' | 'comfortable' | 'spacious';
+interface AgentWorkspaceShellProps {
+    visual?: AgentWorkspaceShellVisual;
+    density?: AgentWorkspaceShellDensity;
+    header?: ReactNode;
+    conversation: ReactNode;
+    rail?: ReactNode;
+    footer?: ReactNode;
+    className?: string;
+    style?: CSSProperties;
+}
+declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentWorkspaceShell, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
