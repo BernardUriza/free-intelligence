@@ -20,6 +20,19 @@ RUN mamba env update -n base -f environment.yml \
  && find /opt/conda/ -follow -type f -name '*.a' -delete \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
+# The demux HOST's gpt-4.1 brain (demux_ai.host_llm.HostRouterLLM) runs through
+# fi_runner.CodexBackend, which shells out to the `codex` npm CLI pointed at the
+# shared Azure OpenAI endpoint (no ChatGPT login — just the Azure key bridged into
+# AZURE_OPENAI_API_KEY at runtime). Both host gpt-4.1 paths in THIS plumbing image
+# need it: the host_degrader (host_router_enabled) and the LLM shadow router
+# (llm_shadow_router_enabled, HOST 5/6 slice A.2). Without the CLI the gpt-4.1 call
+# fails with BackendError("requires the codex CLI on PATH") — wrapped/invisible for
+# the shadow, but the capability never actually works. Mirrors Dockerfile.alice.
+RUN mamba install -n base -y nodejs \
+ && npm i -g @openai/codex \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
+
 # Copy app code. personas/insult/ contains the bot; shared/ + khimeras_shared/
 # are imported at runtime. khimeras_shared/ is MANDATORY: the demux (PR #26,
 # Etapa 3) moved neutral capabilities there and personas.insult.app imports

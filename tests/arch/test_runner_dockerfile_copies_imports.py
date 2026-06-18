@@ -97,3 +97,24 @@ def test_dockerfile_copies_every_local_package_imported(dockerfile: Path, pkg_ro
         "image fails with ModuleNotFoundError at runtime (prod P0 2026-06-16). "
         "Add `COPY <pkg>/ <pkg>/` to the Dockerfile."
     )
+
+
+# --- Runtime-binary invariant: the host gpt-4.1 path needs the `codex` CLI ------
+#
+# Deploy gotcha (2026-06-18, HOST 5/6 slice A.2): the demux HOST brain
+# (demux_ai.host_llm.HostRouterLLM) runs through fi_runner.CodexBackend, which
+# shells out to the `codex` npm CLI. The Python deps ship via environment.yml,
+# but the CLI is a BINARY that must be installed in the image. The plumbing image
+# originally skipped it ("Insult runs ClaudeCodeBackend"), so the FIRST time a
+# host gpt-4.1 path actually ran in prod (the LLM shadow router) it failed with
+# BackendError("requires the codex CLI on PATH"). Both gpt-4.1 host capabilities
+# (host_degrader + llm_shadow_router) live in the plumbing image, so it MUST carry
+# the CLI. This guards the binary dep the COPY/import test above can't see.
+def test_plumbing_dockerfile_installs_codex_cli_for_host_gpt41() -> None:
+    text = PLUMBING_DOCKERFILE.read_text(encoding="utf-8")
+    assert "@openai/codex" in text, (
+        "Dockerfile (discord-bot plumbing) must `npm i -g @openai/codex` — the host "
+        "gpt-4.1 path (demux_ai.host_llm via fi_runner.CodexBackend, used by both "
+        "host_degrader and the llm_shadow_router) shells out to the codex CLI. "
+        "Without it the gpt-4.1 call fails with BackendError(requires codex CLI on PATH)."
+    )
