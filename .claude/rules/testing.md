@@ -506,6 +506,37 @@ Insult DM — which replied fine because the DM path is the one that never break
 Bernard: *"tú estás siempre probando Insult directo y eso pues nunca ha fallado"*.
 The DM is the blind spot; #general is the test surface.
 
+### "No quiero ensuciar la conversación viva de #general" NO es una excepción
+
+The recurring escape hatch is to find a principled-sounding reason to fall back
+to the DM. The 2026-06-18 variant: #general had a live, sensitive conversation
+(Bernard ↔ Alex), so the slice A deploy was "verified" via the Insult DM "to
+avoid polluting the thread." The reasoning FELT like Art. 8 (respect his
+attention) but it is the same rationalization this rule exists to kill — a green
+DM reply proves almost nothing, and "verified" must mean verified in #general.
+
+Why the excuse is invalid: **#general IS the bot's testing channel.** A short
+version-check probe ("despierto? confirma tu versión") is normal, expected
+traffic there — Bernard and Alex probe the bot in #general constantly; it does
+NOT "ruin" a thread. So:
+
+- The default is ALWAYS a probe in #general, even when a conversation is in
+  progress. A one-line version check is not pollution.
+- If the thread is *genuinely* too sensitive to touch at that exact instant,
+  the correct move is to **WAIT for a lull and then verify in #general**, OR
+  report the verification as **still pending** — NEVER to substitute the DM and
+  call the fix "verified." A DM smoke may confirm "the process is alive," but it
+  is not the verification of record (the existing rule above).
+- Respecting his live thread (Art. 8) and verifying on the real surface (Art. 2)
+  are not in conflict: a brief #general probe satisfies both. Inventing a
+  conflict to justify the easy DM path is the failure.
+
+**Why (2026-06-18):** during the HOST 5/6 slice A deploy, I verified the new
+revision (tag `ᵛ⁴·²¹·⁷⁶` + `shadow_router_decision` emitting) by probing the
+Insult DM instead of #general, reasoning I shouldn't pollute Bernard's live
+Mariposas-Negras conversation. Bernard: *"volviste a probar insult en la app, no
+en el channel general."* Second recurrence of the same blind spot in two days.
+
 ## E2E Testing with Discord MCP
 When you need to verify that the bot actually works end-to-end (not just unit tests), use the Discord MCP server to interact with a real Discord server. This Mac is the server.
 
