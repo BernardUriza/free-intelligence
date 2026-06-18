@@ -40,6 +40,11 @@ from collections import Counter
 WORKSPACE = "a07bf4c8-22ff-455a-b7bd-91055da53b28"
 _LOGANALYTICS = f"https://api.loganalytics.io/v1/workspaces/{WORKSPACE}/query"
 
+# #general — the record-grade verification surface (see .claude/rules/testing.md).
+# slice A.1 splits shadow traffic by channel because a DM turn is a WEAK sanity
+# check, NOT #general evidence: counting DM rows as #general would fake the gate.
+GENERAL_CHANNEL_ID = "1489180895264116736"
+
 # Buckets derivable from the DETERMINISTIC shadow alone. The LLM-intent taxonomy
 # is intentionally absent — see module docstring.
 BUCKET_DIVERGED = "diverged_review"
@@ -74,7 +79,13 @@ def classify_decision(*, shadow_reason: str, diverged: object) -> str:
 
 
 def build_query(hours: int) -> str:
-    """KQL for the shadow_router_decision events over the last ``hours``."""
+    """KQL for the shadow_router_decision events over the last ``hours``.
+
+    Projects the slice-A.1 telemetry (channel/guild/explicit_vultur_trigger/
+    route_input_len) on top of the slice-A routing fields so the report can
+    filter #general for real and distinguish "no trigger" from "can't tell".
+    ``channel_id``/``user_id`` arrive via structlog contextvars on every line.
+    """
     return f"""ContainerAppConsoleLogs_CL
 | where TimeGenerated > ago({int(hours)}h)
 | extend p = parse_json(Log_s)
@@ -83,15 +94,43 @@ def build_query(hours: int) -> str:
           current=tostring(p.current_target),
           shadow=tostring(p.shadow_target),
           reason=tostring(p.shadow_reason),
-          diverged=tostring(p.diverged)
+          diverged=tostring(p.diverged),
+          channel=tostring(p.channel_id),
+          guild=tostring(p.guild_id),
+          explicit_vultur_trigger=tostring(p.explicit_vultur_trigger),
+          route_input_len=tostring(p.route_input_len)
 | order by TimeGenerated asc"""
+
+
+def partition_by_channel(rows: list[dict], channel_id: str) -> tuple[list[dict], list[dict]]:
+    """Split rows into ``(in_channel, off_channel)`` by the ``channel`` field.
+
+    The whole point of slice A.1: shadow traffic from the Insult DM is a WEAK
+    sanity check, not #general evidence. Partitioning lets the report say
+    "N in #general, M off-channel" instead of silently mixing a DM turn into
+    the record-grade count.
+    """
+    in_channel = [r for r in rows if r.get("channel") == channel_id]
+    off_channel = [r for r in rows if r.get("channel") != channel_id]
+    return in_channel, off_channel
 
 
 def _access_token() -> str:
     out = subprocess.run(
-        ["az", "account", "get-access-token", "--resource",
-         "https://api.loganalytics.io", "--query", "accessToken", "-o", "tsv"],
-        capture_output=True, text=True, check=True,
+        [
+            "az",
+            "account",
+            "get-access-token",
+            "--resource",
+            "https://api.loganalytics.io",
+            "--query",
+            "accessToken",
+            "-o",
+            "tsv",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return out.stdout.strip()
 
@@ -102,8 +141,7 @@ def fetch_rows(hours: int) -> list[dict]:
     req = urllib.request.Request(
         _LOGANALYTICS,
         data=body,
-        headers={"Authorization": f"Bearer {_access_token()}",
-                 "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {_access_token()}", "Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.load(resp)
@@ -117,39 +155,72 @@ def fetch_rows(hours: int) -> list[dict]:
 def summarize(rows: list[dict]) -> Counter:
     counts: Counter = Counter()
     for r in rows:
-        counts[classify_decision(
-            shadow_reason=r.get("reason", ""),
-            diverged=r.get("diverged", "false"),
-        )] += 1
+        counts[
+            classify_decision(
+                shadow_reason=r.get("reason", ""),
+                diverged=r.get("diverged", "false"),
+            )
+        ] += 1
     return counts
+
+
+def _print_buckets(rows: list[dict]) -> None:
+    total = len(rows)
+    counts = summarize(rows)
+    for bucket in (BUCKET_DIVERGED, BUCKET_AGREE_VULTUR, BUCKET_AGREE_INSULT, BUCKET_AGREE_OTHER):
+        n = counts.get(bucket, 0)
+        if n:
+            print(f"    {bucket:24s} {n:5d}  ({100 * n / total:.1f}%)")
+    triggers = sum(1 for r in rows if _as_bool(r.get("explicit_vultur_trigger", "false")))
+    print(
+        f"    explicit_vultur_trigger  {triggers:5d}  ({100 * triggers / total:.1f}% had a real @vultur/~vultur token)"
+    )
+    diverged = [r for r in rows if _as_bool(r.get("diverged", "false"))]
+    if diverged:
+        print(f"\n  ⚠️  {len(diverged)} DIVERGED row(s) — live routing disagreed with the deterministic rule (review):")
+        for r in diverged:
+            print(
+                f"    {r.get('TimeGenerated', '')}  current={r.get('current')}  shadow={r.get('shadow')}  reason={r.get('reason')}"
+            )
+    else:
+        print("\n  0 divergences — live routing matches the deterministic rule (expected for slice A).")
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Shadow-router divergence report")
     ap.add_argument("--hours", type=int, default=48, help="lookback window (default 48h)")
+    ap.add_argument(
+        "--channel",
+        default=GENERAL_CHANNEL_ID,
+        help="record-grade channel_id to filter (default: #general)",
+    )
     args = ap.parse_args(argv)
 
     rows = fetch_rows(args.hours)
     total = len(rows)
-    counts = summarize(rows)
+    in_channel, off_channel = partition_by_channel(rows, args.channel)
 
-    print(f"shadow_router_decision events (last {args.hours}h): {total}")
+    print(f"shadow_router_decision events (last {args.hours}h): {total} total")
+    print(f"  in #general ({args.channel}): {len(in_channel)}")
+    print(f"  off-channel (DM/other — WEAK sanity only): {len(off_channel)}")
+
     if total == 0:
-        print("  (no shadow traffic yet — let real #general turns accumulate)")
+        print("\n  (no shadow traffic at all yet — let real turns accumulate)")
         return 0
 
-    for bucket in (BUCKET_DIVERGED, BUCKET_AGREE_VULTUR, BUCKET_AGREE_INSULT, BUCKET_AGREE_OTHER):
-        n = counts.get(bucket, 0)
-        if n:
-            print(f"  {bucket:24s} {n:5d}  ({100 * n / total:.1f}%)")
+    if not in_channel:
+        # The honest distinction the coagent asked for: traffic EXISTS but none
+        # is record-grade. NOT the same as "no traffic" — do not fake the gate.
+        print(
+            "\n  NO #general shadow traffic yet — the gate is NOT satisfiable from "
+            "off-channel rows. Need real #general turns (ideally some @vultur) before slice B."
+        )
+        off_channels = sorted({r.get("channel", "?") for r in off_channel})
+        print(f"  off-channel ids seen: {', '.join(off_channels)}")
+        return 0
 
-    diverged = [r for r in rows if _as_bool(r.get("diverged", "false"))]
-    if diverged:
-        print(f"\n⚠️  {len(diverged)} DIVERGED row(s) — live routing disagreed with the deterministic rule (review):")
-        for r in diverged:
-            print(f"  {r.get('TimeGenerated','')}  current={r.get('current')}  shadow={r.get('shadow')}  reason={r.get('reason')}")
-    else:
-        print("\n  0 divergences — live routing matches the deterministic rule (expected for slice A).")
+    print(f"\n  #general breakdown ({len(in_channel)} rows):")
+    _print_buckets(in_channel)
 
     print(
         "\nNOTE: the deterministic shadow mirrors the live @vultur rule, so ~all rows agree. "

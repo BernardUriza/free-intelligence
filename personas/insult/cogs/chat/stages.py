@@ -146,6 +146,9 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
                 shadow_target=decision.target,
                 shadow_reason=decision.reason,
                 diverged=decision.target != current_target,
+                guild_id=ctx.guild_id,
+                explicit_vultur_trigger=decision.reason == "vultur_prefix",
+                route_input_len=len(raw_text),
             )
         except Exception:
             log.exception("shadow_router_failed")

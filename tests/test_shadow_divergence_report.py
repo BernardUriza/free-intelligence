@@ -73,3 +73,40 @@ def test_build_query_targets_the_shadow_event():
     q = sdr.build_query(72)
     assert "shadow_router_decision" in q
     assert "ago(72h)" in q
+
+
+def test_general_channel_id_constant():
+    # The #general channel is the record-grade verification surface (testing.md).
+    assert sdr.GENERAL_CHANNEL_ID == "1489180895264116736"
+
+
+def test_partition_by_channel_splits_general_from_dm():
+    # slice A.1 — the report must filter #general FOR REAL: a DM turn
+    # (channel 1489130575422820352) must NOT be counted as #general evidence.
+    rows = [
+        {"channel": "1489180895264116736", "reason": "default_insult", "diverged": "false"},
+        {"channel": "1489130575422820352", "reason": "default_insult", "diverged": "false"},
+    ]
+    in_ch, off = sdr.partition_by_channel(rows, sdr.GENERAL_CHANNEL_ID)
+    assert [r["channel"] for r in in_ch] == ["1489180895264116736"]
+    assert [r["channel"] for r in off] == ["1489130575422820352"]
+
+
+def test_partition_by_channel_all_off_channel_yields_empty_in_channel():
+    # The real state today: shadow traffic exists but NONE in #general — the
+    # report must distinguish "no #general traffic" from "no traffic at all".
+    rows = [
+        {"channel": "1489130575422820352", "reason": "default_insult", "diverged": "false"},
+        {"channel": "1489130575422820352", "reason": "default_insult", "diverged": "false"},
+    ]
+    in_ch, off = sdr.partition_by_channel(rows, sdr.GENERAL_CHANNEL_ID)
+    assert in_ch == []
+    assert len(off) == 2
+
+
+def test_build_query_projects_slice_a1_fields():
+    # slice A.1 telemetry hardening: the report must read channel, guild,
+    # explicit_vultur_trigger and route_input_len, not just the 4 slice-A fields.
+    q = sdr.build_query(24)
+    for field in ("channel", "guild", "explicit_vultur_trigger", "route_input_len"):
+        assert field in q

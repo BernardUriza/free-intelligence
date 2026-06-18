@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.21.76"
+version = "4.21.77"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -32,6 +32,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S106"]  # asserts and hardcoded passwords OK in tests
 "shared/personas/registry.py" = ["S106"]  # `token_env` is an env-var NAME, not a secret
+"scripts/**" = ["S"]  # local operator tooling (az subprocess, Log Analytics REST) — already in `exclude`; this also covers the pre-commit hook, which passes explicit paths and bypasses `exclude`
 
 [tool.ruff.format]
 quote-style = "double"
