@@ -54,6 +54,19 @@ as **public npm** packages — `@free-intelligence/core@1.1.1` (agent event cont
 `applyAgentEvent` reducer) and `fi-glass@1.1.1` (the glass chat surface) — consumed by
 the `python-bot` template's `web/`. Publish workflow lands via free-intelligence PR #245.
 
+## `dashboard/` — the ops/metrics surface (NOT a parallel product surface)
+
+`dashboard/` is the bot's **operational dashboard** (Brython + static HTML/CSS),
+deployed to its own Azure Static Web App via
+`.github/workflows/azure-static-web-apps-brave-ground-0c804e410.yml`
+(`app_location: /dashboard`). It is a legitimate, LIVE ops surface — NOT a
+forbidden parallel/disposable product surface: discord-bot is a backend bot with
+NO declared Next.js `web/` in this repo (the chat UI is the cross-repo fi-glass
+above), so the "no parallel surfaces" prohibition of `new-project-stack` does not
+bite here. Its deploy is now path-scoped (`paths: dashboard/**`) so non-dashboard
+commits no longer redeploy it. If it is ever superseded, freeze it the same day
+(Art. 6) — do not let it rot as an unowned surface.
+
 ## Patterns
 - DI container via `Container` dataclass in `app.py` — all deps injected into cogs
 - Cogs pattern from discord.py — commands grouped by concern (chat, utility)

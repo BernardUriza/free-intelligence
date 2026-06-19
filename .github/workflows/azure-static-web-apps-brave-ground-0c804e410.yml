@@ -4,10 +4,21 @@ on:
   push:
     branches:
       - main
+    # The SWA deploys ONLY /dashboard (app_location), so it must fire ONLY when
+    # the dashboard source (or this workflow) changes — path-scoped triggers per
+    # the fi-runner-azure-deploy doctrine. Before this, EVERY push (incl. docs-only
+    # and backend-only commits) redeployed the dashboard for no reason; the CI
+    # workflow's .claude/** paths-ignore didn't cover this separate workflow.
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/azure-static-web-apps-brave-ground-0c804e410.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/azure-static-web-apps-brave-ground-0c804e410.yml'
 
 jobs:
   build_and_deploy_job:
