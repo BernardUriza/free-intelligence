@@ -144,6 +144,24 @@ jobs:
             --resource-group insult-rg \
             --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
 
+      - name: Update canary job image (if it exists)
+        # The insult-canary ACA Job (GATED — created by hand once the dedicated
+        # canary bot + #canary channel exist, see infra/azure/canary-job.sh) runs
+        # from the SAME image as the bot. Until that job exists this step is a
+        # no-op; once created it keeps the job's image SHA in sync so the canary
+        # liveness probe can't silently lag behind a deploy. Guarded so a deploy
+        # never fails (or accidentally creates a resource) before the job exists.
+        run: |
+          if az containerapp job show --name insult-canary --resource-group insult-rg >/dev/null 2>&1; then
+            az containerapp job update \
+              --name insult-canary \
+              --resource-group insult-rg \
+              --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
+            echo "canary_job_image_updated sha=${{ github.sha }}"
+          else
+            echo "canary_job_sync_skipped reason=job_not_created_yet"
+          fi
+
       - name: Verify deployment health
         run: |
           echo "Waiting 30s for new revisions to start..."
