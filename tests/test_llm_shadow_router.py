@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 import demux_ai.llm_shadow_router as llm_shadow_router
-from demux_ai.llm_shadow_router import LLMShadowDecision, LLMShadowRouter
+from demux_ai.llm_shadow_router import DirectAzureLLMRouter, LLMShadowDecision, LLMShadowRouter
 
 
 class _FakeResult:
@@ -85,6 +85,91 @@ async def test_route_passes_the_routing_instruction_not_a_persona_prompt():
     # and asks for a one-word classification, never "be Insult".
     assert "insult" in instruction.lower()
     assert "vultur" in instruction.lower()
+
+
+# --- DirectAzureLLMRouter: the cheap transport (slice A.2 token-bloat fix) -----
+
+
+class _FakeUsage:
+    def __init__(self, prompt: int, completion: int) -> None:
+        self.prompt_tokens = prompt
+        self.completion_tokens = completion
+
+
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str) -> None:
+        self.message = _FakeMessage(content)
+
+
+class _FakeCompletion:
+    def __init__(self, content: str, prompt: int, completion: int) -> None:
+        self.choices = [_FakeChoice(content)]
+        self.usage = _FakeUsage(prompt, completion)
+
+
+class _FakeCompletions:
+    def __init__(self, parent: _FakeAzureClient) -> None:
+        self._parent = parent
+
+    async def create(self, *, model, messages, **kwargs):
+        self._parent.calls.append({"model": model, "messages": messages, "kwargs": kwargs})
+        return _FakeCompletion(self._parent.reply, self._parent.prompt_tokens, self._parent.completion_tokens)
+
+
+class _FakeChat:
+    def __init__(self, parent: _FakeAzureClient) -> None:
+        self.completions = _FakeCompletions(parent)
+
+
+class _FakeAzureClient:
+    """Stand-in for openai.AsyncAzureOpenAI — no Azure, no spend."""
+
+    def __init__(self, reply: str, prompt_tokens: int = 142, completion_tokens: int = 1) -> None:
+        self.reply = reply
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.calls: list[dict] = []
+        self.chat = _FakeChat(self)
+
+
+@pytest.mark.asyncio
+async def test_direct_route_parses_and_reports_real_prompt_tokens():
+    client = _FakeAzureClient("vultur", prompt_tokens=142, completion_tokens=1)
+    router = DirectAzureLLMRouter(client=client)
+    decision = await router.route("reseña de Hereditary")
+    assert decision.target == "vultur"
+    assert decision.reason == "llm_vultur"
+    # the whole point: the direct path reports the REAL prompt_tokens (hundreds,
+    # not the agentic ~9.5k) — usage.prompt_tokens flows straight through.
+    assert decision.input_tokens == 142
+    assert decision.output_tokens == 1
+
+
+@pytest.mark.asyncio
+async def test_direct_route_sends_only_instruction_plus_input_no_agent_harness():
+    client = _FakeAzureClient("insult")
+    router = DirectAzureLLMRouter(client=client)
+    await router.route("hola")
+    call = client.calls[0]
+    # exactly two messages: the routing instruction (system) + the user input.
+    # No tool schemas, no agent scaffold — that's why it's cheap.
+    roles = [m["role"] for m in call["messages"]]
+    assert roles == ["system", "user"]
+    assert call["messages"][1]["content"] == "hola"
+    assert "vultur" in call["messages"][0]["content"].lower()
+
+
+@pytest.mark.asyncio
+async def test_direct_route_is_shape_compatible_with_agentic():
+    # same contract → drops into TurnRuntimeDeps.llm_shadow_route behind the seam.
+    direct = await DirectAzureLLMRouter(client=_FakeAzureClient("insult")).route("x")
+    assert isinstance(direct, LLMShadowDecision)
+    assert direct.reason == "llm_insult"
 
 
 def test_valid_targets_mirror_the_registry_in_lockstep():

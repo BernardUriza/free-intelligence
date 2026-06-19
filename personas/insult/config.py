@@ -196,6 +196,14 @@ class Settings(BaseSettings):
     # deterministic shadow keeps measuring agreement for free regardless.
     llm_shadow_router_enabled: bool = False
 
+    # HOST 5/6 slice A.2 — transport for the LLM shadow router when enabled.
+    # "agentic" (default) = demux_ai.host_llm via fi_runner.CodexBackend (the
+    # codex CLI; carries a ~9.5k-token agent harness per call). "direct" =
+    # demux_ai.llm_shadow_router.DirectAzureLLMRouter (a plain Azure chat
+    # completion — only instruction+input, hundreds of tokens). Set "direct" to
+    # measure/keep the cheap path; same routing decision either way.
+    llm_shadow_transport: str = "agentic"
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,

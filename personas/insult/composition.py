@@ -531,11 +531,17 @@ def build_llm_shadow_router(settings: Any) -> Any | None:
     if not getattr(settings, "llm_shadow_router_enabled", False):
         log.info("llm_shadow_router_disabled")
         return None
-    log.info("llm_shadow_router_building")  # pragma: no cover
-    from demux_ai.llm_shadow_router import LLMShadowRouter  # pragma: no cover
+    transport = getattr(settings, "llm_shadow_transport", "agentic")  # pragma: no cover
+    log.info("llm_shadow_router_building", transport=transport)  # pragma: no cover
+    if transport == "direct":  # pragma: no cover
+        from demux_ai.llm_shadow_router import DirectAzureLLMRouter
 
-    router = LLMShadowRouter()  # pragma: no cover
-    log.info("llm_shadow_router_built")  # pragma: no cover
+        router: Any = DirectAzureLLMRouter()
+    else:  # pragma: no cover
+        from demux_ai.llm_shadow_router import LLMShadowRouter
+
+        router = LLMShadowRouter()
+    log.info("llm_shadow_router_built", transport=transport)  # pragma: no cover
     return router.route  # pragma: no cover
 
 

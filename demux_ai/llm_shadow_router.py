@@ -23,13 +23,23 @@ importing any persona package.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
-from demux_ai.host_llm import HostRouterLLM
+if TYPE_CHECKING:
+    from demux_ai.host_llm import HostRouterLLM
 
 log = structlog.get_logger()
+
+# Azure OpenAI defaults — mirror demux_ai.host_llm so the direct transport reads
+# the SAME env (AZURE_OPENAI_ENDPOINT/KEY/GPT_DEPLOYMENT/API_VERSION) the agentic
+# one does, without importing host_llm (which would drag fi_runner onto the cheap
+# direct path).
+_DEFAULT_DEPLOYMENT = "gpt-4.1"
+_DEFAULT_API_VERSION = "2024-10-21"
 
 # The default target when the host LLM gives nothing parseable. Mirrors the
 # deterministic shadow's ``_DEFAULT_TARGET`` → Insult downstream.
@@ -91,7 +101,11 @@ class LLMShadowRouter:
     telemetry."""
 
     def __init__(self, llm: HostRouterLLM | None = None) -> None:
-        self._llm = llm or HostRouterLLM()
+        if llm is None:
+            from demux_ai.host_llm import HostRouterLLM  # deferred: keeps fi_runner off the direct path
+
+            llm = HostRouterLLM()
+        self._llm = llm
 
     async def route(self, text: str) -> LLMShadowDecision:
         """Classify ``text`` to a target persona via gpt-4.1. Returns a decision
@@ -108,4 +122,57 @@ class LLMShadowRouter:
         )
 
 
-__all__ = ["LLMShadowDecision", "LLMShadowRouter"]
+class DirectAzureLLMRouter:
+    """Direct Azure OpenAI chat-completion transport for the shadow router.
+
+    The cheap alternative to ``LLMShadowRouter`` (which goes through the agentic
+    ``CodexBackend`` → ``codex exec`` CLI and pays ~9.5k input tokens of agent
+    harness per call, HOST 5/6 slice A.2 token-bloat fix). This sends ONLY the
+    routing instruction + the user input over ``openai.AsyncAzureOpenAI`` against
+    the SAME ``insult-openai`` deployment — no agent harness, no tool schemas — so
+    a one-word classification costs hundreds of tokens, not thousands. Shape-
+    compatible: same ``route(text) -> LLMShadowDecision`` contract, so it drops
+    into ``TurnRuntimeDeps.llm_shadow_route`` behind the same seam."""
+
+    def __init__(self, client: object | None = None, deployment: str | None = None) -> None:
+        self._client = client  # injectable for tests (no Azure, no spend)
+        self._deployment = deployment or os.environ.get("AZURE_OPENAI_GPT_DEPLOYMENT", _DEFAULT_DEPLOYMENT)
+
+    def _ensure_client(self) -> object:
+        if self._client is None:
+            from openai import AsyncAzureOpenAI  # deferred: only when the direct path is actually used
+
+            self._client = AsyncAzureOpenAI(
+                azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", "").rstrip("/"),
+                api_key=os.environ.get("AZURE_OPENAI_KEY", ""),
+                api_version=os.environ.get("AZURE_OPENAI_API_VERSION", _DEFAULT_API_VERSION),
+            )
+        return self._client
+
+    async def route(self, text: str) -> LLMShadowDecision:
+        """Classify ``text`` via a plain Azure chat completion. Returns the parsed
+        target + reason + REAL token counts (``usage.prompt_tokens`` is the number
+        the whole exercise is measuring). Raises on a hard API failure — the caller
+        wraps it so a shadow fault stays invisible to the turn."""
+        client = self._ensure_client()
+        resp = await client.chat.completions.create(  # type: ignore[attr-defined]
+            model=self._deployment,
+            messages=[
+                {"role": "system", "content": _ROUTING_INSTRUCTION},
+                {"role": "user", "content": text},
+            ],
+            max_tokens=8,
+            temperature=0,
+        )
+        out = resp.choices[0].message.content or ""
+        target, reason = _parse_target(out)
+        usage = resp.usage
+        return LLMShadowDecision(
+            target=target,
+            reason=reason,
+            input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+        )
+
+
+__all__ = ["DirectAzureLLMRouter", "LLMShadowDecision", "LLMShadowRouter"]
