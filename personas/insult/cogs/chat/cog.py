@@ -34,6 +34,7 @@ from personas.insult.cogs.chat.turn import run_turn
 from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
     build_host_degrader_port,
+    build_host_router_cutover,
     build_llm_shadow_router,
     build_preset_engine_port,
     build_s1b_policy_port,
@@ -82,6 +83,11 @@ class ChatCog(commands.Cog):
         # stage runs it off the critical path to log the host brain's independent
         # target vs current; never changes routing, no cutover.
         self._llm_shadow_route = build_llm_shadow_router(self.settings)
+        # Deterministic CUTOVER handle (HOST 5/6 slice B). None unless
+        # host_router_cutover_enabled — default OFF, behavior-neutral. When wired,
+        # the bind stage ACTS on the deterministic router's decision (sets
+        # persona_id) instead of only logging; a fault falls back to the live rule.
+        self._host_router_cutover = build_host_router_cutover(self.settings)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -165,6 +171,7 @@ class ChatCog(commands.Cog):
                     host_degrader=self._host_degrader,
                     shadow_route=self._shadow_route,
                     llm_shadow_route=self._llm_shadow_route,
+                    host_router_cutover=self._host_router_cutover,
                 ),
             )
         except BaseException as e:

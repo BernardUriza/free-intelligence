@@ -150,6 +150,36 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
             ctx.text = ctx.text[len(prefix) :].strip()
             break
 
+    # HOST 5/6 slice B — CUTOVER. When the cutover handle is wired (default None →
+    # OFF → byte-identical to today), the demux host's DETERMINISTIC routing
+    # decision ACTUALLY routes the turn: it sets ctx.persona_id instead of only
+    # being shadow-logged below. We cut over the deterministic shadow ONLY — it is
+    # a pure function (zero added latency, no LLM/Azure spend) AND mirrors the live
+    # @vultur rule by construction, so even ON the routing is a true structural
+    # no-op today (the strangler-fig first cut that proves the seam). The gpt-4.1
+    # LLM router is NEVER acted on here — adding its multi-second blocking call to
+    # every turn is forbidden; it stays shadow-only until a later, separately gated
+    # sub-slice. Fail-safe + kill switch: a cutover fault keeps ctx.persona_id as
+    # the LIVE rule set it (the turn never breaks because the host router errored).
+    host_router_cutover = getattr(ctx.deps, "host_router_cutover", None)
+    if host_router_cutover is not None:
+        live_persona_id = ctx.persona_id
+        try:
+            cutover_persona_id = host_router_cutover(live_persona_id, raw_text)
+            ctx.persona_id = cutover_persona_id
+            log.info(
+                "host_router_cutover_applied",
+                live_persona_id=live_persona_id,
+                cutover_persona_id=cutover_persona_id,
+                diverged=cutover_persona_id != live_persona_id,
+                guild_id=ctx.guild_id,
+            )
+        except Exception:
+            # Keep the live rule's persona_id (already set above) — never break the
+            # turn on a routing fault.
+            ctx.persona_id = live_persona_id
+            log.exception("host_router_cutover_failed", live_persona_id=live_persona_id)
+
     log.info(
         "chat_turn_start",
         text_len=len(ctx.text),

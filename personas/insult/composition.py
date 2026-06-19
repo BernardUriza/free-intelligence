@@ -545,6 +545,40 @@ def build_llm_shadow_router(settings: Any) -> Any | None:
     return router.route  # pragma: no cover
 
 
+def build_host_router_cutover(settings: Any) -> Any | None:
+    """Build the deterministic CUTOVER handle — or ``None`` (HOST 5/6 slice B).
+
+    Returns a pure callable ``(live_persona_id, raw_text) -> str | None`` that
+    composes ``apply_cutover(live, shadow_route(raw))`` — the host's routing
+    decision in the pipeline's ``persona_id`` vocabulary. ``None`` (the default)
+    keeps the host in pure SHADOW mode: routing is untouched and byte-identical
+    to today.
+
+    Gated on BOTH ``host_router_cutover_enabled`` AND ``shadow_router_enabled``:
+    the cutover acts on the DETERMINISTIC shadow target, so it is incoherent to
+    cut over while the shadow it cuts over is killed. No gpt-4.1, no Azure, no
+    spend, zero added latency — it is a pure function (unlike the LLM router,
+    which stays shadow-only). The ``demux_ai`` import is DEFERRED here so this
+    composition root stays the ONE place that touches ``demux_ai``; the cog
+    forwards the handle onto ``TurnRuntimeDeps.host_router_cutover``."""
+    if not getattr(settings, "host_router_cutover_enabled", False):
+        log.info("host_router_cutover_disabled")
+        return None
+    if not getattr(settings, "shadow_router_enabled", True):
+        # Incoherent config: can't cut over a shadow that's been killed. Stay in
+        # shadow-off mode (no routing change) rather than route off a target the
+        # operator explicitly disabled.
+        log.warning("host_router_cutover_inert_shadow_disabled")
+        return None
+    from demux_ai.shadow_router import apply_cutover, shadow_route
+
+    def _cutover(live_persona_id: str | None, raw_text: str) -> str | None:
+        return apply_cutover(live_persona_id=live_persona_id, decision=shadow_route(raw_text))
+
+    log.info("host_router_cutover_enabled")
+    return _cutover
+
+
 # ---------------------------------------------------------------------------
 # Governance bridges — app.py / __main__.py are host-facing and must not
 # import personas.insult.core.memory or insult.core.memory_consolidator directly.

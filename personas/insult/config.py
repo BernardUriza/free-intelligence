@@ -204,6 +204,21 @@ class Settings(BaseSettings):
     # measure/keep the cheap path; same routing decision either way.
     llm_shadow_transport: str = "agentic"
 
+    # HOST 5/6 slice B — the CUTOVER switch. Defaults False (behavior-neutral):
+    # the demux host stops merely SHADOWING and the deterministic router's decision
+    # ACTUALLY routes the turn (sets persona_id). The cut is deliberately the
+    # DETERMINISTIC shadow ONLY — it's a pure function (zero added latency, no LLM,
+    # no Azure spend) AND it mirrors the live @vultur rule by construction, so even
+    # flipped ON the routing is byte-identical to today: a true structural no-op
+    # that proves the routing seam (the textbook strangler-fig first cut). The
+    # gpt-4.1 LLM router stays SHADOW-only (it's a multi-second blocking call — a
+    # later sub-slice gates it to ambiguous turns with a timeout fallback). The
+    # cutover handle is wired only when this is True AND shadow_router_enabled is
+    # True; a cutover fault always falls back to the live rule (kill switch + fail
+    # safe). Flipping it True in prod is a separate gated act — never part of
+    # shipping the wiring.
+    host_router_cutover_enabled: bool = False
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,

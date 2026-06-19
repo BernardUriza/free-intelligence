@@ -35,6 +35,9 @@ def _make_ctx(text: str) -> TurnCtx:
     # LLM-shadow coro. Tests that exercise a shadow opt in explicitly.
     ctx.deps.shadow_route = None
     ctx.deps.llm_shadow_route = None
+    # HOST 5/6 slice B cutover handle OFF by default (same MagicMock-truthiness
+    # reason). Tests that exercise the cutover opt in explicitly.
+    ctx.deps.host_router_cutover = None
     return ctx
 
 
@@ -237,3 +240,106 @@ async def test_llm_shadow_fault_is_invisible_to_turn():
         await spawn.spawned[0][1]  # drain: must not raise
     assert any(e["event"] == "llm_shadow_router_failed" for e in logs)
     assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]
+
+
+# --- HOST 5/6 slice B: deterministic CUTOVER (flag-off no-op + flag-on routes) ---
+#
+# A cutover handle is a callable ``(live_persona_id, raw_text) -> str | None`` that
+# returns the persona the turn should run as. It is wired ONLY when
+# host_router_cutover_enabled (default False) AND the deterministic shadow is on.
+# When the handle is None (the default), routing is byte-identical to today.
+
+
+def _make_ctx_cutover(text: str, *, cutover, route=shadow_route) -> TurnCtx:
+    ctx = _make_ctx(text)
+    ctx.deps.shadow_route = route
+    ctx.deps.host_router_cutover = cutover
+    return ctx
+
+
+def _det_cutover(live_persona_id, raw_text):
+    # The real handle composition builds: apply_cutover(live, shadow_route(raw)).
+    from demux_ai.shadow_router import apply_cutover
+
+    return apply_cutover(live_persona_id=live_persona_id, decision=shadow_route(raw_text))
+
+
+@pytest.mark.asyncio
+async def test_cutover_off_is_behavior_neutral_for_vultur():
+    # Flag off (handle None) → routing untouched, even on a @vultur turn. The shadow
+    # still logs (slice A) but NOTHING acts on it.
+    ctx = _make_ctx_cutover("@vultur reseña Hereditary", cutover=None)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id == "vultur"  # set by the LIVE rule, not the cutover
+    assert ctx.text == "reseña Hereditary"
+    assert not [e for e in logs if e["event"].startswith("host_router_cutover")]
+
+
+@pytest.mark.asyncio
+async def test_cutover_off_is_behavior_neutral_for_insult():
+    ctx = _make_ctx_cutover("oye insult qué onda", cutover=None)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id is None
+    assert not [e for e in logs if e["event"].startswith("host_router_cutover")]
+
+
+@pytest.mark.asyncio
+async def test_cutover_on_routes_per_decision_vultur():
+    # Flag ON: the deterministic cutover sets persona_id. Today it equals the live
+    # rule (vultur) — a true no-op result — but it is now the CUTOVER that set it.
+    ctx = _make_ctx_cutover("@vultur reseña Hereditary", cutover=_det_cutover)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id == "vultur"
+    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
+    assert ev["live_persona_id"] == "vultur"
+    assert ev["cutover_persona_id"] == "vultur"
+    assert ev["diverged"] is False
+
+
+@pytest.mark.asyncio
+async def test_cutover_on_routes_per_decision_insult():
+    ctx = _make_ctx_cutover("oye insult qué onda", cutover=_det_cutover)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id is None
+    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
+    assert ev["live_persona_id"] is None
+    assert ev["cutover_persona_id"] is None
+    assert ev["diverged"] is False
+
+
+@pytest.mark.asyncio
+async def test_cutover_can_change_routing_when_decision_differs():
+    # Prove the seam ACTUALLY routes: a (hypothetical future) cutover that disagrees
+    # with the live rule changes persona_id. Slice B's deterministic handle never
+    # does this today, but the mechanism must be able to.
+    def _force_vultur(_live, _raw):
+        return "vultur"
+
+    ctx = _make_ctx_cutover("oye insult qué onda", cutover=_force_vultur)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id == "vultur"  # live rule said None; cutover overrode it
+    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
+    assert ev["live_persona_id"] is None
+    assert ev["cutover_persona_id"] == "vultur"
+    assert ev["diverged"] is True
+
+
+@pytest.mark.asyncio
+async def test_cutover_fault_falls_back_to_live_rule():
+    # A cutover fault must NEVER break the turn — persona_id stays as the live rule
+    # set it, and a host_router_cutover_failed event is logged.
+    def _boom(_live, _raw):
+        raise RuntimeError("cutover exploded")
+
+    ctx = _make_ctx_cutover("@vultur dame cine", cutover=_boom)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert ctx.persona_id == "vultur"  # live rule's value preserved
+    assert ctx.text == "dame cine"
+    assert any(e["event"] == "host_router_cutover_failed" for e in logs)
+    assert not [e for e in logs if e["event"] == "host_router_cutover_applied"]
