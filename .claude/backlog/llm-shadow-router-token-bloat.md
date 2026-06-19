@@ -1,7 +1,8 @@
 # LLM shadow router (gpt-4.1) — token bloat: agentic CLI is the wrong transport for routing
 
-Status: Proposed
+Status: In progress (fix IMPLEMENTED + measured; upstream-vs-local decision pending)
 Proposed: 2026-06-18 by Claude (vía /exchange-coagent + /ultra-lord, autorizado por Bernard)
+Measured: 2026-06-19 — direct transport DESPLEGADO (v4.21.82, commit 716e1cd) y medido en prod (rev 0167): 9509 → **115 input tokens (−98.8%)**, misma divergencia genuina. `DirectAzureLLMRouter` + flag `llm_shadow_transport=direct`.
 
 ## What it is
 
