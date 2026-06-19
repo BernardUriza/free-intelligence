@@ -242,6 +242,38 @@ async def test_llm_shadow_fault_is_invisible_to_turn():
     assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]
 
 
+@pytest.mark.asyncio
+async def test_llm_shadow_skips_empty_input():
+    # Gap B (rev161 autopsy): an attachment-only / empty-text turn was reaching the
+    # gpt-4.1 router, which needs a non-empty user_message and threw a spurious
+    # error-level ValueError. The stage must SKIP the LLM shadow on empty input
+    # (no spawn) and log llm_shadow_router_skipped reason="empty_input" at non-error
+    # level — keeping the error rate clean for A.2.3 direct-only measurement.
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("   ", route=_fake_route("insult"), spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert spawn.spawned == []
+    skipped = [e for e in logs if e["event"] == "llm_shadow_router_skipped"]
+    assert len(skipped) == 1
+    assert skipped[0]["reason"] == "empty_input"
+    assert skipped[0]["log_level"] != "error"
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_still_runs_on_normal_text():
+    # Resistance case: a normal non-empty message must STILL spawn the shadow and
+    # emit NO skip — the empty-input guard must not suppress real routing telemetry.
+    spawn = _SpawnCapture()
+    ctx = _make_ctx_llm("recomiéndame algo", route=_fake_route("insult"), spawn=spawn)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+    assert len(spawn.spawned) == 1
+    assert spawn.spawned[0][0] == "llm_shadow_router"
+    assert not [e for e in logs if e["event"] == "llm_shadow_router_skipped"]
+    spawn.spawned[0][1].close()
+
+
 # --- HOST 5/6 slice B: deterministic CUTOVER (flag-off no-op + flag-on routes) ---
 #
 # A cutover handle is a callable ``(live_persona_id, raw_text) -> str | None`` that

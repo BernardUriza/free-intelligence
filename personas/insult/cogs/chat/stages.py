@@ -221,11 +221,23 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
     # Azure call must never delay the reply. Behavior-neutral: never changes routing.
     llm_shadow_route = getattr(ctx.deps, "llm_shadow_route", None)
     if llm_shadow_route is not None:
-        current_target = ctx.persona_id or "insult"
-        ctx.deps.spawn_task(
-            _run_llm_shadow_decision(llm_shadow_route, raw_text, current_target, ctx.guild_id, ctx.channel_id),
-            name="llm_shadow_router",
-        )
+        # Gap B (rev161 autopsy): an attachment-only / empty-text turn has no
+        # user_message for the gpt-4.1 router, which raised a spurious error-level
+        # ValueError. Skip it cleanly — non-error, behavior-neutral — so empty turns
+        # don't pollute the A.2.3 measurement error rate.
+        if not raw_text.strip():
+            log.info(
+                "llm_shadow_router_skipped",
+                reason="empty_input",
+                guild_id=ctx.guild_id,
+                channel_id=ctx.channel_id,
+            )
+        else:
+            current_target = ctx.persona_id or "insult"
+            ctx.deps.spawn_task(
+                _run_llm_shadow_decision(llm_shadow_route, raw_text, current_target, ctx.guild_id, ctx.channel_id),
+                name="llm_shadow_router",
+            )
 
 
 # --- Stage 02: emit typing (BACKGROUND — never blocks LLM) ---
