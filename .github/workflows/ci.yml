@@ -3,6 +3,14 @@ name: CI
 on:
   push:
     branches: [main]
+    # Docs-only changes under .claude/ (rules, backlog, plans) never affect the
+    # running bot, so they must NOT burn a full CI→CD redeploy (~20min image
+    # rebuild). Path-scoped triggers per the fi-runner-azure-deploy doctrine.
+    # NOTE: persona.md lives at the REPO ROOT (not under .claude), so persona
+    # edits still deploy — only .claude/ docs are skipped. CD is workflow_run on
+    # CI, so a skipped CI cascades to a skipped CD.
+    paths-ignore:
+      - '.claude/**'
   pull_request:
     branches: [main]
 
