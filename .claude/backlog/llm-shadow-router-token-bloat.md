@@ -1,6 +1,6 @@
 # LLM shadow router (gpt-4.1) — token bloat: agentic CLI is the wrong transport for routing
 
-Status: In progress (fix IMPLEMENTED + measured; upstream-vs-local decision pending)
+Status: **Done (token bloat)** — fix LOCAL desplegado + medido en prod. La opción upstream (fi_runner chat backend) queda como mejora canónica SEPARADA, sin urgencia (ver "Decisión del dueño").
 Proposed: 2026-06-18 by Claude (vía /exchange-coagent + /ultra-lord, autorizado por Bernard)
 Measured: 2026-06-19 — direct transport DESPLEGADO (v4.21.82, commit 716e1cd) y medido en prod (rev 0167): 9509 → **115 input tokens (−98.8%)**, misma divergencia genuina. `DirectAzureLLMRouter` + flag `llm_shadow_transport=direct`.
 
@@ -47,10 +47,31 @@ host) → manda solo instruction + input (~130 tokens, ~95% menos). Opciones:
 host_llm)? Es la misma tensión consumer-vs-framework de
 `framework-canary-consumer.md`. La decisión es de Bernard cuando esto se priorice.
 
-## Status / next step
+## Update 2026-06-19 (vía /exchange-coagent — relay con insult-gpt)
 
-NO bloqueante: A.2 quedó **probado y desplegado pero gated OFF**
-(`LLM_SHADOW_ROUTER_ENABLED=false`, rev `discord-bot--0000163`), así que el bloat
-solo cuesta cuando se re-encienda para acumular muestras de divergencia antes de
-slice B. Hacer este fix ANTES de re-encender = acumulación económica. Relacionado:
-el mismo `host_degrader` (gpt-4.1, también gated) heredaría la mejora.
+El fix LOCAL (opción 2) se shippeó y el shadow ya corre encendido y barato:
+
+- **Estado vivo en prod** (rev `discord-bot--0000169`, Healthy): `LLM_SHADOW_ROUTER_ENABLED=true`,
+  `LLM_SHADOW_TRANSPORT=direct`, `HOST_ROUTER_CUTOVER_ENABLED=true` (cutover
+  DETERMINISTA flipeado ON — no-op estructural; el cutover gpt-4.1 sigue OFF).
+- **A.2.2 — reporte agregado de divergencias (#general, KQL):** 16 calls en la ventana
+  2026-06-18T22:52 → 06-19T13:56. Buckets: **4 missing_vultur, 0 false_vultur**,
+  12 agree_insult. Token split por transporte: direct (rev167+) avg **130** / p95 155;
+  agentic legacy (rev162-166) avg 9530 — el avg único miente, hay que partir por transporte.
+  Señal prometedora pero **N chico** (solo 6 calls en direct) → keep measuring.
+- **Autopsia de 4 `llm_shadow_router_failed` (todos rev161, 0 desde rev162):** 3 =
+  `BackendError: codex CLI not on PATH` (arreglado por v4.21.79) + 1 = gap distinto:
+  `ValueError: user_message must be non-empty` en un turn solo-adjunto.
+- **Gap empty-input ARREGLADO:** v4.21.84 (commit `2077243`) — `_stage_bind_identity`
+  skipea el LLM shadow cuando `raw_text.strip()` está vacío + loguea
+  `llm_shadow_router_skipped reason=empty_input` (no-error). TDD red→green, suite shadow 34 passed.
+
+## Next step
+
+**A.2.3 — direct-only measurement window** (gated, decisión de Bernard cuándo cerrar):
+rev post-empty-input-fix, #general only, direct only, target ≥50 calls o varios días,
+`router_error/parse_error/timeout` = 0 recurrente. Solo tras ese reporte + OK explícito
+de Bernard se propone el **cutover gpt-4.1** (hoy NO-GO).
+
+Relacionado: el mismo `host_degrader` (gpt-4.1, también gated) heredaría el transporte
+direct si se prioriza — hoy sin urgencia.

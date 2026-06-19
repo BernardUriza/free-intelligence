@@ -7,4 +7,4 @@ en el engineering-playbook.
 | Item | Status | Hook |
 |---|---|---|
 | [rename `discord-bot` → `server-bot`](rename-discord-bot-to-server-bot.md) | Proposed | el sistema ya no es solo Discord cognitivo; rename del repo/sistema (NO de la plomería de Discord) cuando exista el host del demux |
-| [LLM shadow router token bloat](llm-shadow-router-token-bloat.md) | Proposed | `codex exec` agéntico manda ~9.4k tokens de harness para clasificar a una palabra; fix = backend Azure-chat directo (no el CLI). NO bloqueante: A.2 gated off. Hacerlo antes de re-encender A.2 |
+| [LLM shadow router token bloat](llm-shadow-router-token-bloat.md) | Done (token bloat) | fix LOCAL `DirectAzureLLMRouter` desplegado + medido en prod: 9509→115 tokens (−98.8%). Shadow ON/direct (rev 169). A.2.2 report corrido (4/4 missing_vultur, 0 false, N chico). Gap empty-input arreglado (v4.21.84). Next: A.2.3 ≥50 direct calls → luego cutover gpt-4.1 (NO-GO hoy). Upstream fi_runner chat backend = mejora canónica separada, sin urgencia |
