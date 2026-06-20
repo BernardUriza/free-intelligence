@@ -10,6 +10,7 @@ cd apps/og118/server
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e ../../packages/fi-runner[claude]
+pip install -e "../../packages/fi-core[stores-hdf5]"  # rag_store capability's HDF5 backend
 
 # Auth: Max-subscription OAuth (same token as insult_ai)
 export CLAUDE_CODE_OAUTH_TOKEN=...      # provided by Bernard, never committed
