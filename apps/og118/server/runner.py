@@ -43,7 +43,11 @@ def build_runner() -> Runner:
             default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
         ),
         persona=PERSONA,
-        capabilities=["task_tracker"],  # plan/step events come from this MCP
+        # task_tracker → plan/step glass-box events. rag_store → the agent can
+        # ingest/search a project corpus (the Projects-for-the-papelería canary);
+        # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
+        # hashing zero-model embedder by default (no LLM, no network for retrieval).
+        capabilities=["task_tracker", "rag_store"],
         # DD-002C: semantic conversation continuity by history replay. The Runner
         # folds the stored transcript (keyed by the client's session_id) into each
         # turn's prompt, so follow-ups have real context. In-memory is the right
