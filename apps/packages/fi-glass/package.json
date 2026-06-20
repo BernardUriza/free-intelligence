@@ -75,6 +75,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.0",
     "esbuild-plugin-preserve-directives": "^0.0.11",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.548.0",
