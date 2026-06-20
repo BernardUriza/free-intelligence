@@ -2,18 +2,20 @@
 # Insult canary — Azure Container Apps Job (cron */5) creation.
 #
 # ⚠️ GATED / NOT auto-run. This is Bernard's call: it touches Azure + a real
-# Discord bot token (secret). Run it by hand once the canary bot exists and its
-# token is in hand. Mirrors the existing `fact-consolidation` ACA Job: SAME
-# image (insultacr.azurecr.io/insult-bot), separate cron, one-shot command.
+# Discord bot token (secret). Run it by hand once the #canary channel exists and
+# the reused POSTER token (Vultur) is in hand (~/.secrets/vultur-discord-token.txt).
+# Mirrors the existing `fact-consolidation` ACA Job: SAME image
+# (insultacr.azurecr.io/insult-bot), separate cron, one-shot command. The cd.yml
+# image-sync step for this job is already wired (guarded no-op until it exists).
 #
 # The job runs:  python -m scripts.canary_probe
-# which posts `CANARY insult <uuid>` in #canary and requires the Insult bot to
-# echo `CANARY_OK <uuid>`; exit non-zero on any failure (timeout/wrong author/
-# wrong nonce). cd.yml should also get a `job update` step to keep the image SHA
-# in sync (mirror the fact-consolidation update step) — added separately.
+# which posts `CANARY insult <uuid>` in #canary (REST-only, no Gateway — the
+# poster token is reused from the live Vultur bot, so a second IDENTIFY would
+# flap it) and requires the Insult bot to echo `CANARY_OK <uuid>`; exit non-zero
+# on any failure (timeout/wrong author/wrong nonce).
 #
 # Prereqs (all Discord snowflake IDs, never names):
-#   CANARY_BOT_TOKEN     token of the DEDICATED canary bot user
+#   CANARY_BOT_TOKEN     token of the reused POSTER bot (Vultur) — REST only
 #   CANARY_CHANNEL_ID    the #canary channel id
 #   INSULT_BOT_USER_ID   the Insult bot user id whose reply we require
 #   CANARY_OPS_WEBHOOK_URL  (optional) Discord webhook for failure alerts
