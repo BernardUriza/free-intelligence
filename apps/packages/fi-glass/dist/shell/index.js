@@ -476,7 +476,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState12, useRef as useRef7, useEffect as useEffect10 } from "react";
+import { useState as useState12, useRef as useRef7, useEffect as useEffect11 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 
@@ -789,14 +789,48 @@ function VoiceMicButton({
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect2 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/voice/SpeakButton.tsx
 import { jsx as jsx11 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect2, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useEffect as useEffect3, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect3 } from "react";
+import { useEffect as useEffect4 } from "react";
 import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
@@ -809,7 +843,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect4 } from "react";
+import { useEffect as useEffect5 } from "react";
 import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
@@ -829,7 +863,7 @@ import { useCallback as useCallback4, useState as useState6 } from "react";
 import { useState as useState4, useRef as useRef4, useCallback as useCallback3 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef5, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useEffect as useEffect6 } from "react";
 
 // src/voice/audioArtifact.ts
 var AUDIO_QUEUE_DEFAULTS = {
@@ -841,13 +875,13 @@ var AUDIO_QUEUE_DEFAULTS = {
 };
 
 // src/voice/useDurableRecording.ts
-import { useState as useState7, useRef as useRef6, useCallback as useCallback5, useEffect as useEffect6 } from "react";
+import { useState as useState7, useRef as useRef6, useCallback as useCallback5, useEffect as useEffect7 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState8, useEffect as useEffect7, useCallback as useCallback6 } from "react";
+import { useState as useState8, useEffect as useEffect8, useCallback as useCallback6 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect8, useState as useState10 } from "react";
+import { useEffect as useEffect9, useState as useState10 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -870,7 +904,7 @@ import { jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
 import { jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState11, useEffect as useEffect9 } from "react";
+import { useState as useState11, useEffect as useEffect10 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
 
@@ -907,7 +941,7 @@ function ChatToolbar({
   const [overflowOpen, setOverflowOpen] = useState12(false);
   const overflowButtonRef = useRef7(null);
   const [dropdownPosition, setDropdownPosition] = useState12({ top: 0, left: 0 });
-  useEffect10(() => {
+  useEffect11(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -1563,6 +1597,7 @@ export {
   ChatWidget,
   ChatWidgetContainer,
   ChatWidgetHeader,
+  FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   clearMediaQueryCache,
   defaultAnimationConfig,
@@ -1570,9 +1605,12 @@ export {
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  ensureTouchTargetStyle,
   mergeChatConfig,
   useBreakpoints,
   useChatWidgetState,
-  useMediaQuery
+  useMediaQuery,
+  useTouchTargetStyle,
+  withTouchTarget
 };
 //# sourceMappingURL=index.js.map

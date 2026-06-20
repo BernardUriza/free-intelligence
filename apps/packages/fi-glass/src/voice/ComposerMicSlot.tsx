@@ -23,6 +23,7 @@
  */
 
 import { Mic, MicOff, Square, Loader2 } from 'lucide-react';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface ComposerMicSlotProps {
   /**
@@ -72,7 +73,8 @@ export function ComposerMicSlot({
   buttonClassName,
   iconClassName,
 }: ComposerMicSlotProps) {
-  const btnClass = buttonClassName ?? BTN;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN}`;
   const iconClass = iconClassName ?? ICON;
   const disabled = !available || busy;
 

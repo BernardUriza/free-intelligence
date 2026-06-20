@@ -426,4 +426,12 @@ interface BreakpointMatches {
 declare function useBreakpoints(breakpoints: Breakpoints, options?: Pick<UseMediaQueryOptions, 'ssrMatch'>): BreakpointMatches;
 declare function clearMediaQueryCache(): void;
 
-export { type AnimationConfig, type BreakpointMatches, type Breakpoints, CHAT_BREAKPOINTS, type ChatBehavior, type ChatBreakpoints, type ChatConfig, ChatContent, type ChatContentProps, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, ChatStartScreen, type ChatStartScreenProps, ChatSurface, type ChatSurfaceProps, type ChatTheme, ChatToolbar, type ChatToolbarProps, type ChatViewMode, ChatWidget, ChatWidgetContainer, type ChatWidgetContainerProps, ChatWidgetHeader, type ChatWidgetHeaderProps, type ChatWidgetProps, FloatingButton, type FloatingButtonProps, type PersonaType, type ResponseMode, type ShellStreamingState, type TimestampConfig, type UploadStatus, type UseChatWidgetStateOptions, type UseChatWidgetStateReturn, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, defaultAnimationConfig, defaultBehavior, defaultChatConfig, defaultTheme, defaultTimestampConfig, mergeChatConfig, useBreakpoints, useChatWidgetState, useMediaQuery };
+declare const FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+/** Inject the idempotent touch-target stylesheet (no-op on the server / if already present). */
+declare function ensureTouchTargetStyle(): void;
+/** Ensure the touch-target stylesheet is present for the lifetime of a control. */
+declare function useTouchTargetStyle(): void;
+/** Compose {@link FI_TOUCH_TARGET_CLASS} with an optional consumer class (additive, order-stable). */
+declare function withTouchTarget(className?: string): string;
+
+export { type AnimationConfig, type BreakpointMatches, type Breakpoints, CHAT_BREAKPOINTS, type ChatBehavior, type ChatBreakpoints, type ChatConfig, ChatContent, type ChatContentProps, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, ChatStartScreen, type ChatStartScreenProps, ChatSurface, type ChatSurfaceProps, type ChatTheme, ChatToolbar, type ChatToolbarProps, type ChatViewMode, ChatWidget, ChatWidgetContainer, type ChatWidgetContainerProps, ChatWidgetHeader, type ChatWidgetHeaderProps, type ChatWidgetProps, FI_TOUCH_TARGET_CLASS, FloatingButton, type FloatingButtonProps, type PersonaType, type ResponseMode, type ShellStreamingState, type TimestampConfig, type UploadStatus, type UseChatWidgetStateOptions, type UseChatWidgetStateReturn, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, defaultAnimationConfig, defaultBehavior, defaultChatConfig, defaultTheme, defaultTimestampConfig, ensureTouchTargetStyle, mergeChatConfig, useBreakpoints, useChatWidgetState, useMediaQuery, useTouchTargetStyle, withTouchTarget };

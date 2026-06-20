@@ -245,6 +245,40 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect2 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/messages/CopyButton.tsx
 import { jsx as jsx3 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -258,6 +292,7 @@ var CopyButton = memo2(function CopyButton2({
   resetMs = 2e3
 }) {
   const [copied, setCopied] = useState2(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -276,7 +311,7 @@ var CopyButton = memo2(function CopyButton2({
     "button",
     {
       onClick: handleCopy,
-      className: `${base} ${copied ? active : idle}`,
+      className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
       children: copied ? /* @__PURE__ */ jsx3(Check, { className: icon }) : /* @__PURE__ */ jsx3(Copy, { className: icon })
@@ -340,7 +375,7 @@ function MessageList({
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
-  useEffect as useEffect2,
+  useEffect as useEffect3,
   useId as useId2,
   useImperativeHandle,
   useRef as useRef2,
@@ -366,7 +401,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect2(() => {
+  useEffect3(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -867,6 +902,7 @@ function SpeakButton({
   busyTitle = "Generando audio\u2026",
   cachedTitle = "Reproducir (ya generado)"
 }) {
+  useTouchTargetStyle();
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
   const label = busy ? busyTitle : cached ? cachedTitle : title ?? `Escuchar (${voiceDisplay})`;
@@ -879,7 +915,7 @@ function SpeakButton({
       },
       disabled: busy,
       "aria-busy": busy,
-      className: className ?? PAD_SIZE[size],
+      className: `${FI_TOUCH_TARGET_CLASS} ${className ?? PAD_SIZE[size]}`,
       title: label,
       "aria-label": busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
       children: busy ? /* @__PURE__ */ jsx13(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx13(Play, { className: icon }) : /* @__PURE__ */ jsx13(Volume2, { className: icon })
@@ -1088,7 +1124,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect3, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
+import { useEffect as useEffect4, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef3(opts);
   cbRef.current = opts;
@@ -1102,7 +1138,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect3(() => () => controller.dispose(), [controller]);
+  useEffect4(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1126,7 +1162,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect4 } from "react";
+import { useEffect as useEffect5 } from "react";
 import { jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1141,7 +1177,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -1190,7 +1226,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect5 } from "react";
+import { useEffect as useEffect6 } from "react";
 import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 var ICON2 = "w-4 h-4";
 var BTN2 = "p-2 disabled:opacity-40";
@@ -1231,14 +1267,15 @@ function RichAudioPlayer({
     duration,
     currentTime
   } = player;
-  useEffect5(() => {
+  useEffect6(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
   }, [source, autoPlay]);
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
-  const btnClass = buttonClassName ?? BTN2;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN2}`;
   const iconClass = iconClassName ?? ICON2;
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
@@ -1426,7 +1463,8 @@ function ComposerMicSlot({
   buttonClassName,
   iconClassName
 }) {
-  const btnClass = buttonClassName ?? BTN3;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN3}`;
   const iconClass = iconClassName ?? ICON3;
   const disabled = !available || busy;
   const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
@@ -1844,7 +1882,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState6, useRef as useRef6, useEffect as useEffect6 } from "react";
+import { useState as useState6, useRef as useRef6, useEffect as useEffect7 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1878,7 +1916,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef6(null);
   const animationFrameRef = useRef6(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect6(() => {
+  useEffect7(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -2095,7 +2133,7 @@ var AudioQueueStore = class {
 };
 
 // src/voice/useDurableRecording.ts
-import { useState as useState8, useRef as useRef7, useCallback as useCallback5, useEffect as useEffect7 } from "react";
+import { useState as useState8, useRef as useRef7, useCallback as useCallback5, useEffect as useEffect8 } from "react";
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -2221,10 +2259,10 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef7([]);
   const rtcCtorRef = useRef7(null);
   const pauseOpRef = useRef7(Promise.resolve());
-  useEffect7(() => {
+  useEffect8(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect7(() => {
+  useEffect8(() => {
     store.list().then((stored) => {
       const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
@@ -2483,7 +2521,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState9, useEffect as useEffect8, useCallback as useCallback6 } from "react";
+import { useState as useState9, useEffect as useEffect9, useCallback as useCallback6 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState9([]);
@@ -2497,7 +2535,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect8(() => {
+  useEffect9(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback6(
@@ -2606,7 +2644,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect9, useState as useState11 } from "react";
+import { useEffect as useEffect10, useState as useState11 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -2782,7 +2820,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState11(true);
-  useEffect9(() => {
+  useEffect10(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -2845,7 +2883,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState12, useEffect as useEffect10 } from "react";
+import { useState as useState12, useEffect as useEffect11 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2859,13 +2897,14 @@ function AudioDraftPlayer({
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
+  useTouchTargetStyle();
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState12(null);
-  useEffect10(() => {
+  useEffect11(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -2959,7 +2998,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onDiscard(artifact.id),
               "aria-label": "Descartar grabaci\xF3n",
-              className: "fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx20(Trash23, { className: "w-4 h-4" })
             }
           ),
@@ -2969,7 +3008,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx20(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
@@ -2981,7 +3020,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onRetry(artifact.id),
               "aria-label": "Reintentar",
-              className: "fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx20(RotateCcw3, { className: "w-4 h-4" })
             }
           ) : onPrimary && /* @__PURE__ */ jsxs14(
@@ -2990,7 +3029,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onPrimary(artifact.id),
               disabled: isSaving || isBusy,
-              className: "fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx20(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel
@@ -3361,7 +3400,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState14, useRef as useRef8, useEffect as useEffect11 } from "react";
+import { useState as useState14, useRef as useRef8, useEffect as useEffect12 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
@@ -3396,7 +3435,7 @@ function ChatToolbar({
   const [overflowOpen, setOverflowOpen] = useState14(false);
   const overflowButtonRef = useRef8(null);
   const [dropdownPosition, setDropdownPosition] = useState14({ top: 0, left: 0 });
-  useEffect11(() => {
+  useEffect12(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -4046,7 +4085,7 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback10,
-  useEffect as useEffect12,
+  useEffect as useEffect13,
   useId as useId3,
   useRef as useRef9,
   useState as useState15
@@ -4086,7 +4125,7 @@ function PersonaSelector({
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback10(() => setIsOpen(false), []);
-  useEffect12(() => {
+  useEffect13(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -4098,7 +4137,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect12(() => {
+  useEffect13(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -4118,7 +4157,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect12(() => {
+  useEffect13(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -4276,6 +4315,7 @@ export {
   Composer,
   ComposerMicSlot,
   CopyButton,
+  FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   MessageBubble,
   MessageContent,
@@ -4298,6 +4338,7 @@ export {
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  ensureTouchTargetStyle,
   formatArtifactDuration,
   formatArtifactSize,
   formatPlaybackTime,
@@ -4323,6 +4364,8 @@ export {
   useDurableRecording,
   useMediaQuery,
   useRecorder,
-  useVoice
+  useTouchTargetStyle,
+  useVoice,
+  withTouchTarget
 };
 //# sourceMappingURL=index.js.map

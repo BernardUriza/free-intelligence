@@ -23,6 +23,7 @@ import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import type { AgentConversation } from './useAgentConversation';
 import { useMediaQuery } from '../shell/useMediaQuery';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export type AgentConversationSurfaceLayout = 'viewport' | 'contained';
 
@@ -256,6 +257,10 @@ export function AgentConversationSurface({
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
+  // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
+  // composed send button (and any other fi-glass control on the surface) gets its
+  // 44×44 mobile minimum even if no other control mounted it first.
+  useTouchTargetStyle();
 
   // B3-FIGLASS-MOBILE-1 — the fluid center cap is a desktop affordance; on a
   // phone the fixed 60px inset starves the composer (textarea < 300px at 390),
@@ -607,7 +612,11 @@ export function AgentConversationSurface({
                   onClick={onSend}
                   disabled={!canSend}
                   aria-label={sendLabel}
-                  className={sendButtonClassName}
+                  className={
+                    sendButtonClassName
+                      ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}`
+                      : FI_TOUCH_TARGET_CLASS
+                  }
                 >
                   {isStreaming ? (
                     <Loader2

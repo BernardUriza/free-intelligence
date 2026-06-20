@@ -28,6 +28,7 @@ import {
 import type { AudioSource } from '@free-intelligence/core';
 import { useEffect } from 'react';
 import { useAudioPlayer } from './useAudioPlayer';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface RichAudioPlayerProps {
   /** Audio to play; when it changes the player loads the new source. */
@@ -109,7 +110,8 @@ export function RichAudioPlayer({
 
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
-  const btnClass = buttonClassName ?? BTN;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN}`;
   const iconClass = iconClassName ?? ICON;
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration

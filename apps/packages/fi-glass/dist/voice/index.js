@@ -390,6 +390,37 @@ function VoiceMicButton({
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+
+// src/voice/SpeakButton.tsx
 import { jsx as jsx6 } from "react/jsx-runtime";
 var ICON_SIZE = { xs: "w-3 h-3", sm: "w-3.5 h-3.5", md: "w-4 h-4" };
 var PAD_SIZE = { xs: "p-1", sm: "p-1.5", md: "p-2" };
@@ -412,6 +443,7 @@ function SpeakButton({
   busyTitle = "Generando audio\u2026",
   cachedTitle = "Reproducir (ya generado)"
 }) {
+  useTouchTargetStyle();
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
   const label = busy ? busyTitle : cached ? cachedTitle : title ?? `Escuchar (${voiceDisplay})`;
@@ -424,7 +456,7 @@ function SpeakButton({
       },
       disabled: busy,
       "aria-busy": busy,
-      className: className ?? PAD_SIZE[size],
+      className: `${FI_TOUCH_TARGET_CLASS} ${className ?? PAD_SIZE[size]}`,
       title: label,
       "aria-label": busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
       children: busy ? /* @__PURE__ */ jsx6(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx6(Play, { className: icon }) : /* @__PURE__ */ jsx6(Volume2, { className: icon })
@@ -633,7 +665,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect as useEffect2, useMemo, useRef, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef(opts);
   cbRef.current = opts;
@@ -647,7 +679,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect(() => () => controller.dispose(), [controller]);
+  useEffect2(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -671,7 +703,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect2 } from "react";
+import { useEffect as useEffect3 } from "react";
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -686,7 +718,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect2(() => {
+  useEffect3(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -735,7 +767,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect3 } from "react";
+import { useEffect as useEffect4 } from "react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var ICON2 = "w-4 h-4";
 var BTN2 = "p-2 disabled:opacity-40";
@@ -776,14 +808,15 @@ function RichAudioPlayer({
     duration,
     currentTime
   } = player;
-  useEffect3(() => {
+  useEffect4(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
   }, [source, autoPlay]);
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
-  const btnClass = buttonClassName ?? BTN2;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN2}`;
   const iconClass = iconClassName ?? ICON2;
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
@@ -971,7 +1004,8 @@ function ComposerMicSlot({
   buttonClassName,
   iconClassName
 }) {
-  const btnClass = buttonClassName ?? BTN3;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN3}`;
   const iconClass = iconClassName ?? ICON3;
   const disabled = !available || busy;
   const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
@@ -1389,7 +1423,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef4, useEffect as useEffect4 } from "react";
+import { useState as useState3, useRef as useRef4, useEffect as useEffect5 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1423,7 +1457,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef4(null);
   const animationFrameRef = useRef4(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1640,7 +1674,7 @@ var AudioQueueStore = class {
 };
 
 // src/voice/useDurableRecording.ts
-import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect6 } from "react";
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -1766,10 +1800,10 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef5([]);
   const rtcCtorRef = useRef5(null);
   const pauseOpRef = useRef5(Promise.resolve());
-  useEffect5(() => {
+  useEffect6(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect5(() => {
+  useEffect6(() => {
     store.list().then((stored) => {
       const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
@@ -2028,7 +2062,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState6, useEffect as useEffect6, useCallback as useCallback5 } from "react";
+import { useState as useState6, useEffect as useEffect7, useCallback as useCallback5 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState6([]);
@@ -2042,7 +2076,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect6(() => {
+  useEffect7(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback5(
@@ -2151,7 +2185,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect7, useState as useState8 } from "react";
+import { useEffect as useEffect8, useState as useState8 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -2327,7 +2361,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState8(true);
-  useEffect7(() => {
+  useEffect8(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -2390,7 +2424,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState9, useEffect as useEffect8 } from "react";
+import { useState as useState9, useEffect as useEffect9 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2404,13 +2438,14 @@ function AudioDraftPlayer({
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
+  useTouchTargetStyle();
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState9(null);
-  useEffect8(() => {
+  useEffect9(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -2504,7 +2539,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onDiscard(artifact.id),
               "aria-label": "Descartar grabaci\xF3n",
-              className: "fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx13(Trash23, { className: "w-4 h-4" })
             }
           ),
@@ -2514,7 +2549,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx13(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
@@ -2526,7 +2561,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onRetry(artifact.id),
               "aria-label": "Reintentar",
-              className: "fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx13(RotateCcw3, { className: "w-4 h-4" })
             }
           ) : onPrimary && /* @__PURE__ */ jsxs9(
@@ -2535,7 +2570,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onPrimary(artifact.id),
               disabled: isSaving || isBusy,
-              className: "fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx13(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel

@@ -57,3 +57,10 @@ export type {
   VoiceRecordingState,
   ShellStreamingState,
 } from './types';
+
+export {
+  FI_TOUCH_TARGET_CLASS,
+  ensureTouchTargetStyle,
+  useTouchTargetStyle,
+  withTouchTarget,
+} from './touchTarget';

@@ -16,6 +16,7 @@
  */
 
 import { Volume2, Loader2, Play } from 'lucide-react';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface SpeakButtonProps {
   /** Text to speak. */
@@ -79,6 +80,7 @@ export function SpeakButton({
   busyTitle = 'Generando audio…',
   cachedTitle = 'Reproducir (ya generado)',
 }: SpeakButtonProps) {
+  useTouchTargetStyle();
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
 
@@ -97,7 +99,7 @@ export function SpeakButton({
       }}
       disabled={busy}
       aria-busy={busy}
-      className={className ?? PAD_SIZE[size]}
+      className={`${FI_TOUCH_TARGET_CLASS} ${className ?? PAD_SIZE[size]}`}
       title={label}
       aria-label={busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`}
     >

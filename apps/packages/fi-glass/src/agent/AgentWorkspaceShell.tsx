@@ -89,7 +89,7 @@ function ensureToggleStyle(): void {
   el.textContent = `
     .fi-aws-toggle {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 2.25rem; height: 2.25rem; border-radius: 10px;
+      width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(10,14,22,0.55);
       backdrop-filter: blur(var(--glass-blur-compact, 8px));
