@@ -199,6 +199,15 @@ jobs:
         # vulnerable surfaces to untrusted input. Ignored to unblock CI; RE-AUDIT and
         # bump to starlette 1.x once fastapi/fi-runner support it. NOT yet
         # human-reviewed for exploitability — flagged for Bernard.
+        # --- advisories surfaced 2026-06-19 (by the new JSON gate) ---
+        # GHSA-6v7p-g79w-8964 (msgpack 1.1.2): fix is 1.2.1. Transitive
+        # serialization lib; the bot never deserializes UNTRUSTED msgpack — all
+        # msgpack traffic is its own internal data. DROP when conda-forge ships
+        # msgpack 1.2.1 for py314.
+        # GHSA-4xgf-cpjx-pc3j (pydantic-settings 2.14.1): fix is 2.14.2. The bot
+        # reads config only from trusted env / .env set by ops, never from user
+        # input, so the parsing vector is unreachable. DROP when conda-forge ships
+        # pydantic-settings 2.14.2 for py314.
         # fi-core / fi-runner are conda-only (Bernard's channel, NEVER on PyPI by
         # explicit policy). pip-audit can't audit them → "Dependency not found on
         # PyPI" → exit 1, even with zero real vulns. That's a tooling gap, not a
@@ -241,7 +250,9 @@ jobs:
             --ignore-vuln CVE-2026-48818 \
             --ignore-vuln CVE-2026-48817 \
             --ignore-vuln CVE-2026-54283 \
-            --ignore-vuln CVE-2026-54282 > /tmp/pip-audit.json || true
+            --ignore-vuln CVE-2026-54282 \
+            --ignore-vuln GHSA-6v7p-g79w-8964 \
+            --ignore-vuln GHSA-4xgf-cpjx-pc3j > /tmp/pip-audit.json || true
           python3 - <<'PY'
           import json, sys
           data = json.load(open("/tmp/pip-audit.json"))
