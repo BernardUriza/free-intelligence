@@ -32,7 +32,13 @@ import structlog
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.runner.agent_client import AgentRunnerClient
-from khimeras_shared.tts import build_azure_tts_client, should_auto_tts, split_for_tts, synthesize_azure_tts
+from khimeras_shared.tts import (
+    DEFAULT_SUSURRO_URL,
+    build_susurro_tts_client,
+    should_auto_tts,
+    split_for_tts,
+    synthesize_susurro_tts,
+)
 from shared.personas import Persona, all_personas
 
 SPEAK_EMOJI = "🔊"
@@ -123,18 +129,16 @@ class PersonaClient(discord.Client):
         *,
         intents: discord.Intents,
         tts_client=None,
-        tts_deployment: str = "",
         auto_tts_min_chars: int = 0,
     ) -> None:
         super().__init__(intents=intents)
         self.persona = persona
         self.memory = memory
         self.agent_client = agent_client
-        # TTS: this persona owns its OWN voice. None when Azure TTS env is unset
+        # TTS: this persona owns its OWN voice. None when susurro TTS env is unset
         # → 🔊 on its messages is silently skipped (voice off), never spoken by
         # Insult (Insult's VoiceCog skips sibling-authored messages).
         self.tts_client = tts_client
-        self.tts_deployment = tts_deployment
         # Auto-speak replies at/above this length (0 = off, manual 🔊 only).
         self.auto_tts_min_chars = auto_tts_min_chars
 
@@ -154,7 +158,7 @@ class PersonaClient(discord.Client):
         Guards: only the 🔊 emoji, never our own reaction, and ONLY our own
         messages (a 🔊 on an Insult/human message belongs to Insult's VoiceCog —
         we skip it so the two don't double-speak). Voice is off (no-op) when no
-        Azure TTS client was wired."""
+        susurro TTS client was wired."""
         if str(payload.emoji) != SPEAK_EMOJI:
             return
         if self.user is None or payload.user_id == self.user.id:
@@ -178,7 +182,7 @@ class PersonaClient(discord.Client):
     async def _speak(self, channel, text: str, *, reason: str) -> None:
         """Synthesize ``text`` in this persona's voice and post it as audio.
 
-        The full text is split into ≤4096-char segments (Azure's cap) so a long
+        The full text is split into ≤4096-char segments (the speech cap) so a long
         reply is spoken IN FULL across several clips, never truncated. No-op when
         TTS is off or the text is empty. ``reason`` ("manual" 🔊 / "auto" long
         reply) is logged so the two paths stay distinguishable."""
@@ -188,11 +192,10 @@ class PersonaClient(discord.Client):
         try:
             async with channel.typing():
                 for idx, segment in enumerate(segments):
-                    audio = await synthesize_azure_tts(
+                    audio = await synthesize_susurro_tts(
                         self.tts_client,
                         segment,
                         voice=self.persona.tts_voice,
-                        deployment=self.tts_deployment,
                     )
                     fname = f"{self.persona.persona_id}{'' if len(segments) == 1 else f'-{idx + 1}'}.mp3"
                     await channel.send(file=discord.File(io.BytesIO(audio), filename=fname))
@@ -309,18 +312,18 @@ class PersonaClient(discord.Client):
         )
 
         # Auto-TTS: a long reply ships a voice clip of the FULL text so you can
-        # listen instead of reading a wall. Azure-only (the gateway has no Arbor
-        # path, so arbor_active=False); gated by auto_tts_min_chars (0 = off).
+        # listen instead of reading a wall. Gateway-only (the persona gateway has
+        # no Arbor path, so arbor_active=False); gated by auto_tts_min_chars (0=off).
         if should_auto_tts(text, min_chars=self.auto_tts_min_chars, arbor_active=False):
             await self._speak(message.channel, text, reason="auto")
 
 
-def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, str, int]:
+def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int]:
     """Construct the deps shared by all persona-bots (same wiring as Insult).
 
-    Also builds the Azure TTS client so each persona can speak its own 🔊 audio.
-    TTS is OPTIONAL — when the AZURE_OPENAI_* env is unset the client is None and
-    voice is simply off (the gateway still runs); it is never delegated to Insult.
+    Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
+    TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
+    simply off (the gateway still runs); it is never delegated to Insult.
     """
     config = PersonaRuntimeConfig.from_env()
 
@@ -331,11 +334,10 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, str,
         raise RuntimeError("persona gateway requires INSULT_AGENT_RUNNER_URL + token")
     agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)
 
-    tts_client = build_azure_tts_client(
-        endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
-        api_key=os.environ.get("AZURE_OPENAI_KEY", ""),
+    tts_client = build_susurro_tts_client(
+        base_url=os.environ.get("SUSURRO_URL", DEFAULT_SUSURRO_URL),
+        api_key=os.environ.get("SUSURRO_KEY", ""),
     )
-    tts_deployment = os.environ.get("AZURE_OPENAI_TTS_DEPLOYMENT", "tts")
     try:
         auto_tts_min_chars = int(os.environ.get("AUTO_TTS_MIN_CHARS", "0"))
     except ValueError:
@@ -343,14 +345,13 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, str,
     log.info(
         "persona_gateway_tts_configured",
         enabled=tts_client is not None,
-        deployment=tts_deployment,
         auto_tts_min_chars=auto_tts_min_chars,
     )
-    return memory, agent_client, tts_client, tts_deployment, auto_tts_min_chars
+    return memory, agent_client, tts_client, auto_tts_min_chars
 
 
 async def _main() -> None:
-    memory, agent_client, tts_client, tts_deployment, auto_tts_min_chars = _build_shared()
+    memory, agent_client, tts_client, auto_tts_min_chars = _build_shared()
     await memory.connect()
 
     intents = discord.Intents.default()
@@ -368,7 +369,6 @@ async def _main() -> None:
             agent_client,
             intents=intents,
             tts_client=tts_client,
-            tts_deployment=tts_deployment,
             auto_tts_min_chars=auto_tts_min_chars,
         )
         starts.append(client.start(token))

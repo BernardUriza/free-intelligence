@@ -14,9 +14,14 @@ import discord
 import httpx
 import structlog
 from discord.ext import commands
-from openai import AsyncAzureOpenAI
 
-from khimeras_shared.tts import build_azure_tts_client, should_auto_tts, split_for_tts, synthesize_azure_tts
+from khimeras_shared.tts import (
+    SusurroTtsClient,
+    build_susurro_tts_client,
+    should_auto_tts,
+    split_for_tts,
+    synthesize_susurro_tts,
+)
 from shared.personas.registry import sibling_bot_user_ids
 
 if TYPE_CHECKING:
@@ -124,15 +129,15 @@ class VoiceCog(commands.Cog):
         self.settings = container.settings
         self.bot = container.bot
         self.memory = container.memory
-        self._tts_client: AsyncAzureOpenAI | None = None
+        self._tts_client: SusurroTtsClient | None = None
 
-    def _get_tts_client(self) -> AsyncAzureOpenAI | None:
-        """Lazy-init Azure OpenAI client for TTS."""
+    def _get_tts_client(self) -> SusurroTtsClient | None:
+        """Lazy-init the susurro gateway TTS client."""
         if self._tts_client:
             return self._tts_client
-        endpoint = self.settings.azure_openai_endpoint
-        key = self.settings.azure_openai_key.get_secret_value()
-        self._tts_client = build_azure_tts_client(endpoint=endpoint, api_key=key)
+        base_url = self.settings.susurro_url
+        key = self.settings.susurro_key.get_secret_value()
+        self._tts_client = build_susurro_tts_client(base_url=base_url, api_key=key)
         return self._tts_client
 
     @commands.Cog.listener()
@@ -224,7 +229,7 @@ class VoiceCog(commands.Cog):
         # Generate TTS audio
         try:
             async with channel.typing():
-                provider = "azure_openai"
+                provider = "susurro"
                 spoken_voice = voice
                 if self.settings.arbor_tts_url:
                     audio_bytes = await generate_arbor_tts_audio(text, self.settings)
@@ -235,12 +240,7 @@ class VoiceCog(commands.Cog):
                     if not client:
                         log.warning("tts_not_configured")
                         return
-                    audio_bytes = await synthesize_azure_tts(
-                        client,
-                        text,
-                        voice=voice,
-                        deployment=self.settings.azure_openai_tts_deployment,
-                    )
+                    audio_bytes = await synthesize_susurro_tts(client, text, voice=voice)
                 log.info(
                     "tts_generated",
                     text_len=len(text),
@@ -291,11 +291,10 @@ class VoiceCog(commands.Cog):
         try:
             async with message.channel.typing():
                 for idx, segment in enumerate(segments):
-                    audio_bytes = await synthesize_azure_tts(
+                    audio_bytes = await synthesize_susurro_tts(
                         client,
                         segment,
                         voice=self.settings.tts_voice,
-                        deployment=self.settings.azure_openai_tts_deployment,
                     )
                     fname = f"personas.insult{'' if len(segments) == 1 else f'-{idx + 1}'}.mp3"
                     await message.channel.send(file=discord.File(io.BytesIO(audio_bytes), filename=fname))

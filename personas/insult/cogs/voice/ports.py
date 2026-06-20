@@ -25,7 +25,8 @@ class TranscriptionPort(Protocol):
         self,
         audio_data: bytes,
         *,
-        endpoint: str,
+        base_url: str,
         api_key: str,
-        deployment: str,
+        language: str = "es",
+        content_type: str = "audio/ogg",
     ) -> str | None: ...

@@ -25,13 +25,15 @@ async def transcribe_voice(message: discord.Message, settings) -> str | None:
     started = time.monotonic()
     audio_bytes = 0
     try:
-        audio_data = await message.attachments[0].read()
+        attachment = message.attachments[0]
+        audio_data = await attachment.read()
         audio_bytes = len(audio_data)
         result = await port.transcribe(
             audio_data,
-            endpoint=settings.azure_openai_endpoint,
-            api_key=settings.azure_openai_key.get_secret_value(),
-            deployment=settings.azure_openai_whisper_deployment,
+            base_url=settings.susurro_url,
+            api_key=settings.susurro_key.get_secret_value(),
+            language="es",
+            content_type=attachment.content_type or "audio/ogg",
         )
         log.info(
             "voice_transcription_ok",

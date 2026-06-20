@@ -616,17 +616,19 @@ class _CoreTranscriptionAdapter:
         self,
         audio_data: bytes,
         *,
-        endpoint: str,
+        base_url: str,
         api_key: str,
-        deployment: str,
+        language: str = "es",
+        content_type: str = "audio/ogg",
     ) -> str | None:
         from personas.insult.core.transcribe import transcribe_voice_message  # pragma: no cover
 
         return await transcribe_voice_message(  # pragma: no cover
             audio_data,
-            endpoint=endpoint,
+            base_url=base_url,
             api_key=api_key,
-            deployment=deployment,
+            language=language,
+            content_type=content_type,
         )
 
 

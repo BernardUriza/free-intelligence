@@ -59,11 +59,13 @@ class Settings(BaseSettings):
     memory_recent_limit: int = 50
     memory_relevant_limit: int = 5
 
-    # Azure OpenAI (TTS + Whisper)
-    azure_openai_endpoint: str = ""
-    azure_openai_key: SecretStr = SecretStr("")
-    azure_openai_tts_deployment: str = "tts"
-    azure_openai_whisper_deployment: str = "whisper"
+    # Voice (TTS + STT) via the susurro gateway — a project-keyed proxy
+    # (sus.bernarduriza.com) that routes to a dedicated Azure OpenAI behind one
+    # bearer key. Migrated 2026-06-19 off the deleted direct Azure tts/whisper
+    # deployments. SUSURRO_KEY is the only voice cred; empty = voice off (🔊 and
+    # voice-message STT silently no-op). The default URL is the friendly domain.
+    susurro_url: str = "https://sus.bernarduriza.com"
+    susurro_key: SecretStr = SecretStr("")
     tts_voice: str = "onyx"  # alloy, echo, fable, onyx, nova, shimmer
     # Auto-speak Insult's OWN replies at/above this length so a wall of text
     # ships a voice clip you can listen to instead of reading. 0 = off (manual 🔊
