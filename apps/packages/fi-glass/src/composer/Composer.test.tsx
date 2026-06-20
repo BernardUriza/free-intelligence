@@ -70,3 +70,37 @@ describe('<Composer> Enter-to-send', () => {
     expect((textarea as HTMLTextAreaElement).value).toBe('');
   });
 });
+
+describe('<Composer> accessibility metadata (B3-FIGLASS-A11Y-1)', () => {
+  afterEach(cleanup);
+
+  it('renders a textarea with a default id and name (no form-field warning)', () => {
+    render(
+      <Composer
+        message=""
+        onMessageChange={() => {}}
+        onSend={() => {}}
+        placeholder="escribe aquí"
+      />,
+    );
+    const textarea = screen.getByPlaceholderText('escribe aquí') as HTMLTextAreaElement;
+    expect(textarea.id).toBeTruthy();
+    expect(textarea.getAttribute('name')).toBeTruthy();
+  });
+
+  it('forwards consumer-provided id and name to the textarea', () => {
+    render(
+      <Composer
+        message=""
+        onMessageChange={() => {}}
+        onSend={() => {}}
+        placeholder="escribe aquí"
+        id="og118-composer"
+        name="og118-message"
+      />,
+    );
+    const textarea = screen.getByPlaceholderText('escribe aquí') as HTMLTextAreaElement;
+    expect(textarea.id).toBe('og118-composer');
+    expect(textarea.getAttribute('name')).toBe('og118-message');
+  });
+});

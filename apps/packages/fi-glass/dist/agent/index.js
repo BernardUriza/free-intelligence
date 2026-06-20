@@ -520,6 +520,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 import {
   forwardRef,
   useEffect as useEffect3,
+  useId,
   useImperativeHandle,
   useRef as useRef2,
   useState as useState3
@@ -534,11 +535,16 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   wrapperClassName = "",
   wrapperStyle,
   className = "",
+  id,
+  name,
   ...props
 }, ref) {
   const textareaRef = useRef2(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState3(1);
+  const generatedId = useId();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
   useEffect3(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
@@ -564,6 +570,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       "textarea",
       {
         ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
         value,
         onChange,
         maxLength,
@@ -596,6 +604,8 @@ function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef
 }) {
   const handleKeyDown = (e) => {
@@ -608,6 +618,8 @@ function Composer({
     AutoResizeTextarea,
     {
       ref: textareaRef,
+      id,
+      name,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
@@ -721,7 +733,7 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect4, useId, useRef as useRef3, useState as useState4 } from "react";
+import { useEffect as useEffect4, useId as useId2, useRef as useRef3, useState as useState4 } from "react";
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
@@ -733,7 +745,7 @@ function CollapsibleText({
   className,
   toggleClassName
 }) {
-  const contentId = useId();
+  const contentId = useId2();
   const contentRef = useRef3(null);
   const [expanded, setExpanded] = useState4(false);
   const [overflowing, setOverflowing] = useState4(false);

@@ -341,6 +341,7 @@ function MessageList({
 import {
   forwardRef,
   useEffect as useEffect2,
+  useId as useId2,
   useImperativeHandle,
   useRef as useRef2,
   useState as useState3
@@ -355,11 +356,16 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   wrapperClassName = "",
   wrapperStyle,
   className = "",
+  id,
+  name,
   ...props
 }, ref) {
   const textareaRef = useRef2(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState3(1);
+  const generatedId = useId2();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
   useEffect2(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
@@ -385,6 +391,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       "textarea",
       {
         ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
         value,
         onChange,
         maxLength,
@@ -417,6 +425,8 @@ function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef
 }) {
   const handleKeyDown = (e) => {
@@ -429,6 +439,8 @@ function Composer({
     AutoResizeTextarea,
     {
       ref: textareaRef,
+      id,
+      name,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
@@ -4035,7 +4047,7 @@ function ChatSurface(props) {
 import {
   useCallback as useCallback10,
   useEffect as useEffect12,
-  useId as useId2,
+  useId as useId3,
   useRef as useRef9,
   useState as useState15
 } from "react";
@@ -4070,7 +4082,7 @@ function PersonaSelector({
   const [position, setPosition] = useState15({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef9(null);
   const contentRef = useRef9(null);
-  const reactId = useId2();
+  const reactId = useId3();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback10(() => setIsOpen(false), []);

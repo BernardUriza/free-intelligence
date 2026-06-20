@@ -11,6 +11,7 @@
 import {
   forwardRef,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -54,6 +55,8 @@ export const AutoResizeTextarea = forwardRef<
     wrapperClassName = '',
     wrapperStyle,
     className = '',
+    id,
+    name,
     ...props
   },
   ref,
@@ -61,6 +64,15 @@ export const AutoResizeTextarea = forwardRef<
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(ref, () => textareaRef.current as HTMLTextAreaElement);
   const [rows, setRows] = useState(1);
+
+  // B3-FIGLASS-A11Y-1: a textarea with no id/name makes the browser warn "a
+  // form field element should have an id or name" (seen in og118 staging). Give
+  // it a stable generated default when the consumer provides nothing, while
+  // letting any consumer override either one. name falls back to the resolved
+  // id so autofill/labels have a consistent handle.
+  const generatedId = useId();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
 
   // Auto-resize on content change
   useEffect(() => {
@@ -108,6 +120,8 @@ export const AutoResizeTextarea = forwardRef<
     <div className={`relative ${wrapperClassName}`} style={wrapperStyle}>
       <textarea
         ref={textareaRef}
+        id={resolvedId}
+        name={resolvedName}
         value={value}
         onChange={onChange}
         maxLength={maxLength}
