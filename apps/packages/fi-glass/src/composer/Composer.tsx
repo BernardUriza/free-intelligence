@@ -38,6 +38,14 @@ export interface ComposerProps {
   /** Class for the <textarea> itself */
   textareaClassName?: string;
   /**
+   * Optional stable id for the inner <textarea> (B3-FIGLASS-A11Y-1). Omit it and
+   * the textarea self-generates an accessible default — pass one only when the
+   * app needs a predictable handle (label `for=`, autofill, tests).
+   */
+  id?: string;
+  /** Optional stable name for the inner <textarea> (B3-FIGLASS-A11Y-1). */
+  name?: string;
+  /**
    * Typed ref to the inner <textarea> (B3-FIGLASS-10) so the owner can manage
    * focus (e.g. refocus after dictation/send/stream) without touching DOM
    * internals.
@@ -56,6 +64,8 @@ export function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef,
 }: ComposerProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -69,6 +79,8 @@ export function Composer({
     <div className={areaClassName}>
       <AutoResizeTextarea
         ref={textareaRef}
+        id={id}
+        name={name}
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
         onKeyDown={handleKeyDown}

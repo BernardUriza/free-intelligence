@@ -170,3 +170,63 @@ describe('AutoResizeTextarea sizing', () => {
     expect(ta.style.height).toBe('20px');
   });
 });
+
+/**
+ * B3-FIGLASS-A11Y-1: the composer textarea must carry an id AND a name so the
+ * browser stops warning "a form field element should have an id or name"
+ * (seen repeatedly in og118 staging). The primitive self-generates a stable
+ * default when the consumer provides nothing, and lets the consumer override.
+ */
+describe('AutoResizeTextarea accessibility metadata (B3-FIGLASS-A11Y-1)', () => {
+  it('generates a non-empty id when none is provided', () => {
+    const { container } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} />,
+    );
+    const ta = container.querySelector('textarea')!;
+    expect(ta.id).toBeTruthy();
+  });
+
+  it('generates a non-empty name when none is provided', () => {
+    const { container } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} />,
+    );
+    const ta = container.querySelector('textarea')!;
+    expect(ta.getAttribute('name')).toBeTruthy();
+  });
+
+  it('uses the consumer-provided id over the generated one', () => {
+    const { container } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} id="og118-composer" />,
+    );
+    const ta = container.querySelector('textarea')!;
+    expect(ta.id).toBe('og118-composer');
+  });
+
+  it('uses the consumer-provided name over the generated one', () => {
+    const { container } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} name="message" />,
+    );
+    const ta = container.querySelector('textarea')!;
+    expect(ta.getAttribute('name')).toBe('message');
+  });
+
+  it('keeps the generated id stable across re-renders', () => {
+    const { container, rerender } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} />,
+    );
+    const ta = container.querySelector('textarea')!;
+    const first = ta.id;
+    rerender(<AutoResizeTextarea value="hola" onChange={() => {}} />);
+    expect(ta.id).toBe(first);
+  });
+
+  it('preserves a consumer aria-label alongside the generated id/name', () => {
+    const { container } = render(
+      <AutoResizeTextarea value="" onChange={() => {}} aria-label="Mensaje" />,
+    );
+    const ta = container.querySelector('textarea')!;
+    expect(ta.getAttribute('aria-label')).toBe('Mensaje');
+    expect(ta.id).toBeTruthy();
+    expect(ta.getAttribute('name')).toBeTruthy();
+  });
+});
