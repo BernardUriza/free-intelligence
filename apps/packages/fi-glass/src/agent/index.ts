@@ -53,10 +53,12 @@ export {
   type ScrollToBottomButtonProps,
 } from './ScrollToBottomButton';
 // FG-4: viewport-locked agent-workspace page primitive (composes a full page
-// from slots — header / main / conversation / rail / footer).
+// from slots — header / main / conversation / rail / footer). B3-FIGLASS-MOBILE-1
+// folds in an optional sidebar slot + opt-in mobile drawer.
 export { AgentWorkspaceShell } from './AgentWorkspaceShell';
 export type {
   AgentWorkspaceShellProps,
   AgentWorkspaceShellVisual,
   AgentWorkspaceShellDensity,
+  AgentWorkspaceShellApi,
 } from './AgentWorkspaceShell';

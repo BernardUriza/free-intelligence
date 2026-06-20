@@ -26,7 +26,11 @@
 
 import { useState } from 'react';
 import { Loader2, Pause, Play, Square } from 'lucide-react';
-import { AgentConversationSurface, useAgentConversation } from 'fi-glass/agent';
+import {
+  AgentConversationSurface,
+  AgentWorkspaceShell,
+  useAgentConversation,
+} from 'fi-glass/agent';
 import {
   IndexedDBConversationLibrary,
   useConversationLibrary,
@@ -380,24 +384,32 @@ export function Og118AgentChat() {
   }
 
   return (
-    <div className="og-shell">
-      <Og118Sidebar
-        conversations={lib.conversations}
-        activeId={lib.activeId}
-        onNew={lib.newConversation}
-        onSwitch={(id) =>
-          void lib.switchConversation(id).catch((e) =>
-            console.error('[og118] switch failed', e),
-          )
-        }
-        onDelete={(id) =>
-          void lib.deleteConversation(id).catch((e) =>
-            console.error('[og118] delete failed', e),
-          )
-        }
-        disabled={conversation.isStreaming}
-      />
-      <div className="og-chat-main">
+    <AgentWorkspaceShell
+      responsive
+      toggleLabel="Conversaciones"
+      sidebar={(shell) => (
+        <Og118Sidebar
+          conversations={lib.conversations}
+          activeId={lib.activeId}
+          onNew={() => {
+            lib.newConversation();
+            shell.close();
+          }}
+          onSwitch={(id) => {
+            void lib.switchConversation(id).catch((e) =>
+              console.error('[og118] switch failed', e),
+            );
+            shell.close();
+          }}
+          onDelete={(id) =>
+            void lib.deleteConversation(id).catch((e) =>
+              console.error('[og118] delete failed', e),
+            )
+          }
+          disabled={conversation.isStreaming}
+        />
+      )}
+      conversation={
         <AgentConversationSurface
           // Route the surface's built-in "new chat" through the library so it
           // mints a fresh id (and thus a fresh session) instead of just clearing
@@ -406,8 +418,9 @@ export function Og118AgentChat() {
           composerPlaceholder="Pregúntale a og118 (verás su plan en vivo)…"
           newChatLabel="Nuevo chat"
           // The sidebar's "+ Nuevo chat" is the single new-chat CTA (B3-OG118-5);
-          // the surface's floating button would duplicate it. The sidebar stays
-          // visible on mobile (narrow, not hidden), so no affordance is lost.
+          // the surface's floating button would duplicate it. On mobile the
+          // sidebar lives in the AgentWorkspaceShell drawer (reachable via the
+          // hamburger), so the CTA is one tap away — no affordance is lost.
           showNewChatButton={false}
           emptyState={<Og118StartScreen />}
           aboveComposer={
@@ -463,7 +476,7 @@ export function Og118AgentChat() {
             />
           )}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }
