@@ -28,8 +28,12 @@ RUN apt-get update \
 # the server so this layer caches across server-only edits.
 COPY apps/packages/fi-core   /opt/fi/packages/fi-core
 COPY apps/packages/fi-runner /opt/fi/packages/fi-runner
+# stores-hdf5 (h5py+numpy) is REQUIRED by the rag_store capability's default
+# HDF5 backend — without it the MCP 500s at the first ingest/search (the
+# lazily-imported-dep deploy trap). pgvector is the persistent prod alternative
+# (FI_RAG_BACKEND=pgvector) and needs its own extra + a DB.
 RUN pip install --no-cache-dir \
-      "/opt/fi/packages/fi-core[mcp]" \
+      "/opt/fi/packages/fi-core[mcp,stores-hdf5]" \
       "/opt/fi/packages/fi-runner[claude]"
 
 # The FastAPI app itself.

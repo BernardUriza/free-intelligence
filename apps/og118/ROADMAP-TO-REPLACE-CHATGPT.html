@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#231 mergeados + staging live · FIGLASS-12 smoke staging PASS · pendientes: audio humano FIGLASS-11, header/badge en PR #232, page-depth preset en PR #233</p>
+  <p class="subtitle">Actualizado 2026-06-19 · FIGLASS-17 smoke humano PASS (done) · FIGLASS-18 código mergeado (#242/#243, 4898e812), re-smoke humano pendiente · FIGLASS-19 (archive sent-to-chat) MERGEADO (PR #244) · NUEVO canary real: og118 staging live en la papelería + Projects para el negocio de mamá (ver sección Canary)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -308,13 +308,17 @@
       <div class="item-note">Destapado por el smoke de FIGLASS-15: el textarea crecía al escribir pero jamás encogía al borrar (atorado en 120px). Causa: el atributo rows del render anterior pone piso al scrollHeight → la medición nunca baja; jsdom (scrollHeight 0) lo ocultaba. Fix: reset rows=1 + height auto ANTES de medir, restore imperativo después. Tests con mock fiel al DOM (scrollHeight = max(líneas, rows) × lineHeight): grow 1→5, shrink 5→1, delete-all, maxRows tras ciclo, send reset — 189/189. PR #239 merged (bbf4d295) + deploy verde + smoke staging PASS: 24→120→24→24px (box 90→186→90→90), cero caja fantasma, consola limpia. El cap fluido calc(100% - 60px) ordenado por Bernard entró aparte en PR #238 (merged d0a85988 + smoke PASS: wrappers 1308px, barra sigue a 0px).</div></div>
       <span class="item-tag">B3-FIGLASS-16</span></label>
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-17 — draft player = primitivo TTS + paused state honesto</div>
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-17 — draft player = primitivo TTS + paused state honesto</div>
       <div class="item-note">Hallazgo P1 del audit DD-VOICE-LOOP-COMPLETE (screenshot anotado de Bernard): timer "--:--" en pausa (durationMs solo se escribía al stop), botón CirclePause disabled que parece control pero no hace nada, y 20 barras decorativas flex-1 estiradas de borde a borde bajo el cap fluido. Fix framework: pauseRecording persiste durationMs; AudioDraftPlayer reproduce vía RichAudioPlayer (el primitivo exacto del TTS: ±10s, scrubber, readout) con object URL resuelto por artifact y revocado al desmontar; paused = dot pulsante + tiempo real + Reanudar, cero pseudo-controles; glassmorphism (blur 24px). Bonus infra: @types/react fijado ^19.2.16 en fi-glass (hoisting lottery). PR #240 merged (082292c1) + deploy verde + smoke automatizado queued PASS: rich player + scrubber + "0:00 / 0:09" del wav real, play avanza a 0:02, glass aplicado, consola limpia. 190/190 tests. PENDIENTE para cerrar: smoke humano de Bernard (paused con mic real + playback audible).</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-17</span></label>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-18 — pausa segmentada: el paused state reproduce lo grabado</div>
-      <div class="item-note">Veredicto humano del smoke de FIGLASS-17 (screenshot anotado de Bernard): la barra de pausa debe montar el player CON el audio ya grabado, no solo dot+tiempo. FIGLASS-17 era "honesto" porque RecordRTC no da blob parcial; este corte hace que el blob exista: pausar = stop real del recorder (entrega WAV del segmento) conservando vivo el stream del mic; reanudar = recorder nuevo; al stop los segmentos se splicean. Primitivo nuevo mergeWavBlobs (parse RIFF, concat PCM, header canónico; estricto: throws en mismatch). pausedPreviewBlob expuesto por useDurableRecording → AudioDraftPlayer lo monta en RichAudioPlayer con fallback honesto mientras splicea; guard: sin preview si los segmentos exceden maxBytesPerItem. Bonus: fix de durationMs (double-count post-resume) y artifactRef síncrono. og118 hereda con 1 prop. PR #242 merged (05bafc55, GO de Bernard) + deploy SWA verde + bundle confirmado en staging, consola limpia. 206/206 tests. Papercuts del smoke en PR #243: header "0 B" (sumaba capacity pending-only en vez del set visible) + banner privacidad azul auto-hide 35s. PENDIENTE para cerrar: re-smoke humano (grabar→pausar→play del preview audible→reanudar→pausar→preview con ambos segmentos→stop→transcribir). Absorbe el checklist de FIGLASS-17.</div></div>
+      <div class="item-note">Veredicto humano del smoke de FIGLASS-17 (screenshot anotado de Bernard): la barra de pausa debe montar el player CON el audio ya grabado, no solo dot+tiempo. FIGLASS-17 era "honesto" porque RecordRTC no da blob parcial; este corte hace que el blob exista: pausar = stop real del recorder (entrega WAV del segmento) conservando vivo el stream del mic; reanudar = recorder nuevo; al stop los segmentos se splicean. Primitivo nuevo mergeWavBlobs (parse RIFF, concat PCM, header canónico; estricto: throws en mismatch). pausedPreviewBlob expuesto por useDurableRecording → AudioDraftPlayer lo monta en RichAudioPlayer con fallback honesto mientras splicea; guard: sin preview si los segmentos exceden maxBytesPerItem. Bonus: fix de durationMs (double-count post-resume) y artifactRef síncrono. og118 hereda con 1 prop. PR #242 merged (05bafc55, GO de Bernard) + deploy SWA verde + bundle confirmado en staging, consola limpia. 206/206 tests. Papercuts del smoke en PR #243 (MERGEADO 4898e812): header "0 B" (sumaba capacity pending-only en vez del set visible) + banner privacidad azul auto-hide 35s. PENDIENTE para cerrar: re-smoke humano (grabar→pausar→play del preview audible→reanudar→pausar→preview con ambos segmentos→stop→transcribir). Absorbe el checklist de FIGLASS-17.</div></div>
       <span class="item-tag">B3-VOICE-FIGLASS-18</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-19 — archivar audios transcritos como sent-to-chat</div>
+      <div class="item-note">MERGEADO a main (PR #244, merge 71fcb7c8). Al transcribir, el artifact ya no se borra de la cola: pasa a estado archivado "enviado al chat". Cerró la pregunta abierta del lifecycle post-transcripción que el board listaba en la sección fi-glass (clearTranscribed automático vs manual). La branch feat/b3-voice-figlass-19-archive-sent quedó merged y debería borrarse (leftover).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-19</span></label>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">B3-ICONS-1 — fi-glass/icons subpath + createIconRegistry upstream</div>
       <div class="item-note">Pregunta de Bernard 2026-06-12: ¿fi-glass debería exponer el icon collection de aurity? Audit: fi-glass YA tiene sistema inyectable (AgentIconSet + resolveIcons + toolIcon en agent/icons.ts, StateIcons en voice) — mecanismo correcto, pero enterrado bajo agent/ sin subpath propio. La colección de aurity (lib/icons: medical/status/checkin/ui, 165 lucide) es VOCABULARIO de dominio clínico — NO sube al framework (sería sedimento consumer en la capa equivocada). Lo que sí sube: (1) subpath export fi-glass/icons re-exponiendo el sistema existente; (2) dynamic-icons.ts de aurity generalizado como createIconRegistry() (mapa key→LucideIcon con fallback) — aurity se vuelve consumer alimentando su mapa; (3) purga de @heroicons/react en aurity (2 iconos, 3 archivos legacy → lucide). Versiones lucide alineadas (^0.548.0, peerDep correcto). NO abrir hasta cerrar el smoke de FIGLASS-18.</div></div>
@@ -401,7 +405,62 @@
       <span class="item-tag">infra-aca</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11</footer>
+  <!-- CANARY REAL: PAPELERÍA + PROJECTS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Canary real — og118 en la papelería + Projects para el negocio de mamá</span>
+      <span class="section-badge badge-active">CANARY VIVO</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Niños: tareas/investigaciones con Claude vía og118 staging (cuenta abierta, chat nuevo por tema)</div>
+      <div class="item-note">2026-06-19: la mamá de Bernard aceptó poner og118 staging en su papelería. ~2-3 investigaciones diarias = canary real de bajo volumen. Puro chat, CERO archivos → corre hoy sin tocar nada. Disciplina: chat nuevo por tema nuevo = sesiones limpias que destapan gaps de fi-glass en el mundo real.</div></div>
+      <span class="item-tag">canary-kids</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-core RAG: store multi-tenant por corpus_id + chunker + embedders + MCP (ingest/search/list/delete/stats)</div>
+      <div class="item-note">YA EXISTE (verificado 2026-06-19): fi-core/fi_core/rag/ (store_service.py RagStore, store_mcp_server.py, chunking.py). Reutilizar, NO reconstruir (Art. 6). Gotcha: chunker mide TOKENS, min_chunk_size=100 → texto corto = 0 chunks.</div></div>
+      <span class="item-tag">proj-core</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-runner: RagStoreClient (sin import de fi-core) + capability "rag_store" registrada</div>
+      <div class="item-note">YA EXISTE: fi-runner/fi_runner/rag_store.py + capabilities.py:106 rag_store(). El boundary correcto: og118 importa fi-runner, nunca fi-core.</div></div>
+      <span class="item-tag">proj-runner</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-glass: ChatFilePreview + props de upload en ChatWidget + tipo UploadStatus</div>
+      <div class="item-note">YA EXISTE: fi-glass/src/shell/ChatFilePreview.tsx + types.ts (selecting→uploading→processing→indexed→error). El framework anticipó upload — og118 sería el PRIMER consumer en usarlo (valor canary: probar que el primitivo especulativo de verdad sirve).</div></div>
+      <span class="item-tag">proj-glass</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">TRACER: cablear capability "rag_store" en og118 server/runner.py + verificar que el agente puede search en un corpus</div>
+      <div class="item-note">~2 líneas (agregar "rag_store" a capabilities=[...]). TDD: test de que build_runner() resuelve la capability + smoke ingest→search en corpus de prueba. NO depende de la decisión de cuenta. Va en su propia branch off main, NO en la branch de voz.</div></div>
+      <span class="item-tag">proj-tracer</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">og118 consumer: endpoint POST /projects/{id}/upload → parse texto → RagStoreClient.ingest(corpus_id=project_id)</div></div>
+      <span class="item-tag">proj-upload</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">og118 consumer: useChatUpload hook + file-picker UI (prototipo CON gate de extracción a fi-glass)</div>
+      <div class="item-note">El picker es consumer (cada shell elige su UX). El hook de lifecycle (selecting→indexed) es candidato a SUBIR a fi-glass si funciona — framework-first-canary: og118 lo prueba, fi-glass lo absorbe.</div></div>
+      <span class="item-tag">proj-uploadui</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">og118 consumer: sección Projects en el sidebar (listar/crear/borrar/seleccionar proyecto activo)</div></div>
+      <span class="item-tag">proj-sidebar</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
+      <div class="item-note">Destapado 2026-06-19: corpus_id es ARGUMENTO del tool, pero el Runner toma persona estática y el transporte solo manda {message, session_id} — no hay forma limpia de inyectar el corpus activo por turno. Empujar ARRIBA a fi-runner (nuevo nivel configurable), NO parchar en og118 metiendo el corpus_id en el texto del mensaje.</div></div>
+      <span class="item-tag">proj-corpusbind</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">DECISIÓN DE BERNARD: modelo de cuenta = qué corpus_id se asigna (recomendado: per-project)</div>
+      <div class="item-note">El corpus_id ES el modelo de privacidad. Recomendado #3 per-project (project-{id}): niños = sin proyecto (cuenta abierta, cero fuga); negocio de mamá = proyecto privado con su propio corpus, invisible en la cuenta abierta. No requiere auth para empezar; al llegar Gate 3 (auth real) el proyecto se ata al user. Evita la fuga de precios de proveedor a los niños.</div></div>
+      <span class="item-tag">proj-account</span></label>
+  </div>
+
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19</footer>
 </div>
 
 <script>
