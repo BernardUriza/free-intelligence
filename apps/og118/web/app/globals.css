@@ -128,11 +128,9 @@ body {
   color: #94a3b8;
 }
 
-/* DD-002B1.3 — local-first conversation shell: sidebar + chat main. */
-.og-shell {
-  display: flex;
-  height: 100dvh;
-}
+/* DD-002B1.3 — local-first conversation list. The sidebar + main layout and the
+   mobile drawer are owned by fi-glass's AgentWorkspaceShell (B3-FIGLASS-MOBILE-1);
+   og118 styles only the list's own look and fills the slot it's given. */
 .og-loading {
   display: grid;
   place-items: center;
@@ -142,8 +140,8 @@ body {
 }
 
 .og-sidebar {
-  width: 280px;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -250,17 +248,4 @@ body {
   font-size: 0.7rem;
   color: #475569;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-.og-chat-main {
-  flex: 1;
-  min-width: 0;
-}
-
-@media (max-width: 720px) {
-  .og-sidebar {
-    width: 168px;
-  }
-  .og-chat-item-preview {
-    display: none;
-  }
 }
