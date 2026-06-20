@@ -49,7 +49,27 @@ _POLL_INTERVAL_SECONDS = 2.0
 EXIT_OK = 0
 EXIT_TIMEOUT = 2
 EXIT_CONFIG = 3
-EXIT_ERROR = 4
+EXIT_SEND_FAILED = 4
+EXIT_POLL_FAILED = 5
+EXIT_CRASH = 6
+
+_FAILURE_LABELS = {
+    EXIT_TIMEOUT: "timeout — Insult no respondió CANARY_OK a tiempo",
+    EXIT_CONFIG: "config/secrets faltantes (token/channel/insult-id)",
+    EXIT_SEND_FAILED: "Discord send falló (POST del probe rechazado)",
+    EXIT_POLL_FAILED: "Discord poll falló (GET de mensajes rechazado)",
+    EXIT_CRASH: "crash inesperado del probe",
+}
+
+
+def failure_label(code: int) -> str:
+    """Human-readable name of the failure mode behind a non-OK exit code.
+
+    The ops alert names WHICH mode failed (timeout vs send vs poll vs config vs
+    crash), not just the bare exit number — so a Discord notification is
+    actionable without reading Log Analytics.
+    """
+    return _FAILURE_LABELS.get(code, f"fallo desconocido (exit {code})")
 
 
 def reply_matches(
@@ -114,7 +134,7 @@ async def run_probe(
             if resp.status not in (200, 201):
                 body = (await resp.text())[:200]
                 log.error("canary_probe_post_failed", status=resp.status, body=body, channel_id=channel_id)
-                return EXIT_ERROR
+                return EXIT_SEND_FAILED
             after_id = (await resp.json())["id"]
         log.info("canary_probe_sent", nonce=nonce, channel_id=channel_id, after_id=after_id)
 
@@ -134,7 +154,7 @@ async def run_probe(
                 if r.status != 200:
                     body = (await r.text())[:200]
                     log.error("canary_probe_poll_failed", status=r.status, body=body)
-                    return EXIT_ERROR
+                    return EXIT_POLL_FAILED
                 for msg in await r.json():
                     if reply_matches(
                         author_id=int(msg["author"]["id"]),
@@ -180,10 +200,10 @@ def main() -> int:
     except Exception:
         # any unexpected failure is a non-zero exit
         log.exception("canary_probe_crashed")
-        code = EXIT_ERROR
+        code = EXIT_CRASH
 
     if code != EXIT_OK and webhook_url:
-        asyncio.run(_send_ops_alert(webhook_url, f"🚨 Insult canary FAILED (exit {code})"))
+        asyncio.run(_send_ops_alert(webhook_url, f"🚨 Insult canary FAILED — {failure_label(code)} (exit {code})"))
     return code
 
 

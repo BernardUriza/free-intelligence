@@ -12,7 +12,17 @@ from pathlib import Path
 import pytest
 
 import scripts.canary_probe as canary_probe
-from scripts.canary_probe import EXIT_OK, EXIT_TIMEOUT, reply_matches, run_probe
+from scripts.canary_probe import (
+    EXIT_CONFIG,
+    EXIT_CRASH,
+    EXIT_OK,
+    EXIT_POLL_FAILED,
+    EXIT_SEND_FAILED,
+    EXIT_TIMEOUT,
+    failure_label,
+    reply_matches,
+    run_probe,
+)
 
 INSULT_ID = "1490000000000000009"
 CANARY_CHANNEL = "1490000000000000001"
@@ -140,3 +150,31 @@ async def test_run_probe_timeout_when_no_reply(monkeypatch):
     )
     code = await run_probe(token="t", channel_id=CANARY_CHANNEL, insult_bot_user_id=INSULT_ID, timeout_seconds=0.05)
     assert code == EXIT_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_run_probe_send_failed_is_distinct_from_poll_failed(monkeypatch):
+    """A failed POST of the probe (Discord send failed) is its own failure mode."""
+    _patch(monkeypatch, post_resp=_FakeResp(403, text_data="Missing Permissions"), get_responses=[])
+    code = await run_probe(token="t", channel_id=CANARY_CHANNEL, insult_bot_user_id=INSULT_ID, timeout_seconds=5)
+    assert code == EXIT_SEND_FAILED
+
+
+@pytest.mark.asyncio
+async def test_run_probe_poll_failed_is_distinct_from_send_failed(monkeypatch):
+    """A non-200 on the GET poll (Discord read failed) is a different mode than send."""
+    _patch(
+        monkeypatch,
+        post_resp=_FakeResp(201, {"id": "100"}),
+        get_responses=[_FakeResp(500, text_data="Internal Server Error")],
+    )
+    code = await run_probe(token="t", channel_id=CANARY_CHANNEL, insult_bot_user_id=INSULT_ID, timeout_seconds=5)
+    assert code == EXIT_POLL_FAILED
+
+
+def test_failure_label_distinguishes_every_mode():
+    """The ops alert must name WHICH mode failed — every non-OK code maps to a
+    distinct, human-readable label (the coagent's close criteria)."""
+    labels = {failure_label(c) for c in (EXIT_TIMEOUT, EXIT_CONFIG, EXIT_SEND_FAILED, EXIT_POLL_FAILED, EXIT_CRASH)}
+    assert len(labels) == 5  # all distinct
+    assert all(isinstance(label, str) and label for label in labels)
