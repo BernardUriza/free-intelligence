@@ -512,7 +512,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback9, useEffect as useEffect13, useRef as useRef9, useState as useState15 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect14, useRef as useRef9, useState as useState15 } from "react";
 import { Send, Loader2 as Loader211 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -867,6 +867,37 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback as useCallback2, useState as useState5 } from "react";
 import { Copy, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect5 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect5(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+
+// src/messages/CopyButton.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -880,6 +911,7 @@ var CopyButton = memo2(function CopyButton2({
   resetMs = 2e3
 }) {
   const [copied, setCopied] = useState5(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -898,7 +930,7 @@ var CopyButton = memo2(function CopyButton2({
     "button",
     {
       onClick: handleCopy,
-      className: `${base} ${copied ? active : idle}`,
+      className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
       children: copied ? /* @__PURE__ */ jsx9(Check, { className: icon }) : /* @__PURE__ */ jsx9(Copy, { className: icon })
@@ -1029,11 +1061,11 @@ import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 import { jsx as jsx17 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect5, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
+import { useEffect as useEffect6, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect6 } from "react";
+import { useEffect as useEffect7 } from "react";
 import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
@@ -1046,7 +1078,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect7 } from "react";
+import { useEffect as useEffect8 } from "react";
 import { jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
@@ -1153,7 +1185,8 @@ function ComposerMicSlot({
   buttonClassName,
   iconClassName
 }) {
-  const btnClass = buttonClassName ?? BTN;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN}`;
   const iconClass = iconClassName ?? ICON;
   const disabled = !available || busy;
   const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
@@ -1447,7 +1480,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState8, useRef as useRef7, useEffect as useEffect8 } from "react";
+import { useState as useState8, useRef as useRef7, useEffect as useEffect9 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1481,7 +1514,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef7(null);
   const animationFrameRef = useRef7(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect8(() => {
+  useEffect9(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1585,13 +1618,13 @@ var AUDIO_QUEUE_DEFAULTS = {
 };
 
 // src/voice/useDurableRecording.ts
-import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect10 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState11, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState11, useEffect as useEffect11, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect11, useState as useState13 } from "react";
+import { useEffect as useEffect12, useState as useState13 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -1614,7 +1647,7 @@ import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState14, useEffect as useEffect12 } from "react";
+import { useState as useState14, useEffect as useEffect13 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
@@ -1765,6 +1798,7 @@ function AgentConversationSurface({
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState15("");
+  useTouchTargetStyle();
   const isMobileViewport = useMediaQuery("(max-width: 768px)");
   const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
@@ -1777,7 +1811,7 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect13(() => {
+  useEffect14(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -1796,12 +1830,12 @@ function AgentConversationSurface({
     void dictation.startRecording();
   };
   const wasStreaming = useRef9(false);
-  useEffect13(() => {
+  useEffect14(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
   const wasTranscribing = useRef9(false);
-  useEffect13(() => {
+  useEffect14(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
@@ -2021,7 +2055,7 @@ function AgentConversationSurface({
                     onClick: onSend,
                     disabled: !canSend,
                     "aria-label": sendLabel,
-                    className: sendButtonClassName,
+                    className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
                     children: isStreaming ? /* @__PURE__ */ jsx26(
                       Loader211,
                       {
@@ -2043,7 +2077,7 @@ function AgentConversationSurface({
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback10,
-  useEffect as useEffect14,
+  useEffect as useEffect15,
   useState as useState16
 } from "react";
 import { Menu } from "lucide-react";
@@ -2057,7 +2091,7 @@ function ensureToggleStyle() {
   el.textContent = `
     .fi-aws-toggle {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 2.25rem; height: 2.25rem; border-radius: 10px;
+      width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(10,14,22,0.55);
       backdrop-filter: blur(var(--glass-blur-compact, 8px));
@@ -2094,10 +2128,10 @@ function AgentWorkspaceShell({
   const open = useCallback10(() => setIsOpen(true), []);
   const close = useCallback10(() => setIsOpen(false), []);
   const toggle = useCallback10(() => setIsOpen((v) => !v), []);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -2110,7 +2144,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect14(() => {
+  useEffect15(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {

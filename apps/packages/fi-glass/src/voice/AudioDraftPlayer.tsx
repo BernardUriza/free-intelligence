@@ -31,6 +31,7 @@ import { Play, Trash2, Loader2, RotateCcw, ArrowUp } from 'lucide-react';
 import type { AudioArtifact } from './audioArtifact';
 import { formatArtifactDuration, formatArtifactSize } from './audioArtifact';
 import { RichAudioPlayer } from './RichAudioPlayer';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface AudioDraftPlayerProps {
   /** The draft artifact (the just-recorded, not-yet-acted-on audio). */
@@ -65,6 +66,7 @@ export function AudioDraftPlayer({
   primaryActionLabel = 'Transcribir',
   className = '',
 }: AudioDraftPlayerProps) {
+  useTouchTargetStyle();
   const isPaused = artifact.state === 'paused';
   const isSaving = artifact.state === 'stopping';
   const isBusy =
@@ -174,7 +176,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={() => onDiscard(artifact.id)}
             aria-label="Descartar grabación"
-            className="fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors"
+            className={`${FI_TOUCH_TARGET_CLASS} fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors`}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -184,7 +186,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={onResume}
             aria-label="Reanudar grabación"
-            className="fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95"
+            className={`${FI_TOUCH_TARGET_CLASS} fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95`}
           >
             <Play className="w-3.5 h-3.5 ml-0.5" />
             Reanudar
@@ -194,7 +196,7 @@ export function AudioDraftPlayer({
             type="button"
             onClick={() => onRetry(artifact.id)}
             aria-label="Reintentar"
-            className="fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors"
+            className={`${FI_TOUCH_TARGET_CLASS} fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors`}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -204,7 +206,7 @@ export function AudioDraftPlayer({
               type="button"
               onClick={() => onPrimary(artifact.id)}
               disabled={isSaving || isBusy}
-              className="fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+              className={`${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`}
             >
               <ArrowUp className="w-3.5 h-3.5" />
               {primaryActionLabel}

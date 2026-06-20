@@ -14,6 +14,7 @@
 import { memo, useCallback, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { messageStyles } from './styles';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface CopyButtonProps {
   /** Text to copy to the clipboard. */
@@ -48,6 +49,7 @@ export const CopyButton = memo(function CopyButton({
   resetMs = 2000,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
 
   const base = className ?? actions.button.base;
@@ -68,7 +70,7 @@ export const CopyButton = memo(function CopyButton({
   return (
     <button
       onClick={handleCopy}
-      className={`${base} ${copied ? active : idle}`}
+      className={`${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`}
       title={copied ? copiedLabel : copyLabel}
       aria-label={copied ? copiedLabel : `${copyLabel} mensaje`}
     >

@@ -11,6 +11,7 @@
  */
 
 import type { ConversationSummary } from '@free-intelligence/core';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from 'fi-glass/shell';
 
 export interface Og118SidebarProps {
   conversations: ConversationSummary[];
@@ -44,6 +45,9 @@ export function Og118Sidebar({
   onDelete,
   disabled = false,
 }: Og118SidebarProps) {
+  // B3-FIGLASS-MOBILE-2 — the consumer's sidebar affordances inherit the framework
+  // 44×44 touch minimum from fi-glass's exported primitive (no app-local min-size CSS).
+  useTouchTargetStyle();
   return (
     <aside className="og-sidebar">
       <div className="og-sidebar-head">
@@ -51,7 +55,7 @@ export function Og118Sidebar({
           og118<span style={{ color: 'var(--og-accent, #34d399)' }}>.ai</span>
         </span>
         <button
-          className="og-sidebar-new"
+          className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-new`}
           onClick={onNew}
           disabled={disabled}
           aria-label="Nuevo chat"
@@ -84,7 +88,7 @@ export function Og118Sidebar({
                 <span className="og-chat-item-time">{shortTime(c.updatedAt)}</span>
               </div>
               <button
-                className="og-chat-item-del"
+                className={`${FI_TOUCH_TARGET_CLASS} og-chat-item-del`}
                 aria-label="Borrar chat"
                 disabled={disabled}
                 onClick={(e) => {

@@ -238,6 +238,14 @@ body {
 .og-chat-item:hover .og-chat-item-del {
   opacity: 1;
 }
+/* B3-FIGLASS-MOBILE-2 — touch devices have no hover, so the hover-revealed delete
+   would be permanently invisible (a 44x44 ghost target = fake-green). Reveal it on
+   coarse pointers so the framework touch minimum is actually usable by fingers. */
+@media (pointer: coarse) {
+  .og-chat-item-del {
+    opacity: 1;
+  }
+}
 .og-chat-item-del:disabled {
   cursor: not-allowed;
   opacity: 0;
