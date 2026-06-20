@@ -423,6 +423,17 @@ declare function ScrollToBottomButton({ onClick, label, className, iconClassName
 
 type AgentWorkspaceShellVisual = 'aurora' | 'midnight' | 'clinical';
 type AgentWorkspaceShellDensity = 'compact' | 'comfortable' | 'spacious';
+/** Imperative drawer controls handed to the sidebar slot in `responsive` mode. */
+interface AgentWorkspaceShellApi {
+    /** Whether the mobile drawer is open (always false on desktop / non-responsive). */
+    isOpen: boolean;
+    /** Whether the shell is in the mobile/drawer breakpoint. */
+    isMobile: boolean;
+    open: () => void;
+    close: () => void;
+    toggle: () => void;
+}
+type SidebarSlot = ReactNode | ((api: AgentWorkspaceShellApi) => ReactNode);
 interface AgentWorkspaceShellProps {
     visual?: AgentWorkspaceShellVisual;
     density?: AgentWorkspaceShellDensity;
@@ -430,9 +441,26 @@ interface AgentWorkspaceShellProps {
     conversation: ReactNode;
     rail?: ReactNode;
     footer?: ReactNode;
+    /**
+     * Optional left chrome (e.g. a conversation list). A render function receives
+     * the drawer api so the consumer can `close()` on selection/new without the
+     * shell touching its internals. Omit it for the original page primitive.
+     */
+    sidebar?: SidebarSlot;
+    /**
+     * Opt into the mobile drawer behavior for the `sidebar`. Default `false` keeps
+     * the sidebar a static column at every width. No effect without `sidebar`.
+     */
+    responsive?: boolean;
+    /** Media query that switches the sidebar into drawer mode. Default `(max-width: 768px)`. */
+    mobileQuery?: string;
+    /** Desktop sidebar width (number → px). Default `280`. */
+    sidebarWidth?: number | string;
+    /** Accessible label for the drawer toggle. Default `Conversaciones`. */
+    toggleLabel?: string;
     className?: string;
     style?: CSSProperties;
 }
-declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
+declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, sidebar, responsive, mobileQuery, sidebarWidth, toggleLabel, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentWorkspaceShell, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };

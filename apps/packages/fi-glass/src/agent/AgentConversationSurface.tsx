@@ -22,6 +22,7 @@ import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import type { AgentConversation } from './useAgentConversation';
+import { useMediaQuery } from '../shell/useMediaQuery';
 
 export type AgentConversationSurfaceLayout = 'viewport' | 'contained';
 
@@ -256,6 +257,12 @@ export function AgentConversationSurface({
     conversation;
   const [input, setInput] = useState('');
 
+  // B3-FIGLASS-MOBILE-1 — the fluid center cap is a desktop affordance; on a
+  // phone the fixed 60px inset starves the composer (textarea < 300px at 390),
+  // so the inset collapses to a thin gutter below the mobile breakpoint.
+  const isMobileViewport = useMediaQuery('(max-width: 768px)');
+  const contentInset = isMobileViewport ? 'calc(100% - 16px)' : 'calc(100% - 60px)';
+
   // B3-FIGLASS-12 — pin-to-bottom. The hook is called unconditionally (hooks
   // rule); when autoScroll is off the refs simply never attach, so it observes
   // nothing. isAtBottom starts true → no phantom button on first paint/SSR.
@@ -379,7 +386,7 @@ export function AgentConversationSurface({
         >
           <div
             ref={autoScroll ? stick.contentRef : undefined}
-            style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}
+            style={{ maxWidth: contentInset, margin: '0 auto', width: '100%' }}
           >
         {idle ? (
           emptyState
@@ -510,7 +517,7 @@ export function AgentConversationSurface({
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Composer column shares the transcript's fluid center cap (the
             section itself spans full width so its top border does too). */}
-        <div style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}>
+        <div style={{ maxWidth: contentInset, margin: '0 auto', width: '100%' }}>
         {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button

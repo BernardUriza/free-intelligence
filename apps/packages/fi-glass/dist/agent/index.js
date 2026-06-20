@@ -1661,6 +1661,60 @@ function ScrollToBottomButton({
   );
 }
 
+// src/shell/useMediaQuery.ts
+import { useSyncExternalStore as useSyncExternalStore2 } from "react";
+var mqlCache = /* @__PURE__ */ new Map();
+function getMql(query, useCache = true) {
+  if (typeof window === "undefined" || !("matchMedia" in window)) {
+    return null;
+  }
+  if (useCache) {
+    const cached = mqlCache.get(query);
+    if (cached) return cached;
+  }
+  const mql = window.matchMedia(query);
+  if (useCache) {
+    mqlCache.set(query, mql);
+  }
+  return mql;
+}
+function useMediaQuery(query, options) {
+  const ssrMatch = options?.ssrMatch ?? false;
+  const useRaf = options?.useRaf ?? true;
+  const cache = options?.cache ?? true;
+  const mql = getMql(query, cache);
+  const getSnapshot = () => mql ? mql.matches : ssrMatch;
+  const getServerSnapshot = () => ssrMatch;
+  const subscribe = (onStoreChange) => {
+    if (!mql) return () => {
+    };
+    let rafId = 0;
+    const handler = () => {
+      if (!useRaf) {
+        onStoreChange();
+        return;
+      }
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => onStoreChange());
+    };
+    const mqlAny = mql;
+    if (typeof mqlAny.addEventListener === "function") {
+      mqlAny.addEventListener("change", handler);
+    } else if (typeof mqlAny.addListener === "function") {
+      mqlAny.addListener(handler);
+    }
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (typeof mqlAny.removeEventListener === "function") {
+        mqlAny.removeEventListener("change", handler);
+      } else if (typeof mqlAny.removeListener === "function") {
+        mqlAny.removeListener(handler);
+      }
+    };
+  };
+  return useSyncExternalStore2(subscribe, getSnapshot, getServerSnapshot);
+}
+
 // src/agent/AgentConversationSurface.tsx
 import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 function AgentConversationSurface({
@@ -1711,6 +1765,8 @@ function AgentConversationSurface({
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState15("");
+  const isMobileViewport = useMediaQuery("(max-width: 768px)");
+  const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
   const inputRef = useRef9(null);
   const refocusComposer = useCallback9(() => {
@@ -1776,7 +1832,7 @@ function AgentConversationSurface({
               "div",
               {
                 ref: autoScroll ? stick.contentRef : void 0,
-                style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" },
+                style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
                 children: [
                   idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
                     messages.map((m, i) => /* @__PURE__ */ jsx26(
@@ -1888,7 +1944,7 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" }, children: [
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%" }, children: [
         hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
           "button",
           {
@@ -1985,7 +2041,37 @@ function AgentConversationSurface({
 }
 
 // src/agent/AgentWorkspaceShell.tsx
+import {
+  useCallback as useCallback10,
+  useEffect as useEffect14,
+  useState as useState16
+} from "react";
+import { Menu } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
+function ensureToggleStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOGGLE_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOGGLE_STYLE_ID;
+  el.textContent = `
+    .fi-aws-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2.25rem; height: 2.25rem; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(10,14,22,0.55);
+      backdrop-filter: blur(var(--glass-blur-compact, 8px));
+      color: #e2e8f0; cursor: pointer; padding: 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .fi-aws-toggle:hover { background: rgba(255,255,255,0.08); }
+    .fi-aws-toggle:active { background: rgba(255,255,255,0.12); }
+    .fi-aws-toggle:focus-visible {
+      outline: 2px solid var(--og-accent, #34d399); outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(el);
+}
 function AgentWorkspaceShell({
   visual = "aurora",
   density = "comfortable",
@@ -1993,9 +2079,40 @@ function AgentWorkspaceShell({
   conversation,
   rail,
   footer,
+  sidebar,
+  responsive = false,
+  mobileQuery = "(max-width: 768px)",
+  sidebarWidth = 280,
+  toggleLabel = "Conversaciones",
   className,
   style
 }) {
+  const isMobile = useMediaQuery(mobileQuery);
+  const [isOpen, setIsOpen] = useState16(false);
+  const hasSidebar = sidebar != null;
+  const drawerMode = hasSidebar && responsive && isMobile;
+  const open = useCallback10(() => setIsOpen(true), []);
+  const close = useCallback10(() => setIsOpen(false), []);
+  const toggle = useCallback10(() => setIsOpen((v) => !v), []);
+  useEffect14(() => {
+    if (!drawerMode && isOpen) setIsOpen(false);
+  }, [drawerMode, isOpen]);
+  useEffect14(() => {
+    if (!drawerMode || !isOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerMode, isOpen]);
+  useEffect14(() => {
+    if (drawerMode) ensureToggleStyle();
+  }, [drawerMode]);
   const rootStyle = {
     display: "flex",
     flexDirection: "column",
@@ -2018,14 +2135,14 @@ function AgentWorkspaceShell({
     `fi-density-${density}`,
     className
   ].filter(Boolean).join(" ");
-  return /* @__PURE__ */ jsxs20(
+  const content = /* @__PURE__ */ jsxs20(
     "div",
     {
       "data-fi-workspace": "agent",
       "data-fi-visual": visual,
       "data-fi-density": density,
       className: rootClassName,
-      style: { ...rootStyle, ...style },
+      style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
         header != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "header", children: header }),
         /* @__PURE__ */ jsxs20("div", { "data-fi-slot": "main", style: mainStyle, children: [
@@ -2033,6 +2150,76 @@ function AgentWorkspaceShell({
           rail != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
         footer != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "footer", children: footer })
+      ]
+    }
+  );
+  if (!hasSidebar) return content;
+  const api = { isOpen, isMobile, open, close, toggle };
+  const sidebarNode = typeof sidebar === "function" ? sidebar(api) : sidebar;
+  const widthCss = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
+  const sidebarContainerStyle = drawerMode ? {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    zIndex: 50,
+    width: `min(${widthCss}, 85vw)`,
+    display: "flex",
+    flexDirection: "column",
+    transform: isOpen ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 0.24s ease",
+    willChange: "transform"
+  } : {
+    width: widthCss,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column"
+  };
+  return /* @__PURE__ */ jsxs20(
+    "div",
+    {
+      "data-fi-workspace": "agent-with-sidebar",
+      style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
+      children: [
+        /* @__PURE__ */ jsx27(
+          "div",
+          {
+            "data-fi-slot": "sidebar",
+            style: sidebarContainerStyle,
+            "aria-hidden": drawerMode ? !isOpen : void 0,
+            inert: drawerMode && !isOpen ? true : void 0,
+            children: sidebarNode
+          }
+        ),
+        drawerMode && /* @__PURE__ */ jsx27(
+          "div",
+          {
+            onClick: close,
+            "aria-hidden": true,
+            style: {
+              position: "fixed",
+              inset: 0,
+              zIndex: 40,
+              background: "rgba(0,0,0,0.5)",
+              opacity: isOpen ? 1 : 0,
+              pointerEvents: isOpen ? "auto" : "none",
+              transition: "opacity 0.24s ease"
+            }
+          }
+        ),
+        drawerMode && !isOpen && /* @__PURE__ */ jsx27(
+          "button",
+          {
+            type: "button",
+            className: "fi-aws-toggle",
+            onClick: open,
+            "aria-label": toggleLabel,
+            "aria-expanded": isOpen,
+            style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
+            children: /* @__PURE__ */ jsx27(Menu, { size: 18, "aria-hidden": true })
+          }
+        ),
+        content
       ]
     }
   );
