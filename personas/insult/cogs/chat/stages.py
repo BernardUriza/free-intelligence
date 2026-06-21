@@ -719,6 +719,17 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                     f"compañera complementaria esta vez; estás como única voz que "
                     f"contesta. Mantén tu register, no imites a Insult."
                 )
+                # ALICE's /invite carries no attachment — she literally cannot
+                # see images the user posted. If THIS failed turn had an image,
+                # tell her so she degrades honestly instead of fabricating what
+                # the picture shows (no-fake-green doctrine).
+                if any(b.get("type") == "image" for b in (ctx.attachment_blocks or [])):
+                    fallover_reason += (
+                        " OJO: el usuario adjuntó una IMAGEN que tú NO puedes ver "
+                        "(el failover no te la pasa). NO inventes ni describas lo que "
+                        "muestra; sé honesta: dilo y responde solo a lo que sí tienes "
+                        "en texto."
+                    )
                 ok = await execute_invoke_alice(
                     {"reason": fallover_reason},
                     channel_id=ctx.channel_id,

@@ -51,6 +51,7 @@ in-character error text; the caller surfaces it normally.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
@@ -183,6 +184,8 @@ class AgentRunnerClient:
         *,
         timeout_s: float = 120.0,
         connect_timeout_s: float = 10.0,
+        connect_max_retries: int = 2,
+        connect_retry_base_s: float = 0.25,
     ):
         if not runner_url:
             raise ValueError("AgentRunnerClient requires runner_url")
@@ -192,6 +195,8 @@ class AgentRunnerClient:
         self._runner_token = runner_token
         self._timeout_s = timeout_s
         self._connect_timeout_s = connect_timeout_s
+        self._connect_max_retries = connect_max_retries
+        self._connect_retry_base_s = connect_retry_base_s
 
     async def chat(
         self,
@@ -303,36 +308,74 @@ class AgentRunnerClient:
         start = time.monotonic()
         timed_out_once = False
 
-        try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, json=payload, headers=headers)
-        except httpx.ReadTimeout as e:
-            if on_timeout and not timed_out_once:
-                timed_out_once = True
-                try:
-                    maybe = on_timeout()
-                    if hasattr(maybe, "__await__"):
-                        await maybe
-                except Exception:
-                    log.exception("agent_runner_on_timeout_callback_failed")
-            log.warning(
-                "agent_runner_client_timeout",
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-                user_id=user_id,
-                channel_id=channel_id,
-            )
-            # A read timeout means the runner never answered — treat the brain
-            # as down so a real sibling persona can take the turn.
-            raise RunnerDownError(f"runner read timeout after {self._timeout_s}s") from e
-        except httpx.HTTPError as e:
-            log.exception(
-                "agent_runner_client_http_error",
-                error_type=type(e).__name__,
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            )
-            # Connection refused / DNS / transport error → the runner process
-            # is unreachable. RunnerDownError so failover is allowed.
-            raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
+        # ConnectTimeout / ConnectError happen BEFORE the request body is sent,
+        # so the turn provably never reached the runner — re-POSTing is safe (no
+        # duplicate turn). A single transient ConnectTimeout to an alive-but-idle
+        # runner used to be turned straight into RunnerDownError, summoning ALICE
+        # (who never receives the image and answers blind). Retry the connect a
+        # few times before declaring the brain down. ReadTimeout is NOT retried:
+        # the request may have landed and be processing, so a re-POST would
+        # double-spend the turn.
+        attempts = self._connect_max_retries + 1
+        resp = None
+        for attempt in range(attempts):
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
+                break
+            except (httpx.ConnectTimeout, httpx.ConnectError) as e:
+                if attempt + 1 < attempts:
+                    log.warning(
+                        "agent_runner_client_connect_retry",
+                        attempt=attempt + 1,
+                        of=attempts,
+                        error_type=type(e).__name__,
+                        elapsed_ms=int((time.monotonic() - start) * 1000),
+                    )
+                    await asyncio.sleep(self._connect_retry_base_s * (2**attempt))
+                    continue
+                log.error(
+                    "agent_runner_client_connect_exhausted",
+                    attempts=attempts,
+                    error_type=type(e).__name__,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                )
+                # Unreachable across every connect attempt → the runner process
+                # is genuinely down. RunnerDownError so failover is allowed.
+                raise RunnerDownError(
+                    f"runner unreachable after {attempts} connect attempts: {type(e).__name__}"
+                ) from e
+            except httpx.ReadTimeout as e:
+                if on_timeout and not timed_out_once:
+                    timed_out_once = True
+                    try:
+                        maybe = on_timeout()
+                        if hasattr(maybe, "__await__"):
+                            await maybe
+                    except Exception:
+                        log.exception("agent_runner_on_timeout_callback_failed")
+                log.warning(
+                    "agent_runner_client_timeout",
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                    user_id=user_id,
+                    channel_id=channel_id,
+                )
+                # A read timeout means the runner never answered — treat the brain
+                # as down so a real sibling persona can take the turn.
+                raise RunnerDownError(f"runner read timeout after {self._timeout_s}s") from e
+            except httpx.HTTPError as e:
+                log.exception(
+                    "agent_runner_client_http_error",
+                    error_type=type(e).__name__,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                )
+                # Other transport error (DNS, protocol) → the runner is
+                # unreachable. RunnerDownError so failover is allowed.
+                raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
+
+        # The loop either breaks with resp assigned or raises; reaching here
+        # without a response is impossible (attempts >= 1).
+        assert resp is not None
 
         elapsed_ms = int((time.monotonic() - start) * 1000)
 
