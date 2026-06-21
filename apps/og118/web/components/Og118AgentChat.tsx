@@ -48,6 +48,7 @@ import {
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
+import { isAuth0Mode } from '@/lib/authMode';
 import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
@@ -122,8 +123,10 @@ export function Og118AgentChat() {
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
   // browser's localStorage — never in the bundle, never in conversation storage).
+  // In auth0 mode the AuthGate owns login; the legacy paste-token banner only
+  // shows in bearer mode (a 401 there means no/invalid pasted token).
   const needsAuth =
-    turn.status === 'error' && (turn.errorMessage ?? '').startsWith(AUTH401);
+    !isAuth0Mode && turn.status === 'error' && (turn.errorMessage ?? '').startsWith(AUTH401);
 
   const saveToken = () => {
     const t = tokenInput.trim();
