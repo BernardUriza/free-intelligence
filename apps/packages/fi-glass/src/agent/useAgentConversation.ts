@@ -182,6 +182,11 @@ export function useAgentConversation(
 
   // True while a turn we optimistically pushed is still in flight; gates the fold.
   const pending = useRef(false);
+  // Latest visible thread, read inside the stable `send` closure WITHOUT adding
+  // `messages` to its deps (which would rebuild send every keystroke-fold). Used
+  // to hand the transport the confirmed history for storeless-backend continuity.
+  const messagesRef = useRef(messages);
+  messagesRef.current = externalMessages ?? messages;
   // Latest agent, read inside timers/effects WITHOUT depending on its identity —
   // transport hooks often return a fresh object each render, which would re-arm
   // the idle watchdog every render instead of on real turn progress.
@@ -229,7 +234,12 @@ export function useAgentConversation(
         setMessages((prev) => [...prev, makeUserMessage(t)]);
       }
       pending.current = true;
-      void agent.send(t);
+      // Hand the transport the confirmed thread (prior turns, NOT this message) so
+      // a storeless backend can replay it for continuity. The transport that needs
+      // it forwards it; one that doesn't ignores `meta`. messagesRef is the thread
+      // BEFORE the optimistic push above (same render's state), so the current
+      // message is never duplicated into history.
+      void agent.send(t, { history: messagesRef.current });
     },
     [agent, controlled],
   );

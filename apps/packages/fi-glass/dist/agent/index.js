@@ -397,6 +397,8 @@ function useAgentConversation(agent, options = {}) {
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
   const pending = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = externalMessages ?? messages;
   const agentRef = useRef(agent);
   agentRef.current = agent;
   const appHandledRef = useRef(isAppHandledError);
@@ -425,7 +427,7 @@ function useAgentConversation(agent, options = {}) {
         setMessages((prev) => [...prev, makeUserMessage(t)]);
       }
       pending.current = true;
-      void agent.send(t);
+      void agent.send(t, { history: messagesRef.current });
     },
     [agent, controlled]
   );

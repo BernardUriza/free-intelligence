@@ -47,6 +47,7 @@ from .conversation import (
     Message,
     RedisConversationStore,
     render_transcript,
+    sanitize_history,
 )
 from .flow import Event, events_to_mermaid
 from .narrate import FlowNarrationError, narrate_flow
@@ -104,6 +105,7 @@ __all__ = [
     "RedisConversationStore",
     "Message",
     "render_transcript",
+    "sanitize_history",
     "flow",
     "Event",
     "events_to_mermaid",

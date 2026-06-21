@@ -32,7 +32,7 @@ export type {
 } from './agent/state';
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
 export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
-export type { AgentHook } from './agent/hook';
+export type { AgentHook, AgentSendMeta } from './agent/hook';
 
 // Conversation library contract (DD-002B1). Local-first transcript persistence:
 // record/summary types, the ConversationLibrary storage contract, and pure

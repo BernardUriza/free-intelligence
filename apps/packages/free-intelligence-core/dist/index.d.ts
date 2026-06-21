@@ -369,6 +369,21 @@ declare function makeUserMessage(text: string): ChatMessage;
 declare function foldAssistantTurn(turn: AgentTurnState): ChatMessage;
 
 /**
+ * Per-send metadata the conversation layer may hand the transport. Optional and
+ * backward-compatible — a transport that ignores it behaves exactly as before.
+ */
+interface AgentSendMeta {
+    /**
+     * The confirmed conversation so far (prior user/assistant turns, NOT the
+     * message being sent). A transport with a stateless/storeless backend replays
+     * this for continuity — the og118 canary: the durable transcript lives in the
+     * client (IndexedDB), so continuity survives a recycled backend. It is
+     * conversational CONTEXT only; the backend re-sanitizes it and never treats it
+     * as authorization.
+     */
+    history?: ChatMessage[];
+}
+/**
  * AgentHook — the agentic-turn contract the fi-glass agent panels consume.
  *
  * Dependency-inversion spine, twin of ChatHook. The app implements it against
@@ -386,8 +401,9 @@ interface AgentHook {
     turn: AgentTurnState;
     /** Whether a turn is actively streaming. */
     isStreaming: boolean;
-    /** Start an agentic turn. */
-    send: (message: string, metadata?: object) => Promise<void>;
+    /** Start an agentic turn. `meta.history` lets the conversation layer replay
+     * prior turns for continuity on a storeless backend (see {@link AgentSendMeta}). */
+    send: (message: string, meta?: AgentSendMeta) => Promise<void>;
     /** Abort the in-flight turn, if supported. */
     abort?: () => void;
     /** Reset the session/turn. */
@@ -494,4 +510,4 @@ declare function createConversationRecord(args: CreateConversationRecordArgs): C
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, sanitizeConversationMessage, summarizeConversation };
