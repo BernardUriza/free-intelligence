@@ -71,6 +71,7 @@ from .pipeline import (
 from .plan_guard import PlanGuard, PlanGuardOutcome, plan_guard
 from .preflight import PreflightResult, probe_all, probe_mcp
 from .router import ModelRouter
+from .context_binding import ContextPrompt, active_corpus_binding
 from .runner import FlowNarrator, RetryPolicy, Runner
 
 __version__ = "0.17.1"
@@ -93,6 +94,8 @@ __all__ = [
     "Runner",
     "RetryPolicy",
     "FlowNarrator",
+    "ContextPrompt",
+    "active_corpus_binding",
     "ModelRouter",
     "capabilities",
     "conversation",
