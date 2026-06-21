@@ -30,7 +30,7 @@ import logging
 import signal as _signal
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -131,6 +131,14 @@ class Runner:
     # storing the fully-mutated text. See R14 in the fi-runner robustness
     # roadmap memory.
     pre_emit_append: bool = False
+    # Opt-in per-turn CONTEXT BINDING (proj-corpusbind canary). Given the turn's
+    # ``context`` dict, returns an optional system-prompt addendum folded in
+    # alongside the persona. This is how a consumer binds structured per-turn
+    # state — the active corpus_id, a tenant — into the agent's instructions
+    # WITHOUT stuffing it into the user message (which would pollute the replayed
+    # transcript and be untyped). Default None → no addendum, byte-identical to
+    # before. See fi_runner.context_binding.active_corpus_binding.
+    context_prompt: Callable[[Mapping[str, Any]], str | None] | None = None
 
     def __post_init__(self) -> None:
         # Fail fast on a misconfigured runner instead of shipping an empty system
@@ -144,6 +152,40 @@ class Runner:
             self.on_event(event, fields)
         else:
             _log.info("%s %s", event, fields)
+
+    def _render_context_prompt(
+        self,
+        context: dict[str, Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+        request_id: str,
+    ) -> str:
+        """Render the per-turn context binding into a system-prompt addendum.
+
+        Returns "" when no binding is configured or it yields nothing. A raising
+        binding never breaks the turn — it is surfaced as ``context_prompt_error``
+        and treated as no addendum (the agent then sees no corpus binding, which
+        the consumer's monitoring must catch)."""
+        if self.context_prompt is None:
+            return ""
+        try:
+            rendered = self.context_prompt(context or {})
+        except Exception as exc:  # noqa: BLE001 - a hostile/buggy binding must not kill the turn
+            emit("context_prompt_error", {"request_id": request_id, "error": str(exc)})
+            return ""
+        if rendered and rendered.strip():
+            addendum = rendered.strip()
+            emit("context_bound", {"request_id": request_id, "chars": len(addendum)})
+            return addendum
+        return ""
+
+    def _compose_system_prompt(self, context_addendum: str, reinforcement: str) -> str:
+        """persona [+ context addendum] [+ guard reinforcement], joined by blank lines."""
+        parts = [self.persona]
+        if context_addendum:
+            parts.append(context_addendum)
+        if reinforcement:
+            parts.append(reinforcement)
+        return "\n\n".join(parts).strip()
 
     async def run(
         self,
@@ -211,10 +253,14 @@ class Runner:
                     {"request_id": request_id, "session_id": session_id, "messages": len(history)},
                 )
 
+        # Per-turn context binding (e.g. the active corpus): rendered once, constant
+        # across retries; the guard reinforcement is what varies per attempt.
+        context_addendum = self._render_context_prompt(context, emit, request_id)
+
         try:
             for attempt in range(attempts):
                 is_last = attempt == attempts - 1
-                system_prompt = f"{self.persona}\n\n{reinforcement}".strip() if reinforcement else self.persona
+                system_prompt = self._compose_system_prompt(context_addendum, reinforcement)
                 try:
                     result = await self.backend.run_turn(
                         system_prompt=system_prompt,
@@ -350,6 +396,9 @@ class Runner:
             if chosen:
                 model = chosen
 
+        # Per-turn context binding — the same addendum the agent gets in run().
+        context_addendum = self._render_context_prompt(context, self._emit, request_id)
+
         # Container-safe continuity (same as run): fold the transcript into the
         # backend message; guards still see the ORIGINAL user_message.
         backend_message = user_message
@@ -370,7 +419,7 @@ class Runner:
         try:
             if hasattr(self.backend, "run_turn_stream"):
                 async for event in self.backend.run_turn_stream(
-                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
                     tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
                 ):
                     if event.get("type") == "result":
@@ -411,7 +460,7 @@ class Runner:
             else:
                 # Backend can't stream → one-shot, surfaced as a single result event.
                 result = await self.backend.run_turn(
-                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
                     tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
                 )
         except BackendError:
