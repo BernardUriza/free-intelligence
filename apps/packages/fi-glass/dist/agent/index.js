@@ -1619,6 +1619,9 @@ var AUDIO_QUEUE_DEFAULTS = {
   // 10 MB per artifact
 };
 
+// src/voice/useAudioQueueStore.ts
+import { useMemo as useMemo2 } from "react";
+
 // src/voice/useDurableRecording.ts
 import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect10 } from "react";
 

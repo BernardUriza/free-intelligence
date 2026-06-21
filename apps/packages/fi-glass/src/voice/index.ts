@@ -84,6 +84,7 @@ export {
   AudioQueueStore,
   type AudioQueueStoreOptions,
 } from './AudioQueueStore';
+export { useAudioQueueStore } from './useAudioQueueStore';
 export {
   useDurableRecording,
   type UseDurableRecordingOptions,

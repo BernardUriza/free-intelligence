@@ -16,13 +16,14 @@ import { useEffect } from 'react';
 
 import { isAuth0Mode } from '@/lib/authMode';
 import { clearToken, setToken } from '@/lib/og118Token';
+import { Og118IdentityProvider } from '@/lib/og118Identity';
 
 const DOMAIN = process.env.NEXT_PUBLIC_AUTH0_DOMAIN ?? '';
 const CLIENT_ID = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID ?? '';
 const AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE ?? '';
 
 function TokenSync({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently, user } = useAuth0();
   useEffect(() => {
     if (!isAuthenticated) {
       clearToken();
@@ -44,11 +45,17 @@ function TokenSync({ children }: { children: React.ReactNode }) {
       clearInterval(id);
     };
   }, [isAuthenticated, getAccessTokenSilently]);
-  return <>{children}</>;
+  // The account id (sub) scopes every local-first store (conversations, audio
+  // queue, projects), so accounts that share a browser never see each other's
+  // data. Null until authenticated.
+  const userId = isAuthenticated ? user?.sub ?? null : null;
+  return <Og118IdentityProvider value={{ userId }}>{children}</Og118IdentityProvider>;
 }
 
 export function Auth0Wrapper({ children }: { children: React.ReactNode }) {
-  if (!isAuth0Mode) return <>{children}</>;
+  if (!isAuth0Mode) {
+    return <Og118IdentityProvider value={{ userId: null }}>{children}</Og118IdentityProvider>;
+  }
   const redirectUri = typeof window !== 'undefined' ? window.location.origin : undefined;
   return (
     <Auth0Provider
