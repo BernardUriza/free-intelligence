@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-21 · Canary Projects E2E VERIFICADO EN PROD: subir→bind del corpus activo→el agente recupera ($347 del doc subido, search_documents scoped al corpus exacto) — PR #262 (corpus-binding) + #263 (fix permisos rag store ACA) · PERSISTENCIA cross-restart resuelta: volumen Azure Files en /opt/fi/data (centavos/mo, verificado — corpus sobrevive restart; pgvector reservado para post-Gate-3 scale; ver DEPLOY.md) · Continuidad sin store MERGEADA (#260) · FIGLASS-18 re-smoke humano pendiente · Pendientes top: smoke humano de voz + decisión de cuenta (proj-account, ADR listo) + Gate 3</p>
+  <p class="subtitle">Actualizado 2026-06-21 · GATE 3 (Auth real) EN CURSO — elegido Auth0: primitiva reusable fi_runner.auth (#268), ownership por cuenta (#269, A no ve lo de B), backend dual mode DESPLEGADO + verificado en staging (bearer legacy O JWT Auth0), apps Auth0 creadas, frontend scaffolding (#270). Falta: código frontend login + flip a auth0-only. · proj-account RESUELTO (corpus_id server-side, #267) · Canary Projects E2E verificado en prod (#262/#263) + persistencia volumen Azure Files · Continuidad sin store (#260) · Pendiente: frontend Auth0 + smoke humano de voz (FIGLASS-18)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -186,7 +186,7 @@
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 0 — Inventario read-only ✓</div>
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
     <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
-    <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 3 — Auth real (network/identity) — pendiente decisión de Bernard</div>
+    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + verificado; falta frontend login + flip</div>
     <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 4 — Cutover público og118.ai + DNS — pendiente Gate 3</div>
   </div>
 
@@ -387,21 +387,21 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">Gate 3 + 4 — Auth real + Cutover público</span>
-      <span class="section-badge badge-blocked">DECISIÓN DE BERNARD</span>
+      <span class="section-badge badge-active">EN CURSO — Auth0 dual mode LIVE</span>
     </div>
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Gate 3: Reemplazar bearer speed-bump por auth real (Azure AD / Auth0 / magic link)</div>
-      <div class="item-note">Actualmente: OG118_ACCESS_TOKEN en localStorage. No es Gate 3 real.</div></div>
+      <div class="item-body"><div class="item-text">Gate 3: Reemplazar bearer speed-bump por auth real — ELEGIDO Auth0, backend VIVO en dual mode</div>
+      <div class="item-note">DECIDIDO Auth0 (tenant dedicado dev-1r4daup7ofj7q6gn; el shared con Ferboli). HECHO: (1) primitiva reusable fi_runner.auth (RS256/JWKS) PR #268; (2) ownership por cuenta + seam get_principal PR #269 (A no ve lo de B); (3) backend en OG118_AUTH_MODE=dual desplegado y VERIFICADO en staging (acepta bearer legacy O JWT Auth0 real; sin token→401, JWT basura→401); (4) apps Auth0 creadas (og118-spa client 9FxTp…, og118-api audience https://api.og118.ai); (5) frontend scaffolding (@auth0/auth0-react + config) PR #270. PENDIENTE: código del frontend (Auth0Wrapper+AuthGate, flag-gated) + verify live del login + flip a auth0-only (PR5). Ver DEPLOY.md §Auth0.</div></div>
       <span class="item-tag">gate-3</span></label>
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">Gate 4: og118.ai apunta al SWA de producción + landing switch</div>
-      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final.</div></div>
+      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final. Bloqueado por Gate 3.</div></div>
       <span class="item-tag">gate-4</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">ACA backend: arreglar el deploy de Azure Container Apps (falla en todos los merges)</div>
-      <div class="item-note">Falla pre-existente — no bloquea staging pero sí producción</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">ACA backend: el deploy de Azure Container Apps ya NO falla</div>
+      <div class="item-note">Resuelto esta sesión: múltiples deploys verdes (corpus-binding, permisos rag store, volumen, dual mode). La falla histórica "en todos los merges" ya no se reproduce.</div></div>
       <span class="item-tag">infra-aca</span></label>
   </div>
 
@@ -468,9 +468,9 @@
       <div class="item-note">DONE en DOS capas. (1) FRAMEWORK: el binding subió ARRIBA a fi-runner (NO parchado en og118) como nivel configurable — fi_runner.active_corpus_binding, PR #256 (6a0aa374). (2) CONSUMER WIRING: og118 NO lo usaba — /chat/stream no mandaba corpus_id y el agente NUNCA buscaba en el corpus del proyecto activo (subías la lista escolar pero "¿cuánto cuesta el cuaderno?" no la consultaba). Cableado opt-in en PR #262: ChatRequest.corpus_id → run_stream(context=) → context_prompt=active_corpus_binding(); useOg118Agent(sessionId, activeCorpusId). TDD 65/65 server + 5/5 fi-runner + 26/26 web + build. E2E VERIFICADO en staging 2026-06-21: el bundle real manda corpus_id, el agente llamó list_documents Y search_documents scoped al corpus exacto del proyecto activo, y recuperó "$347 pesos" (dato fabricado que solo vive en el doc subido = prueba un-fakeable). Destapó un bug pre-existente del rag store en ACA (Permission denied fi_rag_store.h5.lock, WORKDIR root-owned vs user non-root) arreglado en PR #263 (FI_RAG_STORE_PATH → /opt/fi/data chowned). Projects funcional de verdad pre-Gate-3.</div></div>
       <span class="item-tag">proj-corpusbind</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">DECISIÓN DE BERNARD: modelo de cuenta = qué corpus_id se asigna (recomendado: per-project)</div>
-      <div class="item-note">ADR LISTO PARA DECIDIR → apps/og118/PROJ-ACCOUNT-ADR-1.md (decision pack del coagent vía exchange-coagent, 2026-06-21). Hueco confirmado en código: hoy el cliente fabrica el corpus_id (crypto.randomUUID en useOg118Projects.ts:46, corpus_id==project_id). Recomendación: account→projects→corpus per-project, corpus_id generado server-side. El corpus_id ES el modelo de privacidad. Decisión abierta: ¿corpus_id server-side ya (PROJ-ACCOUNT-1 pre-Gate-3) o diferido a Auth0?</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">DECIDIDO + IMPLEMENTADO: modelo account→projects→corpus per-project, corpus_id server-side</div>
+      <div class="item-note">RESUELTO (ADR PROJ-ACCOUNT-ADR-1.md). Slice auth-agnóstico: el corpus_id ya NO lo fabrica el cliente — el server lo mintea (POST /projects, PR #267) e ignora cualquier id del cliente. Ownership atado a la cuenta (PR #269): cada proyecto pertenece a principal.sub; A no puede listar/leer/subir/borrar lo de B (404). En bearer mode = cuenta única legacy (sin fricción); con Auth0 el ownership se vuelve real. El corpus_id ES el modelo de privacidad, ahora server-controlado.</div></div>
       <span class="item-tag">proj-account</span></label>
   </div>
 
