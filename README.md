@@ -42,7 +42,7 @@ khimeras_shared/     shared contracts/infra with 2+ real consumers — memory/, 
                      corpus/, persona/, vectors.py, style.py (see khimeras_shared/PROMOTION.md)
 shared/              cross-cutting helpers — corpus/, llm/, logging_setup/, text/, time_context.py
 tests/               arch/ (import-boundary ratchet) · chat/ · core/ · integration/ · agent/ · shared/
-infra/azure/         runner.Dockerfile, entrypoint.sh, canary-job.sh
+infra/azure/         runner.Dockerfile, entrypoint.sh
 docs/                kql_queries.md, runbook_alerts.md
 .claude/rules/       the binding rules (architecture, robustness, testing, workflow, persona, voice)
 .claude/plans/       ADRs (demux, agent-sdk migration, capability seams, model router…)

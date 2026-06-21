@@ -26,7 +26,6 @@ import structlog
 from discord.ext import commands
 
 from personas.insult.cogs.chat.batch import BatchManager
-from personas.insult.cogs.chat.canary import try_handle_canary
 from personas.insult.cogs.chat.pipeline import TurnRuntimeDeps
 from personas.insult.cogs.chat.tasks import spawn_tracked_task
 from personas.insult.cogs.chat.tools import ALL_TOOLS
@@ -103,11 +102,6 @@ class ChatCog(commands.Cog):
         text after BATCH_WAIT_SECONDS of silence, like a human waiting for
         someone to finish typing.
         """
-        # Canary probe is intercepted BEFORE the batch/pipeline: a deterministic
-        # CANARY_OK echo with no LLM, bypassing the author.bot guard only for the
-        # configured (channel, canary bot, prefix) triple.
-        if await try_handle_canary(message, self.settings):
-            return
         await self._batches.handle_incoming(
             message,
             settings=self.settings,

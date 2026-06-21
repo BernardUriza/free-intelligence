@@ -8,7 +8,6 @@ name: CD
 # Surfaces and the image each consumes:
 #   * discord-bot        <- insult-bot image       (Dockerfile)
 #   * fact-consolidation <- insult-bot image       (same image, cron job)
-#   * insult-canary      <- insult-bot image       (same image, cron job)
 #   * alice-bot          <- alice-bot image        (Dockerfile.alice)
 #   * vultur-gateway     <- vultur-gateway image   (Dockerfile.gateway)
 #   * insult-runner      <- insult-runner image    (infra/azure/runner.Dockerfile)
@@ -101,7 +100,7 @@ jobs:
 
           BUILD_BOT=$(changed "$BOT_SHA" \
             environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
-            scripts/canary_probe.py Dockerfile)
+            Dockerfile)
           BUILD_ALICE=$(changed "$ALICE_SHA" \
             environment.yml personas/alice/ shared/ Dockerfile.alice)
           BUILD_GW=$(changed "$GW_SHA" \
@@ -169,18 +168,6 @@ jobs:
         run: |
           az containerapp job update --name fact-consolidation --resource-group "$RG" \
             --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
-
-      - name: Update insult-canary job image (if it exists)
-        # Same image as the bot. No-op until the gated job is created by hand.
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        run: |
-          if az containerapp job show --name insult-canary --resource-group "$RG" >/dev/null 2>&1; then
-            az containerapp job update --name insult-canary --resource-group "$RG" \
-              --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
-            echo "canary_job_image_updated sha=${{ env.NEW_SHA }}"
-          else
-            echo "canary_job_sync_skipped reason=job_not_created_yet"
-          fi
 
       - name: Deploy alice-bot
         if: ${{ steps.detect.outputs.build_alice == 'true' }}

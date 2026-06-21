@@ -26,14 +26,14 @@ under `personas/`, a light host (`demux_ai/`), and shared contracts
 The old flat `insult/...` paths below the move no longer exist.
 
 - `demux_ai/` — light host: explicit persona selection + gpt-4.1 routing. Live modules: `host.py`, `host_llm.py` (the gpt-4.1 host-router model client, PR-4b slice 1+), `registry.py`, `__main__.py` (`python -m demux_ai run`). No longer a skeleton.
-- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline + `chat/canary.py`, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
+- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
 - `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
 - `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the insult-runner) via `persona_id`. `gateway.py`.
 - `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
 - `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `memory_consolidation.py`. Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
 - `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
 - `tests/` — `arch/` (import-boundary ratchet at **0**), `chat/`, `core/`, `integration/`, `agent/`, `shared/`.
-- `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`, `canary-job.sh` (gated).
+- `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`.
 - `pyproject.toml` — ruff, pytest, coverage, bandit config.
 
 ## Production Trust / Observability (Phase 3.5)
@@ -43,7 +43,7 @@ reported `is_ready:true` (a proxy that lied). The real liveness contract is
 "responds in Discord", never an internal flag.
 
 - **Boot-zombie observability** — DEPLOYED (v4.21.44/45): honest `serving`/`healthy`/`guild_count`, boot instrumentation (`pg_pool_creating→bot_ready`), fail-fast `os._exit`, prewarm off the critical path.
-- **Discord real canary** — **LIVE end-to-end** (2026-06-20): `personas/insult/cogs/chat/canary.py` intercepts `CANARY insult <uuid>` from the poster bot in `#canary` and echoes `CANARY_OK <uuid>` (no LLM, before batch/pipeline); the ACA Job `insult-canary` (cron `*/5`, runner `scripts/canary_probe.py`) posts the probe + verifies the reply by author ID + nonce, exit non-zero on failure. **REST-only** (no Discord Gateway/IDENTIFY): the poster token is **reused from the live Vultur bot** (decided 2026-06-19 — no dedicated bot), so the probe must never open a second gateway session or it would flap Vultur. Dual alerting: probe-failure → Discord webhook (names the failure MODE, v4.21.90); heartbeat-absent → Azure Monitor `insult-canary-heartbeat-absent` → action group → email. **Self-cleaning (v4.21.94):** the probe deletes its own probe message after the match and Insult deletes its own `CANARY_OK` echo after a 20s TTL, so `#canary` stays visually empty WITHOUT lowering the `*/5` cadence or touching the LOG-based heartbeat alert (each side deletes only its OWN message → no Manage-Messages perm needed). Pre-fix residue (before the self-clean shipped) persists since the poster lacks Manage Messages to bulk-clear Insult's old echoes.
+- **Discord real canary** — **REMOVED (2026-06-21, v4.21.97)**: Bernard killed the cyclic `*/5` probe (the `#canary` message noise). Deleted end-to-end: the ACA Job `insult-canary`, the `canary.py` cog + `canary_probe.py` runner + `canary-job.sh`, the `cd.yml` sync step, the `insult-canary-heartbeat-absent` Azure Monitor alert and the `canary-ops-ag` action group. The boot-zombie observability below (honest `serving`/`healthy`) remains the live production-trust signal; the in-Discord canary is gone. The Discord webhook "Insult Canary Ops" is now inert (no caller) — delete it from the channel if it lingers.
 - **Constitution enforcement** — `UserPromptSubmit` hook injects the 9 articles of `engineering-playbook/rules/00-constitution.md` each turn.
 - **Operational rigor doctrines** (playbook) — no fake-green / total instrumentation (`observability-logging.md`); rigor hierarchy `Chrome DevTools > proxy` + fix-Chrome-don't-route-around-it (`verify-before-assuming.md`).
 
