@@ -150,6 +150,12 @@ class ChatRequest(BaseModel):
     # continuity survives an ACA replica recycle with NO server-side store — the
     # durable source of truth is the client, not the backend's RAM.
     history: list[HistoryMessage] | None = None
+    # Active project's corpus for this turn (Projects canary). corpus_id = the
+    # local-first project id the user selected; absent means no active project.
+    # It binds via fi_runner.active_corpus_binding so the agent scopes its
+    # rag_store search to THIS corpus. Pre-Gate-3 it is NOT authorization — a
+    # shared bearer guards the route; ownership lands with auth (PROJ-ACCOUNT).
+    corpus_id: str | None = None
 
 
 class TTSRequest(BaseModel):
@@ -186,8 +192,13 @@ async def chat_stream(
         yield _sse({"type": "open", "request_id": request_id})
         try:
             history = [m.model_dump() for m in req.history] if req.history else None
+            context = {"corpus_id": req.corpus_id} if req.corpus_id else None
             async for event in _runner.run_stream(
-                req.message, session_id=req.session_id, request_id=request_id, history=history
+                req.message,
+                session_id=req.session_id,
+                request_id=request_id,
+                history=history,
+                context=context,
             ):
                 yield _sse(event)
         except Exception as exc:  # surface as a stream event, never a 500 mid-stream
