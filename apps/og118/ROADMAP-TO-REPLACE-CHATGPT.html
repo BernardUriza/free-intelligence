@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-21 · Canary Projects COMPLETO end-to-end (proj-tracer/corpusbind/upload/uploadui/sidebar mergeados #255-#258) · Continuidad sin store MERGEADA a main (client-sent history, PR #260) · FIGLASS-18 re-smoke humano pendiente · Pendientes top: smoke humano de voz + decisión de cuenta (proj-account) + Gate 3</p>
+  <p class="subtitle">Actualizado 2026-06-21 · Canary Projects E2E VERIFICADO EN PROD: subir→bind del corpus activo→el agente recupera ($347 del doc subido, search_documents scoped al corpus exacto) — PR #262 (corpus-binding) + #263 (fix permisos rag store ACA) · Continuidad sin store MERGEADA (#260) · FIGLASS-18 re-smoke humano pendiente · Pendientes top: smoke humano de voz + decisión de cuenta (proj-account, ADR listo) + Gate 3</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -465,7 +465,7 @@
 
     <label class="item"><input type="checkbox" checked>
       <div class="item-body"><div class="item-text done">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
-      <div class="item-note">DONE en DOS capas. (1) FRAMEWORK: el binding subió ARRIBA a fi-runner (NO parchado en og118) como nivel configurable — fi_runner.active_corpus_binding, PR #256 (6a0aa374). (2) CONSUMER WIRING: og118 NO lo usaba — /chat/stream no mandaba corpus_id y el agente NUNCA buscaba en el corpus del proyecto activo (subías la lista escolar pero "¿cuánto cuesta el cuaderno?" no la consultaba). Cableado opt-in en PR #262: ChatRequest.corpus_id → run_stream(context=) → context_prompt=active_corpus_binding(); useOg118Agent(sessionId, activeCorpusId). TDD 65/65 server + 5/5 fi-runner + 26/26 web + build. Pendiente: e2e live de recuperación (deploy + smoke). Esto hace Projects funcional de verdad pre-Gate-3.</div></div>
+      <div class="item-note">DONE en DOS capas. (1) FRAMEWORK: el binding subió ARRIBA a fi-runner (NO parchado en og118) como nivel configurable — fi_runner.active_corpus_binding, PR #256 (6a0aa374). (2) CONSUMER WIRING: og118 NO lo usaba — /chat/stream no mandaba corpus_id y el agente NUNCA buscaba en el corpus del proyecto activo (subías la lista escolar pero "¿cuánto cuesta el cuaderno?" no la consultaba). Cableado opt-in en PR #262: ChatRequest.corpus_id → run_stream(context=) → context_prompt=active_corpus_binding(); useOg118Agent(sessionId, activeCorpusId). TDD 65/65 server + 5/5 fi-runner + 26/26 web + build. E2E VERIFICADO en staging 2026-06-21: el bundle real manda corpus_id, el agente llamó list_documents Y search_documents scoped al corpus exacto del proyecto activo, y recuperó "$347 pesos" (dato fabricado que solo vive en el doc subido = prueba un-fakeable). Destapó un bug pre-existente del rag store en ACA (Permission denied fi_rag_store.h5.lock, WORKDIR root-owned vs user non-root) arreglado en PR #263 (FI_RAG_STORE_PATH → /opt/fi/data chowned). Projects funcional de verdad pre-Gate-3.</div></div>
       <span class="item-tag">proj-corpusbind</span></label>
 
     <label class="item"><input type="checkbox">
