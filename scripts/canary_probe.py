@@ -32,6 +32,7 @@ Run as a one-shot:  python -m scripts.canary_probe   (exits 0 / non-zero)
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import sys
 import uuid
@@ -165,6 +166,13 @@ async def run_probe(
                         canary_channel_id=channel_id,
                     ):
                         log.info("canary_probe_ok", nonce=nonce)
+                        # Self-clean: delete our own probe message now that the
+                        # match is confirmed (no race — verification already
+                        # happened). Best-effort; the OK exit must not depend on
+                        # cleanup. Insult deletes its own echo on its side.
+                        with contextlib.suppress(Exception):
+                            async with session.delete(f"{DISCORD_API}/channels/{channel_id}/messages/{after_id}"):
+                                pass
                         return EXIT_OK
             await asyncio.sleep(_POLL_INTERVAL_SECONDS)
 

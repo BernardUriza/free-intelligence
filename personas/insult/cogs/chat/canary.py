@@ -13,12 +13,19 @@ bot guard drops it. Identity is gated by ID, never by message content alone.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import re
 
 import discord
 import structlog
 
 log = structlog.get_logger()
+
+# Delay before the bot deletes its own CANARY_OK echo. The REST probe polls up
+# to ~45s for this reply, so the echo must outlive the probe's match window;
+# this keeps #canary self-cleaning WITHOUT racing the probe into a false timeout.
+_CANARY_ECHO_TTL_SECONDS = 20.0
 
 CANARY_PREFIX = "CANARY insult "
 CANARY_OK_PREFIX = "CANARY_OK "
@@ -70,6 +77,17 @@ async def try_handle_canary(message: discord.Message, settings) -> bool:
     nonce = is_canary_message(message, settings)
     if nonce is None:
         return False
-    await message.channel.send(f"CANARY_OK {nonce}")
+    echo = await message.channel.send(f"CANARY_OK {nonce}")
     log.info("canary_ok", nonce=nonce, channel_id=str(message.channel.id))
+    # Keep #canary visually empty: delete our own echo after the probe has had
+    # time to match it. The */5 cadence and the LOG-based heartbeat alert are
+    # untouched (they read logs, not channel messages). Best-effort, detached —
+    # a failed cleanup must never affect the liveness contract.
+    asyncio.create_task(_delete_after(echo, _CANARY_ECHO_TTL_SECONDS))  # noqa: RUF006
     return True
+
+
+async def _delete_after(msg: discord.Message, delay_s: float) -> None:
+    await asyncio.sleep(delay_s)
+    with contextlib.suppress(discord.HTTPException):
+        await msg.delete()
