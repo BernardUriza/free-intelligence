@@ -180,3 +180,15 @@ def test_valid_targets_mirror_the_registry_in_lockstep():
 
     expected = {"insult", *(p.persona_id for p in all_personas())}
     assert set(llm_shadow_router._VALID_TARGETS) == expected
+
+
+def test_routing_instruction_encodes_intent_not_mention():
+    """Guard the false-positive fix (2026-06-21): the router must route on INTENT,
+    not on a topic word appearing. Someone reverting to keyword-matching ('mentions
+    a movie -> vultur') would re-introduce the misroute Bernard hit. Pin the
+    discriminating language + the mention counter-examples."""
+    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    assert "intent" in instr
+    assert "passing" in instr  # "mentioning ... in passing is NOT enough"
+    assert "recommend" in instr or "recomi" in instr  # the seeking-expertise signal
+    assert "netflix" in instr  # the exact false-positive trigger, now a counter-example

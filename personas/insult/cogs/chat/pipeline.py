@@ -169,6 +169,12 @@ class TurnRuntimeDeps:
     # router stays shadow-only. A cutover fault falls back to the live rule.
     host_router_cutover: Callable[[str | None, str], str | None] | None = None
 
+    # Weekly $5 spend cap for the gpt-4.1 router (HOST 5/6, Bernard 2026-06-21), or
+    # None when the LLM router is disabled. The LLM-shadow stage checks ``can_spend()``
+    # before the Azure call and ``record()``s the real token cost after; over the cap
+    # the router fails SAFE. Typed ``Any`` so this DTO never imports demux_ai.
+    router_budget: Any = None
+
 
 @dataclass
 class TurnCtx:

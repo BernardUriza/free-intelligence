@@ -37,6 +37,7 @@ from personas.insult.composition import (
     build_host_router_cutover,
     build_llm_shadow_router,
     build_preset_engine_port,
+    build_router_budget,
     build_s1b_policy_port,
     build_shadow_router,
     default_arc_port,
@@ -88,6 +89,10 @@ class ChatCog(commands.Cog):
         # the bind stage ACTS on the deterministic router's decision (sets
         # persona_id) instead of only logging; a fault falls back to the live rule.
         self._host_router_cutover = build_host_router_cutover(self.settings)
+        # Weekly $5 spend cap for the gpt-4.1 router (HOST 5/6). None unless the LLM
+        # router is enabled; the LLM-shadow stage consults it and fails safe when
+        # the week's spend crosses the cap.
+        self._router_budget = build_router_budget(self.settings)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -172,6 +177,7 @@ class ChatCog(commands.Cog):
                     shadow_route=self._shadow_route,
                     llm_shadow_route=self._llm_shadow_route,
                     host_router_cutover=self._host_router_cutover,
+                    router_budget=self._router_budget,
                 ),
             )
         except BaseException as e:

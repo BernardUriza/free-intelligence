@@ -105,14 +105,38 @@ async def _run_llm_shadow_decision(
     current_target: str,
     guild_id: str | None,
     channel_id: str,
+    router_budget: Any = None,
 ) -> None:
     """Run the gpt-4.1 LLM shadow route (HOST 5/6 slice A.2) and LOG its decision
     next to where the turn ACTUALLY went. Runs as a BACKGROUND task so the Azure
     call never delays the user's reply (no observable behavior change, no cutover).
     Wrapped: a shadow fault logs ``llm_shadow_router_failed`` and is invisible to
-    the turn — it must never raise into the pipeline."""
+    the turn — it must never raise into the pipeline.
+
+    Spend-capped: ``router_budget`` ($5/week, Bernard 2026-06-21) is checked BEFORE
+    the Azure call and the call's real token cost recorded after. Over the weekly cap
+    the router fails SAFE (skips the call) — an honored budget, not a 'trust me it's
+    cheap'."""
+    if router_budget is not None and not router_budget.can_spend():
+        log.warning(
+            "llm_router_budget_exceeded",
+            spent_usd=round(router_budget.spent_this_week(), 4),
+            cap_usd=router_budget.cap_usd,
+            guild_id=guild_id,
+            channel_id=channel_id,
+        )
+        return
     try:
         decision = await llm_shadow_route(raw_text)
+        if router_budget is not None:
+            total = router_budget.record(decision.input_tokens, decision.output_tokens)
+            log.info(
+                "llm_router_spend",
+                call_input_tokens=decision.input_tokens,
+                call_output_tokens=decision.output_tokens,
+                week_spent_usd=round(total, 4),
+                cap_usd=router_budget.cap_usd,
+            )
         log.info(
             "llm_shadow_router_decision",
             current_target=current_target,
@@ -235,7 +259,14 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
         else:
             current_target = ctx.persona_id or "insult"
             ctx.deps.spawn_task(
-                _run_llm_shadow_decision(llm_shadow_route, raw_text, current_target, ctx.guild_id, ctx.channel_id),
+                _run_llm_shadow_decision(
+                    llm_shadow_route,
+                    raw_text,
+                    current_target,
+                    ctx.guild_id,
+                    ctx.channel_id,
+                    getattr(ctx.deps, "router_budget", None),
+                ),
                 name="llm_shadow_router",
             )
 
