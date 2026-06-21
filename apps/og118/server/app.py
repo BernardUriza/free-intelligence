@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
@@ -23,7 +23,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
+from fi_runner.auth import (
+    AuthConfig,
+    Auth0Validator,
+    Principal,
+    legacy_principal,
+    make_auth_dependency,
+)
 from fi_runner.rag_store import RagStoreClient
+from projects import ProjectRegistry
 from runner import build_runner
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
@@ -55,17 +63,59 @@ _ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("OG118_ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()
 ]
 
-# Single-user access gate. UNSET = open (local dev convenience). SET = every
-# /chat/stream call must carry `Authorization: Bearer <token>`. Cloud MUST set
-# it — a public, ungated backend would let anyone burn the API-key billing.
+# Auth gate. OG118_AUTH_MODE picks the level (default `bearer` = today's behavior,
+# nothing changes until explicitly flipped — the lockout-prevention guarantee):
+#   bearer → legacy shared OG118_ACCESS_TOKEN speed-bump (synthetic identity)
+#   dual   → accept a valid Auth0 JWT OR the legacy bearer (zero-downtime cutover)
+#   auth0  → Auth0 JWT only
+# The Auth0 validation + dual-accept come from the fi_runner.auth framework
+# primitive (the og118-Gate-3 canary). `principal.sub` is the account_id that
+# owns projects (PROJ-ACCOUNT-1).
 _ACCESS_TOKEN = os.getenv("OG118_ACCESS_TOKEN")
+_AUTH_MODE = os.getenv("OG118_AUTH_MODE", "bearer").lower()
+_AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+_AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
+_auth0_validator = (
+    Auth0Validator(AuthConfig(domain=_AUTH0_DOMAIN, audience=_AUTH0_AUDIENCE))
+    if _AUTH0_DOMAIN and _AUTH0_AUDIENCE
+    else None
+)
+
+
+def _bearer_dep(authorization: str | None = Header(default=None)) -> Principal:
+    """Legacy speed-bump: open when no token is set (local dev), else require the
+    shared bearer. Identity is the synthetic legacy principal."""
+    if _ACCESS_TOKEN:
+        expected = f"Bearer {_ACCESS_TOKEN}"
+        if not authorization or not hmac.compare_digest(authorization, expected):
+            raise HTTPException(status_code=401, detail="invalid or missing access token")
+    return legacy_principal()
+
+
+def _build_principal_impl() -> Callable[..., Principal]:
+    if _AUTH_MODE == "bearer":
+        return _bearer_dep
+    if _AUTH_MODE == "dual":
+        return make_auth_dependency(_auth0_validator, legacy_bearer=_ACCESS_TOKEN)
+    if _AUTH_MODE == "auth0":
+        return make_auth_dependency(_auth0_validator)
+    raise RuntimeError(f"OG118_AUTH_MODE must be bearer|dual|auth0 (got {_AUTH_MODE!r})")
+
+
+_principal_impl = _build_principal_impl()
+
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
-    if not _ACCESS_TOKEN:
+    if _AUTH_MODE == "bearer" and not _ACCESS_TOKEN:
         logger.warning(
-            "OG118_ACCESS_TOKEN is unset: /chat/stream is OPEN (no auth). "
-            "Fine for local dev; MUST be set in any cloud/staging deploy."
+            "OG118_AUTH_MODE=bearer with OG118_ACCESS_TOKEN unset: routes are OPEN. "
+            "Fine for local dev; MUST set the token (or a real mode) in any cloud deploy."
+        )
+    if _AUTH_MODE in ("dual", "auth0") and _auth0_validator is None:
+        logger.error(
+            "OG118_AUTH_MODE=%s but AUTH0_DOMAIN/AUTH0_AUDIENCE are unset — every "
+            "request would 401. Set them or revert to bearer mode.", _AUTH_MODE
         )
     yield
 
@@ -80,19 +130,11 @@ app.add_middleware(
 )
 
 
-def require_access(authorization: str | None = Header(default=None)) -> None:
-    """Gate /chat/stream behind a bearer token when OG118_ACCESS_TOKEN is set.
-
-    Unset → no gate (local dev). Set → constant-time compare against
-    `Bearer <token>`; 401 on mismatch/absence. /health stays ungated so Azure
-    can probe it. NOTE: this is a single-user speed-bump, not real auth — a
-    network/identity gate is still required for stable production.
-    """
-    if not _ACCESS_TOKEN:
-        return
-    expected = f"Bearer {_ACCESS_TOKEN}"
-    if not authorization or not hmac.compare_digest(authorization, expected):
-        raise HTTPException(status_code=401, detail="invalid or missing access token")
+def get_principal(authorization: str | None = Header(default=None)) -> Principal:
+    """The authenticated caller for a request, per OG118_AUTH_MODE. Overridable
+    in tests via app.dependency_overrides (like get_rag_store). `principal.sub`
+    is the account_id used for project ownership."""
+    return _principal_impl(authorization=authorization)
 
 
 _runner = build_runner()
@@ -131,6 +173,24 @@ def get_rag_store() -> RagStoreClient:
     if _rag_store is None:
         _rag_store = RagStoreClient()
     return _rag_store
+
+
+_project_registry: ProjectRegistry | None = None
+
+
+def get_project_registry() -> ProjectRegistry:
+    """Dependency seam: the server-authoritative project↔owner↔corpus map (JSON
+    on the Azure Files volume). Path from OG118_PROJECT_REGISTRY_PATH, defaulting
+    next to FI_RAG_STORE_PATH. Overridable in tests via app.dependency_overrides
+    so they hit a tmp registry, never prod."""
+    global _project_registry
+    if _project_registry is None:
+        default = os.path.join(
+            os.path.dirname(os.getenv("FI_RAG_STORE_PATH", "/opt/fi/data/fi_rag_store.h5")),
+            "projects.json",
+        )
+        _project_registry = ProjectRegistry(os.getenv("OG118_PROJECT_REGISTRY_PATH", default))
+    return _project_registry
 
 
 class HistoryMessage(BaseModel):
@@ -185,8 +245,17 @@ async def health() -> dict:
 
 @app.post("/chat/stream")
 async def chat_stream(
-    req: ChatRequest, _: None = Depends(require_access)
+    req: ChatRequest,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
 ) -> StreamingResponse:
+    # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
+    # from client-asserted into server-validated (no cross-account corpus reads).
+    # Skipped for the legacy single shared account (bearer mode): there is one
+    # tenant, ownership is moot, and pre-registry corpora keep working.
+    if req.corpus_id and not principal.is_legacy_bearer and not registry.owns(req.corpus_id, principal.sub):
+        raise HTTPException(status_code=404, detail="project not found")
+
     async def generate() -> AsyncIterator[str]:
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
@@ -215,7 +284,7 @@ async def chat_stream(
 @app.post("/tts/synthesize")
 async def tts_synthesize(
     req: TTSRequest,
-    _: None = Depends(require_access),
+    _: Principal = Depends(get_principal),
     provider: TTSProvider | None = Depends(get_tts_provider),
 ) -> Response:
     """Synthesize speech for `text` and return the raw audio blob.
@@ -283,7 +352,7 @@ class TranscriptResponse(BaseModel):
 @app.post("/stt/transcribe")
 async def stt_transcribe(
     audio: UploadFile = File(...),
-    _: None = Depends(require_access),
+    _: Principal = Depends(get_principal),
     provider: STTProvider | None = Depends(get_stt_provider),
 ) -> TranscriptResponse:
     """Transcribe one recorded audio chunk and return its text.
@@ -353,33 +422,60 @@ class ProjectCreateRequest(BaseModel):
 
 @app.post("/projects")
 async def create_project(
-    req: ProjectCreateRequest, _: None = Depends(require_access)
+    req: ProjectCreateRequest,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
 ) -> dict:
-    """Mint a project + its corpus_id SERVER-SIDE (proj-account-mint, the auth-
-    agnostic first slice of PROJ-ACCOUNT-1). The client never decides the corpus_id
-    — it asks for one. Closes the 'client fabricates the corpus_id' gap so a caller
-    can't land on another corpus by choosing its id. Ownership tying the project to
-    a real account_id is the Gate-3 follow-up; pre-Gate-3 the shared bearer gates
-    the route."""
-    project_id = f"project-{uuid.uuid4()}"
-    return {"project_id": project_id, "name": req.name}
+    """Mint a project + its corpus_id SERVER-SIDE, OWNED by the caller's account
+    (PROJ-ACCOUNT-1). The client never decides the corpus_id; the owner (account_id
+    = principal.sub) is stamped server-side so only the owner can reach it."""
+    project = registry.create(principal.sub, req.name)
+    return {"project_id": project["id"], "name": project["name"]}
+
+
+@app.get("/projects")
+async def list_projects(
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
+) -> dict:
+    """The caller's projects (server-authoritative, filtered by owner account)."""
+    return {"projects": registry.list_for(principal.sub)}
+
+
+@app.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
+    rag: RagStoreClient = Depends(get_rag_store),
+) -> dict:
+    """Delete a project the caller owns AND its corpus (no orphaned consultable
+    docs). 404 if missing or not owned (no existence probing)."""
+    if not registry.delete(project_id, principal.sub):
+        raise HTTPException(status_code=404, detail="project not found")
+    await rag.delete_corpus(project_id)
+    return {"deleted": project_id}
 
 
 @app.post("/projects/{project_id}/upload")
 async def upload_project_document(
     project_id: str,
     file: UploadFile = File(...),
-    _: None = Depends(require_access),
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
     rag: RagStoreClient = Depends(get_rag_store),
 ) -> dict:
     """Ingest a text document into the project's corpus (corpus_id=project_id).
 
-    Plain text in (txt/md): the bytes are decoded as UTF-8, chunked + persisted
-    under the file's name. Binary/non-UTF-8 or empty → 400 (PDF/DOCX extraction is
-    the caller's job). The agent's rag_store tools then search this corpus when the
-    project is the active corpus (see fi_runner.active_corpus_binding). Auth-agnostic
-    for now: gated by the same bearer speed-bump as the other routes, NOT tied to a
-    user until Gate 3."""
+    The caller must OWN the project (404 otherwise — no existence probing). Plain
+    text in (txt/md): the bytes are decoded as UTF-8, chunked + persisted under the
+    file's name. Binary/non-UTF-8 or empty → 400 (PDF/DOCX extraction is the
+    caller's job). The agent's rag_store tools then search this corpus when the
+    project is the active corpus (see fi_runner.active_corpus_binding)."""
+    # Ownership enforced for real accounts; the legacy single shared account
+    # (bearer mode) skips it so pre-registry corpora keep working.
+    if not principal.is_legacy_bearer and not registry.owns(project_id, principal.sub):
+        raise HTTPException(status_code=404, detail="project not found")
     raw = await file.read()
     if not raw:
         raise HTTPException(

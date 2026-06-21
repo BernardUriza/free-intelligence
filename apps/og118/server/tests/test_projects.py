@@ -37,6 +37,13 @@ def store(monkeypatch, tmp_path):
     app_module.app.dependency_overrides.clear()
 
 
+def _create(client: TestClient, name: str = "P", **kw) -> str:
+    """Create a project (owned by the calling principal) and return its id."""
+    resp = client.post("/projects", json={"name": name}, **kw)
+    assert resp.status_code == 200, resp.text
+    return resp.json()["project_id"]
+
+
 def _upload(client: TestClient, project_id: str, filename: str, text: str, **kw):
     return client.post(
         f"/projects/{project_id}/upload",
@@ -46,29 +53,32 @@ def _upload(client: TestClient, project_id: str, filename: str, text: str, **kw)
 
 
 def test_upload_ingests_and_is_searchable(client: TestClient, store: RagStoreClient) -> None:
+    pid = _create(client, "Papelería")
     text = (
         "La papelería vende cuadernos profesionales, lápices y mochilas escolares. "
         "El margen más alto está en las mochilas y los estuches, no en los lápices. "
         "En agosto suben los precios de los cuadernos por el regreso a clases."
     )
-    resp = _upload(client, "project-papeleria", "inventario.md", text)
+    resp = _upload(client, pid, "inventario.md", text)
     assert resp.status_code == 200
     body = resp.json()
-    assert body["corpus_id"] == "project-papeleria"
+    assert body["corpus_id"] == pid
     assert body["doc_id"] == "inventario.md"
     assert body["chunks"] > 0
     # The ingested text is retrievable from the SAME corpus the agent searches.
-    hits = asyncio.run(store.search("project-papeleria", "¿qué tiene mejor margen?"))
+    hits = asyncio.run(store.search(pid, "¿qué tiene mejor margen?"))
     assert hits and all(h["doc_id"] == "inventario.md" for h in hits)
 
 
 def test_empty_file_returns_400(client: TestClient) -> None:
-    assert _upload(client, "p1", "empty.md", "").status_code == 400
+    pid = _create(client)
+    assert _upload(client, pid, "empty.md", "").status_code == 400
 
 
 def test_non_utf8_file_returns_400(client: TestClient) -> None:
+    pid = _create(client)
     resp = client.post(
-        "/projects/p1/upload",
+        f"/projects/{pid}/upload",
         files={"file": ("bin.dat", io.BytesIO(b"\xff\xfe\x00\x01"), "application/octet-stream")},
     )
     assert resp.status_code == 400
@@ -76,9 +86,13 @@ def test_non_utf8_file_returns_400(client: TestClient) -> None:
 
 def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
+    hdr = {"Authorization": "Bearer s3cr3t-token"}
+    # No bearer → 401 even to create.
+    assert client.post("/projects", json={"name": "p"}).status_code == 401
+    pid = _create(client, "p", headers=hdr)
     text = "La papelería vende cuadernos profesionales y mochilas escolares de buena calidad."
-    assert _upload(client, "p1", "a.md", text).status_code == 401  # no bearer
-    ok = _upload(client, "p1", "a.md", text, headers={"Authorization": "Bearer s3cr3t-token"})
+    assert _upload(client, pid, "a.md", text).status_code == 401  # no bearer
+    ok = _upload(client, pid, "a.md", text, headers=hdr)
     assert ok.status_code == 200
 
 
