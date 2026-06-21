@@ -17,6 +17,7 @@ from fi_runner import (
     PermissionMode,
     Runner,
     ToolPolicy,
+    active_corpus_binding,
 )
 
 PERSONA = (
@@ -47,6 +48,13 @@ def build_runner() -> Runner:
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
         # hashing zero-model embedder by default (no LLM, no network for retrieval).
         capabilities=["task_tracker", "rag_store"],
+        # proj-corpusbind consumer wiring: when /chat/stream carries a corpus_id
+        # (the user's active project), this binding folds "search ONLY corpus X"
+        # into the turn's system prompt so the agent's rag_store tools retrieve
+        # from the active project's corpus. No active project → no addendum, the
+        # persona is byte-identical to before. The framework primitive is agnostic
+        # to WHAT the id is; og118's local-first project id is the corpus_id.
+        context_prompt=active_corpus_binding(),
         # DD-002C → og118-continuity canary: conversation continuity by CLIENT-SENT
         # history replay. og118 is local-first — the transcript lives in the
         # browser's IndexedDB and the client replays it on each /chat/stream turn

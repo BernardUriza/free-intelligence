@@ -114,7 +114,10 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
   }
 }
 
-export function useOg118Agent(sessionId: string | null): AgentHook {
+export function useOg118Agent(
+  sessionId: string | null,
+  activeCorpusId: string | null = null,
+): AgentHook {
   const [turn, setTurn] = useState<AgentTurnState>(initialAgentTurnState());
   const [isStreaming, setIsStreaming] = useState(false);
   // DD-002B1.3: the active conversation id is owned by the conversation library
@@ -124,6 +127,11 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
   // after a chat switch (the active id changes without recreating send).
   const sessionIdRef = useRef<string | null>(sessionId);
   sessionIdRef.current = sessionId;
+  // proj-corpusbind: the active project's corpus, read by the stable send()
+  // closure at call time (like sessionId). When set, it scopes the agent's
+  // rag_store search to that corpus this turn; null → no active project.
+  const corpusIdRef = useRef<string | null>(activeCorpusId);
+  corpusIdRef.current = activeCorpusId;
   // B3-FIGLASS-8: the in-flight request, so the framework's turn-timeout watchdog
   // (useAgentConversation) can actually CANCEL the network call via abort() — not
   // just drop the UI out of streaming. Without this the timed-out fetch would leak.
@@ -141,6 +149,7 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
     // Send ONLY role/content — never ids, timestamps, tool payloads, or audio
     // metadata (privacy + the backend treats it as untrusted context, not auth).
     const history = (meta?.history ?? []).map((m) => ({ role: m.role, content: m.content }));
+    const corpusId = corpusIdRef.current;
 
     let state = initialAgentTurnState();
     setTurn(state);
@@ -157,7 +166,7 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ message: text, session_id: sid, history }),
+        body: JSON.stringify({ message: text, session_id: sid, history, ...(corpusId ? { corpus_id: corpusId } : {}) }),
         signal: controller.signal,
       });
       if (res.status === 401) {

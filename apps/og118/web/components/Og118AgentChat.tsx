@@ -65,7 +65,7 @@ const audioQueueStore = new AudioQueueStore();
 export function Og118AgentChat() {
   const lib = useConversationLibrary(conversationLibrary);
   const projects = useOg118Projects();
-  const agent = useOg118Agent(lib.activeId);
+  const agent = useOg118Agent(lib.activeId, projects.activeProjectId);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,
     initialMessages: lib.activeMessages,
