@@ -470,7 +470,7 @@
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">DECISIÓN DE BERNARD: modelo de cuenta = qué corpus_id se asigna (recomendado: per-project)</div>
-      <div class="item-note">El corpus_id ES el modelo de privacidad. Recomendado #3 per-project (project-{id}): niños = sin proyecto (cuenta abierta, cero fuga); negocio de mamá = proyecto privado con su propio corpus, invisible en la cuenta abierta. No requiere auth para empezar; al llegar Gate 3 (auth real) el proyecto se ata al user. Evita la fuga de precios de proveedor a los niños.</div></div>
+      <div class="item-note">ADR LISTO PARA DECIDIR → apps/og118/PROJ-ACCOUNT-ADR-1.md (decision pack del coagent vía exchange-coagent, 2026-06-21). Hueco confirmado en código: hoy el cliente fabrica el corpus_id (crypto.randomUUID en useOg118Projects.ts:46, corpus_id==project_id). Recomendación: account→projects→corpus per-project, corpus_id generado server-side. El corpus_id ES el modelo de privacidad. Decisión abierta: ¿corpus_id server-side ya (PROJ-ACCOUNT-1 pre-Gate-3) o diferido a Auth0?</div></div>
       <span class="item-tag">proj-account</span></label>
   </div>
 
