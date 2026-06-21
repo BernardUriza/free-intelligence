@@ -16,8 +16,32 @@ def _user(uid: int):
     return SimpleNamespace(id=uid)
 
 
-def _msg(*, author_bot: bool, mentions: list, content: str = ""):
-    return SimpleNamespace(author=SimpleNamespace(bot=author_bot), mentions=mentions, content=content)
+def _role(rid: int):
+    return SimpleNamespace(id=rid)
+
+
+def _guild(gid: int, bot_role_ids: list[int]):
+    """A guild whose `me` (the bot member) carries `bot_role_ids` plus @everyone
+    (whose role id equals the guild id, by Discord convention)."""
+    me = SimpleNamespace(roles=[_role(gid), *(_role(r) for r in bot_role_ids)])
+    return SimpleNamespace(id=gid, me=me)
+
+
+def _msg(
+    *,
+    author_bot: bool,
+    mentions: list,
+    content: str = "",
+    role_mentions: list | None = None,
+    guild=None,
+):
+    return SimpleNamespace(
+        author=SimpleNamespace(bot=author_bot),
+        mentions=mentions,
+        content=content,
+        role_mentions=role_mentions or [],
+        guild=guild,
+    )
 
 
 # --- should_respond ---------------------------------------------------------
@@ -47,6 +71,44 @@ def test_ignores_when_not_ready():
     # RESISTANCE: before on_ready, self.user is None.
     msg = _msg(author_bot=False, mentions=[])
     assert should_respond(msg, None) is False
+
+
+def test_responds_to_own_role_mention():
+    # POSITIVE: pinging the bot's OWN role (the classic "I pinged the bot's role
+    # expecting it to ping the bot" gotcha) summons it, same as a user mention.
+    bot = _user(123)
+    bot_role = _role(456)
+    guild = _guild(gid=789, bot_role_ids=[456])
+    msg = _msg(author_bot=False, mentions=[], role_mentions=[bot_role], guild=guild)
+    assert should_respond(msg, bot) is True
+
+
+def test_ignores_everyone_role_mention():
+    # RESISTANCE: @everyone has role id == guild id; it must NEVER summon the bot
+    # even though the bot trivially "has" @everyone (mass-ping safe).
+    bot = _user(123)
+    everyone = _role(789)
+    guild = _guild(gid=789, bot_role_ids=[456])
+    msg = _msg(author_bot=False, mentions=[], role_mentions=[everyone], guild=guild)
+    assert should_respond(msg, bot) is False
+
+
+def test_ignores_role_the_bot_does_not_have():
+    # RESISTANCE: pinging some OTHER role the bot isn't in → silent.
+    bot = _user(123)
+    other_role = _role(999)
+    guild = _guild(gid=789, bot_role_ids=[456])
+    msg = _msg(author_bot=False, mentions=[], role_mentions=[other_role], guild=guild)
+    assert should_respond(msg, bot) is False
+
+
+def test_ignores_own_role_mention_from_bot_author():
+    # RESISTANCE: another bot pings Vultur's role → must NOT answer (no loops).
+    bot = _user(123)
+    bot_role = _role(456)
+    guild = _guild(gid=789, bot_role_ids=[456])
+    msg = _msg(author_bot=True, mentions=[], role_mentions=[bot_role], guild=guild)
+    assert should_respond(msg, bot) is False
 
 
 # --- clean_mention ----------------------------------------------------------

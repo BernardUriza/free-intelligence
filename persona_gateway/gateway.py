@@ -71,12 +71,25 @@ def should_respond(message: discord.Message, bot_user: discord.abc.User | None) 
     - `author.bot` guard: never auto-invoke, never answer another bot (prevents
       Insult ↔ Vultur loops — same fix as Insult/ALICE v4.20.19).
     - mention-gated: opt-in by design; the host (Insult) is the only omnipresent
-      one. `bot_user in message.mentions` is a DIRECT user mention (not @everyone
-      or a role), so it doesn't fire on mass pings.
+      one. A DIRECT user mention (`bot_user in message.mentions`) fires.
+    - ROLE mention of the bot's OWN role also fires: pinging the bot's
+      integration role (or a custom role assigned to the bot) is the classic "I
+      pinged the bot's role expecting it to ping the bot" gotcha — `<@&roleid>`,
+      not `<@userid>`, so it never landed in `message.mentions`. We honor it IFF
+      the mentioned role is one THIS bot actually carries, and NEVER @everyone
+      (its role id equals the guild id), so it stays mass-ping safe.
     """
     if bot_user is None or message.author.bot:
         return False
-    return bot_user in message.mentions
+    if bot_user in message.mentions:
+        return True
+    guild = getattr(message, "guild", None)
+    if guild is not None:
+        own_role_ids = {r.id for r in getattr(guild.me, "roles", [])}
+        own_role_ids.discard(guild.id)  # @everyone — never a summon
+        if any(role.id in own_role_ids for role in getattr(message, "role_mentions", [])):
+            return True
+    return False
 
 
 def format_context(recent: list[dict]) -> list[dict]:
