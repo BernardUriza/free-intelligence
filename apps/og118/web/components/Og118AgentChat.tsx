@@ -51,6 +51,8 @@ import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
+import { Og118ProjectsSection } from './Og118ProjectsSection';
+import { useOg118Projects } from '@/lib/useOg118Projects';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 
@@ -62,6 +64,7 @@ const audioQueueStore = new AudioQueueStore();
 
 export function Og118AgentChat() {
   const lib = useConversationLibrary(conversationLibrary);
+  const projects = useOg118Projects();
   const agent = useOg118Agent(lib.activeId);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,
@@ -388,6 +391,21 @@ export function Og118AgentChat() {
       responsive
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
+        <>
+        <Og118ProjectsSection
+          projects={projects.projects}
+          activeProjectId={projects.activeProjectId}
+          onCreate={(name) => {
+            projects.createProject(name);
+            shell.close();
+          }}
+          onSelect={(id) => {
+            projects.selectProject(id);
+            shell.close();
+          }}
+          onDelete={(id) => projects.deleteProject(id)}
+          disabled={conversation.isStreaming}
+        />
         <Og118Sidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
@@ -408,6 +426,7 @@ export function Og118AgentChat() {
           }
           disabled={conversation.isStreaming}
         />
+        </>
       )}
       conversation={
         <AgentConversationSurface
