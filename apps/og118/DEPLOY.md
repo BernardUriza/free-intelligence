@@ -163,6 +163,32 @@ Follow-up (not blocking): codify these steps in `og118-backend.yml` as idempoten
 ensure-volume steps so a from-scratch ACA recreate is reproducible without manual
 `az`.
 
+## Auth0 (Gate 3) — tenant + app config
+
+Real per-user auth via the shared-dev Auth0 tenant `dev-1r4daup7ofj7q6gn` (the
+tenant FerboliMovil also uses; og118's `fi_runner.auth` validates RS256 JWTs
+against its JWKS — no backend secret). These values are PUBLIC config (a SPA
+client_id is embedded in the browser bundle by design; PKCE means no client
+secret), so they live here, not in `~/.secrets/`.
+
+| Key | Value |
+|---|---|
+| `AUTH0_DOMAIN` (backend + frontend) | `dev-1r4daup7ofj7q6gn.us.auth0.com` |
+| `AUTH0_AUDIENCE` / `NEXT_PUBLIC_AUTH0_AUDIENCE` | `https://api.og118.ai` (the `og118-api` resource server identifier, RS256) |
+| `NEXT_PUBLIC_AUTH0_CLIENT_ID` | `9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj` (the `og118-spa` SPA app) |
+| og118-spa callbacks / logout / web-origins / CORS | `https://og118.ai`, `https://staging.og118.ai`, `http://localhost:3000` |
+
+Wired: `AUTH0_DOMAIN` + `AUTH0_AUDIENCE` + `OG118_AUTH_MODE=dual` set on the
+Container App (plain env, non-secret — sidesteps the `--yaml` secret-redaction
+footgun). `NEXT_PUBLIC_AUTH0_*` go in the SWA build env. Cutover: `dual` (Auth0
+JWT OR legacy bearer) → `auth0` (JWT only) once verified end-to-end on staging.
+
+Tenant recovery note: if locked out of the dashboard by a stale partial-auth MFA
+session, hit `https://auth0.auth0.com/v2/logout` to clear it (the "no logout
+button" trap) — then log in fresh. The debug-Chrome profile has no Auth0 session,
+so it forces full MFA; the daily browser usually has a live "remember this device"
+session.
+
 ## Deferred (gatekeeper LOW findings — follow-ups, not blocking)
 
 - **Refuse-to-start in prod without a token:** `app.py` warns when
