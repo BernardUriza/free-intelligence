@@ -14,7 +14,6 @@ import os
 
 from fi_runner import (
     ClaudeCodeBackend,
-    InMemoryConversationStore,
     PermissionMode,
     Runner,
     ToolPolicy,
@@ -48,13 +47,15 @@ def build_runner() -> Runner:
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
         # hashing zero-model embedder by default (no LLM, no network for retrieval).
         capabilities=["task_tracker", "rag_store"],
-        # DD-002C: semantic conversation continuity by history replay. The Runner
-        # folds the stored transcript (keyed by the client's session_id) into each
-        # turn's prompt, so follow-ups have real context. In-memory is the right
-        # fit here — og118 runs min/max-replicas 1 (sessions are per-replica by
-        # design); lost on ACA restart/redeploy, not multi-replica/multi-device.
-        # max_messages caps the replayed window so per-turn token cost stays bounded.
-        conversation_store=InMemoryConversationStore(max_messages=20),
+        # DD-002C → og118-continuity canary: conversation continuity by CLIENT-SENT
+        # history replay. og118 is local-first — the transcript lives in the
+        # browser's IndexedDB and the client replays it on each /chat/stream turn
+        # (ChatRequest.history). The Runner folds + re-sanitizes it (untrusted
+        # context, never authorization) via sanitize_history. So there is NO
+        # server-side store and the backend is STATELESS: continuity survives an ACA
+        # replica recycle/redeploy/scale automatically (the prior InMemory store was
+        # wiped on restart → the model lost the thread mid-conversation). The
+        # client_history_max_messages / _chars caps bound per-turn token cost.
         tool_policy=ToolPolicy(
             builtin_disallowed=["Bash", "Write", "Edit"],  # no shell/file writes
             # Headless: auto-approve the (safe, in-process) task_tracker MCP tools

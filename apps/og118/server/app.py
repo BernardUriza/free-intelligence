@@ -133,9 +133,23 @@ def get_rag_store() -> RagStoreClient:
     return _rag_store
 
 
+class HistoryMessage(BaseModel):
+    """One prior turn the client replays for continuity. UNTRUSTED — re-sanitized
+    by fi_runner.sanitize_history (role allowlist, caps) before it folds into the
+    prompt. It is conversational context, never authorization."""
+
+    role: str
+    content: str
+
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    # Client-supplied conversation history (og118 is local-first: the transcript
+    # lives in the browser's IndexedDB and is replayed each turn). This is why
+    # continuity survives an ACA replica recycle with NO server-side store — the
+    # durable source of truth is the client, not the backend's RAM.
+    history: list[HistoryMessage] | None = None
 
 
 class TTSRequest(BaseModel):
@@ -171,8 +185,9 @@ async def chat_stream(
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
         try:
+            history = [m.model_dump() for m in req.history] if req.history else None
             async for event in _runner.run_stream(
-                req.message, session_id=req.session_id, request_id=request_id
+                req.message, session_id=req.session_id, request_id=request_id, history=history
             ):
                 yield _sse(event)
         except Exception as exc:  # surface as a stream event, never a 500 mid-stream
