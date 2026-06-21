@@ -128,6 +128,41 @@ automatically.
 - `AURITY` redeploys on any `main` push (its `deploy-azure.yml` has no path
   filter). Adding a path filter there is a separate, permissioned change.
 
+## RAG store persistence (Projects corpora survive redeploys)
+
+The Projects corpus (HDF5 at `FI_RAG_STORE_PATH=/opt/fi/data/...`, set in the
+Dockerfile) is on the container's ephemeral disk by default — **every redeploy
+(each merge) wipes it**, so the user would re-upload after every deploy. Fix: an
+Azure Files share mounted at `/opt/fi/data`. Right-sized for the canary
+(cents/mo, single-replica) vs a managed Postgres+pgvector (the post-Gate-3 scale
+path: `FI_RAG_BACKEND=pgvector` + `FI_RAG_PGVECTOR_DSN`, fi-core ships it).
+
+One-time setup (applied 2026-06-21; the `--image` deploys preserve the mount, but
+re-apply if the Container App is ever recreated):
+
+```bash
+RG=og118-rg; ENV=og118-env; APP=og118-api; SA=og118ragstore
+az storage account create -n "$SA" -g "$RG" -l eastus2 --sku Standard_LRS --kind StorageV2
+KEY=$(az storage account keys list -n "$SA" -g "$RG" --query "[0].value" -o tsv)
+az storage share create --name ragstore --account-name "$SA" --account-key "$KEY" --quota 5
+az containerapp env storage set -n "$ENV" -g "$RG" --storage-name ragstore \
+  --azure-file-account-name "$SA" --azure-file-account-key "$KEY" \
+  --azure-file-share-name ragstore --access-mode ReadWrite
+# Mount via `az containerapp update --yaml` (volumes + volumeMounts at /opt/fi/data)
+# + env HDF5_USE_FILE_LOCKING=FALSE. STRIP the `configuration.secrets` section
+# from the exported YAML before applying — exported secrets are redacted to null
+# and a roundtrip would WIPE them (omission preserves them).
+```
+
+`HDF5_USE_FILE_LOCKING=FALSE` is required: HDF5's file lock fights SMB (Azure
+Files). Safe here because the app is pinned `min=max=1 replica` (one writer).
+Verified: upload → restart revision (wipes ephemeral disk) → retrieve WITHOUT
+re-upload returns the stored value → corpus persisted on the volume.
+
+Follow-up (not blocking): codify these steps in `og118-backend.yml` as idempotent
+ensure-volume steps so a from-scratch ACA recreate is reproducible without manual
+`az`.
+
 ## Deferred (gatekeeper LOW findings — follow-ups, not blocking)
 
 - **Refuse-to-start in prod without a token:** `app.py` warns when
