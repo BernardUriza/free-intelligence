@@ -50,11 +50,6 @@ COPY khimeras_shared/ khimeras_shared/
 # Enforced by tests/arch/test_runner_dockerfile_copies_imports.py.
 COPY demux_ai/ demux_ai/
 COPY persona.md .
-# scripts/canary_probe.py is a RUNNER that ships in the image (not dev-only
-# tooling): the insult-canary ACA Job runs `python scripts/canary_probe.py`
-# (PYTHONPATH=/app) from this same image. Without this COPY the job dies with
-# "No such file or directory". It imports parse_canary_ok from personas/ (above).
-COPY scripts/canary_probe.py scripts/canary_probe.py
 
 # Create storage dir (legacy SQLite path — Postgres is authoritative
 # now but the dir is still referenced by some import-time code).
