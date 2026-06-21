@@ -11,7 +11,8 @@ name: 🛡️ BAIR Gatekeeper
 # centralized in the bair package.
 #
 # PREREQUISITES (configure once on this repo):
-#   - Secrets: BAIR_APP_ID, BAIR_APP_PRIVATE_KEY, ANTHROPIC_API_KEY
+#   - Secrets: BAIR_APP_ID, BAIR_APP_PRIVATE_KEY, CLAUDE_CODE_OAUTH_TOKEN
+#     (this repo's Anthropic auth is OAuth Max, not a direct ANTHROPIC_API_KEY)
 #   - Install the BAIR GitHub App (id 3878034) on BernardUriza/discord-bot
 
 on:
@@ -61,6 +62,10 @@ jobs:
         id: gatekeep
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # This repo's Anthropic auth is OAuth Max (CLAUDE_CODE_OAUTH_TOKEN), the
+          # same token the insult-runner uses — the direct ANTHROPIC_API_KEY is
+          # dead here. bair's deep-analysis path accepts either; OAuth is canonical.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
           PR_NUM: ${{ github.event.pull_request.number }}
