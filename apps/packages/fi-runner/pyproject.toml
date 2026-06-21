@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.17.1"
+version = "0.18.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -45,6 +45,15 @@ codex = []
 # history replay. Just the async client; the deploy runs the Redis instance.
 redis = [
     "redis>=5,<7",
+]
+# Auth layer (fi_runner.auth) — Auth0 RS256/JWKS access-token validation + a
+# FastAPI dependency factory. Opt-in: NOT exported from the top-level package, so
+# `import fi_runner` works without this extra (other consumers stay unaffected);
+# a consumer that wants real auth imports `from fi_runner.auth import ...` and
+# installs this. crypto = the RSA backend PyJWT needs for RS256.
+auth = [
+    "pyjwt[crypto]>=2.8,<3",
+    "cryptography>=42",
 ]
 dev = [
     "pytest>=8.0",
