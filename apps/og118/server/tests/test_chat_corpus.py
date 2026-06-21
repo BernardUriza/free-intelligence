@@ -31,18 +31,21 @@ class _SpyRunner:
         yield {"type": "result", "result": {"text": "ok"}}
 
 
-def test_chat_stream_binds_active_corpus(monkeypatch) -> None:
+def test_chat_stream_binds_active_corpus(monkeypatch, project_registry) -> None:
     spy = _SpyRunner()
     monkeypatch.setattr(app_module, "_runner", spy)
     client = TestClient(app_module.app)
+    # The default (bearer-mode) principal is the legacy account; the corpus must
+    # be OWNED by it or the route 404s before binding.
+    pid = project_registry.create("legacy-bearer", "P")["id"]
 
     resp = client.post(
         "/chat/stream",
-        json={"message": "¿cuánto cuesta el cuaderno?", "corpus_id": "proj-abc"},
+        json={"message": "¿cuánto cuesta el cuaderno?", "corpus_id": pid},
     )
 
     assert resp.status_code == 200
-    assert spy.seen["context"] == {"corpus_id": "proj-abc"}
+    assert spy.seen["context"] == {"corpus_id": pid}
 
 
 def test_chat_stream_corpus_is_optional(monkeypatch) -> None:
