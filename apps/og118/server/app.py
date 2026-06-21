@@ -343,6 +343,28 @@ async def stt_transcribe(
     return TranscriptResponse(text=text)
 
 
+class ProjectCreateRequest(BaseModel):
+    # Only the display name is client-supplied. The corpus_id is NOT — minting it
+    # server-side is the privacy boundary (a client-chosen id could land on another
+    # project's corpus). Any extra field (e.g. a client-sent project_id) is dropped
+    # by pydantic, which is exactly the invariant.
+    name: str | None = None
+
+
+@app.post("/projects")
+async def create_project(
+    req: ProjectCreateRequest, _: None = Depends(require_access)
+) -> dict:
+    """Mint a project + its corpus_id SERVER-SIDE (proj-account-mint, the auth-
+    agnostic first slice of PROJ-ACCOUNT-1). The client never decides the corpus_id
+    — it asks for one. Closes the 'client fabricates the corpus_id' gap so a caller
+    can't land on another corpus by choosing its id. Ownership tying the project to
+    a real account_id is the Gate-3 follow-up; pre-Gate-3 the shared bearer gates
+    the route."""
+    project_id = f"project-{uuid.uuid4()}"
+    return {"project_id": project_id, "name": req.name}
+
+
 @app.post("/projects/{project_id}/upload")
 async def upload_project_document(
     project_id: str,

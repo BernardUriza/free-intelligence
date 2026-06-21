@@ -396,7 +396,7 @@ export function Og118AgentChat() {
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
           onCreate={(name) => {
-            projects.createProject(name);
+            projects.createProject(name).catch((e) => console.error('create project failed', e));
             shell.close();
           }}
           onSelect={(id) => {

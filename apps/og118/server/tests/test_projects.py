@@ -80,3 +80,43 @@ def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None
     assert _upload(client, "p1", "a.md", text).status_code == 401  # no bearer
     ok = _upload(client, "p1", "a.md", text, headers={"Authorization": "Bearer s3cr3t-token"})
     assert ok.status_code == 200
+
+
+# --- proj-account-mint: the corpus_id is minted SERVER-SIDE, never by the client.
+# Auth-agnostic first slice of PROJ-ACCOUNT-1 — closes invariant "the client never
+# decides corpus_id" (ownership tying to an account is the Gate-3 follow-up).
+
+import re
+
+_PROJECT_ID = re.compile(r"^project-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def test_create_project_mints_server_side_id(client: TestClient) -> None:
+    resp = client.post("/projects", json={"name": "Negocio de mamá"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert _PROJECT_ID.match(body["project_id"]), body["project_id"]
+    assert body["name"] == "Negocio de mamá"
+
+
+def test_create_project_ignores_client_supplied_id(client: TestClient) -> None:
+    # The client must NOT be able to choose the corpus_id (would let it land on
+    # someone else's corpus). A client-supplied project_id is ignored; the server
+    # mints its own.
+    resp = client.post("/projects", json={"name": "x", "project_id": "project-victim-corpus"})
+    assert resp.status_code == 200
+    assert resp.json()["project_id"] != "project-victim-corpus"
+    assert _PROJECT_ID.match(resp.json()["project_id"])
+
+
+def test_create_project_mints_unique_ids(client: TestClient) -> None:
+    a = client.post("/projects", json={"name": "a"}).json()["project_id"]
+    b = client.post("/projects", json={"name": "b"}).json()["project_id"]
+    assert a != b
+
+
+def test_create_project_bearer_gated(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
+    assert client.post("/projects", json={"name": "a"}).status_code == 401
+    ok = client.post("/projects", json={"name": "a"}, headers={"Authorization": "Bearer s3cr3t-token"})
+    assert ok.status_code == 200
