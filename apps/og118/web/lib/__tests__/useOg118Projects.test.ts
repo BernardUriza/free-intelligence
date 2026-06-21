@@ -1,10 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 import { useOg118Projects } from '../useOg118Projects';
 
+// createProject now mints the corpus_id SERVER-SIDE (POST /projects). The mock
+// returns a fresh server-minted id per call; the hook must use what the server
+// returns and never fabricate one.
+let mintCount = 0;
+let lastBody: unknown = null;
+
 beforeEach(() => {
   localStorage.clear();
+  mintCount = 0;
+  lastBody = null;
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    lastBody = JSON.parse(String(init.body));
+    mintCount += 1;
+    return {
+      ok: true,
+      json: async () => ({ project_id: `project-server-${mintCount}` }),
+    } as Response;
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('useOg118Projects', () => {
@@ -14,35 +34,37 @@ describe('useOg118Projects', () => {
     expect(result.current.activeProjectId).toBeNull();
   });
 
-  it('creates a project, returns its id, and makes it active', () => {
+  it('creates a project with the SERVER-minted id and makes it active', async () => {
     const { result } = renderHook(() => useOg118Projects());
     let id = '';
-    act(() => {
-      id = result.current.createProject('Negocio de mamá');
+    await act(async () => {
+      id = await result.current.createProject('Negocio de mamá');
     });
-    expect(id).toBeTruthy();
+    expect(id).toBe('project-server-1');
     expect(result.current.projects).toHaveLength(1);
     expect(result.current.projects[0].name).toBe('Negocio de mamá');
     expect(result.current.activeProjectId).toBe(id);
+    // The invariant: the client sends only the name, never a corpus_id.
+    expect(lastBody).toEqual({ name: 'Negocio de mamá' });
   });
 
-  it('the newest created project becomes active', () => {
+  it('the newest created project becomes active', async () => {
     const { result } = renderHook(() => useOg118Projects());
     let second = '';
-    act(() => {
-      result.current.createProject('Uno');
-      second = result.current.createProject('Dos');
+    await act(async () => {
+      await result.current.createProject('Uno');
+      second = await result.current.createProject('Dos');
     });
     expect(result.current.projects).toHaveLength(2);
     expect(result.current.activeProjectId).toBe(second);
   });
 
-  it('selectProject switches the active project', () => {
+  it('selectProject switches the active project', async () => {
     const { result } = renderHook(() => useOg118Projects());
     let first = '';
-    act(() => {
-      first = result.current.createProject('Uno');
-      result.current.createProject('Dos');
+    await act(async () => {
+      first = await result.current.createProject('Uno');
+      await result.current.createProject('Dos');
     });
     act(() => {
       result.current.selectProject(first);
@@ -50,11 +72,11 @@ describe('useOg118Projects', () => {
     expect(result.current.activeProjectId).toBe(first);
   });
 
-  it('deleting the active project clears the active selection', () => {
+  it('deleting the active project clears the active selection', async () => {
     const { result } = renderHook(() => useOg118Projects());
     let id = '';
-    act(() => {
-      id = result.current.createProject('Solo');
+    await act(async () => {
+      id = await result.current.createProject('Solo');
     });
     act(() => {
       result.current.deleteProject(id);
@@ -63,11 +85,11 @@ describe('useOg118Projects', () => {
     expect(result.current.activeProjectId).toBeNull();
   });
 
-  it('persists projects across hook remounts (localStorage)', () => {
+  it('persists projects across hook remounts (localStorage)', async () => {
     const first = renderHook(() => useOg118Projects());
     let id = '';
-    act(() => {
-      id = first.result.current.createProject('Persistente');
+    await act(async () => {
+      id = await first.result.current.createProject('Persistente');
     });
     first.unmount();
 

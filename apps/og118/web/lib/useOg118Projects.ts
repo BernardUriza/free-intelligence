@@ -12,9 +12,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { authHeaders } from './og118Token';
 
 export interface Og118Project {
-  /** Also the corpus_id (corpus_id = project id). */
+  /** Also the corpus_id (corpus_id = project id), MINTED server-side. */
   id: string;
   name: string;
   createdAt: string;
@@ -23,11 +24,13 @@ export interface Og118Project {
 export interface UseOg118Projects {
   projects: Og118Project[];
   activeProjectId: string | null;
-  createProject: (name: string) => string;
+  /** Mints the corpus_id server-side (POST /projects), never client-side. */
+  createProject: (name: string) => Promise<string>;
   selectProject: (id: string) => void;
   deleteProject: (id: string) => void;
 }
 
+const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
 const PROJECTS_KEY = 'og118.projects';
 const ACTIVE_KEY = 'og118.activeProjectId';
 
@@ -39,14 +42,6 @@ function loadProjects(): Og118Project[] {
   } catch {
     return [];
   }
-}
-
-function newProjectId(): string {
-  const rand =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2);
-  return `project-${rand}`;
 }
 
 export function useOg118Projects(): UseOg118Projects {
@@ -70,10 +65,18 @@ export function useOg118Projects(): UseOg118Projects {
     else localStorage.removeItem(ACTIVE_KEY);
   }, [activeProjectId]);
 
-  const createProject = useCallback((name: string): string => {
+  const createProject = useCallback(async (name: string): Promise<string> => {
+    const displayName = name.trim() || 'Proyecto';
+    const res = await fetch(`${API}/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name: displayName }),
+    });
+    if (!res.ok) throw new Error(`create project failed: ${res.status}`);
+    const { project_id } = await res.json();
     const project: Og118Project = {
-      id: newProjectId(),
-      name: name.trim() || 'Proyecto',
+      id: project_id,
+      name: displayName,
       createdAt: new Date().toISOString(),
     };
     setProjects((prev) => [project, ...prev]);
