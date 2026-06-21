@@ -1,177 +1,215 @@
 name: CD
 
-# Builds and deploys three Azure Container Apps:
-#   * discord-bot     — Discord plumbing / gateway. Routes Discord events
-#                       to the right runner per turn; does no LLM work
-#                       itself once LEGACY_LLM_ENABLED=false. Renamed from
-#                       insult-bot on 2026-05-14 (RENAME-1b).
-#   * insult-runner   — Claude Code Agent SDK runner (Insult persona).
-#                       FastAPI + claude-agent-sdk + OAuth Max.
-#   * alice-bot       — ALICE persona runner (Azure OpenAI gpt-4.1).
-#                       Passive: only fires on mention or /invite from Insult.
-#   * vultur-gateway  — persona_gateway: one Discord bot user per sibling
-#                       persona (Vultur…), sharing the insult-runner brain via
-#                       persona_id. Durable home replacing the old ephemeral
-#                       local-Mac process ("Vultur no responde" class).
-# The ACR image repo `insult-bot` (the OCI artifact name) is retained for
-# now since renaming the ACR repo is a separate operation; the Container
-# App that consumes it is `discord-bot`. See .claude/rules/architecture.md
-# § Nomenclature.
+# Builds and deploys the Azure Container Apps + Jobs, but ONLY the surfaces whose
+# source actually changed since the SHA each one is currently RUNNING. This is the
+# per-service blast-radius cut: a prompt-only change to Insult no longer rebuilds
+# ALICE/Vultur or restarts bots that didn't change.
+#
+# Surfaces and the image each consumes:
+#   * discord-bot        <- insult-bot image       (Dockerfile)
+#   * fact-consolidation <- insult-bot image       (same image, cron job)
+#   * insult-canary      <- insult-bot image       (same image, cron job)
+#   * alice-bot          <- alice-bot image        (Dockerfile.alice)
+#   * vultur-gateway     <- vultur-gateway image   (Dockerfile.gateway)
+#   * insult-runner      <- insult-runner image    (infra/azure/runner.Dockerfile)
+#
+# Per-image SOURCE deps come from each Dockerfile's COPY lines — the map below is
+# COPY-accurate ON PURPOSE: over-building is wasteful, but UNDER-building ships a
+# stale surface (the COPY-gap P0 class, 2026-06-16). When a COPY line in any
+# Dockerfile changes, update the matching *_PATHS list here in the same commit.
+#
+# workflow_run cannot use `paths:` (it is decoupled from the push), so change
+# detection diffs each image's paths between the SHA the Container App is RUNNING
+# and the new SHA. Diffing against the running image (not HEAD~1) is self-healing:
+# if a prior deploy was skipped or failed, the diff still spans back to reality.
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: "Build & deploy every surface regardless of diff"
+        type: boolean
+        default: false
+
+env:
+  NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  RG: insult-rg
+  REGISTRY: insultacr
+  ACR: insultacr.azurecr.io
 
 jobs:
   deploy:
     name: Build & Deploy to Azure
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # workflow_run fires on success AND failure; only deploy on a green CI.
+    # workflow_dispatch has no workflow_run payload, so allow it through too.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0 # full history so we can diff against any running SHA
 
       - name: Azure Login
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build insult-bot image
+      - name: Detect which surfaces changed
+        id: detect
         run: |
-          az acr build \
-            --registry insultacr \
-            --resource-group insult-rg \
-            --image insult-bot:${{ github.sha }} \
-            --image insult-bot:latest \
-            .
+          set -euo pipefail
+          FORCE="${{ github.event.inputs.force_all || 'false' }}"
+
+          running_tag() {
+            # $1=name $2=kind(app|job) -> the :tag of the currently deployed image
+            local name="$1" kind="$2" img=""
+            if [ "$kind" = "job" ]; then
+              img=$(az containerapp job show -n "$name" -g "$RG" \
+                --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "")
+            else
+              img=$(az containerapp show -n "$name" -g "$RG" \
+                --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "")
+            fi
+            echo "${img##*:}"
+          }
+
+          changed() {
+            # $1=running_sha ; rest=paths -> "true" if a rebuild is needed.
+            # Unknown/absent running SHA (latest, rolled-off, missing app) -> build.
+            local running="$1"; shift
+            if [ "$FORCE" = "true" ]; then echo "true"; return; fi
+            if [ -z "$running" ] || ! git cat-file -e "${running}^{commit}" 2>/dev/null; then
+              echo "true"; return
+            fi
+            if [ -n "$(git diff --name-only "$running" "$NEW_SHA" -- "$@")" ]; then
+              echo "true"
+            else
+              echo "false"
+            fi
+          }
+
+          BOT_SHA=$(running_tag discord-bot app)
+          ALICE_SHA=$(running_tag alice-bot app)
+          GW_SHA=$(running_tag vultur-gateway app)
+          RUNNER_SHA=$(running_tag insult-runner app)
+
+          BUILD_BOT=$(changed "$BOT_SHA" \
+            environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
+            scripts/canary_probe.py Dockerfile)
+          BUILD_ALICE=$(changed "$ALICE_SHA" \
+            environment.yml personas/alice/ shared/ Dockerfile.alice)
+          BUILD_GW=$(changed "$GW_SHA" \
+            environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
+          BUILD_RUNNER=$(changed "$RUNNER_SHA" \
+            environment.yml shared/ khimeras_shared/ demux_ai/ personas/__init__.py \
+            personas/insult/ persona.md infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
+
+          {
+            echo "build_bot=$BUILD_BOT"
+            echo "build_alice=$BUILD_ALICE"
+            echo "build_gw=$BUILD_GW"
+            echo "build_runner=$BUILD_RUNNER"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "## CD change detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "new sha: \`$NEW_SHA\` (force=$FORCE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| insult-bot (discord-bot + jobs) | \`${BOT_SHA:0:7}\` | $BUILD_BOT |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| alice-bot | \`${ALICE_SHA:0:7}\` | $BUILD_ALICE |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| vultur-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| insult-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
+
+      # --- Builds (only what changed) ---
+
+      - name: Build insult-bot image
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
+        run: |
+          az acr build --registry "$REGISTRY" --resource-group "$RG" \
+            --image insult-bot:${{ env.NEW_SHA }} --image insult-bot:latest .
 
       - name: Build alice-bot image
-        # ALICE is a sibling Discord bot (personas/alice/ subpackage). Until this step
-        # was added in v3.9.18 her image only got rebuilt by manual
-        # `az acr build alice-bot:vX.Y.Z` from Bernard's laptop, which meant
-        # every personas/alice/ change required a separate push-then-rebuild ritual.
-        # Now she ships with the same SHA as Insult.
+        if: ${{ steps.detect.outputs.build_alice == 'true' }}
         run: |
-          az acr build \
-            --registry insultacr \
-            --resource-group insult-rg \
-            --image alice-bot:${{ github.sha }} \
-            --image alice-bot:latest \
-            --file Dockerfile.alice \
-            .
+          az acr build --registry "$REGISTRY" --resource-group "$RG" \
+            --image alice-bot:${{ env.NEW_SHA }} --image alice-bot:latest \
+            --file Dockerfile.alice .
 
       - name: Build vultur-gateway image
-        # The persona gateway (Vultur + future siblings). Thin HTTP client of the
-        # insult-runner — no LLM layer, so a lighter image than ALICE (no codex).
-        # Ships with the same SHA as the rest so a persona_gateway/ or shared
-        # change can't lag behind on a hand-pushed tag.
+        if: ${{ steps.detect.outputs.build_gw == 'true' }}
         run: |
-          az acr build \
-            --registry insultacr \
-            --resource-group insult-rg \
-            --image vultur-gateway:${{ github.sha }} \
-            --image vultur-gateway:latest \
-            --file Dockerfile.gateway \
-            .
+          az acr build --registry "$REGISTRY" --resource-group "$RG" \
+            --image vultur-gateway:${{ env.NEW_SHA }} --image vultur-gateway:latest \
+            --file Dockerfile.gateway .
 
       - name: Build insult-runner image
-        # The Agent SDK runner. Lives in its own Container App `insult-runner`
-        # inside `insult-env`. Reads the workspace mount populated by the
-        # renderer (Postgres -> markdown) and exposes a FastAPI service that
-        # Insult calls behind a per-user feature flag (see Fase 2 of the
-        # Agent SDK migration plan).
+        if: ${{ steps.detect.outputs.build_runner == 'true' }}
         run: |
-          az acr build \
-            --registry insultacr \
-            --resource-group insult-rg \
-            --image insult-runner:${{ github.sha }} \
-            --image insult-runner:latest \
-            --file infra/azure/runner.Dockerfile \
-            .
+          az acr build --registry "$REGISTRY" --resource-group "$RG" \
+            --image insult-runner:${{ env.NEW_SHA }} --image insult-runner:latest \
+            --file infra/azure/runner.Dockerfile .
+
+      # --- Deploys (only what was rebuilt) ---
 
       - name: Deploy discord-bot
-        # The plumbing Container App. ACR image artifact is still named
-        # `insult-bot` (legacy); the Container App that consumes it is
-        # `discord-bot` (renamed 2026-05-14).
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
         run: |
-          az containerapp update \
-            --name discord-bot \
-            --resource-group insult-rg \
-            --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
+          az containerapp update --name discord-bot --resource-group "$RG" \
+            --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
 
-      - name: Deploy alice-bot
+      - name: Update fact-consolidation job image
+        # Same image as the bot, separate cron. Sync whenever the bot image rebuilds.
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
         run: |
-          az containerapp update \
-            --name alice-bot \
-            --resource-group insult-rg \
-            --image insultacr.azurecr.io/alice-bot:${{ github.sha }}
+          az containerapp job update --name fact-consolidation --resource-group "$RG" \
+            --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
 
-      - name: Deploy vultur-gateway
-        # Continue-on-error so a not-yet-provisioned gateway never breaks the
-        # Insult/ALICE deploy (same posture as insult-runner). The Container App
-        # is created out-of-band once (az containerapp create); CD only updates
-        # its image thereafter.
-        continue-on-error: true
+      - name: Update insult-canary job image (if it exists)
+        # Same image as the bot. No-op until the gated job is created by hand.
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
         run: |
-          az containerapp update \
-            --name vultur-gateway \
-            --resource-group insult-rg \
-            --image insultacr.azurecr.io/vultur-gateway:${{ github.sha }}
-
-      - name: Deploy insult-runner
-        # New revision picks up the latest workspace-files mount + secrets.
-        # Continue-on-error in case the runner app doesn't exist yet on the
-        # first run that contains this step — the workflow shouldn't break
-        # Insult deploys just because the runner isn't set up yet.
-        continue-on-error: true
-        run: |
-          az containerapp update \
-            --name insult-runner \
-            --resource-group insult-rg \
-            --image insultacr.azurecr.io/insult-runner:${{ github.sha }}
-
-      - name: Update consolidator job image
-        # The fact-consolidation Container App Job runs from the SAME image
-        # as the bot but on a separate cron. Without this step the job stays
-        # pinned to whatever SHA was last manually pushed, and any feature
-        # that touches the consolidator (siesta marks, prompt changes,
-        # schema migrations) silently lags behind the bot.
-        run: |
-          az containerapp job update \
-            --name fact-consolidation \
-            --resource-group insult-rg \
-            --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
-
-      - name: Update canary job image (if it exists)
-        # The insult-canary ACA Job (GATED — created by hand once the dedicated
-        # canary bot + #canary channel exist, see infra/azure/canary-job.sh) runs
-        # from the SAME image as the bot. Until that job exists this step is a
-        # no-op; once created it keeps the job's image SHA in sync so the canary
-        # liveness probe can't silently lag behind a deploy. Guarded so a deploy
-        # never fails (or accidentally creates a resource) before the job exists.
-        run: |
-          if az containerapp job show --name insult-canary --resource-group insult-rg >/dev/null 2>&1; then
-            az containerapp job update \
-              --name insult-canary \
-              --resource-group insult-rg \
-              --image insultacr.azurecr.io/insult-bot:${{ github.sha }}
-            echo "canary_job_image_updated sha=${{ github.sha }}"
+          if az containerapp job show --name insult-canary --resource-group "$RG" >/dev/null 2>&1; then
+            az containerapp job update --name insult-canary --resource-group "$RG" \
+              --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
+            echo "canary_job_image_updated sha=${{ env.NEW_SHA }}"
           else
             echo "canary_job_sync_skipped reason=job_not_created_yet"
           fi
 
-      - name: Verify deployment health
+      - name: Deploy alice-bot
+        if: ${{ steps.detect.outputs.build_alice == 'true' }}
         run: |
-          echo "Waiting 30s for new revisions to start..."
-          sleep 30
+          az containerapp update --name alice-bot --resource-group "$RG" \
+            --image "$ACR/alice-bot:${{ env.NEW_SHA }}"
 
-          # --- discord-bot (plumbing) ---
-          echo ""
-          echo "=== discord-bot ==="
-          az containerapp show -n discord-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
-          BOT_LOGS=$(az containerapp logs show -n discord-bot -g insult-rg --tail 30 2>&1 || true)
+      - name: Deploy vultur-gateway
+        # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
+        if: ${{ steps.detect.outputs.build_gw == 'true' }}
+        continue-on-error: true
+        run: |
+          az containerapp update --name vultur-gateway --resource-group "$RG" \
+            --image "$ACR/vultur-gateway:${{ env.NEW_SHA }}"
+
+      - name: Deploy insult-runner
+        if: ${{ steps.detect.outputs.build_runner == 'true' }}
+        continue-on-error: true
+        run: |
+          az containerapp update --name insult-runner --resource-group "$RG" \
+            --image "$ACR/insult-runner:${{ env.NEW_SHA }}"
+
+      - name: Verify discord-bot health
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
+        run: |
+          echo "Waiting 30s for the new revision to start..."
+          sleep 30
+          az containerapp show -n discord-bot -g "$RG" --query "properties.latestRevisionName" -o tsv
+          BOT_LOGS=$(az containerapp logs show -n discord-bot -g "$RG" --tail 30 2>&1 || true)
           echo "$BOT_LOGS" | tail -10
           if echo "$BOT_LOGS" | grep -q "bot_ready"; then
             echo "OK discord-bot: bot_ready event present"
@@ -183,11 +221,12 @@ jobs:
             echo "WARN discord-bot: could not confirm bot_ready, check manually"
           fi
 
-          # --- ALICE ---
-          echo ""
-          echo "=== alice-bot ==="
-          az containerapp show -n alice-bot -g insult-rg --query "properties.latestRevisionName" -o tsv
-          ALICE_LOGS=$(az containerapp logs show -n alice-bot -g insult-rg --tail 30 2>&1 || true)
+      - name: Verify alice-bot health
+        if: ${{ steps.detect.outputs.build_alice == 'true' }}
+        run: |
+          sleep 15
+          az containerapp show -n alice-bot -g "$RG" --query "properties.latestRevisionName" -o tsv
+          ALICE_LOGS=$(az containerapp logs show -n alice-bot -g "$RG" --tail 30 2>&1 || true)
           echo "$ALICE_LOGS" | tail -10
           if echo "$ALICE_LOGS" | grep -q "alice_gateway_ready"; then
             echo "OK alice-bot: gateway_ready event present"
@@ -198,12 +237,12 @@ jobs:
             echo "WARN alice-bot: could not confirm gateway_ready, check manually"
           fi
 
-          # --- vultur-gateway (best-effort; created out-of-band) ---
-          echo ""
-          echo "=== vultur-gateway ==="
-          if az containerapp show -n vultur-gateway -g insult-rg --query "name" -o tsv 2>/dev/null; then
-            az containerapp show -n vultur-gateway -g insult-rg --query "properties.latestRevisionName" -o tsv
-            GW_LOGS=$(az containerapp logs show -n vultur-gateway -g insult-rg --tail 30 2>&1 || true)
+      - name: Verify vultur-gateway health
+        if: ${{ steps.detect.outputs.build_gw == 'true' }}
+        run: |
+          if az containerapp show -n vultur-gateway -g "$RG" --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n vultur-gateway -g "$RG" --query "properties.latestRevisionName" -o tsv
+            GW_LOGS=$(az containerapp logs show -n vultur-gateway -g "$RG" --tail 30 2>&1 || true)
             echo "$GW_LOGS" | tail -10
             if echo "$GW_LOGS" | grep -q "persona_gateway_starting"; then
               echo "OK vultur-gateway: persona_gateway_starting event present"
@@ -217,27 +256,20 @@ jobs:
             echo "INFO vultur-gateway: not yet provisioned, skipping health check"
           fi
 
-          # --- Runner (best-effort, doesn't fail the deploy yet) ---
-          echo ""
-          echo "=== insult-runner ==="
-          if az containerapp show -n insult-runner -g insult-rg --query "name" -o tsv 2>/dev/null; then
-            az containerapp show -n insult-runner -g insult-rg --query "properties.latestRevisionName" -o tsv
-            RUNNER_LOGS=$(az containerapp logs show -n insult-runner -g insult-rg --tail 15 2>&1 || true)
+      - name: Verify insult-runner health
+        if: ${{ steps.detect.outputs.build_runner == 'true' }}
+        run: |
+          if az containerapp show -n insult-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n insult-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
+            RUNNER_LOGS=$(az containerapp logs show -n insult-runner -g "$RG" --tail 15 2>&1 || true)
             echo "$RUNNER_LOGS" | tail -10
 
-            # Real smoke test against the deployed runner. This catches the
-            # silent-broken-deploy pattern that bit us 2026-05-19: CD reported
-            # "success" but the runner was missing publish_html_artifact +
-            # deep_memory because an unrelated CI failure had kept the runner
-            # on an old sha and nobody noticed for hours. Asserting against
-            # the FQDN proves the new image is actually serving.
             FQDN="insult-runner.nicecliff-10074f57.eastus.azurecontainerapps.io"
             TOKEN=$(az containerapp secret show \
-              -n insult-runner -g insult-rg \
+              -n insult-runner -g "$RG" \
               --secret-name insult-agent-runner-token \
               --query value -o tsv 2>/dev/null || echo "")
 
-            # 1) /health must report auth_configured=true AND claude_md_present=true.
             HEALTH=$(curl -sS -m 15 "https://$FQDN/health" 2>&1 || echo "{}")
             echo "health: $HEALTH"
             if ! echo "$HEALTH" | grep -q '"auth_configured":true'; then
@@ -249,9 +281,6 @@ jobs:
               exit 1
             fi
 
-            # 2) DELETE /v1/session/<random> must return 200 with existed=false.
-            # Catches deploys that are stuck on a sha without the v3.9.69
-            # session-reset endpoint. Cheap and side-effect-free.
             if [ -n "$TOKEN" ]; then
               RESET=$(curl -sS -m 15 -X DELETE \
                 "https://$FQDN/v1/session/cd-smoke-${{ github.run_id }}" \
@@ -263,17 +292,9 @@ jobs:
               fi
               echo "OK insult-runner: /health + DELETE /v1/session both green"
 
-              # 3) REAL /v1/turn — exercises the AGENT LOOP, the exact path
-              # that 502'd 2026-06-16 with
-              # ModuleNotFoundError('khimeras_shared') after the demux shipped
-              # the image without COPY khimeras_shared/. /health and DELETE
-              # /v1/session never import the persona stack, so they reported
-              # green while every real turn died and fell over to ALICE for
-              # ~2h. A real turn is the only check that proves the serving
-              # contract. Retries because the new revision needs ~30-90s to
-              # warm. Session is deleted after so the pool stays clean; the
-              # runner does NOT write bot memory (that is discord-bot's job),
-              # so this is side-effect-free against prod data.
+              # REAL /v1/turn — the only check that proves the agent loop serves
+              # (the ModuleNotFoundError COPY-gap that 502'd 2026-06-16 was invisible
+              # to /health and DELETE /v1/session, which never import the persona stack).
               SMOKE_CH="cd-smoke-${{ github.run_id }}"
               TURN_OK=""
               for attempt in 1 2 3 4 5 6; do
@@ -310,3 +331,7 @@ jobs:
           else
             echo "INFO insult-runner: not yet provisioned, skipping health check"
           fi
+
+      - name: Nothing-to-deploy notice
+        if: ${{ steps.detect.outputs.build_bot != 'true' && steps.detect.outputs.build_alice != 'true' && steps.detect.outputs.build_gw != 'true' && steps.detect.outputs.build_runner != 'true' }}
+        run: echo "No surface changed since its running SHA — nothing built or deployed."
