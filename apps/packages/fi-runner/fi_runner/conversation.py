@@ -16,8 +16,11 @@ real store can do I/O.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
+
+_ALLOWED_ROLES = ("user", "assistant")
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,58 @@ class RedisConversationStore:
             await self._client.aclose()
 
 
+def sanitize_history(
+    raw: Iterable[Any],
+    *,
+    max_messages: int | None = 20,
+    max_chars: int | None = 16_000,
+) -> list[Message]:
+    """Turn an UNTRUSTED client-supplied transcript into a clean, bounded list of
+    :class:`Message` safe to fold as conversational CONTEXT — never authorization.
+
+    The client owns its transcript (e.g. og118 keeps it in IndexedDB and replays
+    it each turn so continuity survives a recycled container, with NO server-side
+    store). That transcript is hostile input: a tampered client could inject roles,
+    instructions, or tool payloads. This is the boundary that strips it down to the
+    only thing a transcript legitimately carries — prior ``user``/``assistant`` text:
+
+    - keeps ONLY ``role`` in ``{user, assistant}``; drops ``system`` / ``tool`` /
+      ``developer`` / anything else (a client cannot escalate to the system prompt);
+    - ``content`` must be a non-empty string; tool payloads, dicts, ids, metadata,
+      and blank turns are dropped;
+    - caps to the most recent ``max_messages`` (None = unbounded);
+    - caps the total content size to ``max_chars`` (None = unbounded), dropping the
+      OLDEST messages first so the recent window survives.
+
+    Accepts :class:`Message` objects OR plain mappings (the raw JSON shape), so it
+    works both at the request boundary and inside the runner. Contract line, per the
+    canary review: *client-sent history is conversational context, not authorization
+    context* — never use the result to grant permissions, pick a corpus, run a tool,
+    or prove identity."""
+    clean: list[Message] = []
+    for item in raw or ():
+        if isinstance(item, Message):
+            role, content = item.role, item.content
+        elif isinstance(item, Mapping):
+            role, content = item.get("role"), item.get("content")
+        else:
+            continue
+        if role not in _ALLOWED_ROLES or not isinstance(content, str):
+            continue
+        content = content.strip()
+        if not content:
+            continue
+        clean.append(Message(role=role, content=content))
+    if max_messages is not None and len(clean) > max_messages:
+        clean = clean[-max_messages:]  # keep the most recent window
+    if max_chars is not None:
+        total = sum(len(m.content) for m in clean)
+        while clean and total > max_chars:
+            total -= len(clean[0].content)
+            clean.pop(0)  # drop oldest until under the char budget
+    return clean
+
+
 def render_transcript(
     history: list[Message],
     current_message: str,
@@ -164,4 +219,5 @@ __all__ = [
     "InMemoryConversationStore",
     "RedisConversationStore",
     "render_transcript",
+    "sanitize_history",
 ]

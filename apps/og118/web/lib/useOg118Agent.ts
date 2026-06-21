@@ -27,6 +27,7 @@ import {
   applyAgentEvent,
   initialAgentTurnState,
   type AgentHook,
+  type AgentSendMeta,
   type AgentStreamEvent,
   type AgentTurnState,
 } from '@free-intelligence/core';
@@ -128,11 +129,18 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
   // just drop the UI out of streaming. Without this the timed-out fetch would leak.
   const abortRef = useRef<AbortController | null>(null);
 
-  const send = useCallback(async (message: string) => {
+  const send = useCallback(async (message: string, meta?: AgentSendMeta) => {
     const text = message.trim();
     if (!text || isStreaming) return;
     const sid = sessionIdRef.current;
     if (!sid) return; // no active conversation yet — controlled no-op
+
+    // og118 is local-first: the durable transcript lives in the browser (IndexedDB
+    // via useConversationLibrary). We replay the confirmed thread on each turn so
+    // continuity survives a recycled/redeployed backend with NO server-side store.
+    // Send ONLY role/content — never ids, timestamps, tool payloads, or audio
+    // metadata (privacy + the backend treats it as untrusted context, not auth).
+    const history = (meta?.history ?? []).map((m) => ({ role: m.role, content: m.content }));
 
     let state = initialAgentTurnState();
     setTurn(state);
@@ -149,7 +157,7 @@ export function useOg118Agent(sessionId: string | null): AgentHook {
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ message: text, session_id: sid }),
+        body: JSON.stringify({ message: text, session_id: sid, history }),
         signal: controller.signal,
       });
       if (res.status === 401) {

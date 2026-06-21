@@ -182,7 +182,7 @@ describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => 
     act(() => ref.current!.retry());
     rerender();
 
-    expect(send).toHaveBeenLastCalledWith('reintenta esto');
+    expect(send).toHaveBeenLastCalledWith('reintenta esto', expect.objectContaining({ history: expect.any(Array) }));
     expect(ref.current!.turnError).toBeNull();
     expect(ref.current!.messages).toHaveLength(1); // optimistic re-pushed
   });
@@ -339,7 +339,9 @@ describe('useAgentConversation — controlled / external-transcript mode (FIGLAS
 
     act(() => ref.current!.send('arranca el workflow'));
     rerender();
-    expect(send).toHaveBeenCalledWith('arranca el workflow');
+    // Controlled mode still hands the transport the visible thread (externalMessages)
+    // as history for storeless continuity.
+    expect(send).toHaveBeenCalledWith('arranca el workflow', { history: seed });
     // No optimistic push: the consumer's externalMessages is still the only truth.
     expect(ref.current!.messages).toBe(seed);
     expect(ref.current!.messages).toHaveLength(1);
@@ -420,5 +422,30 @@ describe('useAgentConversation — controlled / external-transcript mode (FIGLAS
     });
 
     expect(ref.current!.messages).toBe(seed);
+  });
+});
+
+describe('useAgentConversation — client-supplied history for storeless continuity', () => {
+  afterEach(cleanup);
+
+  it('hands the transport the confirmed thread as meta.history, excluding the new message', () => {
+    const { hook, send } = makeFakeAgent();
+    const seed = [userMsg('u1', '¿chance de México?'), agentMsg('a1', 'limitadas')];
+    const { ref } = mountConversation(hook, { turnTimeoutMs: 0, initialMessages: seed });
+
+    act(() => ref.current!.send('han ganado otro!'));
+
+    expect(send).toHaveBeenCalledWith('han ganado otro!', { history: seed });
+    const meta = send.mock.calls[0][1] as { history: ChatMessage[] };
+    expect(meta.history.some((m) => m.content === 'han ganado otro!')).toBe(false);
+  });
+
+  it('sends empty history on the first turn', () => {
+    const { hook, send } = makeFakeAgent();
+    const { ref } = mountConversation(hook, { turnTimeoutMs: 0 });
+
+    act(() => ref.current!.send('primera'));
+
+    expect(send).toHaveBeenCalledWith('primera', { history: [] });
   });
 });

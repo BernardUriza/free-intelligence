@@ -1,4 +1,21 @@
 import type { AgentTurnState } from './state';
+import type { ChatMessage } from '../chat/message';
+
+/**
+ * Per-send metadata the conversation layer may hand the transport. Optional and
+ * backward-compatible — a transport that ignores it behaves exactly as before.
+ */
+export interface AgentSendMeta {
+  /**
+   * The confirmed conversation so far (prior user/assistant turns, NOT the
+   * message being sent). A transport with a stateless/storeless backend replays
+   * this for continuity — the og118 canary: the durable transcript lives in the
+   * client (IndexedDB), so continuity survives a recycled backend. It is
+   * conversational CONTEXT only; the backend re-sanitizes it and never treats it
+   * as authorization.
+   */
+  history?: ChatMessage[];
+}
 
 /**
  * AgentHook — the agentic-turn contract the fi-glass agent panels consume.
@@ -18,8 +35,9 @@ export interface AgentHook {
   turn: AgentTurnState;
   /** Whether a turn is actively streaming. */
   isStreaming: boolean;
-  /** Start an agentic turn. */
-  send: (message: string, metadata?: object) => Promise<void>;
+  /** Start an agentic turn. `meta.history` lets the conversation layer replay
+   * prior turns for continuity on a storeless backend (see {@link AgentSendMeta}). */
+  send: (message: string, meta?: AgentSendMeta) => Promise<void>;
   /** Abort the in-flight turn, if supported. */
   abort?: () => void;
   /** Reset the session/turn. */
