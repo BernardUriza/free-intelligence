@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
+from fi_runner.rag_store import RagStoreClient
 from runner import build_runner
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
@@ -115,6 +116,21 @@ def get_stt_provider() -> STTProvider | None:
     Overridable in tests via app.dependency_overrides, exactly like its TTS
     twin, so the contract is exercised without the network or a real key."""
     return _stt_provider
+
+
+_rag_store: RagStoreClient | None = None
+
+
+def get_rag_store() -> RagStoreClient:
+    """Dependency seam: the project corpus store (ingest/search), built lazily on
+    first use and reused — HDF5 loads its on-disk index at construction. Backend +
+    path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH (hdf5 + hashing zero-model
+    by default). Overridable in tests via app.dependency_overrides so they hit a
+    tmp store, never prod."""
+    global _rag_store
+    if _rag_store is None:
+        _rag_store = RagStoreClient()
+    return _rag_store
 
 
 class ChatRequest(BaseModel):
@@ -299,3 +315,41 @@ async def stt_transcribe(
         ) from None
 
     return TranscriptResponse(text=text)
+
+
+@app.post("/projects/{project_id}/upload")
+async def upload_project_document(
+    project_id: str,
+    file: UploadFile = File(...),
+    _: None = Depends(require_access),
+    rag: RagStoreClient = Depends(get_rag_store),
+) -> dict:
+    """Ingest a text document into the project's corpus (corpus_id=project_id).
+
+    Plain text in (txt/md): the bytes are decoded as UTF-8, chunked + persisted
+    under the file's name. Binary/non-UTF-8 or empty → 400 (PDF/DOCX extraction is
+    the caller's job). The agent's rag_store tools then search this corpus when the
+    project is the active corpus (see fi_runner.active_corpus_binding). Auth-agnostic
+    for now: gated by the same bearer speed-bump as the other routes, NOT tied to a
+    user until Gate 3."""
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(
+            status_code=400, detail={"code": "EMPTY_FILE", "message": "uploaded file is empty"}
+        )
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "NOT_TEXT", "message": "file is not UTF-8 text; extract text before upload"},
+        ) from None
+    if not text.strip():
+        raise HTTPException(
+            status_code=400, detail={"code": "EMPTY_FILE", "message": "uploaded file has no text"}
+        )
+    doc_id = file.filename or "document.txt"
+    # min_chunk_size lowered from fi-core's default (100 TOKENS): papelería docs
+    # (inventory lists, short notes) are short and would otherwise yield 0 chunks.
+    chunks = await rag.ingest(project_id, doc_id, text, min_chunk_size=20)
+    return {"corpus_id": project_id, "doc_id": doc_id, "chunks": chunks}
