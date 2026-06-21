@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-19 · FIGLASS-17 smoke humano PASS (done) · FIGLASS-18 código mergeado (#242/#243, 4898e812), re-smoke humano pendiente · FIGLASS-19 (archive sent-to-chat) MERGEADO (PR #244) · NUEVO canary real: og118 staging live en la papelería + Projects para el negocio de mamá (ver sección Canary)</p>
+  <p class="subtitle">Actualizado 2026-06-21 · Canary Projects COMPLETO end-to-end (proj-tracer/corpusbind/upload/uploadui/sidebar mergeados #255-#258) · Continuidad sin store MERGEADA a main (client-sent history, PR #260) · FIGLASS-18 re-smoke humano pendiente · Pendientes top: smoke humano de voz + decisión de cuenta (proj-account) + Gate 3</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -405,6 +405,18 @@
       <span class="item-tag">infra-aca</span></label>
   </div>
 
+  <!-- CONTINUIDAD SIN STORE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Continuidad sin store — client-sent conversation history</span>
+      <span class="section-badge badge-done">MERGEADO A MAIN</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 perdía el hilo (México Mundial → "¡Felicidades! Who won?"): backend stateless + historial enviado por el cliente</div>
+      <div class="item-note">MERGEADO a main · PR #260 (71eef9bc feat + ba91bde5 fix). Nuevo nivel de fi-runner (sanitize_history + run_stream history=), core AgentSendMeta, fi-glass pasa el hilo confirmado, og118 quitó InMemoryConversationStore. 16 tests nuevos + E2E live en Chrome verificado. Trust boundary aplicado: solo roles user/assistant, drop de system/tool/metadata — "client-sent history is conversational context, not authorization context".</div></div>
+      <span class="item-tag">og118-continuity</span></label>
+  </div>
+
   <!-- CANARY REAL: PAPELERÍA + PROJECTS -->
   <div class="section">
     <div class="section-header">
@@ -431,27 +443,29 @@
       <div class="item-note">YA EXISTE: fi-glass/src/shell/ChatFilePreview.tsx + types.ts (selecting→uploading→processing→indexed→error). El framework anticipó upload — og118 sería el PRIMER consumer en usarlo (valor canary: probar que el primitivo especulativo de verdad sirve).</div></div>
       <span class="item-tag">proj-glass</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">TRACER: cablear capability "rag_store" en og118 server/runner.py + verificar que el agente puede search en un corpus</div>
-      <div class="item-note">~2 líneas (agregar "rag_store" a capabilities=[...]). TDD: test de que build_runner() resuelve la capability + smoke ingest→search en corpus de prueba. NO depende de la decisión de cuenta. Va en su propia branch off main, NO en la branch de voz.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">TRACER: cablear capability "rag_store" en og118 server/runner.py + verificar que el agente puede search en un corpus</div>
+      <div class="item-note">DONE: runner.py:49 capabilities=["task_tracker", "rag_store"] + app.py importa fi_runner.rag_store.RagStoreClient (boundary correcto: og118 → fi-runner, nunca fi-core). Dockerfile + README cablean el backend HDF5 (stores-hdf5). PR #255 (fbb8a7f5) + #248 mergeados. NOTA git.md: #255 duplicó a #248 sin auditar PRs abiertos — lección registrada.</div></div>
       <span class="item-tag">proj-tracer</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">og118 consumer: endpoint POST /projects/{id}/upload → parse texto → RagStoreClient.ingest(corpus_id=project_id)</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: endpoint POST /projects/{id}/upload → parse texto → RagStoreClient.ingest(corpus_id=project_id)</div>
+      <div class="item-note">DONE: app.py:335 @app.post("/projects/{project_id}/upload") → ingest texto al corpus (corpus_id=project_id), devuelve {corpus_id, doc_id, chunks}. PR #257 (e085f3ab) mergeado.</div></div>
       <span class="item-tag">proj-upload</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">og118 consumer: useChatUpload hook + file-picker UI (prototipo CON gate de extracción a fi-glass)</div>
-      <div class="item-note">El picker es consumer (cada shell elige su UX). El hook de lifecycle (selecting→indexed) es candidato a SUBIR a fi-glass si funciona — framework-first-canary: og118 lo prueba, fi-glass lo absorbe.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: useChatUpload hook + file-picker UI (prototipo CON gate de extracción a fi-glass)</div>
+      <div class="item-note">DONE: web/lib/useOg118Projects.ts (hook de proyectos + upload lifecycle) + UI en el sidebar. PR #257/#258. Pendiente decidir si el hook de lifecycle (selecting→indexed) SUBE a fi-glass — framework-first-canary, gated tras uso real en la papelería.</div></div>
       <span class="item-tag">proj-uploadui</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">og118 consumer: sección Projects en el sidebar (listar/crear/borrar/seleccionar proyecto activo)</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: sección Projects en el sidebar (listar/crear/borrar/seleccionar proyecto activo)</div>
+      <div class="item-note">DONE: sección Projects local-first en el sidebar (corpus library). PR #258 (19ae6a96). Incluyó B3-FIGLASS-MOBILE-2 (93c50d8d): touch-target primitive + reveal-delete-on-touch.</div></div>
       <span class="item-tag">proj-sidebar</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
-      <div class="item-note">Destapado 2026-06-19: corpus_id es ARGUMENTO del tool, pero el Runner toma persona estática y el transporte solo manda {message, session_id} — no hay forma limpia de inyectar el corpus activo por turno. Empujar ARRIBA a fi-runner (nuevo nivel configurable), NO parchar en og118 metiendo el corpus_id en el texto del mensaje.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
+      <div class="item-note">DONE — empujado ARRIBA a fi-runner (NO parchado en og118): per-turn context binding for the system prompt. PR #256 (6a0aa374). app.py:347 referencia fi_runner.active_corpus_binding. El gap del canary subió como nivel configurable del framework, exactamente como manda framework-first-canary.</div></div>
       <span class="item-tag">proj-corpusbind</span></label>
 
     <label class="item"><input type="checkbox">
