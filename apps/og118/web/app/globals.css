@@ -139,6 +139,106 @@ body {
   font-size: 0.95rem;
 }
 
+/* Projects section (proj-sidebar) — sits above the conversations list. */
+.og-projects {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(52, 211, 153, 0.03);
+}
+.og-projects-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.8rem 0.85rem 0.5rem;
+}
+.og-projects-title {
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: -0.01em;
+  color: #cbd5e1;
+}
+.og-projects-new {
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--og-accent, #34d399);
+  background: transparent;
+  color: var(--og-accent, #34d399);
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.og-projects-new:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.og-projects-empty {
+  margin: 0;
+  padding: 0 0.85rem 0.8rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+.og-projects-list {
+  max-height: 30vh;
+  overflow-y: auto;
+  padding: 0 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.og-project-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+}
+.og-project-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.og-project-item.is-active {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.35);
+  cursor: default;
+}
+.og-project-item-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.84rem;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.og-project-item-del {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0;
+}
+.og-project-item:hover .og-project-item-del {
+  opacity: 1;
+}
+/* B3-FIGLASS-MOBILE-2 parity: touch has no hover, so reveal the delete. */
+@media (pointer: coarse) {
+  .og-project-item-del {
+    opacity: 1;
+  }
+}
+.og-project-item-del:disabled {
+  cursor: not-allowed;
+  opacity: 0;
+}
+
 .og-sidebar {
   width: 100%;
   height: 100%;
