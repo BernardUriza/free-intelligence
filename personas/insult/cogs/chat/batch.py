@@ -82,19 +82,41 @@ def addressed_to_alice(message: discord.Message, settings) -> bool:
 
 
 def addressed_to_sibling(message: discord.Message) -> bool:
-    """True when this message @mentions any registered Khimeras sibling bot.
+    """True when this message addresses any registered Khimeras sibling bot — so
+    Insult stays silent and lets the sibling (e.g. Vultur) answer instead of
+    butting in.
 
     Reads `shared/personas/registry.py` at call time — no config coupling. When
     a new persona is added to the registry, Insult automatically suppresses for
     it without any change here. Works alongside `addressed_to_alice` (which
-    handles ALICE specifically, including role-mention and text aliases).
+    handles ALICE specifically, including text aliases).
 
-    Only checks DIRECT @mentions (message.mentions): text aliases per sibling
-    are possible but left opt-in in the registry (default empty) to avoid false
-    positives — e.g. "vultur" as a word could fire on film-critic talk.
+    Matches BOTH addressing forms, because the persona_gateway summons a sibling
+    on its OWN role mention (v4.21.91), not only the user pill:
+    1. **User-mention** — `<@id>` / `message.mentions` resolves to the bot user.
+    2. **Role-mention** — Discord autocomplete often inserts the sibling's
+       managed role `<@&roleid>` instead; match it via the role whose
+       `tags.bot_id` is a registered sibling (same trick as `addressed_to_alice`).
+
+    Text aliases per sibling stay opt-in in the registry (default empty) to avoid
+    false positives — e.g. "vultur" as a word could fire on film-critic talk.
     """
+    sibling_ids = sibling_bot_user_ids()
     mention_ids = {str(u.id) for u in message.mentions}
-    return bool(mention_ids & sibling_bot_user_ids())
+    if mention_ids & sibling_ids:
+        return True
+    if message.guild is not None:
+        raw_role_ids = set(re.findall(r"<@&(\d+)>", message.content or ""))
+        if raw_role_ids:
+            for role in message.guild.roles:
+                tags = getattr(role, "tags", None)
+                if (
+                    tags is not None
+                    and str(getattr(tags, "bot_id", "") or "") in sibling_ids
+                    and str(role.id) in raw_role_ids
+                ):
+                    return True
+    return False
 
 
 @dataclass
