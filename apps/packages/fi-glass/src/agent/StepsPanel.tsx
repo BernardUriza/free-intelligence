@@ -36,7 +36,7 @@ export function StepsPanel({
 }: StepsPanelProps) {
   const ic = resolveIcons(icons);
   const BotIcon = ic.bot;
-  const WarnIcon = ic.warning;
+  const SpinnerIcon = ic.spinner;
   const card = classNames?.card ?? '';
   const hint = classNames?.hint ?? '';
 
@@ -87,11 +87,12 @@ export function StepsPanel({
       </button>
       {showSlowBanner && (
         <div
-          className="mt-2 inline-flex items-start gap-2 rounded-lg border border-amber-700/40 bg-amber-950/20 p-2.5 text-xs text-amber-200"
+          className="mt-2 inline-flex items-center gap-2 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2.5 text-xs text-sky-200"
           role="status"
+          aria-live="polite"
         >
-          <WarnIcon
-            className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400"
+          <SpinnerIcon
+            className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-400"
             aria-hidden
           />
           <span>Still working. This can take a second.</span>

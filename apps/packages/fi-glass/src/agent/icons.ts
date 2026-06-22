@@ -15,6 +15,7 @@ import {
   FileText,
   Globe,
   ListChecks,
+  Loader2,
   Receipt,
   Search,
   Terminal,
@@ -28,6 +29,8 @@ export interface AgentIconSet {
   plan: LucideIcon;
   /** Guard/warning indicator. */
   warning: LucideIcon;
+  /** In-progress spinner (e.g. the "still working" banner). Spun via animate-spin. */
+  spinner: LucideIcon;
   /** Assistant identity (Steps panel header). */
   bot: LucideIcon;
   /** Sources panel header. */
@@ -41,6 +44,7 @@ export interface AgentIconSet {
 export const defaultAgentIcons: AgentIconSet = {
   plan: ListChecks,
   warning: AlertTriangle,
+  spinner: Loader2,
   bot: Bot,
   sources: Receipt,
   external: ExternalLink,
