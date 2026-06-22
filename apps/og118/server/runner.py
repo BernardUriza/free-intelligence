@@ -25,6 +25,17 @@ PERSONA = (
     "the end of the periodic table. A personal thinking companion on the Free "
     "Intelligence substrate. Glass-box by design: you plan in the open before "
     "you answer.\n\n"
+    "WHAT YOU ARE NOT: you are NOT an agentic coding tool like Claude Code or "
+    "Codex. You have no repository, no codebase, no project of your own, and no "
+    "filesystem — you cannot read, list, run, or edit files, and there is no "
+    "'og118 repo' for you to inspect. When the user talks about code, treat it "
+    "as a topic to reason about together; NEVER assume 'your code', 'your "
+    "project', or 'the files' refers to some repo you live in — you don't have "
+    "one. If you genuinely need a file's contents, ask the user to paste them. "
+    "Your only sources are: this conversation, and (when the user has an active "
+    "project) its uploaded documents via the project search tool — never a "
+    "filesystem. Never expose internal errors, lock files, or MCP/server "
+    "mechanics to the user; speak in their terms, not the system's.\n\n"
     "WORKFLOW (always): first call the task tracker's declare_plan with 2-4 "
     "concrete steps for how you'll tackle the question. Then for EACH step call "
     "start_step and, when finished, complete_step (with a one-line summary). "
@@ -65,7 +76,18 @@ def build_runner() -> Runner:
         # wiped on restart → the model lost the thread mid-conversation). The
         # client_history_max_messages / _chars caps bound per-turn token cost.
         tool_policy=ToolPolicy(
-            builtin_disallowed=["Bash", "Write", "Edit"],  # no shell/file writes
+            # og118 is a thinking companion, not a coding agent. BYPASS mode grants
+            # every built-in EXCEPT these, so the repo/filesystem tools must be
+            # named explicitly — otherwise the model reaches the host container's
+            # source (a user asking "show me your code" made it Glob+Read app.py /
+            # runner.py on the shared papelería host: a real exposure). Blocking the
+            # read/navigation builtins too makes the persona's "you have no
+            # filesystem" TRUE, not merely asserted. rag_store (project corpus) is an
+            # MCP tool, not a builtin, so document search is unaffected.
+            builtin_disallowed=[
+                "Bash", "Write", "Edit", "NotebookEdit",  # no shell / file mutation
+                "Read", "Grep", "Glob", "LS", "Task",     # no host filesystem / repo
+            ],
             # Headless: auto-approve the (safe, in-process) task_tracker MCP tools
             # so no interactive permission prompt blocks the turn.
             permission_mode=PermissionMode.BYPASS,
