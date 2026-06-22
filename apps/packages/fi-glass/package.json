@@ -44,6 +44,10 @@
     "./conversation": {
       "types": "./dist/conversation/index.d.ts",
       "import": "./dist/conversation/index.js"
+    },
+    "./identity": {
+      "types": "./dist/identity/index.d.ts",
+      "import": "./dist/identity/index.js"
     }
   },
   "files": [
