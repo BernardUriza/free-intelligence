@@ -16,9 +16,32 @@ from __future__ import annotations
 
 import asyncio
 
-from runner import build_runner
+from runner import PERSONA, build_runner
 from fi_runner import capabilities as fi_caps
 from fi_runner.rag_store import RagStoreClient
+
+
+def test_persona_declares_it_is_not_a_coding_agent() -> None:
+    """og118 is a thinking companion, NOT an agentic coding tool (Claude Code /
+    Codex). The persona must say so explicitly: the ClaudeCodeBackend's default
+    'I operate in a repo' framing otherwise leaks — asked to 'show its code' it
+    Glob+Read its own deployment source. It must disclaim repo/codebase/filesystem."""
+    p = PERSONA.lower()
+    assert "thinking companion" in p
+    assert "not an agentic coding" in p or "not a coding" in p
+    assert "no repository" in p or "no repo" in p or "no codebase" in p
+    assert "filesystem" in p or "files" in p
+
+
+def test_filesystem_builtins_are_disallowed() -> None:
+    """og118 must NOT reach the host container's filesystem. A user asking 'show me
+    your code' made it Glob+Read its own deployment source — a real exposure on the
+    shared papelería host. The repo/file builtins are hard-blocked so the persona's
+    'you have no filesystem' is TRUE, not merely asserted."""
+    runner = build_runner()
+    blocked = set(runner.tool_policy.builtin_disallowed)
+    for tool in ("Bash", "Write", "Edit", "Read", "Grep", "Glob", "LS"):
+        assert tool in blocked, f"{tool} must be disallowed (host-filesystem exposure)"
 
 
 def test_build_runner_wires_rag_store() -> None:

@@ -200,8 +200,33 @@ function useConversationLibrary(library, options = {}) {
     refresh
   };
 }
+
+// src/conversation/useIndexedDBConversationLibrary.ts
+import { useMemo } from "react";
+
+// src/identity/scopedStore.ts
+var SCOPE_SEPARATOR = "--";
+var LEGACY_SCOPE = "legacy";
+function scopedStoreName(base, identityKey) {
+  const scope = identityKey && identityKey.trim() ? identityKey : LEGACY_SCOPE;
+  return `${base}${SCOPE_SEPARATOR}${scope}`;
+}
+
+// src/conversation/useIndexedDBConversationLibrary.ts
+var BASE_DB_NAME = "free-intelligence-conversations";
+function useIndexedDBConversationLibrary(identityKey, options = {}) {
+  const { storeName } = options;
+  return useMemo(
+    () => new IndexedDBConversationLibrary({
+      dbName: scopedStoreName(BASE_DB_NAME, identityKey),
+      storeName
+    }),
+    [identityKey, storeName]
+  );
+}
 export {
   IndexedDBConversationLibrary,
-  useConversationLibrary
+  useConversationLibrary,
+  useIndexedDBConversationLibrary
 };
 //# sourceMappingURL=index.js.map

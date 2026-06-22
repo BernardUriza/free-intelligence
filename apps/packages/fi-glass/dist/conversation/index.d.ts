@@ -77,4 +77,6 @@ interface ConversationLibraryState {
 }
 declare function useConversationLibrary(library: ConversationLibrary, options?: UseConversationLibraryOptions): ConversationLibraryState;
 
-export { type ConversationLibraryState, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type UseConversationLibraryOptions, useConversationLibrary };
+declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
+
+export { type ConversationLibraryState, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type UseConversationLibraryOptions, useConversationLibrary, useIndexedDBConversationLibrary };

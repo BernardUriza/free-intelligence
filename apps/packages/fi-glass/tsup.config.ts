@@ -17,6 +17,7 @@ export default defineConfig({
     'src/persona-selector/index.ts',
     'src/agent/index.ts',
     'src/conversation/index.ts',
+    'src/identity/index.ts',
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },

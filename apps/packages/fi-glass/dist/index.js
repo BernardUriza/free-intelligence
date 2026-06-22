@@ -2132,6 +2132,30 @@ var AudioQueueStore = class {
   }
 };
 
+// src/voice/useAudioQueueStore.ts
+import { useMemo as useMemo2 } from "react";
+
+// src/identity/scopedStore.ts
+var SCOPE_SEPARATOR = "--";
+var LEGACY_SCOPE = "legacy";
+function scopedStoreName(base, identityKey) {
+  const scope = identityKey && identityKey.trim() ? identityKey : LEGACY_SCOPE;
+  return `${base}${SCOPE_SEPARATOR}${scope}`;
+}
+
+// src/voice/useAudioQueueStore.ts
+var BASE_DB_NAME = "free-intelligence-audio-queue";
+function useAudioQueueStore(identityKey, options = {}) {
+  const { storeName } = options;
+  return useMemo2(
+    () => new AudioQueueStore({
+      dbName: scopedStoreName(BASE_DB_NAME, identityKey),
+      storeName
+    }),
+    [identityKey, storeName]
+  );
+}
+
 // src/voice/useDurableRecording.ts
 import { useState as useState8, useRef as useRef7, useCallback as useCallback5, useEffect as useEffect8 } from "react";
 
@@ -4358,6 +4382,7 @@ export {
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
+  useAudioQueueStore,
   useBreakpoints,
   useChatWidgetState,
   useDictation,

@@ -32,13 +32,13 @@ import {
   useAgentConversation,
 } from 'fi-glass/agent';
 import {
-  IndexedDBConversationLibrary,
   useConversationLibrary,
+  useIndexedDBConversationLibrary,
 } from 'fi-glass/conversation';
 import {
   useVoice,
   RichAudioPlayer,
-  AudioQueueStore,
+  useAudioQueueStore,
   useDurableRecording,
   useAudioQueue,
   AudioQueuePanel,
@@ -48,6 +48,7 @@ import {
 } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
+import { useOg118Identity } from '@/lib/og118Identity';
 import { isAuth0Mode } from '@/lib/authMode';
 import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
 import { Og118StartScreen } from './Og118StartScreen';
@@ -57,15 +58,17 @@ import { useOg118Projects } from '@/lib/useOg118Projects';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 
-// Module-level singletons. Constructors are SSR-safe (they store config only,
-// never touch IndexedDB), so one stable instance shared across renders and
-// remounts is correct and avoids reopening the database.
-const conversationLibrary = new IndexedDBConversationLibrary();
-const audioQueueStore = new AudioQueueStore();
-
 export function Og118AgentChat() {
+  // Identity-scoped local-first stores: each signed-in account gets its OWN
+  // IndexedDB database + localStorage keyspace, so two accounts on the same
+  // browser never see each other's conversations, audio drafts, or projects
+  // (the shared-device leak fix). The hooks memoize per identity; a null userId
+  // (bearer / legacy single-tenant) keeps the original shared store.
+  const { userId } = useOg118Identity();
+  const conversationLibrary = useIndexedDBConversationLibrary(userId);
+  const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
-  const projects = useOg118Projects();
+  const projects = useOg118Projects(userId);
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,

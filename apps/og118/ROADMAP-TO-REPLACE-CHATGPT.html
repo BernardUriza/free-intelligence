@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-21 · GATE 3 (Auth real) EN CURSO — elegido Auth0: primitiva reusable fi_runner.auth (#268), ownership por cuenta (#269, A no ve lo de B), backend dual mode DESPLEGADO + verificado en staging (bearer legacy O JWT Auth0), apps Auth0 creadas, frontend scaffolding (#270). Falta: código frontend login + flip a auth0-only. · proj-account RESUELTO (corpus_id server-side, #267) · Canary Projects E2E verificado en prod (#262/#263) + persistencia volumen Azure Files · Continuidad sin store (#260) · Pendiente: frontend Auth0 + smoke humano de voz (FIGLASS-18)</p>
+  <p class="subtitle">Actualizado 2026-06-21 · GATE 3 (Auth real) SHIPPED — Auth0 live en staging.og118.ai: primitiva reusable fi_runner.auth (#268), ownership por cuenta (#269, A no ve lo de B), backend dual mode DESPLEGADO + verificado en staging (bearer legacy O JWT Auth0), apps Auth0 creadas, frontend Auth0 SPA + cutover SWA (#270/#272/#273/#274). Round-trip Google login → JWT → /chat/stream → 200 verificado e2e (localhost→staging-backend); staging renderiza el login. Falta solo: smoke humano del click en staging-host + flip opcional a auth0-only. · proj-account RESUELTO (corpus_id server-side, #267) · Canary Projects E2E verificado en prod (#262/#263) + persistencia volumen Azure Files · Continuidad sin store (#260) · Pendiente: smoke humano de voz (FIGLASS-18)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -186,7 +186,7 @@
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 0 — Inventario read-only ✓</div>
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
     <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
-    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + verificado; falta frontend login + flip</div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + frontend login SHIPPED + verificado e2e; falta solo smoke humano staging-host + flip opcional auth0-only</div>
     <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 4 — Cutover público og118.ai + DNS — pendiente Gate 3</div>
   </div>
 
@@ -387,11 +387,11 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">Gate 3 + 4 — Auth real + Cutover público</span>
-      <span class="section-badge badge-active">EN CURSO — Auth0 dual mode LIVE</span>
+      <span class="section-badge badge-active">Gate 3 SHIPPED — Auth0 login LIVE en staging</span>
     </div>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Gate 3: Reemplazar bearer speed-bump por auth real — ELEGIDO Auth0, backend VIVO en dual mode</div>
-      <div class="item-note">DECIDIDO Auth0 (tenant dedicado dev-1r4daup7ofj7q6gn; el shared con Ferboli). HECHO: (1) primitiva reusable fi_runner.auth (RS256/JWKS) PR #268; (2) ownership por cuenta + seam get_principal PR #269 (A no ve lo de B); (3) backend en OG118_AUTH_MODE=dual desplegado y VERIFICADO en staging (acepta bearer legacy O JWT Auth0 real; sin token→401, JWT basura→401); (4) apps Auth0 creadas (og118-spa client 9FxTp…, og118-api audience https://api.og118.ai); (5) frontend scaffolding (@auth0/auth0-react + config) PR #270. PENDIENTE: código del frontend (Auth0Wrapper+AuthGate, flag-gated) + verify live del login + flip a auth0-only (PR5). Ver DEPLOY.md §Auth0.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Gate 3: Reemplazar bearer speed-bump por auth real — Auth0 SHIPPED, login LIVE en staging</div>
+      <div class="item-note">Auth0 (tenant dedicado dev-1r4daup7ofj7q6gn; el shared con Ferboli). HECHO: (1) primitiva reusable fi_runner.auth (RS256/JWKS) PR #268; (2) ownership por cuenta + seam get_principal PR #269 (A no ve lo de B); (3) backend en OG118_AUTH_MODE=dual desplegado y VERIFICADO en staging (acepta bearer legacy O JWT Auth0 real; sin token→401, JWT basura→401); (4) apps Auth0 creadas (og118-spa client 9FxTp…, og118-api audience https://api.og118.ai); (5) frontend Auth0 SPA (Auth0Wrapper+AuthGate+authMode, flag-gated) PR #272; (6) cutover SWA bake NEXT_PUBLIC_OG118_AUTH_MODE=auth0 PR #273; (7) fix AuthGate inline styles (csstype) PR #274. VERIFICADO e2e: Google login → JWT (sub=google-oauth2|…, aud=https://api.og118.ai) → /chat/stream staging-backend → 200 + turn real. staging.og118.ai renderiza el login (screenshot). FALTA SOLO: smoke humano del click en staging-host (needs Bernard's Google) + flip opcional a auth0-only. Ver DEPLOY.md §Auth0.</div></div>
       <span class="item-tag">gate-3</span></label>
 
     <label class="item"><input type="checkbox">
