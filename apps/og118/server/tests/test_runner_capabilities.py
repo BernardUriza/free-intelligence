@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import asyncio
 
-from runner import PERSONA, build_runner
+from runner import PERSONA_PATH, build_runner
 from fi_runner import capabilities as fi_caps
+from fi_runner import load_prompt
 from fi_runner.rag_store import RagStoreClient
 
 
@@ -26,7 +27,7 @@ def test_persona_declares_it_is_not_a_coding_agent() -> None:
     Codex). The persona must say so explicitly: the ClaudeCodeBackend's default
     'I operate in a repo' framing otherwise leaks — asked to 'show its code' it
     Glob+Read its own deployment source. It must disclaim repo/codebase/filesystem."""
-    p = PERSONA.lower()
+    p = load_prompt(PERSONA_PATH).lower()
     assert "thinking companion" in p
     assert "not an agentic coding" in p or "not a coding" in p
     assert "no repository" in p or "no repo" in p or "no codebase" in p
