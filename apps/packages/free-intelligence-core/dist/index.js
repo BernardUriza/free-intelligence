@@ -176,6 +176,28 @@ function createConversationRecord(args) {
     schemaVersion: CONVERSATION_SCHEMA_VERSION
   };
 }
+function resolveConversationTitle(messages, prev) {
+  if (prev?.titleCustom && prev.title.trim() !== "") return prev.title;
+  return deriveConversationTitle(messages);
+}
+function renameConversationRecord(record, rawTitle, now) {
+  const trimmed = rawTitle.trim().replace(/\s+/g, " ");
+  const ts = now ?? (/* @__PURE__ */ new Date()).toISOString();
+  if (trimmed === "") {
+    return {
+      ...record,
+      title: deriveConversationTitle(record.messages),
+      titleCustom: false,
+      updatedAt: ts
+    };
+  }
+  return {
+    ...record,
+    title: trimmed.slice(0, TITLE_MAX),
+    titleCustom: true,
+    updatedAt: ts
+  };
+}
 function summarizeConversation(record) {
   return {
     id: record.id,
@@ -194,6 +216,8 @@ export {
   foldAssistantTurn,
   initialAgentTurnState,
   makeUserMessage,
+  renameConversationRecord,
+  resolveConversationTitle,
   sanitizeConversationMessage,
   summarizeConversation
 };
