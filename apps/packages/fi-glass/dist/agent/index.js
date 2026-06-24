@@ -9,6 +9,7 @@ import {
   FileText,
   Globe,
   ListChecks,
+  Loader2,
   Receipt,
   Search,
   Terminal,
@@ -51,6 +52,7 @@ function toolVisualStatus(step, index, latestOpenIndex, live) {
 var defaultAgentIcons = {
   plan: ListChecks,
   warning: AlertTriangle,
+  spinner: Loader2,
   bot: Bot,
   sources: Receipt,
   external: ExternalLink,
@@ -184,7 +186,7 @@ function StepsPanel({
 }) {
   const ic = resolveIcons(icons);
   const BotIcon = ic.bot;
-  const WarnIcon = ic.warning;
+  const SpinnerIcon = ic.spinner;
   const card = classNames?.card ?? "";
   const hint = classNames?.hint ?? "";
   const live = status === "thinking" || status === "streaming";
@@ -225,13 +227,14 @@ function StepsPanel({
     showSlowBanner && /* @__PURE__ */ jsxs2(
       "div",
       {
-        className: "mt-2 inline-flex items-start gap-2 rounded-lg border border-amber-700/40 bg-amber-950/20 p-2.5 text-xs text-amber-200",
+        className: "mt-2 inline-flex items-center gap-2 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2.5 text-xs text-sky-200",
         role: "status",
+        "aria-live": "polite",
         children: [
           /* @__PURE__ */ jsx2(
-            WarnIcon,
+            SpinnerIcon,
             {
-              className: "h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400",
+              className: "h-3.5 w-3.5 shrink-0 animate-spin text-sky-400",
               "aria-hidden": true
             }
           ),
@@ -515,7 +518,7 @@ function useAgentConversation(agent, options = {}) {
 
 // src/agent/AgentConversationSurface.tsx
 import { useCallback as useCallback9, useEffect as useEffect14, useRef as useRef9, useState as useState15 } from "react";
-import { Send, Loader2 as Loader211 } from "lucide-react";
+import { Send, Loader2 as Loader212 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 // src/composer/AutoResizeTextarea.tsx
@@ -598,6 +601,7 @@ import { jsx as jsx6 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
@@ -613,6 +617,7 @@ function Composer({
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -626,7 +631,7 @@ function Composer({
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
       placeholder,
-      disabled: loading,
+      disabled,
       maxRows,
       showCounter: false,
       wrapperClassName,
@@ -977,7 +982,7 @@ import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef as forwardRef2 } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2 as Loader22 } from "lucide-react";
 
 // src/voice/recording/types.ts
 var BUTTON_SIZES = {
@@ -1020,7 +1025,7 @@ var RecordingButton = forwardRef2(
     animate = ""
   }, ref) {
     const sizeConfig = BUTTON_SIZES[size];
-    const DisplayIcon = iconSpin ? Loader2 : Icon;
+    const DisplayIcon = iconSpin ? Loader22 : Icon;
     return /* @__PURE__ */ jsx12(
       "button",
       {
@@ -1049,24 +1054,24 @@ import { motion as motion2 } from "framer-motion";
 import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 
 // src/voice/recording/StatusText.tsx
-import { Loader2 as Loader22 } from "lucide-react";
+import { Loader2 as Loader23 } from "lucide-react";
 import { motion as motion3 } from "framer-motion";
 import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/VoiceMicButton.tsx
-import { Mic, Square, Loader2 as Loader23 } from "lucide-react";
+import { Mic, Square, Loader2 as Loader24 } from "lucide-react";
 import { motion as motion4 } from "framer-motion";
 import { jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/SpeakButton.tsx
-import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
+import { Volume2, Loader2 as Loader25, Play } from "lucide-react";
 import { jsx as jsx17 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
 import { useEffect as useEffect6, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
-import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
+import { Play as Play2, Pause, Square as Square2, Loader2 as Loader26, AlertCircle } from "lucide-react";
 import { useEffect as useEffect7 } from "react";
 import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
@@ -1075,7 +1080,7 @@ import {
   Play as Play3,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader26,
+  Loader2 as Loader27,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
@@ -1169,7 +1174,7 @@ function AudioVisualizer({
 }
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader28 } from "lucide-react";
 import { jsx as jsx21 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1197,7 +1202,7 @@ function ComposerMicSlot({
     if (recording) onStop?.();
     else onStart?.();
   };
-  const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
+  const Icon = !available ? MicOff : busy ? Loader28 : recording ? Square4 : Mic2;
   return /* @__PURE__ */ jsx21("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx21(
     "button",
     {
@@ -1630,7 +1635,7 @@ import { useState as useState11, useEffect as useEffect11, useCallback as useCal
 
 // src/voice/AudioQueuePanel.tsx
 import { useEffect as useEffect12, useState as useState13 } from "react";
-import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
+import { Loader2 as Loader210, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState12, useCallback as useCallback8 } from "react";
@@ -1640,7 +1645,7 @@ import {
   CheckCircle2,
   CheckCheck,
   AlertCircle as AlertCircle3,
-  Loader2 as Loader28,
+  Loader2 as Loader29,
   Play as Play4,
   RotateCcw as RotateCcw2,
   Trash2,
@@ -1653,7 +1658,7 @@ import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState14, useEffect as useEffect13 } from "react";
-import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
 // src/agent/ScrollToBottomButton.tsx
@@ -2062,7 +2067,7 @@ function AgentConversationSurface({
                     "aria-label": sendLabel,
                     className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
                     children: isStreaming ? /* @__PURE__ */ jsx26(
-                      Loader211,
+                      Loader212,
                       {
                         className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
                         "aria-hidden": true

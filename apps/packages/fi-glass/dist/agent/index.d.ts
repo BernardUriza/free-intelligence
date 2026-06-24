@@ -37,6 +37,8 @@ interface AgentIconSet {
     plan: LucideIcon;
     /** Guard/warning indicator. */
     warning: LucideIcon;
+    /** In-progress spinner (e.g. the "still working" banner). Spun via animate-spin. */
+    spinner: LucideIcon;
     /** Assistant identity (Steps panel header). */
     bot: LucideIcon;
     /** Sources panel header. */
