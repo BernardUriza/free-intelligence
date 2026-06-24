@@ -158,6 +158,10 @@ jobs:
         id: gatekeep
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Claude Code OAuth (Max subscription) is the gatekeeper's primary
+          # provider — no per-call API billing and the owner keeps it fresh for
+          # og118. bair's _call_llm tries this first, then ANTHROPIC_API_KEY.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.OG118_CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
           PR_NUM: ${{ github.event.pull_request.number }}
