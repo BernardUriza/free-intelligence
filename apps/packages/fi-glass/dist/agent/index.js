@@ -903,6 +903,9 @@ function useTouchTargetStyle() {
     ensureTouchTargetStyle();
   }, []);
 }
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
 
 // src/messages/CopyButton.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
@@ -2268,22 +2271,339 @@ function AgentWorkspaceShell({
     }
   );
 }
+
+// src/agent/AgentSidebarItem.tsx
+import {
+  useCallback as useCallback11,
+  useRef as useRef10,
+  useState as useState17
+} from "react";
+
+// src/agent/sidebarItemStyle.ts
+import { useEffect as useEffect16 } from "react";
+var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
+var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
+var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
+var FI_ITEM_SUBTITLE_CLASS = "fi-sidebar-item-subtitle";
+var FI_ITEM_META_CLASS = "fi-sidebar-item-meta";
+var FI_ITEM_ACTION_CLASS = "fi-item-action";
+var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
+var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
+var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
+var CSS = `
+.${FI_SIDEBAR_ITEM_CLASS} {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover {
+  background: var(--fi-sidebar-item-hover-bg, rgba(255, 255, 255, 0.04));
+}
+.${FI_SIDEBAR_ITEM_CLASS}:focus-visible {
+  box-shadow: 0 0 0 2px var(--glass-chat-accent-from, #059669);
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-selected {
+  background: var(--fi-sidebar-item-selected-bg, rgba(52, 211, 153, 0.08));
+  border-color: var(--fi-sidebar-item-selected-border, rgba(52, 211, 153, 0.3));
+  cursor: default;
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-editing {
+  cursor: default;
+}
+.${FI_ITEM_BODY_CLASS} {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.${FI_ITEM_TITLE_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #e2e8f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_SUBTITLE_CLASS} {
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_META_CLASS} {
+  font-size: 0.68rem;
+  color: var(--fi-sidebar-item-meta-color, #475569);
+}
+.${FI_ITEM_ACTION_CLASS} {
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover .${FI_ITEM_ACTION_CLASS},
+.${FI_ITEM_ACTION_CLASS}:focus-visible {
+  opacity: 1;
+}
+.${FI_ITEM_ACTION_CLASS}:disabled {
+  cursor: not-allowed;
+  opacity: 0;
+}
+.${FI_ITEM_ACTION_DANGER_CLASS}:hover:not(:disabled) {
+  color: var(--fi-sidebar-item-danger, #f87171);
+}
+@media (pointer: coarse) {
+  .${FI_ITEM_ACTION_CLASS} {
+    opacity: 1;
+  }
+}
+.${FI_RESOURCE_RENAME_INPUT_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #e2e8f0);
+  background: var(--glass-chat-bg-mid, #0f172a);
+  border: 1px solid var(--glass-chat-accent-from, #059669);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  width: 100%;
+  outline: none;
+}
+`;
+function ensureSidebarItemStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_ITEM_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useSidebarItemStyle() {
+  useEffect16(() => {
+    ensureSidebarItemStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarItem.tsx
+import { Fragment as Fragment3, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+function joinClasses(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function ItemActionSlot({
+  label,
+  onActivate,
+  disabled = false,
+  danger = false,
+  className,
+  children
+}) {
+  const cls = withTouchTarget(
+    joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
+  );
+  return /* @__PURE__ */ jsx28(
+    "button",
+    {
+      type: "button",
+      className: cls,
+      "aria-label": label,
+      disabled,
+      onClick: (e) => {
+        e.stopPropagation();
+        if (!disabled) onActivate();
+      },
+      children
+    }
+  );
+}
+function DestructiveActionSlot(props) {
+  return /* @__PURE__ */ jsx28(ItemActionSlot, { ...props, danger: true });
+}
+function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
+  const [editing, setEditing] = useState17(false);
+  const [draft, setDraft] = useState17("");
+  const cancelledRef = useRef10(false);
+  const start = useCallback11(() => {
+    cancelledRef.current = false;
+    setDraft(value);
+    setEditing(true);
+  }, [value]);
+  const cancel = useCallback11(() => {
+    cancelledRef.current = true;
+    setEditing(false);
+  }, []);
+  const commit = useCallback11(() => {
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      setEditing(false);
+      return;
+    }
+    if (draft.trim() === "" && emptyPolicy === "keep") {
+      setEditing(false);
+      return;
+    }
+    onRename(draft);
+    setEditing(false);
+  }, [draft, emptyPolicy, onRename]);
+  return {
+    editing,
+    draft,
+    start,
+    cancel,
+    inputProps: {
+      value: draft,
+      maxLength,
+      autoFocus: true,
+      onChange: (e) => setDraft(e.target.value),
+      onBlur: commit,
+      onClick: (e) => e.stopPropagation(),
+      onKeyDown: (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancel();
+        }
+      }
+    }
+  };
+}
+function AgentSidebarItem({
+  selected,
+  onSelect,
+  title,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  editing = false,
+  ariaLabel,
+  className
+}) {
+  useSidebarItemStyle();
+  const interactive = !disabled && !selected && !editing;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx28("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs21(
+    "div",
+    {
+      className: joinClasses(
+        FI_SIDEBAR_ITEM_CLASS,
+        selected && "is-selected",
+        editing && "is-editing",
+        className
+      ),
+      role: "button",
+      tabIndex: 0,
+      "aria-current": selected,
+      "aria-label": ariaLabel,
+      onClick: () => interactive && onSelect(),
+      onKeyDown: (e) => {
+        if ((e.key === "Enter" || e.key === " ") && interactive) {
+          e.preventDefault();
+          onSelect();
+        }
+      },
+      children: [
+        /* @__PURE__ */ jsxs21("div", { className: FI_ITEM_BODY_CLASS, children: [
+          titleNode,
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_META_CLASS, children: meta })
+        ] }),
+        actions
+      ]
+    }
+  );
+}
+function EditableResourceItem({
+  title,
+  selected,
+  onSelect,
+  onRename,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  maxLength,
+  emptyPolicy,
+  renameLabel,
+  renameInputLabel,
+  renameGlyph = "\u270E",
+  ariaLabel
+}) {
+  const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx28(
+    "input",
+    {
+      className: FI_RESOURCE_RENAME_INPUT_CLASS,
+      "aria-label": renameInputLabel,
+      ...rename.inputProps
+    }
+  ) : title;
+  return /* @__PURE__ */ jsx28(
+    AgentSidebarItem,
+    {
+      selected,
+      onSelect,
+      disabled,
+      editing: rename.editing,
+      ariaLabel,
+      title: titleNode,
+      subtitle,
+      meta,
+      actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment3, { children: [
+        /* @__PURE__ */ jsx28(
+          ItemActionSlot,
+          {
+            label: renameLabel,
+            disabled,
+            onActivate: rename.start,
+            children: renameGlyph
+          }
+        ),
+        actions
+      ] })
+    }
+  );
+}
 export {
   AgentConversationSurface,
   AgentPanel,
+  AgentSidebarItem,
   AgentWorkspaceShell,
   DEFAULT_TURN_TIMEOUT_MS,
+  DestructiveActionSlot,
+  EditableResourceItem,
+  FI_ITEM_ACTION_CLASS,
+  FI_ITEM_META_CLASS,
+  FI_ITEM_SUBTITLE_CLASS,
+  FI_ITEM_TITLE_CLASS,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SIDEBAR_ITEM_CLASS,
+  ItemActionSlot,
   PlanChecklist,
   ScrollToBottomButton,
   SourcesPanel,
   StepsPanel,
   classifyTool,
   defaultAgentIcons,
+  ensureSidebarItemStyle,
   latestOpenToolIndex,
   resolveIcons,
   shortToolName,
   toolIcon,
   toolVisualStatus,
-  useAgentConversation
+  useAgentConversation,
+  useInlineRename,
+  useSidebarItemStyle
 };
 //# sourceMappingURL=index.js.map
