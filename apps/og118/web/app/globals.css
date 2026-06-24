@@ -289,106 +289,11 @@ body {
   flex-direction: column;
   gap: 0.3rem;
 }
-.og-chat-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.55rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  outline: none;
-}
-.og-chat-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-.og-chat-item.is-active {
-  background: rgba(52, 211, 153, 0.08);
-  border-color: rgba(52, 211, 153, 0.3);
-  cursor: default;
-}
-.og-chat-item-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-.og-chat-item-title {
-  font-size: 0.85rem;
-  color: #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.og-chat-item-preview {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.og-chat-item-time {
-  font-size: 0.68rem;
-  color: #475569;
-}
-.og-chat-item-del {
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  opacity: 0;
-}
-.og-chat-item:hover .og-chat-item-del {
-  opacity: 1;
-}
-/* B3-FIGLASS-MOBILE-2 — touch devices have no hover, so the hover-revealed delete
-   would be permanently invisible (a 44x44 ghost target = fake-green). Reveal it on
-   coarse pointers so the framework touch minimum is actually usable by fingers. */
-@media (pointer: coarse) {
-  .og-chat-item-del {
-    opacity: 1;
-  }
-}
-.og-chat-item-del:disabled {
-  cursor: not-allowed;
-  opacity: 0;
-}
-.og-chat-item-rename-btn {
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.9rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  opacity: 0;
-}
-.og-chat-item:hover .og-chat-item-rename-btn {
-  opacity: 1;
-}
-@media (pointer: coarse) {
-  .og-chat-item-rename-btn {
-    opacity: 1;
-  }
-}
-.og-chat-item-rename-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0;
-}
-.og-chat-item-rename {
-  font-size: 0.85rem;
-  color: #e2e8f0;
-  background: #0f172a;
-  border: 1px solid var(--og-accent, #34d399);
-  border-radius: 4px;
-  padding: 0.1rem 0.3rem;
-  width: 100%;
-  outline: none;
-}
+/* The conversation rows (item layout, selected/hover, title/preview/time, the
+   delete + inline-rename affordances and the coarse-pointer reveal) moved to
+   fi-glass `EditableResourceItem` (B3-FIGLASS-SHELL-PRIMITIVES-1A). og118 re-tints
+   via the --glass-chat-* tokens it already sets on body.glass-chat — no og-chat-*
+   CSS left to maintain. The `og-sidebar*` rail/header/list stay here pending 1C. */
 .og-sidebar-privacy {
   margin: 0;
   padding: 0.6rem 0.85rem;
