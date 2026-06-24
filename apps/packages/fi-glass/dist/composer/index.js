@@ -80,6 +80,7 @@ import { jsx as jsx2 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
@@ -95,6 +96,7 @@ function Composer({
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -108,7 +110,7 @@ function Composer({
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
       placeholder,
-      disabled: loading,
+      disabled,
       maxRows,
       showCounter: false,
       wrapperClassName,
