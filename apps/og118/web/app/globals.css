@@ -357,6 +357,38 @@ body {
   cursor: not-allowed;
   opacity: 0;
 }
+.og-chat-item-rename-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0;
+}
+.og-chat-item:hover .og-chat-item-rename-btn {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .og-chat-item-rename-btn {
+    opacity: 1;
+  }
+}
+.og-chat-item-rename-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0;
+}
+.og-chat-item-rename {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  background: #0f172a;
+  border: 1px solid var(--og-accent, #34d399);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  width: 100%;
+  outline: none;
+}
 .og-sidebar-privacy {
   margin: 0;
   padding: 0.6rem 0.85rem;

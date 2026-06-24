@@ -150,6 +150,11 @@ export function Og118AgentChat() {
               console.error('[og118] delete failed', e),
             )
           }
+          onRename={(id, title) =>
+            void lib.renameConversation(id, title).catch((e) =>
+              console.error('[og118] rename failed', e),
+            )
+          }
           disabled={conversation.isStreaming}
         />
         </>
