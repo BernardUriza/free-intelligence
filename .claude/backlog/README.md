@@ -13,3 +13,4 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 | [CONVO-SYNC-1 — server-side conversations (cross-device sync), adoption-gated](convo-sync-serverside-conversations.md) | Proposed | 2026-06-21 |
 | [B3-FIGLASS-SHELL-PRIMITIVES-1 — extract sidebar/resource/composer layout to fi-glass](b3-figlass-shell-primitives.md) | Proposed | 2026-06-23 |
 | [OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)](og118-elementos-118-gpt-personas.md) | Proposed | 2026-06-24 |
+| [B3-FIGLASS-CONVERSATION-RENAME-1 — editable chat names in fi-glass](b3-figlass-conversation-rename.md) | In progress | 2026-06-24 |

@@ -14,6 +14,8 @@ import {
   summarizeConversation,
   deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
 } from './helpers';
 
@@ -150,5 +152,74 @@ describe('summarizeConversation', () => {
       updatedAt: NOW,
       preview: 'a',
     });
+  });
+});
+
+const LATER = '2026-06-10T00:00:00.000Z';
+
+describe('renameConversationRecord — user rename', () => {
+  it('stores a non-empty title verbatim and marks it custom', () => {
+    const rec = createConversationRecord({
+      id: 'r1',
+      messages: [msg('user', 'derived from this')],
+      now: NOW,
+    });
+    const next = renameConversationRecord(rec, '  My  cool   chat  ', LATER);
+    expect(next.title).toBe('My cool chat');
+    expect(next.titleCustom).toBe(true);
+    expect(next.updatedAt).toBe(LATER);
+    expect(next.createdAt).toBe(NOW); // untouched
+    expect(rec.titleCustom).toBeUndefined(); // pure: original not mutated
+  });
+
+  it('caps a custom title at the title max length', () => {
+    const rec = createConversationRecord({ id: 'r2', now: NOW });
+    const long = 'x'.repeat(200);
+    const next = renameConversationRecord(rec, long, LATER);
+    expect(next.title.length).toBe(60);
+    expect(next.titleCustom).toBe(true);
+  });
+
+  it('reverts to the derived title and clears custom on an empty title', () => {
+    const rec = renameConversationRecord(
+      createConversationRecord({
+        id: 'r3',
+        messages: [msg('user', 'original question')],
+        now: NOW,
+      }),
+      'renamed',
+      LATER,
+    );
+    expect(rec.titleCustom).toBe(true);
+    const reverted = renameConversationRecord(rec, '   ', LATER);
+    expect(reverted.title).toBe('original question');
+    expect(reverted.titleCustom).toBe(false);
+  });
+});
+
+describe('resolveConversationTitle — persist preserves a rename', () => {
+  it('derives from messages when there is no custom title', () => {
+    const messages = [msg('user', 'fresh derive')];
+    expect(resolveConversationTitle(messages)).toBe('fresh derive');
+    expect(
+      resolveConversationTitle(messages, { title: 'old', titleCustom: false }),
+    ).toBe('fresh derive');
+  });
+
+  it('keeps a custom title instead of re-deriving', () => {
+    const messages = [msg('user', 'would derive to this')];
+    expect(
+      resolveConversationTitle(messages, {
+        title: 'User Named It',
+        titleCustom: true,
+      }),
+    ).toBe('User Named It');
+  });
+
+  it('falls back to derive when a custom title is blank', () => {
+    const messages = [msg('user', 'derive fallback')];
+    expect(
+      resolveConversationTitle(messages, { title: '   ', titleCustom: true }),
+    ).toBe('derive fallback');
   });
 });

@@ -16,6 +16,8 @@ export {
   summarizeConversation,
   deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
   type CreateConversationRecordArgs,
 } from './helpers';
