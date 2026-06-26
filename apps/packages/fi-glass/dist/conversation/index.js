@@ -83,8 +83,9 @@ var IndexedDBConversationLibrary = class {
 import { useCallback, useEffect, useState } from "react";
 import {
   CONVERSATION_SCHEMA_VERSION,
-  deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage
 } from "@free-intelligence/core";
 function useConversationLibrary(library, options = {}) {
@@ -149,11 +150,13 @@ function useConversationLibrary(library, options = {}) {
       if (messages.length === 0) return;
       const id = activeId ?? idFactory();
       const now = nowFn();
-      const createdAt = activeRecord?.id === id ? activeRecord.createdAt : now;
+      const prevForTitle = activeRecord?.id === id ? activeRecord : void 0;
+      const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
       const record = {
         id,
-        title: deriveConversationTitle(clean),
+        title: resolveConversationTitle(clean, prevForTitle),
+        titleCustom: prevForTitle?.titleCustom,
         createdAt,
         updatedAt: now,
         messages: clean,
@@ -187,6 +190,25 @@ function useConversationLibrary(library, options = {}) {
     },
     [library, activeId, idFactory]
   );
+  const renameConversation = useCallback(
+    async (id, title) => {
+      const record = await library.get(id);
+      if (!record) {
+        await refresh();
+        throw new Error(
+          `useConversationLibrary: conversation "${id}" not found`
+        );
+      }
+      const next = renameConversationRecord(record, title, nowFn());
+      await library.put(next);
+      if (id === activeId) {
+        setActiveRecord(next);
+        setActiveMessages(next.messages);
+      }
+      await refresh();
+    },
+    [library, activeId, nowFn, refresh]
+  );
   return {
     ready,
     conversations,
@@ -196,6 +218,7 @@ function useConversationLibrary(library, options = {}) {
     newConversation,
     switchConversation,
     deleteConversation,
+    renameConversation,
     persist,
     refresh
   };

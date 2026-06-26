@@ -95,6 +95,49 @@ export function createConversationRecord(
   };
 }
 
+/**
+ * Resolve the title to stamp when persisting messages: a user-set (custom)
+ * title is preserved; otherwise it is derived from the messages. This is the
+ * SSOT that keeps `persist` from clobbering a rename on the next message.
+ */
+export function resolveConversationTitle(
+  messages: ChatMessage[],
+  prev?: { title: string; titleCustom?: boolean },
+): string {
+  if (prev?.titleCustom && prev.title.trim() !== '') return prev.title;
+  return deriveConversationTitle(messages);
+}
+
+/**
+ * Apply a user rename to a record. A non-empty title is stored verbatim
+ * (trimmed, whitespace-collapsed, capped at TITLE_MAX) and marks the record
+ * `titleCustom` so future persists never re-derive it. An empty/whitespace
+ * title reverts to the derived title and clears the custom flag
+ * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
+ */
+export function renameConversationRecord(
+  record: ConversationRecord,
+  rawTitle: string,
+  now?: string,
+): ConversationRecord {
+  const trimmed = rawTitle.trim().replace(/\s+/g, ' ');
+  const ts = now ?? new Date().toISOString();
+  if (trimmed === '') {
+    return {
+      ...record,
+      title: deriveConversationTitle(record.messages),
+      titleCustom: false,
+      updatedAt: ts,
+    };
+  }
+  return {
+    ...record,
+    title: trimmed.slice(0, TITLE_MAX),
+    titleCustom: true,
+    updatedAt: ts,
+  };
+}
+
 /** Project a record to its light summary — excludes `messages`. */
 export function summarizeConversation(
   record: ConversationRecord,

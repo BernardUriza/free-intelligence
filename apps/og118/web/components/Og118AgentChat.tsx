@@ -25,7 +25,6 @@
  */
 
 import { useState } from 'react';
-import { Loader2, Pause, Play, Square } from 'lucide-react';
 import {
   AgentConversationSurface,
   AgentWorkspaceShell,
@@ -35,28 +34,20 @@ import {
   useConversationLibrary,
   useIndexedDBConversationLibrary,
 } from 'fi-glass/conversation';
-import {
-  useVoice,
-  RichAudioPlayer,
-  useAudioQueueStore,
-  useDurableRecording,
-  useAudioQueue,
-  AudioQueuePanel,
-  AudioDraftPlayer,
-  ComposerMicSlot,
-  AudioVisualizer,
-} from 'fi-glass/voice';
+import { useAudioQueueStore } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { useOg118Identity } from '@/lib/og118Identity';
 import { isAuth0Mode } from '@/lib/authMode';
-import { og118VoiceAdapter } from '@/lib/og118VoiceAdapter';
+import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
+import { Og118AuthBanner } from './Og118AuthBanner';
+import { Og118VoiceErrorBanner } from './Og118VoiceErrorBanner';
 
 export function Og118AgentChat() {
   // Identity-scoped local-first stores: each signed-in account gets its OWN
@@ -81,47 +72,11 @@ export function Og118AgentChat() {
     isAppHandledError: (t) => (t.errorMessage ?? '').startsWith(AUTH401),
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
-  // Voice errors (STT recording errors + transcription failures) are surfaced to
-  // the user via a dismissable banner. The adapter only emits controlled error
-  // messages (no tokens, no PHI, no stack), so the string is safe to render verbatim.
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  // Pull-once composer injection: when a durable-queue transcription succeeds, the
-  // text lands here; AgentConversationSurface appends it and calls the consumed
-  // callback, which resets this state back to ''.
-  const [composerAppend, setComposerAppend] = useState('');
   const { turn } = conversation;
 
-  // TTS consumer wiring (B3-TTS-1): synthesis goes through og118's adapter
-  // (backend /tts/synthesize); fi-glass owns playback + object-URL lifecycle.
-  // No audio state lives in og118 — useVoice resolves the Blob to a URL and
-  // AudioPlayer plays it.
-  const voice = useVoice(og118VoiceAdapter, {
-    onError: (e, ctx) => console.error('[og118] tts', ctx, e),
-  });
-
-  // B3-VOICE-OG118-6: durable local audio capture.
-  // useDurableRecording owns the mic + IndexedDB save; useAudioQueue owns
-  // transcription + queue management. og118 owns only the transport (adapter).
-  const recording = useDurableRecording({
-    store: audioQueueStore,
-    onError: (msg) => setVoiceError(msg),
-  });
-  const queue = useAudioQueue({
-    store: audioQueueStore,
-    adapter: og118VoiceAdapter,
-    onTranscribed: (_id, text) => {
-      if (text) {
-        setComposerAppend(text);
-      } else {
-        // Empty transcript: audio stays in the queue as-is; user can retry or delete.
-        setVoiceError('El servidor no reconoció texto. El audio se conserva para revisión.');
-      }
-    },
-    onError: (_id, msg) => {
-      console.error('[og118] stt queue', msg);
-      setVoiceError(msg);
-    },
-  });
+  // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
+  // in one consumer hook; it returns the render slots the surface distributes.
+  const composer = useOg118VoiceComposer(audioQueueStore);
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
@@ -139,252 +94,17 @@ export function Og118AgentChat() {
   };
 
   const authBanner = needsAuth ? (
-    <div
-      style={{
-        marginBottom: '0.75rem',
-        padding: '0.75rem',
-        borderRadius: 10,
-        border: '1px solid rgba(248,113,113,0.35)',
-        background: 'rgba(248,113,113,0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem',
-      }}
-    >
-      <span style={{ color: '#fca5a5', fontSize: '0.85rem' }}>
-        Acceso restringido — pega tu token de og118 para continuar.
-      </span>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <input
-          type="password"
-          value={tokenInput}
-          onChange={(e) => setTokenInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') saveToken();
-          }}
-          placeholder="og118 access token"
-          style={{
-            flex: 1,
-            padding: '0.5rem 0.75rem',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: 'rgba(15,23,42,0.6)',
-            color: '#e2e8f0',
-            fontSize: '0.85rem',
-          }}
-        />
-        <button
-          onClick={saveToken}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: 8,
-            border: '1px solid var(--og-accent, #34d399)',
-            background: 'transparent',
-            color: 'var(--og-accent, #34d399)',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
-        >
-          Guardar
-        </button>
-      </div>
-    </div>
+    <Og118AuthBanner token={tokenInput} onTokenChange={setTokenInput} onSave={saveToken} />
   ) : null;
 
-  // Voice error banner — covers both recording errors and STT failures.
-  // Dismissable inline banner; the message is always a controlled string (no
-  // tokens, no PHI, no raw stack traces).
-  const voiceErrorBanner = voiceError ? (
-    <div
-      style={{
-        marginBottom: '0.75rem',
-        padding: '0.5rem 0.75rem',
-        borderRadius: 10,
-        border: '1px solid rgba(251,191,36,0.35)',
-        background: 'rgba(251,191,36,0.08)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '0.5rem',
-      }}
-    >
-      <span style={{ color: '#fcd34d', fontSize: '0.85rem' }}>{voiceError}</span>
-      <button
-        onClick={() => setVoiceError(null)}
-        aria-label="Descartar error de voz"
-        style={{
-          border: 'none',
-          background: 'transparent',
-          color: '#fcd34d',
-          fontSize: '1rem',
-          cursor: 'pointer',
-          lineHeight: 1,
-        }}
-      >
-        ×
-      </button>
-    </div>
-  ) : null;
-
-  // Voice bar (B3-VOICE-OG118-2) — rich TTS playback, a reusable fi-glass
-  // primitive (DD-002 / framework-first-canary: og118 consumes, never
-  // re-implements). og118 owns only layout/color via CSS.
-  const voiceBar = voice.audioUrl ? (
-    <div className="og-voice-bar">
-      <RichAudioPlayer
-        source={{ url: voice.audioUrl }}
-        autoPlay
-        onEnded={voice.close}
-        onError={(e, ctx) => console.error('[og118] tts playback', ctx, e)}
-        className="og-voice-player"
-        progressClassName="og-voice-progress"
-      />
-    </div>
-  ) : null;
-
-  // B3-VOICE-OG118-6: audio queue panel — shown above the composer when
-  // there are pending (non-deleted) artifacts. Privacy notice, item list, and
-  // a "clear transcribed" action are all provided by the fi-glass primitive.
-  // B3-VOICE-FIGLASS-10: two draft modes:
-  // 1. PAUSED RECORDING — the active useDurableRecording artifact in 'paused'
-  //    state. Segmented pause (FIGLASS-18) yields the recorded-so-far WAV as
-  //    pausedPreviewBlob, so the draft plays it back + Reanudar.
-  // 2. SAVED DRAFT — the most recent queue artifact that hasn't been acted on
-  //    (queued/stopping/transcribing/uploading/failed). Shows the full player.
-  const pausedRecordingArtifact =
-    recording.artifact?.state === 'paused' ? recording.artifact : null;
-
-  const draftArtifact = [...queue.artifacts]
-    .reverse()
-    .find(
-      (a) =>
-        a.state === 'stopping' ||
-        a.state === 'queued' ||
-        a.state === 'transcribing' ||
-        a.state === 'uploading' ||
-        a.state === 'failed',
-    );
-
-  const audioDraftPlayer = pausedRecordingArtifact ? (
-    <AudioDraftPlayer
-      artifact={pausedRecordingArtifact}
-      pausedPreview={recording.pausedPreviewBlob}
-      onResume={recording.resumeRecording}
-      onPrimary={() => { void recording.stopRecording().then(() => queue.reload()); }}
-      onDiscard={() => { recording.cancelRecording(); }}
-      primaryActionLabel="Guardar"
-      className="og-audio-draft og-audio-draft--paused"
-    />
-  ) : draftArtifact ? (
-    <AudioDraftPlayer
-      artifact={draftArtifact}
-      onGetPlaybackUrl={queue.getPlaybackUrl}
-      onPrimary={queue.transcribeArtifact}
-      onRetry={queue.retryTranscription}
-      onDiscard={queue.deleteArtifact}
-      primaryActionLabel="Transcribir"
-      className="og-audio-draft"
+  // Voice error banner — covers both recording errors and STT failures. The
+  // message is always a controlled string (no tokens, no PHI, no raw stack).
+  const voiceErrorBanner = composer.voiceErrorBanner ? (
+    <Og118VoiceErrorBanner
+      message={composer.voiceErrorBanner}
+      onDismiss={() => composer.setVoiceError(null)}
     />
   ) : null;
-
-  const backlogCount = queue.artifacts.filter(
-    (a) =>
-      a.state !== 'deleted' &&
-      a.state !== 'archived' && // sent-to-chat: hidden from the backlog
-      a.id !== draftArtifact?.id,
-  ).length;
-  const audioQueuePanel = backlogCount > 0 ? (
-    <AudioQueuePanel
-      queue={queue}
-      excludeIds={draftArtifact ? [draftArtifact.id] : []}
-      className="og-audio-queue"
-    />
-  ) : null;
-
-  // B3-VOICE-OG118-6: durable mic controls for the composer row.
-  // Three states — idle, recording, paused — each with the appropriate action
-  // buttons. The live equalizer (AudioVisualizer) is embedded here so it sits
-  // in the same composer row as the mic button, exactly where the direct-
-  // dictation visualizer was (B3-VOICE-FIGLASS-5). og118 tints via CSS only;
-  // no internal fi-glass DOM is reached.
-  const isActivelyRecording = recording.artifact?.state === 'recording';
-  const isPaused = recording.artifact?.state === 'paused';
-  const isStopping = recording.artifact?.state === 'stopping';
-  const micBtnStyle = {
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.375rem',
-    borderRadius: 8,
-    color: 'var(--og-accent, #34d399)',
-  };
-  const durableMicSlot = (
-    <div className="og-durable-mic" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      {isActivelyRecording && (
-        <AudioVisualizer
-          levels={recording.bands}
-          active
-          variant="bars"
-          label="Nivel del micrófono"
-          className="og-voice-visualizer"
-          barClassName="og-voice-bar-bar"
-        />
-      )}
-      {!isActivelyRecording && !isPaused && !isStopping && (
-        <ComposerMicSlot
-          available={!recording.isAtCapacity}
-          recording={false}
-          busy={recording.isStarting}
-          onStart={() => { void recording.startRecording(); }}
-          onStop={() => {}}
-          className="og-mic-slot"
-        />
-      )}
-      {isStopping && (
-        <span
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: '0.75rem',
-            color: 'var(--og-accent-muted, #a3a3a3)',
-          }}
-          aria-live="polite"
-          aria-label="Guardando audio"
-        >
-          <Loader2 size={14} className="animate-spin" style={{ color: '#f59e0b' }} />
-          Guardando...
-        </span>
-      )}
-      {isActivelyRecording && (
-        <>
-          <button
-            type="button"
-            onClick={recording.pauseRecording}
-            aria-label="Pausar grabación"
-            className="og-mic-pause"
-            style={micBtnStyle}
-          >
-            <Pause size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => { void recording.stopRecording().then(() => queue.reload()); }}
-            aria-label="Detener y guardar grabación"
-            className="og-mic-stop"
-            style={micBtnStyle}
-          >
-            <Square size={18} />
-          </button>
-        </>
-      )}
-      {/* When paused, AudioDraftPlayer (above composer) owns the Resume/Stop
-          controls — no duplicate buttons here. */}
-    </div>
-  );
 
   // Wait for the first hydration so we never send with a null session id nor
   // flash an empty start screen over a stored conversation.
@@ -430,6 +150,11 @@ export function Og118AgentChat() {
               console.error('[og118] delete failed', e),
             )
           }
+          onRename={(id, title) =>
+            void lib.renameConversation(id, title).catch((e) =>
+              console.error('[og118] rename failed', e),
+            )
+          }
           disabled={conversation.isStreaming}
         />
         </>
@@ -452,9 +177,9 @@ export function Og118AgentChat() {
             <>
               {authBanner}
               {voiceErrorBanner}
-              {voiceBar}
-              {audioDraftPlayer}
-              {audioQueuePanel}
+              {composer.voiceBar}
+              {composer.audioDraftPlayer}
+              {composer.audioQueuePanel}
             </>
           }
           // The frosted preset goes on the BOX (textarea + controls row inside
@@ -467,10 +192,10 @@ export function Og118AgentChat() {
           // voiceAdapter is NOT passed here (no transcribe capability = no built-in
           // direct-dictation mic). TTS is handled separately via useVoice above.
           // micSlotOverride puts the durable controls in the same composer row slot.
-          micSlotOverride={durableMicSlot}
+          micSlotOverride={composer.durableMicSlot}
           // B3-VOICE-OG118-6: pull-once transcript injection from the durable queue.
-          composerAppend={composerAppend}
-          onComposerAppendConsumed={() => setComposerAppend('')}
+          composerAppend={composer.composerAppend}
+          onComposerAppendConsumed={composer.clearComposerAppend}
           // Visible send button (like AURITY), styled with the og emerald accent.
           sendButtonClassName="og-send-btn"
           sendButtonIconClassName="og-send-icon"
@@ -493,11 +218,11 @@ export function Og118AgentChat() {
           renderActions={(m) => (
             <Og118MessageActions
               message={m}
-              currentVoice={voice.currentVoice}
-              onSpeak={voice.generateAudio}
-              ttsLoading={voice.isLoading}
-              ttsActiveText={voice.currentText}
-              ttsHasCached={voice.hasCachedAudio}
+              currentVoice={composer.voice.currentVoice}
+              onSpeak={composer.voice.generateAudio}
+              ttsLoading={composer.voice.isLoading}
+              ttsActiveText={composer.voice.currentText}
+              ttsHasCached={composer.voice.hasCachedAudio}
             />
           )}
         />

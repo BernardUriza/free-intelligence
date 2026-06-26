@@ -14,8 +14,13 @@ import type { ChatMessage } from '../chat/message';
 export interface ConversationRecord {
   /** Stable id. Doubles as the backend session_id for the same thread. */
   id: string;
-  /** Human-readable title, derived from the first user message. */
+  /** Human-readable title. Derived from the first user message unless the user
+   * renamed it, in which case `titleCustom` is set and the title is preserved
+   * across future message persists. */
   title: string;
+  /** True when the user explicitly renamed this conversation. A custom title is
+   * never re-derived from messages on persist. Absent/false ⇒ auto-derived. */
+  titleCustom?: boolean;
   /** ISO 8601 creation timestamp. */
   createdAt: string;
   /** ISO 8601 timestamp of the last change. */

@@ -424,8 +424,13 @@ interface AgentHook {
 interface ConversationRecord {
     /** Stable id. Doubles as the backend session_id for the same thread. */
     id: string;
-    /** Human-readable title, derived from the first user message. */
+    /** Human-readable title. Derived from the first user message unless the user
+     * renamed it, in which case `titleCustom` is set and the title is preserved
+     * across future message persists. */
     title: string;
+    /** True when the user explicitly renamed this conversation. A custom title is
+     * never re-derived from messages on persist. Absent/false ⇒ auto-derived. */
+    titleCustom?: boolean;
     /** ISO 8601 creation timestamp. */
     createdAt: string;
     /** ISO 8601 timestamp of the last change. */
@@ -507,7 +512,24 @@ interface CreateConversationRecordArgs {
 }
 /** Build a fresh, sanitized record with derived title + preview. */
 declare function createConversationRecord(args: CreateConversationRecordArgs): ConversationRecord;
+/**
+ * Resolve the title to stamp when persisting messages: a user-set (custom)
+ * title is preserved; otherwise it is derived from the messages. This is the
+ * SSOT that keeps `persist` from clobbering a rename on the next message.
+ */
+declare function resolveConversationTitle(messages: ChatMessage[], prev?: {
+    title: string;
+    titleCustom?: boolean;
+}): string;
+/**
+ * Apply a user rename to a record. A non-empty title is stored verbatim
+ * (trimmed, whitespace-collapsed, capped at TITLE_MAX) and marks the record
+ * `titleCustom` so future persists never re-derive it. An empty/whitespace
+ * title reverts to the derived title and clears the custom flag
+ * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
+ */
+declare function renameConversationRecord(record: ConversationRecord, rawTitle: string, now?: string): ConversationRecord;
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };

@@ -50,5 +50,7 @@ export {
   summarizeConversation,
   deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
 } from './conversation';
