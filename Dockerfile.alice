@@ -43,12 +43,18 @@ RUN mamba install -n base -y nodejs \
  && mamba clean --all --yes \
  && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
-# Copy ALICE's code + persona AND the shared/ package. Since v3.9.8
+# Copy ALICE's code + persona AND the shared packages. Since v3.9.8
 # `personas/alice/__main__.py` and `personas/alice/cogs/chat.py` import from `shared.*`
-# (logging_setup, text chunking, llm retry). Insult's code is NOT
-# copied — the bridge between bots is REST, not a Python import.
+# (logging_setup, text chunking, llm retry). Post-demux ALICE also imports
+# `khimeras_shared.*` top-level (`personas/alice/persona_app.py` → PersonaApp,
+# `cogs/chat.py` → khimeras_shared.corpus) — OMITTING this COPY crashes the boot
+# with `ModuleNotFoundError: No module named 'khimeras_shared'` (the COPY-gap P0
+# class, 2026-06-16; it bit alice on the 2026-06-25 recovery because the arch test
+# did not yet scan THIS Dockerfile). Insult's code is NOT copied — the bridge
+# between bots is REST, not a Python import.
 COPY personas/alice/ personas/alice/
 COPY shared/ shared/
+COPY khimeras_shared/ khimeras_shared/
 
 # Expose the /invite endpoint port. Discord traffic uses outbound only,
 # so we don't EXPOSE for that.
