@@ -32,10 +32,17 @@ function TokenSync({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const sync = async () => {
       try {
-        const token = await getAccessTokenSilently();
+        const token = await getAccessTokenSilently({
+          authorizationParams: { audience: AUDIENCE },
+        });
         if (!cancelled) setToken(token);
-      } catch {
-        // Silent refresh failed (session gone) — AuthGate re-prompts login.
+      } catch (err) {
+        // The login gate (isAuthenticated/id_token) stays true even when the
+        // API access-token fetch fails (consent/audience/scope), so a silent
+        // catch leaves the app loaded but every API call 401s with no signal.
+        // Surface it: clear the stale token AND log the real cause.
+        if (!cancelled) clearToken();
+        console.error('[og118] Auth0 access-token sync failed:', err);
       }
     };
     void sync();
@@ -61,7 +68,11 @@ export function Auth0Wrapper({ children }: { children: React.ReactNode }) {
     <Auth0Provider
       domain={DOMAIN}
       clientId={CLIENT_ID}
-      authorizationParams={{ redirect_uri: redirectUri, audience: AUDIENCE }}
+      authorizationParams={{
+        redirect_uri: redirectUri,
+        audience: AUDIENCE,
+        scope: 'openid profile email offline_access',
+      }}
       cacheLocation="localstorage"
       useRefreshTokens
     >
