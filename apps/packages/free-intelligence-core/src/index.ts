@@ -10,7 +10,7 @@ export type {
   TranscriptResult,
   TranscribeContext,
 } from './voice/adapter';
-export type { ChatMessage, ChatStreamingState } from './chat/message';
+export type { ChatMessage, ChatStreamingState, MessageTrace } from './chat/message';
 export type { ChatHook } from './chat/hook';
 
 // Agent-turn contract (Berkelio). Types describe the wire stream + reduced

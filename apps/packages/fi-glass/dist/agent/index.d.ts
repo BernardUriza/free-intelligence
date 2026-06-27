@@ -261,6 +261,16 @@ interface AgentConversationSurfaceProps {
     /** Pass-through styling/icons for the live-turn AgentPanel. */
     agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
     /**
+     * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
+     * (declared plan + steps + tool calls + sources) above each assistant message
+     * that carries one, using the SAME AgentPanel as the live turn. This makes the
+     * differentiator — "see the execution, not just the result" — survive into the
+     * durable transcript instead of collapsing to the answer text on fold. Default
+     * true; a surface that wants answer-only history sets false. Messages with no
+     * `trace` (plain conversational turns, user messages) render unchanged.
+     */
+    showPersistedTrace?: boolean;
+    /**
      * Floating composer box class (style hook for the app) — the single frosted
      * container that wraps BOTH the textarea row and the controls row (mic/send),
      * mirroring the shell's `chat-input-floating-box` (AURITY). Apply the
@@ -410,7 +420,7 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, showPersistedTrace, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 interface ScrollToBottomButtonProps {
     onClick: () => void;

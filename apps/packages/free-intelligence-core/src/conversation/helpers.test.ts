@@ -56,6 +56,36 @@ describe('sanitizeConversationMessage — privacy by structure', () => {
     const clean = sanitizeConversationMessage(future);
     expect(Object.keys(clean).sort()).toEqual(['content', 'role', 'timestamp']);
   });
+
+  it('preserves the glass-box trace (B3-FIGLASS-TRACE-PERSISTENCE-1)', () => {
+    const traced: ChatMessage = {
+      role: 'assistant',
+      content: 'aquí tienes el plan',
+      timestamp: NOW,
+      trace: {
+        plan: { steps: [{ label: 'Investigar', status: 'done' }], outcome: 'completed' },
+        tools: [{ id: 't1', name: 'search_documents', server: 'rag', isError: false }],
+        sources: ['doc://a'],
+      },
+    };
+    const clean = sanitizeConversationMessage(traced);
+    expect(clean.trace?.plan?.steps).toHaveLength(1);
+    expect(clean.trace?.tools?.[0].name).toBe('search_documents');
+    expect(clean.trace?.sources).toEqual(['doc://a']);
+  });
+
+  it('still drops metadata even when a trace is present (no secret leak via the new field)', () => {
+    const mixed: ChatMessage = {
+      role: 'assistant',
+      content: 'hola',
+      timestamp: NOW,
+      metadata: { token: 'Bearer xyz' },
+      trace: { sources: ['doc://safe'] },
+    };
+    const clean = sanitizeConversationMessage(mixed);
+    expect('metadata' in clean).toBe(false);
+    expect(clean.trace?.sources).toEqual(['doc://safe']);
+  });
 });
 
 describe('deriveConversationTitle', () => {

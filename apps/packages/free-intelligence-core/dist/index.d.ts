@@ -89,77 +89,6 @@ interface VoiceAdapter {
 }
 
 /**
- * ChatMessage — the material-agnostic shape of one chat message.
- *
- * Apps may use a richer message type (e.g. aurity's FIMessage with typed
- * metadata); ChatHook is generic over the message type and defaults to this.
- * Pure data — no React, no styling.
- */
-interface ChatMessage {
-    /** Stable id (optional for transient/streaming messages). */
-    id?: string;
-    /** Who authored the message. */
-    role: 'user' | 'assistant';
-    /** The message text. */
-    content: string;
-    /** Optional model reasoning rendered before the content. */
-    thinking?: string | null;
-    /** ISO 8601 timestamp. */
-    timestamp: string;
-    /** App-specific metadata (tone, voice, model, …). */
-    metadata?: Record<string, unknown>;
-}
-/** Streaming state surfaced by a ChatHook while a response is in flight. */
-interface ChatStreamingState {
-    status: 'idle' | 'connecting' | 'streaming' | 'thinking' | 'complete' | 'error' | 'aborted';
-    content: string;
-    thinking: string;
-    isStreaming: boolean;
-}
-
-/**
- * ChatHook — the conversation contract the fi-glass shell consumes.
- *
- * This is the dependency-inversion spine of the chat shell: ChatWidget never
- * imports a concrete conversation hook, it consumes this interface. aurity
- * implements it with `useFIConversation`; og118 implements its own against its
- * backend. A fat contract (state + actions + streaming) → it earns a place in
- * core (unlike navigation, which is a plain callback prop).
- *
- * Generic over:
- * - `TMessage` — the message type (aurity passes its FIMessage; default ChatMessage).
- * - `TNode`    — the UI-slot node type (aurity passes React's ReactNode). Kept
- *   generic so core stays framework-agnostic (no React import).
- */
-interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
-    messages: TMessage[];
-    loading: boolean;
-    isTyping: boolean;
-    loadingInitial?: boolean;
-    hasMoreMessages?: boolean;
-    loadingOlder?: boolean;
-    streamingMessage?: string;
-    streaming?: ChatStreamingState;
-    sendMessage: (message: string, metadata?: object) => Promise<void>;
-    sendMessageStream?: (message: string, metadata?: object) => Promise<void>;
-    loadOlderMessages?: () => Promise<void>;
-    clearConversation?: () => void;
-    getIntroduction?: () => void;
-    startConversation?: () => Promise<void>;
-    sendQuickReply?: (reply: string) => Promise<void>;
-    conversationState?: {
-        quickReplies?: string[];
-        actions?: Array<{
-            type: string;
-            data: unknown;
-        }>;
-        metadata?: Record<string, unknown>;
-    };
-    customEmptyState?: TNode;
-    customQuickReplies?: TNode;
-}
-
-/**
  * AgentStreamEvent — the agent-turn wire contract.
  *
  * Material-agnostic, React-free, and intentionally NOT shaped to any one app's
@@ -346,6 +275,106 @@ declare function initialAgentTurnState(): AgentTurnState;
 declare function applyAgentEvent(state: AgentTurnState, event: AgentStreamEvent): AgentTurnState;
 
 /**
+ * MessageTrace — the persisted glass-box snapshot of a finished agentic turn.
+ *
+ * The differentiator is "see the execution, not just the result": during the
+ * stream you watch the plan declared and the steps walked, but a folded message
+ * historically kept only the answer text (see {@link foldAssistantTurn}). This
+ * carries the agentic provenance — the declared plan with its per-step outcomes,
+ * the tool calls, the evidence — INTO the durable transcript, so reloading a
+ * conversation re-renders the same glass-box the live turn showed.
+ *
+ * Reuses the live agent contract types verbatim ({@link AgentPlan},
+ * {@link ToolCall}); persistence is just a snapshot of the reduced turn state,
+ * not a parallel shape. Every field is optional: a plain conversational turn
+ * (no plan, no tools) folds to a message with no `trace`, unchanged.
+ */
+interface MessageTrace {
+    /** The declared plan with per-step status/summary/outcome, if the turn planned. */
+    plan?: AgentPlan;
+    /** The tool calls made during the turn, if any. */
+    tools?: ToolCall[];
+    /** Evidence references surfaced during the turn, if any. */
+    sources?: string[];
+}
+/**
+ * ChatMessage — the material-agnostic shape of one chat message.
+ *
+ * Apps may use a richer message type (e.g. aurity's FIMessage with typed
+ * metadata); ChatHook is generic over the message type and defaults to this.
+ * Pure data — no React, no styling.
+ */
+interface ChatMessage {
+    /** Stable id (optional for transient/streaming messages). */
+    id?: string;
+    /** Who authored the message. */
+    role: 'user' | 'assistant';
+    /** The message text. */
+    content: string;
+    /** Optional model reasoning rendered before the content. */
+    thinking?: string | null;
+    /** ISO 8601 timestamp. */
+    timestamp: string;
+    /** App-specific metadata (tone, voice, model, …). */
+    metadata?: Record<string, unknown>;
+    /**
+     * Persisted glass-box snapshot of the agentic turn that produced this message
+     * (assistant messages only). Absent for plain conversational turns and all
+     * user messages — see {@link MessageTrace}.
+     */
+    trace?: MessageTrace;
+}
+/** Streaming state surfaced by a ChatHook while a response is in flight. */
+interface ChatStreamingState {
+    status: 'idle' | 'connecting' | 'streaming' | 'thinking' | 'complete' | 'error' | 'aborted';
+    content: string;
+    thinking: string;
+    isStreaming: boolean;
+}
+
+/**
+ * ChatHook — the conversation contract the fi-glass shell consumes.
+ *
+ * This is the dependency-inversion spine of the chat shell: ChatWidget never
+ * imports a concrete conversation hook, it consumes this interface. aurity
+ * implements it with `useFIConversation`; og118 implements its own against its
+ * backend. A fat contract (state + actions + streaming) → it earns a place in
+ * core (unlike navigation, which is a plain callback prop).
+ *
+ * Generic over:
+ * - `TMessage` — the message type (aurity passes its FIMessage; default ChatMessage).
+ * - `TNode`    — the UI-slot node type (aurity passes React's ReactNode). Kept
+ *   generic so core stays framework-agnostic (no React import).
+ */
+interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
+    messages: TMessage[];
+    loading: boolean;
+    isTyping: boolean;
+    loadingInitial?: boolean;
+    hasMoreMessages?: boolean;
+    loadingOlder?: boolean;
+    streamingMessage?: string;
+    streaming?: ChatStreamingState;
+    sendMessage: (message: string, metadata?: object) => Promise<void>;
+    sendMessageStream?: (message: string, metadata?: object) => Promise<void>;
+    loadOlderMessages?: () => Promise<void>;
+    clearConversation?: () => void;
+    getIntroduction?: () => void;
+    startConversation?: () => Promise<void>;
+    sendQuickReply?: (reply: string) => Promise<void>;
+    conversationState?: {
+        quickReplies?: string[];
+        actions?: Array<{
+            type: string;
+            data: unknown;
+        }>;
+        metadata?: Record<string, unknown>;
+    };
+    customEmptyState?: TNode;
+    customQuickReplies?: TNode;
+}
+
+/**
  * Transcript bridge — fold the live agentic turn into flat chat messages.
  *
  * Pure, framework-agnostic (no React, no transport). The agent contract models
@@ -359,12 +388,13 @@ declare function applyAgentEvent(state: AgentTurnState, event: AgentStreamEvent)
 /** A user message, ready to render optimistically the instant the user sends. */
 declare function makeUserMessage(text: string): ChatMessage;
 /**
- * Fold a finished turn's answer into an assistant message. Keeps only the
- * material-agnostic content (no AgentTurnState snapshot) — a future gate can add
- * per-turn glass-box rendering without bloating the ChatMessage contract now.
- * Model provenance survives the fold: `turn.meta.model` lands in
- * `metadata.model` so a shell's badge slot ("Powered by …") has real data after
- * persistence, not just during the live turn.
+ * Fold a finished turn's answer into an assistant message. The answer text is
+ * the message content; the agentic provenance (declared plan + per-step
+ * outcomes, tool calls, evidence) is snapshotted into `trace` so the durable
+ * transcript re-renders the same glass-box the live turn showed — the "see the
+ * execution, not just the result" differentiator survives the fold. A plain
+ * conversational turn (no plan/tools/sources) folds with no `trace`, unchanged.
+ * Model provenance also survives: `turn.meta.model` lands in `metadata.model`.
  */
 declare function foldAssistantTurn(turn: AgentTurnState): ChatMessage;
 
@@ -493,8 +523,18 @@ interface ConversationLibrary {
 /** Schema version stamped on every record created here. */
 declare const CONVERSATION_SCHEMA_VERSION = 1;
 /**
- * Reduce a ChatMessage to the only fields safe to persist: role, content, and
- * timestamp. Drops id, thinking, metadata, and anything else by construction.
+ * Reduce a ChatMessage to the fields safe to persist: role, content, timestamp,
+ * plus the glass-box `trace` when present (B3-FIGLASS-TRACE-PERSISTENCE-1).
+ *
+ * Privacy by structure: `metadata` is DROPPED on purpose — apps stuff secrets
+ * there (a `Bearer` token, tool payloads), so it must never reach durable
+ * storage. `trace` is the deliberate exception, not a hole in that boundary: it
+ * carries only non-sensitive, already-user-visible execution provenance —
+ * plan-step labels/summaries (model-authored, rendered live), tool NAMES (core's
+ * ToolCall is {id,name,server,isError} — no arguments/payloads) and source URLs.
+ * Persisting what the live turn already showed leaks nothing new. Included only
+ * when present, so a plain message stays the minimal {role, content, timestamp};
+ * id, thinking and metadata are still dropped by construction.
  */
 declare function sanitizeConversationMessage(message: ChatMessage): ChatMessage;
 /** Title from the first non-empty user message; `DEFAULT_TITLE` otherwise. */
@@ -532,4 +572,4 @@ declare function renameConversationRecord(record: ConversationRecord, rawTitle: 
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
