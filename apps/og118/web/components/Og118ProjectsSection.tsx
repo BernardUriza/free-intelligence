@@ -5,12 +5,15 @@
  *
  * A project is a named corpus the agent searches. The owner creates one ("Negocio
  * de mamá"), selects it active, and uploads files to it (proj-uploadui, next).
- * Pure presentation + branding over the useOg118Projects hook — no storage logic
- * here. Reuses the framework touch-target minimum (B3-FIGLASS-MOBILE-2) so the
- * controls are tappable on a phone (the papelería canary is mobile).
+ * The rows are fi-glass `AgentSidebarItem` (B3-FIGLASS-SHELL-PRIMITIVES-1B) — the
+ * same selectable-resource-row primitive the conversation list adopted in 1A, so
+ * the `og-project-item`/`og-chat-item` structural twin is now a single shared
+ * skeleton. This consumer owns ONLY the meaning: a Project, the Spanish copy, the
+ * delete confirm, the create prompt. No storage logic here.
  */
 
 import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from 'fi-glass/shell';
+import { AgentSidebarItem, DestructiveActionSlot } from 'fi-glass/agent';
 import type { Og118Project } from '../lib/useOg118Projects';
 
 export interface Og118ProjectsSectionProps {
@@ -58,40 +61,31 @@ export function Og118ProjectsSection({
         </p>
       ) : (
         <nav className="og-projects-list">
-          {projects.map((p) => {
-            const active = p.id === activeProjectId;
-            return (
-              <div
-                key={p.id}
-                className={`og-project-item${active ? ' is-active' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-current={active}
-                onClick={() => !disabled && !active && onSelect(p.id)}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && !disabled && !active) {
-                    e.preventDefault();
-                    onSelect(p.id);
-                  }
-                }}
-              >
-                <span className="og-project-item-name">{p.name}</span>
-                <button
-                  className={`${FI_TOUCH_TARGET_CLASS} og-project-item-del`}
-                  aria-label="Borrar proyecto"
+          {projects.map((p) => (
+            <AgentSidebarItem
+              key={p.id}
+              title={p.name}
+              selected={p.id === activeProjectId}
+              onSelect={() => onSelect(p.id)}
+              disabled={disabled}
+              ariaLabel={p.name}
+              actions={
+                <DestructiveActionSlot
+                  label="Borrar proyecto"
                   disabled={disabled}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm(`¿Borrar "${p.name}"? Solo se borra de este navegador.`)) {
+                  onActivate={() => {
+                    if (
+                      window.confirm(`¿Borrar "${p.name}"? Solo se borra de este navegador.`)
+                    ) {
                       onDelete(p.id);
                     }
                   }}
                 >
                   ×
-                </button>
-              </div>
-            );
-          })}
+                </DestructiveActionSlot>
+              }
+            />
+          ))}
         </nav>
       )}
     </section>

@@ -195,57 +195,6 @@ body {
   flex-direction: column;
   gap: 0.25rem;
 }
-.og-project-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  outline: none;
-}
-.og-project-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-.og-project-item.is-active {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.35);
-  cursor: default;
-}
-.og-project-item-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.84rem;
-  color: #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.og-project-item-del {
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  opacity: 0;
-}
-.og-project-item:hover .og-project-item-del {
-  opacity: 1;
-}
-/* B3-FIGLASS-MOBILE-2 parity: touch has no hover, so reveal the delete. */
-@media (pointer: coarse) {
-  .og-project-item-del {
-    opacity: 1;
-  }
-}
-.og-project-item-del:disabled {
-  cursor: not-allowed;
-  opacity: 0;
-}
-
 .og-sidebar {
   width: 100%;
   height: 100%;
