@@ -517,7 +517,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback9, useEffect as useEffect14, useRef as useRef9, useState as useState15 } from "react";
+import { Fragment as Fragment3, useCallback as useCallback9, useEffect as useEffect14, useRef as useRef9, useState as useState15 } from "react";
 import { Send, Loader2 as Loader212 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -1763,6 +1763,20 @@ function useMediaQuery(query, options) {
 
 // src/agent/AgentConversationSurface.tsx
 import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
+function persistedTraceTurn(message) {
+  const trace = message.trace;
+  if (!trace) return null;
+  const hasContent = (trace.plan?.steps.length ?? 0) > 0 || (trace.tools?.length ?? 0) > 0 || (trace.sources?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return {
+    plan: trace.plan ?? null,
+    steps: trace.tools ?? [],
+    text: message.content,
+    sources: trace.sources ?? [],
+    meta: null,
+    status: "done"
+  };
+}
 function AgentConversationSurface({
   conversation,
   layout = "viewport",
@@ -1772,6 +1786,7 @@ function AgentConversationSurface({
   emptyState,
   aboveComposer,
   agentPanelProps,
+  showPersistedTrace = true,
   composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
@@ -1882,29 +1897,34 @@ function AgentConversationSurface({
                 style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
                 children: [
                   idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-                    messages.map((m, i) => /* @__PURE__ */ jsx26(
-                      MessageBubble,
-                      {
-                        role: m.role,
-                        header: renderHeader?.(m),
-                        badge: renderBadge?.(m),
-                        actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
-                        className: resolveBubbleClass(m),
-                        children: /* @__PURE__ */ jsx26(
-                          MessageContent,
+                    messages.map((m, i) => {
+                      const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
+                      return /* @__PURE__ */ jsxs19(Fragment3, { children: [
+                        traceTurn && /* @__PURE__ */ jsx26(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+                        /* @__PURE__ */ jsx26(
+                          MessageBubble,
                           {
-                            isUser: m.role === "user",
-                            content: m.content,
-                            collapsible: collapseUserMessages && m.role === "user",
-                            collapsedMaxHeight: collapseMaxHeight,
-                            showMoreLabel,
-                            showLessLabel,
-                            collapseToggleClassName
+                            role: m.role,
+                            header: renderHeader?.(m),
+                            badge: renderBadge?.(m),
+                            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
+                            className: resolveBubbleClass(m),
+                            children: /* @__PURE__ */ jsx26(
+                              MessageContent,
+                              {
+                                isUser: m.role === "user",
+                                content: m.content,
+                                collapsible: collapseUserMessages && m.role === "user",
+                                collapsedMaxHeight: collapseMaxHeight,
+                                showMoreLabel,
+                                showLessLabel,
+                                collapseToggleClassName
+                              }
+                            )
                           }
                         )
-                      },
-                      i
-                    )),
+                      ] }, i);
+                    }),
                     isStreaming && /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }),
                     isStreaming && turn.text && /* @__PURE__ */ jsx26(
                       MessageBubble,
@@ -2394,7 +2414,7 @@ function useSidebarItemStyle() {
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment3, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2560,7 +2580,7 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment3, { children: [
+      actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment4, { children: [
         /* @__PURE__ */ jsx28(
           ItemActionSlot,
           {
