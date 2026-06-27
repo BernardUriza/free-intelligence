@@ -90,3 +90,17 @@ export {
   FI_ITEM_ACTION_CLASS,
   FI_RESOURCE_RENAME_INPUT_CLASS,
 } from './sidebarItemStyle';
+// B3-FIGLASS-SHELL-PRIMITIVES-1C: the labelled sidebar section (header + count→empty
+// gate) og118 hand-wrote twice (og-sidebar-head + og-projects-head structural twins),
+// now framework-owned. Conversations and Projects are its two consumers.
+export {
+  AgentSidebarSection,
+  type AgentSidebarSectionProps,
+} from './AgentSidebarSection';
+export {
+  ensureSidebarSectionStyle,
+  useSidebarSectionStyle,
+  FI_SIDEBAR_SECTION_CLASS,
+  FI_SECTION_HEAD_CLASS,
+  FI_SECTION_TITLE_CLASS,
+} from './sidebarSectionStyle';
