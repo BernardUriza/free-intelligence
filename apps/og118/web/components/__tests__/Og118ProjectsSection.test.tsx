@@ -1,0 +1,139 @@
+/**
+ * Tests for Og118ProjectsSection after it adopted the shared fi-glass
+ * `AgentSidebarItem` primitive (B3-FIGLASS-SHELL-PRIMITIVES-1B).
+ *
+ * The hand-written `og-project-item` twin is gone; the rows are now the same
+ * selectable-resource primitive the conversation list uses. These assert the
+ * consumer still owns the meaning: project labels, selection, and the
+ * confirm-gated delete behave exactly as before through the primitive's slots.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Og118ProjectsSection } from '../Og118ProjectsSection';
+import type { Og118Project } from '../../lib/useOg118Projects';
+
+const projects: Og118Project[] = [
+  { id: 'p1', name: 'Negocio de mamá' } as Og118Project,
+  { id: 'p2', name: 'Tareas escuela' } as Og118Project,
+];
+
+describe('Og118ProjectsSection (1B — shared sidebar item)', () => {
+  it('renders the empty-state copy when there are no projects', () => {
+    render(
+      <Og118ProjectsSection
+        projects={[]}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/crea un proyecto/i)).toBeInTheDocument();
+  });
+
+  it('renders one selectable row per project, labeled by name', () => {
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Negocio de mamá' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tareas escuela' })).toBeInTheDocument();
+  });
+
+  it('marks the active project with aria-current and does not re-select it on click', async () => {
+    const onSelect = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p1"
+        onCreate={vi.fn()}
+        onSelect={onSelect}
+        onDelete={vi.fn()}
+      />,
+    );
+    const activeRow = screen.getByRole('button', { name: 'Negocio de mamá' });
+    expect(activeRow).toHaveAttribute('aria-current', 'true');
+    await userEvent.click(activeRow);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('fires onSelect when a non-active project row is clicked', async () => {
+    const onSelect = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p1"
+        onCreate={vi.fn()}
+        onSelect={onSelect}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Tareas escuela' }));
+    expect(onSelect).toHaveBeenCalledWith('p2');
+  });
+});
+
+describe('Og118ProjectsSection delete (confirm-gated)', () => {
+  beforeEach(() => {
+    vi.spyOn(window, 'confirm');
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('deletes only when the confirm is accepted', async () => {
+    (window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    const onDelete = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    const delButtons = screen.getAllByRole('button', { name: 'Borrar proyecto' });
+    await userEvent.click(delButtons[0]);
+    expect(onDelete).toHaveBeenCalledWith('p1');
+  });
+
+  it('does NOT delete when the confirm is dismissed', async () => {
+    (window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    const onDelete = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('button', { name: 'Borrar proyecto' })[0]);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('does not bubble a delete click up to row selection', async () => {
+    (window.confirm as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    const onSelect = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={onSelect}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('button', { name: 'Borrar proyecto' })[0]);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});

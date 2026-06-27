@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { ReactNode, CSSProperties } from 'react';
+import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
@@ -465,4 +465,94 @@ interface AgentWorkspaceShellProps {
 }
 declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, sidebar, responsive, mobileQuery, sidebarWidth, toggleLabel, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+interface ItemActionSlotProps {
+    /** Accessible label — the consumer supplies the copy (e.g. "Renombrar chat"). */
+    label: string;
+    /** Fired on click/activation; the click never bubbles to the row's onSelect. */
+    onActivate: () => void;
+    disabled?: boolean;
+    /** Tint the action as destructive (danger color on hover). */
+    danger?: boolean;
+    className?: string;
+    /** The glyph/icon to render inside the button. */
+    children: ReactNode;
+}
+declare function ItemActionSlot({ label, onActivate, disabled, danger, className, children, }: ItemActionSlotProps): react.JSX.Element;
+type DestructiveActionSlotProps = Omit<ItemActionSlotProps, 'danger'>;
+declare function DestructiveActionSlot(props: DestructiveActionSlotProps): react.JSX.Element;
+interface UseInlineRenameOptions {
+    maxLength?: number;
+    /**
+     * What an empty draft means on commit. `revert` (default) calls `onRename('')`
+     * so the consumer can fall back to an auto-derived title; `keep` cancels
+     * silently and leaves the current value.
+     */
+    emptyPolicy?: 'revert' | 'keep';
+}
+interface InlineRename {
+    editing: boolean;
+    draft: string;
+    start: () => void;
+    cancel: () => void;
+    /** Spread onto the `<input>` — wires value, Enter/Escape/blur, and click-stop. */
+    inputProps: {
+        value: string;
+        maxLength?: number;
+        autoFocus: true;
+        onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+        onBlur: () => void;
+        onClick: (e: MouseEvent) => void;
+        onKeyDown: (e: KeyboardEvent) => void;
+    };
+}
+declare function useInlineRename(value: string, onRename: (next: string) => void, { maxLength, emptyPolicy }?: UseInlineRenameOptions): InlineRename;
+interface AgentSidebarItemProps {
+    selected: boolean;
+    onSelect: () => void;
+    /** A plain string is wrapped in the title slot; a node (e.g. the rename input) is used as-is. */
+    title: ReactNode;
+    subtitle?: ReactNode;
+    meta?: ReactNode;
+    /** Action buttons rendered at the end of the row (e.g. {@link DestructiveActionSlot}). */
+    actions?: ReactNode;
+    disabled?: boolean;
+    /** When the row is being edited in place: non-interactive, no hover-select. */
+    editing?: boolean;
+    ariaLabel?: string;
+    className?: string;
+}
+declare function AgentSidebarItem({ selected, onSelect, title, subtitle, meta, actions, disabled, editing, ariaLabel, className, }: AgentSidebarItemProps): react.JSX.Element;
+interface EditableResourceItemProps {
+    title: string;
+    selected: boolean;
+    onSelect: () => void;
+    onRename: (next: string) => void;
+    subtitle?: ReactNode;
+    meta?: ReactNode;
+    /** Extra actions (e.g. delete) rendered after the rename trigger. */
+    actions?: ReactNode;
+    disabled?: boolean;
+    maxLength?: number;
+    emptyPolicy?: 'revert' | 'keep';
+    /** Accessible label for the rename trigger (consumer copy). */
+    renameLabel: string;
+    /** Accessible label for the rename input (consumer copy). */
+    renameInputLabel: string;
+    /** Glyph for the rename trigger; defaults to a pencil. */
+    renameGlyph?: ReactNode;
+    ariaLabel?: string;
+}
+declare function EditableResourceItem({ title, selected, onSelect, onRename, subtitle, meta, actions, disabled, maxLength, emptyPolicy, renameLabel, renameInputLabel, renameGlyph, ariaLabel, }: EditableResourceItemProps): react.JSX.Element;
+
+declare const FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
+declare const FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
+declare const FI_ITEM_SUBTITLE_CLASS = "fi-sidebar-item-subtitle";
+declare const FI_ITEM_META_CLASS = "fi-sidebar-item-meta";
+declare const FI_ITEM_ACTION_CLASS = "fi-item-action";
+declare const FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
+/** Inject the idempotent sidebar-item stylesheet (no-op on the server / if already present). */
+declare function ensureSidebarItemStyle(): void;
+/** Ensure the sidebar-item stylesheet is present for the lifetime of the component. */
+declare function useSidebarItemStyle(): void;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SIDEBAR_ITEM_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureSidebarItemStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useInlineRename, useSidebarItemStyle };

@@ -3,16 +3,17 @@
 /**
  * Og118Sidebar — the app-specific chat list (DD-002B1.3).
  *
- * Pure presentation + branding: it renders the conversation summaries the
- * fi-glass `useConversationLibrary` hook owns and routes clicks back to the
- * library's actions. It has NO storage logic and never touches IndexedDB or the
- * access token — those stay in the hook / token module. This is the consumer's
- * legitimate slice: layout, copy, and the "Nuevo chat" affordance.
+ * Pure presentation + branding over fi-glass primitives: the conversation rows are
+ * fi-glass `EditableResourceItem` (B3-FIGLASS-SHELL-PRIMITIVES-1A) — the row
+ * anatomy, selection, inline-rename state machine and hover/touch-revealed actions
+ * live in the framework now. This consumer owns ONLY the meaning: the Spanish copy,
+ * the es-MX timestamp, the delete confirm, and the "og118.ai" header. No storage
+ * logic, no IndexedDB, no access token — those stay in the hook / token module.
  */
 
-import { useRef, useState } from 'react';
 import type { ConversationSummary } from '@free-intelligence/core';
 import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from 'fi-glass/shell';
+import { DestructiveActionSlot, EditableResourceItem } from 'fi-glass/agent';
 
 const TITLE_MAX = 60;
 
@@ -51,35 +52,10 @@ export function Og118Sidebar({
   onRename,
   disabled = false,
 }: Og118SidebarProps) {
-  // B3-FIGLASS-MOBILE-2 — the consumer's sidebar affordances inherit the framework
-  // 44×44 touch minimum from fi-glass's exported primitive (no app-local min-size CSS).
+  // B3-FIGLASS-MOBILE-2 — the "Nuevo chat" affordance inherits the framework 44×44
+  // touch minimum; the rows inherit it from EditableResourceItem's action slots.
   useTouchTargetStyle();
 
-  // Inline rename: the editor affordance is the consumer's; the rename LOGIC lives
-  // in fi-glass's useConversationLibrary (B3-FIGLASS-CONVERSATION-RENAME-1).
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  // Escape sets this so the ensuing blur does not also commit the (discarded) draft.
-  const cancelledRef = useRef(false);
-
-  const startEditing = (c: ConversationSummary) => {
-    cancelledRef.current = false;
-    setEditingId(c.id);
-    setDraft(c.title);
-  };
-  const commitEditing = (id: string) => {
-    if (cancelledRef.current) {
-      cancelledRef.current = false;
-      setEditingId(null);
-      return;
-    }
-    onRename(id, draft);
-    setEditingId(null);
-  };
-  const cancelEditing = () => {
-    cancelledRef.current = true;
-    setEditingId(null);
-  };
   return (
     <aside className="og-sidebar">
       <div className="og-sidebar-head">
@@ -97,86 +73,37 @@ export function Og118Sidebar({
       </div>
 
       <nav className="og-sidebar-list">
-        {conversations.map((c) => {
-          const active = c.id === activeId;
-          const editing = c.id === editingId;
-          return (
-            <div
-              key={c.id}
-              className={`og-chat-item${active ? ' is-active' : ''}`}
-              role="button"
-              tabIndex={0}
-              aria-current={active}
-              onClick={() => !disabled && !active && !editing && onSwitch(c.id)}
-              onKeyDown={(e) => {
-                if (
-                  (e.key === 'Enter' || e.key === ' ') &&
-                  !disabled &&
-                  !active &&
-                  !editing
-                ) {
-                  e.preventDefault();
-                  onSwitch(c.id);
-                }
-              }}
-            >
-              <div className="og-chat-item-main">
-                {editing ? (
-                  <input
-                    className="og-chat-item-rename"
-                    autoFocus
-                    value={draft}
-                    maxLength={TITLE_MAX}
-                    aria-label="Nombre del chat"
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={() => commitEditing(c.id)}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        commitEditing(c.id);
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        cancelEditing();
-                      }
-                    }}
-                  />
-                ) : (
-                  <span className="og-chat-item-title">{c.title}</span>
-                )}
-                {c.preview && <span className="og-chat-item-preview">{c.preview}</span>}
-                <span className="og-chat-item-time">{shortTime(c.updatedAt)}</span>
-              </div>
-              {!editing && (
-                <button
-                  className={`${FI_TOUCH_TARGET_CLASS} og-chat-item-rename-btn`}
-                  aria-label="Renombrar chat"
-                  disabled={disabled}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEditing(c);
-                  }}
-                >
-                  ✎
-                </button>
-              )}
-              <button
-                className={`${FI_TOUCH_TARGET_CLASS} og-chat-item-del`}
-                aria-label="Borrar chat"
+        {conversations.map((c) => (
+          <EditableResourceItem
+            key={c.id}
+            title={c.title}
+            selected={c.id === activeId}
+            onSelect={() => onSwitch(c.id)}
+            onRename={(title) => onRename(c.id, title)}
+            subtitle={c.preview || undefined}
+            meta={shortTime(c.updatedAt)}
+            disabled={disabled}
+            maxLength={TITLE_MAX}
+            renameLabel="Renombrar chat"
+            renameInputLabel="Nombre del chat"
+            ariaLabel={c.title}
+            actions={
+              <DestructiveActionSlot
+                label="Borrar chat"
                 disabled={disabled}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (window.confirm(`¿Borrar "${c.title}"? Solo se borra de este navegador.`)) {
+                onActivate={() => {
+                  if (
+                    window.confirm(`¿Borrar "${c.title}"? Solo se borra de este navegador.`)
+                  ) {
                     onDelete(c.id);
                   }
                 }}
               >
                 ×
-              </button>
-            </div>
-          );
-        })}
+              </DestructiveActionSlot>
+            }
+          />
+        ))}
       </nav>
 
       <p className="og-sidebar-privacy">Guardado localmente en este navegador.</p>

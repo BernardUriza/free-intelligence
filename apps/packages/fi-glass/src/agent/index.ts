@@ -62,3 +62,31 @@ export type {
   AgentWorkspaceShellDensity,
   AgentWorkspaceShellApi,
 } from './AgentWorkspaceShell';
+// B3-FIGLASS-SHELL-PRIMITIVES-1A: reusable sidebar/resource item primitives — the
+// row/item/action anatomy og118 hand-wrote twice (conversations + projects), now
+// framework-owned (slot-driven, token-themed, inline-rename from #283).
+export {
+  AgentSidebarItem,
+  EditableResourceItem,
+  ItemActionSlot,
+  DestructiveActionSlot,
+  useInlineRename,
+} from './AgentSidebarItem';
+export type {
+  AgentSidebarItemProps,
+  EditableResourceItemProps,
+  ItemActionSlotProps,
+  DestructiveActionSlotProps,
+  UseInlineRenameOptions,
+  InlineRename,
+} from './AgentSidebarItem';
+export {
+  ensureSidebarItemStyle,
+  useSidebarItemStyle,
+  FI_SIDEBAR_ITEM_CLASS,
+  FI_ITEM_TITLE_CLASS,
+  FI_ITEM_SUBTITLE_CLASS,
+  FI_ITEM_META_CLASS,
+  FI_ITEM_ACTION_CLASS,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+} from './sidebarItemStyle';
