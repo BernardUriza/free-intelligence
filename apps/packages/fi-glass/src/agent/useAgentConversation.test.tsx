@@ -18,7 +18,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, cleanup } from '@testing-library/react';
 import { useEffect, useState } from 'react';
-import type { AgentHook, AgentTurnState, ChatMessage } from '@free-intelligence/core';
+import type { AgentHook, AgentSendMeta, AgentTurnState, ChatMessage } from '@free-intelligence/core';
 import { useAgentConversation, type AgentConversation } from './useAgentConversation';
 
 const thinkingTurn: AgentTurnState = {
@@ -54,7 +54,7 @@ function makeFakeAgent() {
     state.turn = thinkingTurn;
     state.isStreaming = false;
   });
-  const send = vi.fn(async () => {
+  const send = vi.fn(async (_text: string, _meta?: AgentSendMeta) => {
     // A real send flips streaming on and seeds a thinking turn.
     state.turn = { ...thinkingTurn };
     state.isStreaming = true;

@@ -144,7 +144,10 @@ body {
   font-size: 0.95rem;
 }
 
-/* Projects section (proj-sidebar) — sits above the conversations list. */
+/* Projects section (proj-sidebar) — sits above the conversations list. The head +
+   title layout moved to fi-glass `AgentSidebarSection` (B3-FIGLASS-SHELL-PRIMITIVES-1C);
+   the projects section is the "plain" case so the framework defaults already match —
+   only the muted title color/size is re-tinted via the --fi-section-title-* tokens. */
 .og-projects {
   display: flex;
   flex-direction: column;
@@ -152,19 +155,8 @@ body {
   background: rgba(10, 14, 22, 0.4);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-}
-.og-projects-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.8rem 0.85rem 0.5rem;
-}
-.og-projects-title {
-  font-weight: 600;
-  font-size: 0.82rem;
-  letter-spacing: -0.01em;
-  color: #cbd5e1;
+  --fi-section-title-color: #cbd5e1;
+  --fi-section-title-size: 0.82rem;
 }
 .og-projects-new {
   padding: 0.3rem 0.55rem;
@@ -203,18 +195,14 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(10, 14, 22, 0.4);
   backdrop-filter: blur(var(--glass-blur, 12px));
+  --fi-section-head-padding: 0.9rem 0.85rem;
+  --fi-section-head-border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.og-sidebar-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.9rem 0.85rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-.og-sidebar-title {
-  font-weight: 600;
-  letter-spacing: -0.01em;
+/* The conversation list adopts fi-glass `AgentSidebarSection` (1C); the section
+   fills the rail so the privacy note stays pinned at the bottom. */
+.og-sidebar-section {
+  flex: 1;
+  min-height: 0;
 }
 .og-sidebar-new {
   padding: 0.35rem 0.6rem;
@@ -240,9 +228,10 @@ body {
 }
 /* The conversation rows (item layout, selected/hover, title/preview/time, the
    delete + inline-rename affordances and the coarse-pointer reveal) moved to
-   fi-glass `EditableResourceItem` (B3-FIGLASS-SHELL-PRIMITIVES-1A). og118 re-tints
-   via the --glass-chat-* tokens it already sets on body.glass-chat — no og-chat-*
-   CSS left to maintain. The `og-sidebar*` rail/header/list stay here pending 1C. */
+   fi-glass `EditableResourceItem` (B3-FIGLASS-SHELL-PRIMITIVES-1A) and the section
+   header to `AgentSidebarSection` (1C). og118 re-tints via the --glass-chat-* /
+   --fi-section-* tokens — only the rail chrome (border/background), the "+ Nuevo"
+   button, the scrollable list and the privacy note stay app-specific here. */
 .og-sidebar-privacy {
   margin: 0;
   padding: 0.6rem 0.85rem;

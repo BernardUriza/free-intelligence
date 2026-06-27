@@ -2575,10 +2575,79 @@ function EditableResourceItem({
     }
   );
 }
+
+// src/agent/sidebarSectionStyle.ts
+import { useEffect as useEffect17 } from "react";
+var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
+var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
+var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
+var CSS2 = `
+.${FI_SIDEBAR_SECTION_CLASS} {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.${FI_SECTION_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: var(--fi-section-head-padding, 0.8rem 0.85rem 0.5rem);
+  border-bottom: var(--fi-section-head-border, none);
+}
+.${FI_SECTION_TITLE_CLASS} {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: var(--fi-section-title-size, inherit);
+  color: var(--fi-section-title-color, inherit);
+}
+`;
+function ensureSidebarSectionStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_SECTION_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+function useSidebarSectionStyle() {
+  useEffect17(() => {
+    ensureSidebarSectionStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarSection.tsx
+import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
+function joinClasses2(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function AgentSidebarSection({
+  title,
+  children,
+  actionSlot,
+  emptyState,
+  count,
+  headerSlot,
+  ariaLabel,
+  className
+}) {
+  useSidebarSectionStyle();
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const showEmpty = count === 0 && emptyState != null;
+  return /* @__PURE__ */ jsxs22("section", { className: joinClasses2(FI_SIDEBAR_SECTION_CLASS, className), "aria-label": ariaLabel, children: [
+    headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
+      titleNode,
+      actionSlot
+    ] }),
+    showEmpty ? emptyState : children
+  ] });
+}
 export {
   AgentConversationSurface,
   AgentPanel,
   AgentSidebarItem,
+  AgentSidebarSection,
   AgentWorkspaceShell,
   DEFAULT_TURN_TIMEOUT_MS,
   DestructiveActionSlot,
@@ -2588,7 +2657,10 @@ export {
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
   FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SECTION_HEAD_CLASS,
+  FI_SECTION_TITLE_CLASS,
   FI_SIDEBAR_ITEM_CLASS,
+  FI_SIDEBAR_SECTION_CLASS,
   ItemActionSlot,
   PlanChecklist,
   ScrollToBottomButton,
@@ -2597,6 +2669,7 @@ export {
   classifyTool,
   defaultAgentIcons,
   ensureSidebarItemStyle,
+  ensureSidebarSectionStyle,
   latestOpenToolIndex,
   resolveIcons,
   shortToolName,
@@ -2604,6 +2677,7 @@ export {
   toolVisualStatus,
   useAgentConversation,
   useInlineRename,
-  useSidebarItemStyle
+  useSidebarItemStyle,
+  useSidebarSectionStyle
 };
 //# sourceMappingURL=index.js.map
