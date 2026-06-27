@@ -121,13 +121,26 @@ function applyAgentEvent(state, event) {
 function makeUserMessage(text) {
   return { role: "user", content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
 }
+function snapshotTrace(turn) {
+  const hasPlan = turn.plan != null && turn.plan.steps.length > 0;
+  const hasTools = turn.steps.length > 0;
+  const hasSources = turn.sources.length > 0;
+  if (!hasPlan && !hasTools && !hasSources) return void 0;
+  return {
+    ...hasPlan ? { plan: turn.plan } : {},
+    ...hasTools ? { tools: turn.steps } : {},
+    ...hasSources ? { sources: turn.sources } : {}
+  };
+}
 function foldAssistantTurn(turn) {
   const model = turn.meta?.model;
+  const trace = snapshotTrace(turn);
   return {
     role: "assistant",
     content: turn.text,
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    ...model ? { metadata: { model } } : {}
+    ...model ? { metadata: { model } } : {},
+    ...trace ? { trace } : {}
   };
 }
 
@@ -145,7 +158,8 @@ function sanitizeConversationMessage(message) {
   return {
     role: message.role,
     content: message.content,
-    timestamp: message.timestamp
+    timestamp: message.timestamp,
+    ...message.trace ? { trace: message.trace } : {}
   };
 }
 function deriveConversationTitle(messages, max = TITLE_MAX) {
