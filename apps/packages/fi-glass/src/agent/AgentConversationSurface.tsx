@@ -12,10 +12,10 @@
  * and copy props.
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useStickToBottom } from 'use-stick-to-bottom';
-import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
+import type { AgentTurnState, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
 import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
@@ -26,6 +26,31 @@ import { useMediaQuery } from '../shell/useMediaQuery';
 import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export type AgentConversationSurfaceLayout = 'viewport' | 'contained';
+
+/**
+ * Rebuild a finished {@link AgentTurnState} from a persisted message trace so the
+ * live {@link AgentPanel} can re-render the glass-box of an already-folded turn
+ * (B3-FIGLASS-TRACE-PERSISTENCE-1). Status is 'done' (the turn settled); returns
+ * null when the message carries no renderable trace, so a plain message renders
+ * unchanged. No new renderer — the persisted history reuses the live components.
+ */
+function persistedTraceTurn(message: ChatMessage): AgentTurnState | null {
+  const trace = message.trace;
+  if (!trace) return null;
+  const hasContent =
+    (trace.plan?.steps.length ?? 0) > 0 ||
+    (trace.tools?.length ?? 0) > 0 ||
+    (trace.sources?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return {
+    plan: trace.plan ?? null,
+    steps: trace.tools ?? [],
+    text: message.content,
+    sources: trace.sources ?? [],
+    meta: null,
+    status: 'done',
+  };
+}
 
 export interface AgentConversationSurfaceProps {
   /** The conversation state + actions from `useAgentConversation`. */
@@ -57,6 +82,16 @@ export interface AgentConversationSurfaceProps {
   aboveComposer?: ReactNode;
   /** Pass-through styling/icons for the live-turn AgentPanel. */
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
+  /**
+   * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
+   * (declared plan + steps + tool calls + sources) above each assistant message
+   * that carries one, using the SAME AgentPanel as the live turn. This makes the
+   * differentiator — "see the execution, not just the result" — survive into the
+   * durable transcript instead of collapsing to the answer text on fold. Default
+   * true; a surface that wants answer-only history sets false. Messages with no
+   * `trace` (plain conversational turns, user messages) render unchanged.
+   */
+  showPersistedTrace?: boolean;
   /**
    * Floating composer box class (style hook for the app) — the single frosted
    * container that wraps BOTH the textarea row and the controls row (mic/send),
@@ -217,6 +252,7 @@ export function AgentConversationSurface({
   emptyState,
   aboveComposer,
   agentPanelProps,
+  showPersistedTrace = true,
   composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
@@ -397,33 +433,45 @@ export function AgentConversationSurface({
           emptyState
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Transcript: completed turns (user + assistant), each in a bubble */}
-            {messages.map((m, i) => (
-              <MessageBubble
-                key={i}
-                role={m.role}
-                header={renderHeader?.(m)}
-                badge={renderBadge?.(m)}
-                actions={
-                  renderActions?.(m) ??
-                  (showCopyAction ? <CopyButton content={m.content} /> : undefined)
-                }
-                className={resolveBubbleClass(m)}
-              >
-                <MessageContent
-                  isUser={m.role === 'user'}
-                  content={m.content}
-                  // B3-FIGLASS-12: only USER messages clamp (ChatGPT parity) —
-                  // a long pasted prompt folds behind "Mostrar más"; assistant
-                  // answers always render whole.
-                  collapsible={collapseUserMessages && m.role === 'user'}
-                  collapsedMaxHeight={collapseMaxHeight}
-                  showMoreLabel={showMoreLabel}
-                  showLessLabel={showLessLabel}
-                  collapseToggleClassName={collapseToggleClassName}
-                />
-              </MessageBubble>
-            ))}
+            {/* Transcript: completed turns (user + assistant), each in a bubble.
+                B3-FIGLASS-TRACE-PERSISTENCE-1 — an assistant message that carries
+                a persisted glass-box trace re-renders the SAME AgentPanel above
+                its answer, exactly as the live turn did, so reloading a
+                conversation shows the execution and not just the result. */}
+            {messages.map((m, i) => {
+              const traceTurn =
+                showPersistedTrace && m.role === 'assistant'
+                  ? persistedTraceTurn(m)
+                  : null;
+              return (
+                <Fragment key={i}>
+                  {traceTurn && <AgentPanel turn={traceTurn} {...agentPanelProps} />}
+                  <MessageBubble
+                    role={m.role}
+                    header={renderHeader?.(m)}
+                    badge={renderBadge?.(m)}
+                    actions={
+                      renderActions?.(m) ??
+                      (showCopyAction ? <CopyButton content={m.content} /> : undefined)
+                    }
+                    className={resolveBubbleClass(m)}
+                  >
+                    <MessageContent
+                      isUser={m.role === 'user'}
+                      content={m.content}
+                      // B3-FIGLASS-12: only USER messages clamp (ChatGPT parity) —
+                      // a long pasted prompt folds behind "Mostrar más"; assistant
+                      // answers always render whole.
+                      collapsible={collapseUserMessages && m.role === 'user'}
+                      collapsedMaxHeight={collapseMaxHeight}
+                      showMoreLabel={showMoreLabel}
+                      showLessLabel={showLessLabel}
+                      collapseToggleClassName={collapseToggleClassName}
+                    />
+                  </MessageBubble>
+                </Fragment>
+              );
+            })}
 
             {/* Live turn: glass-box trace stays as-is, streaming answer in a bubble */}
             {isStreaming && <AgentPanel turn={turn} {...agentPanelProps} />}
