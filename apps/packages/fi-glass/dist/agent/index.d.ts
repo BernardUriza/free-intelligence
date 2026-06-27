@@ -555,4 +555,31 @@ declare function ensureSidebarItemStyle(): void;
 /** Ensure the sidebar-item stylesheet is present for the lifetime of the component. */
 declare function useSidebarItemStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SIDEBAR_ITEM_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureSidebarItemStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useInlineRename, useSidebarItemStyle };
+interface AgentSidebarSectionProps {
+    /** A plain string is wrapped in the title slot; a node (e.g. branded markup) is used as-is. */
+    title: ReactNode;
+    /** The rows (e.g. a `<nav>` of {@link AgentSidebarItem}). Shown when `count > 0`. */
+    children: ReactNode;
+    /** Header action affordance rendered at the end of the head row (e.g. a "+ Nuevo" button). */
+    actionSlot?: ReactNode;
+    /** Shown instead of `children` when `count === 0`. Omit to always render `children`. */
+    emptyState?: ReactNode;
+    /** Number of rows; gates whether `emptyState` (0) or `children` (>0) renders. */
+    count: number;
+    /** Replaces the default head (title + actionSlot) entirely when the consumer needs a custom header. */
+    headerSlot?: ReactNode;
+    /** Accessible label for the section element. */
+    ariaLabel?: string;
+    className?: string;
+}
+declare function AgentSidebarSection({ title, children, actionSlot, emptyState, count, headerSlot, ariaLabel, className, }: AgentSidebarSectionProps): react.JSX.Element;
+
+declare const FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
+declare const FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
+declare const FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+/** Inject the idempotent sidebar-section stylesheet (no-op on the server / if already present). */
+declare function ensureSidebarSectionStyle(): void;
+/** Ensure the sidebar-section stylesheet is present for the lifetime of the component. */
+declare function useSidebarSectionStyle(): void;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
