@@ -75,34 +75,38 @@ jobs:
       - name: Create or update Container App
         # Secrets/vars come through env: (GitHub masks them and they never enter
         # the run: command interpolation); every az arg is individually quoted so
-        # no value is word-split or shell-expanded. ANTHROPIC_API_KEY only (API
-        # mode); NO OAuth in cloud.
+        # no value is word-split or shell-expanded. CLAUDE_CODE_OAUTH_TOKEN
+        # (subscription mode) — PERSONAL USE ONLY: og118 serves only Bernard (Auth0
+        # gated), never third parties, so routing his Max OAuth is within ToS. The
+        # papelería/third-party plan is deferred; if it returns, switch back to an
+        # ANTHROPIC_API_KEY (commercial API). No ANTHROPIC_API_KEY here.
         env:
           IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/og118-server:${{ github.sha }}
-          ANTHROPIC_KEY: ${{ secrets.OG118_ANTHROPIC_API_KEY }}
+          OAUTH_TOKEN: ${{ secrets.OG118_CLAUDE_CODE_OAUTH_TOKEN }}
           ACCESS_TOKEN: ${{ secrets.OG118_ACCESS_TOKEN }}
           ALLOWED_ORIGINS: ${{ vars.OG118_ALLOWED_ORIGINS }}
           MODEL: ${{ vars.OG118_MODEL }}
         run: |
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "anthropic-key=$ANTHROPIC_KEY" "access-token=$ACCESS_TOKEN"
+              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars \
-                "ANTHROPIC_API_KEY=secretref:anthropic-key" \
+                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
-                "HDF5_USE_FILE_LOCKING=FALSE"
+                "HDF5_USE_FILE_LOCKING=FALSE" \
+              --remove-env-vars "ANTHROPIC_API_KEY"
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
               --registry-server "$ACR.azurecr.io" --registry-identity system \
               --target-port 8118 --ingress external \
               --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "anthropic-key=$ANTHROPIC_KEY" "access-token=$ACCESS_TOKEN" \
+              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN" \
               --env-vars \
-                "ANTHROPIC_API_KEY=secretref:anthropic-key" \
+                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
