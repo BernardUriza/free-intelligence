@@ -1,7 +1,13 @@
 # OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)
 
-Status: Proposed
+Status: ADR open — `apps/og118/OG118-ELEMENTS-ADR-1.md` (2026-06-27), awaiting Bernard's ratification of the 4 decisions
 Proposed: 2026-06-24 by Bernard
+
+> 2026-06-27: the security gate that blocked this CLEARED (#277 root-fixed + raised
+> to the framework in PR #291, #276 identity-scoping merged, RAG owner-gate live).
+> `OG118-ELEMENTS-ADR-1` written with the 4 owner-decisions ratified-as-defaults +
+> a concrete registry schema (Oxígeno/vultur-bot as the first slot) and build plan.
+> Build of the first slice opens once Bernard ratifies D1–D4.
 
 ## What it is
 
