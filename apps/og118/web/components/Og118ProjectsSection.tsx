@@ -98,7 +98,7 @@ export function Og118ProjectsSection({
                 disabled={disabled}
                 onActivate={() => {
                   if (
-                    window.confirm(`¿Borrar "${p.name}"? Solo se borra de este navegador.`)
+                    window.confirm(`¿Borrar "${p.name}"? Se borra de tu cuenta y sus documentos.`)
                   ) {
                     onDelete(p.id);
                   }
