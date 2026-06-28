@@ -15,7 +15,6 @@ from pathlib import Path
 
 from fi_runner import (
     ClaudeCodeBackend,
-    PermissionMode,
     Runner,
     ToolPolicy,
     active_corpus_binding,
@@ -25,16 +24,22 @@ from fi_runner import (
 PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
 
 
-def build_runner() -> Runner:
+def build_runner(persona_path: Path = PERSONA_PATH) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
     events (the glass-box stream og118's AgentHook maps onto core's
-    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`)."""
+    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`).
+
+    `persona_path` selects the system prompt: the default is the base og118
+    companion; an "elemento" (OG118-ELEMENTS-ADR-1) passes its own persona `.md`
+    (e.g. `008-o-oxigeno.md` = Vultur). Everything else — capabilities, the
+    corpus binding, the COMPANION tool policy — is identical across elements, so a
+    persona swap never widens the filesystem guarantee."""
     return Runner(
         backend=ClaudeCodeBackend(
             default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
         ),
-        persona=load_prompt(PERSONA_PATH),
+        persona=load_prompt(persona_path),
         # task_tracker → plan/step glass-box events. rag_store → the agent can
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
@@ -56,21 +61,12 @@ def build_runner() -> Runner:
         # replica recycle/redeploy/scale automatically (the prior InMemory store was
         # wiped on restart → the model lost the thread mid-conversation). The
         # client_history_max_messages / _chars caps bound per-turn token cost.
-        tool_policy=ToolPolicy(
-            # og118 is a thinking companion, not a coding agent. BYPASS mode grants
-            # every built-in EXCEPT these, so the repo/filesystem tools must be
-            # named explicitly — otherwise the model reaches the host container's
-            # source (a user asking "show me your code" made it Glob+Read app.py /
-            # runner.py on the shared papelería host: a real exposure). Blocking the
-            # read/navigation builtins too makes the persona's "you have no
-            # filesystem" TRUE, not merely asserted. rag_store (project corpus) is an
-            # MCP tool, not a builtin, so document search is unaffected.
-            builtin_disallowed=[
-                "Bash", "Write", "Edit", "NotebookEdit",  # no shell / file mutation
-                "Read", "Grep", "Glob", "LS", "Task",     # no host filesystem / repo
-            ],
-            # Headless: auto-approve the (safe, in-process) task_tracker MCP tools
-            # so no interactive permission prompt blocks the turn.
-            permission_mode=PermissionMode.BYPASS,
-        ),
+        # og118 is a thinking companion, not a coding agent. The COMPANION profile
+        # blocks every shell / file-mutation / host-filesystem builtin under BYPASS,
+        # so the persona's "you have no filesystem" is TRUE, not asserted (a user
+        # asking "show me your code" had made it Glob+Read its own deployment
+        # source). The blocked set lives in fi-runner now (the framework home of the
+        # #277 fix) so every companion inherits it; rag_store/task_tracker are MCP
+        # tools, not builtins, so document search + the glass-box plan are unaffected.
+        tool_policy=ToolPolicy.companion(),
     )
