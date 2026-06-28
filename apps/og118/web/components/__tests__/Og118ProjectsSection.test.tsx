@@ -137,3 +137,87 @@ describe('Og118ProjectsSection delete (confirm-gated)', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
+
+// PROJECTS-DOCS-E2E: the upload affordance is scoped to the ACTIVE project and
+// reuses the fi-glass ChatFilePreview. The section stays dumb — it owns the
+// meaning (which project, the Spanish copy), the transport lives in the hook.
+describe('Og118ProjectsSection upload (PROJECTS-DOCS-E2E)', () => {
+  it('shows NO upload button without an active project', () => {
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+        onUpload={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /subir archivo/i })).not.toBeInTheDocument();
+  });
+
+  it('shows NO upload button when onUpload is absent (capability off)', () => {
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p1"
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /subir archivo/i })).not.toBeInTheDocument();
+  });
+
+  it('fires onUpload with the ACTIVE project id', async () => {
+    const onUpload = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p2"
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+        onUpload={onUpload}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /subir archivo al proyecto/i }));
+    expect(onUpload).toHaveBeenCalledWith('p2');
+  });
+
+  it('renders the file preview while uploading and surfaces the error', () => {
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p1"
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+        onUpload={vi.fn()}
+        onCancelUpload={vi.fn()}
+        uploadFile={new File(['x'], 'doc.pdf', { type: 'application/pdf' })}
+        uploadStatus="error"
+        uploadError="Solo archivos de texto (.txt o .md)."
+      />,
+    );
+    expect(screen.getByText('doc.pdf')).toBeInTheDocument();
+    expect(screen.getByText(/solo archivos de texto/i)).toBeInTheDocument();
+  });
+
+  it('confirms the indexed chunk count on success', () => {
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId="p1"
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+        onUpload={vi.fn()}
+        uploadFile={new File(['hola'], 'notas.txt', { type: 'text/plain' })}
+        uploadStatus="indexed"
+        uploadChunks={3}
+      />,
+    );
+    expect(screen.getByText(/3 fragmentos/i)).toBeInTheDocument();
+  });
+});

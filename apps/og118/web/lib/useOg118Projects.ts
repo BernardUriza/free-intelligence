@@ -1,19 +1,24 @@
 'use client';
 
 /**
- * useOg118Projects — local-first Projects library for the papelería canary.
+ * useOg118Projects — server-owned Projects library (PROJ-SYNC-1).
  *
  * A project is a named corpus the agent can search (proj-sidebar). The project
  * `id` IS the `corpus_id` passed to POST /projects/{id}/upload and to the agent
  * via context={"corpus_id": activeProjectId}.
  *
- * Identity scoping (shared-device leak fix): the localStorage keys are partitioned
- * by the signed-in account (`userId` = the Auth0 principal's sub) via fi-glass's
- * `scopedStoreName`, so two accounts on the SAME browser never see each other's
- * projects. A null identity (bearer / legacy single-tenant) keeps the original
- * unscoped key, so pre-auth data survives. The corpus CONTENT is already
- * owner-gated server-side (PROJ-ACCOUNT-1); this scopes the client-side list to
- * match.
+ * Source of truth = the SERVER registry (owner-filtered by the caller's account).
+ * On sign-in the hook hydrates from GET /projects; localStorage is only a CACHE
+ * for instant render before that fetch resolves, then reconciled to the server
+ * list. So the account's projects travel across devices and survive a cleared
+ * browser — not local-first state that lives in one browser (the pre-PROJ-SYNC-1
+ * behavior, where delete was local-only and the server corpus was orphaned).
+ *
+ * Identity scoping (shared-device leak fix): the localStorage cache keys are
+ * partitioned by the signed-in account (`userId` = the Auth0 principal's sub) via
+ * fi-glass's `scopedStoreName`, so two accounts on the SAME browser never read
+ * each other's cached list while the server fetch is in flight. The server is the
+ * real owner gate (PROJ-ACCOUNT-1); this scopes the client-side cache to match.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,10 +35,13 @@ export interface Og118Project {
 export interface UseOg118Projects {
   projects: Og118Project[];
   activeProjectId: string | null;
+  /** True once the server list has been reconciled (or the fetch settled). */
+  ready: boolean;
   /** Mints the corpus_id server-side (POST /projects), never client-side. */
   createProject: (name: string) => Promise<string>;
   selectProject: (id: string) => void;
-  deleteProject: (id: string) => void;
+  /** Deletes server-side (DELETE /projects/{id}) AND the local cache. */
+  deleteProject: (id: string) => Promise<void>;
 }
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
@@ -50,12 +58,19 @@ function loadProjects(key: string): Og118Project[] {
   }
 }
 
+interface ServerProject {
+  id: string;
+  name: string;
+  createdAt?: string;
+}
+
 export function useOg118Projects(userId: string | null = null): UseOg118Projects {
   const projectsKey = scopedStoreName(PROJECTS_KEY_BASE, userId);
   const activeKey = scopedStoreName(ACTIVE_KEY_BASE, userId);
 
   const [projects, setProjects] = useState<Og118Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const activeRef = useRef<string | null>(null);
   // The committed list, updated SYNCHRONOUSLY inside each write (and on hydrate),
   // so two mutations before a re-render compose without a stale closure — and the
@@ -64,34 +79,28 @@ export function useOg118Projects(userId: string | null = null): UseOg118Projects
   const projectsRef = useRef<Og118Project[]>([]);
   activeRef.current = activeProjectId;
 
-  // Hydrate whenever the identity (its storage key) changes. This is the ONLY
-  // place that READS storage, and it never writes — so an identity switch can
-  // never clobber the new account's data with the old account's state.
-  useEffect(() => {
-    const loaded = loadProjects(projectsKey);
-    projectsRef.current = loaded;
-    setProjects(loaded);
-    const active = localStorage.getItem(activeKey);
-    setActiveProjectId(active && loaded.some((p) => p.id === active) ? active : null);
-  }, [projectsKey, activeKey]);
+  // Persist the cache. Plain statement, never a side-effect inside setState; the
+  // key is captured at call time = the CURRENT identity, so an identity switch can
+  // never write the wrong account's list back to storage.
+  const persist = useCallback(
+    (next: Og118Project[], key: string) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* private mode / storage disabled */
+      }
+    },
+    [],
+  );
 
-  // Write-through on mutation (not via a state-change effect) so a key swap during
-  // an identity switch can never persist the wrong account's list: `projectsKey`
-  // is captured from the closure at call time = the CURRENT identity. The ref is
-  // advanced synchronously so consecutive writes compose; persistence is a plain
-  // statement, never a side-effect inside setState.
   const writeProjects = useCallback(
     (update: (prev: Og118Project[]) => Og118Project[]) => {
       const next = update(projectsRef.current);
       projectsRef.current = next;
       setProjects(next);
-      try {
-        localStorage.setItem(projectsKey, JSON.stringify(next));
-      } catch {
-        /* private mode / storage disabled */
-      }
+      persist(next, projectsKey);
     },
-    [projectsKey],
+    [persist, projectsKey],
   );
 
   const writeActive = useCallback(
@@ -106,6 +115,58 @@ export function useOg118Projects(userId: string | null = null): UseOg118Projects
     },
     [activeKey],
   );
+
+  // Hydrate on identity change: render the cache instantly, then reconcile to the
+  // SERVER list (the owner of record). The server list REPLACES the cache, so a
+  // project that lives only in this browser (stale cache, or another account's,
+  // or one deleted server-side from another device) simply disappears. On a fetch
+  // failure (offline / 401) the cache is kept untouched — never wipe on error.
+  useEffect(() => {
+    let cancelled = false;
+
+    const cached = loadProjects(projectsKey);
+    projectsRef.current = cached;
+    setProjects(cached);
+    const cachedActive = localStorage.getItem(activeKey);
+    setActiveProjectId(cachedActive && cached.some((p) => p.id === cachedActive) ? cachedActive : null);
+    setReady(false);
+
+    (async () => {
+      try {
+        const res = await fetch(`${API}/projects`, { headers: { ...authHeaders() } });
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as { projects?: ServerProject[] };
+        if (cancelled) return;
+        const server: Og118Project[] = (body.projects ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          createdAt: p.createdAt ?? new Date().toISOString(),
+        }));
+        projectsRef.current = server;
+        setProjects(server);
+        persist(server, projectsKey);
+        // Keep the active selection only if the server still has it.
+        setActiveProjectId((prev) => {
+          const keep = prev && server.some((p) => p.id === prev) ? prev : null;
+          try {
+            if (keep) localStorage.setItem(activeKey, keep);
+            else localStorage.removeItem(activeKey);
+          } catch {
+            /* ignore */
+          }
+          return keep;
+        });
+      } catch {
+        /* offline — keep the cache as-is */
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectsKey, activeKey, persist]);
 
   const createProject = useCallback(
     async (name: string): Promise<string> => {
@@ -132,12 +193,24 @@ export function useOg118Projects(userId: string | null = null): UseOg118Projects
   const selectProject = useCallback((id: string) => writeActive(id), [writeActive]);
 
   const deleteProject = useCallback(
-    (id: string) => {
+    async (id: string): Promise<void> => {
+      // Optimistic: drop from the cache + clear the active selection immediately.
       writeProjects((prev) => prev.filter((p) => p.id !== id));
       if (activeRef.current === id) writeActive(null);
+      try {
+        // The server owns the project + its corpus. A 404 means it's already gone
+        // (deleted from another device, or never owned) — the local removal above
+        // already reflects that, so a 404 is success, not an error to surface.
+        await fetch(`${API}/projects/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { ...authHeaders() },
+        });
+      } catch {
+        /* network — the local cache is updated; the next load reconciles */
+      }
     },
     [writeProjects, writeActive],
   );
 
-  return { projects, activeProjectId, createProject, selectProject, deleteProject };
+  return { projects, activeProjectId, ready, createProject, selectProject, deleteProject };
 }

@@ -187,6 +187,33 @@ body {
   flex-direction: column;
   gap: 0.25rem;
 }
+.og-project-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0 0.5rem 0.7rem;
+}
+.og-project-upload-btn {
+  align-self: flex-start;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px dashed var(--og-accent, #34d399);
+  background: transparent;
+  color: var(--og-accent, #34d399);
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.og-project-upload-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.og-project-upload-done {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #34d399;
+  line-height: 1.4;
+}
 .og-sidebar {
   width: 100%;
   height: 100%;
