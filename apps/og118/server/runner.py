@@ -15,7 +15,6 @@ from pathlib import Path
 
 from fi_runner import (
     ClaudeCodeBackend,
-    PermissionMode,
     Runner,
     ToolPolicy,
     active_corpus_binding,
@@ -62,21 +61,12 @@ def build_runner(persona_path: Path = PERSONA_PATH) -> Runner:
         # replica recycle/redeploy/scale automatically (the prior InMemory store was
         # wiped on restart → the model lost the thread mid-conversation). The
         # client_history_max_messages / _chars caps bound per-turn token cost.
-        tool_policy=ToolPolicy(
-            # og118 is a thinking companion, not a coding agent. BYPASS mode grants
-            # every built-in EXCEPT these, so the repo/filesystem tools must be
-            # named explicitly — otherwise the model reaches the host container's
-            # source (a user asking "show me your code" made it Glob+Read app.py /
-            # runner.py on the shared papelería host: a real exposure). Blocking the
-            # read/navigation builtins too makes the persona's "you have no
-            # filesystem" TRUE, not merely asserted. rag_store (project corpus) is an
-            # MCP tool, not a builtin, so document search is unaffected.
-            builtin_disallowed=[
-                "Bash", "Write", "Edit", "NotebookEdit",  # no shell / file mutation
-                "Read", "Grep", "Glob", "LS", "Task",     # no host filesystem / repo
-            ],
-            # Headless: auto-approve the (safe, in-process) task_tracker MCP tools
-            # so no interactive permission prompt blocks the turn.
-            permission_mode=PermissionMode.BYPASS,
-        ),
+        # og118 is a thinking companion, not a coding agent. The COMPANION profile
+        # blocks every shell / file-mutation / host-filesystem builtin under BYPASS,
+        # so the persona's "you have no filesystem" is TRUE, not asserted (a user
+        # asking "show me your code" had made it Glob+Read its own deployment
+        # source). The blocked set lives in fi-runner now (the framework home of the
+        # #277 fix) so every companion inherits it; rag_store/task_tracker are MCP
+        # tools, not builtins, so document search + the glass-box plan are unaffected.
+        tool_policy=ToolPolicy.companion(),
     )
