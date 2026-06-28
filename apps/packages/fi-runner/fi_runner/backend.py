@@ -138,6 +138,19 @@ class MCPServerSpec:
             )
 
 
+# The built-ins a non-coding COMPANION must never reach: shell, file mutation,
+# and host-filesystem / repo navigation. Under BYPASS (which grants every builtin
+# EXCEPT the disallowed list) these MUST be named explicitly, or a chat persona on
+# ClaudeCodeBackend can Glob+Read its own deployment source when asked to "show
+# your code" — a real exposure seen on og118. Naming them makes the persona's "you
+# have no filesystem" TRUE, not merely asserted. MCP tools (a project's rag_store,
+# task_tracker) are NOT builtins and stay available.
+COMPANION_BLOCKED_BUILTINS: tuple[str, ...] = (
+    "Bash", "Write", "Edit", "NotebookEdit",  # no shell / file mutation
+    "Read", "Grep", "Glob", "LS", "Task",     # no host filesystem / repo
+)
+
+
 @dataclass
 class ToolPolicy:
     """The 3 knobs every backend honors — the per-runner security config."""
@@ -147,6 +160,27 @@ class ToolPolicy:
     # Built-in tools to BLOCK outright (e.g. ["Bash", "Write"] for a PHI runner).
     builtin_disallowed: list[str] = field(default_factory=list)
     permission_mode: PermissionMode = PermissionMode.DEFAULT
+
+    @classmethod
+    def companion(
+        cls,
+        *,
+        builtin_allowed: list[str] | None = None,
+        permission_mode: PermissionMode = PermissionMode.BYPASS,
+    ) -> "ToolPolicy":
+        """The non-coding COMPANION profile: every shell / file-mutation /
+        host-filesystem builtin (:data:`COMPANION_BLOCKED_BUILTINS`) is blocked, so
+        a chat persona can never read the host's source or mutate files. This is the
+        framework home of the og118 #277 fix — every companion (alice, ferboli,
+        activist-os, future wrappers) inherits the same guarantee instead of
+        re-listing the blocked builtins per consumer. Opt extra builtins in via
+        ``builtin_allowed``; a consumer that genuinely needs filesystem access uses a
+        plain :class:`ToolPolicy` instead of this profile."""
+        return cls(
+            builtin_allowed=list(builtin_allowed or []),
+            builtin_disallowed=list(COMPANION_BLOCKED_BUILTINS),
+            permission_mode=permission_mode,
+        )
 
 
 # --- MCP tool-id convention (single source of truth) -------------------------

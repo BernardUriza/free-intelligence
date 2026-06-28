@@ -44,6 +44,7 @@ import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
 import { useOg118Projects } from '@/lib/useOg118Projects';
+import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 import { Og118AuthBanner } from './Og118AuthBanner';
@@ -60,6 +61,7 @@ export function Og118AgentChat() {
   const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
   const projects = useOg118Projects(userId);
+  const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,
@@ -135,6 +137,13 @@ export function Og118AgentChat() {
             )
           }
           disabled={conversation.isStreaming}
+          uploadFile={upload.file}
+          uploadStatus={upload.status}
+          uploadProgress={upload.progress}
+          uploadError={upload.error}
+          uploadChunks={upload.result?.chunks ?? null}
+          onUpload={(id) => upload.openFilePicker(id)}
+          onCancelUpload={upload.cancel}
         />
         <Og118Sidebar
           conversations={lib.conversations}

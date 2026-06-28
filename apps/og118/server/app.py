@@ -33,6 +33,8 @@ from fi_runner.auth import (
 from fi_runner.rag_store import RagStoreClient
 from projects import ProjectRegistry
 from runner import build_runner
+from fi_runner import Runner
+from elements_registry import Element, get_registry
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
     STTNotConfiguredError,
@@ -139,6 +141,25 @@ def get_principal(authorization: str | None = Header(default=None)) -> Principal
 
 _runner = build_runner()
 
+# Elemento runners (OG118-ELEMENTS-ADR-1): an active element swaps ONLY the
+# persona. The base runner serves "no element". Per-element runners are built
+# lazily from the registry and cached by canonical id.
+_element_runners: dict[str, Runner] = {}
+
+
+def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | None]:
+    """Resolve (Runner, Element) for this turn. Unknown/blank/non-active → the base
+    og118 runner + None (the turn is byte-identical to no-element)."""
+    el = get_registry().resolve(element_token)
+    if el is None or not el.is_active:
+        return _runner, None
+    cached = _element_runners.get(el.id)
+    if cached is None:
+        cached = build_runner(persona_path=get_registry().persona_path(el))
+        _element_runners[el.id] = cached
+    return cached, el
+
+
 # Built once from the ambient env. None when OG118_TTS_* / OG118_STT_* is
 # unset/incomplete — the voice routes turn that into an explicit 503, never a
 # crash.
@@ -216,6 +237,11 @@ class ChatRequest(BaseModel):
     # rag_store search to THIS corpus. Pre-Gate-3 it is NOT authorization — a
     # shared bearer guards the route; ownership lands with auth (PROJ-ACCOUNT).
     corpus_id: str | None = None
+    # Active "elemento" for this turn (OG118-ELEMENTS-ADR-1). A token the registry
+    # resolves (slug/symbol/atomic number/alias, e.g. "oxigeno"/"O"/"8"); an active
+    # element swaps the persona (Vultur for Oxígeno), nothing else. Absent/unknown/
+    # non-active → the base og118 companion persona.
+    element: str | None = None
 
 
 class TTSRequest(BaseModel):
@@ -256,13 +282,19 @@ async def chat_stream(
     if req.corpus_id and not principal.is_legacy_bearer and not registry.owns(req.corpus_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
 
+    runner, element = _runner_and_element(req.element)
+
     async def generate() -> AsyncIterator[str]:
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
+        # Surface the active element so the glass-box trace shows WHO answered
+        # (the ADR's E2E criterion). Absent when no active element is selected.
+        if element is not None:
+            yield _sse({"type": "element", "element": {"id": element.id, "label": element.display_label}})
         try:
             history = [m.model_dump() for m in req.history] if req.history else None
             context = {"corpus_id": req.corpus_id} if req.corpus_id else None
-            async for event in _runner.run_stream(
+            async for event in runner.run_stream(
                 req.message,
                 session_id=req.session_id,
                 request_id=request_id,
