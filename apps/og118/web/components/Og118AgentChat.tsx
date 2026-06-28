@@ -129,7 +129,11 @@ export function Og118AgentChat() {
             projects.selectProject(id);
             shell.close();
           }}
-          onDelete={(id) => projects.deleteProject(id)}
+          onDelete={(id) =>
+            void projects.deleteProject(id).catch((e) =>
+              console.error('[og118] delete project failed', e),
+            )
+          }
           disabled={conversation.isStreaming}
         />
         <Og118Sidebar
