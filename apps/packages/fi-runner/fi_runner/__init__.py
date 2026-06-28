@@ -29,6 +29,7 @@ from typing import Any
 
 from . import capabilities, conversation, flow, guards, narrate, pipeline, router
 from .backend import (
+    COMPANION_BLOCKED_BUILTINS,
     AgentBackend,
     BackendError,
     MCPServerSpec,
@@ -81,6 +82,7 @@ __version__ = "0.17.1"
 __all__ = [
     "AgentBackend",
     "BackendError",
+    "COMPANION_BLOCKED_BUILTINS",
     "MCPServerSpec",
     "PermissionMode",
     "ToolCall",
