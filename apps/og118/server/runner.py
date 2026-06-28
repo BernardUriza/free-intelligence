@@ -25,16 +25,22 @@ from fi_runner import (
 PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
 
 
-def build_runner() -> Runner:
+def build_runner(persona_path: Path = PERSONA_PATH) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
     events (the glass-box stream og118's AgentHook maps onto core's
-    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`)."""
+    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`).
+
+    `persona_path` selects the system prompt: the default is the base og118
+    companion; an "elemento" (OG118-ELEMENTS-ADR-1) passes its own persona `.md`
+    (e.g. `008-o-oxigeno.md` = Vultur). Everything else — capabilities, the
+    corpus binding, the COMPANION tool policy — is identical across elements, so a
+    persona swap never widens the filesystem guarantee."""
     return Runner(
         backend=ClaudeCodeBackend(
             default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
         ),
-        persona=load_prompt(PERSONA_PATH),
+        persona=load_prompt(persona_path),
         # task_tracker → plan/step glass-box events. rag_store → the agent can
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
