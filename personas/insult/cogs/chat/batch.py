@@ -27,7 +27,7 @@ import discord
 import structlog
 
 from personas.insult.core.errors import ErrorType, get_error_response
-from shared.personas.registry import sibling_bot_user_ids
+from shared.personas.registry import sibling_aliases, sibling_bot_user_ids
 
 log = structlog.get_logger()
 
@@ -36,70 +36,27 @@ BATCH_WAIT_SECONDS = 3.0  # Wait this long after last message before responding
 MIN_RESPONSE_GAP = 5.0  # Minimum seconds between bot responses to same user (token protection)
 
 
-def addressed_to_alice(message: discord.Message, settings) -> bool:
-    """True when this message DIRECTLY addresses ALICE — so Insult should stay
-    silent and let her answer (no double-reply).
-
-    Mirrors ALICE's own direct-address triggers (alice/cogs/chat.py) so the two
-    bots stay in lockstep: every signal that makes ALICE respond also makes
-    Insult suppress, which means suppression never produces dead air. Three
-    signals, in order of reliability:
-
-    1. **User-mention** — the ``@A.L.I.C.E.`` pill resolves to ``<@id>`` /
-       ``<@!id>`` in content (and to ``message.mentions``).
-    2. **Role-mention** — Discord's autocomplete often inserts ALICE's managed
-       role ``<@&roleid>`` instead of the user pill; match it via the role whose
-       ``tags.bot_id`` is ALICE (same trick ALICE uses for inbound).
-    3. **Text alias** — plain-text ``@alice`` / ``alice`` / ``amix`` / ``ali`` /
-       ``alicia`` as a whole word.
-
-    Intrusive clinical keywords are intentionally excluded: those are shared
-    context both bots may address; this gate is only "I'm talking to ALICE."
-    """
-    aid = (getattr(settings, "alice_bot_user_id", "") or "").strip()
-    content = message.content or ""
-
-    if aid:
-        if aid in {str(u.id) for u in message.mentions}:
-            return True
-        if re.search(rf"<@!?{re.escape(aid)}>", content):
-            return True
-        if message.guild is not None:
-            raw_role_ids = set(re.findall(r"<@&(\d+)>", content))
-            if raw_role_ids:
-                for role in message.guild.roles:
-                    tags = getattr(role, "tags", None)
-                    if (
-                        tags is not None
-                        and str(getattr(tags, "bot_id", "") or "") == aid
-                        and str(role.id) in raw_role_ids
-                    ):
-                        return True
-
-    low = content.lower()
-    aliases = [*getattr(settings, "alice_aliases", []), "alice"]
-    return any(re.search(rf"\b{re.escape(a.lower())}\b", low) for a in aliases if a)
-
-
 def addressed_to_sibling(message: discord.Message) -> bool:
     """True when this message addresses any registered Khimeras sibling bot — so
-    Insult stays silent and lets the sibling (e.g. Vultur) answer instead of
+    Insult stays silent and lets the sibling (Vultur, ALICE…) answer instead of
     butting in.
 
-    Reads `shared/personas/registry.py` at call time — no config coupling. When
-    a new persona is added to the registry, Insult automatically suppresses for
-    it without any change here. Works alongside `addressed_to_alice` (which
-    handles ALICE specifically, including text aliases).
+    Registry-driven, read at call time — no per-bot hardcoding. Adding a persona
+    (`shared/personas/registry.py`) makes Insult suppress for it automatically.
+    This is the single suppression gate for ALL siblings; ALICE is no longer a
+    special case (her id + aliases live in the registry like every other sibling).
 
-    Matches BOTH addressing forms, because the persona_gateway summons a sibling
-    on its OWN role mention (v4.21.91), not only the user pill:
+    Three signals, in order of reliability:
     1. **User-mention** — `<@id>` / `message.mentions` resolves to the bot user.
     2. **Role-mention** — Discord autocomplete often inserts the sibling's
        managed role `<@&roleid>` instead; match it via the role whose
-       `tags.bot_id` is a registered sibling (same trick as `addressed_to_alice`).
+       `tags.bot_id` is a registered sibling.
+    3. **Text alias** — a whole-word alias the persona opted into in the registry
+       (e.g. ALICE's "amix"/"ali"/"alicia"). Default-empty per persona to avoid
+       false positives — e.g. "vultur" as a word could fire on film-critic talk.
 
-    Text aliases per sibling stay opt-in in the registry (default empty) to avoid
-    false positives — e.g. "vultur" as a word could fire on film-critic talk.
+    Intrusive/clinical keywords are intentionally excluded: those are shared
+    context both bots may address; this gate is only "I'm talking to a sibling."
     """
     sibling_ids = sibling_bot_user_ids()
     mention_ids = {str(u.id) for u in message.mentions}
@@ -116,7 +73,9 @@ def addressed_to_sibling(message: discord.Message) -> bool:
                     and str(role.id) in raw_role_ids
                 ):
                     return True
-    return False
+
+    low = (message.content or "").lower()
+    return any(re.search(rf"\b{re.escape(a.lower())}\b", low) for a in sibling_aliases() if a)
 
 
 @dataclass
@@ -169,17 +128,14 @@ class BatchManager:
         if message.content.startswith(settings.command_prefix):
             return
 
-        # Directly addressed to ALICE or any Khimeras sibling → Insult stays
-        # silent and lets the right bot answer. We STILL PERSIST the message so
-        # the shared `messages` table keeps full context for all bots (Insult is
-        # the canonical storage gateway; skipping storage would blind ALICE/Vultur).
-        _to_alice = addressed_to_alice(message, settings)
-        _to_sibling = addressed_to_sibling(message)
-        if _to_alice or _to_sibling:
-            sibling_label = "alice" if _to_alice else "persona_sibling"
+        # Directly addressed to a Khimeras sibling (Vultur, ALICE…) → Insult
+        # stays silent and lets the right bot answer. We STILL PERSIST the message
+        # so the shared `messages` table keeps full context for all bots (Insult
+        # is the canonical storage gateway; skipping storage would blind siblings).
+        if addressed_to_sibling(message):
             log.info(
                 "msg_skipped_addressed_to_sibling",
-                sibling=sibling_label,
+                sibling="persona_sibling",
                 message_id=message.id,
                 user_id=message.author.id,
                 channel_id=message.channel.id,
