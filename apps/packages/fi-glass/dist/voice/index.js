@@ -2779,8 +2779,8 @@ function createResonanceCallController(driver, hooks = {}) {
 
 // src/voice/resonanceVadGate.ts
 var DEFAULT_VAD_CONFIG = {
-  speechOnThreshold: 18,
-  speechOffThreshold: 10,
+  speechOnThreshold: 24,
+  speechOffThreshold: 13,
   minSpeechMs: 180,
   endSilenceMs: 850,
   maxTurnMs: 2e4
