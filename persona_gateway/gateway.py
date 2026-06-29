@@ -39,7 +39,7 @@ from khimeras_shared.tts import (
     split_for_tts,
     synthesize_susurro_tts,
 )
-from shared.personas import Persona, all_personas
+from shared.personas import Persona, gateway_personas
 
 SPEAK_EMOJI = "🔊"
 
@@ -371,7 +371,7 @@ async def _main() -> None:
     intents.message_content = True
 
     starts = []
-    for persona in all_personas():
+    for persona in gateway_personas():
         token = os.environ.get(persona.token_env, "").strip()
         if not token:
             log.warning("persona_gateway_no_token", persona_id=persona.persona_id, env=persona.token_env)

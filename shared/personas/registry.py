@@ -39,10 +39,16 @@ class Persona:
     # speaks the persona's messages in THIS voice — onyx=Insult, nova=ALICE are
     # taken, so siblings pick a distinct one). The persona owns its voice.
     tts_voice: str = "echo"
+    # Whether `persona_gateway` actually SPINS UP this bot. Decoupled from
+    # registry membership on purpose: a persona can be KNOWN to the registry
+    # (so Insult suppresses it, the runner can load its DNA) WITHOUT the gateway
+    # starting it in prod yet. This is the cutover gate — flip to True (+ put the
+    # token in the gateway env) at the single-owner cutover, never before, so
+    # there is never a minute with two live bots sharing one Discord token.
+    gateway_enabled: bool = True
 
 
 # Insult is NOT here — it is the omnipresent host, not a sibling persona.
-# ALICE is also NOT here — she predates the registry; Insult has her hardcoded.
 # Future bots: add an entry, nothing else to change.
 PERSONAS: dict[str, Persona] = {
     "vultur": Persona(
@@ -54,7 +60,35 @@ PERSONAS: dict[str, Persona] = {
         aliases=[],  # no text aliases for now — @mention-only to avoid FP
         avatar=None,
     ),
+    # ALICE migration (PR-4c) — readiness, NOT cutover. She is registered so the
+    # runner can load her DNA (persona_id="alice") and Insult suppresses her via
+    # the registry, but `gateway_enabled=False` keeps `persona_gateway` from
+    # starting her: alice-bot (her legacy gpt-4.1 Container App) still owns the
+    # ALICE_DISCORD_TOKEN and serves her in prod. Cutover (gated on a live
+    # host-router failover replacement) flips gateway_enabled=True + moves the
+    # token off alice-bot. See .claude/plans/adr_alice_to_claude_sibling.md.
+    "alice": Persona(
+        persona_id="alice",
+        display_name="A.L.I.C.E.",
+        persona_file="alice.md",
+        token_env="ALICE_DISCORD_TOKEN",
+        bot_user_id="1503983124982534284",
+        aliases=["alice", "amix", "ali"],
+        avatar=None,
+        tts_voice="nova",
+        gateway_enabled=False,
+    ),
 }
+
+
+def gateway_personas() -> list[Persona]:
+    """Personas the gateway should actually start (gateway_enabled is True).
+
+    Distinct from `all_personas()` (which the suppression map needs in full): a
+    registered-but-not-yet-enabled persona is known to the system but not spun
+    up. This is the cutover gate, in code, not an ad-hoc env flag.
+    """
+    return [p for p in PERSONAS.values() if p.gateway_enabled]
 
 
 def get_persona(persona_id: str) -> Persona | None:
