@@ -418,6 +418,7 @@ function useAgentConversation(agent, options = {}) {
       return last?.role === "user" ? prev.slice(0, -1) : prev;
     });
   }, []);
+  const awaitResolver = useRef(null);
   const send = useCallback(
     (text) => {
       const t = text.trim();
@@ -434,6 +435,18 @@ function useAgentConversation(agent, options = {}) {
     },
     [agent, controlled]
   );
+  const sendAndAwait = useCallback(
+    (text) => {
+      const t = text.trim();
+      if (!t) return Promise.resolve("");
+      if (agent.isStreaming) return Promise.reject(new Error("a turn is already streaming"));
+      return new Promise((resolve, reject) => {
+        awaitResolver.current = { resolve, reject };
+        send(t);
+      });
+    },
+    [agent.isStreaming, send]
+  );
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
   }, [send]);
@@ -446,6 +459,9 @@ function useAgentConversation(agent, options = {}) {
     pending.current = false;
     if (agent.turn.status === "error") {
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error(agent.turn.errorMessage || "turn failed"));
       if (!appHandledRef.current?.(agent.turn)) {
         setTurnError({
           kind: "stream",
@@ -454,11 +470,14 @@ function useAgentConversation(agent, options = {}) {
       }
       return;
     }
-    if (controlledRef.current) return;
-    if (agent.turn.text) {
+    const finalText = agent.turn.text || "";
+    if (!controlledRef.current && agent.turn.text) {
       skipPersist.current = false;
       setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
     }
+    const resolver = awaitResolver.current;
+    awaitResolver.current = null;
+    resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn, revertOptimistic]);
   useEffect2(() => {
     if (turnTimeoutMs <= 0) return;
@@ -467,6 +486,9 @@ function useAgentConversation(agent, options = {}) {
       pending.current = false;
       agentRef.current.abort?.();
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error("turn timed out"));
       setTimedOut(true);
       setTurnError({
         kind: "timeout",
@@ -510,6 +532,7 @@ function useAgentConversation(agent, options = {}) {
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
     send,
+    sendAndAwait,
     retry,
     dismissError,
     newConversation

@@ -115,18 +115,16 @@ export function Og118AgentChat() {
   // flag (off by default — the one-shot composer above stays the fallback). A
   // turn-text ref lets requestAssistantTurn resolve with the streamed answer.
   const [resonanceEnabled] = useState(readResonanceFlag);
-  const turnTextRef = useRef('');
-  turnTextRef.current = agent.turn?.text ?? '';
+  // Resonance speaks the SAME turn the transcript persists: sendAndAwait is the
+  // single writer of the user + assistant capsules and resolves with the text to
+  // speak. No raw agent.send, no transcript bypass (the capsule-less bug).
   const requestAssistantTurn = useCallback(
-    async (userText: string) => {
-      await agent.send(userText, { history: lib.activeMessages });
-      return turnTextRef.current;
-    },
-    [agent, lib.activeMessages],
+    (userText: string) => conversation.sendAndAwait(userText),
+    [conversation],
   );
   const resonance = useOg118ResonanceCall({
     enabled: resonanceEnabled,
-    appendUserMessage: (t) => { if (resonanceEnabled) console.info('[resonance] user:', t); },
+    appendUserMessage: () => {}, // sendAndAwait owns the user capsule — keep this a no-op
     requestAssistantTurn,
     debug: resonanceEnabled,
   });
