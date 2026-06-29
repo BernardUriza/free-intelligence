@@ -138,6 +138,14 @@ export {
   type ResonanceControllerHooks,
 } from './resonanceCallController';
 export {
+  createResonanceVadGate,
+  DEFAULT_VAD_CONFIG,
+  type ResonanceVadConfig,
+  type ResonanceVadMode,
+  type ResonanceVadEvent,
+  type ResonanceVadGate,
+} from './resonanceVadGate';
+export {
   useResonanceCallLoop,
   type UseResonanceCallLoopParams,
   type UseResonanceCallLoopReturn,

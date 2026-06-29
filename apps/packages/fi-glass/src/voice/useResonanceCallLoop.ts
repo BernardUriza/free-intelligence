@@ -20,6 +20,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createResonanceCallController } from './resonanceCallController';
 import type { ResonanceDriver } from './resonanceEffects';
 import type { ResonanceCallEvent, ResonanceCallState } from './resonanceCallMachine';
+import {
+  createResonanceVadGate,
+  DEFAULT_VAD_CONFIG,
+  type ResonanceVadConfig,
+  type ResonanceVadMode,
+} from './resonanceVadGate';
 
 export interface ResonanceCallAdapters {
   /** Open the mic stream (useDurableRecording.startRecording). */
@@ -55,10 +61,14 @@ export interface ResonanceBargeInPolicy {
 export interface UseResonanceCallLoopParams {
   enabled: boolean;
   adapters: ResonanceCallAdapters;
-  /** Live VAD: true while input energy is below the silence threshold (useAudioAnalysis.isSilent). */
-  isSilent: boolean;
-  /** Live VAD: true while input energy indicates the user is speaking. */
-  hasSpeech: boolean;
+  /**
+   * Read the CURRENT input level (0-255 analyser average). Polled on a stable
+   * 50ms timer by the robust VAD gate — not a re-render-driven boolean, which
+   * was the source of the frozen-loop flakiness.
+   */
+  getAudioLevel: () => number;
+  /** Hysteresis + timing thresholds for the VAD gate. */
+  vadConfig?: ResonanceVadConfig;
   silencePolicy?: ResonanceSilencePolicy;
   sleepPolicy?: ResonanceSleepPolicy;
   bargeInPolicy?: ResonanceBargeInPolicy;
@@ -104,14 +114,17 @@ export function useResonanceCallLoop(
   const {
     enabled,
     adapters,
-    isSilent,
-    hasSpeech,
+    getAudioLevel,
+    vadConfig = DEFAULT_VAD_CONFIG,
     silencePolicy = DEFAULT_SILENCE,
     sleepPolicy = DEFAULT_SLEEP,
     bargeInPolicy = DEFAULT_BARGE_IN,
     debug = false,
     onEvent,
   } = params;
+
+  const getAudioLevelRef = useRef(getAudioLevel);
+  getAudioLevelRef.current = getAudioLevel;
 
   const [state, setState] = useState<ResonanceCallState>('idle');
   const [lastTranscript, setLastTranscript] = useState<string>();
@@ -131,23 +144,36 @@ export function useResonanceCallLoop(
   );
 
   const controller = useMemo(() => {
+    // Every async effect ends in success OR recovery — a rejected adapter promise
+    // must never leave the loop frozen (the old bug: void p.then() with no catch).
+    const recover = (phase: string, e: unknown) => {
+      pushDebug({ type: `error.${phase}` as ResonanceCallEvent, state: 'idle', timestamp: Date.now() });
+      console.warn(`[resonance] ${phase} failed, recovering`, e);
+      ctrl.failRecoverable();
+    };
     const driver: ResonanceDriver = {
-      openMic: () => { void adaptersRef.current.openMic(); },
+      openMic: () => {
+        void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
+          console.warn('[resonance] mic failed, hanging up', e);
+          ctrl.failFatal();
+        });
+      },
       beginTranscribe: () => {
         void Promise.resolve(adaptersRef.current.beginTranscribe()).then((transcript) => {
-          if (!transcript) { ctrl.silenceResume(); return; }
+          if (!transcript) { ctrl.failRecoverable(); return; }
           setLastTranscript(transcript);
           adaptersRef.current.appendUserMessage(transcript);
           pushDebug({ type: 'stt.completed', state: 'transcribing', transcript, timestamp: Date.now() });
           ctrl.sttCompleted(transcript);
-        });
+        }).catch((e) => recover('stt', e));
       },
       invokeAgent: () => {
         void Promise.resolve(adaptersRef.current.invokeAgent()).then((text) => {
+          if (!text) { ctrl.failRecoverable(); return; }
           setLastAssistantText(text);
           pushDebug({ type: 'assistant.text', state: 'thinking', text, timestamp: Date.now() });
           ctrl.assistantTurnReady(text);
-        });
+        }).catch((e) => recover('agent', e));
       },
       speak: () => {
         const text = ctrl.lastAssistantText() ?? '';
@@ -156,9 +182,9 @@ export function useResonanceCallLoop(
         // so an interrupted clip never double-advances the turn.
         void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
           if (ctrl.state() === 'speaking') ctrl.ttsCompleted();
-        });
+        }).catch((e) => recover('tts', e));
       },
-      stopSpeaking: () => { adaptersRef.current.stopSpeaking(); },
+      stopSpeaking: () => { try { adaptersRef.current.stopSpeaking(); } catch { /* best-effort */ } },
       holdSilence: () => {},
       fadeAndHangup: () => { void adaptersRef.current.closeMic(); },
       endCall: () => { void adaptersRef.current.closeMic(); },
@@ -174,37 +200,36 @@ export function useResonanceCallLoop(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushDebug]);
 
-  // --- VAD edge detection + timers -----------------------------------------
-  const spokeRef = useRef(false);
-  const endOfSpeechTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // --- Robust VAD gate (stable 50ms timer, ref-driven) ---------------------
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const gate = useMemo(() => createResonanceVadGate(vadConfig), [vadConfig]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      const mode: ResonanceVadMode =
+        s === 'listening' || s === 'silence_hold' ? 'detect'
+        : s === 'speaking' && bargeInPolicy.enabled ? 'barge'
+        : 'idle';
+      const ev = gate.tick(getAudioLevelRef.current(), performance.now(), mode);
+      if (ev === 'speech_start') controller.userSpeechStarted();
+      else if (ev === 'speech_end') controller.userSpeechEnded();
+      else if (ev === 'barge_in') controller.interrupt();
+    }, 50);
+    return () => { clearInterval(id); gate.reset(); };
+  }, [enabled, gate, controller, bargeInPolicy]);
+
+  // --- Auto-resume + sleep timers ------------------------------------------
   const autoResumeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
   const clearTimer = (t: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>) => {
     if (t.current) { clearTimeout(t.current); t.current = undefined; }
   };
 
   useEffect(() => {
-    if (!enabled) return;
-
-    if (state === 'listening') {
-      clearTimer(autoResumeTimer);
-      if (hasSpeech) {
-        clearTimer(endOfSpeechTimer);
-        if (!spokeRef.current) { spokeRef.current = true; controller.userSpeechStarted(); }
-      } else if (isSilent && spokeRef.current && !endOfSpeechTimer.current) {
-        endOfSpeechTimer.current = setTimeout(() => {
-          endOfSpeechTimer.current = undefined;
-          spokeRef.current = false;
-          controller.userSpeechEnded();
-        }, silencePolicy.endOfSpeechMs);
-      }
-    }
-
-    if (state === 'speaking' && bargeInPolicy.enabled && hasSpeech) {
-      controller.interrupt();
-    }
-
+    if (!enabled) return undefined;
     if (state === 'silence_hold') {
       if (!autoResumeTimer.current) {
         autoResumeTimer.current = setTimeout(() => {
@@ -220,12 +245,13 @@ export function useResonanceCallLoop(
         }, sleepPolicy.idleHangupMs);
       }
     } else {
+      clearTimer(autoResumeTimer);
       clearTimer(sleepTimer);
     }
-  }, [enabled, state, isSilent, hasSpeech, controller, silencePolicy, sleepPolicy, bargeInPolicy]);
+    return undefined;
+  }, [enabled, state, controller, silencePolicy, sleepPolicy]);
 
   useEffect(() => () => {
-    clearTimer(endOfSpeechTimer);
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
@@ -233,9 +259,9 @@ export function useResonanceCallLoop(
   const startCall = useCallback(async () => {
     if (!enabled) return;
     if (debug && typeof window !== 'undefined') window.__RESONANCE_EVENTS__ = [];
-    spokeRef.current = false;
+    gate.reset();
     controller.startCall();
-  }, [enabled, debug, controller]);
+  }, [enabled, debug, controller, gate]);
 
   const endCall = useCallback(() => { controller.endCall(); }, [controller]);
   const interrupt = useCallback(() => { controller.interrupt(); }, [controller]);

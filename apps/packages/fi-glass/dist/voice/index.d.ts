@@ -803,7 +803,7 @@ declare function mergeWavBlobs(blobs: Blob[]): Promise<Blob>;
  * not an elemento itself. See .claude/backlog/og118-resonance-voice-mode.md.
  */
 type ResonanceCallState = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'interrupted' | 'silence_hold' | 'sleep_decay' | 'ended';
-type ResonanceCallEvent = 'call.started' | 'mic.opened' | 'user.speech.started' | 'user.speech.ended' | 'stt.completed' | 'assistant.speech.started' | 'assistant.speech.interrupted' | 'assistant.speech.completed' | 'silence.detected' | 'silence.resume' | 'sleep.decay.started' | 'call.ended';
+type ResonanceCallEvent = 'call.started' | 'mic.opened' | 'user.speech.started' | 'user.speech.ended' | 'stt.completed' | 'assistant.speech.started' | 'assistant.speech.interrupted' | 'assistant.speech.completed' | 'silence.detected' | 'silence.resume' | 'sleep.decay.started' | 'error.recoverable' | 'error.fatal' | 'call.ended';
 declare const RESONANCE_INITIAL_STATE: ResonanceCallState;
 declare function isTerminal(state: ResonanceCallState): boolean;
 declare function resonanceCallReducer(state: ResonanceCallState, event: ResonanceCallEvent): ResonanceCallState;
@@ -890,9 +890,48 @@ interface ResonanceCallController {
     sleepDecay: () => void;
     /** Barge-in helper: cut TTS, then re-open for the user's new turn. */
     interrupt: () => void;
+    /** A recoverable adapter failure (STT/agent/TTS) — drop back to listening. */
+    failRecoverable: () => void;
+    /** A fatal adapter failure (mic lost) — hang up the call. */
+    failFatal: () => void;
     endCall: () => void;
 }
 declare function createResonanceCallController(driver: ResonanceDriver, hooks?: ResonanceControllerHooks): ResonanceCallController;
+
+/**
+ * resonanceVadGate — a pure, time-driven voice-activity detector for RESONANCE.
+ *
+ * The first VAD attempt closed end-of-speech off a React effect watching a
+ * derived `isSilent` boolean — it flaked, because re-renders are not a reliable
+ * clock and a single threshold has no hysteresis. This gate instead takes the
+ * CURRENT audio level + a monotonic timestamp on every tick (the React layer
+ * drives it from a setInterval reading an audioLevel ref) and decides with
+ * two-threshold hysteresis + minimum durations. No React, no audio I/O — so the
+ * timing contract is verifiable with an injected clock + level. audioLevel is the
+ * 0-255 analyser average (see useAudioAnalysis).
+ */
+interface ResonanceVadConfig {
+    /** Level (0-255) to DECLARE speech onset — high, to reject noise. */
+    speechOnThreshold: number;
+    /** Level (0-255) below which counts as silence — low, the hysteresis floor. */
+    speechOffThreshold: number;
+    /** Sustained-above-on time before emitting speech_start (debounce). */
+    minSpeechMs: number;
+    /** Sustained-below-off time after last voice before emitting speech_end. */
+    endSilenceMs: number;
+    /** Hard cap on a single user turn; forces speech_end. */
+    maxTurnMs: number;
+}
+declare const DEFAULT_VAD_CONFIG: ResonanceVadConfig;
+/** What the gate is allowed to detect this tick, derived from the call state. */
+type ResonanceVadMode = 'detect' | 'barge' | 'idle';
+type ResonanceVadEvent = 'speech_start' | 'speech_end' | 'barge_in' | null;
+interface ResonanceVadGate {
+    /** Feed the current level + monotonic now (ms). Returns one event or null. */
+    tick: (level: number, nowMs: number, mode: ResonanceVadMode) => ResonanceVadEvent;
+    reset: () => void;
+}
+declare function createResonanceVadGate(config?: ResonanceVadConfig): ResonanceVadGate;
 
 interface ResonanceCallAdapters {
     /** Open the mic stream (useDurableRecording.startRecording). */
@@ -924,10 +963,14 @@ interface ResonanceBargeInPolicy {
 interface UseResonanceCallLoopParams {
     enabled: boolean;
     adapters: ResonanceCallAdapters;
-    /** Live VAD: true while input energy is below the silence threshold (useAudioAnalysis.isSilent). */
-    isSilent: boolean;
-    /** Live VAD: true while input energy indicates the user is speaking. */
-    hasSpeech: boolean;
+    /**
+     * Read the CURRENT input level (0-255 analyser average). Polled on a stable
+     * 50ms timer by the robust VAD gate — not a re-render-driven boolean, which
+     * was the source of the frozen-loop flakiness.
+     */
+    getAudioLevel: () => number;
+    /** Hysteresis + timing thresholds for the VAD gate. */
+    vadConfig?: ResonanceVadConfig;
     silencePolicy?: ResonanceSilencePolicy;
     sleepPolicy?: ResonanceSleepPolicy;
     bargeInPolicy?: ResonanceBargeInPolicy;
@@ -961,4 +1004,4 @@ declare global {
 }
 declare function useResonanceCallLoop(params: UseResonanceCallLoopParams): UseResonanceCallLoopReturn;
 
-export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RESONANCE_INITIAL_STATE, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, type ResonanceBargeInPolicy, type ResonanceCallAdapters, type ResonanceCallController, type ResonanceCallEvent, type ResonanceCallState, type ResonanceControllerHooks, type ResonanceDriver, type ResonanceEffect, type ResonanceSilencePolicy, type ResonanceSleepPolicy, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseResonanceCallLoopParams, type UseResonanceCallLoopReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, createResonanceCallController, dispatchEffect, effectForState, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal as isResonanceTerminal, isTerminal$1 as isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, resonanceCallReducer, useAudioAnalysis, useAudioPlayer, useAudioQueue, useAudioQueueStore, useDictation, useDurableRecording, useRecorder, useResonanceCallLoop, useVoice };
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, DEFAULT_VAD_CONFIG, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RESONANCE_INITIAL_STATE, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, type ResonanceBargeInPolicy, type ResonanceCallAdapters, type ResonanceCallController, type ResonanceCallEvent, type ResonanceCallState, type ResonanceControllerHooks, type ResonanceDriver, type ResonanceEffect, type ResonanceSilencePolicy, type ResonanceSleepPolicy, type ResonanceVadConfig, type ResonanceVadEvent, type ResonanceVadGate, type ResonanceVadMode, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseResonanceCallLoopParams, type UseResonanceCallLoopReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, createResonanceCallController, createResonanceVadGate, dispatchEffect, effectForState, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal as isResonanceTerminal, isTerminal$1 as isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, resonanceCallReducer, useAudioAnalysis, useAudioPlayer, useAudioQueue, useAudioQueueStore, useDictation, useDurableRecording, useRecorder, useResonanceCallLoop, useVoice };

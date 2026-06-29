@@ -44,10 +44,11 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
   const analysis = useAudioAnalysis(streamRef.current, {
     isActive: streamActive,
   });
-  // useAudioAnalysis.isSilent already thresholds on the real 0-255 audioLevel
-  // scale; hand-rolling `audioLevel > 0.08` was a scale bug that pinned hasSpeech
-  // true forever, so end-of-speech never fired and the loop froze in listening.
-  const hasSpeech = !analysis.isSilent;
+  // Feed the robust VAD gate the CURRENT 0-255 level via a ref (the gate polls it
+  // on a stable 50ms timer). The earlier `audioLevel > 0.08` was a scale bug, and
+  // even isSilent-as-a-render-prop flaked; ref + gate is the fix.
+  const audioLevelRef = useRef(0);
+  audioLevelRef.current = analysis.audioLevel;
 
   const startSegment = useCallback(() => {
     const stream = streamRef.current;
@@ -116,8 +117,7 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
   const loop = useResonanceCallLoop({
     enabled,
     adapters,
-    isSilent: analysis.isSilent,
-    hasSpeech,
+    getAudioLevel: () => audioLevelRef.current,
     debug,
   });
 

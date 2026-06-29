@@ -3108,6 +3108,8 @@ function isTerminal2(state) {
 function resonanceCallReducer(state, event) {
   if (isTerminal2(state)) return state;
   if (event === "call.ended") return "ended";
+  if (event === "error.fatal") return "ended";
+  if (event === "error.recoverable") return state === "idle" ? "idle" : "listening";
   return TRANSITIONS[state][event] ?? state;
 }
 
@@ -3220,10 +3222,93 @@ function createResonanceCallController(driver, hooks = {}) {
       send("user.speech.started");
       send("assistant.speech.interrupted");
     },
+    failRecoverable: () => {
+      if (!isTerminal2(state) && state !== "idle") send("error.recoverable");
+    },
+    failFatal: () => {
+      if (!isTerminal2(state)) send("error.fatal");
+    },
     endCall: () => {
       if (!isTerminal2(state)) send("call.ended");
     }
   };
+}
+
+// src/voice/resonanceVadGate.ts
+var DEFAULT_VAD_CONFIG = {
+  speechOnThreshold: 18,
+  speechOffThreshold: 10,
+  minSpeechMs: 180,
+  endSilenceMs: 850,
+  maxTurnMs: 2e4
+};
+function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
+  const { speechOnThreshold, speechOffThreshold, minSpeechMs, endSilenceMs, maxTurnMs } = config;
+  let inSpeech = false;
+  let candidateStartedAt = null;
+  let speechStartedAt = 0;
+  let lastVoiceAt = 0;
+  let bargeLatched = false;
+  function reset() {
+    inSpeech = false;
+    candidateStartedAt = null;
+    speechStartedAt = 0;
+    lastVoiceAt = 0;
+    bargeLatched = false;
+  }
+  function tick(level, nowMs, mode) {
+    if (mode === "idle") {
+      reset();
+      return null;
+    }
+    const aboveOn = level >= speechOnThreshold;
+    if (mode === "barge") {
+      if (level <= speechOffThreshold) {
+        bargeLatched = false;
+        candidateStartedAt = null;
+        return null;
+      }
+      if (bargeLatched) return null;
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          candidateStartedAt = null;
+          bargeLatched = true;
+          return "barge_in";
+        }
+      }
+      return null;
+    }
+    const belowOff = level <= speechOffThreshold;
+    if (!inSpeech) {
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          inSpeech = true;
+          speechStartedAt = nowMs;
+          lastVoiceAt = nowMs;
+          candidateStartedAt = null;
+          return "speech_start";
+        }
+      } else {
+        candidateStartedAt = null;
+      }
+      return null;
+    }
+    if (level > speechOffThreshold) lastVoiceAt = nowMs;
+    if (nowMs - speechStartedAt >= maxTurnMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    if (belowOff && nowMs - lastVoiceAt >= endSilenceMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    return null;
+  }
+  return { tick, reset };
 }
 
 // src/voice/useResonanceCallLoop.ts
@@ -3235,14 +3320,16 @@ function useResonanceCallLoop(params) {
   const {
     enabled,
     adapters,
-    isSilent,
-    hasSpeech,
+    getAudioLevel,
+    vadConfig = DEFAULT_VAD_CONFIG,
     silencePolicy = DEFAULT_SILENCE,
     sleepPolicy = DEFAULT_SLEEP,
     bargeInPolicy = DEFAULT_BARGE_IN,
     debug = false,
     onEvent
   } = params;
+  const getAudioLevelRef = useRef8(getAudioLevel);
+  getAudioLevelRef.current = getAudioLevel;
   const [state, setState] = useState13("idle");
   const [lastTranscript, setLastTranscript] = useState13();
   const [lastAssistantText, setLastAssistantText] = useState13();
@@ -3256,37 +3343,52 @@ function useResonanceCallLoop(params) {
     [debug]
   );
   const controller = useMemo3(() => {
+    const recover = (phase, e) => {
+      pushDebug({ type: `error.${phase}`, state: "idle", timestamp: Date.now() });
+      console.warn(`[resonance] ${phase} failed, recovering`, e);
+      ctrl.failRecoverable();
+    };
     const driver = {
       openMic: () => {
-        void adaptersRef.current.openMic();
+        void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
+          console.warn("[resonance] mic failed, hanging up", e);
+          ctrl.failFatal();
+        });
       },
       beginTranscribe: () => {
         void Promise.resolve(adaptersRef.current.beginTranscribe()).then((transcript) => {
           if (!transcript) {
-            ctrl.silenceResume();
+            ctrl.failRecoverable();
             return;
           }
           setLastTranscript(transcript);
           adaptersRef.current.appendUserMessage(transcript);
           pushDebug({ type: "stt.completed", state: "transcribing", transcript, timestamp: Date.now() });
           ctrl.sttCompleted(transcript);
-        });
+        }).catch((e) => recover("stt", e));
       },
       invokeAgent: () => {
         void Promise.resolve(adaptersRef.current.invokeAgent()).then((text) => {
+          if (!text) {
+            ctrl.failRecoverable();
+            return;
+          }
           setLastAssistantText(text);
           pushDebug({ type: "assistant.text", state: "thinking", text, timestamp: Date.now() });
           ctrl.assistantTurnReady(text);
-        });
+        }).catch((e) => recover("agent", e));
       },
       speak: () => {
         const text = ctrl.lastAssistantText() ?? "";
         void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
           if (ctrl.state() === "speaking") ctrl.ttsCompleted();
-        });
+        }).catch((e) => recover("tts", e));
       },
       stopSpeaking: () => {
-        adaptersRef.current.stopSpeaking();
+        try {
+          adaptersRef.current.stopSpeaking();
+        } catch {
+        }
       },
       holdSilence: () => {
       },
@@ -3306,8 +3408,24 @@ function useResonanceCallLoop(params) {
     });
     return ctrl;
   }, [pushDebug]);
-  const spokeRef = useRef8(false);
-  const endOfSpeechTimer = useRef8(void 0);
+  const stateRef = useRef8(state);
+  stateRef.current = state;
+  const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
+  useEffect12(() => {
+    if (!enabled) return void 0;
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      const mode = s === "listening" || s === "silence_hold" ? "detect" : s === "speaking" && bargeInPolicy.enabled ? "barge" : "idle";
+      const ev = gate.tick(getAudioLevelRef.current(), performance.now(), mode);
+      if (ev === "speech_start") controller.userSpeechStarted();
+      else if (ev === "speech_end") controller.userSpeechEnded();
+      else if (ev === "barge_in") controller.interrupt();
+    }, 50);
+    return () => {
+      clearInterval(id);
+      gate.reset();
+    };
+  }, [enabled, gate, controller, bargeInPolicy]);
   const autoResumeTimer = useRef8(void 0);
   const sleepTimer = useRef8(void 0);
   const clearTimer = (t) => {
@@ -3317,26 +3435,7 @@ function useResonanceCallLoop(params) {
     }
   };
   useEffect12(() => {
-    if (!enabled) return;
-    if (state === "listening") {
-      clearTimer(autoResumeTimer);
-      if (hasSpeech) {
-        clearTimer(endOfSpeechTimer);
-        if (!spokeRef.current) {
-          spokeRef.current = true;
-          controller.userSpeechStarted();
-        }
-      } else if (isSilent && spokeRef.current && !endOfSpeechTimer.current) {
-        endOfSpeechTimer.current = setTimeout(() => {
-          endOfSpeechTimer.current = void 0;
-          spokeRef.current = false;
-          controller.userSpeechEnded();
-        }, silencePolicy.endOfSpeechMs);
-      }
-    }
-    if (state === "speaking" && bargeInPolicy.enabled && hasSpeech) {
-      controller.interrupt();
-    }
+    if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
         autoResumeTimer.current = setTimeout(() => {
@@ -3352,20 +3451,21 @@ function useResonanceCallLoop(params) {
         }, sleepPolicy.idleHangupMs);
       }
     } else {
+      clearTimer(autoResumeTimer);
       clearTimer(sleepTimer);
     }
-  }, [enabled, state, isSilent, hasSpeech, controller, silencePolicy, sleepPolicy, bargeInPolicy]);
+    return void 0;
+  }, [enabled, state, controller, silencePolicy, sleepPolicy]);
   useEffect12(() => () => {
-    clearTimer(endOfSpeechTimer);
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
   const startCall = useCallback8(async () => {
     if (!enabled) return;
     if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
-    spokeRef.current = false;
+    gate.reset();
     controller.startCall();
-  }, [enabled, debug, controller]);
+  }, [enabled, debug, controller, gate]);
   const endCall = useCallback8(() => {
     controller.endCall();
   }, [controller]);
@@ -4659,6 +4759,7 @@ export {
   Composer,
   ComposerMicSlot,
   CopyButton,
+  DEFAULT_VAD_CONFIG,
   FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   MessageBubble,
@@ -4679,6 +4780,7 @@ export {
   clearMediaQueryCache,
   createAudioPlayer,
   createResonanceCallController,
+  createResonanceVadGate,
   defaultAnimationConfig,
   defaultBehavior,
   defaultChatConfig,
