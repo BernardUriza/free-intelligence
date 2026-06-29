@@ -76,7 +76,11 @@ PERSONAS: dict[str, Persona] = {
         aliases=["alice", "amix", "ali", "alicia"],
         avatar=None,
         tts_voice="nova",
-        gateway_enabled=False,
+        # CUTOVER (2026-06-29): flipped True. The gateway only spins ALICE up when
+        # gateway_enabled AND ALICE_DISCORD_TOKEN is in its env — the token is moved
+        # off alice-bot (scaled to 0 first) as the final atom, so there is never a
+        # minute with two live ALICE bots on one token.
+        gateway_enabled=True,
     ),
 }
 

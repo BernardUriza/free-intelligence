@@ -26,3 +26,4 @@ data/film_corpus_sources/
 # 2.5GB, NEVER commit. Local-only working copy.
 data/chatgpt_export/
 .vultur_tok_tmp*
+data/vegan_corpus_sources/

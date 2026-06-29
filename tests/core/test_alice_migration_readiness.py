@@ -35,14 +35,16 @@ def test_alice_is_registered():
     assert alice.bot_user_id  # known to Insult's suppression
 
 
-def test_alice_gate_off_gateway_does_not_start_her():
-    # The cutover gate: registry knows ALICE, but the gateway must NOT spin her
-    # up yet (alice-bot still owns the token). RESISTANCE against "two ALICEs".
+def test_alice_gateway_enabled_after_cutover():
+    # Post-cutover (2026-06-29): ALICE is gateway-enabled. The gateway still only
+    # spins her up if ALICE_DISCORD_TOKEN is in its env (moved off alice-bot, which
+    # is scaled to 0 first) — the registry flag is necessary, not sufficient, so the
+    # "no two ALICEs on one token" rule holds at the env layer.
     alice = get_persona("alice")
-    assert alice is not None and alice.gateway_enabled is False
+    assert alice is not None and alice.gateway_enabled is True
     started_ids = {p.persona_id for p in gateway_personas()}
-    assert "alice" not in started_ids
-    assert "vultur" in started_ids  # the enabled sibling still starts
+    assert "alice" in started_ids
+    assert "vultur" in started_ids
 
 
 def test_alice_known_to_suppression_despite_gate():
