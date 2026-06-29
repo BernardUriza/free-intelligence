@@ -27,8 +27,6 @@ export interface Og118ResonanceCallParams {
   debug?: boolean;
 }
 
-const SPEECH_LEVEL = 0.08; // audioLevel above this = user is speaking (tune in browser)
-
 function audioSourceToUrl(src: Blob | { url: string }): string {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
@@ -46,7 +44,10 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
   const analysis = useAudioAnalysis(streamRef.current, {
     isActive: streamActive,
   });
-  const hasSpeech = analysis.audioLevel > SPEECH_LEVEL;
+  // useAudioAnalysis.isSilent already thresholds on the real 0-255 audioLevel
+  // scale; hand-rolling `audioLevel > 0.08` was a scale bug that pinned hasSpeech
+  // true forever, so end-of-speech never fired and the loop froze in listening.
+  const hasSpeech = !analysis.isSilent;
 
   const startSegment = useCallback(() => {
     const stream = streamRef.current;
@@ -115,7 +116,7 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
   const loop = useResonanceCallLoop({
     enabled,
     adapters,
-    isSilent: analysis.audioLevel < SPEECH_LEVEL,
+    isSilent: analysis.isSilent,
     hasSpeech,
     debug,
   });
