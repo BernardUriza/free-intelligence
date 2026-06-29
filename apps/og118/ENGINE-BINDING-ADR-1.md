@@ -1,6 +1,6 @@
 # ENGINE-BINDING-ADR-1 — how an elemento binds to an engine
 
-Status: Accepted (Phase 1 shipped) — Phases 2–3 deferred
+Status: Accepted — Phase 1 + Phase 3 (Oxígeno) shipped; Phase 2 deferred
 Decided: 2026-06-28 by Bernard (with the AURITY coagent's stress-test)
 Supersedes nothing. Extends OG118-ELEMENTS-ADR-1.
 
@@ -92,12 +92,32 @@ Promote `engineBinding` from an implicit convention to declared `fi-core` types,
 once a second binding kind actually exists. Until then, adding the types is
 speculative generality.
 
-### Phase 3 — `external_http_engine` (deferred, only on real need)
+### Phase 3 — `external_http_engine` (SHIPPED for Oxígeno, 2026-06-28)
 
-Build it ONLY if Vultur (or another persona) gains capabilities that genuinely
-cannot be moved under og118: exclusive tools, curated memory, own pipelines, the
-Discord community as live context. Then the engine speaks a **strict FI contract**,
-not an improvised bot API:
+The reason to build it turned out to already exist: Vultur is a **live, deployed
+engine** (the `insult-runner` Container App), so Oxígeno reuses it instead of
+running a copy. Bernard's directive: og118 stays a mask; the engine is the
+external one.
+
+- Oxígeno's registry entry declares `engineBinding: { kind: "external_http_engine",
+  personaId: "vultur" }`.
+- `external_engine.py` proxies the turn to `POST {OG118_EXTERNAL_RUNNER_URL}/v1/turn`
+  with `{channel_id, user_id, user_text, persona_id, session_uuid}` and a bearer
+  (`OG118_EXTERNAL_RUNNER_TOKEN`). og118's conversation id is sent as the engine
+  `session_uuid` (continuity without history-replay; the engine owns its context).
+- The engine returns one `LLMResponse` (single-shot), surfaced as a `text` + `done`
+  stream. **An external element shows NO glass-box plan/step trace** — the accepted
+  trade for reusing a live engine. The base og118 path keeps its full local trace.
+- Verified live (Chrome): Oxígeno → Vultur answers in og118's bubble, in character,
+  with the IFA closing line, from the deployed insult-runner. Base (no element)
+  stays on the local runner (does NOT hit the external engine).
+- **Prod config (deploy step):** og118's Azure backend needs `OG118_EXTERNAL_RUNNER_URL`
+  + `OG118_EXTERNAL_RUNNER_TOKEN` set as Container App secrets, or Oxígeno returns a
+  clean "external engine not configured" error.
+
+The strict-contract notes below remain the bar for any FURTHER external engine (a
+new persona, a richer streaming contract). The current single-shot binding is the
+MVP that the live Vultur engine already satisfies:
 
 - Request accepts: `conversation_id`, `user_id`/`account_id`, `element_id`,
   `history`, `current_message`, optional `project_context`, `trace_requested`,

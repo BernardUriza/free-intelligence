@@ -60,6 +60,7 @@
       "backingBotId": "vultur-bot",
       "personaCorePath": "vultur.core.md",
       "personaPromptPath": "personas/008-o-oxigeno.context.md",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "vultur" },
       "aliases": [
         "o1",
         "oxygen",

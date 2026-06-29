@@ -35,6 +35,24 @@ class ElementsRegistryError(ValueError):
     catalog fails fast instead of resolving to a wrong/empty persona at run time."""
 
 
+_ENGINE_KINDS = {"local_runner_persona", "shared_persona_prompt", "external_http_engine"}
+
+
+@dataclass(frozen=True)
+class EngineBinding:
+    """How an element's turn is executed (ENGINE-BINDING-ADR-1). Default (absent)
+    is local: og118's own fi-runner runs the turn with the composed persona.
+    `external_http_engine` proxies the turn to an already-running FI engine (e.g.
+    the live Vultur runner) — `persona_id` selects the persona on that engine."""
+
+    kind: str
+    persona_id: str | None = None
+
+    @property
+    def is_external(self) -> bool:
+        return self.kind == "external_http_engine"
+
+
 @dataclass(frozen=True)
 class Element:
     atomic_number: int
@@ -49,6 +67,8 @@ class Element:
     # persona_prompt_path block), instead of persona_prompt_path being the whole
     # prompt. Absent → persona_prompt_path is the full standalone persona (legacy).
     persona_core_path: str | None = None
+    # ENGINE-BINDING-ADR-1: how this element runs. None → local (og118's runner).
+    engine_binding: EngineBinding | None = None
     aliases: tuple[str, ...] = ()
 
     @property
@@ -65,6 +85,17 @@ class Element:
         return self.status == "active"
 
 
+def _to_engine_binding(raw: dict | None) -> EngineBinding | None:
+    if not raw:
+        return None
+    kind = raw.get("kind")
+    if kind not in _ENGINE_KINDS:
+        raise ElementsRegistryError(
+            f"engineBinding.kind {kind!r} not one of {sorted(_ENGINE_KINDS)}"
+        )
+    return EngineBinding(kind=kind, persona_id=raw.get("personaId"))
+
+
 def _to_element(raw: dict) -> Element:
     return Element(
         atomic_number=raw["atomicNumber"],
@@ -75,6 +106,7 @@ def _to_element(raw: dict) -> Element:
         backing_bot_id=raw.get("backingBotId"),
         persona_prompt_path=raw.get("personaPromptPath"),
         persona_core_path=raw.get("personaCorePath"),
+        engine_binding=_to_engine_binding(raw.get("engineBinding")),
         aliases=tuple(raw.get("aliases", ())),
     )
 
@@ -141,6 +173,10 @@ class ElementsRegistry:
                             f"active element {e.symbol}: shared core {e.persona_core_path} "
                             f"lacks the {CONTEXT_MARKER} splice marker"
                         )
+                if e.engine_binding and e.engine_binding.is_external and not e.engine_binding.persona_id:
+                    raise ElementsRegistryError(
+                        f"active element {e.symbol}: external_http_engine binding needs a personaId"
+                    )
 
     def resolve(self, token: str | None) -> Element | None:
         """Find an element by slug, symbol (case-insensitive), atomic number,

@@ -55,6 +55,25 @@ def test_oxygen_persona_composed_from_shared_core() -> None:
     assert "<!-- CONTEXTO_OPERATIVO -->" not in composed
 
 
+def test_oxygen_binds_to_the_external_vultur_engine() -> None:
+    # ENGINE-BINDING-ADR-1: Oxígeno runs on the live external engine, not og118's
+    # local runner; persona_id selects Vultur on that engine.
+    o = get_registry().resolve("oxigeno")
+    assert o.engine_binding is not None
+    assert o.engine_binding.kind == "external_http_engine"
+    assert o.engine_binding.is_external
+    assert o.engine_binding.persona_id == "vultur"
+
+
+def test_rejects_unknown_engine_binding_kind(tmp_path) -> None:
+    p = _write(tmp_path, [{
+        "atomicNumber": 8, "symbol": "O", "slug": "oxigeno", "displayName": "Oxígeno",
+        "status": "empty", "engineBinding": {"kind": "telepathy"},
+    }])
+    with pytest.raises(ElementsRegistryError, match="engineBinding.kind"):
+        ElementsRegistry.load(p)
+
+
 def test_resolve_by_every_token_form() -> None:
     reg = get_registry()
     for token in ("oxigeno", "O", "o", "8", "element-008-o-oxigeno", "o1", "oxygen", "vultur"):

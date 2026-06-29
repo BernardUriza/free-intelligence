@@ -33,6 +33,7 @@ from fi_runner.auth import (
 from fi_runner.rag_store import RagStoreClient
 from projects import ProjectRegistry
 from runner import build_runner
+from external_engine import stream_external_turn
 from fi_runner import Runner
 from elements_registry import Element, get_registry
 from stt import (
@@ -310,6 +311,7 @@ async def chat_stream(
         raise HTTPException(status_code=404, detail="project not found")
 
     runner, element = _runner_and_element(req.element)
+    external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
         request_id = uuid.uuid4().hex[:12]
@@ -318,6 +320,21 @@ async def chat_stream(
         # (the ADR's E2E criterion). Absent when no active element is selected.
         if element is not None:
             yield _sse({"type": "element", "element": {"id": element.id, "label": element.display_label}})
+        # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
+        # og118's runner. Proxy the turn and surface the answer (single-shot, no
+        # local plan/step trace). og118's session_id keys the engine's context.
+        if external:
+            assert element is not None and element.engine_binding is not None
+            user_id = None if principal.is_legacy_bearer else principal.sub
+            async for ev in stream_external_turn(
+                persona_id=element.engine_binding.persona_id,
+                user_text=req.message,
+                session_uuid=req.session_id,
+                user_id=user_id,
+            ):
+                yield _sse(ev)
+            yield _sse({"type": "done"})
+            return
         try:
             history = [m.model_dump() for m in req.history] if req.history else None
             context = {"corpus_id": req.corpus_id} if req.corpus_id else None
