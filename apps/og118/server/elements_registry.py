@@ -19,6 +19,12 @@ from pathlib import Path
 CAP = 118
 ELEMENTS_DIR = Path(__file__).parent / "elements"
 REGISTRY_PATH = ELEMENTS_DIR / "elements.registry.json"
+# PERSONA-SSOT-1: a persona's shared CORE lives once in the fi-personas package
+# (apps/packages/fi-personas), consumed by every surface that speaks it (og118
+# element, the Discord bot). An element with `personaCorePath` composes that core
+# + its own operative-context block, so the character is not copied per repo.
+FI_PERSONAS_DIR = Path(__file__).resolve().parents[2] / "packages" / "fi-personas" / "personas"
+CONTEXT_MARKER = "<!-- CONTEXTO_OPERATIVO -->"
 
 _VALID_STATUS = {"empty", "reserved", "active", "deprecated", "disabled"}
 
@@ -38,6 +44,11 @@ class Element:
     status: str
     backing_bot_id: str | None = None
     persona_prompt_path: str | None = None
+    # PERSONA-SSOT-1: the shared persona core in fi-personas. When set, the active
+    # element's system prompt is composed = core (marker spliced with the
+    # persona_prompt_path block), instead of persona_prompt_path being the whole
+    # prompt. Absent → persona_prompt_path is the full standalone persona (legacy).
+    persona_core_path: str | None = None
     aliases: tuple[str, ...] = ()
 
     @property
@@ -63,6 +74,7 @@ def _to_element(raw: dict) -> Element:
         status=raw["status"],
         backing_bot_id=raw.get("backingBotId"),
         persona_prompt_path=raw.get("personaPromptPath"),
+        persona_core_path=raw.get("personaCorePath"),
         aliases=tuple(raw.get("aliases", ())),
     )
 
@@ -117,6 +129,18 @@ class ElementsRegistry:
                         f"active element {e.symbol}: persona file missing "
                         f"({e.persona_prompt_path})"
                     )
+                if e.persona_core_path:
+                    core = FI_PERSONAS_DIR / e.persona_core_path
+                    if not core.is_file():
+                        raise ElementsRegistryError(
+                            f"active element {e.symbol}: shared persona core missing "
+                            f"({e.persona_core_path})"
+                        )
+                    if CONTEXT_MARKER not in core.read_text(encoding="utf-8"):
+                        raise ElementsRegistryError(
+                            f"active element {e.symbol}: shared core {e.persona_core_path} "
+                            f"lacks the {CONTEXT_MARKER} splice marker"
+                        )
 
     def resolve(self, token: str | None) -> Element | None:
         """Find an element by slug, symbol (case-insensitive), atomic number,
@@ -140,6 +164,27 @@ class ElementsRegistry:
         if not e.persona_prompt_path:
             return None
         return ELEMENTS_DIR / e.persona_prompt_path
+
+    def core_path(self, e: Element) -> Path | None:
+        """The shared persona core (fi-personas) for an element, or None when the
+        element's persona_prompt_path is a standalone full persona (PERSONA-SSOT-1)."""
+        if not e.persona_core_path:
+            return None
+        return FI_PERSONAS_DIR / e.persona_core_path
+
+    def composed_persona(self, e: Element) -> str | None:
+        """The element's full system prompt (PERSONA-SSOT-1). With a shared core,
+        the core's CONTEXT_MARKER is spliced with the element's operative-context
+        block (persona_prompt_path), so the character's core is NOT copied per repo.
+        Without a core, persona_prompt_path is the whole standalone persona."""
+        ppath = self.persona_path(e)
+        if ppath is None:
+            return None
+        context = ppath.read_text(encoding="utf-8")
+        cpath = self.core_path(e)
+        if cpath is None:
+            return context
+        return cpath.read_text(encoding="utf-8").replace(CONTEXT_MARKER, context)
 
 
 @lru_cache(maxsize=1)

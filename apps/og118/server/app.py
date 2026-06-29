@@ -155,7 +155,7 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
         return _runner, None
     cached = _element_runners.get(el.id)
     if cached is None:
-        cached = build_runner(persona_path=get_registry().persona_path(el))
+        cached = build_runner(persona_text=get_registry().composed_persona(el))
         _element_runners[el.id] = cached
     return cached, el
 
