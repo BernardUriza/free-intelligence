@@ -82,6 +82,21 @@ PERSONAS: dict[str, Persona] = {
         # minute with two live ALICE bots on one token.
         gateway_enabled=True,
     ),
+    # Frugívoro — erudite vegan-gastronomy sibling (2026-06-29). Born native to the
+    # gateway (no legacy bot to retire, unlike ALICE), Claude persona on the
+    # persona-runner. DNA in shared/personas/frugivoro.md; ships to the runner via
+    # COPY shared/personas/. RAG corpus (__corpus_vegan__) is a later hardening step.
+    "frugivoro": Persona(
+        persona_id="frugivoro",
+        display_name="Frugívoro",
+        persona_file="frugivoro.md",
+        token_env="FRUGIVORO_DISCORD_TOKEN",
+        bot_user_id="1521273256236023989",  # Discord app/bot id, created 2026-06-29
+        aliases=["frugivoro", "frugi", "frugívoro"],
+        avatar=None,
+        tts_voice="fable",
+        gateway_enabled=True,
+    ),
 }
 
 
