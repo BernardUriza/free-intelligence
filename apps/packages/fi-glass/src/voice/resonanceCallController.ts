@@ -44,6 +44,10 @@ export interface ResonanceCallController {
   sleepDecay: () => void;
   /** Barge-in helper: cut TTS, then re-open for the user's new turn. */
   interrupt: () => void;
+  /** A recoverable adapter failure (STT/agent/TTS) — drop back to listening. */
+  failRecoverable: () => void;
+  /** A fatal adapter failure (mic lost) — hang up the call. */
+  failFatal: () => void;
   endCall: () => void;
 }
 
@@ -90,6 +94,8 @@ export function createResonanceCallController(
       send('user.speech.started');        // speaking -> interrupted (fires stop_speaking)
       send('assistant.speech.interrupted'); // interrupted -> listening (fires open_mic)
     },
+    failRecoverable: () => { if (!isTerminal(state) && state !== 'idle') send('error.recoverable'); },
+    failFatal: () => { if (!isTerminal(state)) send('error.fatal'); },
     endCall: () => { if (!isTerminal(state)) send('call.ended'); },
   };
 }

@@ -35,6 +35,8 @@ export type ResonanceCallEvent =
   | 'silence.detected'
   | 'silence.resume'
   | 'sleep.decay.started'
+  | 'error.recoverable'
+  | 'error.fatal'
   | 'call.ended';
 
 export const RESONANCE_INITIAL_STATE: ResonanceCallState = 'idle';
@@ -85,5 +87,11 @@ export function resonanceCallReducer(
 ): ResonanceCallState {
   if (isTerminal(state)) return state;
   if (event === 'call.ended') return 'ended';
+  // Recovery is global: a failed effect in any active phase either drops the call
+  // back to listening (recoverable: STT/agent/TTS hiccup) or hangs up (fatal: mic
+  // lost). Without this the loop froze in transcribing/thinking/speaking on a
+  // rejected adapter promise.
+  if (event === 'error.fatal') return 'ended';
+  if (event === 'error.recoverable') return state === 'idle' ? 'idle' : 'listening';
   return TRANSITIONS[state][event] ?? state;
 }

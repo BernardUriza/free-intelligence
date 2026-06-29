@@ -100,6 +100,33 @@ describe('resonanceCallController', () => {
     expect(c.state()).toBe('ended');
   });
 
+  it('failRecoverable from transcribing recovers to listening (STT hiccup)', () => {
+    const driver = mockDriver();
+    const c = createResonanceCallController(driver);
+    c.startCall();
+    c.userSpeechEnded();           // transcribing
+    expect(c.state()).toBe('transcribing');
+    c.failRecoverable();           // -> listening (re-opens mic)
+    expect(c.state()).toBe('listening');
+    expect(driver.openMic).toHaveBeenCalledTimes(2);
+  });
+
+  it('failFatal hangs up the call (mic lost)', () => {
+    const driver = mockDriver();
+    const c = createResonanceCallController(driver);
+    c.startCall();
+    c.failFatal();
+    expect(c.state()).toBe('ended');
+    expect(driver.endCall).toHaveBeenCalledTimes(1);
+  });
+
+  it('failRecoverable is a no-op before a call starts', () => {
+    const driver = mockDriver();
+    const c = createResonanceCallController(driver);
+    c.failRecoverable();
+    expect(c.state()).toBe('idle');
+  });
+
   it('emits onState / onEvent observers and records the event log', () => {
     const driver = mockDriver();
     const states: string[] = [];

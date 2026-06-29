@@ -84,6 +84,32 @@ describe('resonanceCallMachine', () => {
     expect(resonanceCallReducer('idle', 'user.speech.started')).toBe('idle');
   });
 
+  it('error.recoverable from any active phase drops back to listening', () => {
+    for (const s of [
+      'transcribing',
+      'thinking',
+      'speaking',
+      'interrupted',
+      'silence_hold',
+    ] as ResonanceCallState[]) {
+      expect(resonanceCallReducer(s, 'error.recoverable')).toBe('listening');
+    }
+    // idle has no call to recover into — stays idle
+    expect(resonanceCallReducer('idle', 'error.recoverable')).toBe('idle');
+  });
+
+  it('error.fatal hangs up to ended from any active phase', () => {
+    for (const s of [
+      'listening',
+      'transcribing',
+      'thinking',
+      'speaking',
+      'silence_hold',
+    ] as ResonanceCallState[]) {
+      expect(resonanceCallReducer(s, 'error.fatal')).toBe('ended');
+    }
+  });
+
   it('ended is terminal — no event revives the call', () => {
     for (const e of [
       'call.started',
