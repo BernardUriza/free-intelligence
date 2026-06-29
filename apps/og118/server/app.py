@@ -269,6 +269,33 @@ async def health() -> dict:
     return {"ok": True}
 
 
+@app.get("/elements")
+async def list_elements() -> dict:
+    """The active "elementos" the UI selector offers (OG118-ELEMENTS-ADR-1).
+
+    Active-only by design: the 117 empty/reserved slots are catalog, not product —
+    surfacing them would read as an unfinished roster. Public on purpose: this is
+    names/symbols, never the persona prompts, so it carries nothing the bearer gate
+    protects and it must render before the user pastes a token."""
+    reg = get_registry()
+    return {
+        "elements": [
+            {
+                "id": e.id,
+                "atomicNumber": e.atomic_number,
+                "symbol": e.symbol,
+                "slug": e.slug,
+                "displayName": e.display_name,
+                "displayLabel": e.display_label,
+                "status": e.status,
+                "aliases": list(e.aliases),
+            }
+            for e in reg.elements
+            if e.is_active
+        ]
+    }
+
+
 @app.post("/chat/stream")
 async def chat_stream(
     req: ChatRequest,
