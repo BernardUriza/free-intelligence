@@ -43,7 +43,9 @@ import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
+import { Og118ElementSelector } from './Og118ElementSelector';
 import { useOg118Projects } from '@/lib/useOg118Projects';
+import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
@@ -61,8 +63,9 @@ export function Og118AgentChat() {
   const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
   const projects = useOg118Projects(userId);
+  const elements = useOg118Elements(userId);
   const upload = useOg118ProjectUpload();
-  const agent = useOg118Agent(lib.activeId, projects.activeProjectId);
+  const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,
     initialMessages: lib.activeMessages,
@@ -120,6 +123,12 @@ export function Og118AgentChat() {
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
+        <Og118ElementSelector
+          elements={elements.elements}
+          selected={elements.selected}
+          onSelect={elements.select}
+          loading={elements.loading}
+        />
         <Og118ProjectsSection
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
