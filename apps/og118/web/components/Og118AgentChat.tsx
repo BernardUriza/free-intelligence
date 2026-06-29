@@ -24,7 +24,7 @@
  * visible transcript (IndexedDB) and intra-deploy model continuity.
  */
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   AgentConversationSurface,
   AgentWorkspaceShell,
@@ -40,6 +40,7 @@ import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { useOg118Identity } from '@/lib/og118Identity';
 import { isAuth0Mode } from '@/lib/authMode';
 import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
+import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
@@ -51,6 +52,15 @@ import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 import { Og118AuthBanner } from './Og118AuthBanner';
 import { Og118VoiceErrorBanner } from './Og118VoiceErrorBanner';
+
+// RESONANCE_CALL_LOOP feature flag: ?resonance=1 query param or localStorage.
+// Off by default so the one-shot composer stays the only voice path until opted in.
+function readResonanceFlag(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('resonance') === '1' || p.get('RESONANCE_CALL_LOOP') === '1') return true;
+  return window.localStorage.getItem('RESONANCE_CALL_LOOP') === '1';
+}
 
 export function Og118AgentChat() {
   // Identity-scoped local-first stores: each signed-in account gets its OWN
@@ -82,6 +92,26 @@ export function Og118AgentChat() {
   // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
   // in one consumer hook; it returns the render slots the surface distributes.
   const composer = useOg118VoiceComposer(audioQueueStore);
+
+  // RESONANCE: hands-free continuous voice call, behind the RESONANCE_CALL_LOOP
+  // flag (off by default — the one-shot composer above stays the fallback). A
+  // turn-text ref lets requestAssistantTurn resolve with the streamed answer.
+  const [resonanceEnabled] = useState(readResonanceFlag);
+  const turnTextRef = useRef('');
+  turnTextRef.current = agent.turn?.text ?? '';
+  const requestAssistantTurn = useCallback(
+    async (userText: string) => {
+      await agent.send(userText, { history: lib.activeMessages });
+      return turnTextRef.current;
+    },
+    [agent, lib.activeMessages],
+  );
+  const resonance = useOg118ResonanceCall({
+    enabled: resonanceEnabled,
+    appendUserMessage: (t) => { if (resonanceEnabled) console.info('[resonance] user:', t); },
+    requestAssistantTurn,
+    debug: resonanceEnabled,
+  });
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
@@ -199,6 +229,21 @@ export function Og118AgentChat() {
             <>
               {authBanner}
               {voiceErrorBanner}
+              {resonanceEnabled && (
+                <div className="og-resonance-bar" data-ref="og118-resonance-bar">
+                  <button
+                    type="button"
+                    className="og-resonance-call-btn"
+                    data-ref="og118-resonance-call"
+                    onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
+                  >
+                    {resonance.isActive ? 'Colgar Resonance' : 'Llamar (Resonance)'}
+                  </button>
+                  <span className="og-resonance-state" data-ref="og118-resonance-state">
+                    {resonance.state}
+                  </span>
+                </div>
+              )}
               {composer.voiceBar}
               {composer.audioDraftPlayer}
               {composer.audioQueuePanel}
