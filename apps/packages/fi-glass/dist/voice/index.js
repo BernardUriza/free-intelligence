@@ -2606,6 +2606,324 @@ function AudioDraftPlayer({
     }
   );
 }
+
+// src/voice/resonanceCallMachine.ts
+var RESONANCE_INITIAL_STATE = "idle";
+var TRANSITIONS = {
+  idle: {
+    "call.started": "listening"
+  },
+  listening: {
+    "mic.opened": "listening",
+    "user.speech.started": "listening",
+    "user.speech.ended": "transcribing",
+    "silence.detected": "silence_hold"
+  },
+  transcribing: {
+    "stt.completed": "thinking"
+  },
+  thinking: {
+    "assistant.speech.started": "speaking"
+  },
+  speaking: {
+    "user.speech.started": "interrupted",
+    "assistant.speech.completed": "silence_hold"
+  },
+  interrupted: {
+    "assistant.speech.interrupted": "listening"
+  },
+  silence_hold: {
+    "silence.resume": "listening",
+    "sleep.decay.started": "sleep_decay"
+  },
+  sleep_decay: {
+    "silence.resume": "listening"
+  },
+  ended: {}
+};
+function isTerminal2(state) {
+  return state === "ended";
+}
+function resonanceCallReducer(state, event) {
+  if (isTerminal2(state)) return state;
+  if (event === "call.ended") return "ended";
+  return TRANSITIONS[state][event] ?? state;
+}
+
+// src/voice/resonanceEffects.ts
+var STATE_EFFECT = {
+  idle: null,
+  listening: { type: "open_mic" },
+  transcribing: { type: "begin_transcribe" },
+  thinking: { type: "invoke_agent" },
+  speaking: { type: "speak" },
+  interrupted: { type: "stop_speaking" },
+  silence_hold: { type: "hold_silence" },
+  sleep_decay: { type: "fade_and_hangup" },
+  ended: { type: "end_call" }
+};
+function effectForState(state) {
+  return STATE_EFFECT[state];
+}
+function dispatchEffect(effect, driver) {
+  switch (effect?.type) {
+    case "open_mic":
+      driver.openMic();
+      return true;
+    case "begin_transcribe":
+      driver.beginTranscribe();
+      return true;
+    case "invoke_agent":
+      driver.invokeAgent();
+      return true;
+    case "speak":
+      driver.speak();
+      return true;
+    case "stop_speaking":
+      driver.stopSpeaking();
+      return true;
+    case "hold_silence":
+      driver.holdSilence();
+      return true;
+    case "fade_and_hangup":
+      driver.fadeAndHangup();
+      return true;
+    case "end_call":
+      driver.endCall();
+      return true;
+    default:
+      return false;
+  }
+}
+
+// src/voice/resonanceCallController.ts
+function createResonanceCallController(driver, hooks = {}) {
+  let state = RESONANCE_INITIAL_STATE;
+  let transcript;
+  let assistantText;
+  const log2 = [];
+  function send(event) {
+    const next = resonanceCallReducer(state, event);
+    log2.push(event);
+    hooks.onEvent?.(event, next);
+    if (next !== state) {
+      state = next;
+      hooks.onState?.(state);
+      dispatchEffect(effectForState(state), driver);
+    }
+    return state;
+  }
+  return {
+    state: () => state,
+    lastTranscript: () => transcript,
+    lastAssistantText: () => assistantText,
+    events: () => [...log2],
+    send,
+    startCall: () => {
+      send("call.started");
+    },
+    micOpened: () => {
+      send("mic.opened");
+    },
+    userSpeechStarted: () => {
+      send("user.speech.started");
+    },
+    userSpeechEnded: () => {
+      send("user.speech.ended");
+    },
+    sttCompleted: (t) => {
+      transcript = t;
+      send("stt.completed");
+    },
+    assistantTurnReady: (text) => {
+      assistantText = text;
+      send("assistant.speech.started");
+    },
+    ttsCompleted: () => {
+      send("assistant.speech.completed");
+    },
+    ttsInterrupted: () => {
+      send("assistant.speech.interrupted");
+    },
+    silenceDetected: () => {
+      send("silence.detected");
+    },
+    silenceResume: () => {
+      send("silence.resume");
+    },
+    sleepDecay: () => {
+      send("sleep.decay.started");
+    },
+    interrupt: () => {
+      if (state !== "speaking") return;
+      send("user.speech.started");
+      send("assistant.speech.interrupted");
+    },
+    endCall: () => {
+      if (!isTerminal2(state)) send("call.ended");
+    }
+  };
+}
+
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback7, useEffect as useEffect10, useMemo as useMemo3, useRef as useRef6, useState as useState10 } from "react";
+var DEFAULT_SILENCE = { endOfSpeechMs: 900, autoResumeMs: 1200 };
+var DEFAULT_SLEEP = { enabled: true, idleHangupMs: 3e5 };
+var DEFAULT_BARGE_IN = { enabled: true };
+function useResonanceCallLoop(params) {
+  const {
+    enabled,
+    adapters,
+    isSilent,
+    hasSpeech,
+    silencePolicy = DEFAULT_SILENCE,
+    sleepPolicy = DEFAULT_SLEEP,
+    bargeInPolicy = DEFAULT_BARGE_IN,
+    debug = false,
+    onEvent
+  } = params;
+  const [state, setState] = useState10("idle");
+  const [lastTranscript, setLastTranscript] = useState10();
+  const [lastAssistantText, setLastAssistantText] = useState10();
+  const adaptersRef = useRef6(adapters);
+  adaptersRef.current = adapters;
+  const pushDebug = useCallback7(
+    (record) => {
+      if (!debug || typeof window === "undefined") return;
+      (window.__RESONANCE_EVENTS__ || (window.__RESONANCE_EVENTS__ = [])).push(record);
+    },
+    [debug]
+  );
+  const controller = useMemo3(() => {
+    const driver = {
+      openMic: () => {
+        void adaptersRef.current.openMic();
+      },
+      beginTranscribe: () => {
+        void Promise.resolve(adaptersRef.current.beginTranscribe()).then((transcript) => {
+          if (!transcript) {
+            ctrl.silenceResume();
+            return;
+          }
+          setLastTranscript(transcript);
+          adaptersRef.current.appendUserMessage(transcript);
+          pushDebug({ type: "stt.completed", state: "transcribing", transcript, timestamp: Date.now() });
+          ctrl.sttCompleted(transcript);
+        });
+      },
+      invokeAgent: () => {
+        void Promise.resolve(adaptersRef.current.invokeAgent()).then((text) => {
+          setLastAssistantText(text);
+          pushDebug({ type: "assistant.text", state: "thinking", text, timestamp: Date.now() });
+          ctrl.assistantTurnReady(text);
+        });
+      },
+      speak: () => {
+        const text = ctrl.lastAssistantText() ?? "";
+        void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
+          if (ctrl.state() === "speaking") ctrl.ttsCompleted();
+        });
+      },
+      stopSpeaking: () => {
+        adaptersRef.current.stopSpeaking();
+      },
+      holdSilence: () => {
+      },
+      fadeAndHangup: () => {
+        void adaptersRef.current.closeMic();
+      },
+      endCall: () => {
+        void adaptersRef.current.closeMic();
+      }
+    };
+    const ctrl = createResonanceCallController(driver, {
+      onState: (s) => setState(s),
+      onEvent: (event, s) => {
+        pushDebug({ type: event, state: s, timestamp: Date.now() });
+        onEvent?.(event, s);
+      }
+    });
+    return ctrl;
+  }, [pushDebug]);
+  const spokeRef = useRef6(false);
+  const endOfSpeechTimer = useRef6(void 0);
+  const autoResumeTimer = useRef6(void 0);
+  const sleepTimer = useRef6(void 0);
+  const clearTimer = (t) => {
+    if (t.current) {
+      clearTimeout(t.current);
+      t.current = void 0;
+    }
+  };
+  useEffect10(() => {
+    if (!enabled) return;
+    if (state === "listening") {
+      clearTimer(autoResumeTimer);
+      if (hasSpeech) {
+        clearTimer(endOfSpeechTimer);
+        if (!spokeRef.current) {
+          spokeRef.current = true;
+          controller.userSpeechStarted();
+        }
+      } else if (isSilent && spokeRef.current && !endOfSpeechTimer.current) {
+        endOfSpeechTimer.current = setTimeout(() => {
+          endOfSpeechTimer.current = void 0;
+          spokeRef.current = false;
+          controller.userSpeechEnded();
+        }, silencePolicy.endOfSpeechMs);
+      }
+    }
+    if (state === "speaking" && bargeInPolicy.enabled && hasSpeech) {
+      controller.interrupt();
+    }
+    if (state === "silence_hold") {
+      if (!autoResumeTimer.current) {
+        autoResumeTimer.current = setTimeout(() => {
+          autoResumeTimer.current = void 0;
+          controller.silenceResume();
+        }, silencePolicy.autoResumeMs);
+      }
+      if (sleepPolicy.enabled && !sleepTimer.current) {
+        sleepTimer.current = setTimeout(() => {
+          sleepTimer.current = void 0;
+          controller.sleepDecay();
+          controller.endCall();
+        }, sleepPolicy.idleHangupMs);
+      }
+    } else {
+      clearTimer(sleepTimer);
+    }
+  }, [enabled, state, isSilent, hasSpeech, controller, silencePolicy, sleepPolicy, bargeInPolicy]);
+  useEffect10(() => () => {
+    clearTimer(endOfSpeechTimer);
+    clearTimer(autoResumeTimer);
+    clearTimer(sleepTimer);
+  }, []);
+  const startCall = useCallback7(async () => {
+    if (!enabled) return;
+    if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
+    spokeRef.current = false;
+    controller.startCall();
+  }, [enabled, debug, controller]);
+  const endCall = useCallback7(() => {
+    controller.endCall();
+  }, [controller]);
+  const interrupt = useCallback7(() => {
+    controller.interrupt();
+  }, [controller]);
+  return {
+    state,
+    isActive: state !== "idle" && state !== "ended",
+    isListening: state === "listening",
+    isSpeaking: state === "speaking",
+    isThinking: state === "thinking" || state === "transcribing",
+    lastTranscript,
+    lastAssistantText,
+    startCall,
+    endCall,
+    interrupt
+  };
+}
 export {
   AUDIO_QUEUE_DEFAULTS,
   AudioDraftPlayer,
@@ -2618,6 +2936,7 @@ export {
   COLOR_THEMES,
   ComposerMicSlot,
   PulseRings,
+  RESONANCE_INITIAL_STATE,
   RecordingButton,
   RecordingTimer,
   RichAudioPlayer,
@@ -2628,17 +2947,22 @@ export {
   VoiceMicButton,
   artifactLabel,
   createAudioPlayer,
+  createResonanceCallController,
+  dispatchEffect,
+  effectForState,
   formatArtifactDuration,
   formatArtifactSize,
   formatPlaybackTime,
   formatRecordingTime,
   isPending,
+  isTerminal2 as isResonanceTerminal,
   isTerminal,
   makeArtifactId,
   makeRecorder,
   mergeWavBlobs,
   normalizeLevels,
   resampleLevels,
+  resonanceCallReducer,
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
@@ -2646,6 +2970,7 @@ export {
   useDictation,
   useDurableRecording,
   useRecorder,
+  useResonanceCallLoop,
   useVoice
 };
 //# sourceMappingURL=index.js.map

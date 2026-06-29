@@ -151,7 +151,12 @@ export function useResonanceCallLoop(
       },
       speak: () => {
         const text = ctrl.lastAssistantText() ?? '';
-        void adaptersRef.current.speak(text);
+        // speak() resolves when playback ENDS -> advance to silence_hold. The
+        // state guard makes a barge-in (which already left 'speaking') a no-op,
+        // so an interrupted clip never double-advances the turn.
+        void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
+          if (ctrl.state() === 'speaking') ctrl.ttsCompleted();
+        });
       },
       stopSpeaking: () => { adaptersRef.current.stopSpeaking(); },
       holdSilence: () => {},
