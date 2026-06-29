@@ -26,6 +26,8 @@ import {
   type ResonanceVadConfig,
   type ResonanceVadMode,
 } from './resonanceVadGate';
+import { createResonanceCueController } from './resonanceCueController';
+import { createAudioCuePlayer, type AudioCueAssets } from './createAudioCuePlayer';
 
 export interface ResonanceCallAdapters {
   /** Open the mic stream (useDurableRecording.startRecording). */
@@ -72,6 +74,8 @@ export interface UseResonanceCallLoopParams {
   silencePolicy?: ResonanceSilencePolicy;
   sleepPolicy?: ResonanceSleepPolicy;
   bargeInPolicy?: ResonanceBargeInPolicy;
+  /** Audio cues (thinking loop / crystalline / ready). Off unless enabled + assets given. */
+  audioCues?: { enabled: boolean; assets: AudioCueAssets; volume?: number };
   /** Expose window.__RESONANCE_EVENTS__ for the screenless E2E harness. */
   debug?: boolean;
   onEvent?: (event: ResonanceCallEvent, state: ResonanceCallState) => void;
@@ -119,12 +123,30 @@ export function useResonanceCallLoop(
     silencePolicy = DEFAULT_SILENCE,
     sleepPolicy = DEFAULT_SLEEP,
     bargeInPolicy = DEFAULT_BARGE_IN,
+    audioCues,
     debug = false,
     onEvent,
   } = params;
 
   const getAudioLevelRef = useRef(getAudioLevel);
   getAudioLevelRef.current = getAudioLevel;
+
+  // Audio cues: a Web Audio player behind the pure cue controller. The wrapper is
+  // the lifecycle owner — it preloads, applies the policy per transition, and
+  // tears down on unmount so a cue can never outlive the call.
+  const cueEnabled = audioCues?.enabled ?? false;
+  const cuePlayer = useMemo(
+    () => (cueEnabled && audioCues ? createAudioCuePlayer(audioCues.assets, { volume: audioCues.volume }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume],
+  );
+  const cueController = useMemo(() => (cuePlayer ? createResonanceCueController(cuePlayer) : null), [cuePlayer]);
+  const cueApplyRef = useRef<typeof cueController extends null ? never : ((i: { previousState: ResonanceCallState; nextState: ResonanceCallState; event: ResonanceCallEvent }, id: string) => void) | undefined>(undefined);
+  cueApplyRef.current = cueController?.applyTransition;
+  const cueSeqRef = useRef(0);
+
+  useEffect(() => { void cuePlayer?.preload(); }, [cuePlayer]);
+  useEffect(() => () => { cuePlayer?.dispose(); }, [cuePlayer]);
 
   const [state, setState] = useState<ResonanceCallState>('idle');
   const [lastTranscript, setLastTranscript] = useState<string>();
@@ -192,6 +214,11 @@ export function useResonanceCallLoop(
     const ctrl = createResonanceCallController(driver, {
       onState: (s) => setState(s),
       onEvent: (event, s) => {
+        // ctrl.state() is still the PRE-transition state here (the controller
+        // updates after onEvent), so this is the exact (prev,next,event) the cue
+        // policy needs. Cues apply BEFORE the speak effect dispatch, so the
+        // thinking loop stops before TTS starts.
+        cueApplyRef.current?.({ previousState: ctrl.state(), nextState: s, event }, String(cueSeqRef.current++));
         pushDebug({ type: event, state: s, timestamp: Date.now() });
         onEvent?.(event, s);
       },
@@ -260,8 +287,9 @@ export function useResonanceCallLoop(
     if (!enabled) return;
     if (debug && typeof window !== 'undefined') window.__RESONANCE_EVENTS__ = [];
     gate.reset();
+    cueController?.reset();
     controller.startCall();
-  }, [enabled, debug, controller, gate]);
+  }, [enabled, debug, controller, gate, cueController]);
 
   const endCall = useCallback(() => { controller.endCall(); }, [controller]);
   const interrupt = useCallback(() => { controller.interrupt(); }, [controller]);

@@ -118,6 +118,14 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
     enabled,
     adapters,
     getAudioLevel: () => audioLevelRef.current,
+    audioCues: {
+      enabled: true,
+      assets: {
+        thinking: '/sounds/thinking.mp3',
+        crystalline: '/sounds/crystalline.mp3',
+        ready: '/sounds/ready.mp3',
+      },
+    },
     debug,
   });
 

@@ -933,6 +933,60 @@ interface ResonanceVadGate {
 }
 declare function createResonanceVadGate(config?: ResonanceVadConfig): ResonanceVadGate;
 
+/**
+ * resonanceCueController — applies resonanceCuePolicy decisions to a CuePlayer,
+ * with the guarantees Web Audio alone can't give: playLoop is idempotent (one
+ * thinking source, never two), playOnce dedupes by eventId (a re-render of the
+ * same transition can't double-fire), and stopAll is safe to call any number of
+ * times. The controller knows the policy; the player only knows Web Audio.
+ *
+ * Lifecycle: one controller per call session (startCall makes/reset()s it). On
+ * teardown the wrapper calls stopAll() — and the policy also emits stopAll on the
+ * terminal transition — so no cue can outlive the call.
+ */
+
+interface ResonanceCuePlayer {
+    playOnce: (cue: 'crystalline' | 'ready') => void;
+    playLoop: (cue: 'thinking') => void;
+    stopLoop: (cue: 'thinking') => void;
+    stopAll: () => void;
+}
+interface ResonanceCueController {
+    /** Apply one FSM transition's cues. eventId dedupes one-shots across re-renders. */
+    applyTransition: (input: {
+        previousState: ResonanceCallState;
+        nextState: ResonanceCallState;
+        event: ResonanceCallEvent;
+    }, eventId?: string) => void;
+    stopAll: () => void;
+    reset: () => void;
+}
+declare function createResonanceCueController(player: ResonanceCuePlayer): ResonanceCueController;
+
+/**
+ * createAudioCuePlayer — the thin Web Audio adapter behind resonanceCueController.
+ *
+ * Pre-decodes the three cue buffers and plays them with the low latency only the
+ * Web Audio API gives (AudioBufferSourceNode, not <audio>). It knows nothing about
+ * the FSM — it just plays, loops, and stops. stopLoop/stopAll are best-effort so a
+ * teardown never throws, and one-shots self-evict on ended so they can overlap
+ * without leaking nodes.
+ */
+
+interface AudioCueAssets {
+    thinking: string;
+    crystalline: string;
+    ready: string;
+}
+interface AudioCuePlayerOptions {
+    volume?: number;
+}
+interface AudioCuePlayer extends ResonanceCuePlayer {
+    preload: () => Promise<void>;
+    dispose: () => void;
+}
+declare function createAudioCuePlayer(assets: AudioCueAssets, options?: AudioCuePlayerOptions): AudioCuePlayer;
+
 interface ResonanceCallAdapters {
     /** Open the mic stream (useDurableRecording.startRecording). */
     openMic: () => void | Promise<void>;
@@ -974,6 +1028,12 @@ interface UseResonanceCallLoopParams {
     silencePolicy?: ResonanceSilencePolicy;
     sleepPolicy?: ResonanceSleepPolicy;
     bargeInPolicy?: ResonanceBargeInPolicy;
+    /** Audio cues (thinking loop / crystalline / ready). Off unless enabled + assets given. */
+    audioCues?: {
+        enabled: boolean;
+        assets: AudioCueAssets;
+        volume?: number;
+    };
     /** Expose window.__RESONANCE_EVENTS__ for the screenless E2E harness. */
     debug?: boolean;
     onEvent?: (event: ResonanceCallEvent, state: ResonanceCallState) => void;
@@ -1004,4 +1064,37 @@ declare global {
 }
 declare function useResonanceCallLoop(params: UseResonanceCallLoopParams): UseResonanceCallLoopReturn;
 
-export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, DEFAULT_VAD_CONFIG, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RESONANCE_INITIAL_STATE, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, type ResonanceBargeInPolicy, type ResonanceCallAdapters, type ResonanceCallController, type ResonanceCallEvent, type ResonanceCallState, type ResonanceControllerHooks, type ResonanceDriver, type ResonanceEffect, type ResonanceSilencePolicy, type ResonanceSleepPolicy, type ResonanceVadConfig, type ResonanceVadEvent, type ResonanceVadGate, type ResonanceVadMode, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseResonanceCallLoopParams, type UseResonanceCallLoopReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, createResonanceCallController, createResonanceVadGate, dispatchEffect, effectForState, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal as isResonanceTerminal, isTerminal$1 as isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, resonanceCallReducer, useAudioAnalysis, useAudioPlayer, useAudioQueue, useAudioQueueStore, useDictation, useDurableRecording, useRecorder, useResonanceCallLoop, useVoice };
+/**
+ * resonanceCuePolicy — the pure decision layer for RESONANCE's audio cues.
+ *
+ * Maps a single FSM transition (previousState, nextState, event) to the cue
+ * actions to run. No Web Audio, no timers — so "right cue only on its transition"
+ * and "the thinking loop can never hang" are provable with plain assertions.
+ *
+ * The load-bearing rule: stopLoop(thinking) is derived from LEAVING the thinking
+ * state, not from a specific event. That makes it impossible to strand the loop —
+ * a barge-in, an agent error, a hangup, or any future transition out of thinking
+ * all stop it. stopAll is layered on top for terminal/teardown paths.
+ */
+
+type ResonanceCueName = 'thinking' | 'crystalline' | 'ready';
+type ResonanceCueAction = {
+    type: 'playLoop';
+    cue: 'thinking';
+} | {
+    type: 'stopLoop';
+    cue: 'thinking';
+} | {
+    type: 'playOnce';
+    cue: 'crystalline' | 'ready';
+} | {
+    type: 'stopAll';
+};
+interface ResonanceCuePolicyInput {
+    previousState: ResonanceCallState;
+    nextState: ResonanceCallState;
+    event: ResonanceCallEvent;
+}
+declare function resonanceCuePolicy(input: ResonanceCuePolicyInput): ResonanceCueAction[];
+
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, type AudioCueAssets, type AudioCuePlayer, type AudioCuePlayerOptions, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, DEFAULT_VAD_CONFIG, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RESONANCE_INITIAL_STATE, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, type ResonanceBargeInPolicy, type ResonanceCallAdapters, type ResonanceCallController, type ResonanceCallEvent, type ResonanceCallState, type ResonanceControllerHooks, type ResonanceCueAction, type ResonanceCueController, type ResonanceCueName, type ResonanceCuePlayer, type ResonanceCuePolicyInput, type ResonanceDriver, type ResonanceEffect, type ResonanceSilencePolicy, type ResonanceSleepPolicy, type ResonanceVadConfig, type ResonanceVadEvent, type ResonanceVadGate, type ResonanceVadMode, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseResonanceCallLoopParams, type UseResonanceCallLoopReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioCuePlayer, createAudioPlayer, createResonanceCallController, createResonanceCueController, createResonanceVadGate, dispatchEffect, effectForState, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal as isResonanceTerminal, isTerminal$1 as isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, resonanceCallReducer, resonanceCuePolicy, useAudioAnalysis, useAudioPlayer, useAudioQueue, useAudioQueueStore, useDictation, useDurableRecording, useRecorder, useResonanceCallLoop, useVoice };

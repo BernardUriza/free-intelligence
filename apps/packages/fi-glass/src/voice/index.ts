@@ -154,3 +154,20 @@ export {
   type ResonanceSleepPolicy,
   type ResonanceBargeInPolicy,
 } from './useResonanceCallLoop';
+export {
+  resonanceCuePolicy,
+  type ResonanceCueAction,
+  type ResonanceCueName,
+  type ResonanceCuePolicyInput,
+} from './resonanceCuePolicy';
+export {
+  createResonanceCueController,
+  type ResonanceCueController,
+  type ResonanceCuePlayer,
+} from './resonanceCueController';
+export {
+  createAudioCuePlayer,
+  type AudioCuePlayer,
+  type AudioCueAssets,
+  type AudioCuePlayerOptions,
+} from './createAudioCuePlayer';

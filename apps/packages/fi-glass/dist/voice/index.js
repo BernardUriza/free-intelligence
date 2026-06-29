@@ -2852,6 +2852,178 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 
 // src/voice/useResonanceCallLoop.ts
 import { useCallback as useCallback7, useEffect as useEffect10, useMemo as useMemo3, useRef as useRef6, useState as useState10 } from "react";
+
+// src/voice/resonanceCuePolicy.ts
+function resonanceCuePolicy(input) {
+  const { previousState, nextState, event } = input;
+  if (event === "call.ended" || event === "error.fatal" || nextState === "ended") {
+    return [{ type: "stopAll" }];
+  }
+  const actions = [];
+  if (previousState !== "thinking" && nextState === "thinking") {
+    actions.push({ type: "playLoop", cue: "thinking" });
+  }
+  if (previousState === "thinking" && nextState !== "thinking") {
+    actions.push({ type: "stopLoop", cue: "thinking" });
+  }
+  if (event === "user.speech.ended") actions.push({ type: "playOnce", cue: "crystalline" });
+  if (event === "assistant.speech.completed") actions.push({ type: "playOnce", cue: "ready" });
+  return actions;
+}
+
+// src/voice/resonanceCueController.ts
+function createResonanceCueController(player) {
+  const activeLoops = /* @__PURE__ */ new Set();
+  const playedOneShots = /* @__PURE__ */ new Set();
+  function stopAll() {
+    player.stopAll();
+    activeLoops.clear();
+  }
+  function reset() {
+    activeLoops.clear();
+    playedOneShots.clear();
+  }
+  function applyTransition(input, eventId) {
+    for (const action of resonanceCuePolicy(input)) {
+      switch (action.type) {
+        case "playLoop":
+          if (!activeLoops.has(action.cue)) {
+            activeLoops.add(action.cue);
+            player.playLoop(action.cue);
+          }
+          break;
+        case "stopLoop":
+          if (activeLoops.has(action.cue)) {
+            activeLoops.delete(action.cue);
+            player.stopLoop(action.cue);
+          }
+          break;
+        case "playOnce": {
+          const key = eventId ? `${eventId}:${action.cue}` : void 0;
+          if (key && playedOneShots.has(key)) break;
+          if (key) playedOneShots.add(key);
+          player.playOnce(action.cue);
+          break;
+        }
+        case "stopAll":
+          stopAll();
+          break;
+      }
+    }
+  }
+  return { applyTransition, stopAll, reset };
+}
+
+// src/voice/createAudioCuePlayer.ts
+function createAudioCuePlayer(assets, options = {}) {
+  const { volume = 0.6 } = options;
+  let ctx = null;
+  let gain = null;
+  const buffers = /* @__PURE__ */ new Map();
+  const loops = /* @__PURE__ */ new Map();
+  const oneShots = /* @__PURE__ */ new Set();
+  function ensureContext() {
+    if (typeof window === "undefined") return null;
+    if (!ctx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+      gain = ctx.createGain();
+      gain.gain.value = volume;
+      gain.connect(ctx.destination);
+    }
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  }
+  async function preload() {
+    const c = ensureContext();
+    if (!c) return;
+    const entries = Object.entries(assets);
+    await Promise.all(
+      entries.map(async ([name, url]) => {
+        if (buffers.has(name)) return;
+        try {
+          const res = await fetch(url);
+          const arr = await res.arrayBuffer();
+          buffers.set(name, await c.decodeAudioData(arr));
+        } catch (e) {
+          console.warn(`[resonance] cue preload failed: ${name}`, e);
+        }
+      })
+    );
+  }
+  function source(name, loop) {
+    const c = ensureContext();
+    const buf = buffers.get(name);
+    if (!c || !gain || !buf) return null;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    src.connect(gain);
+    return src;
+  }
+  function stopLoop(cue) {
+    const src = loops.get(cue);
+    if (!src) return;
+    loops.delete(cue);
+    try {
+      src.stop();
+    } catch {
+    }
+  }
+  return {
+    preload,
+    playOnce: (cue) => {
+      const src = source(cue, false);
+      if (!src) return;
+      oneShots.add(src);
+      src.onended = () => oneShots.delete(src);
+      try {
+        src.start();
+      } catch {
+        oneShots.delete(src);
+      }
+    },
+    playLoop: (cue) => {
+      if (loops.has(cue)) return;
+      const src = source(cue, true);
+      if (!src) return;
+      loops.set(cue, src);
+      try {
+        src.start();
+      } catch {
+        loops.delete(cue);
+      }
+    },
+    stopLoop,
+    stopAll: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+    },
+    dispose: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+      buffers.clear();
+      void ctx?.close();
+      ctx = null;
+      gain = null;
+    }
+  };
+}
+
+// src/voice/useResonanceCallLoop.ts
 var DEFAULT_SILENCE = { endOfSpeechMs: 900, autoResumeMs: 1200 };
 var DEFAULT_SLEEP = { enabled: true, idleHangupMs: 3e5 };
 var DEFAULT_BARGE_IN = { enabled: true };
@@ -2864,11 +3036,28 @@ function useResonanceCallLoop(params) {
     silencePolicy = DEFAULT_SILENCE,
     sleepPolicy = DEFAULT_SLEEP,
     bargeInPolicy = DEFAULT_BARGE_IN,
+    audioCues,
     debug = false,
     onEvent
   } = params;
   const getAudioLevelRef = useRef6(getAudioLevel);
   getAudioLevelRef.current = getAudioLevel;
+  const cueEnabled = audioCues?.enabled ?? false;
+  const cuePlayer = useMemo3(
+    () => cueEnabled && audioCues ? createAudioCuePlayer(audioCues.assets, { volume: audioCues.volume }) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
+  );
+  const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
+  const cueApplyRef = useRef6(void 0);
+  cueApplyRef.current = cueController?.applyTransition;
+  const cueSeqRef = useRef6(0);
+  useEffect10(() => {
+    void cuePlayer?.preload();
+  }, [cuePlayer]);
+  useEffect10(() => () => {
+    cuePlayer?.dispose();
+  }, [cuePlayer]);
   const [state, setState] = useState10("idle");
   const [lastTranscript, setLastTranscript] = useState10();
   const [lastAssistantText, setLastAssistantText] = useState10();
@@ -2941,6 +3130,7 @@ function useResonanceCallLoop(params) {
     const ctrl = createResonanceCallController(driver, {
       onState: (s) => setState(s),
       onEvent: (event, s) => {
+        cueApplyRef.current?.({ previousState: ctrl.state(), nextState: s, event }, String(cueSeqRef.current++));
         pushDebug({ type: event, state: s, timestamp: Date.now() });
         onEvent?.(event, s);
       }
@@ -3003,8 +3193,9 @@ function useResonanceCallLoop(params) {
     if (!enabled) return;
     if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
     gate.reset();
+    cueController?.reset();
     controller.startCall();
-  }, [enabled, debug, controller, gate]);
+  }, [enabled, debug, controller, gate, cueController]);
   const endCall = useCallback7(() => {
     controller.endCall();
   }, [controller]);
@@ -3047,8 +3238,10 @@ export {
   StatusText,
   VoiceMicButton,
   artifactLabel,
+  createAudioCuePlayer,
   createAudioPlayer,
   createResonanceCallController,
+  createResonanceCueController,
   createResonanceVadGate,
   dispatchEffect,
   effectForState,
@@ -3065,6 +3258,7 @@ export {
   normalizeLevels,
   resampleLevels,
   resonanceCallReducer,
+  resonanceCuePolicy,
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
