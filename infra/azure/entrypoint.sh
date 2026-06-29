@@ -1,5 +1,5 @@
 #!/bin/bash
-# Entrypoint for insult-runner Container App.
+# Entrypoint for persona-runner Container App.
 #
 # Two processes share the container:
 #   - workspace_renderer (Python, background) — mirrors Postgres -> markdown
@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-echo "[entrypoint] insult-runner booting"
+echo "[entrypoint] persona-runner booting"
 echo "[entrypoint] node $(node --version) | python $(python3 --version) | claude $(claude --version 2>&1 | head -1)"
 
 # --- OAuth Max credentials --------------------------------------------------

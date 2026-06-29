@@ -11,7 +11,7 @@ internals, enforced by
 (locked strict at zero).
 
 Distinct from ``shared/personas/registry.py``: that registry models *sibling*
-personas that share ONE brain (the insult-runner) via ``persona_id`` and run
+personas that share ONE brain (the persona-runner) via ``persona_id`` and run
 under the gateway. This registry models full runnable persona *applications*
 (each its own Discord bot user + process), which is a host/launch concern. The
 two never overlap — Insult and ALICE are runnable apps here; Vultur is a sibling

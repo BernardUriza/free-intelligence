@@ -1,6 +1,6 @@
 """Insult Agent SDK runner.
 
-Lives in the `insult-runner` Container App (separate from `insult-bot`).
+Lives in the `persona-runner` Container App (separate from `insult-bot`).
 Two long-running services share the container:
 
 - `workspace_renderer` — mirrors Postgres state to /data/insult-workspace

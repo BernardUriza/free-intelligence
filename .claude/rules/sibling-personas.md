@@ -1,7 +1,7 @@
 # Sibling Personas — Durable Host, Not an Ephemeral Local Process
 
 Sibling personas (Vultur, and any future one) are NOT Insult. They share ONE
-brain — the insult-runner — addressed by `persona_id`, and each runs as its own
+brain — the persona-runner — addressed by `persona_id`, and each runs as its own
 Discord bot user under `persona_gateway`. Insult is the omnipresent host; the
 siblings are mention-gated opt-ins (see `shared/personas/registry.py`).
 
@@ -18,7 +18,7 @@ The durable host is `vultur-gateway`:
 
 - **`Dockerfile.gateway`** clones `Dockerfile.alice` **minus the codex/node
   layer** — the gateway runs NO LLM of its own; it is a thin HTTP client of the
-  insult-runner (`AgentRunnerClient` → `/v1/turn`). It COPYs `persona_gateway/` +
+  persona-runner (`AgentRunnerClient` → `/v1/turn`). It COPYs `persona_gateway/` +
   `khimeras_shared/` + `shared/` (its real import graph), guarded against the
   ModuleNotFound copy-gap class by
   `tests/arch/test_runner_dockerfile_copies_imports.py`.

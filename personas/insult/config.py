@@ -150,7 +150,7 @@ class Settings(BaseSettings):
     # uppercases the field name automatically).
     postgres_url: SecretStr = SecretStr("")
 
-    # Agent SDK runner (Container App insult-runner). Every chat turn routes
+    # Agent SDK runner (Container App persona-runner). Every chat turn routes
     # through `AgentRunnerClient` (/v1/turn) and every one-shot utility call
     # through `RunnerJudgeClient` (/v1/judge) — both on OAuth Max. These two
     # creds are the bot's ONLY LLM backend.

@@ -1,7 +1,7 @@
 """Khimeras persona registry — the "factory" and source of truth.
 
 Each sibling bot is ONE entry here + one `<id>.md` + one Discord bot token.
-They all share the same brain (insult-runner) via `persona_id`.
+They all share the same brain (persona-runner) via `persona_id`.
 
 Insult reads this at startup (via insult/config.py) to build its sibling-
 suppression map: when a message @mentions any registered sibling, Insult

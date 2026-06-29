@@ -1,4 +1,4 @@
-# Conda environment definition for discord-bot, alice-bot, and insult-runner.
+# Conda environment definition for discord-bot, alice-bot, and persona-runner.
 #
 # This file replaces requirements.txt as the canonical dependency manifest
 # (see memory: feedback_no_pypi_only_conda + reference_anaconda_channel).

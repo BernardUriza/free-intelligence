@@ -109,7 +109,7 @@ class FailoverReason(Enum):
     distinction PR-4b slice 2 introduced so the failover decision and the
     logs stop lying about what actually broke.
 
-    - ``RUNNER_DOWN``: the insult-runner process is unreachable (connect
+    - ``RUNNER_DOWN``: the persona-runner process is unreachable (connect
       refused / read timeout / 5xx). Insult's Claude brain is genuinely
       down, so a sibling persona on a DIFFERENT provider (ALICE on Azure
       OpenAI) may legitimately take the turn.

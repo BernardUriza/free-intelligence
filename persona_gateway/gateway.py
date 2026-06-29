@@ -1,7 +1,7 @@
 """Khimeras persona gateway — one Discord bot user per sibling persona.
 
 Each registered persona (Vultur, future ones) runs as its OWN Discord bot user
-(its own token) but they ALL share ONE brain: the insult-runner, called with a
+(its own token) but they ALL share ONE brain: the persona-runner, called with a
 `persona_id`. This module is deliberately thin — it does NOT run Insult's preset/
 flow pipeline. The persona's `<id>.md` (loaded by the runner) defines behavior;
 the gateway only:

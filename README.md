@@ -21,7 +21,7 @@ In production this is three Azure Container Apps:
 | Container App | Role | Engine |
 |---|---|---|
 | **discord-bot** | Plumbing / gateway — listens on Discord, batches, persists to Postgres, picks the runner per turn, parses `[REACT:]`/`[REMEMBER:]`, delivers chunked replies | none (routing only) |
-| **insult-runner** | Insult persona | Claude Agent SDK (OAuth Max) |
+| **persona-runner** | Insult persona | Claude Agent SDK (OAuth Max) |
 | **alice-bot** | ALICE persona — passive, fires on mention or `/invite` from Insult | Azure OpenAI gpt-4.1 |
 
 The OCI image artifact is still tagged `insult-bot:<sha>` (legacy name). See

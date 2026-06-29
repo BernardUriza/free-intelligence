@@ -1,6 +1,6 @@
 """SDK MCP server — direct Postgres queries for the agent (F4, v3.9.51).
 
-Background: the `insult-runner` agent previously read user facts, recent
+Background: the `persona-runner` agent previously read user facts, recent
 messages and disclosure logs from markdown files under
 `/data/insult-workspace/`. Those files were produced every 60 s by
 `workspace_renderer.py` from the same Postgres tables that store the

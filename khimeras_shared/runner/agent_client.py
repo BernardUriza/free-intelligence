@@ -7,7 +7,7 @@ blocks, then received a single-shot response. Validated 2026-05-13
 reasoning at scale.
 
 `AgentRunnerClient` replaces that single-shot pattern with a remote call to
-the FastAPI runner in the `insult-runner` Container App. The runner hosts
+the FastAPI runner in the `persona-runner` Container App. The runner hosts
 the Claude Agent SDK (Python) and reads selectively from
 `/data/insult-workspace/*.md` (mirrored from Postgres by a background
 renderer) via Read/Grep/Glob.

@@ -130,7 +130,7 @@ def consolidate_facts(
                 "  az containerapp job secret set -n fact-consolidation -g insult-rg \\\n"
                 "      --secrets agent-runner-token=<TOKEN>\n"
                 "  az containerapp job update -n fact-consolidation -g insult-rg \\\n"
-                "      --set-env-vars INSULT_AGENT_RUNNER_URL=https://insult-runner... \\\n"
+                "      --set-env-vars INSULT_AGENT_RUNNER_URL=https://persona-runner... \\\n"
                 "                     INSULT_AGENT_RUNNER_TOKEN=secretref:agent-runner-token"
             )
         llm = RunnerJudgeClient(runner_url=runner_url, token=runner_token)

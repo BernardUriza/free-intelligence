@@ -5,7 +5,7 @@ into ``khimeras_shared``; ``personas.insult`` now transitively imports
 ``khimeras_shared.*``, but NEITHER Dockerfile was updated to
 ``COPY khimeras_shared/``:
 
-  * ``infra/azure/runner.Dockerfile`` (insult-runner) → the agent loop 502'd on
+  * ``infra/azure/runner.Dockerfile`` (persona-runner) → the agent loop 502'd on
     EVERY turn with ``ModuleNotFoundError: No module named 'khimeras_shared'``
     for ~2h while /health stayed green; all Insult turns fell over to ALICE.
   * ``Dockerfile`` (discord-bot plumbing) → every NEW revision crashlooped on
@@ -81,7 +81,7 @@ def _dockerfile_copy_roots(dockerfile: Path) -> set[str]:
 @pytest.mark.parametrize(
     ("dockerfile", "pkg_root", "label"),
     [
-        (RUNNER_DOCKERFILE, INSULT_PKG, "insult-runner / personas.insult"),
+        (RUNNER_DOCKERFILE, INSULT_PKG, "persona-runner / personas.insult"),
         (PLUMBING_DOCKERFILE, INSULT_PKG, "discord-bot plumbing / personas.insult"),
         # vultur-gateway runs persona_gateway, which imports its own set
         # (khimeras_shared, shared) — a DIFFERENT import root than insult, so it

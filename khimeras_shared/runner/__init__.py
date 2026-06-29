@@ -1,4 +1,4 @@
-"""Shared runner transport — HTTP clients to the insult-runner (Agent SDK).
+"""Shared runner transport — HTTP clients to the persona-runner (Agent SDK).
 
 Persona-neutral transport: the `AgentRunnerClient` (POST /v1/turn) speaks the
 shared `khimeras_shared.llm.types.LLMResponse` contract and is consumed by both

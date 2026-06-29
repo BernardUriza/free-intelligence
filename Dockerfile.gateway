@@ -1,6 +1,6 @@
 # Khimeras persona gateway — one Discord bot user per sibling persona (Vultur…).
 #
-# Durable host for the sibling personas that share ONE brain (the insult-runner)
+# Durable host for the sibling personas that share ONE brain (the persona-runner)
 # via persona_id. Before this image they ran ONLY as an ephemeral local process
 # on Bernard's Mac — so a Mac restart or a trimmed .env silently took Vultur
 # offline (the "Vultur no responde" class). This gives the gateway the same
@@ -13,7 +13,7 @@
 #
 # Differences from the ALICE image:
 # - NO Node.js / codex layer. The gateway does NOT run an LLM: it is a thin HTTP
-#   client of the insult-runner (AgentRunnerClient → /v1/turn). All cognition
+#   client of the persona-runner (AgentRunnerClient → /v1/turn). All cognition
 #   stays in the runner; the gateway only relays Discord ↔ runner + persists to
 #   the shared Postgres. So it skips ALICE's `@openai/codex` install entirely.
 # - Copies persona_gateway/ + khimeras_shared/ + shared/ — the gateway imports

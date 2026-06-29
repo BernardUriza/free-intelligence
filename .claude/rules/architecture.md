@@ -8,7 +8,7 @@ Apps with names that now match their logical roles:
 | Container App | Role | What it does |
 |---|---|---|
 | **discord-bot** | Plumbing / gateway | Listens on Discord, batches messages, stores to Postgres, picks the right runner per turn via the feature flag, parses `[REACT:]` / `[REMEMBER:]` markers, delivers chunked response. Zero direct LLM calls when `LEGACY_LLM_ENABLED=false`. FQDN: `discord-bot.nicecliff-10074f57.eastus.azurecontainerapps.io`. |
-| **insult-runner** | Insult persona | FastAPI + claude-agent-sdk (Python). OAuth Max via `~/.claude/.credentials.json`. Reads `persona.md` (Insult DNA) as system prompt + `<cwd>/CLAUDE.md` as project context via `setting_sources=["project"]`. Cwd = `/data/insult-workspace`. |
+| **persona-runner** | Shared Claude persona brain (Insult + siblings) | FastAPI + claude-agent-sdk (Python). Serves Insult (`persona_id` omitted) and every Claude sibling (Vultur…) via `persona_id`. OAuth Max via `~/.claude/.credentials.json`. Reads `persona.md` (Insult DNA) as system prompt + `<cwd>/CLAUDE.md` as project context via `setting_sources=["project"]`. Cwd = `/data/insult-workspace`. Renamed from `insult-runner` (v4.21.x) — Insult stopped being the system. |
 | **alice-bot** | ALICE persona | Azure OpenAI gpt-4.1 path. Sibling runner, not a Claude Code agent (different model family). Passive: only fires on mention or `/invite` from Insult. |
 | *(future) aurity-runner* | AURITY persona | Qwen-only third sibling per the docstring in `alice/core/llm.py`. Not implemented. |
 
@@ -28,7 +28,7 @@ The old flat `insult/...` paths below the move no longer exist.
 - `demux_ai/` — light host: explicit persona selection + gpt-4.1 routing. Live modules: `host.py`, `host_llm.py` (the gpt-4.1 host-router model client, PR-4b slice 1+), `registry.py`, `__main__.py` (`python -m demux_ai run`). No longer a skeleton.
 - `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
 - `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
-- `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the insult-runner) via `persona_id`. `gateway.py`.
+- `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the persona-runner) via `persona_id`. `gateway.py`.
 - `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
 - `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `memory_consolidation.py`. Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
 - `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
@@ -92,6 +92,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
 - Classifier analyzes: current message (primary) + last 5 messages (secondary) + user facts (for MEMORY_RECALL)
 
 ## Prompts
+- **The universal rule now lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the discord-bot-specific instantiation (its loader + file list); the cross-repo law is the SSOT. It was a distillation error that this rule stayed repo-local from 2026-05-12 until 2026-06-23 — see the SSOT's "why this rule exists".
 - LLM-facing prompts MUST live in `insult/prompts/*.md`, loaded via `insult.core.prompts_loader.load_prompt(name)` — NEVER as inline Python strings.
 - The loader is mtime-aware: editing the `.md` file is picked up by the running bot on the next request without a redeploy or restart. Inline strings require a version bump and full deploy cycle just to change tone.
 - Call `load_prompt("<name>")` inside the function that uses the prompt, NOT at module level — so the mtime check fires per-request and hot-reload actually works.

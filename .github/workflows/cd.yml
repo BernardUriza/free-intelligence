@@ -10,7 +10,7 @@ name: CD
 #   * fact-consolidation <- insult-bot image       (same image, cron job)
 #   * alice-bot          <- alice-bot image        (Dockerfile.alice)
 #   * vultur-gateway     <- vultur-gateway image   (Dockerfile.gateway)
-#   * insult-runner      <- insult-runner image    (infra/azure/runner.Dockerfile)
+#   * persona-runner      <- persona-runner image    (infra/azure/runner.Dockerfile)
 #
 # Per-image SOURCE deps come from each Dockerfile's COPY lines — the map below is
 # COPY-accurate ON PURPOSE: over-building is wasteful, but UNDER-building ships a
@@ -96,7 +96,7 @@ jobs:
           BOT_SHA=$(running_tag discord-bot app)
           ALICE_SHA=$(running_tag alice-bot app)
           GW_SHA=$(running_tag vultur-gateway app)
-          RUNNER_SHA=$(running_tag insult-runner app)
+          RUNNER_SHA=$(running_tag persona-runner app)
 
           BUILD_BOT=$(changed "$BOT_SHA" \
             environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
@@ -123,7 +123,7 @@ jobs:
           echo "| insult-bot (discord-bot + jobs) | \`${BOT_SHA:0:7}\` | $BUILD_BOT |" >> "$GITHUB_STEP_SUMMARY"
           echo "| alice-bot | \`${ALICE_SHA:0:7}\` | $BUILD_ALICE |" >> "$GITHUB_STEP_SUMMARY"
           echo "| vultur-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| insult-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
 
       # --- Builds (only what changed) ---
 
@@ -147,11 +147,11 @@ jobs:
             --image vultur-gateway:${{ env.NEW_SHA }} --image vultur-gateway:latest \
             --file Dockerfile.gateway .
 
-      - name: Build insult-runner image
+      - name: Build persona-runner image
         if: ${{ steps.detect.outputs.build_runner == 'true' }}
         run: |
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image insult-runner:${{ env.NEW_SHA }} --image insult-runner:latest \
+            --image persona-runner:${{ env.NEW_SHA }} --image persona-runner:latest \
             --file infra/azure/runner.Dockerfile .
 
       # --- Deploys (only what was rebuilt) ---
@@ -183,12 +183,12 @@ jobs:
           az containerapp update --name vultur-gateway --resource-group "$RG" \
             --image "$ACR/vultur-gateway:${{ env.NEW_SHA }}"
 
-      - name: Deploy insult-runner
+      - name: Deploy persona-runner
         if: ${{ steps.detect.outputs.build_runner == 'true' }}
         continue-on-error: true
         run: |
-          az containerapp update --name insult-runner --resource-group "$RG" \
-            --image "$ACR/insult-runner:${{ env.NEW_SHA }}"
+          az containerapp update --name persona-runner --resource-group "$RG" \
+            --image "$ACR/persona-runner:${{ env.NEW_SHA }}"
 
       - name: Verify discord-bot health
         if: ${{ steps.detect.outputs.build_bot == 'true' }}
@@ -243,28 +243,28 @@ jobs:
             echo "INFO vultur-gateway: not yet provisioned, skipping health check"
           fi
 
-      - name: Verify insult-runner health
+      - name: Verify persona-runner health
         if: ${{ steps.detect.outputs.build_runner == 'true' }}
         run: |
-          if az containerapp show -n insult-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
-            az containerapp show -n insult-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
-            RUNNER_LOGS=$(az containerapp logs show -n insult-runner -g "$RG" --tail 15 2>&1 || true)
+          if az containerapp show -n persona-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n persona-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
+            RUNNER_LOGS=$(az containerapp logs show -n persona-runner -g "$RG" --tail 15 2>&1 || true)
             echo "$RUNNER_LOGS" | tail -10
 
-            FQDN="insult-runner.nicecliff-10074f57.eastus.azurecontainerapps.io"
+            FQDN="persona-runner.greendune-53f1f4af.eastus2.azurecontainerapps.io"
             TOKEN=$(az containerapp secret show \
-              -n insult-runner -g "$RG" \
+              -n persona-runner -g "$RG" \
               --secret-name insult-agent-runner-token \
               --query value -o tsv 2>/dev/null || echo "")
 
             HEALTH=$(curl -sS -m 15 "https://$FQDN/health" 2>&1 || echo "{}")
             echo "health: $HEALTH"
             if ! echo "$HEALTH" | grep -q '"auth_configured":true'; then
-              echo "FAIL insult-runner: auth_configured!=true in /health"
+              echo "FAIL persona-runner: auth_configured!=true in /health"
               exit 1
             fi
             if ! echo "$HEALTH" | grep -q '"claude_md_present":true'; then
-              echo "FAIL insult-runner: claude_md_present!=true in /health"
+              echo "FAIL persona-runner: claude_md_present!=true in /health"
               exit 1
             fi
 
@@ -274,10 +274,10 @@ jobs:
                 -H "Authorization: Bearer $TOKEN" 2>&1 || echo "{}")
               echo "reset: $RESET"
               if ! echo "$RESET" | grep -q '"existed":false'; then
-                echo "FAIL insult-runner: DELETE /v1/session returned unexpected shape"
+                echo "FAIL persona-runner: DELETE /v1/session returned unexpected shape"
                 exit 1
               fi
-              echo "OK insult-runner: /health + DELETE /v1/session both green"
+              echo "OK persona-runner: /health + DELETE /v1/session both green"
 
               # REAL /v1/turn — the only check that proves the agent loop serves
               # (the ModuleNotFoundError COPY-gap that 502'd 2026-06-16 was invisible
@@ -294,7 +294,7 @@ jobs:
                 CODE=$(echo "$BODY" | grep -o 'HTTP_CODE:[0-9]*' | cut -d: -f2)
                 echo "turn attempt $attempt -> HTTP $CODE"
                 if echo "$BODY" | grep -qiE "ModuleNotFoundError|No module named"; then
-                  echo "FAIL insult-runner: agent loop ModuleNotFoundError — broken image deploy"
+                  echo "FAIL persona-runner: agent loop ModuleNotFoundError — broken image deploy"
                   echo "$BODY" | head -5
                   curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
                     -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
@@ -308,15 +308,15 @@ jobs:
               curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
                 -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
               if [ -z "$TURN_OK" ]; then
-                echo "FAIL insult-runner: /v1/turn never returned a healthy 200 (agent loop down)"
+                echo "FAIL persona-runner: /v1/turn never returned a healthy 200 (agent loop down)"
                 exit 1
               fi
-              echo "OK insult-runner: real /v1/turn served — agent loop alive"
+              echo "OK persona-runner: real /v1/turn served — agent loop alive"
             else
-              echo "WARN insult-runner: token unavailable, skipping DELETE + turn checks"
+              echo "WARN persona-runner: token unavailable, skipping DELETE + turn checks"
             fi
           else
-            echo "INFO insult-runner: not yet provisioned, skipping health check"
+            echo "INFO persona-runner: not yet provisioned, skipping health check"
           fi
 
       - name: Nothing-to-deploy notice

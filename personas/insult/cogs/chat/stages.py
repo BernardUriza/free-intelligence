@@ -744,7 +744,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
 
                 guild_id = str(ctx.guild_id) if ctx.guild_id else None
                 fallover_reason = (
-                    f"FAILOVER: Insult (insult-runner) no respondió a este turno "
+                    f"FAILOVER: Insult (persona-runner) no respondió a este turno "
                     f"({type(e).__name__}). Toma tú el turn — responde directamente "
                     f"al último mensaje del usuario en este canal. No estás como "
                     f"compañera complementaria esta vez; estás como única voz que "
