@@ -38,11 +38,16 @@ export function resonanceCuePolicy(input: ResonanceCuePolicyInput): ResonanceCue
 
   const actions: ResonanceCueAction[] = [];
 
-  // Loop lifecycle keyed on STATE membership, not a single event.
-  if (previousState !== 'thinking' && nextState === 'thinking') {
+  // The thinking loop covers the whole PROCESSING phase — transcribing (STT)
+  // through thinking (agent) — so there's no silent gap after the user stops
+  // talking. Keyed on phase membership, so transcribing->thinking stays looping
+  // seamlessly (playLoop is idempotent) and only leaving the phase stops it.
+  const wasProcessing = previousState === 'transcribing' || previousState === 'thinking';
+  const isProcessing = nextState === 'transcribing' || nextState === 'thinking';
+  if (!wasProcessing && isProcessing) {
     actions.push({ type: 'playLoop', cue: 'thinking' });
   }
-  if (previousState === 'thinking' && nextState !== 'thinking') {
+  if (wasProcessing && !isProcessing) {
     actions.push({ type: 'stopLoop', cue: 'thinking' });
   }
 

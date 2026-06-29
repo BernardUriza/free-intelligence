@@ -21,8 +21,10 @@ describe('resonanceCuePolicy — invariant 1: no cue fires when it should not', 
     expect(p('listening', 'listening', 'user.speech.started')).toEqual([]);
   });
 
-  it('plays crystalline exactly once on user.speech.ended', () => {
+  it('plays crystalline AND starts the thinking loop on user.speech.ended', () => {
+    // user stops talking -> crystalline chime + the processing loop begins
     expect(p('listening', 'transcribing', 'user.speech.ended')).toEqual([
+      { type: 'playLoop', cue: 'thinking' },
       { type: 'playOnce', cue: 'crystalline' },
     ]);
   });
@@ -41,10 +43,11 @@ describe('resonanceCuePolicy — invariant 1: no cue fires when it should not', 
 });
 
 describe('resonanceCuePolicy — invariant 2: thinking loop can never hang', () => {
-  it('starts the loop only on ENTERING thinking', () => {
-    expect(p('transcribing', 'thinking', 'stt.completed')).toEqual([
-      { type: 'playLoop', cue: 'thinking' },
-    ]);
+  it('loop spans the whole processing phase: starts at transcribing, no gap into thinking', () => {
+    // starts when entering transcribing (from listening)
+    expect(p('listening', 'transcribing', 'user.speech.ended')).toContainEqual({ type: 'playLoop', cue: 'thinking' });
+    // does NOT restart crossing transcribing -> thinking (both are 'processing')
+    expect(p('transcribing', 'thinking', 'stt.completed')).toEqual([]);
   });
 
   it('does NOT restart the loop while staying in thinking', () => {

@@ -15,22 +15,22 @@ describe('resonanceCueController', () => {
   it('starts the thinking loop once on entering thinking', () => {
     const player = mockPlayer();
     const c = createResonanceCueController(player);
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
     expect(player.playLoop).toHaveBeenCalledExactlyOnceWith('thinking');
   });
 
   it('playLoop is idempotent — a repeated enter-thinking does not stack sources', () => {
     const player = mockPlayer();
     const c = createResonanceCueController(player);
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
     expect(player.playLoop).toHaveBeenCalledTimes(1);
   });
 
   it('stops the loop on exit and clears it from active loops', () => {
     const player = mockPlayer();
     const c = createResonanceCueController(player);
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
     c.applyTransition({ previousState: 'thinking', nextState: 'speaking', event: 'assistant.speech.started' });
     expect(player.stopLoop).toHaveBeenCalledExactlyOnceWith('thinking');
     // stopLoop again with no active loop is a no-op (best-effort)
@@ -68,13 +68,13 @@ describe('resonanceCueController', () => {
   it('stopAll on call.ended clears active loops; calling stopAll again is safe', () => {
     const player = mockPlayer();
     const c = createResonanceCueController(player);
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
     c.applyTransition({ previousState: 'thinking', nextState: 'ended', event: 'call.ended' });
     expect(player.stopAll).toHaveBeenCalledTimes(1);
     c.stopAll();
     expect(player.stopAll).toHaveBeenCalledTimes(2); // idempotent, no throw
     // after teardown a fresh enter-thinking still works (loop was cleared)
-    c.applyTransition({ previousState: 'transcribing', nextState: 'thinking', event: 'stt.completed' });
+    c.applyTransition({ previousState: 'listening', nextState: 'transcribing', event: 'user.speech.ended' });
     expect(player.playLoop).toHaveBeenCalledTimes(2);
   });
 

@@ -2864,10 +2864,12 @@ function resonanceCuePolicy(input) {
     return [{ type: "stopAll" }];
   }
   const actions = [];
-  if (previousState !== "thinking" && nextState === "thinking") {
+  const wasProcessing = previousState === "transcribing" || previousState === "thinking";
+  const isProcessing = nextState === "transcribing" || nextState === "thinking";
+  if (!wasProcessing && isProcessing) {
     actions.push({ type: "playLoop", cue: "thinking" });
   }
-  if (previousState === "thinking" && nextState !== "thinking") {
+  if (wasProcessing && !isProcessing) {
     actions.push({ type: "stopLoop", cue: "thinking" });
   }
   if (event === "user.speech.ended") actions.push({ type: "playOnce", cue: "crystalline" });
