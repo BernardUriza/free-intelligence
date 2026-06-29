@@ -116,3 +116,33 @@ export {
 // B3-VOICE-FIGLASS-18: segmented-pause WAV splicing. Exposed because any shell
 // that records same-format PCM WAV in stretches can reuse the merge.
 export { mergeWavBlobs } from './wav';
+
+// RESONANCE: hands-free continuous voice-call mode. The verified headless core
+// (FSM + effects + controller) plus the React wrapper that binds real adapters.
+export {
+  RESONANCE_INITIAL_STATE,
+  resonanceCallReducer,
+  isTerminal as isResonanceTerminal,
+  type ResonanceCallState,
+  type ResonanceCallEvent,
+} from './resonanceCallMachine';
+export {
+  effectForState,
+  dispatchEffect,
+  type ResonanceEffect,
+  type ResonanceDriver,
+} from './resonanceEffects';
+export {
+  createResonanceCallController,
+  type ResonanceCallController,
+  type ResonanceControllerHooks,
+} from './resonanceCallController';
+export {
+  useResonanceCallLoop,
+  type UseResonanceCallLoopParams,
+  type UseResonanceCallLoopReturn,
+  type ResonanceCallAdapters,
+  type ResonanceSilencePolicy,
+  type ResonanceSleepPolicy,
+  type ResonanceBargeInPolicy,
+} from './useResonanceCallLoop';
