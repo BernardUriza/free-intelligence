@@ -22,6 +22,8 @@ export interface AudioCuePlayerOptions {
 
 export interface AudioCuePlayer extends ResonanceCuePlayer {
   preload: () => Promise<void>;
+  /** Resume the AudioContext from a user gesture (the call button). Returns the state. */
+  resume: () => Promise<string>;
   dispose: () => void;
 }
 
@@ -90,6 +92,11 @@ export function createAudioCuePlayer(
 
   return {
     preload,
+    resume: async () => {
+      const c = ensureContext();
+      if (c && c.state === 'suspended') await c.resume();
+      return c?.state ?? 'none';
+    },
     playOnce: (cue) => {
       const src = source(cue, false);
       if (!src) return;

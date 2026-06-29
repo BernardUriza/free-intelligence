@@ -3183,6 +3183,10 @@ function createResonanceCallController(driver, hooks = {}) {
     events: () => [...log2],
     send,
     startCall: () => {
+      state = RESONANCE_INITIAL_STATE;
+      transcript = void 0;
+      assistantText = void 0;
+      log2.length = 0;
       send("call.started");
     },
     micOpened: () => {
@@ -3434,6 +3438,11 @@ function createAudioCuePlayer(assets, options = {}) {
   }
   return {
     preload,
+    resume: async () => {
+      const c = ensureContext();
+      if (c && c.state === "suspended") await c.resume();
+      return c?.state ?? "none";
+    },
     playOnce: (cue) => {
       const src = source(cue, false);
       if (!src) return;
@@ -3655,8 +3664,9 @@ function useResonanceCallLoop(params) {
     if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
     gate.reset();
     cueController?.reset();
+    void cuePlayer?.resume();
     controller.startCall();
-  }, [enabled, debug, controller, gate, cueController]);
+  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
   const endCall = useCallback8(() => {
     controller.endCall();
   }, [controller]);

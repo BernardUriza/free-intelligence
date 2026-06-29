@@ -288,8 +288,9 @@ export function useResonanceCallLoop(
     if (debug && typeof window !== 'undefined') window.__RESONANCE_EVENTS__ = [];
     gate.reset();
     cueController?.reset();
+    void cuePlayer?.resume(); // startCall is a user gesture -> unsuspend the cue AudioContext
     controller.startCall();
-  }, [enabled, debug, controller, gate, cueController]);
+  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
 
   const endCall = useCallback(() => { controller.endCall(); }, [controller]);
   const interrupt = useCallback(() => { controller.interrupt(); }, [controller]);

@@ -89,15 +89,19 @@ describe('resonanceCallController', () => {
     expect(driver.endCall).toHaveBeenCalledTimes(1);
   });
 
-  it('endCall from any state hangs up, and ended ignores further signals', () => {
+  it('endCall hangs up; ended ignores in-call signals (but startCall restarts)', () => {
     const driver = mockDriver();
     const c = createResonanceCallController(driver);
     c.startCall();
     c.endCall();
     expect(c.state()).toBe('ended');
-    c.startCall();             // ignored
-    c.userSpeechStarted();     // ignored
+    // in-call signals are ignored once ended...
+    c.userSpeechStarted();
+    c.sttCompleted('x');
     expect(c.state()).toBe('ended');
+    // ...but startCall is the explicit new-session entrypoint and restarts.
+    c.startCall();
+    expect(c.state()).toBe('listening');
   });
 
   it('failRecoverable from transcribing recovers to listening (STT hiccup)', () => {
@@ -125,6 +129,21 @@ describe('resonanceCallController', () => {
     const c = createResonanceCallController(driver);
     c.failRecoverable();
     expect(c.state()).toBe('idle');
+  });
+
+  it('can RESTART after a call ended — startCall resets the terminal state', () => {
+    const driver = mockDriver();
+    const c = createResonanceCallController(driver);
+    c.startCall();
+    c.endCall();
+    expect(c.state()).toBe('ended');
+    // second call on the SAME controller must work (ended is terminal otherwise)
+    c.startCall();
+    expect(c.state()).toBe('listening');
+    expect(driver.openMic).toHaveBeenCalledTimes(2);
+    // a full turn still flows after the restart
+    c.userSpeechEnded();
+    expect(c.state()).toBe('transcribing');
   });
 
   it('emits onState / onEvent observers and records the event log', () => {

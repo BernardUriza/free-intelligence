@@ -78,7 +78,16 @@ export function createResonanceCallController(
     lastAssistantText: () => assistantText,
     events: () => [...log],
     send,
-    startCall: () => { send('call.started'); },
+    startCall: () => {
+      // A controller is reused across calls, but 'ended' is terminal — so a fresh
+      // call must reset the session first, otherwise send('call.started') is a
+      // no-op on a previously-ended controller and the button goes dead.
+      state = RESONANCE_INITIAL_STATE;
+      transcript = undefined;
+      assistantText = undefined;
+      log.length = 0;
+      send('call.started');
+    },
     micOpened: () => { send('mic.opened'); },
     userSpeechStarted: () => { send('user.speech.started'); },
     userSpeechEnded: () => { send('user.speech.ended'); },

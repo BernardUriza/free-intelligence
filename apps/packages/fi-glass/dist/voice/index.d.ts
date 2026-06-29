@@ -983,6 +983,8 @@ interface AudioCuePlayerOptions {
 }
 interface AudioCuePlayer extends ResonanceCuePlayer {
     preload: () => Promise<void>;
+    /** Resume the AudioContext from a user gesture (the call button). Returns the state. */
+    resume: () => Promise<string>;
     dispose: () => void;
 }
 declare function createAudioCuePlayer(assets: AudioCueAssets, options?: AudioCuePlayerOptions): AudioCuePlayer;
