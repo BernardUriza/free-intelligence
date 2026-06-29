@@ -341,24 +341,27 @@
     </div>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">og118 responde preguntas generales con la misma calidad que ChatGPT</div>
-      <div class="item-note">Modelo actual: verificar cuál está detrás del backend ACA</div></div>
+      <div class="item-note">OPEN (juicio humano). RECONCILE 2026-06-28: chat streaming verificado live en staging.og118.ai (GATE4-CUTOVER-READINESS #2, 2026-06-28: turn enviado → respuesta real, persona concisa). Modelo = Claude vía CLAUDE_CODE_OAUTH_TOKEN. "Misma calidad que ChatGPT" sigue siendo veredicto de daily-driver humano de Bernard, no medible headless.</div></div>
       <span class="item-tag">DD-001</span></label>
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">Dictado por voz → texto en composer → enviar → respuesta con TTS → flujo completo</div>
-      <div class="item-note">El bucle que reemplaza la conversación de voz con ChatGPT</div></div>
+      <div class="item-note">OPEN — BLOQUEADO. RECONCILE 2026-06-28: el lazo completo no puede pasar porque STT y TTS upstream siguen en 404/502 (ver qa-stt-502 + qa-tts-502, los 2 P1 supervivientes). La mitad cliente (captura/visualizer/draft/playback local) sí pasa (qa-pass-voicecapture). Se desbloquea al wirear el gateway susurro.</div></div>
       <span class="item-tag">DD-voice</span></label>
 
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Contexto largo funciona (Bernard lleva sesiones largas de trabajo con el coagent)</div></div>
+      <div class="item-body"><div class="item-text">Contexto largo funciona (Bernard lleva sesiones largas de trabajo con el coagent)</div>
+      <div class="item-note">OPEN. RECONCILE 2026-06-28: continuidad multi-turn verificada (qa-pass-continuity, client-sent history #260), pero "sesión larga real" sigue siendo smoke humano de daily-driver, no corrido.</div></div>
       <span class="item-tag">DD-context</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Sidebar de conversaciones: fácil crear / cambiar / borrar threads</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Sidebar de conversaciones: fácil crear / cambiar / borrar threads</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28: crear (new chat) + cambiar (lista del sidebar) + rename inline verificados live en staging (qa-pass-rename, 2026-06-27) + GATE4 #14 (renameConversation existe). Primitivas fi-glass AgentSidebarSection/sidebar-item (#284/#285/#286). Persistencia identity-scoped IndexedDB (#276, qa-pass-persist).</div></div>
       <span class="item-tag">DD-nav</span></label>
 
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Acceso desde móvil (Capacitor / browser móvil) sin regresiones</div></div>
+      <div class="item-body"><div class="item-text">Acceso desde móvil (Capacitor / browser móvil) sin regresiones</div>
+      <div class="item-note">OPEN. RECONCILE 2026-06-28: GATE4 #16 = 🔵 needs a real device — superficie de Bernard, no verificable headless. Pendiente además B3-OG118-MOBILE-1 (sidebar responsive collapse).</div></div>
       <span class="item-tag">DD-mobile</span></label>
   </div>
 
@@ -366,20 +369,21 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">fi-glass — Primitivas que og118 aún no empuja al framework</span>
-      <span class="section-badge badge-pending">PENDIENTE DAILYDRIVER</span>
+      <span class="section-badge badge-done">RESUELTO — las 3 ya en framework</span>
     </div>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Post-transcription lifecycle: ¿clearTranscribed() debe ser automático o manual?</div>
-      <div class="item-note">Subir el contrato al framework si es reutilizable</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Post-transcription lifecycle: ¿clearTranscribed() debe ser automático o manual?</div>
+      <div class="item-note">RESUELTO. RECONCILE 2026-06-28: cerrado por B3-VOICE-FIGLASS-19 / PR #244 (merge 71fcb7c8, en main): al transcribir el artifact NO se borra — pasa a estado archivado "enviado al chat". El contrato del lifecycle vive en el framework, no parchado en og118.</div></div>
       <span class="item-tag">figlass-queue</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Accessibility: form field sin id/name (warning actual) → fix en fi-glass AutoResizeTextarea</div>
-      <div class="item-note">Issue: textarea sin `id` ni `name` en el composer</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Accessibility: form field sin id/name (warning actual) → fix en fi-glass AutoResizeTextarea</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28: B3-FIGLASS-A11Y-1 / commit 24cc558a (en main) — AutoResizeTextarea ahora rinde id={resolvedId} + name={resolvedName} (useId fallback) en composer/AutoResizeTextarea.tsx:123-124. Duplicado con qa-a11y-field (QA sweep) — colapsado: misma causa, mismo fix. Pendiente solo re-check de consola live (Auth0-gated, no corrido).</div></div>
       <span class="item-tag">figlass-a11y</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">composerAppend/micSlotOverride: Gatekeeper marcó que deben ser genéricos — auditar si son consumer-specific o reusable</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">composerAppend/micSlotOverride: Gatekeeper marcó que deben ser genéricos — auditar si son consumer-specific o reusable</div>
+      <div class="item-note">RESUELTO (auditado). RECONCILE 2026-06-28: ambos YA son props genéricos del componente de framework fi-glass AgentConversationSurface (agent/AgentConversationSurface.tsx:189-199 composerAppend?:string + onComposerAppendConsumed + micSlotOverride?:ReactNode), no código consumer. og118 los pasa; cualquier shell los hereda. El contrato reusable ya subió al framework.</div></div>
       <span class="item-tag">figlass-contract</span></label>
   </div>
 
@@ -474,7 +478,89 @@
       <span class="item-tag">proj-account</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19</footer>
+  <!-- QA STRESS TEST 2026-06-27 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">QA stress test — staging full-feature sweep (2026-06-27)</span>
+      <span class="section-badge badge-pending">2 P1 · 3 P2 PENDIENTES (reconciliado 2026-06-28)</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P1] TTS "Escuchar (Nova)" broken — /tts/synthesize returns 502, upstream Azure OpenAI provider returns 404</div>
+      <div class="item-note">OPEN — P1 SUPERVIVIENTE. RECONCILE 2026-06-28 (verificado, no asumido): NO existe commit de fix en main (git log desde #289: cero commits tts/stt/voice/susurro/gateway). El código tts.py solo lee OG118_TTS_ENDPOINT/_DEPLOYMENT del entorno — el fix sería deploy-time (vars/secrets GitHub + ACA apuntando al gateway susurro sus.bernarduriza.com), NO verificable desde el repo. La doc más fresca lo contradice: GATE4-CUTOVER-READINESS.md #12 = ⬜ "needs the susurro gateway live (cloud vars); probe on staging". Live smoke NO corrido (Auth0-gated). El hint de memoria "ya arreglado por el gateway" NO está corroborado — sigue ABIERTO. Diagnóstico original (404 upstream, no MIME) intacto.</div></div>
+      <span class="item-tag">qa-tts-502</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P1] STT "Transcribir" broken — /stt/transcribe returns 502, upstream provider returns 404 (NOT a MIME bug)</div>
+      <div class="item-note">OPEN — P1 SUPERVIVIENTE. RECONCILE 2026-06-28: misma causa raíz que qa-tts-502 — sin fix en main, config por env (OG118_STT_ENDPOINT/_DEPLOYMENT, stt.py:152-154), GATE4-CUTOVER-READINESS.md #13 = ⬜ pendiente probe del gateway susurro. Live smoke NO corrido (Auth0-gated). El hint de memoria NO está corroborado. La hipótesis MIME (webm vs wav) sigue REFUTADA — el WAV llega bien; el 404 es del deployment Whisper upstream.</div></div>
+      <span class="item-tag">qa-stt-502</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] Glass-box reasoning not persisted in the transcript — the product differentiator vanishes after each turn</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28 (receipt): cerrado por B3-FIGLASS-TRACE-PERSISTENCE-1 / PR #289 (merge 85c6bfea, merged 2026-06-27, en main). Code receipt verificado en el árbol: free-intelligence-core/src/chat/message.ts (interface MessageTrace + ChatMessage.trace) + agent/transcript.ts (snapshotTrace al foldear el turno) + fi-glass agent/AgentConversationSurface.tsx (persistedTraceTurn re-renderiza el mismo AgentPanel del turno vivo bajo cada mensaje foldeado). sanitize preserva trace, dropea metadata (privacy boundary). GATE4 #7 = ✅ "verified live". La metadata sigue dropeada a propósito.</div></div>
+      <span class="item-tag">qa-glassbox-trace</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] No file-upload affordance exists in the UI — Projects RAG corpus is unreachable / permanently empty</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28 (receipt): cerrado por PROJECTS-DOCS-E2E / PR #290 (merge d4fddf99, merged 2026-06-28, en main). Code receipt verificado: og118/web/components/Og118ProjectsSection.tsx:114-133 monta el botón "+ Subir archivo (.txt / .md)" + ChatFilePreview (status/progress/error) + feedback "Indexado · N fragmentos"; transporte og118/web/lib/useOg118ProjectUpload.ts (file picker app-owned). Consume el primitivo especulativo fi-glass ChatFilePreview + UploadStatus (proj-glass). Smoke E2E (GATE4 #4): catalogo.txt → "Indexado · 1 fragmento" + RAG #5: search_documents → "$47 pesos" (dato solo en el doc). Deploy a staging integrado pendiente de re-probe pero el fix está en main con smoke observable.</div></div>
+      <span class="item-tag">qa-upload-ui</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P2] Project creation uses native window.prompt() — inconsistent with the polished inline rename</div>
+      <div class="item-note">OPEN. RECONCILE 2026-06-28 (verificado): sigue presente — Og118ProjectsSection.tsx:60 usa window.prompt('Nombre del proyecto…'). Sin fix. Unificar con el inline-edit estilizado del rename.</div></div>
+      <span class="item-tag">qa-prompt-native</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P2] Stale legacy global localStorage key og118.projects = [] lingers beside the identity-scoped key</div>
+      <div class="item-note">OPEN. RECONCILE 2026-06-28 (verificado): el scoping por identidad sí está (useOg118Projects.ts usa scopedStoreName(PROJECTS_KEY_BASE='og118.projects', userId), #276), pero NO hay cleanup/migración que retire la global legacy og118.projects=[] (removeItem solo del activeKey). Sigue como residuo. NOTA: #292 hizo Projects server-owned, lo que vuelve la global aún más vestigial — barrerla o migrarla.</div></div>
+      <span class="item-tag">qa-stale-localstorage</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P2] Deprecated ScriptProcessorNode used by the voice visualizer (console deprecation warning)</div>
+      <div class="item-note">OPEN (atribución corregida). RECONCILE 2026-06-28 (verificado): grep de ScriptProcessorNode/createScriptProcessor en fi-glass + og118 = VACÍO — el visualizer fi-glass usa AnalyserNode (voice/useAudioAnalysis.ts: createAnalyser + getByteFrequencyData), no ScriptProcessor. El warning probablemente proviene de la lib de grabación (RecordRTC) internamente, NO del código del visualizer. Sin fix landed y sin re-check de consola live (Auth0-gated) → se mantiene OPEN, pero el plan "migrar el visualizer a AudioWorkletNode" está mal dirigido: el visualizer ya no usa ScriptProcessor.</div></div>
+      <span class="item-tag">qa-scriptprocessor</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] A11y: composer form field without id/name (console warning during recording)</div>
+      <div class="item-note">DONE — duplicado colapsado. RECONCILE 2026-06-28: misma causa y mismo fix que figlass-a11y (sección fi-glass arriba). Cerrado por B3-FIGLASS-A11Y-1 / commit 24cc558a (en main): AutoResizeTextarea.tsx:123-124 rinde id/name (useId fallback). No se doble-cuenta. Pendiente solo re-check de consola live (Auth0-gated).</div></div>
+      <span class="item-tag">qa-a11y-field</span></label>
+  </div>
+
+  <!-- QA STRESS TEST — VERIFIED PASSING -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">QA stress test — verified passing on staging (2026-06-27)</span>
+      <span class="section-badge badge-done">PASS — receipts en DevTools</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Auth0 Google login + JWT (aud=https://api.og118.ai) + allowlist (bernarduriza@) — session active, roles present</div></div>
+      <span class="item-tag">qa-pass-auth</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Auth0 silent-auth on hard reload — refresh token, no re-login prompt (fix a9ec3bc6 holds)</div></div>
+      <span class="item-tag">qa-pass-silentauth</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Agentic chat streaming — /chat/stream 200, SSE turn renders, concise persona</div></div>
+      <span class="item-tag">qa-pass-chat</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Multi-turn continuity — "4729 / turquesa" recalled across turns (client-sent history, #260)</div></div>
+      <span class="item-tag">qa-pass-continuity</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">RAG plumbing end-to-end at protocol level — corpus_id bound, agent tool-calls the corpus, honest empty answer (corpus unpopulatable only because of qa-upload-ui)</div></div>
+      <span class="item-tag">qa-pass-ragwire</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Conversation persistence across reload — IndexedDB durable, identity-scoped (#276)</div></div>
+      <span class="item-tag">qa-pass-persist</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Conversation inline rename + sidebar list + new chat lifecycle</div></div>
+      <span class="item-tag">qa-pass-rename</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Voice capture / live visualizer / draft artifact / local playback / IndexedDB queue (client-side half — only STT+TTS upstream are broken)</div></div>
+      <span class="item-tag">qa-pass-voicecapture</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Console clean during chat — the only runtime errors come from the broken voice endpoints (qa-tts-502 / qa-stt-502)</div></div>
+      <span class="item-tag">qa-pass-console</span></label>
+  </div>
+
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1): glass-box trace #289 + upload UI #290 + a11y 24cc558a + clearTranscribed #244 CERRADOS con receipt; P1 supervivientes = qa-tts-502 + qa-stt-502 (sin fix en main, gateway susurro pendiente)</footer>
 </div>
 
 <script>
