@@ -125,5 +125,12 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
     streamRef.current?.getTracks().forEach((t) => t.stop());
   }, []);
 
-  return loop;
+  // Visual feedback shares the SAME analyser the VAD gate reads — one mic, one
+  // useAudioAnalysis. The call bar's equalizer is a passive consumer of these
+  // bands, so Bernard can see whether Resonance is actually hearing him.
+  return {
+    ...loop,
+    bands: analysis.bands,
+    isHearingUser: loop.isListening && !analysis.isSilent,
+  };
 }

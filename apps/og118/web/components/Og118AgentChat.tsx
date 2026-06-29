@@ -34,7 +34,7 @@ import {
   useConversationLibrary,
   useIndexedDBConversationLibrary,
 } from 'fi-glass/conversation';
-import { useAudioQueueStore } from 'fi-glass/voice';
+import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { useOg118Identity } from '@/lib/og118Identity';
@@ -60,6 +60,24 @@ function readResonanceFlag(): boolean {
   const p = new URLSearchParams(window.location.search);
   if (p.get('resonance') === '1' || p.get('RESONANCE_CALL_LOOP') === '1') return true;
   return window.localStorage.getItem('RESONANCE_CALL_LOOP') === '1';
+}
+
+// Per-state copy + whether the equalizer shows live mic input. Live in
+// listening/speaking/silence_hold (mic open); dimmed while we process so Bernard
+// never mistakes "processing" for "still hearing you".
+const RESONANCE_LABEL: Record<string, string> = {
+  idle: 'Llamar (Resonance)',
+  listening: 'Escuchando…',
+  transcribing: 'Transcribiendo…',
+  thinking: 'Pensando…',
+  speaking: 'Hablando — puedes interrumpir',
+  interrupted: 'Te oigo — interrumpiendo',
+  silence_hold: 'Sigo aquí',
+  sleep_decay: 'Bajando volumen…',
+  ended: 'Llamada finalizada',
+};
+function resonanceVisualizerActive(state: string): boolean {
+  return state === 'listening' || state === 'speaking' || state === 'silence_hold';
 }
 
 export function Og118AgentChat() {
@@ -237,10 +255,20 @@ export function Og118AgentChat() {
                     data-ref="og118-resonance-call"
                     onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
                   >
-                    {resonance.isActive ? 'Colgar Resonance' : 'Llamar (Resonance)'}
+                    {resonance.isActive ? 'Colgar' : 'Llamar (Resonance)'}
                   </button>
+                  {resonance.isActive && (
+                    <AudioVisualizer
+                      levels={resonance.bands}
+                      active={resonanceVisualizerActive(resonance.state)}
+                      variant="bars"
+                      label="Nivel de tu voz"
+                      className="og-resonance-visualizer"
+                      barClassName="og-voice-bar-bar"
+                    />
+                  )}
                   <span className="og-resonance-state" data-ref="og118-resonance-state">
-                    {resonance.state}
+                    {resonance.isHearingUser ? 'Te oigo' : (RESONANCE_LABEL[resonance.state] ?? resonance.state)}
                   </span>
                 </div>
               )}

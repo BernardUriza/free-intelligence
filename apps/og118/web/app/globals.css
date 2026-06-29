@@ -130,11 +130,20 @@ body {
 .og-resonance-call-btn:hover {
   box-shadow: 0 3px 14px rgba(5, 150, 105, 0.4);
 }
+.og-resonance-visualizer {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  min-width: 80px;
+  flex: 1;
+}
 .og-resonance-state {
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--og-accent-muted, #a3a3a3);
+  white-space: nowrap;
 }
 .og-voice-player {
   display: flex;
