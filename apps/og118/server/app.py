@@ -154,6 +154,10 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
     el = get_registry().resolve(element_token)
     if el is None or not el.is_active:
         return _runner, None
+    # External elements run on a remote engine (the chat_stream external branch),
+    # so no local runner is built — return the base runner as an unused placeholder.
+    if el.engine_binding is not None and el.engine_binding.is_external:
+        return _runner, el
     cached = _element_runners.get(el.id)
     if cached is None:
         cached = build_runner(persona_text=get_registry().composed_persona(el))
