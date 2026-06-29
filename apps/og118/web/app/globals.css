@@ -101,6 +101,41 @@ body {
   background: rgba(10, 14, 22, 0.4);
   backdrop-filter: blur(var(--glass-blur, 12px));
 }
+.og-resonance-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(52, 211, 153, 0.18);
+  background: rgba(10, 14, 22, 0.4);
+  backdrop-filter: blur(var(--glass-blur, 12px));
+}
+.og-resonance-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #052e1a;
+  background: linear-gradient(135deg, var(--og-accent, #34d399), #059669);
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.25);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.og-resonance-call-btn:hover {
+  box-shadow: 0 3px 14px rgba(5, 150, 105, 0.4);
+}
+.og-resonance-state {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--og-accent-muted, #a3a3a3);
+}
 .og-voice-player {
   display: flex;
   align-items: center;
