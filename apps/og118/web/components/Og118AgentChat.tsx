@@ -44,7 +44,7 @@ import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
-import { Og118ElementSelector, Og118ElementIndicator } from './Og118ElementSelector';
+import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
@@ -170,7 +170,7 @@ export function Og118AgentChat() {
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
-        <Og118ElementIndicator element={activeElement} />
+        <Og118ActiveElementStrip element={activeElement} />
         <Og118ProjectsSection
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}

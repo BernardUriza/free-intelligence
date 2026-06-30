@@ -18,7 +18,6 @@
  */
 
 import { PersonaSelector } from 'fi-glass/persona-selector';
-import { AgentSidebarSection } from 'fi-glass/agent';
 import type { Og118Element } from '../lib/og118Element';
 
 export interface Og118ElementSelectorProps {
@@ -48,7 +47,7 @@ function atomicBadge(el: Og118Element, selected: boolean) {
 /** The engine/persona chip (Vultur / ALICE / Insult) — real registry data. */
 function engineChip(engine: string) {
   return (
-    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-mono border border-emerald-500/30 bg-emerald-500/10 text-emerald-200">
+    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] leading-none font-mono border border-emerald-500/30 bg-emerald-500/10 text-emerald-200">
       {engine}
     </span>
   );
@@ -101,17 +100,22 @@ export function Og118ElementSelector({
 }
 
 /**
- * Og118ElementIndicator — the sidebar's read-only summary of the active element
- * (COMPOSER-SWITCH-1: the sidebar shows state, the composer owns the control).
+ * Og118ActiveElementStrip — the sidebar's read-only status of the active element
+ * (COMPOSER-SWITCH-1: the composer owns the control, the sidebar shows ambient
+ * state). A single fixed-height line — badge · name · engine chip — that never
+ * wraps and truncates the name, so it can't clip its slot the way a full
+ * AgentSidebarSection card did. The "Elemento activo" label lives in aria-label,
+ * not in visual height (ELEMENTS-STRIP-1, per the coagent's status-strip verdict).
  */
-export function Og118ElementIndicator({ element }: { element?: Og118Element }) {
+export function Og118ActiveElementStrip({ element }: { element?: Og118Element }) {
   return (
-    <AgentSidebarSection title="Elemento activo" count={1} ariaLabel="Elemento activo">
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-200">
-        {element ? atomicBadge(element, true) : null}
-        <span className="truncate">{element ? element.displayName : 'og118 (base)'}</span>
-        {element?.engine ? <span className="ml-auto">{engineChip(element.engine)}</span> : null}
-      </div>
-    </AgentSidebarSection>
+    <div
+      className="flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm text-slate-200"
+      aria-label="Elemento activo"
+    >
+      {element ? atomicBadge(element, true) : null}
+      <span className="truncate min-w-0">{element ? element.displayName : 'og118 (base)'}</span>
+      {element?.engine ? engineChip(element.engine) : null}
+    </div>
   );
 }
