@@ -578,4 +578,15 @@ async def upload_project_document(
     # min_chunk_size lowered from fi-core's default (100 TOKENS): papelería docs
     # (inventory lists, short notes) are short and would otherwise yield 0 chunks.
     chunks = await rag.ingest(project_id, doc_id, text, min_chunk_size=20)
+    if chunks == 0:
+        # Non-empty text that produced no chunks = below the chunker's floor (a
+        # one-line note). Nothing was indexed, so the doc is unsearchable. Fail
+        # LOUD instead of a silent 200 that looks ingested but answers nothing.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "TOO_SHORT_TO_INDEX",
+                "message": "document is too short to index; add more text and re-upload",
+            },
+        )
     return {"corpus_id": project_id, "doc_id": doc_id, "chunks": chunks}
