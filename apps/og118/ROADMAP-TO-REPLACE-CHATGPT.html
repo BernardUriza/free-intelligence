@@ -372,7 +372,7 @@
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">Dictado por voz → texto en composer → enviar → respuesta con TTS → flujo completo</div>
-      <div class="item-note">OPEN — BLOQUEADO. RECONCILE 2026-06-28: el lazo completo no puede pasar porque STT y TTS upstream siguen en 404/502 (ver qa-stt-502 + qa-tts-502, los 2 P1 supervivientes). La mitad cliente (captura/visualizer/draft/playback local) sí pasa (qa-pass-voicecapture). Se desbloquea al wirear el gateway susurro.</div></div>
+      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30: el gateway susurro YA está wireado y verificado vivo (ver qa-tts-502 + qa-stt-502: TTS 200 audio real, STT alcanza Whisper real). La mitad cliente (captura/visualizer/draft/playback local) ya pasa (qa-pass-voicecapture). El lazo completo resta SOLO del round-trip Auth0 por la UI de og118 + match del secret en ACA.</div></div>
       <span class="item-tag">DD-voice</span></label>
 
     <label class="item"><input type="checkbox">
@@ -512,12 +512,12 @@
     </div>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">[P1] TTS "Escuchar (Nova)" broken — /tts/synthesize returns 502, upstream Azure OpenAI provider returns 404</div>
-      <div class="item-note">OPEN — P1 SUPERVIVIENTE. RECONCILE 2026-06-28 (verificado, no asumido): NO existe commit de fix en main (git log desde #289: cero commits tts/stt/voice/susurro/gateway). El código tts.py solo lee OG118_TTS_ENDPOINT/_DEPLOYMENT del entorno — el fix sería deploy-time (vars/secrets GitHub + ACA apuntando al gateway susurro sus.bernarduriza.com), NO verificable desde el repo. La doc más fresca lo contradice: GATE4-CUTOVER-READINESS.md #12 = ⬜ "needs the susurro gateway live (cloud vars); probe on staging". Live smoke NO corrido (Auth0-gated). El hint de memoria "ya arreglado por el gateway" NO está corroborado — sigue ABIERTO. Diagnóstico original (404 upstream, no MIME) intacto.</div></div>
+      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30 (verificado vivo, no asumido): el diagnóstico "404 upstream / sin fix / no corroborado" del 06-28 está SUPERADO. La config deploy-time YA está completa: GitHub vars OG118_TTS_ENDPOINT=sus.bernarduriza.com + OG118_TTS_DEPLOYMENT=tts (set 06-27) + secret OG118_TTS_API_KEY (06-27); el CD (og118-backend.yml) los wirea a ACA merge-only y corrieron 6 deploys exitosos tras setearlos (#288…#301). Probe autenticado directo al gateway con la key og118 (~/.secrets/susurro-key-og118.txt): POST /openai/deployments/tts/audio/speech → 200, 31680 bytes de audio MPEG real. El gateway sirve la ruta (NO 404). Resta SOLO: (a) round-trip por la UI de og118 con sesión Auth0, (b) confirmar que el secret guardado en ACA == esta key (set el mismo día, riesgo bajo).</div></div>
       <span class="item-tag">qa-tts-502</span></label>
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">[P1] STT "Transcribir" broken — /stt/transcribe returns 502, upstream provider returns 404 (NOT a MIME bug)</div>
-      <div class="item-note">OPEN — P1 SUPERVIVIENTE. RECONCILE 2026-06-28: misma causa raíz que qa-tts-502 — sin fix en main, config por env (OG118_STT_ENDPOINT/_DEPLOYMENT, stt.py:152-154), GATE4-CUTOVER-READINESS.md #13 = ⬜ pendiente probe del gateway susurro. Live smoke NO corrido (Auth0-gated). El hint de memoria NO está corroborado. La hipótesis MIME (webm vs wav) sigue REFUTADA — el WAV llega bien; el 404 es del deployment Whisper upstream.</div></div>
+      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30 (verificado vivo): mismo desenlace que qa-tts-502. GitHub vars OG118_STT_ENDPOINT=sus.bernarduriza.com + OG118_STT_DEPLOYMENT=whisper + secret OG118_STT_API_KEY (set 06-27), wireados a ACA por el CD (6 deploys post-set). Probe autenticado al gateway con la key og118: POST /openai/deployments/whisper/audio/transcriptions → autentica y proxea al Whisper REAL en North Central US (respondió 429 RateLimitReached tier S0, transitorio — NO 404/config). La ruta existe y el upstream está vivo. La hipótesis MIME sigue REFUTADA. Resta SOLO el round-trip Auth0 por la UI + match de secret en ACA.</div></div>
       <span class="item-tag">qa-stt-502</span></label>
 
     <label class="item"><input type="checkbox" checked>
@@ -586,7 +586,7 @@
       <span class="item-tag">qa-pass-console</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1): glass-box trace #289 + upload UI #290 + a11y 24cc558a + clearTranscribed #244 CERRADOS con receipt; P1 supervivientes = qa-tts-502 + qa-stt-502 (sin fix en main, gateway susurro pendiente)</footer>
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1): glass-box trace #289 + upload UI #290 + a11y 24cc558a + clearTranscribed #244 CERRADOS con receipt; P1 supervivientes = qa-tts-502 + qa-stt-502 · UPDATE 2026-06-30: gateway susurro verificado vivo (TTS 200 / STT alcanza Whisper), resta solo round-trip Auth0 + match de secret en ACA</footer>
 </div>
 
 <script>
