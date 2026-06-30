@@ -86,11 +86,11 @@ export function Og118AgentChat() {
   // browser never see each other's conversations, audio drafts, or projects
   // (the shared-device leak fix). The hooks memoize per identity; a null userId
   // (bearer / legacy single-tenant) keeps the original shared store.
-  const { userId } = useOg118Identity();
+  const { userId, tokenReady } = useOg118Identity();
   const conversationLibrary = useIndexedDBConversationLibrary(userId);
   const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
-  const projects = useOg118Projects(userId);
+  const projects = useOg118Projects(userId, tokenReady);
   const elements = useOg118Elements(userId);
   const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);

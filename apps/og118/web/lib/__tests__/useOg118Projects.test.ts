@@ -19,6 +19,7 @@ let store: Map<string, SrvProject[]>;
 let mintCount: number;
 let lastCreateBody: unknown;
 let failNetwork: boolean;
+let getCount: number;
 
 function ownerOf(init?: RequestInit): string {
   const h = (init?.headers ?? {}) as Record<string, string>;
@@ -31,6 +32,7 @@ beforeEach(() => {
   mintCount = 0;
   lastCreateBody = null;
   failNetwork = false;
+  getCount = 0;
 
   vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
     if (failNetwork) throw new TypeError('network down');
@@ -39,6 +41,7 @@ beforeEach(() => {
     const method = (init.method ?? 'GET').toUpperCase();
 
     if (url.endsWith('/projects') && method === 'GET') {
+      getCount += 1;
       return { ok: true, json: async () => ({ projects: list }) } as Response;
     }
     if (url.endsWith('/projects') && method === 'POST') {
@@ -71,6 +74,28 @@ describe('useOg118Projects (PROJ-SYNC-1, server-owned)', () => {
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.projects).toEqual([]);
     expect(result.current.activeProjectId).toBeNull();
+  });
+
+  it('waits for tokenReady before the auth-gated GET (no 401 race)', async () => {
+    store.set('Bearer tok-late', [
+      { id: 'srv-late', name: 'Aparece tras el token', createdAt: '2026-01-01T00:00:00Z' },
+    ]);
+    localStorage.setItem('og118_access_token', 'tok-late');
+
+    const { result, rerender } = renderHook(
+      ({ ready }: { ready: boolean }) => useOg118Projects(null, ready),
+      { initialProps: { ready: false } },
+    );
+
+    // tokenReady=false: the mount fetch must NOT fire (that is the 401 race).
+    await waitFor(() => expect(result.current.ready).toBe(false));
+    expect(getCount).toBe(0);
+
+    // Token lands → tokenReady flips true → the effect re-runs and hydrates.
+    rerender({ ready: true });
+    await waitFor(() => expect(result.current.projects).toHaveLength(1));
+    expect(getCount).toBe(1);
+    expect(result.current.projects[0]).toMatchObject({ id: 'srv-late' });
   });
 
   it('hydrates from GET /projects (the server is the source of truth)', async () => {
