@@ -75,6 +75,16 @@ def test_empty_file_returns_400(client: TestClient) -> None:
     assert _upload(client, pid, "empty.md", "").status_code == 400
 
 
+def test_too_short_to_index_returns_422(client: TestClient) -> None:
+    # Non-empty text that the chunker drops below its floor (a one-liner) used to
+    # return 200 {"chunks": 0} — indexed nothing, searched nothing, no signal. Now
+    # it fails LOUD so a short upload can't masquerade as ingested.
+    pid = _create(client)
+    resp = _upload(client, pid, "nota.md", "Hola mundo")
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "TOO_SHORT_TO_INDEX"
+
+
 def test_non_utf8_file_returns_400(client: TestClient) -> None:
     pid = _create(client)
     resp = client.post(
@@ -90,7 +100,11 @@ def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None
     # No bearer → 401 even to create.
     assert client.post("/projects", json={"name": "p"}).status_code == 401
     pid = _create(client, "p", headers=hdr)
-    text = "La papelería vende cuadernos profesionales y mochilas escolares de buena calidad."
+    text = (
+        "La papelería vende cuadernos profesionales, lápices y mochilas escolares. "
+        "El margen más alto está en las mochilas y los estuches, no en los lápices. "
+        "En agosto suben los precios de los cuadernos por el regreso a clases."
+    )
     assert _upload(client, pid, "a.md", text).status_code == 401  # no bearer
     ok = _upload(client, pid, "a.md", text, headers=hdr)
     assert ok.status_code == 200
