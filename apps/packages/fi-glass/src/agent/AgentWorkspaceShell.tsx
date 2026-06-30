@@ -34,6 +34,7 @@ import {
 } from 'react';
 import { Menu } from 'lucide-react';
 import { useMediaQuery } from '../shell/useMediaQuery';
+import { useDensityStyle } from './densityStyle';
 
 export type AgentWorkspaceShellVisual = 'aurora' | 'midnight' | 'clinical';
 export type AgentWorkspaceShellDensity = 'compact' | 'comfortable' | 'spacious';
@@ -120,6 +121,7 @@ export function AgentWorkspaceShell({
   className,
   style,
 }: AgentWorkspaceShellProps) {
+  useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState(false);
 

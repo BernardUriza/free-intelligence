@@ -36,7 +36,7 @@ const CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--fi-section-head-gap, 0.5rem);
   padding: var(--fi-section-head-padding, 0.8rem 0.85rem 0.5rem);
   border-bottom: var(--fi-section-head-border, none);
 }
