@@ -1,7 +1,8 @@
 # B3-OG118-MOBILE-1 — Responsive shell / mobile drawer for og118
 
-Status: Proposed
+Status: Done
 Proposed: 2026-06-19 by Claude (DD-mobile read-only audit on og118 staging)
+Closed: 2026-06-30 by Claude — already shipped (B3-FIGLASS-MOBILE-1/2); verified live at 390×844.
 
 ## What it is
 
@@ -33,6 +34,21 @@ Classification of findings:
 
 ## Status / next step
 
-Not started — read-only audit only, per the coagent's instruction not to open the
-ticket yet. When prioritized: add the responsive drawer level to fi-glass
-`AgentWorkspaceShell`, then thin og118 onto it and re-smoke at 390×844.
+DONE (2026-06-30). The fix shipped exactly as the canonical path prescribed — the
+responsive drawer level lives in fi-glass `AgentWorkspaceShell` (props `responsive`,
+`mobileQuery` default `(max-width: 768px)`, `sidebarWidth`, `AgentWorkspaceShellApi`
+open/close/toggle), built on the `useMediaQuery`/`useBreakpoints` hooks. og118 opts in
+with `responsive` + a render-prop sidebar that calls `shell.close()` on selection
+(`Og118AgentChat.tsx`). Zero mobile layout hacked into the consumer (Art. 6 honored).
+
+Verified, not assumed (Art. 2):
+- Unit: `AgentWorkspaceShell.drawer.test.tsx` 5/5 green.
+- Live at 390×844 on staging.og118.ai (authenticated, Chrome DevTools):
+  - Closed: sidebar off-canvas (left −280), chat full width (composer 313px, no
+    one-word-per-line wrap), toggle button 44×44 (tap target ≥44px a11y met).
+  - Open (tap toggle): drawer slides in (left 0, width 280), overlay opacity 1, full
+    sidebar reachable (Proyectos + conversaciones).
+  - Close (tap overlay): drawer slides out (left −280).
+
+The original audit's broken state (sidebar eating 43%, ~101px composer) no longer
+reproduces.
