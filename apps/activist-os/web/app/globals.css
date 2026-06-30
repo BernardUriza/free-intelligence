@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fi-bg:             #07090f;
+  --fi-bg-elev:        #0b0e16;
+  --fi-surface:        rgba(255, 255, 255, 0.06);
+  --fi-surface-strong: rgba(255, 255, 255, 0.10);
+  --fi-border:         rgba(255, 255, 255, 0.14);
+  --fi-border-soft:    rgba(255, 255, 255, 0.08);
+  --fi-text:           rgba(255, 255, 255, 0.92);
+  --fi-muted:          rgba(255, 255, 255, 0.62);
+  --fi-faint:          rgba(255, 255, 255, 0.40);
+
+  --fi-accent:   #8b5cf6;
+  --fi-evidence: #38bdf8;
+  --fi-safety:   #f59e0b;
+  --fi-approved: #22c55e;
+  --fi-veto:     #ef4444;
+
+  --fi-radius-lg: 24px;
+  --fi-radius-md: 16px;
+  --fi-radius-sm: 10px;
+  --fi-blur:      20px;
+
+  --fi-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --fi-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--fi-bg);
+  color: var(--fi-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Shell backdrop ───────────────────────────────────────────────── */
+.fi-shell-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(60rem 60rem at 12% -10%, color-mix(in srgb, var(--fi-accent), transparent 86%), transparent 70%),
+    radial-gradient(50rem 50rem at 95% 0%, color-mix(in srgb, var(--fi-evidence), transparent 90%), transparent 70%),
+    radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--fi-accent), transparent 92%), transparent 70%);
+}
+
+/* Dampened backdrop: lower brightness overall, and a mask gradient that
+   quiets the field behind the reading surfaces (center) — the background
+   accompanies, it does not interrupt. */
+#synapse {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none; opacity: .6;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, rgba(0,0,0,.4) 0%, rgba(0,0,0,1) 78%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, rgba(0,0,0,.4) 0%, rgba(0,0,0,1) 78%);
+}
+
+/* ── Glass primitives — three surface levels ──────────────────────────
+   Base (level 2): supporting cards. --primary (level 1): the surfaces the
+   demo is about. --critical: the Safety Gate. --ghost (level 3): asides. */
+.fi-glass-panel {
+  background: rgba(8, 14, 22, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--fi-radius-lg);
+}
+.fi-glass-panel--primary {
+  background: rgba(8, 14, 22, 0.78);
+  border-color: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+}
+.fi-glass-panel--critical {
+  background: rgba(9, 15, 24, 0.82);
+  border-color: color-mix(in srgb, var(--fi-veto), transparent 72%);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.30);
+}
+.fi-glass-panel--ghost {
+  background: rgba(8, 14, 22, 0.42);
+  border-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.fi-agent-node {
+  background: var(--fi-surface-strong);
+  border: 1px solid var(--fi-border);
+  border-radius: var(--fi-radius-md);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.fi-agent-node:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fi-accent), transparent 50%);
+  background: color-mix(in srgb, var(--fi-surface-strong), var(--fi-accent) 6%);
+}
+
+.fi-veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 45%); }
+.fi-safety   { border-color: color-mix(in srgb, var(--fi-safety), transparent 45%); }
+.fi-approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 45%); }
+.fi-evidence-b { border-color: color-mix(in srgb, var(--fi-evidence), transparent 45%); }
+
+/* ── Badges ───────────────────────────────────────────────────────── */
+.fi-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: var(--fi-font-mono);
+  font-size: .68rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .28rem .6rem; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.fi-badge::before { content: ""; width: .45rem; height: .45rem; border-radius: 999px; background: currentColor; }
+.fi-badge--verified  { color: var(--fi-evidence); border-color: color-mix(in srgb, var(--fi-evidence), transparent 60%); background: color-mix(in srgb, var(--fi-evidence), transparent 90%); }
+.fi-badge--review    { color: var(--fi-safety);   border-color: color-mix(in srgb, var(--fi-safety), transparent 60%);   background: color-mix(in srgb, var(--fi-safety), transparent 90%); }
+.fi-badge--vetoed    { color: var(--fi-veto);     border-color: color-mix(in srgb, var(--fi-veto), transparent 60%);     background: color-mix(in srgb, var(--fi-veto), transparent 90%); }
+.fi-badge--approved  { color: var(--fi-approved); border-color: color-mix(in srgb, var(--fi-approved), transparent 60%); background: color-mix(in srgb, var(--fi-approved), transparent 90%); }
+.fi-badge--band      { color: var(--fi-accent);   border-color: color-mix(in srgb, var(--fi-accent), transparent 60%);   background: color-mix(in srgb, var(--fi-accent), transparent 90%); }
+.fi-badge--local     { color: var(--fi-muted);    border-color: var(--fi-border); background: var(--fi-surface); }
+.fi-badge--virtual   { color: var(--fi-evidence); border-color: color-mix(in srgb, var(--fi-evidence), transparent 60%); background: color-mix(in srgb, var(--fi-evidence), transparent 90%); }
+.fi-badge--provenance{ color: var(--fi-safety);   border-color: color-mix(in srgb, var(--fi-safety), transparent 60%);   background: color-mix(in srgb, var(--fi-safety), transparent 90%); }
+
+/* ── Typography helpers ───────────────────────────────────────────── */
+.fi-eyebrow {
+  font-family: var(--fi-font-mono);
+  font-size: .75rem; font-weight: 500; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+.fi-mono   { font-family: var(--fi-font-mono); }
+.fi-arrow  { color: var(--fi-faint); font-family: var(--fi-font-mono); }
+.text-muted { color: var(--fi-muted); }
+.text-faint { color: var(--fi-faint); }
+
+/* ── CTA buttons ──────────────────────────────────────────────────── */
+.fi-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-weight: 600; font-size: .95rem;
+  padding: .8rem 1.4rem; border-radius: var(--fi-radius-sm);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  cursor: pointer; text-decoration: none;
+}
+.fi-btn--primary {
+  background: var(--fi-accent); color: #fff;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--fi-accent), transparent 60%);
+}
+.fi-btn--primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px color-mix(in srgb, var(--fi-accent), transparent 50%); }
+.fi-btn--ghost {
+  background: var(--fi-surface); color: var(--fi-text);
+  border: 1px solid var(--fi-border);
+}
+.fi-btn--ghost:hover { background: var(--fi-surface-strong); transform: translateY(-1px); }
+
+/* ── Entrance animation ───────────────────────────────────────────── */
+@keyframes fi-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.fi-rise { animation: fi-rise .6s ease both; }
+
+/* ── Demo shell primitives ────────────────────────────────────────── */
+.hist-step {
+  display: flex; align-items: flex-start; gap: .65rem;
+  padding: .5rem .65rem; border-radius: var(--fi-radius-sm);
+  border: 1px solid var(--fi-border-soft);
+  background: var(--fi-surface);
+  font-size: .8rem;
+}
+.hist-step .dot {
+  flex: none; width: .55rem; height: .55rem; margin-top: .32rem;
+  border-radius: 999px; background: var(--fi-faint);
+}
+.hist-step--veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 50%); }
+.hist-step--veto .dot     { background: var(--fi-veto); }
+.hist-step--approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 50%); }
+.hist-step--approved .dot { background: var(--fi-approved); }
+.hist-step--virtual  { border-style: dashed; }
+.hist-step--virtual .dot  { background: var(--fi-evidence); }
+
+.msg {
+  border: 1px solid var(--fi-border-soft);
+  background: var(--fi-surface);
+  border-radius: var(--fi-radius-md);
+  padding: .7rem .9rem;
+}
+.msg--veto     { border-color: color-mix(in srgb, var(--fi-veto), transparent 45%); }
+.msg--approved { border-color: color-mix(in srgb, var(--fi-approved), transparent 45%); }
+.msg--virtual  { border-style: dashed; opacity: .9; }
+.msg .mention { color: var(--fi-accent); font-weight: 600; }
+.msg .agent   { font-weight: 700; }
+
+.panel-title {
+  font-family: var(--fi-font-mono);
+  font-size: .7rem; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+
+/* ── Semantic status bar — one labeled strip instead of scattered badges ── */
+.status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.1rem; }
+.status-item { display: inline-flex; align-items: center; gap: .45rem; }
+.status-key {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; font-weight: 500; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+
+/* ── Veto money shot — draft → blocked reason → approved rewrite, with a
+   visible revision-loop connector between the two stages ──────────────── */
+.stage-key {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
+.veto-stage { padding: .9rem 1.05rem; }
+.veto-stage .stage-text { font-size: .9rem; }
+.veto-loop-connector {
+  display: flex; align-items: center; gap: .55rem;
+  padding-left: 1.05rem;
+}
+.veto-loop-connector::before {
+  content: ""; flex: none; width: 2px; height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(var(--fi-veto), var(--fi-approved));
+}
+.veto-loop-connector span {
+  font-family: var(--fi-font-mono);
+  font-size: .62rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fi-faint);
+}
