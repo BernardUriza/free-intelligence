@@ -37,7 +37,7 @@ function mockMatchMedia(matches: boolean) {
 }
 
 const drawerTransform = (container: HTMLElement): string =>
-  (container.querySelector('div[style*="translateX"]') as HTMLElement)?.style.transform ?? '';
+  (container.querySelector('[data-fi-slot="sidebar"][style*="translateX"]') as HTMLElement)?.style.transform ?? '';
 
 describe('AgentWorkspaceShell — no sidebar (original page primitive)', () => {
   it('renders no drawer chrome and no sidebar slot', () => {

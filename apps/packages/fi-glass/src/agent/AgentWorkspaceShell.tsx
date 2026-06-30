@@ -23,6 +23,11 @@
  * selection via the render-prop api (`{ close }`), so fi-glass never reaches into
  * the consumer's DOM. Inline styles + one idempotent <style> tag → zero
  * CSS-coupling, no consumer import.
+ *
+ * B3-FIGLASS-SEMANTIC-SHELL-1: the slot wrappers are DOM landmarks, not bare divs —
+ * `<header>`/`<main>`/`<aside>` (rail)/`<footer>` for the page column and a labelled
+ * `<nav>` for the sidebar. The `data-fi-slot` attributes and inline styles are
+ * preserved, so the change is visual-equivalent and consumers need no new CSS.
  */
 
 import {
@@ -196,18 +201,18 @@ export function AgentWorkspaceShell({
       className={rootClassName}
       style={hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: '100%', ...style } : { ...rootStyle, ...style }}
     >
-      {header != null && <div data-fi-slot="header">{header}</div>}
-      <div data-fi-slot="main" style={mainStyle}>
+      {header != null && <header data-fi-slot="header">{header}</header>}
+      <main data-fi-slot="main" style={mainStyle}>
         <div data-fi-slot="conversation" style={conversationStyle}>
           {conversation}
         </div>
         {rail != null && (
-          <div data-fi-slot="rail" style={railStyle}>
+          <aside data-fi-slot="rail" style={railStyle}>
             {rail}
-          </div>
+          </aside>
         )}
-      </div>
-      {footer != null && <div data-fi-slot="footer">{footer}</div>}
+      </main>
+      {footer != null && <footer data-fi-slot="footer">{footer}</footer>}
     </div>
   );
 
@@ -244,14 +249,15 @@ export function AgentWorkspaceShell({
       data-fi-workspace="agent-with-sidebar"
       style={{ display: 'flex', height: '100dvh', position: 'relative', overflowX: 'hidden' }}
     >
-      <div
+      <nav
         data-fi-slot="sidebar"
+        aria-label={toggleLabel}
         style={sidebarContainerStyle}
         aria-hidden={drawerMode ? !isOpen : undefined}
         inert={drawerMode && !isOpen ? true : undefined}
       >
         {sidebarNode}
-      </div>
+      </nav>
 
       {drawerMode && (
         <div

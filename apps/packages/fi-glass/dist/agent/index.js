@@ -2292,12 +2292,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs20("div", { "data-fi-slot": "main", style: mainStyle, children: [
+        header != null && /* @__PURE__ */ jsx27("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs20("main", { "data-fi-slot": "main", style: mainStyle, children: [
           /* @__PURE__ */ jsx27("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "rail", style: railStyle, children: rail })
+          rail != null && /* @__PURE__ */ jsx27("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx27("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2330,9 +2330,10 @@ function AgentWorkspaceShell({
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
         /* @__PURE__ */ jsx27(
-          "div",
+          "nav",
           {
             "data-fi-slot": "sidebar",
+            "aria-label": toggleLabel,
             style: sidebarContainerStyle,
             "aria-hidden": drawerMode ? !isOpen : void 0,
             inert: drawerMode && !isOpen ? true : void 0,
