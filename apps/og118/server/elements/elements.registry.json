@@ -100,7 +100,8 @@
       "symbol": "Al",
       "slug": "aluminio",
       "displayName": "Aluminio",
-      "status": "empty"
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "alice" }
     },
     {
       "atomicNumber": 14,
@@ -380,7 +381,8 @@
       "symbol": "I",
       "slug": "yodo",
       "displayName": "Yodo",
-      "status": "empty"
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine" }
     },
     {
       "atomicNumber": 54,

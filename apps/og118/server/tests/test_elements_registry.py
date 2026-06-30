@@ -65,6 +65,30 @@ def test_oxygen_binds_to_the_external_vultur_engine() -> None:
     assert o.engine_binding.persona_id == "vultur"
 
 
+def test_three_siblings_bind_to_the_same_external_engine() -> None:
+    # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId). All three
+    # ride the one insult-runner; only persona_id differs.
+    reg = get_registry()
+    by = {e.slug: e for e in reg.elements if e.is_active}
+    assert set(by) == {"oxigeno", "aluminio", "yodo"}
+    assert by["oxigeno"].engine_binding.persona_id == "vultur"
+    assert by["aluminio"].engine_binding.persona_id == "alice"
+    assert by["yodo"].engine_binding.persona_id is None  # omitted → engine default (Insult)
+    for e in by.values():
+        assert e.engine_binding.is_external
+
+
+def test_external_active_element_needs_no_local_persona(tmp_path) -> None:
+    # An external element is valid with ONLY a binding — no backingBotId/personaPromptPath
+    # (the remote engine owns the persona). This is what lets Yodo/Aluminio exist.
+    p = _write(tmp_path, [{
+        "atomicNumber": 53, "symbol": "I", "slug": "yodo", "displayName": "Yodo",
+        "status": "active", "engineBinding": {"kind": "external_http_engine"},
+    }])
+    reg = ElementsRegistry.load(p)  # must NOT raise
+    assert reg.resolve("yodo").engine_binding.is_external
+
+
 def test_rejects_unknown_engine_binding_kind(tmp_path) -> None:
     p = _write(tmp_path, [{
         "atomicNumber": 8, "symbol": "O", "slug": "oxigeno", "displayName": "Oxígeno",

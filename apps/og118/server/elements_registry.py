@@ -151,7 +151,11 @@ class ElementsRegistry:
             seen_slug.add(e.slug)
             if e.status not in _VALID_STATUS:
                 raise ElementsRegistryError(f"invalid status {e.status!r} for {e.symbol}")
-            if e.is_active:
+            if e.is_active and not (e.engine_binding is not None and e.engine_binding.is_external):
+                # LOCAL active element: og118's runner runs it, so it must carry its
+                # own persona on disk. (An EXTERNAL element needs none — the remote
+                # engine owns the persona; persona_id is optional and absent means the
+                # engine's default persona, e.g. Insult on the insult-runner.)
                 if not e.backing_bot_id or not e.persona_prompt_path:
                     raise ElementsRegistryError(
                         f"active element {e.symbol} needs backingBotId + personaPromptPath"
@@ -173,10 +177,6 @@ class ElementsRegistry:
                             f"active element {e.symbol}: shared core {e.persona_core_path} "
                             f"lacks the {CONTEXT_MARKER} splice marker"
                         )
-                if e.engine_binding and e.engine_binding.is_external and not e.engine_binding.persona_id:
-                    raise ElementsRegistryError(
-                        f"active element {e.symbol}: external_http_engine binding needs a personaId"
-                    )
 
     def resolve(self, token: str | None) -> Element | None:
         """Find an element by slug, symbol (case-insensitive), atomic number,
