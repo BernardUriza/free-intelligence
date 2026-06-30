@@ -94,6 +94,43 @@ def test_non_utf8_file_returns_400(client: TestClient) -> None:
     assert resp.status_code == 400
 
 
+def test_upload_too_large_returns_413(client: TestClient, monkeypatch) -> None:
+    # A huge upload must be rejected BEFORE it is read whole into RAM (OOM the
+    # single replica). The read is capped at MAX_UPLOAD_BYTES + 1, so a body over
+    # the cap is a 413 — never a memory blowup. (Cap shrunk for the test.)
+    monkeypatch.setattr(app_module, "MAX_UPLOAD_BYTES", 100)
+    pid = _create(client)
+    resp = _upload(client, pid, "big.md", "x" * 500)
+    assert resp.status_code == 413
+    assert resp.json()["detail"]["code"] == "FILE_TOO_LARGE"
+
+
+def test_delete_keeps_project_when_corpus_purge_fails(
+    client: TestClient, store: RagStoreClient, monkeypatch
+) -> None:
+    # Right-to-forget ordering: the corpus is purged BEFORE the registry entry, so
+    # a flaked corpus delete leaves the project present + owned (retryable) instead
+    # of orphaning an un-erasable corpus behind a deleted project id.
+    pid = _create(client, "Borrable")
+    _upload(
+        client,
+        pid,
+        "doc.md",
+        "La papelería vende cuadernos y mochilas. El margen alto está en las "
+        "mochilas. En agosto suben los precios por el regreso a clases.",
+    )
+
+    async def _boom(*_args, **_kwargs) -> None:
+        raise RuntimeError("hdf5 lock contention")
+
+    monkeypatch.setattr(store, "delete_corpus", _boom)
+    # The TestClient re-raises an unhandled handler exception (in prod it is a 500);
+    # what matters is that registry.delete was NEVER reached, so the project survives.
+    with pytest.raises(RuntimeError):
+        client.delete(f"/projects/{pid}")
+    assert any(p["id"] == pid for p in client.get("/projects").json()["projects"])
+
+
 def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
     hdr = {"Authorization": "Bearer s3cr3t-token"}
