@@ -44,7 +44,7 @@ import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
-import { Og118ElementSelector } from './Og118ElementSelector';
+import { Og118ElementSelector, Og118ElementIndicator } from './Og118ElementSelector';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
@@ -106,6 +106,7 @@ export function Og118AgentChat() {
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
   const { turn } = conversation;
+  const activeElement = elements.elements.find((e) => e.slug === elements.selected);
 
   // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
   // in one consumer hook; it returns the render slots the surface distributes.
@@ -169,12 +170,7 @@ export function Og118AgentChat() {
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
-        <Og118ElementSelector
-          elements={elements.elements}
-          selected={elements.selected}
-          onSelect={elements.select}
-          loading={elements.loading}
-        />
+        <Og118ElementIndicator element={activeElement} />
         <Og118ProjectsSection
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
@@ -273,6 +269,14 @@ export function Og118AgentChat() {
               {composer.voiceBar}
               {composer.audioDraftPlayer}
               {composer.audioQueuePanel}
+              <div className="og-element-switch" data-ref="og118-element-switch">
+                <Og118ElementSelector
+                  elements={elements.elements}
+                  selected={elements.selected}
+                  onSelect={elements.select}
+                  loading={elements.loading}
+                />
+              </div>
             </>
           }
           // The frosted preset goes on the BOX (textarea + controls row inside

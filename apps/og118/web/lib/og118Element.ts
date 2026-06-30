@@ -28,6 +28,8 @@ export interface Og118Element {
   displayLabel: string;
   status: string;
   aliases: string[];
+  description?: string | null;
+  engine?: string | null;
 }
 
 export function getSelectedElement(userId: string | null): string {
