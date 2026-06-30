@@ -95,7 +95,9 @@ speculative generality.
 ### Phase 3 — `external_http_engine` (SHIPPED for Oxígeno, 2026-06-28)
 
 The reason to build it turned out to already exist: Vultur is a **live, deployed
-engine** (the `insult-runner` Container App), so Oxígeno reuses it instead of
+engine** (the `persona-runner` Container App in RG `insult-rg`, FQDN
+`persona-runner.greendune-53f1f4af.eastus2.azurecontainerapps.io` — renamed from
+`insult-runner` during the router cutover), so Oxígeno reuses it instead of
 running a copy. Bernard's directive: og118 stays a mask; the engine is the
 external one.
 
@@ -109,7 +111,7 @@ external one.
   stream. **An external element shows NO glass-box plan/step trace** — the accepted
   trade for reusing a live engine. The base og118 path keeps its full local trace.
 - Verified live (Chrome): Oxígeno → Vultur answers in og118's bubble, in character,
-  with the IFA closing line, from the deployed insult-runner. Base (no element)
+  with the IFA closing line, from the deployed persona-runner. Base (no element)
   stays on the local runner (does NOT hit the external engine).
 - **Prod config (deploy step):** og118's Azure backend needs `OG118_EXTERNAL_RUNNER_URL`
   + `OG118_EXTERNAL_RUNNER_TOKEN` set as Container App secrets, or Oxígeno returns a
