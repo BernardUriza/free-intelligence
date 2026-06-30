@@ -56,6 +56,7 @@
       "symbol": "O",
       "slug": "oxigeno",
       "displayName": "Oxígeno",
+      "description": "Vultur Analytica: crítica cultural forense que disecciona cine y cultura como un cadáver en la plancha.",
       "status": "active",
       "backingBotId": "vultur-bot",
       "personaCorePath": "vultur.core.md",
@@ -100,6 +101,7 @@
       "symbol": "Al",
       "slug": "aluminio",
       "displayName": "Aluminio",
+      "description": "ALICE: la voz clínica que cruzó el espejo para ayudarte a ver lo que está debajo.",
       "status": "active",
       "engineBinding": { "kind": "external_http_engine", "personaId": "alice" }
     },
@@ -381,6 +383,7 @@
       "symbol": "I",
       "slug": "yodo",
       "displayName": "Yodo",
+      "description": "Insult: el bot que te dice la verdad aunque no la quieras, sin filtro.",
       "status": "active",
       "engineBinding": { "kind": "external_http_engine" }
     },
