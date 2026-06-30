@@ -41,6 +41,8 @@ const BASE_OPTION: Og118Element = {
   displayLabel: 'og118 (base)',
   status: 'active',
   aliases: [],
+  description: 'Compañero base de og118 — sin persona de elemento, respuesta directa.',
+  engine: null,
 };
 
 export function useOg118Elements(userId: string | null): Og118ElementsHook {

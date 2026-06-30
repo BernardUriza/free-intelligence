@@ -294,6 +294,8 @@ async def list_elements() -> dict:
                 "displayLabel": e.display_label,
                 "status": e.status,
                 "aliases": list(e.aliases),
+                "description": e.description,
+                "engine": e.engine_label,
             }
             for e in reg.elements
             if e.is_active

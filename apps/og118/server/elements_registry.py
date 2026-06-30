@@ -37,6 +37,11 @@ class ElementsRegistryError(ValueError):
 
 _ENGINE_KINDS = {"local_runner_persona", "shared_persona_prompt", "external_http_engine"}
 
+# Human labels for the engine/persona that answers an element, shown as the
+# selector's engine chip (OG118-ELEMENTS-COMPOSER-SWITCH-1). Keyed by persona_id;
+# unknown ids fall back to capitalize(). These are UI labels, never prompts.
+_ENGINE_LABELS = {"vultur": "Vultur", "alice": "ALICE", "insult": "Insult"}
+
 
 @dataclass(frozen=True)
 class EngineBinding:
@@ -70,6 +75,9 @@ class Element:
     # ENGINE-BINDING-ADR-1: how this element runs. None → local (og118's runner).
     engine_binding: EngineBinding | None = None
     aliases: tuple[str, ...] = ()
+    # One-line, human-facing summary of the element's persona for the selector
+    # panel (OG118-ELEMENTS-COMPOSER-SWITCH-1). Content, not a model prompt.
+    description: str | None = None
 
     @property
     def id(self) -> str:
@@ -79,6 +87,18 @@ class Element:
     @property
     def display_label(self) -> str:
         return f"{self.atomic_number} · {self.symbol} · {self.display_name}"
+
+    @property
+    def engine_label(self) -> str | None:
+        """The human label of the engine/persona answering this element (Vultur /
+        ALICE / Insult), or None for the local base. An external element without a
+        persona_id defaults to the runner's Insult persona."""
+        eb = self.engine_binding
+        if eb is None:
+            return None
+        if eb.persona_id:
+            return _ENGINE_LABELS.get(eb.persona_id, eb.persona_id.capitalize())
+        return _ENGINE_LABELS["insult"]
 
     @property
     def is_active(self) -> bool:
@@ -108,6 +128,7 @@ def _to_element(raw: dict) -> Element:
         persona_core_path=raw.get("personaCorePath"),
         engine_binding=_to_engine_binding(raw.get("engineBinding")),
         aliases=tuple(raw.get("aliases", ())),
+        description=raw.get("description"),
     )
 
 

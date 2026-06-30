@@ -101,6 +101,10 @@ body {
   background: rgba(10, 14, 22, 0.4);
   backdrop-filter: blur(var(--glass-blur, 12px));
 }
+.og-element-switch {
+  max-width: 16rem;
+  margin: 0 0 0.5rem;
+}
 .og-resonance-bar {
   display: flex;
   align-items: center;
