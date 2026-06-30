@@ -30,6 +30,21 @@
   }
   .objective strong { color: #34d399; }
 
+  .rc-status {
+    border: 1px solid rgba(251,191,36,0.35);
+    background: rgba(251,191,36,0.07);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #fde68a;
+    line-height: 1.6;
+  }
+  .rc-status strong { color: #fbbf24; }
+  .rc-status .rc-head { font-size: 1rem; letter-spacing: 0.02em; }
+  .rc-status ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+  .rc-status code { background: rgba(255,255,255,0.06); padding: 0.05rem 0.35rem; border-radius: 4px; }
+
   .section {
     margin-bottom: 1.75rem;
     border: 1px solid rgba(255,255,255,0.07);
@@ -175,6 +190,17 @@
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
+  </div>
+
+  <div class="rc-status">
+    <div class="rc-head"><strong>Release Candidate Status</strong> — <code>RC-BLOCKED-BY-HUMAN/DEPLOY-VERIFICATION</code> (2026-06-30)</div>
+    <div>Checks completados: <strong>45/47</strong> · P0 abiertos: <strong>0</strong> · P1 autónomos abiertos: <strong>0</strong></div>
+    <div style="margin-top:0.5rem">Pendientes — ambos requieren manos/oídos/sesión reales, no se marcan DONE sin smoke vivo (Art. 2, no fake-green):</div>
+    <ul>
+      <li><strong>AUDIO-HUMAN-SMOKE</strong> — re-smoke del audio durable FIGLASS (pausa/reanuda → preview audible con ambos segmentos → stop → transcribir). Requiere mic + oídos de Bernard.</li>
+      <li><strong>VOICE-GATEWAY-AUTH-SMOKE</strong> — TTS <code>/tts/synthesize</code> y STT <code>/stt/transcribe</code> contra el gateway susurro (<code>sus.bernarduriza.com</code>). Requiere config deploy (vars/secrets + ACA) + smoke vivo Auth0-gated. Sin commit de fix en main; sigue OPEN.</li>
+    </ul>
+    <div style="margin-top:0.5rem">Próximo actor: <strong>Bernard</strong> (mic/audio + sesión Auth0) / ops (confirmar secrets+deploy del gateway). Runbook ejecutable: <code>GATE4-HUMAN-SMOKE-RUNBOOK.md</code>.</div>
   </div>
 
   <!-- GATES -->
