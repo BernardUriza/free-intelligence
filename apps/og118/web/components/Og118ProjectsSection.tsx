@@ -67,6 +67,7 @@ export function Og118ProjectsSection({
       ariaLabel="Proyectos"
       title="Proyectos"
       variant="card"
+      scrollBehavior="content"
       count={projects.length}
       actionSlot={
         <button

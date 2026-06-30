@@ -592,17 +592,30 @@ interface AgentSidebarSectionProps {
      * an upload dropzone that must not collide with the list). Omit for no footer.
      */
     footerSlot?: ReactNode;
+    /**
+     * How the rows region sizes. `"none"` (default) lets the rows take their natural
+     * height (the original behavior). `"content"` wraps the rows in a content-aware
+     * scroll region: they grow by content and only scroll past `maxBlockSize` — a
+     * rem-based cap, NOT a viewport `vh` that crushes a few rows on short screens.
+     */
+    scrollBehavior?: 'none' | 'content';
+    /**
+     * The scroll cap for `scrollBehavior="content"` (number → px). Default `18rem`
+     * (~6 rows). Sets the `--fi-section-scroll-max` token on the scroll region.
+     */
+    maxBlockSize?: number | string;
     /** Accessible label for the section element. */
     ariaLabel?: string;
     className?: string;
 }
-declare function AgentSidebarSection({ title, children, actionSlot, emptyState, count, headerSlot, variant, footerSlot, ariaLabel, className, }: AgentSidebarSectionProps): react.JSX.Element;
+declare function AgentSidebarSection({ title, children, actionSlot, emptyState, count, headerSlot, variant, footerSlot, scrollBehavior, maxBlockSize, ariaLabel, className, }: AgentSidebarSectionProps): react.JSX.Element;
 
 declare const FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 declare const FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 declare const FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
 declare const FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
 declare const FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
+declare const FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 /** Inject the idempotent sidebar-section stylesheet (no-op on the server / if already present). */
 declare function ensureSidebarSectionStyle(): void;
 /** Ensure the sidebar-section stylesheet is present for the lifetime of the component. */
@@ -613,4 +626,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

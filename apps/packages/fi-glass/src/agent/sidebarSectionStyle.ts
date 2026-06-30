@@ -25,6 +25,7 @@ export const FI_SECTION_HEAD_CLASS = 'fi-sidebar-section-head';
 export const FI_SECTION_TITLE_CLASS = 'fi-sidebar-section-title';
 export const FI_SECTION_CARD_CLASS = 'fi-sidebar-section--card';
 export const FI_SECTION_FOOTER_CLASS = 'fi-sidebar-section-footer';
+export const FI_SECTION_SCROLL_CLASS = 'fi-sidebar-section-scroll';
 
 const SIDEBAR_SECTION_STYLE_ID = 'fi-sidebar-section-style';
 
@@ -59,6 +60,15 @@ const CSS = `
   margin-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
   padding-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
   border-top: 1px solid var(--fi-section-divider, rgba(255, 255, 255, 0.06));
+}
+.${FI_SECTION_SCROLL_CLASS} {
+  min-height: 0;
+  overflow-y: auto;
+  /* Content-aware: the list grows by content and only scrolls past this cap.
+     rem-based (NOT vh) so a short viewport never crushes a few rows into a sliver
+     — the bug 30vh caused. Overridable per-section via the --fi-section-scroll-max
+     var (the maxBlockSize prop sets it inline). */
+  max-block-size: var(--fi-section-scroll-max, 18rem);
 }
 `;
 

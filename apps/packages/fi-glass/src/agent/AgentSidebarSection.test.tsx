@@ -158,4 +158,50 @@ describe('AgentSidebarSection', () => {
     );
     expect(container.querySelector('.fi-sidebar-section-footer')).toBeNull();
   });
+
+  // B3-FIGLASS-SCROLL-REGIONS-1 (PR5): content-aware scroll region
+  it('does NOT wrap rows in a scroll region by default (scrollBehavior="none")', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={2}>
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-scroll')).toBeNull();
+  });
+
+  it('wraps rows in a content-aware scroll region when scrollBehavior="content"', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={2} scrollBehavior="content">
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    const scroll = container.querySelector('.fi-sidebar-section-scroll');
+    expect(scroll).toBeTruthy();
+    expect(scroll!.querySelector('[data-testid="rows"]')).toBeTruthy();
+  });
+
+  it('does NOT scroll-wrap the empty state (only the rows)', () => {
+    const { container } = render(
+      <AgentSidebarSection
+        title="Proyectos"
+        count={0}
+        scrollBehavior="content"
+        emptyState={<p data-testid="empty">none</p>}
+      >
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-scroll')).toBeNull();
+    expect(screen.getByTestId('empty')).toBeTruthy();
+  });
+
+  it('sets the --fi-section-scroll-max token from maxBlockSize (number → px)', () => {
+    const { container } = render(
+      <AgentSidebarSection title="P" count={2} scrollBehavior="content" maxBlockSize={240}>
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    const scroll = container.querySelector('.fi-sidebar-section-scroll') as HTMLElement;
+    expect(scroll.style.getPropertyValue('--fi-section-scroll-max')).toBe('240px');
+  });
 });
