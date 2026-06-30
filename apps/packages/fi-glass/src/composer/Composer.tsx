@@ -19,8 +19,18 @@ import { AutoResizeTextarea } from './AutoResizeTextarea';
 export interface ComposerProps {
   /** Current message value */
   message: string;
-  /** Is sending message (disables input) */
+  /**
+   * A turn is streaming. Blocks SUBMIT (Enter is a no-op) so a second turn
+   * can't fire, but NEVER blocks editing — the user keeps typing the next
+   * message while the assistant responds (ChatGPT parity, B3-FIGLASS-COMPOSER-FOCUS-1).
+   */
   loading?: boolean;
+  /**
+   * Genuinely disable EDITING (auth blocked, readonly, quota/capacity, terminal
+   * error) — this is the only state that sets the <textarea> disabled and lets
+   * the browser drop focus. Streaming is `loading`, not `disabled`.
+   */
+  disabled?: boolean;
   /** Placeholder text */
   placeholder?: string;
   /** Called on every edit */
@@ -38,6 +48,14 @@ export interface ComposerProps {
   /** Class for the <textarea> itself */
   textareaClassName?: string;
   /**
+   * Optional stable id for the inner <textarea> (B3-FIGLASS-A11Y-1). Omit it and
+   * the textarea self-generates an accessible default — pass one only when the
+   * app needs a predictable handle (label `for=`, autofill, tests).
+   */
+  id?: string;
+  /** Optional stable name for the inner <textarea> (B3-FIGLASS-A11Y-1). */
+  name?: string;
+  /**
    * Typed ref to the inner <textarea> (B3-FIGLASS-10) so the owner can manage
    * focus (e.g. refocus after dictation/send/stream) without touching DOM
    * internals.
@@ -48,6 +66,7 @@ export interface ComposerProps {
 export function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = 'Escribe tu mensaje...',
   onMessageChange,
   onSend,
@@ -56,11 +75,17 @@ export function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef,
 }: ComposerProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      // Gate the SUBMIT, not the editing: a streaming turn (loading) or a truly
+      // disabled composer must not fire a second turn. The empty-message guard
+      // stays in the consumer (pinned by the existing contract test).
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -69,11 +94,13 @@ export function Composer({
     <div className={areaClassName}>
       <AutoResizeTextarea
         ref={textareaRef}
+        id={id}
+        name={name}
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        disabled={loading}
+        disabled={disabled}
         maxRows={maxRows}
         showCounter={false}
         wrapperClassName={wrapperClassName}

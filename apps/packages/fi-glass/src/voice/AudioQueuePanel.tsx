@@ -4,7 +4,8 @@
 // Lists all pending audio artifacts with state, actions, and a privacy notice.
 // Consumers wire it to useAudioQueue + useDurableRecording.
 
-import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2, Trash2, Info } from 'lucide-react';
 import type { UseAudioQueueReturn } from './useAudioQueue';
 import { AudioQueueItem } from './AudioQueueItem';
 import { formatArtifactSize } from './audioArtifact';
@@ -15,6 +16,9 @@ export interface AudioQueuePanelProps {
   className?: string;
   /** Privacy notice text. Defaults to a generic local-storage notice. */
   privacyNotice?: string;
+  /** How long the privacy notice stays visible, in ms. 0 keeps it forever.
+   * Default 35s — it is recurring info, not a warning the user must dismiss. */
+  privacyNoticeMs?: number;
   /** Max visible items before scroll */
   maxVisible?: number;
   /** Artifact ids to hide from the panel (e.g. the active draft shown inline
@@ -25,28 +29,47 @@ export interface AudioQueuePanelProps {
 const DEFAULT_PRIVACY_NOTICE =
   'Tu audio se guarda localmente hasta que lo transcribas o elimines. No se envía al servidor hasta que lo solicites.';
 
+const DEFAULT_PRIVACY_NOTICE_MS = 35_000;
+
 export function AudioQueuePanel({
   queue,
   className = '',
   privacyNotice = DEFAULT_PRIVACY_NOTICE,
+  privacyNoticeMs = DEFAULT_PRIVACY_NOTICE_MS,
   maxVisible = 6,
   excludeIds = [],
 }: AudioQueuePanelProps) {
   const {
     artifacts,
-    totalBytes,
     isLoading,
     transcribeArtifact,
     retryTranscription,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     getPlaybackUrl,
   } = queue;
 
+  // The notice is informational and recurring — auto-hide it instead of
+  // squatting the composer area forever.
+  const [showNotice, setShowNotice] = useState(true);
+  useEffect(() => {
+    if (!privacyNoticeMs) return;
+    const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
+    return () => clearTimeout(t);
+  }, [privacyNoticeMs]);
+
   const visible = artifacts.filter(
-    (a) => a.state !== 'deleted' && !excludeIds.includes(a.id),
+    (a) =>
+      a.state !== 'deleted' &&
+      a.state !== 'archived' && // used/sent — hidden, kept until cleared
+      !excludeIds.includes(a.id),
   );
   const hasTranscribed = visible.some((a) => a.state === 'transcribed');
+  // The header describes what the list SHOWS, so it must sum the same set.
+  // (queue.totalBytes is the capacity metric: pending-only, transcribed
+  // excluded — using it here read "1 audio · 0 B" for a transcribed item.)
+  const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
 
   if (isLoading) {
     return (
@@ -60,18 +83,20 @@ export function AudioQueuePanel({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      {/* Privacy notice */}
-      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-        <ShieldAlert className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-yellow-200/70 leading-relaxed">
-          {privacyNotice}
-        </p>
-      </div>
+      {/* Privacy notice — informational (blue), auto-hides */}
+      {showNotice && (
+        <div className="fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-blue-200/70 leading-relaxed">
+            {privacyNotice}
+          </p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-white/50">
-          {visible.length} audio{visible.length !== 1 ? 's' : ''} · {formatArtifactSize(totalBytes)}
+          {visible.length} audio{visible.length !== 1 ? 's' : ''} · {formatArtifactSize(visibleBytes)}
         </span>
         {hasTranscribed && (
           <button
@@ -96,6 +121,7 @@ export function AudioQueuePanel({
             onTranscribe={transcribeArtifact}
             onRetry={retryTranscription}
             onDelete={deleteArtifact}
+            onArchive={archiveArtifact}
             onGetPlaybackUrl={getPlaybackUrl}
           />
         ))}

@@ -12,20 +12,59 @@
  * and copy props.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useStickToBottom } from 'use-stick-to-bottom';
-import type { ChatMessage, VoiceAdapter } from '@free-intelligence/core';
+import type { AgentTurnState, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { Composer } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
 import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import type { AgentConversation } from './useAgentConversation';
+import { useMediaQuery } from '../shell/useMediaQuery';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
+
+export type AgentConversationSurfaceLayout = 'viewport' | 'contained';
+
+/**
+ * Rebuild a finished {@link AgentTurnState} from a persisted message trace so the
+ * live {@link AgentPanel} can re-render the glass-box of an already-folded turn
+ * (B3-FIGLASS-TRACE-PERSISTENCE-1). Status is 'done' (the turn settled); returns
+ * null when the message carries no renderable trace, so a plain message renders
+ * unchanged. No new renderer — the persisted history reuses the live components.
+ */
+function persistedTraceTurn(message: ChatMessage): AgentTurnState | null {
+  const trace = message.trace;
+  if (!trace) return null;
+  const hasContent =
+    (trace.plan?.steps.length ?? 0) > 0 ||
+    (trace.tools?.length ?? 0) > 0 ||
+    (trace.sources?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return {
+    plan: trace.plan ?? null,
+    steps: trace.tools ?? [],
+    text: message.content,
+    sources: trace.sources ?? [],
+    meta: null,
+    status: 'done',
+  };
+}
 
 export interface AgentConversationSurfaceProps {
   /** The conversation state + actions from `useAgentConversation`. */
   conversation: AgentConversation;
+  /**
+   * FG-2 (canary-driven, activist-os): how the surface root sizes itself.
+   *  - `"viewport"` (DEFAULT): root is `height: 100dvh` — the full-page behavior
+   *    every existing consumer relies on.
+   *  - `"contained"`: root is `height: 100%` + `minHeight: 0` + `overflow: hidden`,
+   *    so it fills whatever fixed-height cell an app shell gives it (header + main
+   *    + artifacts rail + footer) and scrolls the transcript internally instead of
+   *    forcing page scroll.
+   */
+  layout?: AgentConversationSurfaceLayout;
   /** Composer placeholder copy (app-owned). */
   composerPlaceholder?: string;
   /** Label for the new-conversation button. Default: "New chat". */
@@ -43,6 +82,16 @@ export interface AgentConversationSurfaceProps {
   aboveComposer?: ReactNode;
   /** Pass-through styling/icons for the live-turn AgentPanel. */
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
+  /**
+   * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
+   * (declared plan + steps + tool calls + sources) above each assistant message
+   * that carries one, using the SAME AgentPanel as the live turn. This makes the
+   * differentiator — "see the execution, not just the result" — survive into the
+   * durable transcript instead of collapsing to the answer text on fold. Default
+   * true; a surface that wants answer-only history sets false. Messages with no
+   * `trace` (plain conversational turns, user messages) render unchanged.
+   */
+  showPersistedTrace?: boolean;
   /**
    * Floating composer box class (style hook for the app) — the single frosted
    * container that wraps BOTH the textarea row and the controls row (mic/send),
@@ -196,12 +245,14 @@ export interface AgentConversationSurfaceProps {
 
 export function AgentConversationSurface({
   conversation,
+  layout = 'viewport',
   composerPlaceholder,
   newChatLabel = 'New chat',
   showNewChatButton = true,
   emptyState,
   aboveComposer,
   agentPanelProps,
+  showPersistedTrace = true,
   composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
@@ -242,6 +293,16 @@ export function AgentConversationSurface({
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
+  // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
+  // composed send button (and any other fi-glass control on the surface) gets its
+  // 44×44 mobile minimum even if no other control mounted it first.
+  useTouchTargetStyle();
+
+  // B3-FIGLASS-MOBILE-1 — the fluid center cap is a desktop affordance; on a
+  // phone the fixed 60px inset starves the composer (textarea < 300px at 390),
+  // so the inset collapses to a thin gutter below the mobile breakpoint.
+  const isMobileViewport = useMediaQuery('(max-width: 768px)');
+  const contentInset = isMobileViewport ? 'calc(100% - 16px)' : 'calc(100% - 60px)';
 
   // B3-FIGLASS-12 — pin-to-bottom. The hook is called unconditionally (hooks
   // rule); when autoScroll is off the refs simply never attach, so it observes
@@ -343,12 +404,20 @@ export function AgentConversationSurface({
   };
   const canSend = input.trim().length > 0 && !isStreaming;
 
+  // FG-2: the root sizes itself per `layout`. "viewport" keeps the full-page
+  // 100dvh (backward-compatible default); "contained" fills its parent cell and
+  // clips at the root so the transcript region scrolls internally, never the page.
+  const rootStyle: CSSProperties =
+    layout === 'contained'
+      ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }
+      : { display: 'flex', flexDirection: 'column', height: '100dvh' };
+
   return (
     // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
     // gutter) lives on INNER content wrappers (transcript + composer), never on
     // the scroll container, so the scrollbar renders at the viewport edge like
     // ChatGPT/AURITY /chat instead of glued to the centered column.
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+    <div style={rootStyle}>
       {/* Relative anchor: hosts the scroll area + the floating jump-to-latest
           button, so the button stays glued to the transcript's bottom edge. */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -358,39 +427,51 @@ export function AgentConversationSurface({
         >
           <div
             ref={autoScroll ? stick.contentRef : undefined}
-            style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}
+            style={{ maxWidth: contentInset, margin: '0 auto', width: '100%' }}
           >
         {idle ? (
           emptyState
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Transcript: completed turns (user + assistant), each in a bubble */}
-            {messages.map((m, i) => (
-              <MessageBubble
-                key={i}
-                role={m.role}
-                header={renderHeader?.(m)}
-                badge={renderBadge?.(m)}
-                actions={
-                  renderActions?.(m) ??
-                  (showCopyAction ? <CopyButton content={m.content} /> : undefined)
-                }
-                className={resolveBubbleClass(m)}
-              >
-                <MessageContent
-                  isUser={m.role === 'user'}
-                  content={m.content}
-                  // B3-FIGLASS-12: only USER messages clamp (ChatGPT parity) —
-                  // a long pasted prompt folds behind "Mostrar más"; assistant
-                  // answers always render whole.
-                  collapsible={collapseUserMessages && m.role === 'user'}
-                  collapsedMaxHeight={collapseMaxHeight}
-                  showMoreLabel={showMoreLabel}
-                  showLessLabel={showLessLabel}
-                  collapseToggleClassName={collapseToggleClassName}
-                />
-              </MessageBubble>
-            ))}
+            {/* Transcript: completed turns (user + assistant), each in a bubble.
+                B3-FIGLASS-TRACE-PERSISTENCE-1 — an assistant message that carries
+                a persisted glass-box trace re-renders the SAME AgentPanel above
+                its answer, exactly as the live turn did, so reloading a
+                conversation shows the execution and not just the result. */}
+            {messages.map((m, i) => {
+              const traceTurn =
+                showPersistedTrace && m.role === 'assistant'
+                  ? persistedTraceTurn(m)
+                  : null;
+              return (
+                <Fragment key={i}>
+                  {traceTurn && <AgentPanel turn={traceTurn} {...agentPanelProps} />}
+                  <MessageBubble
+                    role={m.role}
+                    header={renderHeader?.(m)}
+                    badge={renderBadge?.(m)}
+                    actions={
+                      renderActions?.(m) ??
+                      (showCopyAction ? <CopyButton content={m.content} /> : undefined)
+                    }
+                    className={resolveBubbleClass(m)}
+                  >
+                    <MessageContent
+                      isUser={m.role === 'user'}
+                      content={m.content}
+                      // B3-FIGLASS-12: only USER messages clamp (ChatGPT parity) —
+                      // a long pasted prompt folds behind "Mostrar más"; assistant
+                      // answers always render whole.
+                      collapsible={collapseUserMessages && m.role === 'user'}
+                      collapsedMaxHeight={collapseMaxHeight}
+                      showMoreLabel={showMoreLabel}
+                      showLessLabel={showLessLabel}
+                      collapseToggleClassName={collapseToggleClassName}
+                    />
+                  </MessageBubble>
+                </Fragment>
+              );
+            })}
 
             {/* Live turn: glass-box trace stays as-is, streaming answer in a bubble */}
             {isStreaming && <AgentPanel turn={turn} {...agentPanelProps} />}
@@ -489,7 +570,7 @@ export function AgentConversationSurface({
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Composer column shares the transcript's fluid center cap (the
             section itself spans full width so its top border does too). */}
-        <div style={{ maxWidth: 'calc(100% - 60px)', margin: '0 auto', width: '100%' }}>
+        <div style={{ maxWidth: contentInset, margin: '0 auto', width: '100%' }}>
         {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button
@@ -579,7 +660,11 @@ export function AgentConversationSurface({
                   onClick={onSend}
                   disabled={!canSend}
                   aria-label={sendLabel}
-                  className={sendButtonClassName}
+                  className={
+                    sendButtonClassName
+                      ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}`
+                      : FI_TOUCH_TARGET_CLASS
+                  }
                 >
                   {isStreaming ? (
                     <Loader2

@@ -28,8 +28,9 @@ import {
   type ConversationRecord,
   type ConversationSummary,
   CONVERSATION_SCHEMA_VERSION,
-  deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
 } from '@free-intelligence/core';
 
@@ -57,6 +58,9 @@ export interface ConversationLibraryState {
   switchConversation: (id: string) => Promise<void>;
   /** Delete a conversation; if it was active, activate the next most recent (or a fresh one). */
   deleteConversation: (id: string) => Promise<void>;
+  /** Rename a conversation; an empty/whitespace title reverts to the auto-derived
+   * one. A custom title survives future message persists. Throws if `id` is gone. */
+  renameConversation: (id: string, title: string) => Promise<void>;
   /** Persist the active conversation's messages (no-op for an empty thread). */
   persist: (messages: ChatMessage[]) => Promise<void>;
   /** Re-read the summary list from storage. */
@@ -142,11 +146,13 @@ export function useConversationLibrary(
       const id = activeId ?? idFactory();
       const now = nowFn();
       // Preserve createdAt when updating the same record; otherwise it's new.
-      const createdAt = activeRecord?.id === id ? activeRecord.createdAt : now;
+      const prevForTitle = activeRecord?.id === id ? activeRecord : undefined;
+      const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
       const record: ConversationRecord = {
         id,
-        title: deriveConversationTitle(clean),
+        title: resolveConversationTitle(clean, prevForTitle),
+        titleCustom: prevForTitle?.titleCustom,
         createdAt,
         updatedAt: now,
         messages: clean,
@@ -183,6 +189,27 @@ export function useConversationLibrary(
     [library, activeId, idFactory],
   );
 
+  const renameConversation = useCallback(
+    async (id: string, title: string) => {
+      const record = await library.get(id);
+      if (!record) {
+        // Stale summary (deleted elsewhere): refresh and surface clearly.
+        await refresh();
+        throw new Error(
+          `useConversationLibrary: conversation "${id}" not found`,
+        );
+      }
+      const next = renameConversationRecord(record, title, nowFn());
+      await library.put(next);
+      if (id === activeId) {
+        setActiveRecord(next);
+        setActiveMessages(next.messages);
+      }
+      await refresh();
+    },
+    [library, activeId, nowFn, refresh],
+  );
+
   return {
     ready,
     conversations,
@@ -192,6 +219,7 @@ export function useConversationLibrary(
     newConversation,
     switchConversation,
     deleteConversation,
+    renameConversation,
     persist,
     refresh,
   };

@@ -233,6 +233,37 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect2 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+
+// src/messages/CopyButton.tsx
 import { jsx as jsx3 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -246,6 +277,7 @@ var CopyButton = memo2(function CopyButton2({
   resetMs = 2e3
 }) {
   const [copied, setCopied] = useState2(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -264,7 +296,7 @@ var CopyButton = memo2(function CopyButton2({
     "button",
     {
       onClick: handleCopy,
-      className: `${base} ${copied ? active : idle}`,
+      className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
       children: copied ? /* @__PURE__ */ jsx3(Check, { className: icon }) : /* @__PURE__ */ jsx3(Copy, { className: icon })

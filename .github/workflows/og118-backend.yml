@@ -75,36 +75,80 @@ jobs:
       - name: Create or update Container App
         # Secrets/vars come through env: (GitHub masks them and they never enter
         # the run: command interpolation); every az arg is individually quoted so
-        # no value is word-split or shell-expanded. ANTHROPIC_API_KEY only (API
-        # mode); NO OAuth in cloud.
+        # no value is word-split or shell-expanded. CLAUDE_CODE_OAUTH_TOKEN
+        # (subscription mode) — PERSONAL USE ONLY: og118 serves only Bernard (Auth0
+        # gated), never third parties, so routing his Max OAuth is within ToS. The
+        # papelería/third-party plan is deferred; if it returns, switch back to an
+        # ANTHROPIC_API_KEY (commercial API). No ANTHROPIC_API_KEY here.
         env:
           IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/og118-server:${{ github.sha }}
-          ANTHROPIC_KEY: ${{ secrets.OG118_ANTHROPIC_API_KEY }}
+          OAUTH_TOKEN: ${{ secrets.OG118_CLAUDE_CODE_OAUTH_TOKEN }}
           ACCESS_TOKEN: ${{ secrets.OG118_ACCESS_TOKEN }}
           ALLOWED_ORIGINS: ${{ vars.OG118_ALLOWED_ORIGINS }}
           MODEL: ${{ vars.OG118_MODEL }}
         run: |
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "anthropic-key=$ANTHROPIC_KEY" "access-token=$ACCESS_TOKEN"
+              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars \
-                "ANTHROPIC_API_KEY=secretref:anthropic-key" \
+                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
-                "OG118_MODEL=$MODEL"
+                "OG118_MODEL=$MODEL" \
+                "HDF5_USE_FILE_LOCKING=FALSE" \
+              --remove-env-vars "ANTHROPIC_API_KEY"
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
               --registry-server "$ACR.azurecr.io" --registry-identity system \
               --target-port 8118 --ingress external \
               --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "anthropic-key=$ANTHROPIC_KEY" "access-token=$ACCESS_TOKEN" \
+              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN" \
               --env-vars \
-                "ANTHROPIC_API_KEY=secretref:anthropic-key" \
+                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
-                "OG118_MODEL=$MODEL"
+                "OG118_MODEL=$MODEL" \
+                "HDF5_USE_FILE_LOCKING=FALSE"
+          fi
+
+      - name: Ensure RAG store persistence volume (idempotent)
+        # The Projects RAG corpus persists at /opt/fi/data (Dockerfile sets
+        # FI_RAG_STORE_PATH there). On the ephemeral container disk it is wiped on
+        # EVERY redeploy, so mount an Azure Files share at that path. Fully
+        # idempotent: the storage account + share + env-storage are ensure-or-
+        # create, and the app volume MOUNT is applied ONLY when absent — a clean
+        # no-op on normal `--image` deploys (which already preserve the mount), so
+        # it only acts on first-create / ACA recreate. HDF5_USE_FILE_LOCKING=FALSE
+        # (set in the step above) is required: HDF5's lock fights SMB; safe because
+        # the app is pinned min=max=1 replica (single writer). The mount uses
+        # `update --yaml` with the `configuration.secrets` section STRIPPED —
+        # exported secrets are redacted to null and a roundtrip would WIPE them;
+        # omission preserves them. This step runs AFTER secrets are set above.
+        env:
+          SA: og118ragstore
+          SHARE: ragstore
+        run: |
+          az storage account show -n "$SA" -g "$RG" >/dev/null 2>&1 \
+            || az storage account create -n "$SA" -g "$RG" -l "$LOCATION" --sku Standard_LRS --kind StorageV2
+          KEY=$(az storage account keys list -n "$SA" -g "$RG" --query "[0].value" -o tsv)
+          az storage share exists --name "$SHARE" --account-name "$SA" --account-key "$KEY" --query exists -o tsv | grep -qi true \
+            || az storage share create --name "$SHARE" --account-name "$SA" --account-key "$KEY" --quota 5
+          az containerapp env storage show -n "$ACA_ENV" -g "$RG" --storage-name "$SHARE" >/dev/null 2>&1 \
+            || az containerapp env storage set -n "$ACA_ENV" -g "$RG" --storage-name "$SHARE" \
+                 --azure-file-account-name "$SA" --azure-file-account-key "$KEY" \
+                 --azure-file-share-name "$SHARE" --access-mode ReadWrite
+          MOUNTED=$(az containerapp show -n "$APP" -g "$RG" \
+            --query "length(properties.template.volumes[?name=='ragstore-vol'])" -o tsv 2>/dev/null || echo 0)
+          if [ "${MOUNTED:-0}" = "0" ]; then
+            python3 -m pip install --quiet pyyaml
+            az containerapp show -n "$APP" -g "$RG" -o yaml > /tmp/aca.yaml
+            python3 apps/og118/server/scripts/aca_add_volume.py /tmp/aca.yaml ragstore-vol ragstore /opt/fi/data
+            az containerapp update -n "$APP" -g "$RG" --yaml /tmp/aca.yaml
+            echo "ragstore-vol mounted at /opt/fi/data"
+          else
+            echo "ragstore-vol already mounted — no-op"
           fi
 
       - name: Wire TTS config (only when configured — else no-op)

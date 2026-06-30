@@ -18,7 +18,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, cleanup } from '@testing-library/react';
 import { useEffect, useState } from 'react';
-import type { AgentHook, AgentTurnState } from '@free-intelligence/core';
+import type { AgentHook, AgentSendMeta, AgentTurnState, ChatMessage } from '@free-intelligence/core';
 import { useAgentConversation, type AgentConversation } from './useAgentConversation';
 
 const thinkingTurn: AgentTurnState = {
@@ -54,7 +54,7 @@ function makeFakeAgent() {
     state.turn = thinkingTurn;
     state.isStreaming = false;
   });
-  const send = vi.fn(async () => {
+  const send = vi.fn(async (_text: string, _meta?: AgentSendMeta) => {
     // A real send flips streaming on and seeds a thinking turn.
     state.turn = { ...thinkingTurn };
     state.isStreaming = true;
@@ -92,6 +92,43 @@ function mountConversation(
   const utils = render(<Harness />);
   return { ref, rerender: () => act(() => bump()), utils };
 }
+
+describe('useAgentConversation — sendAndAwait (RESONANCE voice turns)', () => {
+  afterEach(cleanup);
+
+  it('resolves with the final assistant text and persists one user + one assistant capsule', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    let resolved: string | undefined;
+    await act(async () => {
+      ref.current!.sendAndAwait('hola').then((t) => { resolved = t; });
+      rerender(); // streaming=true, optimistic user capsule pushed
+      state.turn = { ...thinkingTurn, text: 'respuesta de voz' };
+      state.isStreaming = false;
+      rerender(); // fold effect resolves the promise
+      await Promise.resolve();
+    });
+    expect(resolved).toBe('respuesta de voz');
+    const msgs = ref.current!.messages;
+    expect(msgs.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(msgs.filter((m) => m.role === 'assistant')).toHaveLength(1);
+  });
+
+  it('rejects when the turn errors (so Resonance can recover to listening)', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    let rejected = false;
+    await act(async () => {
+      ref.current!.sendAndAwait('hola').catch(() => { rejected = true; });
+      rerender();
+      state.turn = errorTurn('boom');
+      state.isStreaming = false;
+      rerender();
+      await Promise.resolve();
+    });
+    expect(rejected).toBe(true);
+  });
+});
 
 describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => {
   afterEach(cleanup);
@@ -182,7 +219,7 @@ describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => 
     act(() => ref.current!.retry());
     rerender();
 
-    expect(send).toHaveBeenLastCalledWith('reintenta esto');
+    expect(send).toHaveBeenLastCalledWith('reintenta esto', expect.objectContaining({ history: expect.any(Array) }));
     expect(ref.current!.turnError).toBeNull();
     expect(ref.current!.messages).toHaveLength(1); // optimistic re-pushed
   });
@@ -255,5 +292,197 @@ describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => 
     const calls = onMessagesChange.mock.calls;
     const lastPersist = calls[calls.length - 1]?.[0] as { role: string }[];
     expect(lastPersist.map((m) => m.role)).toEqual(['user', 'assistant']);
+  });
+});
+
+/**
+ * Mount in CONTROLLED mode with externalMessages owned by the test, plus a
+ * setter so a test can update the prop and re-render (the consumer owns the
+ * thread). Mirrors mountConversation but threads externalMessages as state.
+ */
+function mountControlled(
+  agent: AgentHook,
+  seed: ChatMessage[],
+  opts: Omit<Parameters<typeof useAgentConversation>[1] & object, 'externalMessages'> = {},
+) {
+  const ref: { current: AgentConversation | null } = { current: null };
+  let setExternal: (m: ChatMessage[]) => void = () => {};
+  let bump = () => {};
+  function Harness() {
+    const [external, setExt] = useState<ChatMessage[]>(seed);
+    const [, setN] = useState(0);
+    const conv = useAgentConversation(agent, { ...opts, externalMessages: external });
+    ref.current = conv;
+    useEffect(() => {
+      setExternal = (m) => setExt(m);
+      bump = () => setN((n) => n + 1);
+    }, []);
+    return null;
+  }
+  render(<Harness />);
+  return {
+    ref,
+    setExternal: (m: ChatMessage[]) => act(() => setExternal(m)),
+    rerender: () => act(() => bump()),
+  };
+}
+
+const userMsg = (id: string, text: string): ChatMessage => ({
+  id,
+  role: 'user',
+  content: text,
+  timestamp: '2026-06-16T00:00:00.000Z',
+});
+
+const agentMsg = (id: string, text: string): ChatMessage => ({
+  id,
+  role: 'assistant',
+  content: text,
+  timestamp: '2026-06-16T00:00:00.000Z',
+});
+
+describe('useAgentConversation — controlled / external-transcript mode (FIGLASS-CONTROLLED)', () => {
+  afterEach(cleanup);
+
+  it('returns externalMessages verbatim, not the internal array', () => {
+    const { hook } = makeFakeAgent();
+    const seed = [userMsg('u1', 'inicia'), agentMsg('a1', 'CAMPAIGN handoff')];
+    const { ref } = mountControlled(hook, seed, { turnTimeoutMs: 0 });
+
+    expect(ref.current!.messages).toBe(seed);
+  });
+
+  it('updates conversation.messages when the externalMessages prop changes', () => {
+    const { hook } = makeFakeAgent();
+    const seed = [userMsg('u1', 'inicia')];
+    const { ref, setExternal } = mountControlled(hook, seed, { turnTimeoutMs: 0 });
+
+    const next = [
+      userMsg('u1', 'inicia'),
+      agentMsg('a1', 'CAMPAIGN'),
+      agentMsg('a2', 'SAFETY veto'),
+      agentMsg('a3', 'CAMPAIGN revise'),
+    ];
+    setExternal(next);
+
+    expect(ref.current!.messages).toBe(next);
+    expect(ref.current!.messages).toHaveLength(4);
+  });
+
+  it('send() drives agent.send and does NOT push or fold into the thread', () => {
+    const { hook, state, send } = makeFakeAgent();
+    const seed = [userMsg('u1', 'previo')];
+    const { ref, rerender } = mountControlled(hook, seed, { turnTimeoutMs: 0 });
+
+    act(() => ref.current!.send('arranca el workflow'));
+    rerender();
+    // Controlled mode still hands the transport the visible thread (externalMessages)
+    // as history for storeless continuity.
+    expect(send).toHaveBeenCalledWith('arranca el workflow', { history: seed });
+    // No optimistic push: the consumer's externalMessages is still the only truth.
+    expect(ref.current!.messages).toBe(seed);
+    expect(ref.current!.messages).toHaveLength(1);
+
+    // A clean finish does NOT fold an assistant message into the thread either.
+    act(() => {
+      state.turn = doneTurn('un solo turno colapsado');
+      state.isStreaming = false;
+    });
+    rerender();
+    expect(ref.current!.messages).toBe(seed);
+    expect(ref.current!.messages).toHaveLength(1);
+  });
+
+  it('surfaces turnError on a transport error without crashing on the no-op revert', () => {
+    const { hook, state } = makeFakeAgent();
+    const seed = [userMsg('u1', 'arranca')];
+    const { ref, rerender } = mountControlled(hook, seed, { turnTimeoutMs: 0 });
+
+    act(() => ref.current!.send('workflow que falla'));
+    rerender();
+    act(() => {
+      state.turn = errorTurn('workflow reventó');
+      state.isStreaming = false;
+    });
+    rerender();
+
+    expect(ref.current!.turnError).toEqual({ kind: 'stream', message: 'workflow reventó' });
+    // The thread is untouched — revert is a no-op (nothing was optimistically pushed).
+    expect(ref.current!.messages).toBe(seed);
+    expect(ref.current!.isStreaming).toBe(false);
+  });
+
+  it('idle watchdog still recovers a hung controlled turn (timeout error, abort)', () => {
+    vi.useFakeTimers();
+    const { hook, state, abort } = makeFakeAgent();
+    const seed = [userMsg('u1', 'arranca')];
+    const { ref, rerender } = mountControlled(hook, seed, { turnTimeoutMs: 1000 });
+
+    act(() => ref.current!.send('workflow que se cuelga'));
+    rerender();
+    expect(ref.current!.isStreaming).toBe(true);
+
+    act(() => vi.advanceTimersByTime(1000));
+    rerender();
+
+    expect(ref.current!.isStreaming).toBe(false);
+    expect(state.isStreaming).toBe(true); // transport still stuck
+    expect(ref.current!.turnError).toEqual({ kind: 'timeout', message: expect.any(String) });
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(ref.current!.messages).toBe(seed); // untouched
+    vi.useRealTimers();
+  });
+
+  it('never calls onMessagesChange in controlled mode (consumer owns persistence)', () => {
+    const onMessagesChange = vi.fn();
+    const { hook, state } = makeFakeAgent();
+    const seed = [userMsg('u1', 'arranca')];
+    const { ref, rerender } = mountControlled(hook, seed, { turnTimeoutMs: 0, onMessagesChange });
+
+    act(() => ref.current!.send('workflow'));
+    rerender();
+    act(() => {
+      state.turn = doneTurn('listo');
+      state.isStreaming = false;
+    });
+    rerender();
+
+    expect(onMessagesChange).not.toHaveBeenCalled();
+  });
+
+  it('externalMessages wins over initialMessages when both are passed', () => {
+    const { hook } = makeFakeAgent();
+    const seed = [agentMsg('a1', 'externo gana')];
+    const { ref } = mountControlled(hook, seed, {
+      turnTimeoutMs: 0,
+      initialMessages: [userMsg('seed', 'esto se ignora')],
+    });
+
+    expect(ref.current!.messages).toBe(seed);
+  });
+});
+
+describe('useAgentConversation — client-supplied history for storeless continuity', () => {
+  afterEach(cleanup);
+
+  it('hands the transport the confirmed thread as meta.history, excluding the new message', () => {
+    const { hook, send } = makeFakeAgent();
+    const seed = [userMsg('u1', '¿chance de México?'), agentMsg('a1', 'limitadas')];
+    const { ref } = mountConversation(hook, { turnTimeoutMs: 0, initialMessages: seed });
+
+    act(() => ref.current!.send('han ganado otro!'));
+
+    expect(send).toHaveBeenCalledWith('han ganado otro!', { history: seed });
+    const meta = send.mock.calls[0][1] as { history: ChatMessage[] };
+    expect(meta.history.some((m) => m.content === 'han ganado otro!')).toBe(false);
+  });
+
+  it('sends empty history on the first turn', () => {
+    const { hook, send } = makeFakeAgent();
+    const { ref } = mountConversation(hook, { turnTimeoutMs: 0 });
+
+    act(() => ref.current!.send('primera'));
+
+    expect(send).toHaveBeenCalledWith('primera', { history: [] });
   });
 });

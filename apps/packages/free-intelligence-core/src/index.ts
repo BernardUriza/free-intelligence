@@ -10,7 +10,7 @@ export type {
   TranscriptResult,
   TranscribeContext,
 } from './voice/adapter';
-export type { ChatMessage, ChatStreamingState } from './chat/message';
+export type { ChatMessage, ChatStreamingState, MessageTrace } from './chat/message';
 export type { ChatHook } from './chat/hook';
 
 // Agent-turn contract (Berkelio). Types describe the wire stream + reduced
@@ -32,7 +32,7 @@ export type {
 } from './agent/state';
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
 export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
-export type { AgentHook } from './agent/hook';
+export type { AgentHook, AgentSendMeta } from './agent/hook';
 
 // Conversation library contract (DD-002B1). Local-first transcript persistence:
 // record/summary types, the ConversationLibrary storage contract, and pure
@@ -50,5 +50,7 @@ export {
   summarizeConversation,
   deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
 } from './conversation';

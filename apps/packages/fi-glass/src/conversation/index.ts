@@ -16,3 +16,4 @@ export {
   type UseConversationLibraryOptions,
   type ConversationLibraryState,
 } from './useConversationLibrary';
+export { useIndexedDBConversationLibrary } from './useIndexedDBConversationLibrary';

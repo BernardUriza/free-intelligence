@@ -171,7 +171,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-12 · PRs #216-#231 mergeados + staging live · FIGLASS-12 smoke staging PASS · pendientes: audio humano FIGLASS-11, header/badge en PR #232, page-depth preset en PR #233</p>
+  <p class="subtitle">Actualizado 2026-06-21 · GATE 3 (Auth real) SHIPPED — Auth0 live en staging.og118.ai: primitiva reusable fi_runner.auth (#268), ownership por cuenta (#269, A no ve lo de B), backend dual mode DESPLEGADO + verificado en staging (bearer legacy O JWT Auth0), apps Auth0 creadas, frontend Auth0 SPA + cutover SWA (#270/#272/#273/#274). Round-trip Google login → JWT → /chat/stream → 200 verificado e2e (localhost→staging-backend); staging renderiza el login. Falta solo: smoke humano del click en staging-host + flip opcional a auth0-only. · proj-account RESUELTO (corpus_id server-side, #267) · Canary Projects E2E verificado en prod (#262/#263) + persistencia volumen Azure Files · Continuidad sin store (#260) · Pendiente: smoke humano de voz (FIGLASS-18)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -186,7 +186,7 @@
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 0 — Inventario read-only ✓</div>
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
     <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
-    <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 3 — Auth real (network/identity) — pendiente decisión de Bernard</div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + frontend login SHIPPED + verificado e2e; falta solo smoke humano staging-host + flip opcional auth0-only</div>
     <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 4 — Cutover público og118.ai + DNS — pendiente Gate 3</div>
   </div>
 
@@ -308,6 +308,26 @@
       <div class="item-note">Destapado por el smoke de FIGLASS-15: el textarea crecía al escribir pero jamás encogía al borrar (atorado en 120px). Causa: el atributo rows del render anterior pone piso al scrollHeight → la medición nunca baja; jsdom (scrollHeight 0) lo ocultaba. Fix: reset rows=1 + height auto ANTES de medir, restore imperativo después. Tests con mock fiel al DOM (scrollHeight = max(líneas, rows) × lineHeight): grow 1→5, shrink 5→1, delete-all, maxRows tras ciclo, send reset — 189/189. PR #239 merged (bbf4d295) + deploy verde + smoke staging PASS: 24→120→24→24px (box 90→186→90→90), cero caja fantasma, consola limpia. El cap fluido calc(100% - 60px) ordenado por Bernard entró aparte en PR #238 (merged d0a85988 + smoke PASS: wrappers 1308px, barra sigue a 0px).</div></div>
       <span class="item-tag">B3-FIGLASS-16</span></label>
     <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-17 — draft player = primitivo TTS + paused state honesto</div>
+      <div class="item-note">Hallazgo P1 del audit DD-VOICE-LOOP-COMPLETE (screenshot anotado de Bernard): timer "--:--" en pausa (durationMs solo se escribía al stop), botón CirclePause disabled que parece control pero no hace nada, y 20 barras decorativas flex-1 estiradas de borde a borde bajo el cap fluido. Fix framework: pauseRecording persiste durationMs; AudioDraftPlayer reproduce vía RichAudioPlayer (el primitivo exacto del TTS: ±10s, scrubber, readout) con object URL resuelto por artifact y revocado al desmontar; paused = dot pulsante + tiempo real + Reanudar, cero pseudo-controles; glassmorphism (blur 24px). Bonus infra: @types/react fijado ^19.2.16 en fi-glass (hoisting lottery). PR #240 merged (082292c1) + deploy verde + smoke automatizado queued PASS: rich player + scrubber + "0:00 / 0:09" del wav real, play avanza a 0:02, glass aplicado, consola limpia. 190/190 tests. PENDIENTE para cerrar: smoke humano de Bernard (paused con mic real + playback audible).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-17</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-18 — pausa segmentada: el paused state reproduce lo grabado</div>
+      <div class="item-note">Veredicto humano del smoke de FIGLASS-17 (screenshot anotado de Bernard): la barra de pausa debe montar el player CON el audio ya grabado, no solo dot+tiempo. FIGLASS-17 era "honesto" porque RecordRTC no da blob parcial; este corte hace que el blob exista: pausar = stop real del recorder (entrega WAV del segmento) conservando vivo el stream del mic; reanudar = recorder nuevo; al stop los segmentos se splicean. Primitivo nuevo mergeWavBlobs (parse RIFF, concat PCM, header canónico; estricto: throws en mismatch). pausedPreviewBlob expuesto por useDurableRecording → AudioDraftPlayer lo monta en RichAudioPlayer con fallback honesto mientras splicea; guard: sin preview si los segmentos exceden maxBytesPerItem. Bonus: fix de durationMs (double-count post-resume) y artifactRef síncrono. og118 hereda con 1 prop. PR #242 merged (05bafc55, GO de Bernard) + deploy SWA verde + bundle confirmado en staging, consola limpia. 206/206 tests. Papercuts del smoke en PR #243 (MERGEADO 4898e812): header "0 B" (sumaba capacity pending-only en vez del set visible) + banner privacidad azul auto-hide 35s. PENDIENTE para cerrar: re-smoke humano (grabar→pausar→play del preview audible→reanudar→pausar→preview con ambos segmentos→stop→transcribir). Absorbe el checklist de FIGLASS-17.</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-18</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-19 — archivar audios transcritos como sent-to-chat</div>
+      <div class="item-note">MERGEADO a main (PR #244, merge 71fcb7c8). Al transcribir, el artifact ya no se borra de la cola: pasa a estado archivado "enviado al chat". Cerró la pregunta abierta del lifecycle post-transcripción que el board listaba en la sección fi-glass (clearTranscribed automático vs manual). La branch feat/b3-voice-figlass-19-archive-sent quedó merged y debería borrarse (leftover).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-19</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-ICONS-1 — fi-glass/icons subpath + createIconRegistry upstream</div>
+      <div class="item-note">Pregunta de Bernard 2026-06-12: ¿fi-glass debería exponer el icon collection de aurity? Audit: fi-glass YA tiene sistema inyectable (AgentIconSet + resolveIcons + toolIcon en agent/icons.ts, StateIcons en voice) — mecanismo correcto, pero enterrado bajo agent/ sin subpath propio. La colección de aurity (lib/icons: medical/status/checkin/ui, 165 lucide) es VOCABULARIO de dominio clínico — NO sube al framework (sería sedimento consumer en la capa equivocada). Lo que sí sube: (1) subpath export fi-glass/icons re-exponiendo el sistema existente; (2) dynamic-icons.ts de aurity generalizado como createIconRegistry() (mapa key→LucideIcon con fallback) — aurity se vuelve consumer alimentando su mapa; (3) purga de @heroicons/react en aurity (2 iconos, 3 archivos legacy → lucide). Versiones lucide alineadas (^0.548.0, peerDep correcto). NO abrir hasta cerrar el smoke de FIGLASS-18.</div></div>
+      <span class="item-tag">B3-ICONS-1</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-REPO-TYPES-1 — stabilize React type resolution (hoisting lottery)</div>
+      <div class="item-note">Destapado al verificar FIGLASS-17 en worktree fresco: con shamefully-hoist=true y DOS @types/react en el lockfile (18.3.26/19.2.16), la copia hoisted al root es no determinista por install — el repo principal cayó en 19 y typechequeaba, un install fresco cayó en 18 y tiró 36 errores en archivos no tocados. Spec del coagent: auditar versiones reales de react/react-dom/@types/*; si todo el monorepo es React 19 → pnpm.overrides en root a la misma major; si hay mezcla 18/19 → NO override global ciego, cada package React declara sus devDependencies; correr typecheck/build de fi-glass, og118, aurity y consumidores. NO bloquea el smoke de voz; no abrir hasta cerrar FIGLASS-17 salvo que CI vuelva a fallar por types.</div></div>
+      <span class="item-tag">B3-REPO-TYPES-1</span></label>
+    <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">B3-OG118-MOBILE-1 — responsive sidebar collapse</div>
       <div class="item-note">Hallazgo del smoke mobile (390×844): el sidebar desktop no colapsa → columna de chat ~222px y textarea 161px. Consumer/product responsive, NO regresión de FIGLASS-15 (100dvh OK, sin overflow horizontal ni doble scroll). Corte ordenado por el coagent como separado: sidebar colapsa o drawer en mobile, chat ocupa ancho útil, sin romper desktop, sin tocar fi-glass salvo que falte slot real.</div></div>
       <span class="item-tag">B3-OG118-MOBILE-1</span></label>
@@ -367,25 +387,94 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">Gate 3 + 4 — Auth real + Cutover público</span>
-      <span class="section-badge badge-blocked">DECISIÓN DE BERNARD</span>
+      <span class="section-badge badge-active">Gate 3 SHIPPED — Auth0 login LIVE en staging</span>
     </div>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Gate 3: Reemplazar bearer speed-bump por auth real (Azure AD / Auth0 / magic link)</div>
-      <div class="item-note">Actualmente: OG118_ACCESS_TOKEN en localStorage. No es Gate 3 real.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Gate 3: Reemplazar bearer speed-bump por auth real — Auth0 SHIPPED, login LIVE en staging</div>
+      <div class="item-note">Auth0 (tenant dedicado dev-1r4daup7ofj7q6gn; el shared con Ferboli). HECHO: (1) primitiva reusable fi_runner.auth (RS256/JWKS) PR #268; (2) ownership por cuenta + seam get_principal PR #269 (A no ve lo de B); (3) backend en OG118_AUTH_MODE=dual desplegado y VERIFICADO en staging (acepta bearer legacy O JWT Auth0 real; sin token→401, JWT basura→401); (4) apps Auth0 creadas (og118-spa client 9FxTp…, og118-api audience https://api.og118.ai); (5) frontend Auth0 SPA (Auth0Wrapper+AuthGate+authMode, flag-gated) PR #272; (6) cutover SWA bake NEXT_PUBLIC_OG118_AUTH_MODE=auth0 PR #273; (7) fix AuthGate inline styles (csstype) PR #274. VERIFICADO e2e: Google login → JWT (sub=google-oauth2|…, aud=https://api.og118.ai) → /chat/stream staging-backend → 200 + turn real. staging.og118.ai renderiza el login (screenshot). FALTA SOLO: smoke humano del click en staging-host (needs Bernard's Google) + flip opcional a auth0-only. Ver DEPLOY.md §Auth0.</div></div>
       <span class="item-tag">gate-3</span></label>
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">Gate 4: og118.ai apunta al SWA de producción + landing switch</div>
-      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final.</div></div>
+      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final. Bloqueado por Gate 3.</div></div>
       <span class="item-tag">gate-4</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">ACA backend: arreglar el deploy de Azure Container Apps (falla en todos los merges)</div>
-      <div class="item-note">Falla pre-existente — no bloquea staging pero sí producción</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">ACA backend: el deploy de Azure Container Apps ya NO falla</div>
+      <div class="item-note">Resuelto esta sesión: múltiples deploys verdes (corpus-binding, permisos rag store, volumen, dual mode). La falla histórica "en todos los merges" ya no se reproduce.</div></div>
       <span class="item-tag">infra-aca</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11</footer>
+  <!-- CONTINUIDAD SIN STORE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Continuidad sin store — client-sent conversation history</span>
+      <span class="section-badge badge-done">MERGEADO A MAIN</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 perdía el hilo (México Mundial → "¡Felicidades! Who won?"): backend stateless + historial enviado por el cliente</div>
+      <div class="item-note">MERGEADO a main · PR #260 (71eef9bc feat + ba91bde5 fix). Nuevo nivel de fi-runner (sanitize_history + run_stream history=), core AgentSendMeta, fi-glass pasa el hilo confirmado, og118 quitó InMemoryConversationStore. 16 tests nuevos + E2E live en Chrome verificado. Trust boundary aplicado: solo roles user/assistant, drop de system/tool/metadata — "client-sent history is conversational context, not authorization context".</div></div>
+      <span class="item-tag">og118-continuity</span></label>
+  </div>
+
+  <!-- CANARY REAL: PAPELERÍA + PROJECTS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Canary real — og118 en la papelería + Projects para el negocio de mamá</span>
+      <span class="section-badge badge-active">CANARY VIVO</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Niños: tareas/investigaciones con Claude vía og118 staging (cuenta abierta, chat nuevo por tema)</div>
+      <div class="item-note">2026-06-19: la mamá de Bernard aceptó poner og118 staging en su papelería. ~2-3 investigaciones diarias = canary real de bajo volumen. Puro chat, CERO archivos → corre hoy sin tocar nada. Disciplina: chat nuevo por tema nuevo = sesiones limpias que destapan gaps de fi-glass en el mundo real.</div></div>
+      <span class="item-tag">canary-kids</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-core RAG: store multi-tenant por corpus_id + chunker + embedders + MCP (ingest/search/list/delete/stats)</div>
+      <div class="item-note">YA EXISTE (verificado 2026-06-19): fi-core/fi_core/rag/ (store_service.py RagStore, store_mcp_server.py, chunking.py). Reutilizar, NO reconstruir (Art. 6). Gotcha: chunker mide TOKENS, min_chunk_size=100 → texto corto = 0 chunks.</div></div>
+      <span class="item-tag">proj-core</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-runner: RagStoreClient (sin import de fi-core) + capability "rag_store" registrada</div>
+      <div class="item-note">YA EXISTE: fi-runner/fi_runner/rag_store.py + capabilities.py:106 rag_store(). El boundary correcto: og118 importa fi-runner, nunca fi-core.</div></div>
+      <span class="item-tag">proj-runner</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-glass: ChatFilePreview + props de upload en ChatWidget + tipo UploadStatus</div>
+      <div class="item-note">YA EXISTE: fi-glass/src/shell/ChatFilePreview.tsx + types.ts (selecting→uploading→processing→indexed→error). El framework anticipó upload — og118 sería el PRIMER consumer en usarlo (valor canary: probar que el primitivo especulativo de verdad sirve).</div></div>
+      <span class="item-tag">proj-glass</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">TRACER: cablear capability "rag_store" en og118 server/runner.py + verificar que el agente puede search en un corpus</div>
+      <div class="item-note">DONE: runner.py:49 capabilities=["task_tracker", "rag_store"] + app.py importa fi_runner.rag_store.RagStoreClient (boundary correcto: og118 → fi-runner, nunca fi-core). Dockerfile + README cablean el backend HDF5 (stores-hdf5). PR #255 (fbb8a7f5) + #248 mergeados. NOTA git.md: #255 duplicó a #248 sin auditar PRs abiertos — lección registrada.</div></div>
+      <span class="item-tag">proj-tracer</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: endpoint POST /projects/{id}/upload → parse texto → RagStoreClient.ingest(corpus_id=project_id)</div>
+      <div class="item-note">DONE: app.py:335 @app.post("/projects/{project_id}/upload") → ingest texto al corpus (corpus_id=project_id), devuelve {corpus_id, doc_id, chunks}. PR #257 (e085f3ab) mergeado.</div></div>
+      <span class="item-tag">proj-upload</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: useChatUpload hook + file-picker UI (prototipo CON gate de extracción a fi-glass)</div>
+      <div class="item-note">DONE: web/lib/useOg118Projects.ts (hook de proyectos + upload lifecycle) + UI en el sidebar. PR #257/#258. Pendiente decidir si el hook de lifecycle (selecting→indexed) SUBE a fi-glass — framework-first-canary, gated tras uso real en la papelería.</div></div>
+      <span class="item-tag">proj-uploadui</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: sección Projects en el sidebar (listar/crear/borrar/seleccionar proyecto activo)</div>
+      <div class="item-note">DONE: sección Projects local-first en el sidebar (corpus library). PR #258 (19ae6a96). Incluyó B3-FIGLASS-MOBILE-2 (93c50d8d): touch-target primitive + reveal-delete-on-touch.</div></div>
+      <span class="item-tag">proj-sidebar</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
+      <div class="item-note">DONE en DOS capas. (1) FRAMEWORK: el binding subió ARRIBA a fi-runner (NO parchado en og118) como nivel configurable — fi_runner.active_corpus_binding, PR #256 (6a0aa374). (2) CONSUMER WIRING: og118 NO lo usaba — /chat/stream no mandaba corpus_id y el agente NUNCA buscaba en el corpus del proyecto activo (subías la lista escolar pero "¿cuánto cuesta el cuaderno?" no la consultaba). Cableado opt-in en PR #262: ChatRequest.corpus_id → run_stream(context=) → context_prompt=active_corpus_binding(); useOg118Agent(sessionId, activeCorpusId). TDD 65/65 server + 5/5 fi-runner + 26/26 web + build. E2E VERIFICADO en staging 2026-06-21: el bundle real manda corpus_id, el agente llamó list_documents Y search_documents scoped al corpus exacto del proyecto activo, y recuperó "$347 pesos" (dato fabricado que solo vive en el doc subido = prueba un-fakeable). Destapó un bug pre-existente del rag store en ACA (Permission denied fi_rag_store.h5.lock, WORKDIR root-owned vs user non-root) arreglado en PR #263 (FI_RAG_STORE_PATH → /opt/fi/data chowned). Projects funcional de verdad pre-Gate-3.</div></div>
+      <span class="item-tag">proj-corpusbind</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">DECIDIDO + IMPLEMENTADO: modelo account→projects→corpus per-project, corpus_id server-side</div>
+      <div class="item-note">RESUELTO (ADR PROJ-ACCOUNT-ADR-1.md). Slice auth-agnóstico: el corpus_id ya NO lo fabrica el cliente — el server lo mintea (POST /projects, PR #267) e ignora cualquier id del cliente. Ownership atado a la cuenta (PR #269): cada proyecto pertenece a principal.sub; A no puede listar/leer/subir/borrar lo de B (404). En bearer mode = cuenta única legacy (sin fricción); con Auth0 el ownership se vuelve real. El corpus_id ES el modelo de privacidad, ahora server-controlado.</div></div>
+      <span class="item-tag">proj-account</span></label>
+  </div>
+
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19</footer>
 </div>
 
 <script>

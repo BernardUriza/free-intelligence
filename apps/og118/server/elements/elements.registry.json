@@ -1,0 +1,843 @@
+{
+  "version": 1,
+  "cap": 118,
+  "elements": [
+    {
+      "atomicNumber": 1,
+      "symbol": "H",
+      "slug": "hidrogeno",
+      "displayName": "Hidrógeno",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 2,
+      "symbol": "He",
+      "slug": "helio",
+      "displayName": "Helio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 3,
+      "symbol": "Li",
+      "slug": "litio",
+      "displayName": "Litio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 4,
+      "symbol": "Be",
+      "slug": "berilio",
+      "displayName": "Berilio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 5,
+      "symbol": "B",
+      "slug": "boro",
+      "displayName": "Boro",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 6,
+      "symbol": "C",
+      "slug": "carbono",
+      "displayName": "Carbono",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 7,
+      "symbol": "N",
+      "slug": "nitrogeno",
+      "displayName": "Nitrógeno",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 8,
+      "symbol": "O",
+      "slug": "oxigeno",
+      "displayName": "Oxígeno",
+      "status": "active",
+      "backingBotId": "vultur-bot",
+      "personaCorePath": "vultur.core.md",
+      "personaPromptPath": "personas/008-o-oxigeno.context.md",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "vultur" },
+      "aliases": [
+        "o1",
+        "oxygen",
+        "vultur"
+      ]
+    },
+    {
+      "atomicNumber": 9,
+      "symbol": "F",
+      "slug": "fluor",
+      "displayName": "Flúor",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 10,
+      "symbol": "Ne",
+      "slug": "neon",
+      "displayName": "Neón",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 11,
+      "symbol": "Na",
+      "slug": "sodio",
+      "displayName": "Sodio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 12,
+      "symbol": "Mg",
+      "slug": "magnesio",
+      "displayName": "Magnesio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 13,
+      "symbol": "Al",
+      "slug": "aluminio",
+      "displayName": "Aluminio",
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "alice" }
+    },
+    {
+      "atomicNumber": 14,
+      "symbol": "Si",
+      "slug": "silicio",
+      "displayName": "Silicio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 15,
+      "symbol": "P",
+      "slug": "fosforo",
+      "displayName": "Fósforo",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 16,
+      "symbol": "S",
+      "slug": "azufre",
+      "displayName": "Azufre",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 17,
+      "symbol": "Cl",
+      "slug": "cloro",
+      "displayName": "Cloro",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 18,
+      "symbol": "Ar",
+      "slug": "argon",
+      "displayName": "Argón",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 19,
+      "symbol": "K",
+      "slug": "potasio",
+      "displayName": "Potasio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 20,
+      "symbol": "Ca",
+      "slug": "calcio",
+      "displayName": "Calcio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 21,
+      "symbol": "Sc",
+      "slug": "escandio",
+      "displayName": "Escandio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 22,
+      "symbol": "Ti",
+      "slug": "titanio",
+      "displayName": "Titanio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 23,
+      "symbol": "V",
+      "slug": "vanadio",
+      "displayName": "Vanadio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 24,
+      "symbol": "Cr",
+      "slug": "cromo",
+      "displayName": "Cromo",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 25,
+      "symbol": "Mn",
+      "slug": "manganeso",
+      "displayName": "Manganeso",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 26,
+      "symbol": "Fe",
+      "slug": "hierro",
+      "displayName": "Hierro",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 27,
+      "symbol": "Co",
+      "slug": "cobalto",
+      "displayName": "Cobalto",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 28,
+      "symbol": "Ni",
+      "slug": "niquel",
+      "displayName": "Níquel",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 29,
+      "symbol": "Cu",
+      "slug": "cobre",
+      "displayName": "Cobre",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 30,
+      "symbol": "Zn",
+      "slug": "zinc",
+      "displayName": "Zinc",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 31,
+      "symbol": "Ga",
+      "slug": "galio",
+      "displayName": "Galio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 32,
+      "symbol": "Ge",
+      "slug": "germanio",
+      "displayName": "Germanio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 33,
+      "symbol": "As",
+      "slug": "arsenico",
+      "displayName": "Arsénico",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 34,
+      "symbol": "Se",
+      "slug": "selenio",
+      "displayName": "Selenio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 35,
+      "symbol": "Br",
+      "slug": "bromo",
+      "displayName": "Bromo",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 36,
+      "symbol": "Kr",
+      "slug": "kripton",
+      "displayName": "Kriptón",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 37,
+      "symbol": "Rb",
+      "slug": "rubidio",
+      "displayName": "Rubidio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 38,
+      "symbol": "Sr",
+      "slug": "estroncio",
+      "displayName": "Estroncio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 39,
+      "symbol": "Y",
+      "slug": "itrio",
+      "displayName": "Itrio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 40,
+      "symbol": "Zr",
+      "slug": "circonio",
+      "displayName": "Circonio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 41,
+      "symbol": "Nb",
+      "slug": "niobio",
+      "displayName": "Niobio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 42,
+      "symbol": "Mo",
+      "slug": "molibdeno",
+      "displayName": "Molibdeno",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 43,
+      "symbol": "Tc",
+      "slug": "tecnecio",
+      "displayName": "Tecnecio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 44,
+      "symbol": "Ru",
+      "slug": "rutenio",
+      "displayName": "Rutenio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 45,
+      "symbol": "Rh",
+      "slug": "rodio",
+      "displayName": "Rodio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 46,
+      "symbol": "Pd",
+      "slug": "paladio",
+      "displayName": "Paladio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 47,
+      "symbol": "Ag",
+      "slug": "plata",
+      "displayName": "Plata",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 48,
+      "symbol": "Cd",
+      "slug": "cadmio",
+      "displayName": "Cadmio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 49,
+      "symbol": "In",
+      "slug": "indio",
+      "displayName": "Indio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 50,
+      "symbol": "Sn",
+      "slug": "estano",
+      "displayName": "Estaño",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 51,
+      "symbol": "Sb",
+      "slug": "antimonio",
+      "displayName": "Antimonio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 52,
+      "symbol": "Te",
+      "slug": "telurio",
+      "displayName": "Telurio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 53,
+      "symbol": "I",
+      "slug": "yodo",
+      "displayName": "Yodo",
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine" }
+    },
+    {
+      "atomicNumber": 54,
+      "symbol": "Xe",
+      "slug": "xenon",
+      "displayName": "Xenón",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 55,
+      "symbol": "Cs",
+      "slug": "cesio",
+      "displayName": "Cesio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 56,
+      "symbol": "Ba",
+      "slug": "bario",
+      "displayName": "Bario",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 57,
+      "symbol": "La",
+      "slug": "lantano",
+      "displayName": "Lantano",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 58,
+      "symbol": "Ce",
+      "slug": "cerio",
+      "displayName": "Cerio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 59,
+      "symbol": "Pr",
+      "slug": "praseodimio",
+      "displayName": "Praseodimio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 60,
+      "symbol": "Nd",
+      "slug": "neodimio",
+      "displayName": "Neodimio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 61,
+      "symbol": "Pm",
+      "slug": "prometio",
+      "displayName": "Prometio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 62,
+      "symbol": "Sm",
+      "slug": "samario",
+      "displayName": "Samario",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 63,
+      "symbol": "Eu",
+      "slug": "europio",
+      "displayName": "Europio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 64,
+      "symbol": "Gd",
+      "slug": "gadolinio",
+      "displayName": "Gadolinio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 65,
+      "symbol": "Tb",
+      "slug": "terbio",
+      "displayName": "Terbio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 66,
+      "symbol": "Dy",
+      "slug": "disprosio",
+      "displayName": "Disprosio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 67,
+      "symbol": "Ho",
+      "slug": "holmio",
+      "displayName": "Holmio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 68,
+      "symbol": "Er",
+      "slug": "erbio",
+      "displayName": "Erbio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 69,
+      "symbol": "Tm",
+      "slug": "tulio",
+      "displayName": "Tulio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 70,
+      "symbol": "Yb",
+      "slug": "iterbio",
+      "displayName": "Iterbio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 71,
+      "symbol": "Lu",
+      "slug": "lutecio",
+      "displayName": "Lutecio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 72,
+      "symbol": "Hf",
+      "slug": "hafnio",
+      "displayName": "Hafnio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 73,
+      "symbol": "Ta",
+      "slug": "tantalo",
+      "displayName": "Tántalo",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 74,
+      "symbol": "W",
+      "slug": "wolframio",
+      "displayName": "Wolframio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 75,
+      "symbol": "Re",
+      "slug": "renio",
+      "displayName": "Renio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 76,
+      "symbol": "Os",
+      "slug": "osmio",
+      "displayName": "Osmio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 77,
+      "symbol": "Ir",
+      "slug": "iridio",
+      "displayName": "Iridio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 78,
+      "symbol": "Pt",
+      "slug": "platino",
+      "displayName": "Platino",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 79,
+      "symbol": "Au",
+      "slug": "oro",
+      "displayName": "Oro",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 80,
+      "symbol": "Hg",
+      "slug": "mercurio",
+      "displayName": "Mercurio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 81,
+      "symbol": "Tl",
+      "slug": "talio",
+      "displayName": "Talio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 82,
+      "symbol": "Pb",
+      "slug": "plomo",
+      "displayName": "Plomo",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 83,
+      "symbol": "Bi",
+      "slug": "bismuto",
+      "displayName": "Bismuto",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 84,
+      "symbol": "Po",
+      "slug": "polonio",
+      "displayName": "Polonio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 85,
+      "symbol": "At",
+      "slug": "astato",
+      "displayName": "Ástato",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 86,
+      "symbol": "Rn",
+      "slug": "radon",
+      "displayName": "Radón",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 87,
+      "symbol": "Fr",
+      "slug": "francio",
+      "displayName": "Francio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 88,
+      "symbol": "Ra",
+      "slug": "radio",
+      "displayName": "Radio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 89,
+      "symbol": "Ac",
+      "slug": "actinio",
+      "displayName": "Actinio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 90,
+      "symbol": "Th",
+      "slug": "torio",
+      "displayName": "Torio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 91,
+      "symbol": "Pa",
+      "slug": "protactinio",
+      "displayName": "Protactinio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 92,
+      "symbol": "U",
+      "slug": "uranio",
+      "displayName": "Uranio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 93,
+      "symbol": "Np",
+      "slug": "neptunio",
+      "displayName": "Neptunio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 94,
+      "symbol": "Pu",
+      "slug": "plutonio",
+      "displayName": "Plutonio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 95,
+      "symbol": "Am",
+      "slug": "americio",
+      "displayName": "Americio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 96,
+      "symbol": "Cm",
+      "slug": "curio",
+      "displayName": "Curio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 97,
+      "symbol": "Bk",
+      "slug": "berkelio",
+      "displayName": "Berkelio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 98,
+      "symbol": "Cf",
+      "slug": "californio",
+      "displayName": "Californio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 99,
+      "symbol": "Es",
+      "slug": "einstenio",
+      "displayName": "Einstenio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 100,
+      "symbol": "Fm",
+      "slug": "fermio",
+      "displayName": "Fermio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 101,
+      "symbol": "Md",
+      "slug": "mendelevio",
+      "displayName": "Mendelevio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 102,
+      "symbol": "No",
+      "slug": "nobelio",
+      "displayName": "Nobelio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 103,
+      "symbol": "Lr",
+      "slug": "lawrencio",
+      "displayName": "Lawrencio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 104,
+      "symbol": "Rf",
+      "slug": "rutherfordio",
+      "displayName": "Rutherfordio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 105,
+      "symbol": "Db",
+      "slug": "dubnio",
+      "displayName": "Dubnio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 106,
+      "symbol": "Sg",
+      "slug": "seaborgio",
+      "displayName": "Seaborgio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 107,
+      "symbol": "Bh",
+      "slug": "bohrio",
+      "displayName": "Bohrio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 108,
+      "symbol": "Hs",
+      "slug": "hasio",
+      "displayName": "Hasio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 109,
+      "symbol": "Mt",
+      "slug": "meitnerio",
+      "displayName": "Meitnerio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 110,
+      "symbol": "Ds",
+      "slug": "darmstadtio",
+      "displayName": "Darmstadtio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 111,
+      "symbol": "Rg",
+      "slug": "roentgenio",
+      "displayName": "Roentgenio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 112,
+      "symbol": "Cn",
+      "slug": "copernicio",
+      "displayName": "Copernicio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 113,
+      "symbol": "Nh",
+      "slug": "nihonio",
+      "displayName": "Nihonio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 114,
+      "symbol": "Fl",
+      "slug": "flerovio",
+      "displayName": "Flerovio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 115,
+      "symbol": "Mc",
+      "slug": "moscovio",
+      "displayName": "Moscovio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 116,
+      "symbol": "Lv",
+      "slug": "livermorio",
+      "displayName": "Livermorio",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 117,
+      "symbol": "Ts",
+      "slug": "teneso",
+      "displayName": "Teneso",
+      "status": "empty"
+    },
+    {
+      "atomicNumber": 118,
+      "symbol": "Og",
+      "slug": "oganeson",
+      "displayName": "Oganesón",
+      "status": "reserved"
+    }
+  ]
+}

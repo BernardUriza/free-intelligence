@@ -13,6 +13,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'apps/aurity/**'
+      - 'backend/**'
+      - '.github/workflows/deploy-azure.yml'
   workflow_dispatch:
     inputs:
       skip_frontend:

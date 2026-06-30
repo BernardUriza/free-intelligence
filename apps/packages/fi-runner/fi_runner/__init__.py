@@ -29,6 +29,7 @@ from typing import Any
 
 from . import capabilities, conversation, flow, guards, narrate, pipeline, router
 from .backend import (
+    COMPANION_BLOCKED_BUILTINS,
     AgentBackend,
     BackendError,
     MCPServerSpec,
@@ -47,6 +48,7 @@ from .conversation import (
     Message,
     RedisConversationStore,
     render_transcript,
+    sanitize_history,
 )
 from .flow import Event, events_to_mermaid
 from .narrate import FlowNarrationError, narrate_flow
@@ -71,6 +73,8 @@ from .pipeline import (
 from .plan_guard import PlanGuard, PlanGuardOutcome, plan_guard
 from .preflight import PreflightResult, probe_all, probe_mcp
 from .router import ModelRouter
+from .context_binding import ContextPrompt, active_corpus_binding
+from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
 __version__ = "0.17.1"
@@ -78,6 +82,7 @@ __version__ = "0.17.1"
 __all__ = [
     "AgentBackend",
     "BackendError",
+    "COMPANION_BLOCKED_BUILTINS",
     "MCPServerSpec",
     "PermissionMode",
     "ToolCall",
@@ -93,6 +98,9 @@ __all__ = [
     "Runner",
     "RetryPolicy",
     "FlowNarrator",
+    "ContextPrompt",
+    "active_corpus_binding",
+    "load_prompt",
     "ModelRouter",
     "capabilities",
     "conversation",
@@ -101,6 +109,7 @@ __all__ = [
     "RedisConversationStore",
     "Message",
     "render_transcript",
+    "sanitize_history",
     "flow",
     "Event",
     "events_to_mermaid",

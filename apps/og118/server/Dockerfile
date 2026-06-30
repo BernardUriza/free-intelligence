@@ -28,9 +28,13 @@ RUN apt-get update \
 # the server so this layer caches across server-only edits.
 COPY apps/packages/fi-core   /opt/fi/packages/fi-core
 COPY apps/packages/fi-runner /opt/fi/packages/fi-runner
+# stores-hdf5 (h5py+numpy) is REQUIRED by the rag_store capability's default
+# HDF5 backend — without it the MCP 500s at the first ingest/search (the
+# lazily-imported-dep deploy trap). pgvector is the persistent prod alternative
+# (FI_RAG_BACKEND=pgvector) and needs its own extra + a DB.
 RUN pip install --no-cache-dir \
-      "/opt/fi/packages/fi-core[mcp]" \
-      "/opt/fi/packages/fi-runner[claude]"
+      "/opt/fi/packages/fi-core[mcp,stores-hdf5]" \
+      "/opt/fi/packages/fi-runner[claude,auth]"
 
 # The FastAPI app itself.
 COPY apps/og118/server /opt/fi/server
@@ -38,6 +42,15 @@ RUN pip install --no-cache-dir -r /opt/fi/server/requirements.txt
 
 # Run unprivileged; the Claude CLI needs a writable HOME for its config dir.
 RUN useradd --create-home --uid 10001 og118
+
+# The RAG store (Projects corpus) must live in an og118-writable dir. The WORKDIR
+# (/opt/fi/server) is root-owned, so the default relative path (./fi_rag_store.h5)
+# fails at the first ingest/search with `Permission denied: fi_rag_store.h5.lock`
+# under the non-root user. This dir is per-container ephemeral; FI_RAG_BACKEND=
+# pgvector is the cross-restart-persistent prod path.
+RUN mkdir -p /opt/fi/data && chown og118:og118 /opt/fi/data
+ENV FI_RAG_STORE_PATH=/opt/fi/data/fi_rag_store.h5
+
 USER og118
 ENV HOME=/home/og118
 

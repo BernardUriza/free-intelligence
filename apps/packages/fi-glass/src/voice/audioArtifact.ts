@@ -11,6 +11,7 @@ export type AudioArtifactState =
   | 'uploading'
   | 'transcribing'
   | 'transcribed'
+  | 'archived'    // used/sent — hidden from the queue, kept in IndexedDB until cleared
   | 'failed'
   | 'deleted';
 
@@ -48,11 +49,15 @@ export function makeArtifactId(): string {
 }
 
 export function isPending(a: AudioArtifact): boolean {
-  return a.state !== 'transcribed' && a.state !== 'deleted';
+  return (
+    a.state !== 'transcribed' && a.state !== 'archived' && a.state !== 'deleted'
+  );
 }
 
 export function isTerminal(a: AudioArtifact): boolean {
-  return a.state === 'transcribed' || a.state === 'deleted';
+  return (
+    a.state === 'transcribed' || a.state === 'archived' || a.state === 'deleted'
+  );
 }
 
 export function artifactLabel(state: AudioArtifactState): string {
@@ -65,6 +70,7 @@ export function artifactLabel(state: AudioArtifactState): string {
     uploading: 'Subiendo',
     transcribing: 'Transcribiendo',
     transcribed: 'Transcrito',
+    archived: 'Enviado',
     failed: 'Falló',
     deleted: 'Eliminado',
   };

@@ -70,6 +70,9 @@ interface ConversationLibraryState {
     switchConversation: (id: string) => Promise<void>;
     /** Delete a conversation; if it was active, activate the next most recent (or a fresh one). */
     deleteConversation: (id: string) => Promise<void>;
+    /** Rename a conversation; an empty/whitespace title reverts to the auto-derived
+     * one. A custom title survives future message persists. Throws if `id` is gone. */
+    renameConversation: (id: string, title: string) => Promise<void>;
     /** Persist the active conversation's messages (no-op for an empty thread). */
     persist: (messages: ChatMessage[]) => Promise<void>;
     /** Re-read the summary list from storage. */
@@ -77,4 +80,6 @@ interface ConversationLibraryState {
 }
 declare function useConversationLibrary(library: ConversationLibrary, options?: UseConversationLibraryOptions): ConversationLibraryState;
 
-export { type ConversationLibraryState, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type UseConversationLibraryOptions, useConversationLibrary };
+declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
+
+export { type ConversationLibraryState, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type UseConversationLibraryOptions, useConversationLibrary, useIndexedDBConversationLibrary };

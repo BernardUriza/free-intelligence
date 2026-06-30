@@ -4,8 +4,18 @@ import { CSSProperties, Ref, TextareaHTMLAttributes } from 'react';
 interface ComposerProps {
     /** Current message value */
     message: string;
-    /** Is sending message (disables input) */
+    /**
+     * A turn is streaming. Blocks SUBMIT (Enter is a no-op) so a second turn
+     * can't fire, but NEVER blocks editing — the user keeps typing the next
+     * message while the assistant responds (ChatGPT parity, B3-FIGLASS-COMPOSER-FOCUS-1).
+     */
     loading?: boolean;
+    /**
+     * Genuinely disable EDITING (auth blocked, readonly, quota/capacity, terminal
+     * error) — this is the only state that sets the <textarea> disabled and lets
+     * the browser drop focus. Streaming is `loading`, not `disabled`.
+     */
+    disabled?: boolean;
     /** Placeholder text */
     placeholder?: string;
     /** Called on every edit */
@@ -23,13 +33,21 @@ interface ComposerProps {
     /** Class for the <textarea> itself */
     textareaClassName?: string;
     /**
+     * Optional stable id for the inner <textarea> (B3-FIGLASS-A11Y-1). Omit it and
+     * the textarea self-generates an accessible default — pass one only when the
+     * app needs a predictable handle (label `for=`, autofill, tests).
+     */
+    id?: string;
+    /** Optional stable name for the inner <textarea> (B3-FIGLASS-A11Y-1). */
+    name?: string;
+    /**
      * Typed ref to the inner <textarea> (B3-FIGLASS-10) so the owner can manage
      * focus (e.g. refocus after dictation/send/stream) without touching DOM
      * internals.
      */
     textareaRef?: Ref<HTMLTextAreaElement>;
 }
-declare function Composer({ message, loading, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, textareaRef, }: ComposerProps): react.JSX.Element;
+declare function Composer({ message, loading, disabled, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, id, name, textareaRef, }: ComposerProps): react.JSX.Element;
 
 interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     /** Max rows before scrolling */

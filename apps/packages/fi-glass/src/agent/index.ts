@@ -45,9 +45,62 @@ export {
 export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
+  type AgentConversationSurfaceLayout,
 } from './AgentConversationSurface';
 // B3-FIGLASS-12: floating jump-to-latest affordance (pin-to-bottom UX).
 export {
   ScrollToBottomButton,
   type ScrollToBottomButtonProps,
 } from './ScrollToBottomButton';
+// FG-4: viewport-locked agent-workspace page primitive (composes a full page
+// from slots — header / main / conversation / rail / footer). B3-FIGLASS-MOBILE-1
+// folds in an optional sidebar slot + opt-in mobile drawer.
+export { AgentWorkspaceShell } from './AgentWorkspaceShell';
+export type {
+  AgentWorkspaceShellProps,
+  AgentWorkspaceShellVisual,
+  AgentWorkspaceShellDensity,
+  AgentWorkspaceShellApi,
+} from './AgentWorkspaceShell';
+// B3-FIGLASS-SHELL-PRIMITIVES-1A: reusable sidebar/resource item primitives — the
+// row/item/action anatomy og118 hand-wrote twice (conversations + projects), now
+// framework-owned (slot-driven, token-themed, inline-rename from #283).
+export {
+  AgentSidebarItem,
+  EditableResourceItem,
+  ItemActionSlot,
+  DestructiveActionSlot,
+  useInlineRename,
+} from './AgentSidebarItem';
+export type {
+  AgentSidebarItemProps,
+  EditableResourceItemProps,
+  ItemActionSlotProps,
+  DestructiveActionSlotProps,
+  UseInlineRenameOptions,
+  InlineRename,
+} from './AgentSidebarItem';
+export {
+  ensureSidebarItemStyle,
+  useSidebarItemStyle,
+  FI_SIDEBAR_ITEM_CLASS,
+  FI_ITEM_TITLE_CLASS,
+  FI_ITEM_SUBTITLE_CLASS,
+  FI_ITEM_META_CLASS,
+  FI_ITEM_ACTION_CLASS,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+} from './sidebarItemStyle';
+// B3-FIGLASS-SHELL-PRIMITIVES-1C: the labelled sidebar section (header + count→empty
+// gate) og118 hand-wrote twice (og-sidebar-head + og-projects-head structural twins),
+// now framework-owned. Conversations and Projects are its two consumers.
+export {
+  AgentSidebarSection,
+  type AgentSidebarSectionProps,
+} from './AgentSidebarSection';
+export {
+  ensureSidebarSectionStyle,
+  useSidebarSectionStyle,
+  FI_SIDEBAR_SECTION_CLASS,
+  FI_SECTION_HEAD_CLASS,
+  FI_SECTION_TITLE_CLASS,
+} from './sidebarSectionStyle';

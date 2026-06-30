@@ -273,4 +273,59 @@ describe('useAudioQueue', () => {
     // Only pending item's bytes
     expect(result.current.totalBytes).toBe(1024);
   });
+
+  // B3-VOICE-FIGLASS-19 — archive ("mark as sent to chat")
+  function makeStored(
+    id: string,
+    state: StoredAudioArtifact['state'],
+  ): StoredAudioArtifact {
+    return {
+      id,
+      mime: 'audio/wav',
+      size: 512,
+      createdAt: '2026-06-11T00:00:00.000Z',
+      updatedAt: '2026-06-11T00:00:00.000Z',
+      state,
+      blob: wavBlob,
+    };
+  }
+
+  it('archiveArtifact moves a transcribed artifact to archived and persists it', async () => {
+    vi.mocked(store.list).mockResolvedValue([makeStored('t1', 'transcribed')]);
+    const { result } = renderHook(() => useAudioQueue({ store }));
+    await act(async () => {});
+
+    await act(async () => { await result.current.archiveArtifact('t1'); });
+
+    expect(result.current.artifacts[0].state).toBe('archived');
+    expect(store.updateMeta).toHaveBeenCalledWith('t1', { state: 'archived' });
+  });
+
+  it('archiveArtifact refuses non-transcribed artifacts', async () => {
+    vi.mocked(store.list).mockResolvedValue([makeStored('q1', 'queued')]);
+    const { result } = renderHook(() => useAudioQueue({ store }));
+    await act(async () => {});
+
+    await act(async () => { await result.current.archiveArtifact('q1'); });
+
+    expect(result.current.artifacts[0].state).toBe('queued');
+    expect(store.updateMeta).not.toHaveBeenCalled();
+  });
+
+  it('clearTranscribed also purges archived artifacts', async () => {
+    vi.mocked(store.list).mockResolvedValue([
+      makeStored('t1', 'transcribed'),
+      makeStored('ar1', 'archived'),
+      makeStored('q1', 'queued'),
+    ]);
+    const { result } = renderHook(() => useAudioQueue({ store }));
+    await act(async () => {});
+
+    await act(async () => { await result.current.clearTranscribed(); });
+
+    expect(store.delete).toHaveBeenCalledWith('t1');
+    expect(store.delete).toHaveBeenCalledWith('ar1');
+    expect(store.delete).not.toHaveBeenCalledWith('q1');
+    expect(result.current.artifacts.map((a) => a.id)).toEqual(['q1']);
+  });
 });

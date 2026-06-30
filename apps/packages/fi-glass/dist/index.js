@@ -245,6 +245,40 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect2 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/messages/CopyButton.tsx
 import { jsx as jsx3 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -258,6 +292,7 @@ var CopyButton = memo2(function CopyButton2({
   resetMs = 2e3
 }) {
   const [copied, setCopied] = useState2(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -276,7 +311,7 @@ var CopyButton = memo2(function CopyButton2({
     "button",
     {
       onClick: handleCopy,
-      className: `${base} ${copied ? active : idle}`,
+      className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
       children: copied ? /* @__PURE__ */ jsx3(Check, { className: icon }) : /* @__PURE__ */ jsx3(Copy, { className: icon })
@@ -340,7 +375,8 @@ function MessageList({
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
-  useEffect as useEffect2,
+  useEffect as useEffect3,
+  useId as useId2,
   useImperativeHandle,
   useRef as useRef2,
   useState as useState3
@@ -355,12 +391,17 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   wrapperClassName = "",
   wrapperStyle,
   className = "",
+  id,
+  name,
   ...props
 }, ref) {
   const textareaRef = useRef2(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState3(1);
-  useEffect2(() => {
+  const generatedId = useId2();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
+  useEffect3(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -385,6 +426,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       "textarea",
       {
         ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
         value,
         onChange,
         maxLength,
@@ -409,6 +452,7 @@ import { jsx as jsx7 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
@@ -417,11 +461,14 @@ function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -429,11 +476,13 @@ function Composer({
     AutoResizeTextarea,
     {
       ref: textareaRef,
+      id,
+      name,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
       placeholder,
-      disabled: loading,
+      disabled,
       maxRows,
       showCounter: false,
       wrapperClassName,
@@ -855,6 +904,7 @@ function SpeakButton({
   busyTitle = "Generando audio\u2026",
   cachedTitle = "Reproducir (ya generado)"
 }) {
+  useTouchTargetStyle();
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
   const label = busy ? busyTitle : cached ? cachedTitle : title ?? `Escuchar (${voiceDisplay})`;
@@ -867,7 +917,7 @@ function SpeakButton({
       },
       disabled: busy,
       "aria-busy": busy,
-      className: className ?? PAD_SIZE[size],
+      className: `${FI_TOUCH_TARGET_CLASS} ${className ?? PAD_SIZE[size]}`,
       title: label,
       "aria-label": busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
       children: busy ? /* @__PURE__ */ jsx13(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx13(Play, { className: icon }) : /* @__PURE__ */ jsx13(Volume2, { className: icon })
@@ -1076,7 +1126,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect3, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
+import { useEffect as useEffect4, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef3(opts);
   cbRef.current = opts;
@@ -1090,7 +1140,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect3(() => () => controller.dispose(), [controller]);
+  useEffect4(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1114,7 +1164,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect4 } from "react";
+import { useEffect as useEffect5 } from "react";
 import { jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1129,7 +1179,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -1178,7 +1228,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect5 } from "react";
+import { useEffect as useEffect6 } from "react";
 import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 var ICON2 = "w-4 h-4";
 var BTN2 = "p-2 disabled:opacity-40";
@@ -1219,14 +1269,15 @@ function RichAudioPlayer({
     duration,
     currentTime
   } = player;
-  useEffect5(() => {
+  useEffect6(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
   }, [source, autoPlay]);
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
-  const btnClass = buttonClassName ?? BTN2;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN2}`;
   const iconClass = iconClassName ?? ICON2;
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
@@ -1414,7 +1465,8 @@ function ComposerMicSlot({
   buttonClassName,
   iconClassName
 }) {
-  const btnClass = buttonClassName ?? BTN3;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN3}`;
   const iconClass = iconClassName ?? ICON3;
   const disabled = !available || busy;
   const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
@@ -1832,7 +1884,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState6, useRef as useRef6, useEffect as useEffect6 } from "react";
+import { useState as useState6, useRef as useRef6, useEffect as useEffect7 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1866,7 +1918,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef6(null);
   const animationFrameRef = useRef6(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect6(() => {
+  useEffect7(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1972,10 +2024,10 @@ function makeArtifactId() {
   return `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 function isPending(a) {
-  return a.state !== "transcribed" && a.state !== "deleted";
+  return a.state !== "transcribed" && a.state !== "archived" && a.state !== "deleted";
 }
 function isTerminal(a) {
-  return a.state === "transcribed" || a.state === "deleted";
+  return a.state === "transcribed" || a.state === "archived" || a.state === "deleted";
 }
 function artifactLabel(state) {
   const map = {
@@ -1987,6 +2039,7 @@ function artifactLabel(state) {
     uploading: "Subiendo",
     transcribing: "Transcribiendo",
     transcribed: "Transcrito",
+    archived: "Enviado",
     failed: "Fall\xF3",
     deleted: "Eliminado"
   };
@@ -2081,8 +2134,125 @@ var AudioQueueStore = class {
   }
 };
 
+// src/voice/useAudioQueueStore.ts
+import { useMemo as useMemo2 } from "react";
+
+// src/identity/scopedStore.ts
+var SCOPE_SEPARATOR = "--";
+var LEGACY_SCOPE = "legacy";
+function scopedStoreName(base, identityKey) {
+  const scope = identityKey && identityKey.trim() ? identityKey : LEGACY_SCOPE;
+  return `${base}${SCOPE_SEPARATOR}${scope}`;
+}
+
+// src/voice/useAudioQueueStore.ts
+var BASE_DB_NAME = "free-intelligence-audio-queue";
+function useAudioQueueStore(identityKey, options = {}) {
+  const { storeName } = options;
+  return useMemo2(
+    () => new AudioQueueStore({
+      dbName: scopedStoreName(BASE_DB_NAME, identityKey),
+      storeName
+    }),
+    [identityKey, storeName]
+  );
+}
+
 // src/voice/useDurableRecording.ts
-import { useState as useState8, useRef as useRef7, useCallback as useCallback5, useEffect as useEffect7 } from "react";
+import { useState as useState8, useRef as useRef7, useCallback as useCallback5, useEffect as useEffect8 } from "react";
+
+// src/voice/wav.ts
+function blobToArrayBuffer(blob) {
+  if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+function readFourCC(view, offset) {
+  return String.fromCharCode(
+    view.getUint8(offset),
+    view.getUint8(offset + 1),
+    view.getUint8(offset + 2),
+    view.getUint8(offset + 3)
+  );
+}
+function parseWav(buffer) {
+  const view = new DataView(buffer);
+  if (buffer.byteLength < 44 || readFourCC(view, 0) !== "RIFF" || readFourCC(view, 8) !== "WAVE") {
+    throw new Error("Not a RIFF/WAVE file");
+  }
+  let fmt = null;
+  let data = null;
+  let offset = 12;
+  while (offset + 8 <= buffer.byteLength) {
+    const id = readFourCC(view, offset);
+    const size = view.getUint32(offset + 4, true);
+    const body = offset + 8;
+    if (id === "fmt ") {
+      fmt = {
+        audioFormat: view.getUint16(body, true),
+        numChannels: view.getUint16(body + 2, true),
+        sampleRate: view.getUint32(body + 4, true),
+        bitsPerSample: view.getUint16(body + 14, true)
+      };
+    } else if (id === "data") {
+      const end = Math.min(body + size, buffer.byteLength);
+      data = new Uint8Array(buffer.slice(body, end));
+    }
+    offset = body + size + size % 2;
+  }
+  if (!fmt || !data) throw new Error("WAV missing fmt or data chunk");
+  return { ...fmt, data };
+}
+function buildWav(fmt, pcm) {
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const byteRate = fmt.sampleRate * fmt.numChannels * fmt.bitsPerSample / 8;
+  const blockAlign = fmt.numChannels * fmt.bitsPerSample / 8;
+  const writeFourCC = (offset, s) => {
+    for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+  writeFourCC(0, "RIFF");
+  view.setUint32(4, 36 + pcm.byteLength, true);
+  writeFourCC(8, "WAVE");
+  writeFourCC(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, fmt.audioFormat, true);
+  view.setUint16(22, fmt.numChannels, true);
+  view.setUint32(24, fmt.sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, fmt.bitsPerSample, true);
+  writeFourCC(36, "data");
+  view.setUint32(40, pcm.byteLength, true);
+  return new Blob([header, pcm.buffer], { type: "audio/wav" });
+}
+async function mergeWavBlobs(blobs) {
+  if (blobs.length === 0) throw new Error("No WAV segments to merge");
+  if (blobs.length === 1) return blobs[0];
+  const parsed = await Promise.all(
+    blobs.map(async (b) => parseWav(await blobToArrayBuffer(b)))
+  );
+  const first = parsed[0];
+  for (const p of parsed.slice(1)) {
+    if (p.audioFormat !== first.audioFormat || p.numChannels !== first.numChannels || p.sampleRate !== first.sampleRate || p.bitsPerSample !== first.bitsPerSample) {
+      throw new Error("WAV segments have mismatched formats");
+    }
+  }
+  const total = parsed.reduce((s, p) => s + p.data.byteLength, 0);
+  const pcm = new Uint8Array(total);
+  let cursor = 0;
+  for (const p of parsed) {
+    pcm.set(p.data, cursor);
+    cursor += p.data.byteLength;
+  }
+  return buildWav(first, pcm);
+}
+
+// src/voice/useDurableRecording.ts
 var MIC_TIMEOUT_MS = 15e3;
 async function loadRecordRTC() {
   const mod = await import("recordrtc");
@@ -2105,20 +2275,22 @@ function useDurableRecording(opts) {
   const [currentStream, setCurrentStream] = useState8(null);
   const [isAtCapacity, setIsAtCapacity] = useState8(false);
   const [isStarting, setIsStarting] = useState8(false);
+  const [pausedPreviewBlob, setPausedPreviewBlob] = useState8(null);
   const recorderRef = useRef7(null);
   const streamRef = useRef7(null);
   const timerRef = useRef7(null);
   const startTimeRef = useRef7(0);
   const pausedElapsedRef = useRef7(0);
   const artifactRef = useRef7(null);
-  useEffect7(() => {
+  const segmentsRef = useRef7([]);
+  const rtcCtorRef = useRef7(null);
+  const pauseOpRef = useRef7(Promise.resolve());
+  useEffect8(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect7(() => {
+  useEffect8(() => {
     store.list().then((stored) => {
-      const pending = stored.filter(
-        (a) => a.state !== "transcribed" && a.state !== "deleted"
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       setIsAtCapacity(
         pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
@@ -2144,23 +2316,34 @@ function useDurableRecording(opts) {
   }, []);
   const updateArtifact = useCallback5(
     (patch) => {
-      setArtifact((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
-        artifactRef.current = updated;
-        return updated;
-      });
+      const prev = artifactRef.current;
+      if (!prev) return;
+      const updated = { ...prev, ...patch, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+      artifactRef.current = updated;
+      setArtifact(updated);
     },
     []
   );
+  const startNewRecorderSegment = useCallback5((stream) => {
+    const RecordRTC = rtcCtorRef.current;
+    if (!RecordRTC) throw new Error("[useDurableRecording] RecordRTC not loaded");
+    const recorder = new RecordRTC(stream, {
+      type: "audio",
+      recorderType: RecordRTC.StereoAudioRecorder,
+      mimeType: "audio/wav",
+      numberOfAudioChannels: 1,
+      desiredSampRate: 16e3,
+      disableLogs: true
+    });
+    recorder.startRecording();
+    return recorder;
+  }, []);
   const startRecording = useCallback5(async () => {
     if (artifact?.state === "recording" || artifact?.state === "paused") return;
     setIsStarting(true);
     try {
       const stored = await store.list();
-      const pending = stored.filter(
-        (a) => a.state !== "transcribed" && a.state !== "deleted"
-      );
+      const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
       if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
         setIsAtCapacity(true);
@@ -2182,17 +2365,11 @@ function useDurableRecording(opts) {
       ]);
       streamRef.current = stream;
       setCurrentStream(stream);
-      const RecordRTC = await loadRecordRTC();
-      const recorder = new RecordRTC(stream, {
-        type: "audio",
-        recorderType: RecordRTC.StereoAudioRecorder,
-        mimeType: "audio/wav",
-        numberOfAudioChannels: 1,
-        desiredSampRate: 16e3,
-        disableLogs: true
-      });
-      recorderRef.current = recorder;
-      recorder.startRecording();
+      rtcCtorRef.current = await loadRecordRTC();
+      segmentsRef.current = [];
+      pauseOpRef.current = Promise.resolve();
+      setPausedPreviewBlob(null);
+      recorderRef.current = startNewRecorderSegment(stream);
       const now = Date.now();
       startTimeRef.current = now;
       pausedElapsedRef.current = 0;
@@ -2218,17 +2395,39 @@ function useDurableRecording(opts) {
     } finally {
       setIsStarting(false);
     }
-  }, [artifact, store, policy, deviceId, onError, releaseStream]);
+  }, [artifact, store, policy, deviceId, onError, releaseStream, startNewRecorderSegment]);
   const pauseRecording = useCallback5(() => {
     if (artifactRef.current?.state !== "recording") return;
-    recorderRef.current?.pauseRecording();
     stopTimer();
     pausedElapsedRef.current = Date.now() - startTimeRef.current;
-    updateArtifact({ state: "paused" });
-  }, [stopTimer, updateArtifact]);
+    updateArtifact({ state: "paused", durationMs: pausedElapsedRef.current });
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    pauseOpRef.current = new Promise((resolve) => {
+      if (!recorder) {
+        resolve();
+        return;
+      }
+      recorder.stopRecording(() => {
+        const segment = recorder.getBlob();
+        if (segment && segment.size > 0) segmentsRef.current.push(segment);
+        const totalBytes = segmentsRef.current.reduce((s, b) => s + b.size, 0);
+        if (totalBytes > policy.maxBytesPerItem) {
+          resolve();
+          return;
+        }
+        void mergeWavBlobs(segmentsRef.current).then((preview) => {
+          if (artifactRef.current?.state === "paused") {
+            setPausedPreviewBlob(preview);
+          }
+        }).catch(() => {
+        }).finally(resolve);
+      });
+    });
+  }, [stopTimer, updateArtifact, policy]);
   const resumeRecording = useCallback5(() => {
     if (artifactRef.current?.state !== "paused") return;
-    recorderRef.current?.resumeRecording();
+    setPausedPreviewBlob(null);
     startTimeRef.current = Date.now() - pausedElapsedRef.current;
     timerRef.current = setInterval(() => {
       setRecordingTime(
@@ -2236,63 +2435,82 @@ function useDurableRecording(opts) {
       );
     }, 1e3);
     updateArtifact({ state: "recording" });
-  }, [updateArtifact]);
+    void pauseOpRef.current.then(() => {
+      if (artifactRef.current?.state !== "recording") return;
+      const stream = streamRef.current;
+      if (!stream) return;
+      try {
+        recorderRef.current = startNewRecorderSegment(stream);
+      } catch (err) {
+        updateArtifact({
+          state: "failed",
+          errorMessage: err instanceof Error ? err.message : "No se pudo reanudar la grabaci\xF3n."
+        });
+      }
+    });
+  }, [updateArtifact, startNewRecorderSegment]);
   const stopRecording = useCallback5(async () => {
     const current = artifactRef.current;
     if (current?.state !== "recording" && current?.state !== "paused") {
       return null;
     }
     stopTimer();
-    const durationMs = Date.now() - startTimeRef.current + pausedElapsedRef.current;
+    const durationMs = current.state === "paused" ? pausedElapsedRef.current : Date.now() - startTimeRef.current;
     updateArtifact({ state: "stopping" });
-    return new Promise((resolve) => {
-      if (!recorderRef.current) {
-        releaseStream();
-        resolve(null);
-        return;
+    setPausedPreviewBlob(null);
+    await pauseOpRef.current;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      await new Promise((resolve) => recorder.stopRecording(resolve));
+      const segment = recorder.getBlob();
+      if (segment && segment.size > 0) segmentsRef.current.push(segment);
+    }
+    releaseStream();
+    const segments = segmentsRef.current;
+    segmentsRef.current = [];
+    let blob = null;
+    if (segments.length > 0) {
+      try {
+        blob = await mergeWavBlobs(segments);
+      } catch {
+        blob = null;
       }
-      recorderRef.current.stopRecording(async () => {
-        releaseStream();
-        const blob = recorderRef.current?.getBlob() ?? null;
-        recorderRef.current = null;
-        if (!blob || blob.size === 0) {
-          updateArtifact({ state: "failed", errorMessage: "Grabaci\xF3n vac\xEDa." });
-          resolve(null);
-          return;
-        }
-        if (blob.size > policy.maxBytesPerItem) {
-          updateArtifact({
-            state: "failed",
-            errorMessage: `Audio demasiado grande (${Math.round(blob.size / 1024 / 1024)} MB, m\xE1ximo ${Math.round(policy.maxBytesPerItem / 1024 / 1024)} MB).`
-          });
-          resolve(null);
-          return;
-        }
-        const finalArtifact = {
-          ...current,
-          size: blob.size,
-          durationMs,
-          state: "queued",
-          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-        };
-        updateArtifact({
-          size: blob.size,
-          durationMs,
-          state: "queued"
-        });
-        try {
-          await store.put({ ...finalArtifact, blob });
-          onSaved?.(finalArtifact);
-          setIsAtCapacity(false);
-          resolve(finalArtifact);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Error al guardar audio.";
-          updateArtifact({ state: "failed", errorMessage: msg });
-          onError?.(msg);
-          resolve(null);
-        }
+    }
+    if (!blob || blob.size === 0) {
+      updateArtifact({ state: "failed", errorMessage: "Grabaci\xF3n vac\xEDa." });
+      return null;
+    }
+    if (blob.size > policy.maxBytesPerItem) {
+      updateArtifact({
+        state: "failed",
+        errorMessage: `Audio demasiado grande (${Math.round(blob.size / 1024 / 1024)} MB, m\xE1ximo ${Math.round(policy.maxBytesPerItem / 1024 / 1024)} MB).`
       });
+      return null;
+    }
+    const finalArtifact = {
+      ...current,
+      size: blob.size,
+      durationMs,
+      state: "queued",
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    updateArtifact({
+      size: blob.size,
+      durationMs,
+      state: "queued"
     });
+    try {
+      await store.put({ ...finalArtifact, blob });
+      onSaved?.(finalArtifact);
+      setIsAtCapacity(false);
+      return finalArtifact;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al guardar audio.";
+      updateArtifact({ state: "failed", errorMessage: msg });
+      onError?.(msg);
+      return null;
+    }
   }, [store, policy, releaseStream, stopTimer, updateArtifact, onSaved, onError]);
   const cancelRecording = useCallback5(() => {
     stopTimer();
@@ -2305,6 +2523,8 @@ function useDurableRecording(opts) {
       }
       recorderRef.current = null;
     }
+    segmentsRef.current = [];
+    setPausedPreviewBlob(null);
     setArtifact(null);
     artifactRef.current = null;
     setRecordingTime(0);
@@ -2312,6 +2532,7 @@ function useDurableRecording(opts) {
   return {
     artifact,
     recordingTime,
+    pausedPreviewBlob,
     bands,
     audioLevel,
     isSilent,
@@ -2326,7 +2547,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState9, useEffect as useEffect8, useCallback as useCallback6 } from "react";
+import { useState as useState9, useEffect as useEffect9, useCallback as useCallback6 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState9([]);
@@ -2340,7 +2561,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect8(() => {
+  useEffect9(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback6(
@@ -2414,10 +2635,20 @@ function useAudioQueue(opts) {
     },
     [store]
   );
+  const archiveArtifact = useCallback6(
+    async (id) => {
+      const a = artifacts.find((x) => x.id === id);
+      if (!a || a.state !== "transcribed") return;
+      patchLocal(id, { state: "archived" });
+      await store.updateMeta(id, { state: "archived" });
+    },
+    [artifacts, store, patchLocal]
+  );
   const clearTranscribed = useCallback6(async () => {
-    const toDelete = artifacts.filter((a) => a.state === "transcribed");
+    const used = (a) => a.state === "transcribed" || a.state === "archived";
+    const toDelete = artifacts.filter(used);
     await Promise.all(toDelete.map((a) => store.delete(a.id)));
-    setArtifacts((prev) => prev.filter((a) => a.state !== "transcribed"));
+    setArtifacts((prev) => prev.filter((a) => !used(a)));
   }, [artifacts, store]);
   const reload = useCallback6(async () => {
     setIsLoading(true);
@@ -2432,13 +2663,15 @@ function useAudioQueue(opts) {
     retryTranscription,
     getPlaybackUrl,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     reload
   };
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect10, useState as useState11 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState10, useCallback as useCallback7 } from "react";
@@ -2446,6 +2679,7 @@ import {
   Mic as Mic3,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle as AlertCircle3,
   Loader2 as Loader28,
   Play as Play4,
@@ -2479,6 +2713,7 @@ function AudioQueueItem({
   onTranscribe,
   onRetry,
   onDelete,
+  onArchive,
   onGetPlaybackUrl,
   className = ""
 }) {
@@ -2562,6 +2797,16 @@ function AudioQueueItem({
               children: /* @__PURE__ */ jsx18(RotateCcw2, { className: "w-3.5 h-3.5" })
             }
           ),
+          artifact.state === "transcribed" && onArchive && /* @__PURE__ */ jsx18(
+            "button",
+            {
+              onClick: () => onArchive(artifact.id),
+              className: "fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors",
+              "aria-label": "Marcar como enviado al chat",
+              title: "Marcar como enviado al chat",
+              children: /* @__PURE__ */ jsx18(CheckCheck, { className: "w-3.5 h-3.5" })
+            }
+          ),
           onDelete && artifact.state !== "recording" && artifact.state !== "paused" && /* @__PURE__ */ jsx18(
             "button",
             {
@@ -2581,35 +2826,45 @@ function AudioQueueItem({
 // src/voice/AudioQueuePanel.tsx
 import { jsx as jsx19, jsxs as jsxs13 } from "react/jsx-runtime";
 var DEFAULT_PRIVACY_NOTICE = "Tu audio se guarda localmente hasta que lo transcribas o elimines. No se env\xEDa al servidor hasta que lo solicites.";
+var DEFAULT_PRIVACY_NOTICE_MS = 35e3;
 function AudioQueuePanel({
   queue,
   className = "",
   privacyNotice = DEFAULT_PRIVACY_NOTICE,
+  privacyNoticeMs = DEFAULT_PRIVACY_NOTICE_MS,
   maxVisible = 6,
   excludeIds = []
 }) {
   const {
     artifacts,
-    totalBytes,
     isLoading,
     transcribeArtifact,
     retryTranscription,
     deleteArtifact,
+    archiveArtifact,
     clearTranscribed,
     getPlaybackUrl
   } = queue;
+  const [showNotice, setShowNotice] = useState11(true);
+  useEffect10(() => {
+    if (!privacyNoticeMs) return;
+    const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
+    return () => clearTimeout(t);
+  }, [privacyNoticeMs]);
   const visible = artifacts.filter(
-    (a) => a.state !== "deleted" && !excludeIds.includes(a.id)
+    (a) => a.state !== "deleted" && a.state !== "archived" && // used/sent — hidden, kept until cleared
+    !excludeIds.includes(a.id)
   );
   const hasTranscribed = visible.some((a) => a.state === "transcribed");
+  const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
   if (isLoading) {
     return /* @__PURE__ */ jsx19("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx19(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
   }
   if (visible.length === 0) return null;
   return /* @__PURE__ */ jsxs13("div", { className: `space-y-2 ${className}`, children: [
-    /* @__PURE__ */ jsxs13("div", { className: "flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20", children: [
-      /* @__PURE__ */ jsx19(ShieldAlert, { className: "w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" }),
-      /* @__PURE__ */ jsx19("p", { className: "text-[11px] text-yellow-200/70 leading-relaxed", children: privacyNotice })
+    showNotice && /* @__PURE__ */ jsxs13("div", { className: "fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20", children: [
+      /* @__PURE__ */ jsx19(Info, { className: "w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx19("p", { className: "text-[11px] text-blue-200/70 leading-relaxed", children: privacyNotice })
     ] }),
     /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between px-1", children: [
       /* @__PURE__ */ jsxs13("span", { className: "text-xs text-white/50", children: [
@@ -2617,7 +2872,7 @@ function AudioQueuePanel({
         " audio",
         visible.length !== 1 ? "s" : "",
         " \xB7 ",
-        formatArtifactSize(totalBytes)
+        formatArtifactSize(visibleBytes)
       ] }),
       hasTranscribed && /* @__PURE__ */ jsxs13(
         "button",
@@ -2643,6 +2898,7 @@ function AudioQueuePanel({
             onTranscribe: transcribeArtifact,
             onRetry: retryTranscription,
             onDelete: deleteArtifact,
+            onArchive: archiveArtifact,
             onGetPlaybackUrl: getPlaybackUrl
           },
           artifact.id
@@ -2653,31 +2909,9 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState11, useCallback as useCallback8, useEffect as useEffect9 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment2, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
-var BAR_HEIGHTS = [
-  0.4,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.8,
-  0.45,
-  1,
-  0.55,
-  0.75,
-  0.5,
-  0.85,
-  0.4,
-  0.65,
-  0.7,
-  0.5,
-  0.9,
-  0.6,
-  0.45,
-  0.8
-];
+import { useState as useState12, useEffect as useEffect11 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function AudioDraftPlayer({
   artifact,
   onGetPlaybackUrl,
@@ -2685,83 +2919,103 @@ function AudioDraftPlayer({
   onDiscard,
   onRetry,
   onResume,
+  pausedPreview = null,
   primaryActionLabel = "Transcribir",
   className = ""
 }) {
-  const [playing, setPlaying] = useState11(false);
-  const [audioEl, setAudioEl] = useState11(null);
-  useEffect9(() => {
-    return () => {
-      audioEl?.pause();
-    };
-  }, [audioEl]);
-  const handlePlay = useCallback8(async () => {
-    if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
-      setPlaying(false);
-      return;
-    }
-    const el = new Audio();
-    const url = await onGetPlaybackUrl(artifact.id);
-    if (!url) return;
-    el.src = url;
-    setAudioEl(el);
-    setPlaying(true);
-    const cleanup = () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    };
-    el.addEventListener("ended", cleanup, { once: true });
-    el.addEventListener("error", cleanup, { once: true });
-    el.play().catch(() => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+  useTouchTargetStyle();
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
-  const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && !isSaving && !isBusy && !isPaused;
+  const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
+  const [playbackUrl, setPlaybackUrl] = useState12(null);
+  useEffect11(() => {
+    if (!onGetPlaybackUrl || !hasBlob) {
+      setPlaybackUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let url = null;
+    void onGetPlaybackUrl(artifact.id).then((resolved) => {
+      if (cancelled) {
+        if (resolved) URL.revokeObjectURL(resolved);
+        return;
+      }
+      url = resolved;
+      setPlaybackUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setPlaybackUrl(null);
+    };
+  }, [artifact.id, hasBlob, onGetPlaybackUrl]);
   return /* @__PURE__ */ jsxs14(
     "div",
     {
-      className: `fi-audio-draft flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm ${className}`,
+      className: `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
       role: "group",
       "aria-label": "Audio grabado",
       children: [
-        /* @__PURE__ */ jsx20(
-          "button",
-          {
-            type: "button",
-            onClick: handlePlay,
-            disabled: !canPlay,
-            "aria-label": isPaused ? "Grabaci\xF3n en pausa" : playing ? "Pausar reproducci\xF3n" : "Reproducir grabaci\xF3n",
-            className: "fi-audio-draft-play shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
-            children: isSaving || isBusy ? /* @__PURE__ */ jsx20(Loader210, { className: "w-5 h-5 animate-spin text-amber-400" }) : isPaused ? /* @__PURE__ */ jsx20(CirclePause, { className: "w-5 h-5 text-yellow-400" }) : playing ? /* @__PURE__ */ jsx20(Pause3, { className: "w-5 h-5 text-white/90" }) : /* @__PURE__ */ jsx20(Play5, { className: "w-5 h-5 text-white/90 ml-0.5" })
-          }
-        ),
-        /* @__PURE__ */ jsxs14("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsx20("div", { className: "flex items-end gap-[3px] h-8", "aria-hidden": "true", children: BAR_HEIGHTS.map((h, i) => /* @__PURE__ */ jsx20(
-            "span",
-            {
-              className: `flex-1 rounded-full transition-colors duration-150 ${playing ? "bg-emerald-400/80" : isPaused ? "bg-yellow-400/50" : "bg-white/40"}`,
-              style: { height: `${Math.round(h * 100)}%` }
-            },
-            i
-          )) }),
-          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-1.5 mt-1.5 text-xs text-white/50", children: [
-            /* @__PURE__ */ jsx20("span", { className: "tabular-nums", children: formatArtifactDuration(artifact.durationMs) }),
-            artifact.size > 0 && /* @__PURE__ */ jsxs14(Fragment2, { children: [
-              /* @__PURE__ */ jsx20("span", { className: "text-white/20", children: "\xB7" }),
-              /* @__PURE__ */ jsx20("span", { children: formatArtifactSize(artifact.size) })
-            ] }),
-            isPaused && /* @__PURE__ */ jsx20("span", { className: "text-yellow-400/70 font-medium", children: "En pausa" }),
-            isSaving && /* @__PURE__ */ jsx20("span", { className: "text-amber-400/70", children: "Guardando\u2026" }),
-            isBusy && /* @__PURE__ */ jsx20("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" }),
-            isFailed && artifact.errorMessage && /* @__PURE__ */ jsx20("span", { className: "text-red-400/70 truncate", children: artifact.errorMessage })
+        isPaused && pausedPreview ? (
+          // Paused with the recorded-so-far WAV in hand: play it back through
+          // the SAME primitive the TTS player uses. The pulsing dot keeps
+          // signalling that the recording session is still open.
+          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx20(
+              "span",
+              {
+                className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
+                "aria-hidden": "true"
+              }
+            ),
+            /* @__PURE__ */ jsx20(
+              RichAudioPlayer,
+              {
+                source: pausedPreview,
+                className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
+                buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
+                iconClassName: "w-4 h-4",
+                progressClassName: "flex-1 min-w-0 h-1 accent-amber-400 cursor-pointer disabled:cursor-not-allowed"
+              }
+            ),
+            /* @__PURE__ */ jsx20("span", { className: "hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0", children: "En pausa" })
           ] })
+        ) : isPaused ? (
+          // Paused but the preview WAV is still being spliced (or the consumer
+          // didn't wire one): honest status, never a dead play control.
+          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx20(
+              "span",
+              {
+                className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
+                "aria-hidden": "true"
+              }
+            ),
+            /* @__PURE__ */ jsx20("span", { className: "text-sm tabular-nums text-white/80", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx20("span", { className: "text-xs font-medium text-amber-300/80", children: "Grabaci\xF3n en pausa" })
+          ] })
+        ) : /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsx20(
+            RichAudioPlayer,
+            {
+              source: playbackUrl ? { url: playbackUrl } : null,
+              className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
+              buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
+              iconClassName: "w-4 h-4",
+              progressClassName: "flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+            }
+          ),
+          /* @__PURE__ */ jsxs14("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
+            artifact.size > 0 && /* @__PURE__ */ jsx20("span", { children: formatArtifactSize(artifact.size) }),
+            isSaving && /* @__PURE__ */ jsxs14("span", { className: "inline-flex items-center gap-1 text-amber-400/70", children: [
+              /* @__PURE__ */ jsx20(Loader210, { className: "w-3.5 h-3.5 animate-spin", "aria-hidden": true }),
+              "Guardando\u2026"
+            ] }),
+            isBusy && /* @__PURE__ */ jsx20("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" })
+          ] }),
+          isFailed && artifact.errorMessage && /* @__PURE__ */ jsx20("span", { role: "alert", className: "text-xs text-red-400/80 truncate shrink min-w-0", children: artifact.errorMessage })
         ] }),
         /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-1 shrink-0", children: [
           onDiscard && !isBusy && /* @__PURE__ */ jsx20(
@@ -2770,7 +3024,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onDiscard(artifact.id),
               "aria-label": "Descartar grabaci\xF3n",
-              className: "fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx20(Trash23, { className: "w-4 h-4" })
             }
           ),
@@ -2780,7 +3034,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: onResume,
               "aria-label": "Reanudar grabaci\xF3n",
-              className: "fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx20(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
@@ -2792,7 +3046,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onRetry(artifact.id),
               "aria-label": "Reintentar",
-              className: "fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors`,
               children: /* @__PURE__ */ jsx20(RotateCcw3, { className: "w-4 h-4" })
             }
           ) : onPrimary && /* @__PURE__ */ jsxs14(
@@ -2801,7 +3055,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onPrimary(artifact.id),
               disabled: isSaving || isBusy,
-              className: "fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95",
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx20(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel
@@ -2814,20 +3068,641 @@ function AudioDraftPlayer({
   );
 }
 
+// src/voice/resonanceCallMachine.ts
+var RESONANCE_INITIAL_STATE = "idle";
+var TRANSITIONS = {
+  idle: {
+    "call.started": "listening"
+  },
+  listening: {
+    "mic.opened": "listening",
+    "user.speech.started": "listening",
+    "user.speech.ended": "transcribing",
+    "silence.detected": "silence_hold"
+  },
+  transcribing: {
+    "stt.completed": "thinking"
+  },
+  thinking: {
+    "assistant.speech.started": "speaking"
+  },
+  speaking: {
+    "user.speech.started": "interrupted",
+    "assistant.speech.completed": "silence_hold"
+  },
+  interrupted: {
+    "assistant.speech.interrupted": "listening"
+  },
+  silence_hold: {
+    "silence.resume": "listening",
+    "sleep.decay.started": "sleep_decay"
+  },
+  sleep_decay: {
+    "silence.resume": "listening"
+  },
+  ended: {}
+};
+function isTerminal2(state) {
+  return state === "ended";
+}
+function resonanceCallReducer(state, event) {
+  if (isTerminal2(state)) return state;
+  if (event === "call.ended") return "ended";
+  if (event === "error.fatal") return "ended";
+  if (event === "error.recoverable") return state === "idle" ? "idle" : "listening";
+  return TRANSITIONS[state][event] ?? state;
+}
+
+// src/voice/resonanceEffects.ts
+var STATE_EFFECT = {
+  idle: null,
+  listening: { type: "open_mic" },
+  transcribing: { type: "begin_transcribe" },
+  thinking: { type: "invoke_agent" },
+  speaking: { type: "speak" },
+  interrupted: { type: "stop_speaking" },
+  silence_hold: { type: "hold_silence" },
+  sleep_decay: { type: "fade_and_hangup" },
+  ended: { type: "end_call" }
+};
+function effectForState(state) {
+  return STATE_EFFECT[state];
+}
+function dispatchEffect(effect, driver) {
+  switch (effect?.type) {
+    case "open_mic":
+      driver.openMic();
+      return true;
+    case "begin_transcribe":
+      driver.beginTranscribe();
+      return true;
+    case "invoke_agent":
+      driver.invokeAgent();
+      return true;
+    case "speak":
+      driver.speak();
+      return true;
+    case "stop_speaking":
+      driver.stopSpeaking();
+      return true;
+    case "hold_silence":
+      driver.holdSilence();
+      return true;
+    case "fade_and_hangup":
+      driver.fadeAndHangup();
+      return true;
+    case "end_call":
+      driver.endCall();
+      return true;
+    default:
+      return false;
+  }
+}
+
+// src/voice/resonanceCallController.ts
+function createResonanceCallController(driver, hooks = {}) {
+  let state = RESONANCE_INITIAL_STATE;
+  let transcript;
+  let assistantText;
+  const log2 = [];
+  function send(event) {
+    const next = resonanceCallReducer(state, event);
+    log2.push(event);
+    hooks.onEvent?.(event, next);
+    if (next !== state) {
+      state = next;
+      hooks.onState?.(state);
+      dispatchEffect(effectForState(state), driver);
+    }
+    return state;
+  }
+  return {
+    state: () => state,
+    lastTranscript: () => transcript,
+    lastAssistantText: () => assistantText,
+    events: () => [...log2],
+    send,
+    startCall: () => {
+      state = RESONANCE_INITIAL_STATE;
+      transcript = void 0;
+      assistantText = void 0;
+      log2.length = 0;
+      send("call.started");
+    },
+    micOpened: () => {
+      send("mic.opened");
+    },
+    userSpeechStarted: () => {
+      send("user.speech.started");
+    },
+    userSpeechEnded: () => {
+      send("user.speech.ended");
+    },
+    sttCompleted: (t) => {
+      transcript = t;
+      send("stt.completed");
+    },
+    assistantTurnReady: (text) => {
+      assistantText = text;
+      send("assistant.speech.started");
+    },
+    ttsCompleted: () => {
+      send("assistant.speech.completed");
+    },
+    ttsInterrupted: () => {
+      send("assistant.speech.interrupted");
+    },
+    silenceDetected: () => {
+      send("silence.detected");
+    },
+    silenceResume: () => {
+      send("silence.resume");
+    },
+    sleepDecay: () => {
+      send("sleep.decay.started");
+    },
+    interrupt: () => {
+      if (state !== "speaking") return;
+      send("user.speech.started");
+      send("assistant.speech.interrupted");
+    },
+    failRecoverable: () => {
+      if (!isTerminal2(state) && state !== "idle") send("error.recoverable");
+    },
+    failFatal: () => {
+      if (!isTerminal2(state)) send("error.fatal");
+    },
+    endCall: () => {
+      if (!isTerminal2(state)) send("call.ended");
+    }
+  };
+}
+
+// src/voice/resonanceVadGate.ts
+var DEFAULT_VAD_CONFIG = {
+  speechOnThreshold: 24,
+  speechOffThreshold: 13,
+  minSpeechMs: 180,
+  endSilenceMs: 850,
+  maxTurnMs: 2e4
+};
+function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
+  const { speechOnThreshold, speechOffThreshold, minSpeechMs, endSilenceMs, maxTurnMs } = config;
+  let inSpeech = false;
+  let candidateStartedAt = null;
+  let speechStartedAt = 0;
+  let lastVoiceAt = 0;
+  let bargeLatched = false;
+  function reset() {
+    inSpeech = false;
+    candidateStartedAt = null;
+    speechStartedAt = 0;
+    lastVoiceAt = 0;
+    bargeLatched = false;
+  }
+  function tick(level, nowMs, mode) {
+    if (mode === "idle") {
+      reset();
+      return null;
+    }
+    const aboveOn = level >= speechOnThreshold;
+    if (mode === "barge") {
+      if (level <= speechOffThreshold) {
+        bargeLatched = false;
+        candidateStartedAt = null;
+        return null;
+      }
+      if (bargeLatched) return null;
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          candidateStartedAt = null;
+          bargeLatched = true;
+          return "barge_in";
+        }
+      }
+      return null;
+    }
+    const belowOff = level <= speechOffThreshold;
+    if (!inSpeech) {
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          inSpeech = true;
+          speechStartedAt = nowMs;
+          lastVoiceAt = nowMs;
+          candidateStartedAt = null;
+          return "speech_start";
+        }
+      } else {
+        candidateStartedAt = null;
+      }
+      return null;
+    }
+    if (level > speechOffThreshold) lastVoiceAt = nowMs;
+    if (nowMs - speechStartedAt >= maxTurnMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    if (belowOff && nowMs - lastVoiceAt >= endSilenceMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    return null;
+  }
+  return { tick, reset };
+}
+
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback8, useEffect as useEffect12, useMemo as useMemo3, useRef as useRef8, useState as useState13 } from "react";
+
+// src/voice/resonanceCuePolicy.ts
+function resonanceCuePolicy(input) {
+  const { previousState, nextState, event } = input;
+  if (event === "call.ended" || event === "error.fatal" || nextState === "ended") {
+    return [{ type: "stopAll" }];
+  }
+  const actions = [];
+  const wasProcessing = previousState === "transcribing" || previousState === "thinking";
+  const isProcessing = nextState === "transcribing" || nextState === "thinking";
+  if (!wasProcessing && isProcessing) {
+    actions.push({ type: "playLoop", cue: "thinking" });
+  }
+  if (wasProcessing && !isProcessing) {
+    actions.push({ type: "stopLoop", cue: "thinking" });
+  }
+  if (event === "user.speech.ended") actions.push({ type: "playOnce", cue: "crystalline" });
+  if (event === "assistant.speech.completed") actions.push({ type: "playOnce", cue: "ready" });
+  return actions;
+}
+
+// src/voice/resonanceCueController.ts
+function createResonanceCueController(player) {
+  const activeLoops = /* @__PURE__ */ new Set();
+  const playedOneShots = /* @__PURE__ */ new Set();
+  function stopAll() {
+    player.stopAll();
+    activeLoops.clear();
+  }
+  function reset() {
+    activeLoops.clear();
+    playedOneShots.clear();
+  }
+  function applyTransition(input, eventId) {
+    for (const action of resonanceCuePolicy(input)) {
+      switch (action.type) {
+        case "playLoop":
+          if (!activeLoops.has(action.cue)) {
+            activeLoops.add(action.cue);
+            player.playLoop(action.cue);
+          }
+          break;
+        case "stopLoop":
+          if (activeLoops.has(action.cue)) {
+            activeLoops.delete(action.cue);
+            player.stopLoop(action.cue);
+          }
+          break;
+        case "playOnce": {
+          const key = eventId ? `${eventId}:${action.cue}` : void 0;
+          if (key && playedOneShots.has(key)) break;
+          if (key) playedOneShots.add(key);
+          player.playOnce(action.cue);
+          break;
+        }
+        case "stopAll":
+          stopAll();
+          break;
+      }
+    }
+  }
+  return { applyTransition, stopAll, reset };
+}
+
+// src/voice/createAudioCuePlayer.ts
+function createAudioCuePlayer(assets, options = {}) {
+  const { volume = 0.6 } = options;
+  let ctx = null;
+  let gain = null;
+  const buffers = /* @__PURE__ */ new Map();
+  const loops = /* @__PURE__ */ new Map();
+  const oneShots = /* @__PURE__ */ new Set();
+  function ensureContext() {
+    if (typeof window === "undefined") return null;
+    if (!ctx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+      gain = ctx.createGain();
+      gain.gain.value = volume;
+      gain.connect(ctx.destination);
+    }
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  }
+  async function preload() {
+    const c = ensureContext();
+    if (!c) return;
+    const entries = Object.entries(assets);
+    await Promise.all(
+      entries.map(async ([name, url]) => {
+        if (buffers.has(name)) return;
+        try {
+          const res = await fetch(url);
+          const arr = await res.arrayBuffer();
+          buffers.set(name, await c.decodeAudioData(arr));
+        } catch (e) {
+          console.warn(`[resonance] cue preload failed: ${name}`, e);
+        }
+      })
+    );
+  }
+  function source(name, loop) {
+    const c = ensureContext();
+    const buf = buffers.get(name);
+    if (!c || !gain || !buf) return null;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    src.connect(gain);
+    return src;
+  }
+  function stopLoop(cue) {
+    const src = loops.get(cue);
+    if (!src) return;
+    loops.delete(cue);
+    try {
+      src.stop();
+    } catch {
+    }
+  }
+  return {
+    preload,
+    resume: async () => {
+      const c = ensureContext();
+      if (c && c.state === "suspended") await c.resume();
+      return c?.state ?? "none";
+    },
+    playOnce: (cue) => {
+      const src = source(cue, false);
+      if (!src) return;
+      oneShots.add(src);
+      src.onended = () => oneShots.delete(src);
+      try {
+        src.start();
+      } catch {
+        oneShots.delete(src);
+      }
+    },
+    playLoop: (cue) => {
+      if (loops.has(cue)) return;
+      const src = source(cue, true);
+      if (!src) return;
+      loops.set(cue, src);
+      try {
+        src.start();
+      } catch {
+        loops.delete(cue);
+      }
+    },
+    stopLoop,
+    stopAll: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+    },
+    dispose: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+      buffers.clear();
+      void ctx?.close();
+      ctx = null;
+      gain = null;
+    }
+  };
+}
+
+// src/voice/useResonanceCallLoop.ts
+var DEFAULT_SILENCE = { endOfSpeechMs: 900, autoResumeMs: 1200 };
+var DEFAULT_SLEEP = { enabled: true, idleHangupMs: 3e5 };
+var DEFAULT_BARGE_IN = { enabled: true };
+function useResonanceCallLoop(params) {
+  const {
+    enabled,
+    adapters,
+    getAudioLevel,
+    vadConfig = DEFAULT_VAD_CONFIG,
+    silencePolicy = DEFAULT_SILENCE,
+    sleepPolicy = DEFAULT_SLEEP,
+    bargeInPolicy = DEFAULT_BARGE_IN,
+    audioCues,
+    debug = false,
+    onEvent
+  } = params;
+  const getAudioLevelRef = useRef8(getAudioLevel);
+  getAudioLevelRef.current = getAudioLevel;
+  const cueEnabled = audioCues?.enabled ?? false;
+  const cuePlayer = useMemo3(
+    () => cueEnabled && audioCues ? createAudioCuePlayer(audioCues.assets, { volume: audioCues.volume }) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
+  );
+  const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
+  const cueApplyRef = useRef8(void 0);
+  cueApplyRef.current = cueController?.applyTransition;
+  const cueSeqRef = useRef8(0);
+  useEffect12(() => {
+    void cuePlayer?.preload();
+  }, [cuePlayer]);
+  useEffect12(() => () => {
+    cuePlayer?.dispose();
+  }, [cuePlayer]);
+  const [state, setState] = useState13("idle");
+  const [lastTranscript, setLastTranscript] = useState13();
+  const [lastAssistantText, setLastAssistantText] = useState13();
+  const adaptersRef = useRef8(adapters);
+  adaptersRef.current = adapters;
+  const pushDebug = useCallback8(
+    (record) => {
+      if (!debug || typeof window === "undefined") return;
+      (window.__RESONANCE_EVENTS__ || (window.__RESONANCE_EVENTS__ = [])).push(record);
+    },
+    [debug]
+  );
+  const controller = useMemo3(() => {
+    const recover = (phase, e) => {
+      pushDebug({ type: `error.${phase}`, state: "idle", timestamp: Date.now() });
+      console.warn(`[resonance] ${phase} failed, recovering`, e);
+      ctrl.failRecoverable();
+    };
+    const driver = {
+      openMic: () => {
+        void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
+          console.warn("[resonance] mic failed, hanging up", e);
+          ctrl.failFatal();
+        });
+      },
+      beginTranscribe: () => {
+        void Promise.resolve(adaptersRef.current.beginTranscribe()).then((transcript) => {
+          if (!transcript) {
+            ctrl.failRecoverable();
+            return;
+          }
+          setLastTranscript(transcript);
+          adaptersRef.current.appendUserMessage(transcript);
+          pushDebug({ type: "stt.completed", state: "transcribing", transcript, timestamp: Date.now() });
+          ctrl.sttCompleted(transcript);
+        }).catch((e) => recover("stt", e));
+      },
+      invokeAgent: () => {
+        void Promise.resolve(adaptersRef.current.invokeAgent()).then((text) => {
+          if (!text) {
+            ctrl.failRecoverable();
+            return;
+          }
+          setLastAssistantText(text);
+          pushDebug({ type: "assistant.text", state: "thinking", text, timestamp: Date.now() });
+          ctrl.assistantTurnReady(text);
+        }).catch((e) => recover("agent", e));
+      },
+      speak: () => {
+        const text = ctrl.lastAssistantText() ?? "";
+        void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
+          if (ctrl.state() === "speaking") ctrl.ttsCompleted();
+        }).catch((e) => recover("tts", e));
+      },
+      stopSpeaking: () => {
+        try {
+          adaptersRef.current.stopSpeaking();
+        } catch {
+        }
+      },
+      holdSilence: () => {
+      },
+      fadeAndHangup: () => {
+        void adaptersRef.current.closeMic();
+      },
+      endCall: () => {
+        void adaptersRef.current.closeMic();
+      }
+    };
+    const ctrl = createResonanceCallController(driver, {
+      onState: (s) => setState(s),
+      onEvent: (event, s) => {
+        cueApplyRef.current?.({ previousState: ctrl.state(), nextState: s, event }, String(cueSeqRef.current++));
+        pushDebug({ type: event, state: s, timestamp: Date.now() });
+        onEvent?.(event, s);
+      }
+    });
+    return ctrl;
+  }, [pushDebug]);
+  const stateRef = useRef8(state);
+  stateRef.current = state;
+  const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
+  useEffect12(() => {
+    if (!enabled) return void 0;
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      const mode = s === "listening" || s === "silence_hold" ? "detect" : s === "speaking" && bargeInPolicy.enabled ? "barge" : "idle";
+      const ev = gate.tick(getAudioLevelRef.current(), performance.now(), mode);
+      if (ev === "speech_start") controller.userSpeechStarted();
+      else if (ev === "speech_end") controller.userSpeechEnded();
+      else if (ev === "barge_in") controller.interrupt();
+    }, 50);
+    return () => {
+      clearInterval(id);
+      gate.reset();
+    };
+  }, [enabled, gate, controller, bargeInPolicy]);
+  const autoResumeTimer = useRef8(void 0);
+  const sleepTimer = useRef8(void 0);
+  const clearTimer = (t) => {
+    if (t.current) {
+      clearTimeout(t.current);
+      t.current = void 0;
+    }
+  };
+  useEffect12(() => {
+    if (!enabled) return void 0;
+    if (state === "silence_hold") {
+      if (!autoResumeTimer.current) {
+        autoResumeTimer.current = setTimeout(() => {
+          autoResumeTimer.current = void 0;
+          controller.silenceResume();
+        }, silencePolicy.autoResumeMs);
+      }
+      if (sleepPolicy.enabled && !sleepTimer.current) {
+        sleepTimer.current = setTimeout(() => {
+          sleepTimer.current = void 0;
+          controller.sleepDecay();
+          controller.endCall();
+        }, sleepPolicy.idleHangupMs);
+      }
+    } else {
+      clearTimer(autoResumeTimer);
+      clearTimer(sleepTimer);
+    }
+    return void 0;
+  }, [enabled, state, controller, silencePolicy, sleepPolicy]);
+  useEffect12(() => () => {
+    clearTimer(autoResumeTimer);
+    clearTimer(sleepTimer);
+  }, []);
+  const startCall = useCallback8(async () => {
+    if (!enabled) return;
+    if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
+    gate.reset();
+    cueController?.reset();
+    void cuePlayer?.resume();
+    controller.startCall();
+  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
+  const endCall = useCallback8(() => {
+    controller.endCall();
+  }, [controller]);
+  const interrupt = useCallback8(() => {
+    controller.interrupt();
+  }, [controller]);
+  return {
+    state,
+    isActive: state !== "idle" && state !== "ended",
+    isListening: state === "listening",
+    isSpeaking: state === "speaking",
+    isThinking: state === "thinking" || state === "transcribing",
+    lastTranscript,
+    lastAssistantText,
+    startCall,
+    endCall,
+    interrupt
+  };
+}
+
 // src/shell/ChatWidget.tsx
 import { useCallback as useCallback10 } from "react";
 
 // src/shell/useChatWidgetState.ts
-import { useState as useState12, useCallback as useCallback9 } from "react";
+import { useState as useState14, useCallback as useCallback9 } from "react";
 function useChatWidgetState({
   initialOpen,
   initialMode
 }) {
-  const [isOpen, setIsOpen] = useState12(initialOpen);
-  const [viewMode, setViewMode] = useState12(initialMode);
-  const [isHistoryOpen, setIsHistoryOpen] = useState12(false);
-  const [conversationStarted, setConversationStarted] = useState12(false);
-  const [isStartingConversation, _setIsStartingConversation] = useState12(false);
+  const [isOpen, setIsOpen] = useState14(initialOpen);
+  const [viewMode, setViewMode] = useState14(initialMode);
+  const [isHistoryOpen, setIsHistoryOpen] = useState14(false);
+  const [conversationStarted, setConversationStarted] = useState14(false);
+  const [isStartingConversation, _setIsStartingConversation] = useState14(false);
   const open = useCallback9(() => {
     setIsOpen(true);
   }, []);
@@ -3052,7 +3927,7 @@ import { Loader2 as Loader213 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -3078,7 +3953,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs16(Fragment3, { children: [
+    return /* @__PURE__ */ jsxs16(Fragment2, { children: [
       /* @__PURE__ */ jsx22("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
       /* @__PURE__ */ jsx22(
         "div",
@@ -3119,7 +3994,7 @@ function ChatWidgetContainer(props) {
 
 // src/shell/ChatWidgetHeader.tsx
 import { X, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -3154,7 +4029,7 @@ function ChatWidgetHeader({
         subtitle && /* @__PURE__ */ jsx23("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx23("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs17(Fragment4, { children: [
+    /* @__PURE__ */ jsx23("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs17(Fragment3, { children: [
       showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx23("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx23(Search, { className: "h-4 w-4" }) }),
       mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx23("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs17("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
         /* @__PURE__ */ jsx23("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
@@ -3172,10 +4047,10 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState13, useRef as useRef8, useEffect as useEffect10 } from "react";
+import { useState as useState15, useRef as useRef9, useEffect as useEffect13 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -3204,10 +4079,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState13(false);
-  const overflowButtonRef = useRef8(null);
-  const [dropdownPosition, setDropdownPosition] = useState13({ top: 0, left: 0 });
-  useEffect10(() => {
+  const [overflowOpen, setOverflowOpen] = useState15(false);
+  const overflowButtonRef = useRef9(null);
+  const [dropdownPosition, setDropdownPosition] = useState15({ top: 0, left: 0 });
+  useEffect13(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -3235,7 +4110,7 @@ function ChatToolbar({
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs18(Fragment5, { children: [
+          /* @__PURE__ */ jsxs18(Fragment4, { children: [
             /* @__PURE__ */ jsx24(
               "div",
               {
@@ -3296,7 +4171,7 @@ function ChatToolbar({
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs18(Fragment5, { children: [
+                  showCopyCurl && /* @__PURE__ */ jsxs18(Fragment4, { children: [
                     /* @__PURE__ */ jsx24("div", { className: "chat-dropdown-divider" }),
                     /* @__PURE__ */ jsxs18(
                       "button",
@@ -3425,7 +4300,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -3471,19 +4346,19 @@ function ChatFilePreview({
       /* @__PURE__ */ jsx25("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs19("div", { className: "flex items-center gap-2 fi-text-xs", children: [
         /* @__PURE__ */ jsx25("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isUploading && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isProcessing && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isCompleted && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs19(Fragment6, { children: [
+        isError && error && /* @__PURE__ */ jsxs19(Fragment5, { children: [
           /* @__PURE__ */ jsx25("span", { children: "-" }),
           /* @__PURE__ */ jsx25("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
@@ -3512,7 +4387,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -3562,10 +4437,10 @@ function ChatStartScreen({
         /* @__PURE__ */ jsx26("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx26("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs20(Fragment7, { children: [
+    /* @__PURE__ */ jsx26("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs20(Fragment6, { children: [
       /* @__PURE__ */ jsx26("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs20(Fragment7, { children: [
+    ] }) : /* @__PURE__ */ jsxs20(Fragment6, { children: [
       /* @__PURE__ */ jsx26(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
@@ -3857,14 +4732,14 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback11,
-  useEffect as useEffect11,
-  useId as useId2,
-  useRef as useRef9,
-  useState as useState14
+  useEffect as useEffect14,
+  useId as useId3,
+  useRef as useRef10,
+  useState as useState16
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment8, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -3889,15 +4764,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState14(false);
-  const [position, setPosition] = useState14({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef9(null);
-  const contentRef = useRef9(null);
-  const reactId = useId2();
+  const [isOpen, setIsOpen] = useState16(false);
+  const [position, setPosition] = useState16({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef10(null);
+  const contentRef = useRef10(null);
+  const reactId = useId3();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback11(() => setIsOpen(false), []);
-  useEffect11(() => {
+  useEffect14(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -3909,7 +4784,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect11(() => {
+  useEffect14(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -3929,7 +4804,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect11(() => {
+  useEffect14(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -3968,7 +4843,7 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx30(Fragment8, { children: renderLoading() }) : /* @__PURE__ */ jsx30("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx30(Fragment7, { children: renderLoading() }) : /* @__PURE__ */ jsx30("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
@@ -4087,12 +4962,15 @@ export {
   Composer,
   ComposerMicSlot,
   CopyButton,
+  DEFAULT_VAD_CONFIG,
+  FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   MessageBubble,
   MessageContent,
   MessageList,
   PersonaSelector,
   PulseRings,
+  RESONANCE_INITIAL_STATE,
   RecordingButton,
   RecordingTimer,
   RichAudioPlayer,
@@ -4103,36 +4981,51 @@ export {
   VoiceMicButton,
   artifactLabel,
   clearMediaQueryCache,
+  createAudioCuePlayer,
   createAudioPlayer,
+  createResonanceCallController,
+  createResonanceCueController,
+  createResonanceVadGate,
   defaultAnimationConfig,
   defaultBehavior,
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  dispatchEffect,
+  effectForState,
+  ensureTouchTargetStyle,
   formatArtifactDuration,
   formatArtifactSize,
   formatPlaybackTime,
   formatRecordingTime,
   glassTheme,
   isPending,
+  isTerminal2 as isResonanceTerminal,
   isTerminal,
   makeArtifactId,
   makeRecorder,
   markdownStyles,
   mergeChatConfig,
+  mergeWavBlobs,
   messageStyles,
   normalizeLevels,
   normalizeStreamedMarkdown,
   resampleLevels,
+  resonanceCallReducer,
+  resonanceCuePolicy,
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
+  useAudioQueueStore,
   useBreakpoints,
   useChatWidgetState,
   useDictation,
   useDurableRecording,
   useMediaQuery,
   useRecorder,
-  useVoice
+  useResonanceCallLoop,
+  useTouchTargetStyle,
+  useVoice,
+  withTouchTarget
 };
 //# sourceMappingURL=index.js.map

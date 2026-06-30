@@ -1,20 +1,24 @@
 // @vitest-environment jsdom
 /**
- * Tests for AudioDraftPlayer (B3-VOICE-FIGLASS-11).
+ * Tests for AudioDraftPlayer (B3-VOICE-FIGLASS-11 + B3-VOICE-FIGLASS-17).
  *
- * Pins the play lifecycle contract:
- *  - the Audio element is created synchronously within the click task so
- *    browsers with strict autoplay policies allow play();
- *  - play() is actually called (not a no-op);
- *  - the object URL is revoked on ended/error/discard;
- *  - playback errors surface a recoverable state, not a silent freeze.
- *
- * Static SSR checks cover state transitions (saving/busy/failed) without
- * needing a real Audio element.
+ * FIGLASS-17 replaced the home-grown mini-player with RichAudioPlayer — the
+ * same primitive TTS playback uses — so the transport/seek behavior is covered
+ * at the engine level (createAudioPlayer.test.ts). What this suite pins is the
+ * DRAFT contract:
+ *  - a playable draft renders the rich player (skip ±10s + scrubber), not
+ *    decorative bars;
+ *  - the playback URL is resolved per artifact and revoked on unmount;
+ *  - a PAUSED recording with a pausedPreview (segmented pause, FIGLASS-18)
+ *    plays everything recorded so far through the SAME rich player;
+ *  - a PAUSED recording WITHOUT a preview (still splicing / not wired) falls
+ *    back to an honest status (recorded time + "Grabación en pausa" + Resume)
+ *    with NO dead play control;
+ *  - state transitions (saving/busy/failed) stay visible and recoverable.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, act, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AudioDraftPlayer } from './AudioDraftPlayer';
@@ -29,7 +33,7 @@ function makeArtifact(overrides: Partial<AudioArtifact> = {}): AudioArtifact {
     id: 'draft-1',
     mime: 'audio/wav',
     size: 25600,
-    durationMs: 500,
+    durationMs: 9835,
     createdAt: '2026-06-11T00:00:00Z',
     updatedAt: '2026-06-11T00:00:00Z',
     state: 'queued',
@@ -37,159 +41,179 @@ function makeArtifact(overrides: Partial<AudioArtifact> = {}): AudioArtifact {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Audio + URL mocks
-// ---------------------------------------------------------------------------
+// Minimal media element for the player engine under jsdom (jsdom's
+// HTMLMediaElement.load/play are not implemented).
+class MockAudio {
+  src = '';
+  currentTime = 0;
+  duration = 0;
+  paused = true;
+  play = vi.fn(() => Promise.resolve());
+  pause = vi.fn();
+  load = vi.fn();
+  addEventListener = vi.fn();
+  removeEventListener = vi.fn();
+}
 
-let mockPlay: ReturnType<typeof vi.fn>;
-let mockPause: ReturnType<typeof vi.fn>;
-let capturedListeners: Record<string, () => void>;
-
-function setupAudioMock() {
-  mockPlay = vi.fn(() => Promise.resolve());
-  mockPause = vi.fn();
-  capturedListeners = {};
-
-  class MockAudio {
-    src = '';
-    play = mockPlay;
-    pause = mockPause;
-    addEventListener(event: string, handler: () => void) {
-      capturedListeners[event] = handler;
-    }
-  }
-
+beforeEach(() => {
   vi.stubGlobal('Audio', MockAudio);
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn(() => 'blob:fake-url'),
     revokeObjectURL: vi.fn(),
   });
-}
-
-beforeEach(setupAudioMock);
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
 // ---------------------------------------------------------------------------
-// Play lifecycle (jsdom)
+// Playable draft → the TTS primitive (jsdom)
 // ---------------------------------------------------------------------------
 
-describe('<AudioDraftPlayer> play lifecycle (B3-VOICE-FIGLASS-11)', () => {
-  it('play button is enabled when artifact is playable (queued, size > 0)', () => {
-    render(
+describe('<AudioDraftPlayer> playable draft (B3-VOICE-FIGLASS-17)', () => {
+  it('renders the rich player primitive (same as TTS) for a queued draft', () => {
+    const { container } = render(
       <AudioDraftPlayer
         artifact={makeArtifact()}
         onGetPlaybackUrl={async () => 'blob:fake-url'}
       />,
     );
-    const btn = screen.getByRole('button', { name: /reproducir grabación/i });
-    expect(btn).not.toBeDisabled();
+    expect(
+      container.querySelector('[data-fi-audio-player="rich"]'),
+    ).toBeInTheDocument();
+    expect(container.querySelector('[data-fi-audio-progress]')).toBeInTheDocument();
   });
 
-  it('click play calls onGetPlaybackUrl with the artifact id', async () => {
+  it('resolves the playback URL with the artifact id on mount', async () => {
     const getUrl = vi.fn(async () => 'blob:test-url');
-    render(<AudioDraftPlayer artifact={makeArtifact()} onGetPlaybackUrl={getUrl} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /reproducir grabación/i }));
+      render(<AudioDraftPlayer artifact={makeArtifact()} onGetPlaybackUrl={getUrl} />);
     });
     expect(getUrl).toHaveBeenCalledWith('draft-1');
   });
 
-  it('click play is not a no-op: Audio.play() is called', async () => {
-    render(
-      <AudioDraftPlayer
-        artifact={makeArtifact()}
-        onGetPlaybackUrl={async () => 'blob:test-url'}
-      />,
-    );
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /reproducir grabación/i }));
-    });
-    expect(mockPlay).toHaveBeenCalledTimes(1);
-  });
-
-  it('revokes the object URL when playback ends', async () => {
+  it('revokes the resolved object URL on unmount', async () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn(() => 'blob:revoke-test'),
       revokeObjectURL,
     });
-    render(
-      <AudioDraftPlayer
-        artifact={makeArtifact()}
-        onGetPlaybackUrl={async () => 'blob:revoke-test'}
-      />,
-    );
+    let unmount!: () => void;
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /reproducir grabación/i }));
+      ({ unmount } = render(
+        <AudioDraftPlayer
+          artifact={makeArtifact()}
+          onGetPlaybackUrl={async () => 'blob:revoke-test'}
+        />,
+      ));
     });
-    // Simulate the audio ending
-    act(() => { capturedListeners['ended']?.(); });
+    act(() => unmount());
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:revoke-test');
   });
 
-  it('revokes the object URL on playback error', async () => {
-    const revokeObjectURL = vi.fn();
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn(() => 'blob:error-test'),
-      revokeObjectURL,
-    });
-    render(
-      <AudioDraftPlayer
-        artifact={makeArtifact()}
-        onGetPlaybackUrl={async () => 'blob:error-test'}
-      />,
-    );
+  it('does not resolve a URL while the artifact is still saving (size 0)', async () => {
+    const getUrl = vi.fn(async () => 'blob:never');
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /reproducir grabación/i }));
+      render(
+        <AudioDraftPlayer
+          artifact={makeArtifact({ state: 'stopping', size: 0 })}
+          onGetPlaybackUrl={getUrl}
+        />,
+      );
     });
-    act(() => { capturedListeners['error']?.(); });
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:error-test');
-  });
-
-  it('playback error via play() rejection sets state back to not-playing', async () => {
-    // play() rejects → state recovers (button returns to ▶ not ⏸)
-    mockPlay.mockRejectedValueOnce(new Error('NotAllowedError'));
-    render(
-      <AudioDraftPlayer
-        artifact={makeArtifact()}
-        onGetPlaybackUrl={async () => 'blob:reject-test'}
-      />,
-    );
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /reproducir grabación/i }));
-    });
-    // After rejection, the button label reverts to the non-playing state
-    expect(
-      screen.getByRole('button', { name: /reproducir grabación/i }),
-    ).toBeInTheDocument();
+    expect(getUrl).not.toHaveBeenCalled();
   });
 });
 
 // ---------------------------------------------------------------------------
-// State transitions (SSR — no Audio mock needed)
+// Paused recording with a preview → plays back the recorded-so-far audio
+// ---------------------------------------------------------------------------
+
+describe('<AudioDraftPlayer> paused with preview (B3-VOICE-FIGLASS-18)', () => {
+  const preview = new Blob(['wav'], { type: 'audio/wav' });
+  const pausedWithPreviewHtml = renderToStaticMarkup(
+    <AudioDraftPlayer
+      artifact={makeArtifact({ state: 'paused', size: 0, durationMs: 9835 })}
+      pausedPreview={preview}
+      onResume={() => {}}
+    />,
+  );
+
+  it('renders the rich player primitive for the recorded-so-far audio', () => {
+    expect(pausedWithPreviewHtml).toContain('data-fi-audio-player="rich"');
+    expect(pausedWithPreviewHtml).toContain('data-fi-audio-progress');
+  });
+
+  it('keeps signalling the open session: pulsing dot + Resume', () => {
+    expect(pausedWithPreviewHtml).toContain('fi-audio-draft-pauseddot');
+    expect(pausedWithPreviewHtml).toContain('aria-label="Reanudar grabación"');
+  });
+
+  it('loads the preview blob into the player on mount (jsdom)', async () => {
+    const createObjectURL = vi.fn(() => 'blob:preview-url');
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
+    await act(async () => {
+      render(
+        <AudioDraftPlayer
+          artifact={makeArtifact({ state: 'paused', size: 0 })}
+          pausedPreview={preview}
+          onResume={() => {}}
+        />,
+      );
+    });
+    expect(createObjectURL).toHaveBeenCalledWith(preview);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Paused recording without a preview → honest status, no dead controls (SSR)
+// ---------------------------------------------------------------------------
+
+describe('<AudioDraftPlayer> paused without preview (B3-VOICE-FIGLASS-17/18)', () => {
+  const pausedHtml = renderToStaticMarkup(
+    <AudioDraftPlayer
+      artifact={makeArtifact({ state: 'paused', size: 0, durationMs: 9835 })}
+      onResume={() => {}}
+    />,
+  );
+
+  it('shows the recorded-so-far time instead of "--:--"', () => {
+    expect(pausedHtml).toContain('00:09');
+    expect(pausedHtml).not.toContain('--:--');
+  });
+
+  it('labels the state and offers Resume', () => {
+    expect(pausedHtml).toContain('Grabación en pausa');
+    expect(pausedHtml).toContain('aria-label="Reanudar grabación"');
+  });
+
+  it('renders NO player and NO dead play control while the preview is absent', () => {
+    expect(pausedHtml).not.toContain('data-fi-audio-player');
+    expect(pausedHtml).not.toContain('fi-audio-draft-play"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State transitions (SSR)
 // ---------------------------------------------------------------------------
 
 describe('<AudioDraftPlayer> state transitions (SSR)', () => {
-  it('disables play button while saving (state=stopping)', () => {
+  it('shows the saving state while stopping', () => {
     const html = renderToStaticMarkup(
-      <AudioDraftPlayer
-        artifact={makeArtifact({ state: 'stopping', size: 0 })}
-        onGetPlaybackUrl={async () => null}
-      />,
+      <AudioDraftPlayer artifact={makeArtifact({ state: 'stopping', size: 0 })} />,
     );
-    expect(html).toContain('disabled');
+    expect(html).toContain('Guardando…');
   });
 
-  it('disables play button while transcribing (state=transcribing)', () => {
+  it('disables the primary action while transcribing', () => {
     const html = renderToStaticMarkup(
       <AudioDraftPlayer
         artifact={makeArtifact({ state: 'transcribing' })}
-        onGetPlaybackUrl={async () => null}
+        onPrimary={() => {}}
       />,
     );
+    expect(html).toContain('Transcribiendo…');
     expect(html).toContain('disabled');
   });
 
@@ -203,29 +227,18 @@ describe('<AudioDraftPlayer> state transitions (SSR)', () => {
     expect(html).toContain('aria-label="Reintentar"');
   });
 
-  it('shows error message text when failed', () => {
+  it('announces the error message when failed', () => {
     const html = renderToStaticMarkup(
       <AudioDraftPlayer
         artifact={makeArtifact({ state: 'failed', errorMessage: 'Transcripción fallida' })}
       />,
     );
     expect(html).toContain('Transcripción fallida');
-  });
-
-  it('shows resume button when onResume is provided', () => {
-    const html = renderToStaticMarkup(
-      <AudioDraftPlayer
-        artifact={makeArtifact({ state: 'paused' })}
-        onResume={() => {}}
-      />,
-    );
-    expect(html).toContain('aria-label="Reanudar grabación"');
+    expect(html).toContain('role="alert"');
   });
 
   it('renders the fi-audio-draft semantic class for stable CSS targeting', () => {
-    const html = renderToStaticMarkup(
-      <AudioDraftPlayer artifact={makeArtifact()} />,
-    );
+    const html = renderToStaticMarkup(<AudioDraftPlayer artifact={makeArtifact()} />);
     expect(html).toContain('fi-audio-draft');
   });
 });

@@ -11,50 +11,63 @@ maps it onto core's contracts.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fi_runner import (
     ClaudeCodeBackend,
-    InMemoryConversationStore,
-    PermissionMode,
     Runner,
     ToolPolicy,
+    active_corpus_binding,
+    load_prompt,
 )
 
-PERSONA = (
-    "You are og118 — element 118, Oganesson: synthetic, the heaviest known, "
-    "the end of the periodic table. A personal thinking companion on the Free "
-    "Intelligence substrate. Glass-box by design: you plan in the open before "
-    "you answer.\n\n"
-    "WORKFLOW (always): first call the task tracker's declare_plan with 2-4 "
-    "concrete steps for how you'll tackle the question. Then for EACH step call "
-    "start_step and, when finished, complete_step (with a one-line summary). "
-    "Only after the steps are complete, write the final answer. Be precise, "
-    "candid, concise; no filler."
-)
+PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
 
 
-def build_runner() -> Runner:
+def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = None) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
     events (the glass-box stream og118's AgentHook maps onto core's
-    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`)."""
+    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`).
+
+    The system prompt comes from `persona_text` when given (PERSONA-SSOT-1: an
+    "elemento" composes the shared fi-personas core + its operative-context block,
+    so the persona is NOT a per-repo copy); otherwise it is loaded from
+    `persona_path` (the default is the base og118 companion). Everything else —
+    capabilities, the corpus binding, the COMPANION tool policy — is identical
+    across elements, so a persona swap never widens the filesystem guarantee."""
     return Runner(
         backend=ClaudeCodeBackend(
             default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
         ),
-        persona=PERSONA,
-        capabilities=["task_tracker"],  # plan/step events come from this MCP
-        # DD-002C: semantic conversation continuity by history replay. The Runner
-        # folds the stored transcript (keyed by the client's session_id) into each
-        # turn's prompt, so follow-ups have real context. In-memory is the right
-        # fit here — og118 runs min/max-replicas 1 (sessions are per-replica by
-        # design); lost on ACA restart/redeploy, not multi-replica/multi-device.
-        # max_messages caps the replayed window so per-turn token cost stays bounded.
-        conversation_store=InMemoryConversationStore(max_messages=20),
-        tool_policy=ToolPolicy(
-            builtin_disallowed=["Bash", "Write", "Edit"],  # no shell/file writes
-            # Headless: auto-approve the (safe, in-process) task_tracker MCP tools
-            # so no interactive permission prompt blocks the turn.
-            permission_mode=PermissionMode.BYPASS,
-        ),
+        persona=persona_text if persona_text is not None else load_prompt(persona_path),
+        # task_tracker → plan/step glass-box events. rag_store → the agent can
+        # ingest/search a project corpus (the Projects-for-the-papelería canary);
+        # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
+        # hashing zero-model embedder by default (no LLM, no network for retrieval).
+        capabilities=["task_tracker", "rag_store"],
+        # proj-corpusbind consumer wiring: when /chat/stream carries a corpus_id
+        # (the user's active project), this binding folds "search ONLY corpus X"
+        # into the turn's system prompt so the agent's rag_store tools retrieve
+        # from the active project's corpus. No active project → no addendum, the
+        # persona is byte-identical to before. The framework primitive is agnostic
+        # to WHAT the id is; og118's local-first project id is the corpus_id.
+        context_prompt=active_corpus_binding(),
+        # DD-002C → og118-continuity canary: conversation continuity by CLIENT-SENT
+        # history replay. og118 is local-first — the transcript lives in the
+        # browser's IndexedDB and the client replays it on each /chat/stream turn
+        # (ChatRequest.history). The Runner folds + re-sanitizes it (untrusted
+        # context, never authorization) via sanitize_history. So there is NO
+        # server-side store and the backend is STATELESS: continuity survives an ACA
+        # replica recycle/redeploy/scale automatically (the prior InMemory store was
+        # wiped on restart → the model lost the thread mid-conversation). The
+        # client_history_max_messages / _chars caps bound per-turn token cost.
+        # og118 is a thinking companion, not a coding agent. The COMPANION profile
+        # blocks every shell / file-mutation / host-filesystem builtin under BYPASS,
+        # so the persona's "you have no filesystem" is TRUE, not asserted (a user
+        # asking "show me your code" had made it Glob+Read its own deployment
+        # source). The blocked set lives in fi-runner now (the framework home of the
+        # #277 fix) so every companion inherits it; rag_store/task_tracker are MCP
+        # tools, not builtins, so document search + the glass-box plan are unaffected.
+        tool_policy=ToolPolicy.companion(),
     )

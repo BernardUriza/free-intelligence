@@ -32,14 +32,25 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * Reduce a ChatMessage to the only fields safe to persist: role, content, and
- * timestamp. Drops id, thinking, metadata, and anything else by construction.
+ * Reduce a ChatMessage to the fields safe to persist: role, content, timestamp,
+ * plus the glass-box `trace` when present (B3-FIGLASS-TRACE-PERSISTENCE-1).
+ *
+ * Privacy by structure: `metadata` is DROPPED on purpose — apps stuff secrets
+ * there (a `Bearer` token, tool payloads), so it must never reach durable
+ * storage. `trace` is the deliberate exception, not a hole in that boundary: it
+ * carries only non-sensitive, already-user-visible execution provenance —
+ * plan-step labels/summaries (model-authored, rendered live), tool NAMES (core's
+ * ToolCall is {id,name,server,isError} — no arguments/payloads) and source URLs.
+ * Persisting what the live turn already showed leaks nothing new. Included only
+ * when present, so a plain message stays the minimal {role, content, timestamp};
+ * id, thinking and metadata are still dropped by construction.
  */
 export function sanitizeConversationMessage(message: ChatMessage): ChatMessage {
   return {
     role: message.role,
     content: message.content,
     timestamp: message.timestamp,
+    ...(message.trace ? { trace: message.trace } : {}),
   };
 }
 
@@ -92,6 +103,49 @@ export function createConversationRecord(
     messages,
     preview: deriveConversationPreview(messages),
     schemaVersion: CONVERSATION_SCHEMA_VERSION,
+  };
+}
+
+/**
+ * Resolve the title to stamp when persisting messages: a user-set (custom)
+ * title is preserved; otherwise it is derived from the messages. This is the
+ * SSOT that keeps `persist` from clobbering a rename on the next message.
+ */
+export function resolveConversationTitle(
+  messages: ChatMessage[],
+  prev?: { title: string; titleCustom?: boolean },
+): string {
+  if (prev?.titleCustom && prev.title.trim() !== '') return prev.title;
+  return deriveConversationTitle(messages);
+}
+
+/**
+ * Apply a user rename to a record. A non-empty title is stored verbatim
+ * (trimmed, whitespace-collapsed, capped at TITLE_MAX) and marks the record
+ * `titleCustom` so future persists never re-derive it. An empty/whitespace
+ * title reverts to the derived title and clears the custom flag
+ * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
+ */
+export function renameConversationRecord(
+  record: ConversationRecord,
+  rawTitle: string,
+  now?: string,
+): ConversationRecord {
+  const trimmed = rawTitle.trim().replace(/\s+/g, ' ');
+  const ts = now ?? new Date().toISOString();
+  if (trimmed === '') {
+    return {
+      ...record,
+      title: deriveConversationTitle(record.messages),
+      titleCustom: false,
+      updatedAt: ts,
+    };
+  }
+  return {
+    ...record,
+    title: trimmed.slice(0, TITLE_MAX),
+    titleCustom: true,
+    updatedAt: ts,
   };
 }
 

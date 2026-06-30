@@ -9,6 +9,7 @@ import {
   FileText,
   Globe,
   ListChecks,
+  Loader2,
   Receipt,
   Search,
   Terminal,
@@ -51,6 +52,7 @@ function toolVisualStatus(step, index, latestOpenIndex, live) {
 var defaultAgentIcons = {
   plan: ListChecks,
   warning: AlertTriangle,
+  spinner: Loader2,
   bot: Bot,
   sources: Receipt,
   external: ExternalLink,
@@ -184,7 +186,7 @@ function StepsPanel({
 }) {
   const ic = resolveIcons(icons);
   const BotIcon = ic.bot;
-  const WarnIcon = ic.warning;
+  const SpinnerIcon = ic.spinner;
   const card = classNames?.card ?? "";
   const hint = classNames?.hint ?? "";
   const live = status === "thinking" || status === "streaming";
@@ -225,13 +227,14 @@ function StepsPanel({
     showSlowBanner && /* @__PURE__ */ jsxs2(
       "div",
       {
-        className: "mt-2 inline-flex items-start gap-2 rounded-lg border border-amber-700/40 bg-amber-950/20 p-2.5 text-xs text-amber-200",
+        className: "mt-2 inline-flex items-center gap-2 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2.5 text-xs text-sky-200",
         role: "status",
+        "aria-live": "polite",
         children: [
           /* @__PURE__ */ jsx2(
-            WarnIcon,
+            SpinnerIcon,
             {
-              className: "h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400",
+              className: "h-3.5 w-3.5 shrink-0 animate-spin text-sky-400",
               "aria-hidden": true
             }
           ),
@@ -381,18 +384,24 @@ import {
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
 function useAgentConversation(agent, options = {}) {
   const {
+    externalMessages,
     conversationId,
     initialMessages,
     onMessagesChange,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError
   } = options;
+  const controlled = externalMessages !== void 0;
   const [messages, setMessages] = useState2(
     initialMessages ?? []
   );
+  const controlledRef = useRef(controlled);
+  controlledRef.current = controlled;
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
   const pending = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = externalMessages ?? messages;
   const agentRef = useRef(agent);
   agentRef.current = agent;
   const appHandledRef = useRef(isAppHandledError);
@@ -403,11 +412,13 @@ function useAgentConversation(agent, options = {}) {
   const skipPersist = useRef(true);
   const mounted = useRef(false);
   const revertOptimistic = useCallback(() => {
+    if (controlledRef.current) return;
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       return last?.role === "user" ? prev.slice(0, -1) : prev;
     });
   }, []);
+  const awaitResolver = useRef(null);
   const send = useCallback(
     (text) => {
       const t = text.trim();
@@ -415,12 +426,26 @@ function useAgentConversation(agent, options = {}) {
       lastSent.current = t;
       setTurnError(null);
       setTimedOut(false);
-      skipPersist.current = true;
-      setMessages((prev) => [...prev, makeUserMessage(t)]);
+      if (!controlled) {
+        skipPersist.current = true;
+        setMessages((prev) => [...prev, makeUserMessage(t)]);
+      }
       pending.current = true;
-      void agent.send(t);
+      void agent.send(t, { history: messagesRef.current });
     },
-    [agent]
+    [agent, controlled]
+  );
+  const sendAndAwait = useCallback(
+    (text) => {
+      const t = text.trim();
+      if (!t) return Promise.resolve("");
+      if (agent.isStreaming) return Promise.reject(new Error("a turn is already streaming"));
+      return new Promise((resolve, reject) => {
+        awaitResolver.current = { resolve, reject };
+        send(t);
+      });
+    },
+    [agent.isStreaming, send]
   );
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
@@ -434,6 +459,9 @@ function useAgentConversation(agent, options = {}) {
     pending.current = false;
     if (agent.turn.status === "error") {
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error(agent.turn.errorMessage || "turn failed"));
       if (!appHandledRef.current?.(agent.turn)) {
         setTurnError({
           kind: "stream",
@@ -442,10 +470,14 @@ function useAgentConversation(agent, options = {}) {
       }
       return;
     }
-    if (agent.turn.text) {
+    const finalText = agent.turn.text || "";
+    if (!controlledRef.current && agent.turn.text) {
       skipPersist.current = false;
       setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
     }
+    const resolver = awaitResolver.current;
+    awaitResolver.current = null;
+    resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn, revertOptimistic]);
   useEffect2(() => {
     if (turnTimeoutMs <= 0) return;
@@ -454,6 +486,9 @@ function useAgentConversation(agent, options = {}) {
       pending.current = false;
       agentRef.current.abort?.();
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error("turn timed out"));
       setTimedOut(true);
       setTurnError({
         kind: "timeout",
@@ -467,6 +502,7 @@ function useAgentConversation(agent, options = {}) {
       mounted.current = true;
       return;
     }
+    if (controlledRef.current) return;
     skipPersist.current = true;
     pending.current = false;
     setTurnError(null);
@@ -475,6 +511,7 @@ function useAgentConversation(agent, options = {}) {
     agent.reset?.();
   }, [conversationId]);
   useEffect2(() => {
+    if (controlledRef.current) return;
     if (skipPersist.current) {
       skipPersist.current = false;
       return;
@@ -485,16 +522,17 @@ function useAgentConversation(agent, options = {}) {
     skipPersist.current = true;
     setTurnError(null);
     setTimedOut(false);
-    setMessages([]);
+    if (!controlled) setMessages([]);
     pending.current = false;
     agent.reset?.();
-  }, [agent]);
+  }, [agent, controlled]);
   return {
-    messages,
+    messages: externalMessages ?? messages,
     turn: agent.turn,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
     send,
+    sendAndAwait,
     retry,
     dismissError,
     newConversation
@@ -502,14 +540,15 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useCallback as useCallback10, useEffect as useEffect12, useRef as useRef9, useState as useState14 } from "react";
-import { Send, Loader2 as Loader211 } from "lucide-react";
+import { Fragment as Fragment3, useCallback as useCallback10, useEffect as useEffect15, useRef as useRef10, useState as useState16 } from "react";
+import { Send, Loader2 as Loader212 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
   useEffect as useEffect3,
+  useId,
   useImperativeHandle,
   useRef as useRef2,
   useState as useState3
@@ -524,11 +563,16 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   wrapperClassName = "",
   wrapperStyle,
   className = "",
+  id,
+  name,
   ...props
 }, ref) {
   const textareaRef = useRef2(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState3(1);
+  const generatedId = useId();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
   useEffect3(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
@@ -554,6 +598,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       "textarea",
       {
         ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
         value,
         onChange,
         maxLength,
@@ -578,6 +624,7 @@ import { jsx as jsx6 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
@@ -586,11 +633,14 @@ function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -598,11 +648,13 @@ function Composer({
     AutoResizeTextarea,
     {
       ref: textareaRef,
+      id,
+      name,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
       placeholder,
-      disabled: loading,
+      disabled,
       maxRows,
       showCounter: false,
       wrapperClassName,
@@ -711,7 +763,7 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect4, useId, useRef as useRef3, useState as useState4 } from "react";
+import { useEffect as useEffect4, useId as useId2, useRef as useRef3, useState as useState4 } from "react";
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
@@ -723,7 +775,7 @@ function CollapsibleText({
   className,
   toggleClassName
 }) {
-  const contentId = useId();
+  const contentId = useId2();
   const contentRef = useRef3(null);
   const [expanded, setExpanded] = useState4(false);
   const [overflowing, setOverflowing] = useState4(false);
@@ -845,6 +897,40 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback as useCallback2, useState as useState5 } from "react";
 import { Copy, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect5 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect5(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/messages/CopyButton.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -858,6 +944,7 @@ var CopyButton = memo2(function CopyButton2({
   resetMs = 2e3
 }) {
   const [copied, setCopied] = useState5(false);
+  useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
@@ -876,7 +963,7 @@ var CopyButton = memo2(function CopyButton2({
     "button",
     {
       onClick: handleCopy,
-      className: `${base} ${copied ? active : idle}`,
+      className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
       children: copied ? /* @__PURE__ */ jsx9(Check, { className: icon }) : /* @__PURE__ */ jsx9(Copy, { className: icon })
@@ -921,7 +1008,7 @@ import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef as forwardRef2 } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2 as Loader22 } from "lucide-react";
 
 // src/voice/recording/types.ts
 var BUTTON_SIZES = {
@@ -964,7 +1051,7 @@ var RecordingButton = forwardRef2(
     animate = ""
   }, ref) {
     const sizeConfig = BUTTON_SIZES[size];
-    const DisplayIcon = iconSpin ? Loader2 : Icon;
+    const DisplayIcon = iconSpin ? Loader22 : Icon;
     return /* @__PURE__ */ jsx12(
       "button",
       {
@@ -993,25 +1080,25 @@ import { motion as motion2 } from "framer-motion";
 import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 
 // src/voice/recording/StatusText.tsx
-import { Loader2 as Loader22 } from "lucide-react";
+import { Loader2 as Loader23 } from "lucide-react";
 import { motion as motion3 } from "framer-motion";
 import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/VoiceMicButton.tsx
-import { Mic, Square, Loader2 as Loader23 } from "lucide-react";
+import { Mic, Square, Loader2 as Loader24 } from "lucide-react";
 import { motion as motion4 } from "framer-motion";
 import { jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/SpeakButton.tsx
-import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
+import { Volume2, Loader2 as Loader25, Play } from "lucide-react";
 import { jsx as jsx17 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect5, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
+import { useEffect as useEffect6, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
-import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect6 } from "react";
+import { Play as Play2, Pause, Square as Square2, Loader2 as Loader26, AlertCircle } from "lucide-react";
+import { useEffect as useEffect7 } from "react";
 import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
@@ -1019,12 +1106,12 @@ import {
   Play as Play3,
   Pause as Pause2,
   Square as Square3,
-  Loader2 as Loader26,
+  Loader2 as Loader27,
   AlertCircle as AlertCircle2,
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect7 } from "react";
+import { useEffect as useEffect8 } from "react";
 import { jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
@@ -1113,7 +1200,7 @@ function AudioVisualizer({
 }
 
 // src/voice/ComposerMicSlot.tsx
-import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
+import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader28 } from "lucide-react";
 import { jsx as jsx21 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1131,7 +1218,8 @@ function ComposerMicSlot({
   buttonClassName,
   iconClassName
 }) {
-  const btnClass = buttonClassName ?? BTN;
+  useTouchTargetStyle();
+  const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN}`;
   const iconClass = iconClassName ?? ICON;
   const disabled = !available || busy;
   const label = !available ? unavailableLabel : busy ? busyLabel : recording ? stopLabel : startLabel;
@@ -1140,7 +1228,7 @@ function ComposerMicSlot({
     if (recording) onStop?.();
     else onStart?.();
   };
-  const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
+  const Icon = !available ? MicOff : busy ? Loader28 : recording ? Square4 : Mic2;
   return /* @__PURE__ */ jsx21("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx21(
     "button",
     {
@@ -1425,7 +1513,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState8, useRef as useRef7, useEffect as useEffect8 } from "react";
+import { useState as useState8, useRef as useRef7, useEffect as useEffect9 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1459,7 +1547,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef7(null);
   const animationFrameRef = useRef7(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect8(() => {
+  useEffect9(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1562,14 +1650,18 @@ var AUDIO_QUEUE_DEFAULTS = {
   // 10 MB per artifact
 };
 
+// src/voice/useAudioQueueStore.ts
+import { useMemo as useMemo2 } from "react";
+
 // src/voice/useDurableRecording.ts
-import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect10 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState11, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState11, useEffect as useEffect11, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect12, useState as useState13 } from "react";
+import { Loader2 as Loader210, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState12, useCallback as useCallback8 } from "react";
@@ -1577,8 +1669,9 @@ import {
   Mic as Mic3,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle as AlertCircle3,
-  Loader2 as Loader28,
+  Loader2 as Loader29,
   Play as Play4,
   RotateCcw as RotateCcw2,
   Trash2,
@@ -1590,9 +1683,12 @@ import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState13, useCallback as useCallback9, useEffect as useEffect11 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { useState as useState14, useEffect as useEffect13 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback9, useEffect as useEffect14, useMemo as useMemo3, useRef as useRef9, useState as useState15 } from "react";
 
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
@@ -1637,16 +1733,86 @@ function ScrollToBottomButton({
   );
 }
 
+// src/shell/useMediaQuery.ts
+import { useSyncExternalStore as useSyncExternalStore2 } from "react";
+var mqlCache = /* @__PURE__ */ new Map();
+function getMql(query, useCache = true) {
+  if (typeof window === "undefined" || !("matchMedia" in window)) {
+    return null;
+  }
+  if (useCache) {
+    const cached = mqlCache.get(query);
+    if (cached) return cached;
+  }
+  const mql = window.matchMedia(query);
+  if (useCache) {
+    mqlCache.set(query, mql);
+  }
+  return mql;
+}
+function useMediaQuery(query, options) {
+  const ssrMatch = options?.ssrMatch ?? false;
+  const useRaf = options?.useRaf ?? true;
+  const cache = options?.cache ?? true;
+  const mql = getMql(query, cache);
+  const getSnapshot = () => mql ? mql.matches : ssrMatch;
+  const getServerSnapshot = () => ssrMatch;
+  const subscribe = (onStoreChange) => {
+    if (!mql) return () => {
+    };
+    let rafId = 0;
+    const handler = () => {
+      if (!useRaf) {
+        onStoreChange();
+        return;
+      }
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => onStoreChange());
+    };
+    const mqlAny = mql;
+    if (typeof mqlAny.addEventListener === "function") {
+      mqlAny.addEventListener("change", handler);
+    } else if (typeof mqlAny.addListener === "function") {
+      mqlAny.addListener(handler);
+    }
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (typeof mqlAny.removeEventListener === "function") {
+        mqlAny.removeEventListener("change", handler);
+      } else if (typeof mqlAny.removeListener === "function") {
+        mqlAny.removeListener(handler);
+      }
+    };
+  };
+  return useSyncExternalStore2(subscribe, getSnapshot, getServerSnapshot);
+}
+
 // src/agent/AgentConversationSurface.tsx
 import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
+function persistedTraceTurn(message) {
+  const trace = message.trace;
+  if (!trace) return null;
+  const hasContent = (trace.plan?.steps.length ?? 0) > 0 || (trace.tools?.length ?? 0) > 0 || (trace.sources?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return {
+    plan: trace.plan ?? null,
+    steps: trace.tools ?? [],
+    text: message.content,
+    sources: trace.sources ?? [],
+    meta: null,
+    status: "done"
+  };
+}
 function AgentConversationSurface({
   conversation,
+  layout = "viewport",
   composerPlaceholder,
   newChatLabel = "New chat",
   showNewChatButton = true,
   emptyState,
   aboveComposer,
   agentPanelProps,
+  showPersistedTrace = true,
   composerBoxClassName,
   composerAreaClassName,
   composerTextareaClassName,
@@ -1685,9 +1851,12 @@ function AgentConversationSurface({
   collapseToggleClassName
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
-  const [input, setInput] = useState14("");
+  const [input, setInput] = useState16("");
+  useTouchTargetStyle();
+  const isMobileViewport = useMediaQuery("(max-width: 768px)");
+  const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
-  const inputRef = useRef9(null);
+  const inputRef = useRef10(null);
   const refocusComposer = useCallback10(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
@@ -1696,13 +1865,13 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect12(() => {
+  useEffect15(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
   }, [composerAppend]);
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef9("");
+  const baseInputRef = useRef10("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -1714,13 +1883,13 @@ function AgentConversationSurface({
     baseInputRef.current = input;
     void dictation.startRecording();
   };
-  const wasStreaming = useRef9(false);
-  useEffect12(() => {
+  const wasStreaming = useRef10(false);
+  useEffect15(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef9(false);
-  useEffect12(() => {
+  const wasTranscribing = useRef10(false);
+  useEffect15(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
@@ -1734,12 +1903,13 @@ function AgentConversationSurface({
     send(t);
   };
   const canSend = input.trim().length > 0 && !isStreaming;
+  const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
   return (
     // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
     // gutter) lives on INNER content wrappers (transcript + composer), never on
     // the scroll container, so the scrollbar renders at the viewport edge like
     // ChatGPT/AURITY /chat instead of glued to the centered column.
-    /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", height: "100dvh" }, children: [
+    /* @__PURE__ */ jsxs19("div", { style: rootStyle, children: [
       /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
         /* @__PURE__ */ jsx26(
           "div",
@@ -1750,32 +1920,37 @@ function AgentConversationSurface({
               "div",
               {
                 ref: autoScroll ? stick.contentRef : void 0,
-                style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" },
+                style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
                 children: [
                   idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-                    messages.map((m, i) => /* @__PURE__ */ jsx26(
-                      MessageBubble,
-                      {
-                        role: m.role,
-                        header: renderHeader?.(m),
-                        badge: renderBadge?.(m),
-                        actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
-                        className: resolveBubbleClass(m),
-                        children: /* @__PURE__ */ jsx26(
-                          MessageContent,
+                    messages.map((m, i) => {
+                      const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
+                      return /* @__PURE__ */ jsxs19(Fragment3, { children: [
+                        traceTurn && /* @__PURE__ */ jsx26(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+                        /* @__PURE__ */ jsx26(
+                          MessageBubble,
                           {
-                            isUser: m.role === "user",
-                            content: m.content,
-                            collapsible: collapseUserMessages && m.role === "user",
-                            collapsedMaxHeight: collapseMaxHeight,
-                            showMoreLabel,
-                            showLessLabel,
-                            collapseToggleClassName
+                            role: m.role,
+                            header: renderHeader?.(m),
+                            badge: renderBadge?.(m),
+                            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
+                            className: resolveBubbleClass(m),
+                            children: /* @__PURE__ */ jsx26(
+                              MessageContent,
+                              {
+                                isUser: m.role === "user",
+                                content: m.content,
+                                collapsible: collapseUserMessages && m.role === "user",
+                                collapsedMaxHeight: collapseMaxHeight,
+                                showMoreLabel,
+                                showLessLabel,
+                                collapseToggleClassName
+                              }
+                            )
                           }
                         )
-                      },
-                      i
-                    )),
+                      ] }, i);
+                    }),
                     isStreaming && /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }),
                     isStreaming && turn.text && /* @__PURE__ */ jsx26(
                       MessageBubble,
@@ -1862,7 +2037,7 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: "calc(100% - 60px)", margin: "0 auto", width: "100%" }, children: [
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%" }, children: [
         hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
           "button",
           {
@@ -1939,9 +2114,9 @@ function AgentConversationSurface({
                     onClick: onSend,
                     disabled: !canSend,
                     "aria-label": sendLabel,
-                    className: sendButtonClassName,
+                    className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
                     children: isStreaming ? /* @__PURE__ */ jsx26(
-                      Loader211,
+                      Loader212,
                       {
                         className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
                         "aria-hidden": true
@@ -1957,21 +2132,598 @@ function AgentConversationSurface({
     ] })
   );
 }
+
+// src/agent/AgentWorkspaceShell.tsx
+import {
+  useCallback as useCallback11,
+  useEffect as useEffect16,
+  useState as useState17
+} from "react";
+import { Menu } from "lucide-react";
+import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
+function ensureToggleStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOGGLE_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOGGLE_STYLE_ID;
+  el.textContent = `
+    .fi-aws-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(10,14,22,0.55);
+      backdrop-filter: blur(var(--glass-blur-compact, 8px));
+      color: #e2e8f0; cursor: pointer; padding: 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .fi-aws-toggle:hover { background: rgba(255,255,255,0.08); }
+    .fi-aws-toggle:active { background: rgba(255,255,255,0.12); }
+    .fi-aws-toggle:focus-visible {
+      outline: 2px solid var(--og-accent, #34d399); outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(el);
+}
+function AgentWorkspaceShell({
+  visual = "aurora",
+  density = "comfortable",
+  header,
+  conversation,
+  rail,
+  footer,
+  sidebar,
+  responsive = false,
+  mobileQuery = "(max-width: 768px)",
+  sidebarWidth = 280,
+  toggleLabel = "Conversaciones",
+  className,
+  style
+}) {
+  const isMobile = useMediaQuery(mobileQuery);
+  const [isOpen, setIsOpen] = useState17(false);
+  const hasSidebar = sidebar != null;
+  const drawerMode = hasSidebar && responsive && isMobile;
+  const open = useCallback11(() => setIsOpen(true), []);
+  const close = useCallback11(() => setIsOpen(false), []);
+  const toggle = useCallback11(() => setIsOpen((v) => !v), []);
+  useEffect16(() => {
+    if (!drawerMode && isOpen) setIsOpen(false);
+  }, [drawerMode, isOpen]);
+  useEffect16(() => {
+    if (!drawerMode || !isOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerMode, isOpen]);
+  useEffect16(() => {
+    if (drawerMode) ensureToggleStyle();
+  }, [drawerMode]);
+  const rootStyle = {
+    display: "flex",
+    flexDirection: "column",
+    height: "100dvh",
+    minHeight: 0,
+    overflow: "hidden"
+  };
+  const mainStyle = {
+    display: "grid",
+    gridTemplateColumns: rail ? "minmax(0, 1fr) minmax(280px, 360px)" : "minmax(0, 1fr)",
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflow: "hidden"
+  };
+  const conversationStyle = { minHeight: 0, overflow: "hidden" };
+  const railStyle = { minHeight: 0, overflowY: "auto" };
+  const rootClassName = [
+    "fi-agent-workspace",
+    `fi-visual-${visual}`,
+    `fi-density-${density}`,
+    className
+  ].filter(Boolean).join(" ");
+  const content = /* @__PURE__ */ jsxs20(
+    "div",
+    {
+      "data-fi-workspace": "agent",
+      "data-fi-visual": visual,
+      "data-fi-density": density,
+      className: rootClassName,
+      style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
+      children: [
+        header != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs20("div", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx27("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        ] }),
+        footer != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "footer", children: footer })
+      ]
+    }
+  );
+  if (!hasSidebar) return content;
+  const api = { isOpen, isMobile, open, close, toggle };
+  const sidebarNode = typeof sidebar === "function" ? sidebar(api) : sidebar;
+  const widthCss = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
+  const sidebarContainerStyle = drawerMode ? {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    zIndex: 50,
+    width: `min(${widthCss}, 85vw)`,
+    display: "flex",
+    flexDirection: "column",
+    transform: isOpen ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 0.24s ease",
+    willChange: "transform"
+  } : {
+    width: widthCss,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column"
+  };
+  return /* @__PURE__ */ jsxs20(
+    "div",
+    {
+      "data-fi-workspace": "agent-with-sidebar",
+      style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
+      children: [
+        /* @__PURE__ */ jsx27(
+          "div",
+          {
+            "data-fi-slot": "sidebar",
+            style: sidebarContainerStyle,
+            "aria-hidden": drawerMode ? !isOpen : void 0,
+            inert: drawerMode && !isOpen ? true : void 0,
+            children: sidebarNode
+          }
+        ),
+        drawerMode && /* @__PURE__ */ jsx27(
+          "div",
+          {
+            onClick: close,
+            "aria-hidden": true,
+            style: {
+              position: "fixed",
+              inset: 0,
+              zIndex: 40,
+              background: "rgba(0,0,0,0.5)",
+              opacity: isOpen ? 1 : 0,
+              pointerEvents: isOpen ? "auto" : "none",
+              transition: "opacity 0.24s ease"
+            }
+          }
+        ),
+        drawerMode && !isOpen && /* @__PURE__ */ jsx27(
+          "button",
+          {
+            type: "button",
+            className: "fi-aws-toggle",
+            onClick: open,
+            "aria-label": toggleLabel,
+            "aria-expanded": isOpen,
+            style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
+            children: /* @__PURE__ */ jsx27(Menu, { size: 18, "aria-hidden": true })
+          }
+        ),
+        content
+      ]
+    }
+  );
+}
+
+// src/agent/AgentSidebarItem.tsx
+import {
+  useCallback as useCallback12,
+  useRef as useRef11,
+  useState as useState18
+} from "react";
+
+// src/agent/sidebarItemStyle.ts
+import { useEffect as useEffect17 } from "react";
+var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
+var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
+var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
+var FI_ITEM_SUBTITLE_CLASS = "fi-sidebar-item-subtitle";
+var FI_ITEM_META_CLASS = "fi-sidebar-item-meta";
+var FI_ITEM_ACTION_CLASS = "fi-item-action";
+var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
+var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
+var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
+var CSS = `
+.${FI_SIDEBAR_ITEM_CLASS} {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover {
+  background: var(--fi-sidebar-item-hover-bg, rgba(255, 255, 255, 0.04));
+}
+.${FI_SIDEBAR_ITEM_CLASS}:focus-visible {
+  box-shadow: 0 0 0 2px var(--glass-chat-accent-from, #059669);
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-selected {
+  background: var(--fi-sidebar-item-selected-bg, rgba(52, 211, 153, 0.08));
+  border-color: var(--fi-sidebar-item-selected-border, rgba(52, 211, 153, 0.3));
+  cursor: default;
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-editing {
+  cursor: default;
+}
+.${FI_ITEM_BODY_CLASS} {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.${FI_ITEM_TITLE_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #e2e8f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_SUBTITLE_CLASS} {
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_META_CLASS} {
+  font-size: 0.68rem;
+  color: var(--fi-sidebar-item-meta-color, #475569);
+}
+.${FI_ITEM_ACTION_CLASS} {
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover .${FI_ITEM_ACTION_CLASS},
+.${FI_ITEM_ACTION_CLASS}:focus-visible {
+  opacity: 1;
+}
+.${FI_ITEM_ACTION_CLASS}:disabled {
+  cursor: not-allowed;
+  opacity: 0;
+}
+.${FI_ITEM_ACTION_DANGER_CLASS}:hover:not(:disabled) {
+  color: var(--fi-sidebar-item-danger, #f87171);
+}
+@media (pointer: coarse) {
+  .${FI_ITEM_ACTION_CLASS} {
+    opacity: 1;
+  }
+}
+.${FI_RESOURCE_RENAME_INPUT_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #e2e8f0);
+  background: var(--glass-chat-bg-mid, #0f172a);
+  border: 1px solid var(--glass-chat-accent-from, #059669);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  width: 100%;
+  outline: none;
+}
+`;
+function ensureSidebarItemStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_ITEM_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useSidebarItemStyle() {
+  useEffect17(() => {
+    ensureSidebarItemStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarItem.tsx
+import { Fragment as Fragment4, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+function joinClasses(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function ItemActionSlot({
+  label,
+  onActivate,
+  disabled = false,
+  danger = false,
+  className,
+  children
+}) {
+  const cls = withTouchTarget(
+    joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
+  );
+  return /* @__PURE__ */ jsx28(
+    "button",
+    {
+      type: "button",
+      className: cls,
+      "aria-label": label,
+      disabled,
+      onClick: (e) => {
+        e.stopPropagation();
+        if (!disabled) onActivate();
+      },
+      children
+    }
+  );
+}
+function DestructiveActionSlot(props) {
+  return /* @__PURE__ */ jsx28(ItemActionSlot, { ...props, danger: true });
+}
+function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
+  const [editing, setEditing] = useState18(false);
+  const [draft, setDraft] = useState18("");
+  const cancelledRef = useRef11(false);
+  const start = useCallback12(() => {
+    cancelledRef.current = false;
+    setDraft(value);
+    setEditing(true);
+  }, [value]);
+  const cancel = useCallback12(() => {
+    cancelledRef.current = true;
+    setEditing(false);
+  }, []);
+  const commit = useCallback12(() => {
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      setEditing(false);
+      return;
+    }
+    if (draft.trim() === "" && emptyPolicy === "keep") {
+      setEditing(false);
+      return;
+    }
+    onRename(draft);
+    setEditing(false);
+  }, [draft, emptyPolicy, onRename]);
+  return {
+    editing,
+    draft,
+    start,
+    cancel,
+    inputProps: {
+      value: draft,
+      maxLength,
+      autoFocus: true,
+      onChange: (e) => setDraft(e.target.value),
+      onBlur: commit,
+      onClick: (e) => e.stopPropagation(),
+      onKeyDown: (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancel();
+        }
+      }
+    }
+  };
+}
+function AgentSidebarItem({
+  selected,
+  onSelect,
+  title,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  editing = false,
+  ariaLabel,
+  className
+}) {
+  useSidebarItemStyle();
+  const interactive = !disabled && !selected && !editing;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx28("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs21(
+    "div",
+    {
+      className: joinClasses(
+        FI_SIDEBAR_ITEM_CLASS,
+        selected && "is-selected",
+        editing && "is-editing",
+        className
+      ),
+      role: "button",
+      tabIndex: 0,
+      "aria-current": selected,
+      "aria-label": ariaLabel,
+      onClick: () => interactive && onSelect(),
+      onKeyDown: (e) => {
+        if ((e.key === "Enter" || e.key === " ") && interactive) {
+          e.preventDefault();
+          onSelect();
+        }
+      },
+      children: [
+        /* @__PURE__ */ jsxs21("div", { className: FI_ITEM_BODY_CLASS, children: [
+          titleNode,
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_META_CLASS, children: meta })
+        ] }),
+        actions
+      ]
+    }
+  );
+}
+function EditableResourceItem({
+  title,
+  selected,
+  onSelect,
+  onRename,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  maxLength,
+  emptyPolicy,
+  renameLabel,
+  renameInputLabel,
+  renameGlyph = "\u270E",
+  ariaLabel
+}) {
+  const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx28(
+    "input",
+    {
+      className: FI_RESOURCE_RENAME_INPUT_CLASS,
+      "aria-label": renameInputLabel,
+      ...rename.inputProps
+    }
+  ) : title;
+  return /* @__PURE__ */ jsx28(
+    AgentSidebarItem,
+    {
+      selected,
+      onSelect,
+      disabled,
+      editing: rename.editing,
+      ariaLabel,
+      title: titleNode,
+      subtitle,
+      meta,
+      actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment4, { children: [
+        /* @__PURE__ */ jsx28(
+          ItemActionSlot,
+          {
+            label: renameLabel,
+            disabled,
+            onActivate: rename.start,
+            children: renameGlyph
+          }
+        ),
+        actions
+      ] })
+    }
+  );
+}
+
+// src/agent/sidebarSectionStyle.ts
+import { useEffect as useEffect18 } from "react";
+var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
+var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
+var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
+var CSS2 = `
+.${FI_SIDEBAR_SECTION_CLASS} {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.${FI_SECTION_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: var(--fi-section-head-padding, 0.8rem 0.85rem 0.5rem);
+  border-bottom: var(--fi-section-head-border, none);
+}
+.${FI_SECTION_TITLE_CLASS} {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: var(--fi-section-title-size, inherit);
+  color: var(--fi-section-title-color, inherit);
+}
+`;
+function ensureSidebarSectionStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_SECTION_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+function useSidebarSectionStyle() {
+  useEffect18(() => {
+    ensureSidebarSectionStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarSection.tsx
+import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
+function joinClasses2(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function AgentSidebarSection({
+  title,
+  children,
+  actionSlot,
+  emptyState,
+  count,
+  headerSlot,
+  ariaLabel,
+  className
+}) {
+  useSidebarSectionStyle();
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const showEmpty = count === 0 && emptyState != null;
+  return /* @__PURE__ */ jsxs22("section", { className: joinClasses2(FI_SIDEBAR_SECTION_CLASS, className), "aria-label": ariaLabel, children: [
+    headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
+      titleNode,
+      actionSlot
+    ] }),
+    showEmpty ? emptyState : children
+  ] });
+}
 export {
   AgentConversationSurface,
   AgentPanel,
+  AgentSidebarItem,
+  AgentSidebarSection,
+  AgentWorkspaceShell,
   DEFAULT_TURN_TIMEOUT_MS,
+  DestructiveActionSlot,
+  EditableResourceItem,
+  FI_ITEM_ACTION_CLASS,
+  FI_ITEM_META_CLASS,
+  FI_ITEM_SUBTITLE_CLASS,
+  FI_ITEM_TITLE_CLASS,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SECTION_HEAD_CLASS,
+  FI_SECTION_TITLE_CLASS,
+  FI_SIDEBAR_ITEM_CLASS,
+  FI_SIDEBAR_SECTION_CLASS,
+  ItemActionSlot,
   PlanChecklist,
   ScrollToBottomButton,
   SourcesPanel,
   StepsPanel,
   classifyTool,
   defaultAgentIcons,
+  ensureSidebarItemStyle,
+  ensureSidebarSectionStyle,
   latestOpenToolIndex,
   resolveIcons,
   shortToolName,
   toolIcon,
   toolVisualStatus,
-  useAgentConversation
+  useAgentConversation,
+  useInlineRename,
+  useSidebarItemStyle,
+  useSidebarSectionStyle
 };
 //# sourceMappingURL=index.js.map

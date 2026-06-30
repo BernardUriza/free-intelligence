@@ -7,6 +7,7 @@ import {
   Mic,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle,
   Loader2,
   Play,
@@ -26,6 +27,9 @@ export interface AudioQueueItemProps {
   onTranscribe?: (id: string) => void;
   onRetry?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** Mark a transcribed artifact as used/sent — hides it from the queue
+   * without deleting the audio. */
+  onArchive?: (id: string) => void;
   onGetPlaybackUrl?: (id: string) => Promise<string | null>;
   className?: string;
 }
@@ -56,6 +60,7 @@ export function AudioQueueItem({
   onTranscribe,
   onRetry,
   onDelete,
+  onArchive,
   onGetPlaybackUrl,
   className = '',
 }: AudioQueueItemProps) {
@@ -158,6 +163,16 @@ export function AudioQueueItem({
             aria-label="Reintentar transcripción"
           >
             <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {artifact.state === 'transcribed' && onArchive && (
+          <button
+            onClick={() => onArchive(artifact.id)}
+            className="fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors"
+            aria-label="Marcar como enviado al chat"
+            title="Marcar como enviado al chat"
+          >
+            <CheckCheck className="w-3.5 h-3.5" />
           </button>
         )}
         {onDelete && artifact.state !== 'recording' && artifact.state !== 'paused' && (

@@ -30,6 +30,59 @@ describe('foldAssistantTurn — model provenance', () => {
   });
 });
 
+describe('foldAssistantTurn — glass-box trace (B3-FIGLASS-TRACE-PERSISTENCE-1)', () => {
+  it('snapshots the declared plan, tools and sources into trace', () => {
+    const msg = foldAssistantTurn(
+      turnWith({
+        plan: {
+          steps: [
+            { label: 'Investigar', status: 'done', summary: 'listo' },
+            { label: 'Responder', status: 'done' },
+          ],
+          outcome: 'completed',
+        },
+        steps: [{ id: 't1', name: 'search_documents', server: 'rag', isError: false }],
+        sources: ['doc://a', 'doc://b'],
+      }),
+    );
+    expect(msg.trace?.plan?.steps).toHaveLength(2);
+    expect(msg.trace?.plan?.outcome).toBe('completed');
+    expect(msg.trace?.tools).toEqual([
+      { id: 't1', name: 'search_documents', server: 'rag', isError: false },
+    ]);
+    expect(msg.trace?.sources).toEqual(['doc://a', 'doc://b']);
+  });
+
+  it('omits trace entirely for a plain conversational turn (no plan/tools/sources)', () => {
+    const msg = foldAssistantTurn(turnWith({ text: '¡Hola! ¿En qué te ayudo?' }));
+    expect(msg.trace).toBeUndefined();
+    expect(msg.content).toBe('¡Hola! ¿En qué te ayudo?');
+  });
+
+  it('includes only the non-empty parts of the trace', () => {
+    const onlyTools = foldAssistantTurn(
+      turnWith({ steps: [{ id: 'x', name: 'fetch', server: null, isError: null }] }),
+    );
+    expect(onlyTools.trace).toEqual({
+      tools: [{ id: 'x', name: 'fetch', server: null, isError: null }],
+    });
+    expect(onlyTools.trace?.plan).toBeUndefined();
+    expect(onlyTools.trace?.sources).toBeUndefined();
+  });
+
+  it('keeps a declared plan with zero settled steps (planning itself is the signal)', () => {
+    const msg = foldAssistantTurn(
+      turnWith({ plan: { steps: [{ label: 'Paso 1', status: 'pending' }] } }),
+    );
+    expect(msg.trace?.plan?.steps).toHaveLength(1);
+  });
+
+  it('treats an empty plan (zero steps) as no plan', () => {
+    const msg = foldAssistantTurn(turnWith({ plan: { steps: [] } }));
+    expect(msg.trace).toBeUndefined();
+  });
+});
+
 describe('makeUserMessage', () => {
   it('builds a user message with an ISO timestamp', () => {
     const msg = makeUserMessage('hola');

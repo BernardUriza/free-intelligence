@@ -30,13 +30,13 @@ import logging
 import signal as _signal
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
 from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
-from .conversation import ConversationStore, Message, render_transcript
+from .conversation import ConversationStore, Message, render_transcript, sanitize_history
 from .flow import Event
 from .guards import Guard
 from .pipeline import EventSink, MutationStage, run_pipeline
@@ -131,6 +131,26 @@ class Runner:
     # storing the fully-mutated text. See R14 in the fi-runner robustness
     # roadmap memory.
     pre_emit_append: bool = False
+    # Client-supplied conversation history (the og118 canary). A turn may carry its
+    # OWN transcript via ``run(history=...)`` instead of relying on a server-side
+    # store — the client owns its history (e.g. IndexedDB) and replays it, so
+    # continuity survives a recycled container with NO durable store. The history is
+    # UNTRUSTED input: it is folded as conversational CONTEXT, never authorization
+    # (it never grants permissions, selects a corpus, runs a tool, or proves
+    # identity). These two caps bound what a (possibly tampered) client can replay
+    # per turn — message count and total chars — keeping per-turn token cost finite.
+    # Sanitization (role allowlist, drop tool payloads, truncate oldest) is in
+    # fi_runner.conversation.sanitize_history.
+    client_history_max_messages: int = 20
+    client_history_max_chars: int = 16_000
+    # Opt-in per-turn CONTEXT BINDING (proj-corpusbind canary). Given the turn's
+    # ``context`` dict, returns an optional system-prompt addendum folded in
+    # alongside the persona. This is how a consumer binds structured per-turn
+    # state — the active corpus_id, a tenant — into the agent's instructions
+    # WITHOUT stuffing it into the user message (which would pollute the replayed
+    # transcript and be untyped). Default None → no addendum, byte-identical to
+    # before. See fi_runner.context_binding.active_corpus_binding.
+    context_prompt: Callable[[Mapping[str, Any]], str | None] | None = None
 
     def __post_init__(self) -> None:
         # Fail fast on a misconfigured runner instead of shipping an empty system
@@ -145,6 +165,83 @@ class Runner:
         else:
             _log.info("%s %s", event, fields)
 
+    async def _fold_history(
+        self,
+        user_message: str,
+        session_id: str | None,
+        history: Iterable[Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+        request_id: str,
+    ) -> tuple[str, str | None]:
+        """Resolve the message + session the backend should receive, folding prior
+        turns in for continuity. Two sources, client wins (divergence rule):
+
+        - ``history`` given (client-supplied) → sanitize it (untrusted) and fold;
+        - else a ``conversation_store`` + ``session_id`` → load and fold;
+        - else → the raw message, with the backend-native ``session_id`` preserved.
+
+        When history folds, the backend stays stateless (``session_id`` → None):
+        replay IS the continuity, so we never also resume a native session. Guards
+        still see the ORIGINAL ``user_message`` — only the BACKEND gets the fold."""
+        folded: list[Message] | None = None
+        source: str | None = None
+        if history is not None:
+            folded = sanitize_history(
+                history,
+                max_messages=self.client_history_max_messages,
+                max_chars=self.client_history_max_chars,
+            )
+            # The frontend's optimistic append may include the CURRENT message as the
+            # last history item — drop it so render_transcript doesn't echo it twice.
+            if folded and folded[-1].role == "user" and folded[-1].content.strip() == user_message.strip():
+                folded = folded[:-1]
+            source = "client"
+        elif self.conversation_store is not None and session_id is not None:
+            folded = await self.conversation_store.load(session_id)
+            source = "store"
+        if folded is None:
+            return user_message, session_id  # no continuity → backend-native session
+        if folded:
+            emit(
+                "history_replayed",
+                {"request_id": request_id, "session_id": session_id, "messages": len(folded), "source": source},
+            )
+        return render_transcript(folded, user_message), None
+
+    def _render_context_prompt(
+        self,
+        context: dict[str, Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+        request_id: str,
+    ) -> str:
+        """Render the per-turn context binding into a system-prompt addendum.
+
+        Returns "" when no binding is configured or it yields nothing. A raising
+        binding never breaks the turn — it is surfaced as ``context_prompt_error``
+        and treated as no addendum (the agent then sees no corpus binding, which
+        the consumer's monitoring must catch)."""
+        if self.context_prompt is None:
+            return ""
+        try:
+            rendered = self.context_prompt(context or {})
+        except Exception as exc:  # noqa: BLE001 - a hostile/buggy binding must not kill the turn
+            emit("context_prompt_error", {"request_id": request_id, "error": str(exc)})
+            return ""
+        if rendered and rendered.strip():
+            addendum = rendered.strip()
+            emit("context_bound", {"request_id": request_id, "chars": len(addendum)})
+            return addendum
+        return ""
+
+    def _compose_system_prompt(self, context_addendum: str, reinforcement: str) -> str:
+        """persona [+ context addendum] [+ guard reinforcement], joined by blank lines."""
+        parts = [self.persona]
+        if context_addendum:
+            parts.append(context_addendum)
+        if reinforcement:
+            parts.append(reinforcement)
+        return "\n\n".join(parts).strip()
+
     async def run(
         self,
         user_message: str,
@@ -152,11 +249,16 @@ class Runner:
         session_id: str | None = None,
         context: dict[str, Any] | None = None,
         request_id: str | None = None,
+        history: Iterable[Any] | None = None,
     ) -> TurnResult:
         """Run the turn pipeline: backend → guards → retry → post-processors.
 
         Pass ``session_id`` (e.g. a Discord channel id) for conversation
-        continuity on backends that support stateful sessions. Retries re-run the
+        continuity on backends that support stateful sessions. Pass ``history`` (a
+        client-supplied transcript of prior ``user``/``assistant`` turns) to fold
+        continuity in WITHOUT a server-side store — it is sanitized as untrusted
+        context and wins over the ``conversation_store`` when both are present.
+        Retries re-run the
         turn with accumulated reinforcement appended to the persona; the final
         attempt lets transformational guards sanitize instead of retrying.
         ``context`` is forwarded to each post-processor stage (per-turn side data).
@@ -195,26 +297,21 @@ class Runner:
         result: TurnResult | None = None
         attempt = 0
 
-        # Container-safe continuity by history replay: fold the stored transcript
-        # into the prompt sent to the backend, and keep the backend stateless
-        # (session_id addresses the STORE, not a backend-native session). Guards
-        # still see the ORIGINAL user_message, not the folded transcript.
-        backend_message = user_message
-        backend_session_id = session_id
-        if self.conversation_store is not None and session_id is not None:
-            history = await self.conversation_store.load(session_id)
-            backend_message = render_transcript(history, user_message)
-            backend_session_id = None  # replay IS the continuity; don't also resume
-            if history:
-                emit(
-                    "history_replayed",
-                    {"request_id": request_id, "session_id": session_id, "messages": len(history)},
-                )
+        # Container-safe continuity by history replay: fold the transcript (client-
+        # supplied or from the store) into the prompt sent to the backend, keeping
+        # the backend stateless. Guards still see the ORIGINAL user_message.
+        backend_message, backend_session_id = await self._fold_history(
+            user_message, session_id, history, emit, request_id
+        )
+
+        # Per-turn context binding (e.g. the active corpus): rendered once, constant
+        # across retries; the guard reinforcement is what varies per attempt.
+        context_addendum = self._render_context_prompt(context, emit, request_id)
 
         try:
             for attempt in range(attempts):
                 is_last = attempt == attempts - 1
-                system_prompt = f"{self.persona}\n\n{reinforcement}".strip() if reinforcement else self.persona
+                system_prompt = self._compose_system_prompt(context_addendum, reinforcement)
                 try:
                     result = await self.backend.run_turn(
                         system_prompt=system_prompt,
@@ -326,6 +423,7 @@ class Runner:
         session_id: str | None = None,
         context: dict[str, Any] | None = None,
         request_id: str | None = None,
+        history: Iterable[Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn: yields backend events AS THEY HAPPEN —
         ``{"type":"tool_call","tool":ToolCall}`` per tool call,
@@ -350,16 +448,15 @@ class Runner:
             if chosen:
                 model = chosen
 
-        # Container-safe continuity (same as run): fold the transcript into the
-        # backend message; guards still see the ORIGINAL user_message.
-        backend_message = user_message
-        backend_session_id = session_id
-        if self.conversation_store is not None and session_id is not None:
-            history = await self.conversation_store.load(session_id)
-            backend_message = render_transcript(history, user_message)
-            backend_session_id = None
-            if history:
-                self._emit("history_replayed", {"request_id": request_id, "session_id": session_id, "messages": len(history)})
+        # Per-turn context binding — the same addendum the agent gets in run().
+        context_addendum = self._render_context_prompt(context, self._emit, request_id)
+
+        # Container-safe continuity (same as run): fold the transcript (client-
+        # supplied or from the store) into the backend message; guards still see
+        # the ORIGINAL user_message.
+        backend_message, backend_session_id = await self._fold_history(
+            user_message, session_id, history, self._emit, request_id
+        )
 
         # Per-turn observer for the plan-first derived events. Tracks the
         # per-plan_id counters (done/failed/cancelled) needed to pick the
@@ -370,7 +467,7 @@ class Runner:
         try:
             if hasattr(self.backend, "run_turn_stream"):
                 async for event in self.backend.run_turn_stream(
-                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
                     tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
                 ):
                     if event.get("type") == "result":
@@ -411,7 +508,7 @@ class Runner:
             else:
                 # Backend can't stream → one-shot, surfaced as a single result event.
                 result = await self.backend.run_turn(
-                    system_prompt=self.persona, user_message=backend_message, mcp_servers=mcp_servers,
+                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
                     tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
                 )
         except BackendError:

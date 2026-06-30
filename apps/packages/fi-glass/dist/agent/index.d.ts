@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { ReactNode } from 'react';
+import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
@@ -37,6 +37,8 @@ interface AgentIconSet {
     plan: LucideIcon;
     /** Guard/warning indicator. */
     warning: LucideIcon;
+    /** In-progress spinner (e.g. the "still working" banner). Spun via animate-spin. */
+    spinner: LucideIcon;
     /** Assistant identity (Steps panel header). */
     bot: LucideIcon;
     /** Sources panel header. */
@@ -167,11 +169,25 @@ interface TurnError {
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 declare const DEFAULT_TURN_TIMEOUT_MS = 60000;
 interface UseAgentConversationOptions {
-    /** Identity of the active conversation. When it changes, the thread re-hydrates. */
+    /**
+     * Controlled mode: when provided, the CONSUMER owns the visible thread. The
+     * hook returns these verbatim as `conversation.messages` and stops folding —
+     * `send` drives `agent.send(text)` but pushes no optimistic message and folds
+     * no finished turn (the consumer maps its own transport into this transcript).
+     * For workflow adapters whose single send yields many agent-handoff messages
+     * (the 1-send -> 8+ messages case the single-turn fold cannot express; the
+     * Activist OS canary that surfaced this). Mutually exclusive with
+     * `initialMessages`/`conversationId`/`onMessagesChange` (those are bypassed —
+     * the consumer owns persistence); if both `externalMessages` and
+     * `initialMessages` are passed, `externalMessages` wins. Undefined =
+     * uncontrolled (the hook owns the thread, byte-identical to before).
+     */
+    externalMessages?: ChatMessage[];
+    /** Identity of the active conversation. When it changes, the thread re-hydrates. (Ignored in controlled mode.) */
     conversationId?: string | null;
-    /** Messages to seed the thread with (the active conversation's stored transcript). */
+    /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
     initialMessages?: ChatMessage[];
-    /** Called when the thread changes from real activity (fold/revert) — a persist hook. */
+    /** Called when the thread changes from real activity (fold/revert) — a persist hook. (Not called in controlled mode.) */
     onMessagesChange?: (messages: ChatMessage[]) => void;
     /**
      * Idle watchdog in ms: if the live turn's state does not change for this long
@@ -204,6 +220,8 @@ interface AgentConversation {
     turnError: TurnError | null;
     /** Send a message: pushes it optimistically, then drives the agent turn. */
     send: (text: string) => void;
+    /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
+    sendAndAwait: (text: string) => Promise<string>;
     /** Re-send the last user text after a failure. No-op if there is nothing to retry. */
     retry: () => void;
     /** Clear the current turnError without re-sending (the optimistic msg is already reverted). */
@@ -213,9 +231,20 @@ interface AgentConversation {
 }
 declare function useAgentConversation(agent: AgentHook, options?: UseAgentConversationOptions): AgentConversation;
 
+type AgentConversationSurfaceLayout = 'viewport' | 'contained';
 interface AgentConversationSurfaceProps {
     /** The conversation state + actions from `useAgentConversation`. */
     conversation: AgentConversation;
+    /**
+     * FG-2 (canary-driven, activist-os): how the surface root sizes itself.
+     *  - `"viewport"` (DEFAULT): root is `height: 100dvh` — the full-page behavior
+     *    every existing consumer relies on.
+     *  - `"contained"`: root is `height: 100%` + `minHeight: 0` + `overflow: hidden`,
+     *    so it fills whatever fixed-height cell an app shell gives it (header + main
+     *    + artifacts rail + footer) and scrolls the transcript internally instead of
+     *    forcing page scroll.
+     */
+    layout?: AgentConversationSurfaceLayout;
     /** Composer placeholder copy (app-owned). */
     composerPlaceholder?: string;
     /** Label for the new-conversation button. Default: "New chat". */
@@ -233,6 +262,16 @@ interface AgentConversationSurfaceProps {
     aboveComposer?: ReactNode;
     /** Pass-through styling/icons for the live-turn AgentPanel. */
     agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
+    /**
+     * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
+     * (declared plan + steps + tool calls + sources) above each assistant message
+     * that carries one, using the SAME AgentPanel as the live turn. This makes the
+     * differentiator — "see the execution, not just the result" — survive into the
+     * durable transcript instead of collapsing to the answer text on fold. Default
+     * true; a surface that wants answer-only history sets false. Messages with no
+     * `trace` (plain conversational turns, user messages) render unchanged.
+     */
+    showPersistedTrace?: boolean;
     /**
      * Floating composer box class (style hook for the app) — the single frosted
      * container that wraps BOTH the textarea row and the controls row (mic/send),
@@ -383,7 +422,7 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, showPersistedTrace, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 interface ScrollToBottomButtonProps {
     onClick: () => void;
@@ -396,4 +435,163 @@ interface ScrollToBottomButtonProps {
 }
 declare function ScrollToBottomButton({ onClick, label, className, iconClassName, }: ScrollToBottomButtonProps): react.JSX.Element;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, classifyTool, defaultAgentIcons, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation };
+type AgentWorkspaceShellVisual = 'aurora' | 'midnight' | 'clinical';
+type AgentWorkspaceShellDensity = 'compact' | 'comfortable' | 'spacious';
+/** Imperative drawer controls handed to the sidebar slot in `responsive` mode. */
+interface AgentWorkspaceShellApi {
+    /** Whether the mobile drawer is open (always false on desktop / non-responsive). */
+    isOpen: boolean;
+    /** Whether the shell is in the mobile/drawer breakpoint. */
+    isMobile: boolean;
+    open: () => void;
+    close: () => void;
+    toggle: () => void;
+}
+type SidebarSlot = ReactNode | ((api: AgentWorkspaceShellApi) => ReactNode);
+interface AgentWorkspaceShellProps {
+    visual?: AgentWorkspaceShellVisual;
+    density?: AgentWorkspaceShellDensity;
+    header?: ReactNode;
+    conversation: ReactNode;
+    rail?: ReactNode;
+    footer?: ReactNode;
+    /**
+     * Optional left chrome (e.g. a conversation list). A render function receives
+     * the drawer api so the consumer can `close()` on selection/new without the
+     * shell touching its internals. Omit it for the original page primitive.
+     */
+    sidebar?: SidebarSlot;
+    /**
+     * Opt into the mobile drawer behavior for the `sidebar`. Default `false` keeps
+     * the sidebar a static column at every width. No effect without `sidebar`.
+     */
+    responsive?: boolean;
+    /** Media query that switches the sidebar into drawer mode. Default `(max-width: 768px)`. */
+    mobileQuery?: string;
+    /** Desktop sidebar width (number → px). Default `280`. */
+    sidebarWidth?: number | string;
+    /** Accessible label for the drawer toggle. Default `Conversaciones`. */
+    toggleLabel?: string;
+    className?: string;
+    style?: CSSProperties;
+}
+declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, sidebar, responsive, mobileQuery, sidebarWidth, toggleLabel, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
+
+interface ItemActionSlotProps {
+    /** Accessible label — the consumer supplies the copy (e.g. "Renombrar chat"). */
+    label: string;
+    /** Fired on click/activation; the click never bubbles to the row's onSelect. */
+    onActivate: () => void;
+    disabled?: boolean;
+    /** Tint the action as destructive (danger color on hover). */
+    danger?: boolean;
+    className?: string;
+    /** The glyph/icon to render inside the button. */
+    children: ReactNode;
+}
+declare function ItemActionSlot({ label, onActivate, disabled, danger, className, children, }: ItemActionSlotProps): react.JSX.Element;
+type DestructiveActionSlotProps = Omit<ItemActionSlotProps, 'danger'>;
+declare function DestructiveActionSlot(props: DestructiveActionSlotProps): react.JSX.Element;
+interface UseInlineRenameOptions {
+    maxLength?: number;
+    /**
+     * What an empty draft means on commit. `revert` (default) calls `onRename('')`
+     * so the consumer can fall back to an auto-derived title; `keep` cancels
+     * silently and leaves the current value.
+     */
+    emptyPolicy?: 'revert' | 'keep';
+}
+interface InlineRename {
+    editing: boolean;
+    draft: string;
+    start: () => void;
+    cancel: () => void;
+    /** Spread onto the `<input>` — wires value, Enter/Escape/blur, and click-stop. */
+    inputProps: {
+        value: string;
+        maxLength?: number;
+        autoFocus: true;
+        onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+        onBlur: () => void;
+        onClick: (e: MouseEvent) => void;
+        onKeyDown: (e: KeyboardEvent) => void;
+    };
+}
+declare function useInlineRename(value: string, onRename: (next: string) => void, { maxLength, emptyPolicy }?: UseInlineRenameOptions): InlineRename;
+interface AgentSidebarItemProps {
+    selected: boolean;
+    onSelect: () => void;
+    /** A plain string is wrapped in the title slot; a node (e.g. the rename input) is used as-is. */
+    title: ReactNode;
+    subtitle?: ReactNode;
+    meta?: ReactNode;
+    /** Action buttons rendered at the end of the row (e.g. {@link DestructiveActionSlot}). */
+    actions?: ReactNode;
+    disabled?: boolean;
+    /** When the row is being edited in place: non-interactive, no hover-select. */
+    editing?: boolean;
+    ariaLabel?: string;
+    className?: string;
+}
+declare function AgentSidebarItem({ selected, onSelect, title, subtitle, meta, actions, disabled, editing, ariaLabel, className, }: AgentSidebarItemProps): react.JSX.Element;
+interface EditableResourceItemProps {
+    title: string;
+    selected: boolean;
+    onSelect: () => void;
+    onRename: (next: string) => void;
+    subtitle?: ReactNode;
+    meta?: ReactNode;
+    /** Extra actions (e.g. delete) rendered after the rename trigger. */
+    actions?: ReactNode;
+    disabled?: boolean;
+    maxLength?: number;
+    emptyPolicy?: 'revert' | 'keep';
+    /** Accessible label for the rename trigger (consumer copy). */
+    renameLabel: string;
+    /** Accessible label for the rename input (consumer copy). */
+    renameInputLabel: string;
+    /** Glyph for the rename trigger; defaults to a pencil. */
+    renameGlyph?: ReactNode;
+    ariaLabel?: string;
+}
+declare function EditableResourceItem({ title, selected, onSelect, onRename, subtitle, meta, actions, disabled, maxLength, emptyPolicy, renameLabel, renameInputLabel, renameGlyph, ariaLabel, }: EditableResourceItemProps): react.JSX.Element;
+
+declare const FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
+declare const FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
+declare const FI_ITEM_SUBTITLE_CLASS = "fi-sidebar-item-subtitle";
+declare const FI_ITEM_META_CLASS = "fi-sidebar-item-meta";
+declare const FI_ITEM_ACTION_CLASS = "fi-item-action";
+declare const FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
+/** Inject the idempotent sidebar-item stylesheet (no-op on the server / if already present). */
+declare function ensureSidebarItemStyle(): void;
+/** Ensure the sidebar-item stylesheet is present for the lifetime of the component. */
+declare function useSidebarItemStyle(): void;
+
+interface AgentSidebarSectionProps {
+    /** A plain string is wrapped in the title slot; a node (e.g. branded markup) is used as-is. */
+    title: ReactNode;
+    /** The rows (e.g. a `<nav>` of {@link AgentSidebarItem}). Shown when `count > 0`. */
+    children: ReactNode;
+    /** Header action affordance rendered at the end of the head row (e.g. a "+ Nuevo" button). */
+    actionSlot?: ReactNode;
+    /** Shown instead of `children` when `count === 0`. Omit to always render `children`. */
+    emptyState?: ReactNode;
+    /** Number of rows; gates whether `emptyState` (0) or `children` (>0) renders. */
+    count: number;
+    /** Replaces the default head (title + actionSlot) entirely when the consumer needs a custom header. */
+    headerSlot?: ReactNode;
+    /** Accessible label for the section element. */
+    ariaLabel?: string;
+    className?: string;
+}
+declare function AgentSidebarSection({ title, children, actionSlot, emptyState, count, headerSlot, ariaLabel, className, }: AgentSidebarSectionProps): react.JSX.Element;
+
+declare const FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
+declare const FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
+declare const FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+/** Inject the idempotent sidebar-section stylesheet (no-op on the server / if already present). */
+declare function ensureSidebarSectionStyle(): void;
+/** Ensure the sidebar-section stylesheet is present for the lifetime of the component. */
+declare function useSidebarSectionStyle(): void;
+
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

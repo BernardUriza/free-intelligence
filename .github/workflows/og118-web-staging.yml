@@ -41,8 +41,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build static export
+        # Gate 3 cutover: staging on real Auth0 login. These NEXT_PUBLIC_* are
+        # PUBLIC config (SPA client_id is embedded by design; PKCE = no secret),
+        # baked at build time. Revert OG118_AUTH_MODE to bearer to roll back.
         env:
           NEXT_PUBLIC_OG118_API: ${{ vars.OG118_API_URL }}
+          NEXT_PUBLIC_OG118_AUTH_MODE: auth0
+          NEXT_PUBLIC_AUTH0_DOMAIN: dev-1r4daup7ofj7q6gn.us.auth0.com
+          NEXT_PUBLIC_AUTH0_CLIENT_ID: 9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj
+          NEXT_PUBLIC_AUTH0_AUDIENCE: https://api.og118.ai
         run: pnpm --filter og118-web build
 
       - name: Guard — no secret baked into the bundle

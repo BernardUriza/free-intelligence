@@ -631,7 +631,7 @@ interface Recorder {
  */
 declare function makeRecorder(stream: MediaStream, onChunk: ChunkHandler, opts?: RecorderOptions): Promise<Recorder>;
 
-type AudioArtifactState = 'recording' | 'paused' | 'stopping' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'failed' | 'deleted';
+type AudioArtifactState = 'recording' | 'paused' | 'stopping' | 'saved' | 'queued' | 'uploading' | 'transcribing' | 'transcribed' | 'archived' | 'failed' | 'deleted';
 interface AudioArtifact {
     id: string;
     mime: string;
@@ -654,7 +654,7 @@ interface AudioQueuePolicy {
 declare const AUDIO_QUEUE_DEFAULTS: AudioQueuePolicy;
 declare function makeArtifactId(): string;
 declare function isPending(a: AudioArtifact): boolean;
-declare function isTerminal(a: AudioArtifact): boolean;
+declare function isTerminal$1(a: AudioArtifact): boolean;
 declare function artifactLabel(state: AudioArtifactState): string;
 declare function formatArtifactSize(bytes: number): string;
 declare function formatArtifactDuration(ms?: number): string;
@@ -678,6 +678,8 @@ declare class AudioQueueStore {
     clear(): Promise<void>;
 }
 
+declare function useAudioQueueStore(identityKey: string | null | undefined, options?: Omit<AudioQueueStoreOptions, 'dbName'>): AudioQueueStore;
+
 interface UseDurableRecordingOptions {
     store: AudioQueueStore;
     policy?: AudioQueuePolicy;
@@ -688,6 +690,9 @@ interface UseDurableRecordingOptions {
 interface UseDurableRecordingReturn {
     artifact: AudioArtifact | null;
     recordingTime: number;
+    /** Everything recorded so far, available while state === 'paused' (null
+     * otherwise). A complete playable WAV — feed it to a player as a preview. */
+    pausedPreviewBlob: Blob | null;
     bands: number[];
     audioLevel: number;
     isSilent: boolean;
@@ -715,6 +720,7 @@ interface UseAudioQueueReturn {
     retryTranscription: (id: string) => Promise<void>;
     getPlaybackUrl: (id: string) => Promise<string | null>;
     deleteArtifact: (id: string) => Promise<void>;
+    archiveArtifact: (id: string) => Promise<void>;
     clearTranscribed: () => Promise<void>;
     reload: () => Promise<void>;
 }
@@ -726,28 +732,34 @@ interface AudioQueuePanelProps {
     className?: string;
     /** Privacy notice text. Defaults to a generic local-storage notice. */
     privacyNotice?: string;
+    /** How long the privacy notice stays visible, in ms. 0 keeps it forever.
+     * Default 35s — it is recurring info, not a warning the user must dismiss. */
+    privacyNoticeMs?: number;
     /** Max visible items before scroll */
     maxVisible?: number;
     /** Artifact ids to hide from the panel (e.g. the active draft shown inline
      * via AudioDraftPlayer, so it is not duplicated in the backlog list). */
     excludeIds?: string[];
 }
-declare function AudioQueuePanel({ queue, className, privacyNotice, maxVisible, excludeIds, }: AudioQueuePanelProps): react.JSX.Element | null;
+declare function AudioQueuePanel({ queue, className, privacyNotice, privacyNoticeMs, maxVisible, excludeIds, }: AudioQueuePanelProps): react.JSX.Element | null;
 
 interface AudioQueueItemProps {
     artifact: AudioArtifact;
     onTranscribe?: (id: string) => void;
     onRetry?: (id: string) => void;
     onDelete?: (id: string) => void;
+    /** Mark a transcribed artifact as used/sent — hides it from the queue
+     * without deleting the audio. */
+    onArchive?: (id: string) => void;
     onGetPlaybackUrl?: (id: string) => Promise<string | null>;
     className?: string;
 }
-declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
+declare function AudioQueueItem({ artifact, onTranscribe, onRetry, onDelete, onArchive, onGetPlaybackUrl, className, }: AudioQueueItemProps): react.JSX.Element;
 
 interface AudioDraftPlayerProps {
     /** The draft artifact (the just-recorded, not-yet-acted-on audio). */
     artifact: AudioArtifact;
-    /** Resolve a playback object URL for the artifact (caller revokes). */
+    /** Resolve a playback object URL for the artifact (revoked here on unmount). */
     onGetPlaybackUrl?: (id: string) => Promise<string | null>;
     /** Primary action — transcribe / send / use the draft. */
     onPrimary?: (id: string) => void;
@@ -758,10 +770,333 @@ interface AudioDraftPlayerProps {
     /** Resume a paused recording. When provided, a Resume button replaces the
      * primary action (the user hasn't finished recording yet). */
     onResume?: () => void;
+    /** Everything recorded so far, available while paused (segmented pause).
+     * When set, the paused row plays it back through RichAudioPlayer. */
+    pausedPreview?: Blob | null;
     /** Label for the primary action button (default: "Transcribir"). */
     primaryActionLabel?: string;
     className?: string;
 }
-declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
+declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, pausedPreview, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
 
-export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioPlayer, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal, makeArtifactId, makeRecorder, normalizeLevels, resampleLevels, useAudioAnalysis, useAudioPlayer, useAudioQueue, useDictation, useDurableRecording, useRecorder, useVoice };
+/**
+ * Concatenate same-format PCM WAV blobs into one WAV.
+ *
+ * A single segment is returned as-is (no parse, no copy) — the common case
+ * when the user never paused. Throws if segments disagree on sample rate,
+ * channels, or bit depth: that would splice garbage, and the recorder pins
+ * one format for the whole session, so a mismatch is a bug upstream.
+ */
+declare function mergeWavBlobs(blobs: Blob[]): Promise<Blob>;
+
+/**
+ * resonanceCallMachine — the headless turn-taking core of RESONANCE, fi-glass's
+ * hands-free continuous voice-call mode.
+ *
+ * A pure (state, event) -> state reducer with zero adapter, React, or transport
+ * dependency. The useResonanceCallLoop hook drives it from real TTS/STT adapters;
+ * this module only governs which turn-state is legal next. Keeping the machine
+ * pure is what makes the four canonical flows — happy path, barge-in, auto-resume,
+ * sleep hangup — verifiable without mocking audio I/O.
+ *
+ * RESONANCE is the voice CHANNEL through which any elemento (persona) speaks; it is
+ * not an elemento itself. See .claude/backlog/og118-resonance-voice-mode.md.
+ */
+type ResonanceCallState = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'interrupted' | 'silence_hold' | 'sleep_decay' | 'ended';
+type ResonanceCallEvent = 'call.started' | 'mic.opened' | 'user.speech.started' | 'user.speech.ended' | 'stt.completed' | 'assistant.speech.started' | 'assistant.speech.interrupted' | 'assistant.speech.completed' | 'silence.detected' | 'silence.resume' | 'sleep.decay.started' | 'error.recoverable' | 'error.fatal' | 'call.ended';
+declare const RESONANCE_INITIAL_STATE: ResonanceCallState;
+declare function isTerminal(state: ResonanceCallState): boolean;
+declare function resonanceCallReducer(state: ResonanceCallState, event: ResonanceCallEvent): ResonanceCallState;
+
+/**
+ * resonanceEffects — the pure state-to-effect mapping that bridges the
+ * resonanceCallMachine reducer to real TTS/STT/mic adapters.
+ *
+ * useResonanceCallLoop drives the reducer, then on every state ENTERED asks
+ * effectForState which single imperative effect to run, and dispatches it to the
+ * injected driver (open the mic, cut TTS on barge-in, invoke the agent, etc.).
+ * Keeping the mapping pure means the orchestration contract is verifiable without
+ * mocking audio I/O — the driver is the only thing the React hook has to wire.
+ */
+
+type ResonanceEffect = {
+    type: 'open_mic';
+} | {
+    type: 'begin_transcribe';
+} | {
+    type: 'invoke_agent';
+} | {
+    type: 'speak';
+} | {
+    type: 'stop_speaking';
+} | {
+    type: 'hold_silence';
+} | {
+    type: 'fade_and_hangup';
+} | {
+    type: 'end_call';
+};
+/**
+ * The single effect to run on entering `state`, or null when the state needs no
+ * adapter action (idle). Only fire when the state actually CHANGED — re-entering
+ * the same state must not re-dispatch (the hook guards on prev !== next).
+ */
+declare function effectForState(state: ResonanceCallState): ResonanceEffect | null;
+interface ResonanceDriver {
+    openMic: () => void;
+    beginTranscribe: () => void;
+    invokeAgent: () => void;
+    speak: () => void;
+    stopSpeaking: () => void;
+    holdSilence: () => void;
+    fadeAndHangup: () => void;
+    endCall: () => void;
+}
+/** Dispatch one effect to the driver. Returns true when an effect ran. */
+declare function dispatchEffect(effect: ResonanceEffect | null, driver: ResonanceDriver): boolean;
+
+/**
+ * resonanceCallController — the framework-agnostic heart of useResonanceCallLoop.
+ *
+ * Holds the resonanceCallMachine state, and on every CHANGED state dispatches the
+ * single effectForState to the injected ResonanceDriver. External signals (mic
+ * opened, end-of-speech silence, STT transcript, assistant text, TTS completed,
+ * barge-in) enter through named methods that map to FSM events. No React, no
+ * audio I/O — so the full turn-taking contract is verifiable with vitest + a mock
+ * driver, exactly as the coagent's contract requires. useResonanceCallLoop is a
+ * thin React wrapper that binds the real adapters to this controller.
+ */
+
+interface ResonanceControllerHooks {
+    onState?: (state: ResonanceCallState) => void;
+    onEvent?: (event: ResonanceCallEvent, state: ResonanceCallState) => void;
+}
+interface ResonanceCallController {
+    state: () => ResonanceCallState;
+    lastTranscript: () => string | undefined;
+    lastAssistantText: () => string | undefined;
+    events: () => ResonanceCallEvent[];
+    send: (event: ResonanceCallEvent) => ResonanceCallState;
+    startCall: () => void;
+    micOpened: () => void;
+    userSpeechStarted: () => void;
+    userSpeechEnded: () => void;
+    sttCompleted: (transcript: string) => void;
+    assistantTurnReady: (text: string) => void;
+    ttsCompleted: () => void;
+    ttsInterrupted: () => void;
+    silenceDetected: () => void;
+    silenceResume: () => void;
+    sleepDecay: () => void;
+    /** Barge-in helper: cut TTS, then re-open for the user's new turn. */
+    interrupt: () => void;
+    /** A recoverable adapter failure (STT/agent/TTS) — drop back to listening. */
+    failRecoverable: () => void;
+    /** A fatal adapter failure (mic lost) — hang up the call. */
+    failFatal: () => void;
+    endCall: () => void;
+}
+declare function createResonanceCallController(driver: ResonanceDriver, hooks?: ResonanceControllerHooks): ResonanceCallController;
+
+/**
+ * resonanceVadGate — a pure, time-driven voice-activity detector for RESONANCE.
+ *
+ * The first VAD attempt closed end-of-speech off a React effect watching a
+ * derived `isSilent` boolean — it flaked, because re-renders are not a reliable
+ * clock and a single threshold has no hysteresis. This gate instead takes the
+ * CURRENT audio level + a monotonic timestamp on every tick (the React layer
+ * drives it from a setInterval reading an audioLevel ref) and decides with
+ * two-threshold hysteresis + minimum durations. No React, no audio I/O — so the
+ * timing contract is verifiable with an injected clock + level. audioLevel is the
+ * 0-255 analyser average (see useAudioAnalysis).
+ */
+interface ResonanceVadConfig {
+    /** Level (0-255) to DECLARE speech onset — high, to reject noise. */
+    speechOnThreshold: number;
+    /** Level (0-255) below which counts as silence — low, the hysteresis floor. */
+    speechOffThreshold: number;
+    /** Sustained-above-on time before emitting speech_start (debounce). */
+    minSpeechMs: number;
+    /** Sustained-below-off time after last voice before emitting speech_end. */
+    endSilenceMs: number;
+    /** Hard cap on a single user turn; forces speech_end. */
+    maxTurnMs: number;
+}
+declare const DEFAULT_VAD_CONFIG: ResonanceVadConfig;
+/** What the gate is allowed to detect this tick, derived from the call state. */
+type ResonanceVadMode = 'detect' | 'barge' | 'idle';
+type ResonanceVadEvent = 'speech_start' | 'speech_end' | 'barge_in' | null;
+interface ResonanceVadGate {
+    /** Feed the current level + monotonic now (ms). Returns one event or null. */
+    tick: (level: number, nowMs: number, mode: ResonanceVadMode) => ResonanceVadEvent;
+    reset: () => void;
+}
+declare function createResonanceVadGate(config?: ResonanceVadConfig): ResonanceVadGate;
+
+/**
+ * resonanceCueController — applies resonanceCuePolicy decisions to a CuePlayer,
+ * with the guarantees Web Audio alone can't give: playLoop is idempotent (one
+ * thinking source, never two), playOnce dedupes by eventId (a re-render of the
+ * same transition can't double-fire), and stopAll is safe to call any number of
+ * times. The controller knows the policy; the player only knows Web Audio.
+ *
+ * Lifecycle: one controller per call session (startCall makes/reset()s it). On
+ * teardown the wrapper calls stopAll() — and the policy also emits stopAll on the
+ * terminal transition — so no cue can outlive the call.
+ */
+
+interface ResonanceCuePlayer {
+    playOnce: (cue: 'crystalline' | 'ready') => void;
+    playLoop: (cue: 'thinking') => void;
+    stopLoop: (cue: 'thinking') => void;
+    stopAll: () => void;
+}
+interface ResonanceCueController {
+    /** Apply one FSM transition's cues. eventId dedupes one-shots across re-renders. */
+    applyTransition: (input: {
+        previousState: ResonanceCallState;
+        nextState: ResonanceCallState;
+        event: ResonanceCallEvent;
+    }, eventId?: string) => void;
+    stopAll: () => void;
+    reset: () => void;
+}
+declare function createResonanceCueController(player: ResonanceCuePlayer): ResonanceCueController;
+
+/**
+ * createAudioCuePlayer — the thin Web Audio adapter behind resonanceCueController.
+ *
+ * Pre-decodes the three cue buffers and plays them with the low latency only the
+ * Web Audio API gives (AudioBufferSourceNode, not <audio>). It knows nothing about
+ * the FSM — it just plays, loops, and stops. stopLoop/stopAll are best-effort so a
+ * teardown never throws, and one-shots self-evict on ended so they can overlap
+ * without leaking nodes.
+ */
+
+interface AudioCueAssets {
+    thinking: string;
+    crystalline: string;
+    ready: string;
+}
+interface AudioCuePlayerOptions {
+    volume?: number;
+}
+interface AudioCuePlayer extends ResonanceCuePlayer {
+    preload: () => Promise<void>;
+    /** Resume the AudioContext from a user gesture (the call button). Returns the state. */
+    resume: () => Promise<string>;
+    dispose: () => void;
+}
+declare function createAudioCuePlayer(assets: AudioCueAssets, options?: AudioCuePlayerOptions): AudioCuePlayer;
+
+interface ResonanceCallAdapters {
+    /** Open the mic stream (useDurableRecording.startRecording). */
+    openMic: () => void | Promise<void>;
+    /** Close the mic stream (useDurableRecording.stopRecording). */
+    closeMic: () => void | Promise<void>;
+    /** Stop the current segment and push it to STT; resolve with transcript text. */
+    beginTranscribe: () => Promise<string>;
+    /** Run the agent over the (already-appended) client-sent history; resolve with assistant text. */
+    invokeAgent: () => Promise<string>;
+    /** Synthesize + play the assistant text (useVoice.generateAudio + playback). */
+    speak: (text: string) => void | Promise<void>;
+    /** Cut TTS playback immediately (useVoice.close) — barge-in. */
+    stopSpeaking: () => void;
+    /** Append the user transcript to the client-sent history before invokeAgent. */
+    appendUserMessage: (text: string) => void;
+}
+interface ResonanceSilencePolicy {
+    endOfSpeechMs: number;
+    autoResumeMs: number;
+}
+interface ResonanceSleepPolicy {
+    enabled: boolean;
+    idleHangupMs: number;
+}
+interface ResonanceBargeInPolicy {
+    enabled: boolean;
+}
+interface UseResonanceCallLoopParams {
+    enabled: boolean;
+    adapters: ResonanceCallAdapters;
+    /**
+     * Read the CURRENT input level (0-255 analyser average). Polled on a stable
+     * 50ms timer by the robust VAD gate — not a re-render-driven boolean, which
+     * was the source of the frozen-loop flakiness.
+     */
+    getAudioLevel: () => number;
+    /** Hysteresis + timing thresholds for the VAD gate. */
+    vadConfig?: ResonanceVadConfig;
+    silencePolicy?: ResonanceSilencePolicy;
+    sleepPolicy?: ResonanceSleepPolicy;
+    bargeInPolicy?: ResonanceBargeInPolicy;
+    /** Audio cues (thinking loop / crystalline / ready). Off unless enabled + assets given. */
+    audioCues?: {
+        enabled: boolean;
+        assets: AudioCueAssets;
+        volume?: number;
+    };
+    /** Expose window.__RESONANCE_EVENTS__ for the screenless E2E harness. */
+    debug?: boolean;
+    onEvent?: (event: ResonanceCallEvent, state: ResonanceCallState) => void;
+}
+interface UseResonanceCallLoopReturn {
+    state: ResonanceCallState;
+    isActive: boolean;
+    isListening: boolean;
+    isSpeaking: boolean;
+    isThinking: boolean;
+    lastTranscript?: string;
+    lastAssistantText?: string;
+    startCall: () => Promise<void>;
+    endCall: () => void;
+    interrupt: () => void;
+}
+interface ResonanceEventRecord {
+    type: ResonanceCallEvent | 'stt.completed' | 'assistant.text';
+    state: ResonanceCallState;
+    transcript?: string;
+    text?: string;
+    timestamp: number;
+}
+declare global {
+    interface Window {
+        __RESONANCE_EVENTS__?: ResonanceEventRecord[];
+    }
+}
+declare function useResonanceCallLoop(params: UseResonanceCallLoopParams): UseResonanceCallLoopReturn;
+
+/**
+ * resonanceCuePolicy — the pure decision layer for RESONANCE's audio cues.
+ *
+ * Maps a single FSM transition (previousState, nextState, event) to the cue
+ * actions to run. No Web Audio, no timers — so "right cue only on its transition"
+ * and "the thinking loop can never hang" are provable with plain assertions.
+ *
+ * The load-bearing rule: stopLoop(thinking) is derived from LEAVING the thinking
+ * state, not from a specific event. That makes it impossible to strand the loop —
+ * a barge-in, an agent error, a hangup, or any future transition out of thinking
+ * all stop it. stopAll is layered on top for terminal/teardown paths.
+ */
+
+type ResonanceCueName = 'thinking' | 'crystalline' | 'ready';
+type ResonanceCueAction = {
+    type: 'playLoop';
+    cue: 'thinking';
+} | {
+    type: 'stopLoop';
+    cue: 'thinking';
+} | {
+    type: 'playOnce';
+    cue: 'crystalline' | 'ready';
+} | {
+    type: 'stopAll';
+};
+interface ResonanceCuePolicyInput {
+    previousState: ResonanceCallState;
+    nextState: ResonanceCallState;
+    event: ResonanceCallEvent;
+}
+declare function resonanceCuePolicy(input: ResonanceCuePolicyInput): ResonanceCueAction[];
+
+export { AUDIO_QUEUE_DEFAULTS, type AudioArtifact, type AudioArtifactState, type AudioCueAssets, type AudioCuePlayer, type AudioCuePlayerOptions, AudioDraftPlayer, type AudioDraftPlayerProps, type AudioElementLike, AudioPlayer, type AudioPlayerController, type AudioPlayerOptions, type AudioPlayerProps, type AudioPlayerState, type AudioPlayerStatus, AudioQueueItem, type AudioQueueItemProps, AudioQueuePanel, type AudioQueuePanelProps, type AudioQueuePolicy, AudioQueueStore, type AudioQueueStoreOptions, AudioVisualizer, type AudioVisualizerProps, type AudioVisualizerVariant, BUTTON_SIZES, type ButtonSize, type ButtonSizeConfig, COLOR_THEMES, type ColorTheme, ComposerMicSlot, type ComposerMicSlotProps, DEFAULT_VAD_CONFIG, type PulseConfig, PulseRings, type PulseRingsProps, type PulseStyle, RESONANCE_INITIAL_STATE, RecordingButton, type RecordingButtonProps, type RecordingStateType, RecordingTimer, type RecordingTimerProps, type ResonanceBargeInPolicy, type ResonanceCallAdapters, type ResonanceCallController, type ResonanceCallEvent, type ResonanceCallState, type ResonanceControllerHooks, type ResonanceCueAction, type ResonanceCueController, type ResonanceCueName, type ResonanceCuePlayer, type ResonanceCuePolicyInput, type ResonanceDriver, type ResonanceEffect, type ResonanceSilencePolicy, type ResonanceSleepPolicy, type ResonanceVadConfig, type ResonanceVadEvent, type ResonanceVadGate, type ResonanceVadMode, RichAudioPlayer, type RichAudioPlayerProps, STATUS_TEXT_EN, STATUS_TEXT_ES, SpeakButton, type SpeakButtonProps, type StateColors, StatusText, type StatusTextConfig, type StatusTextProps, type StoredAudioArtifact, type UseAudioPlayerOptions, type UseAudioPlayerReturn, type UseAudioQueueOptions, type UseAudioQueueReturn, type UseDictationOptions, type UseDictationReturn, type UseDurableRecordingOptions, type UseDurableRecordingReturn, type UseResonanceCallLoopParams, type UseResonanceCallLoopReturn, type UseVoiceOptions, type UseVoiceReturn, VoiceMicButton, artifactLabel, createAudioCuePlayer, createAudioPlayer, createResonanceCallController, createResonanceCueController, createResonanceVadGate, dispatchEffect, effectForState, formatArtifactDuration, formatArtifactSize, formatPlaybackTime, formatRecordingTime, isPending, isTerminal as isResonanceTerminal, isTerminal$1 as isTerminal, makeArtifactId, makeRecorder, mergeWavBlobs, normalizeLevels, resampleLevels, resonanceCallReducer, resonanceCuePolicy, useAudioAnalysis, useAudioPlayer, useAudioQueue, useAudioQueueStore, useDictation, useDurableRecording, useRecorder, useResonanceCallLoop, useVoice };

@@ -240,6 +240,7 @@ import { Loader2 as Loader213 } from "lucide-react";
 import {
   forwardRef,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState as useState2
@@ -254,11 +255,16 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   wrapperClassName = "",
   wrapperStyle,
   className = "",
+  id,
+  name,
   ...props
 }, ref) {
   const textareaRef = useRef(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState2(1);
+  const generatedId = useId();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
   useEffect(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
@@ -284,6 +290,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
       "textarea",
       {
         ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
         value,
         onChange,
         maxLength,
@@ -308,6 +316,7 @@ import { jsx as jsx3 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
+  disabled = false,
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
@@ -316,11 +325,14 @@ function Composer({
   wrapperClassName,
   wrapperStyle,
   textareaClassName,
+  id,
+  name,
   textareaRef
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (loading || disabled) return;
       onSend();
     }
   };
@@ -328,11 +340,13 @@ function Composer({
     AutoResizeTextarea,
     {
       ref: textareaRef,
+      id,
+      name,
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
       placeholder,
-      disabled: loading,
+      disabled,
       maxRows,
       showCounter: false,
       wrapperClassName,
@@ -464,7 +478,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState11, useRef as useRef7, useEffect as useEffect9 } from "react";
+import { useState as useState13, useRef as useRef8, useEffect as useEffect12 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 
@@ -777,14 +791,48 @@ function VoiceMicButton({
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect as useEffect2 } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/voice/SpeakButton.tsx
 import { jsx as jsx11 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect2, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useEffect as useEffect3, useMemo, useRef as useRef2, useSyncExternalStore as useSyncExternalStore2 } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect3 } from "react";
+import { useEffect as useEffect4 } from "react";
 import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
@@ -797,7 +845,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect4 } from "react";
+import { useEffect as useEffect5 } from "react";
 import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
@@ -817,7 +865,7 @@ import { useCallback as useCallback4, useState as useState6 } from "react";
 import { useState as useState4, useRef as useRef4, useCallback as useCallback3 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef5, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useEffect as useEffect6 } from "react";
 
 // src/voice/audioArtifact.ts
 var AUDIO_QUEUE_DEFAULTS = {
@@ -828,14 +876,18 @@ var AUDIO_QUEUE_DEFAULTS = {
   // 10 MB per artifact
 };
 
+// src/voice/useAudioQueueStore.ts
+import { useMemo as useMemo2 } from "react";
+
 // src/voice/useDurableRecording.ts
-import { useState as useState7, useRef as useRef6, useCallback as useCallback5, useEffect as useEffect6 } from "react";
+import { useState as useState7, useRef as useRef6, useCallback as useCallback5, useEffect as useEffect7 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState8, useEffect as useEffect7, useCallback as useCallback6 } from "react";
+import { useState as useState8, useEffect as useEffect8, useCallback as useCallback6 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { Loader2 as Loader29, Trash2 as Trash22, ShieldAlert } from "lucide-react";
+import { useEffect as useEffect9, useState as useState10 } from "react";
+import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
 import { useState as useState9, useCallback as useCallback7 } from "react";
@@ -843,6 +895,7 @@ import {
   Mic as Mic3,
   PauseCircle,
   CheckCircle2,
+  CheckCheck,
   AlertCircle as AlertCircle3,
   Loader2 as Loader28,
   Play as Play4,
@@ -856,12 +909,15 @@ import { jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
 import { jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState10, useCallback as useCallback8, useEffect as useEffect8 } from "react";
-import { Play as Play5, Pause as Pause3, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp, CirclePause } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
+import { useState as useState11, useEffect as useEffect10 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
+
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback8, useEffect as useEffect11, useMemo as useMemo3, useRef as useRef7, useState as useState12 } from "react";
 
 // src/shell/ChatToolbar.tsx
-import { Fragment as Fragment5, jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -890,10 +946,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState11(false);
-  const overflowButtonRef = useRef7(null);
-  const [dropdownPosition, setDropdownPosition] = useState11({ top: 0, left: 0 });
-  useEffect9(() => {
+  const [overflowOpen, setOverflowOpen] = useState13(false);
+  const overflowButtonRef = useRef8(null);
+  const [dropdownPosition, setDropdownPosition] = useState13({ top: 0, left: 0 });
+  useEffect12(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -921,7 +977,7 @@ function ChatToolbar({
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs14(Fragment5, { children: [
+          /* @__PURE__ */ jsxs14(Fragment4, { children: [
             /* @__PURE__ */ jsx19(
               "div",
               {
@@ -982,7 +1038,7 @@ function ChatToolbar({
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs14(Fragment5, { children: [
+                  showCopyCurl && /* @__PURE__ */ jsxs14(Fragment4, { children: [
                     /* @__PURE__ */ jsx19("div", { className: "chat-dropdown-divider" }),
                     /* @__PURE__ */ jsxs14(
                       "button",
@@ -1111,7 +1167,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx20, jsxs as jsxs15 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx20, jsxs as jsxs15 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -1157,19 +1213,19 @@ function ChatFilePreview({
       /* @__PURE__ */ jsx20("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs15("div", { className: "flex items-center gap-2 fi-text-xs", children: [
         /* @__PURE__ */ jsx20("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs15(Fragment6, { children: [
+        isUploading && /* @__PURE__ */ jsxs15(Fragment5, { children: [
           /* @__PURE__ */ jsx20("span", { children: "-" }),
           /* @__PURE__ */ jsx20("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs15(Fragment6, { children: [
+        isProcessing && /* @__PURE__ */ jsxs15(Fragment5, { children: [
           /* @__PURE__ */ jsx20("span", { children: "-" }),
           /* @__PURE__ */ jsx20("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs15(Fragment6, { children: [
+        isCompleted && /* @__PURE__ */ jsxs15(Fragment5, { children: [
           /* @__PURE__ */ jsx20("span", { children: "-" }),
           /* @__PURE__ */ jsx20("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs15(Fragment6, { children: [
+        isError && error && /* @__PURE__ */ jsxs15(Fragment5, { children: [
           /* @__PURE__ */ jsx20("span", { children: "-" }),
           /* @__PURE__ */ jsx20("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
@@ -1198,7 +1254,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx21, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx21, jsxs as jsxs16 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -1248,10 +1304,10 @@ function ChatStartScreen({
         /* @__PURE__ */ jsx21("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx21("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs16(Fragment7, { children: [
+    /* @__PURE__ */ jsx21("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs16(Fragment6, { children: [
       /* @__PURE__ */ jsx21("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs16(Fragment7, { children: [
+    ] }) : /* @__PURE__ */ jsxs16(Fragment6, { children: [
       /* @__PURE__ */ jsx21(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
@@ -1549,6 +1605,7 @@ export {
   ChatWidget,
   ChatWidgetContainer,
   ChatWidgetHeader,
+  FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   clearMediaQueryCache,
   defaultAnimationConfig,
@@ -1556,9 +1613,12 @@ export {
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  ensureTouchTargetStyle,
   mergeChatConfig,
   useBreakpoints,
   useChatWidgetState,
-  useMediaQuery
+  useMediaQuery,
+  useTouchTargetStyle,
+  withTouchTarget
 };
 //# sourceMappingURL=index.js.map

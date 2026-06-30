@@ -40,10 +40,61 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
     isStreaming: false,
     turnError: null,
     send: () => {},
+    sendAndAwait: () => Promise.resolve(''),
     retry: () => {},
     dismissError: () => {},
     newConversation: () => {},
   }) as AgentConversation;
+
+describe('<AgentConversationSurface> persisted glass-box trace (B3-FIGLASS-TRACE-PERSISTENCE-1)', () => {
+  const tracedMessages: ChatMessage[] = [
+    { role: 'user', content: 'organiza una venta de garage', timestamp: '2026-01-01T00:00:00Z' },
+    {
+      role: 'assistant',
+      content: 'aquí tienes el plan',
+      timestamp: '2026-01-01T00:00:01Z',
+      trace: {
+        plan: {
+          steps: [
+            { label: 'Seleccionar artículos', status: 'done', summary: 'listo' },
+            { label: 'Promocionar la venta', status: 'done' },
+          ],
+          outcome: 'completed',
+        },
+        sources: ['doc://garage'],
+      },
+    },
+  ];
+
+  it('re-renders the persisted plan steps above the assistant answer by default', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation(tracedMessages)} />
+    );
+    expect(html).toContain('Seleccionar artículos');
+    expect(html).toContain('Promocionar la venta');
+    expect(html).toContain('aquí tienes el plan');
+  });
+
+  it('omits the persisted trace when showPersistedTrace is false (answer-only history)', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation(tracedMessages)}
+        showPersistedTrace={false}
+      />
+    );
+    expect(html).not.toContain('Seleccionar artículos');
+    expect(html).toContain('aquí tienes el plan');
+  });
+
+  it('renders a plain assistant message (no trace) unchanged', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    expect(html).toContain('respuesta del asistente');
+    // No plan markup leaks in for a traceless message.
+    expect(html).not.toContain('Seleccionar artículos');
+  });
+});
 
 describe('<AgentConversationSurface> messageBubbleClassName', () => {
   it('applies a string class to every bubble (legacy, unchanged)', () => {

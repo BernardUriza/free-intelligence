@@ -84,6 +84,7 @@ export {
   AudioQueueStore,
   type AudioQueueStoreOptions,
 } from './AudioQueueStore';
+export { useAudioQueueStore } from './useAudioQueueStore';
 export {
   useDurableRecording,
   type UseDurableRecordingOptions,
@@ -111,3 +112,62 @@ export {
   AudioDraftPlayer,
   type AudioDraftPlayerProps,
 } from './AudioDraftPlayer';
+
+// B3-VOICE-FIGLASS-18: segmented-pause WAV splicing. Exposed because any shell
+// that records same-format PCM WAV in stretches can reuse the merge.
+export { mergeWavBlobs } from './wav';
+
+// RESONANCE: hands-free continuous voice-call mode. The verified headless core
+// (FSM + effects + controller) plus the React wrapper that binds real adapters.
+export {
+  RESONANCE_INITIAL_STATE,
+  resonanceCallReducer,
+  isTerminal as isResonanceTerminal,
+  type ResonanceCallState,
+  type ResonanceCallEvent,
+} from './resonanceCallMachine';
+export {
+  effectForState,
+  dispatchEffect,
+  type ResonanceEffect,
+  type ResonanceDriver,
+} from './resonanceEffects';
+export {
+  createResonanceCallController,
+  type ResonanceCallController,
+  type ResonanceControllerHooks,
+} from './resonanceCallController';
+export {
+  createResonanceVadGate,
+  DEFAULT_VAD_CONFIG,
+  type ResonanceVadConfig,
+  type ResonanceVadMode,
+  type ResonanceVadEvent,
+  type ResonanceVadGate,
+} from './resonanceVadGate';
+export {
+  useResonanceCallLoop,
+  type UseResonanceCallLoopParams,
+  type UseResonanceCallLoopReturn,
+  type ResonanceCallAdapters,
+  type ResonanceSilencePolicy,
+  type ResonanceSleepPolicy,
+  type ResonanceBargeInPolicy,
+} from './useResonanceCallLoop';
+export {
+  resonanceCuePolicy,
+  type ResonanceCueAction,
+  type ResonanceCueName,
+  type ResonanceCuePolicyInput,
+} from './resonanceCuePolicy';
+export {
+  createResonanceCueController,
+  type ResonanceCueController,
+  type ResonanceCuePlayer,
+} from './resonanceCueController';
+export {
+  createAudioCuePlayer,
+  type AudioCuePlayer,
+  type AudioCueAssets,
+  type AudioCuePlayerOptions,
+} from './createAudioCuePlayer';

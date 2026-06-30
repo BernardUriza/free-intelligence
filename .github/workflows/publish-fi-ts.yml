@@ -1,0 +1,106 @@
+name: Publish fi TS packages (@free-intelligence/core + fi-glass)
+
+# Cut a release + publish the TypeScript pair to npm by pushing a tag:
+#   git tag fi-ts-v1.1.0 && git push origin fi-ts-v1.1.0
+#
+# The TS analog of publish-fi-core.yml / publish-fi-runner.yml (which ship the
+# Python packages to Anaconda). Here the registry is public npm so a fresh
+# clone of the python-bot template installs with NO auth/.npmrc — same
+# zero-consumer-friction posture as the public Anaconda channel.
+#
+# @free-intelligence/core and fi-glass are version-locked (fi-glass depends on
+# core via workspace:*). pnpm publish rewrites workspace:* -> the real version
+# at publish time, so the published fi-glass pins core at this tag's version.
+# core is published FIRST so fi-glass's rewritten dependency already resolves.
+#
+# Required once: repo secret NPM_TOKEN (an npm automation token with publish
+# scope for @free-intelligence and fi-glass). Claim the @free-intelligence npm
+# scope under Bernard's account before the first run.
+
+on:
+  push:
+    tags:
+      - "fi-ts-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. fi-ts-v1.1.0"
+        required: true
+
+permissions:
+  contents: write  # create the GitHub Release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag + version
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fi-ts-v}"
+          if [ "$VERSION" = "$TAG" ]; then
+            echo "::error::Tag '$TAG' does not match fi-ts-v<version>"; exit 1
+          fi
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ver.outputs.tag }}
+
+      - name: Guard — both package.json versions match the tag
+        run: |
+          for pkg in apps/packages/free-intelligence-core apps/packages/fi-glass; do
+            PKG_VER=$(node -p "require('./$pkg/package.json').version")
+            if [ "$PKG_VER" != "${{ steps.ver.outputs.version }}" ]; then
+              echo "::error::$pkg version=$PKG_VER but tag says ${{ steps.ver.outputs.version }}. Bump the package or fix the tag."; exit 1
+            fi
+          done
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install (frozen)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core + fi-glass
+        run: |
+          pnpm --filter @free-intelligence/core build
+          pnpm --filter fi-glass build
+
+      - name: Guard — 'use client' survived into the fi-glass build
+        run: |
+          if ! grep -rIq "use client" apps/packages/fi-glass/dist; then
+            echo "::error::no 'use client' directive in fi-glass/dist — the RSC boundary was stripped"; exit 1
+          fi
+          echo "'use client' preserved ✓"
+
+      - name: Publish to npm (core first, then fi-glass)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN secret is not set — add it in repo Settings → Secrets, then re-run."; exit 1
+          fi
+          pnpm --filter @free-intelligence/core publish --no-git-checks --access public
+          pnpm --filter fi-glass publish --no-git-checks --access public
+
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — skipping create."
+          else
+            gh release create "$TAG" \
+              --title "fi TS packages ${{ steps.ver.outputs.version }}" \
+              --notes "Automated release. @free-intelligence/core + fi-glass published to npm. See commits since the previous fi-ts-v* tag." \
+              --verify-tag
+          fi

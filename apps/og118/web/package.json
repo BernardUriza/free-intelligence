@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.19.0",
     "@free-intelligence/core": "workspace:*",
     "fi-glass": "workspace:*",
     "framer-motion": "^12.23.24",

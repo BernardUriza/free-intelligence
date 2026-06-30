@@ -138,6 +138,7 @@ exclude = ["tests*"]
 [tool.setuptools.package-data]
 "fi_core" = ["py.typed"]
 "fi_core.cognitive" = ["presets/*.yaml"]
+"fi_core.persona" = ["prompts/*.md"]
 
 [tool.ruff]
 target-version = "py312"

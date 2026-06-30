@@ -14,6 +14,8 @@ import {
   summarizeConversation,
   deriveConversationTitle,
   deriveConversationPreview,
+  resolveConversationTitle,
+  renameConversationRecord,
   sanitizeConversationMessage,
 } from './helpers';
 
@@ -53,6 +55,36 @@ describe('sanitizeConversationMessage — privacy by structure', () => {
     } as unknown as ChatMessage;
     const clean = sanitizeConversationMessage(future);
     expect(Object.keys(clean).sort()).toEqual(['content', 'role', 'timestamp']);
+  });
+
+  it('preserves the glass-box trace (B3-FIGLASS-TRACE-PERSISTENCE-1)', () => {
+    const traced: ChatMessage = {
+      role: 'assistant',
+      content: 'aquí tienes el plan',
+      timestamp: NOW,
+      trace: {
+        plan: { steps: [{ label: 'Investigar', status: 'done' }], outcome: 'completed' },
+        tools: [{ id: 't1', name: 'search_documents', server: 'rag', isError: false }],
+        sources: ['doc://a'],
+      },
+    };
+    const clean = sanitizeConversationMessage(traced);
+    expect(clean.trace?.plan?.steps).toHaveLength(1);
+    expect(clean.trace?.tools?.[0].name).toBe('search_documents');
+    expect(clean.trace?.sources).toEqual(['doc://a']);
+  });
+
+  it('still drops metadata even when a trace is present (no secret leak via the new field)', () => {
+    const mixed: ChatMessage = {
+      role: 'assistant',
+      content: 'hola',
+      timestamp: NOW,
+      metadata: { token: 'Bearer xyz' },
+      trace: { sources: ['doc://safe'] },
+    };
+    const clean = sanitizeConversationMessage(mixed);
+    expect('metadata' in clean).toBe(false);
+    expect(clean.trace?.sources).toEqual(['doc://safe']);
   });
 });
 
@@ -150,5 +182,74 @@ describe('summarizeConversation', () => {
       updatedAt: NOW,
       preview: 'a',
     });
+  });
+});
+
+const LATER = '2026-06-10T00:00:00.000Z';
+
+describe('renameConversationRecord — user rename', () => {
+  it('stores a non-empty title verbatim and marks it custom', () => {
+    const rec = createConversationRecord({
+      id: 'r1',
+      messages: [msg('user', 'derived from this')],
+      now: NOW,
+    });
+    const next = renameConversationRecord(rec, '  My  cool   chat  ', LATER);
+    expect(next.title).toBe('My cool chat');
+    expect(next.titleCustom).toBe(true);
+    expect(next.updatedAt).toBe(LATER);
+    expect(next.createdAt).toBe(NOW); // untouched
+    expect(rec.titleCustom).toBeUndefined(); // pure: original not mutated
+  });
+
+  it('caps a custom title at the title max length', () => {
+    const rec = createConversationRecord({ id: 'r2', now: NOW });
+    const long = 'x'.repeat(200);
+    const next = renameConversationRecord(rec, long, LATER);
+    expect(next.title.length).toBe(60);
+    expect(next.titleCustom).toBe(true);
+  });
+
+  it('reverts to the derived title and clears custom on an empty title', () => {
+    const rec = renameConversationRecord(
+      createConversationRecord({
+        id: 'r3',
+        messages: [msg('user', 'original question')],
+        now: NOW,
+      }),
+      'renamed',
+      LATER,
+    );
+    expect(rec.titleCustom).toBe(true);
+    const reverted = renameConversationRecord(rec, '   ', LATER);
+    expect(reverted.title).toBe('original question');
+    expect(reverted.titleCustom).toBe(false);
+  });
+});
+
+describe('resolveConversationTitle — persist preserves a rename', () => {
+  it('derives from messages when there is no custom title', () => {
+    const messages = [msg('user', 'fresh derive')];
+    expect(resolveConversationTitle(messages)).toBe('fresh derive');
+    expect(
+      resolveConversationTitle(messages, { title: 'old', titleCustom: false }),
+    ).toBe('fresh derive');
+  });
+
+  it('keeps a custom title instead of re-deriving', () => {
+    const messages = [msg('user', 'would derive to this')];
+    expect(
+      resolveConversationTitle(messages, {
+        title: 'User Named It',
+        titleCustom: true,
+      }),
+    ).toBe('User Named It');
+  });
+
+  it('falls back to derive when a custom title is blank', () => {
+    const messages = [msg('user', 'derive fallback')];
+    expect(
+      resolveConversationTitle(messages, { title: '   ', titleCustom: true }),
+    ).toBe('derive fallback');
   });
 });

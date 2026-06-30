@@ -128,6 +128,67 @@ automatically.
 - `AURITY` redeploys on any `main` push (its `deploy-azure.yml` has no path
   filter). Adding a path filter there is a separate, permissioned change.
 
+## RAG store persistence (Projects corpora survive redeploys)
+
+The Projects corpus (HDF5 at `FI_RAG_STORE_PATH=/opt/fi/data/...`, set in the
+Dockerfile) is on the container's ephemeral disk by default — **every redeploy
+(each merge) wipes it**, so the user would re-upload after every deploy. Fix: an
+Azure Files share mounted at `/opt/fi/data`. Right-sized for the canary
+(cents/mo, single-replica) vs a managed Postgres+pgvector (the post-Gate-3 scale
+path: `FI_RAG_BACKEND=pgvector` + `FI_RAG_PGVECTOR_DSN`, fi-core ships it).
+
+One-time setup (applied 2026-06-21; the `--image` deploys preserve the mount, but
+re-apply if the Container App is ever recreated):
+
+```bash
+RG=og118-rg; ENV=og118-env; APP=og118-api; SA=og118ragstore
+az storage account create -n "$SA" -g "$RG" -l eastus2 --sku Standard_LRS --kind StorageV2
+KEY=$(az storage account keys list -n "$SA" -g "$RG" --query "[0].value" -o tsv)
+az storage share create --name ragstore --account-name "$SA" --account-key "$KEY" --quota 5
+az containerapp env storage set -n "$ENV" -g "$RG" --storage-name ragstore \
+  --azure-file-account-name "$SA" --azure-file-account-key "$KEY" \
+  --azure-file-share-name ragstore --access-mode ReadWrite
+# Mount via `az containerapp update --yaml` (volumes + volumeMounts at /opt/fi/data)
+# + env HDF5_USE_FILE_LOCKING=FALSE. STRIP the `configuration.secrets` section
+# from the exported YAML before applying — exported secrets are redacted to null
+# and a roundtrip would WIPE them (omission preserves them).
+```
+
+`HDF5_USE_FILE_LOCKING=FALSE` is required: HDF5's file lock fights SMB (Azure
+Files). Safe here because the app is pinned `min=max=1 replica` (one writer).
+Verified: upload → restart revision (wipes ephemeral disk) → retrieve WITHOUT
+re-upload returns the stored value → corpus persisted on the volume.
+
+Follow-up (not blocking): codify these steps in `og118-backend.yml` as idempotent
+ensure-volume steps so a from-scratch ACA recreate is reproducible without manual
+`az`.
+
+## Auth0 (Gate 3) — tenant + app config
+
+Real per-user auth via the shared-dev Auth0 tenant `dev-1r4daup7ofj7q6gn` (the
+tenant FerboliMovil also uses; og118's `fi_runner.auth` validates RS256 JWTs
+against its JWKS — no backend secret). These values are PUBLIC config (a SPA
+client_id is embedded in the browser bundle by design; PKCE means no client
+secret), so they live here, not in `~/.secrets/`.
+
+| Key | Value |
+|---|---|
+| `AUTH0_DOMAIN` (backend + frontend) | `dev-1r4daup7ofj7q6gn.us.auth0.com` |
+| `AUTH0_AUDIENCE` / `NEXT_PUBLIC_AUTH0_AUDIENCE` | `https://api.og118.ai` (the `og118-api` resource server identifier, RS256) |
+| `NEXT_PUBLIC_AUTH0_CLIENT_ID` | `9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj` (the `og118-spa` SPA app) |
+| og118-spa callbacks / logout / web-origins / CORS | `https://og118.ai`, `https://staging.og118.ai`, `http://localhost:3000` |
+
+Wired: `AUTH0_DOMAIN` + `AUTH0_AUDIENCE` + `OG118_AUTH_MODE=dual` set on the
+Container App (plain env, non-secret — sidesteps the `--yaml` secret-redaction
+footgun). `NEXT_PUBLIC_AUTH0_*` go in the SWA build env. Cutover: `dual` (Auth0
+JWT OR legacy bearer) → `auth0` (JWT only) once verified end-to-end on staging.
+
+Tenant recovery note: if locked out of the dashboard by a stale partial-auth MFA
+session, hit `https://auth0.auth0.com/v2/logout` to clear it (the "no logout
+button" trap) — then log in fresh. The debug-Chrome profile has no Auth0 session,
+so it forces full MFA; the daily browser usually has a live "remember this device"
+session.
+
 ## Deferred (gatekeeper LOW findings — follow-ups, not blocking)
 
 - **Refuse-to-start in prod without a token:** `app.py` warns when
