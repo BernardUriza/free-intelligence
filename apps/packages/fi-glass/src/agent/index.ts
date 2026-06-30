@@ -104,3 +104,7 @@ export {
   FI_SECTION_HEAD_CLASS,
   FI_SECTION_TITLE_CLASS,
 } from './sidebarSectionStyle';
+// B3-FIGLASS-UX-TOKENS-1: the spacing scale (--fi-space-1..5) + the functional
+// density contract (.fi-density-* set the derived spacing tokens the section/item
+// primitives read). Default `comfortable` reproduces the previous look exactly.
+export { ensureDensityStyle, useDensityStyle } from './densityStyle';

@@ -2136,10 +2136,64 @@ function AgentConversationSurface({
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback11,
-  useEffect as useEffect16,
+  useEffect as useEffect17,
   useState as useState17
 } from "react";
 import { Menu } from "lucide-react";
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect16 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS = `
+.fi-agent-workspace {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
+function ensureDensityStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(DENSITY_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = DENSITY_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useDensityStyle() {
+  useEffect16(() => {
+    ensureDensityStyle();
+  }, []);
+}
+
+// src/agent/AgentWorkspaceShell.tsx
 import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
@@ -2180,6 +2234,7 @@ function AgentWorkspaceShell({
   className,
   style
 }) {
+  useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState17(false);
   const hasSidebar = sidebar != null;
@@ -2187,10 +2242,10 @@ function AgentWorkspaceShell({
   const open = useCallback11(() => setIsOpen(true), []);
   const close = useCallback11(() => setIsOpen(false), []);
   const toggle = useCallback11(() => setIsOpen((v) => !v), []);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -2203,7 +2258,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -2326,7 +2381,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect17 } from "react";
+import { useEffect as useEffect18 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -2336,12 +2391,12 @@ var FI_ITEM_ACTION_CLASS = "fi-item-action";
 var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
 var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
 var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
-var CSS = `
+var CSS2 = `
 .${FI_SIDEBAR_ITEM_CLASS} {
   display: flex;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.55rem 0.6rem;
+  gap: var(--fi-item-gap, 0.4rem);
+  padding: var(--fi-item-padding, 0.55rem 0.6rem);
   border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -2430,11 +2485,11 @@ function ensureSidebarItemStyle() {
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_ITEM_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect17(() => {
+  useEffect18(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -2623,12 +2678,12 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect18 } from "react";
+import { useEffect as useEffect19 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
-var CSS2 = `
+var CSS3 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
   display: flex;
   flex-direction: column;
@@ -2638,7 +2693,7 @@ var CSS2 = `
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--fi-section-head-gap, 0.5rem);
   padding: var(--fi-section-head-padding, 0.8rem 0.85rem 0.5rem);
   border-bottom: var(--fi-section-head-border, none);
 }
@@ -2654,11 +2709,11 @@ function ensureSidebarSectionStyle() {
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_SECTION_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect18(() => {
+  useEffect19(() => {
     ensureSidebarSectionStyle();
   }, []);
 }
@@ -2714,6 +2769,7 @@ export {
   StepsPanel,
   classifyTool,
   defaultAgentIcons,
+  ensureDensityStyle,
   ensureSidebarItemStyle,
   ensureSidebarSectionStyle,
   latestOpenToolIndex,
@@ -2722,6 +2778,7 @@ export {
   toolIcon,
   toolVisualStatus,
   useAgentConversation,
+  useDensityStyle,
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
