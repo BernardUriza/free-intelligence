@@ -117,6 +117,7 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
 export function useOg118Agent(
   sessionId: string | null,
   activeCorpusId: string | null = null,
+  activeElement: string | null = null,
 ): AgentHook {
   const [turn, setTurn] = useState<AgentTurnState>(initialAgentTurnState());
   const [isStreaming, setIsStreaming] = useState(false);
@@ -132,6 +133,11 @@ export function useOg118Agent(
   // rag_store search to that corpus this turn; null → no active project.
   const corpusIdRef = useRef<string | null>(activeCorpusId);
   corpusIdRef.current = activeCorpusId;
+  // OG118-ELEMENTS-SELECTOR: the active "elemento" slug, read by the stable send()
+  // closure at call time (like corpusId). When set, the backend registry resolves
+  // it and swaps the answering persona this turn; '' / null → base og118 persona.
+  const elementRef = useRef<string | null>(activeElement);
+  elementRef.current = activeElement;
   // B3-FIGLASS-8: the in-flight request, so the framework's turn-timeout watchdog
   // (useAgentConversation) can actually CANCEL the network call via abort() — not
   // just drop the UI out of streaming. Without this the timed-out fetch would leak.
@@ -150,6 +156,7 @@ export function useOg118Agent(
     // metadata (privacy + the backend treats it as untrusted context, not auth).
     const history = (meta?.history ?? []).map((m) => ({ role: m.role, content: m.content }));
     const corpusId = corpusIdRef.current;
+    const element = elementRef.current;
 
     let state = initialAgentTurnState();
     setTurn(state);
@@ -166,7 +173,7 @@ export function useOg118Agent(
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ message: text, session_id: sid, history, ...(corpusId ? { corpus_id: corpusId } : {}) }),
+        body: JSON.stringify({ message: text, session_id: sid, history, ...(corpusId ? { corpus_id: corpusId } : {}), ...(element ? { element } : {}) }),
         signal: controller.signal,
       });
       if (res.status === 401) {

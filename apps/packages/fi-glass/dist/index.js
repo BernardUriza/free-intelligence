@@ -3068,48 +3068,669 @@ function AudioDraftPlayer({
   );
 }
 
+// src/voice/resonanceCallMachine.ts
+var RESONANCE_INITIAL_STATE = "idle";
+var TRANSITIONS = {
+  idle: {
+    "call.started": "listening"
+  },
+  listening: {
+    "mic.opened": "listening",
+    "user.speech.started": "listening",
+    "user.speech.ended": "transcribing",
+    "silence.detected": "silence_hold"
+  },
+  transcribing: {
+    "stt.completed": "thinking"
+  },
+  thinking: {
+    "assistant.speech.started": "speaking"
+  },
+  speaking: {
+    "user.speech.started": "interrupted",
+    "assistant.speech.completed": "silence_hold"
+  },
+  interrupted: {
+    "assistant.speech.interrupted": "listening"
+  },
+  silence_hold: {
+    "silence.resume": "listening",
+    "sleep.decay.started": "sleep_decay"
+  },
+  sleep_decay: {
+    "silence.resume": "listening"
+  },
+  ended: {}
+};
+function isTerminal2(state) {
+  return state === "ended";
+}
+function resonanceCallReducer(state, event) {
+  if (isTerminal2(state)) return state;
+  if (event === "call.ended") return "ended";
+  if (event === "error.fatal") return "ended";
+  if (event === "error.recoverable") return state === "idle" ? "idle" : "listening";
+  return TRANSITIONS[state][event] ?? state;
+}
+
+// src/voice/resonanceEffects.ts
+var STATE_EFFECT = {
+  idle: null,
+  listening: { type: "open_mic" },
+  transcribing: { type: "begin_transcribe" },
+  thinking: { type: "invoke_agent" },
+  speaking: { type: "speak" },
+  interrupted: { type: "stop_speaking" },
+  silence_hold: { type: "hold_silence" },
+  sleep_decay: { type: "fade_and_hangup" },
+  ended: { type: "end_call" }
+};
+function effectForState(state) {
+  return STATE_EFFECT[state];
+}
+function dispatchEffect(effect, driver) {
+  switch (effect?.type) {
+    case "open_mic":
+      driver.openMic();
+      return true;
+    case "begin_transcribe":
+      driver.beginTranscribe();
+      return true;
+    case "invoke_agent":
+      driver.invokeAgent();
+      return true;
+    case "speak":
+      driver.speak();
+      return true;
+    case "stop_speaking":
+      driver.stopSpeaking();
+      return true;
+    case "hold_silence":
+      driver.holdSilence();
+      return true;
+    case "fade_and_hangup":
+      driver.fadeAndHangup();
+      return true;
+    case "end_call":
+      driver.endCall();
+      return true;
+    default:
+      return false;
+  }
+}
+
+// src/voice/resonanceCallController.ts
+function createResonanceCallController(driver, hooks = {}) {
+  let state = RESONANCE_INITIAL_STATE;
+  let transcript;
+  let assistantText;
+  const log2 = [];
+  function send(event) {
+    const next = resonanceCallReducer(state, event);
+    log2.push(event);
+    hooks.onEvent?.(event, next);
+    if (next !== state) {
+      state = next;
+      hooks.onState?.(state);
+      dispatchEffect(effectForState(state), driver);
+    }
+    return state;
+  }
+  return {
+    state: () => state,
+    lastTranscript: () => transcript,
+    lastAssistantText: () => assistantText,
+    events: () => [...log2],
+    send,
+    startCall: () => {
+      state = RESONANCE_INITIAL_STATE;
+      transcript = void 0;
+      assistantText = void 0;
+      log2.length = 0;
+      send("call.started");
+    },
+    micOpened: () => {
+      send("mic.opened");
+    },
+    userSpeechStarted: () => {
+      send("user.speech.started");
+    },
+    userSpeechEnded: () => {
+      send("user.speech.ended");
+    },
+    sttCompleted: (t) => {
+      transcript = t;
+      send("stt.completed");
+    },
+    assistantTurnReady: (text) => {
+      assistantText = text;
+      send("assistant.speech.started");
+    },
+    ttsCompleted: () => {
+      send("assistant.speech.completed");
+    },
+    ttsInterrupted: () => {
+      send("assistant.speech.interrupted");
+    },
+    silenceDetected: () => {
+      send("silence.detected");
+    },
+    silenceResume: () => {
+      send("silence.resume");
+    },
+    sleepDecay: () => {
+      send("sleep.decay.started");
+    },
+    interrupt: () => {
+      if (state !== "speaking") return;
+      send("user.speech.started");
+      send("assistant.speech.interrupted");
+    },
+    failRecoverable: () => {
+      if (!isTerminal2(state) && state !== "idle") send("error.recoverable");
+    },
+    failFatal: () => {
+      if (!isTerminal2(state)) send("error.fatal");
+    },
+    endCall: () => {
+      if (!isTerminal2(state)) send("call.ended");
+    }
+  };
+}
+
+// src/voice/resonanceVadGate.ts
+var DEFAULT_VAD_CONFIG = {
+  speechOnThreshold: 24,
+  speechOffThreshold: 13,
+  minSpeechMs: 180,
+  endSilenceMs: 850,
+  maxTurnMs: 2e4
+};
+function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
+  const { speechOnThreshold, speechOffThreshold, minSpeechMs, endSilenceMs, maxTurnMs } = config;
+  let inSpeech = false;
+  let candidateStartedAt = null;
+  let speechStartedAt = 0;
+  let lastVoiceAt = 0;
+  let bargeLatched = false;
+  function reset() {
+    inSpeech = false;
+    candidateStartedAt = null;
+    speechStartedAt = 0;
+    lastVoiceAt = 0;
+    bargeLatched = false;
+  }
+  function tick(level, nowMs, mode) {
+    if (mode === "idle") {
+      reset();
+      return null;
+    }
+    const aboveOn = level >= speechOnThreshold;
+    if (mode === "barge") {
+      if (level <= speechOffThreshold) {
+        bargeLatched = false;
+        candidateStartedAt = null;
+        return null;
+      }
+      if (bargeLatched) return null;
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          candidateStartedAt = null;
+          bargeLatched = true;
+          return "barge_in";
+        }
+      }
+      return null;
+    }
+    const belowOff = level <= speechOffThreshold;
+    if (!inSpeech) {
+      if (aboveOn) {
+        candidateStartedAt ?? (candidateStartedAt = nowMs);
+        if (nowMs - candidateStartedAt >= minSpeechMs) {
+          inSpeech = true;
+          speechStartedAt = nowMs;
+          lastVoiceAt = nowMs;
+          candidateStartedAt = null;
+          return "speech_start";
+        }
+      } else {
+        candidateStartedAt = null;
+      }
+      return null;
+    }
+    if (level > speechOffThreshold) lastVoiceAt = nowMs;
+    if (nowMs - speechStartedAt >= maxTurnMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    if (belowOff && nowMs - lastVoiceAt >= endSilenceMs) {
+      inSpeech = false;
+      candidateStartedAt = null;
+      return "speech_end";
+    }
+    return null;
+  }
+  return { tick, reset };
+}
+
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback8, useEffect as useEffect12, useMemo as useMemo3, useRef as useRef8, useState as useState13 } from "react";
+
+// src/voice/resonanceCuePolicy.ts
+function resonanceCuePolicy(input) {
+  const { previousState, nextState, event } = input;
+  if (event === "call.ended" || event === "error.fatal" || nextState === "ended") {
+    return [{ type: "stopAll" }];
+  }
+  const actions = [];
+  const wasProcessing = previousState === "transcribing" || previousState === "thinking";
+  const isProcessing = nextState === "transcribing" || nextState === "thinking";
+  if (!wasProcessing && isProcessing) {
+    actions.push({ type: "playLoop", cue: "thinking" });
+  }
+  if (wasProcessing && !isProcessing) {
+    actions.push({ type: "stopLoop", cue: "thinking" });
+  }
+  if (event === "user.speech.ended") actions.push({ type: "playOnce", cue: "crystalline" });
+  if (event === "assistant.speech.completed") actions.push({ type: "playOnce", cue: "ready" });
+  return actions;
+}
+
+// src/voice/resonanceCueController.ts
+function createResonanceCueController(player) {
+  const activeLoops = /* @__PURE__ */ new Set();
+  const playedOneShots = /* @__PURE__ */ new Set();
+  function stopAll() {
+    player.stopAll();
+    activeLoops.clear();
+  }
+  function reset() {
+    activeLoops.clear();
+    playedOneShots.clear();
+  }
+  function applyTransition(input, eventId) {
+    for (const action of resonanceCuePolicy(input)) {
+      switch (action.type) {
+        case "playLoop":
+          if (!activeLoops.has(action.cue)) {
+            activeLoops.add(action.cue);
+            player.playLoop(action.cue);
+          }
+          break;
+        case "stopLoop":
+          if (activeLoops.has(action.cue)) {
+            activeLoops.delete(action.cue);
+            player.stopLoop(action.cue);
+          }
+          break;
+        case "playOnce": {
+          const key = eventId ? `${eventId}:${action.cue}` : void 0;
+          if (key && playedOneShots.has(key)) break;
+          if (key) playedOneShots.add(key);
+          player.playOnce(action.cue);
+          break;
+        }
+        case "stopAll":
+          stopAll();
+          break;
+      }
+    }
+  }
+  return { applyTransition, stopAll, reset };
+}
+
+// src/voice/createAudioCuePlayer.ts
+function createAudioCuePlayer(assets, options = {}) {
+  const { volume = 0.6 } = options;
+  let ctx = null;
+  let gain = null;
+  const buffers = /* @__PURE__ */ new Map();
+  const loops = /* @__PURE__ */ new Map();
+  const oneShots = /* @__PURE__ */ new Set();
+  function ensureContext() {
+    if (typeof window === "undefined") return null;
+    if (!ctx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+      gain = ctx.createGain();
+      gain.gain.value = volume;
+      gain.connect(ctx.destination);
+    }
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  }
+  async function preload() {
+    const c = ensureContext();
+    if (!c) return;
+    const entries = Object.entries(assets);
+    await Promise.all(
+      entries.map(async ([name, url]) => {
+        if (buffers.has(name)) return;
+        try {
+          const res = await fetch(url);
+          const arr = await res.arrayBuffer();
+          buffers.set(name, await c.decodeAudioData(arr));
+        } catch (e) {
+          console.warn(`[resonance] cue preload failed: ${name}`, e);
+        }
+      })
+    );
+  }
+  function source(name, loop) {
+    const c = ensureContext();
+    const buf = buffers.get(name);
+    if (!c || !gain || !buf) return null;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    src.connect(gain);
+    return src;
+  }
+  function stopLoop(cue) {
+    const src = loops.get(cue);
+    if (!src) return;
+    loops.delete(cue);
+    try {
+      src.stop();
+    } catch {
+    }
+  }
+  return {
+    preload,
+    resume: async () => {
+      const c = ensureContext();
+      if (c && c.state === "suspended") await c.resume();
+      return c?.state ?? "none";
+    },
+    playOnce: (cue) => {
+      const src = source(cue, false);
+      if (!src) return;
+      oneShots.add(src);
+      src.onended = () => oneShots.delete(src);
+      try {
+        src.start();
+      } catch {
+        oneShots.delete(src);
+      }
+    },
+    playLoop: (cue) => {
+      if (loops.has(cue)) return;
+      const src = source(cue, true);
+      if (!src) return;
+      loops.set(cue, src);
+      try {
+        src.start();
+      } catch {
+        loops.delete(cue);
+      }
+    },
+    stopLoop,
+    stopAll: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+    },
+    dispose: () => {
+      for (const cue of [...loops.keys()]) stopLoop(cue);
+      for (const src of [...oneShots]) {
+        try {
+          src.stop();
+        } catch {
+        }
+      }
+      oneShots.clear();
+      buffers.clear();
+      void ctx?.close();
+      ctx = null;
+      gain = null;
+    }
+  };
+}
+
+// src/voice/useResonanceCallLoop.ts
+var DEFAULT_SILENCE = { endOfSpeechMs: 900, autoResumeMs: 1200 };
+var DEFAULT_SLEEP = { enabled: true, idleHangupMs: 3e5 };
+var DEFAULT_BARGE_IN = { enabled: true };
+function useResonanceCallLoop(params) {
+  const {
+    enabled,
+    adapters,
+    getAudioLevel,
+    vadConfig = DEFAULT_VAD_CONFIG,
+    silencePolicy = DEFAULT_SILENCE,
+    sleepPolicy = DEFAULT_SLEEP,
+    bargeInPolicy = DEFAULT_BARGE_IN,
+    audioCues,
+    debug = false,
+    onEvent
+  } = params;
+  const getAudioLevelRef = useRef8(getAudioLevel);
+  getAudioLevelRef.current = getAudioLevel;
+  const cueEnabled = audioCues?.enabled ?? false;
+  const cuePlayer = useMemo3(
+    () => cueEnabled && audioCues ? createAudioCuePlayer(audioCues.assets, { volume: audioCues.volume }) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
+  );
+  const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
+  const cueApplyRef = useRef8(void 0);
+  cueApplyRef.current = cueController?.applyTransition;
+  const cueSeqRef = useRef8(0);
+  useEffect12(() => {
+    void cuePlayer?.preload();
+  }, [cuePlayer]);
+  useEffect12(() => () => {
+    cuePlayer?.dispose();
+  }, [cuePlayer]);
+  const [state, setState] = useState13("idle");
+  const [lastTranscript, setLastTranscript] = useState13();
+  const [lastAssistantText, setLastAssistantText] = useState13();
+  const adaptersRef = useRef8(adapters);
+  adaptersRef.current = adapters;
+  const pushDebug = useCallback8(
+    (record) => {
+      if (!debug || typeof window === "undefined") return;
+      (window.__RESONANCE_EVENTS__ || (window.__RESONANCE_EVENTS__ = [])).push(record);
+    },
+    [debug]
+  );
+  const controller = useMemo3(() => {
+    const recover = (phase, e) => {
+      pushDebug({ type: `error.${phase}`, state: "idle", timestamp: Date.now() });
+      console.warn(`[resonance] ${phase} failed, recovering`, e);
+      ctrl.failRecoverable();
+    };
+    const driver = {
+      openMic: () => {
+        void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
+          console.warn("[resonance] mic failed, hanging up", e);
+          ctrl.failFatal();
+        });
+      },
+      beginTranscribe: () => {
+        void Promise.resolve(adaptersRef.current.beginTranscribe()).then((transcript) => {
+          if (!transcript) {
+            ctrl.failRecoverable();
+            return;
+          }
+          setLastTranscript(transcript);
+          adaptersRef.current.appendUserMessage(transcript);
+          pushDebug({ type: "stt.completed", state: "transcribing", transcript, timestamp: Date.now() });
+          ctrl.sttCompleted(transcript);
+        }).catch((e) => recover("stt", e));
+      },
+      invokeAgent: () => {
+        void Promise.resolve(adaptersRef.current.invokeAgent()).then((text) => {
+          if (!text) {
+            ctrl.failRecoverable();
+            return;
+          }
+          setLastAssistantText(text);
+          pushDebug({ type: "assistant.text", state: "thinking", text, timestamp: Date.now() });
+          ctrl.assistantTurnReady(text);
+        }).catch((e) => recover("agent", e));
+      },
+      speak: () => {
+        const text = ctrl.lastAssistantText() ?? "";
+        void Promise.resolve(adaptersRef.current.speak(text)).then(() => {
+          if (ctrl.state() === "speaking") ctrl.ttsCompleted();
+        }).catch((e) => recover("tts", e));
+      },
+      stopSpeaking: () => {
+        try {
+          adaptersRef.current.stopSpeaking();
+        } catch {
+        }
+      },
+      holdSilence: () => {
+      },
+      fadeAndHangup: () => {
+        void adaptersRef.current.closeMic();
+      },
+      endCall: () => {
+        void adaptersRef.current.closeMic();
+      }
+    };
+    const ctrl = createResonanceCallController(driver, {
+      onState: (s) => setState(s),
+      onEvent: (event, s) => {
+        cueApplyRef.current?.({ previousState: ctrl.state(), nextState: s, event }, String(cueSeqRef.current++));
+        pushDebug({ type: event, state: s, timestamp: Date.now() });
+        onEvent?.(event, s);
+      }
+    });
+    return ctrl;
+  }, [pushDebug]);
+  const stateRef = useRef8(state);
+  stateRef.current = state;
+  const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
+  useEffect12(() => {
+    if (!enabled) return void 0;
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      const mode = s === "listening" || s === "silence_hold" ? "detect" : s === "speaking" && bargeInPolicy.enabled ? "barge" : "idle";
+      const ev = gate.tick(getAudioLevelRef.current(), performance.now(), mode);
+      if (ev === "speech_start") controller.userSpeechStarted();
+      else if (ev === "speech_end") controller.userSpeechEnded();
+      else if (ev === "barge_in") controller.interrupt();
+    }, 50);
+    return () => {
+      clearInterval(id);
+      gate.reset();
+    };
+  }, [enabled, gate, controller, bargeInPolicy]);
+  const autoResumeTimer = useRef8(void 0);
+  const sleepTimer = useRef8(void 0);
+  const clearTimer = (t) => {
+    if (t.current) {
+      clearTimeout(t.current);
+      t.current = void 0;
+    }
+  };
+  useEffect12(() => {
+    if (!enabled) return void 0;
+    if (state === "silence_hold") {
+      if (!autoResumeTimer.current) {
+        autoResumeTimer.current = setTimeout(() => {
+          autoResumeTimer.current = void 0;
+          controller.silenceResume();
+        }, silencePolicy.autoResumeMs);
+      }
+      if (sleepPolicy.enabled && !sleepTimer.current) {
+        sleepTimer.current = setTimeout(() => {
+          sleepTimer.current = void 0;
+          controller.sleepDecay();
+          controller.endCall();
+        }, sleepPolicy.idleHangupMs);
+      }
+    } else {
+      clearTimer(autoResumeTimer);
+      clearTimer(sleepTimer);
+    }
+    return void 0;
+  }, [enabled, state, controller, silencePolicy, sleepPolicy]);
+  useEffect12(() => () => {
+    clearTimer(autoResumeTimer);
+    clearTimer(sleepTimer);
+  }, []);
+  const startCall = useCallback8(async () => {
+    if (!enabled) return;
+    if (debug && typeof window !== "undefined") window.__RESONANCE_EVENTS__ = [];
+    gate.reset();
+    cueController?.reset();
+    void cuePlayer?.resume();
+    controller.startCall();
+  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
+  const endCall = useCallback8(() => {
+    controller.endCall();
+  }, [controller]);
+  const interrupt = useCallback8(() => {
+    controller.interrupt();
+  }, [controller]);
+  return {
+    state,
+    isActive: state !== "idle" && state !== "ended",
+    isListening: state === "listening",
+    isSpeaking: state === "speaking",
+    isThinking: state === "thinking" || state === "transcribing",
+    lastTranscript,
+    lastAssistantText,
+    startCall,
+    endCall,
+    interrupt
+  };
+}
+
 // src/shell/ChatWidget.tsx
-import { useCallback as useCallback9 } from "react";
+import { useCallback as useCallback10 } from "react";
 
 // src/shell/useChatWidgetState.ts
-import { useState as useState13, useCallback as useCallback8 } from "react";
+import { useState as useState14, useCallback as useCallback9 } from "react";
 function useChatWidgetState({
   initialOpen,
   initialMode
 }) {
-  const [isOpen, setIsOpen] = useState13(initialOpen);
-  const [viewMode, setViewMode] = useState13(initialMode);
-  const [isHistoryOpen, setIsHistoryOpen] = useState13(false);
-  const [conversationStarted, setConversationStarted] = useState13(false);
-  const [isStartingConversation, _setIsStartingConversation] = useState13(false);
-  const open = useCallback8(() => {
+  const [isOpen, setIsOpen] = useState14(initialOpen);
+  const [viewMode, setViewMode] = useState14(initialMode);
+  const [isHistoryOpen, setIsHistoryOpen] = useState14(false);
+  const [conversationStarted, setConversationStarted] = useState14(false);
+  const [isStartingConversation, _setIsStartingConversation] = useState14(false);
+  const open = useCallback9(() => {
     setIsOpen(true);
   }, []);
-  const close = useCallback8(() => {
+  const close = useCallback9(() => {
     setIsOpen(false);
     setViewMode("normal");
   }, []);
-  const minimize = useCallback8(() => {
+  const minimize = useCallback9(() => {
     if (viewMode === "expanded") {
       setViewMode("normal");
     }
   }, [viewMode]);
-  const maximize = useCallback8(() => {
+  const maximize = useCallback9(() => {
     setViewMode(viewMode === "expanded" ? "normal" : "expanded");
   }, [viewMode]);
-  const toggleDenseMode = useCallback8(() => {
+  const toggleDenseMode = useCallback9(() => {
     setViewMode(viewMode === "dense" ? "fullscreen" : "dense");
   }, [viewMode]);
-  const openHistory = useCallback8(() => {
+  const openHistory = useCallback9(() => {
     setIsHistoryOpen(true);
   }, []);
-  const closeHistory = useCallback8(() => {
+  const closeHistory = useCallback9(() => {
     setIsHistoryOpen(false);
   }, []);
-  const startConversation = useCallback8(() => {
+  const startConversation = useCallback9(() => {
     setConversationStarted(true);
   }, []);
-  const onMessagesLoaded = useCallback8((hasMessages) => {
+  const onMessagesLoaded = useCallback9((hasMessages) => {
     if (hasMessages) {
       setConversationStarted(true);
     }
@@ -3426,7 +4047,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState14, useRef as useRef8, useEffect as useEffect12 } from "react";
+import { useState as useState15, useRef as useRef9, useEffect as useEffect13 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
@@ -3458,10 +4079,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState14(false);
-  const overflowButtonRef = useRef8(null);
-  const [dropdownPosition, setDropdownPosition] = useState14({ top: 0, left: 0 });
-  useEffect12(() => {
+  const [overflowOpen, setOverflowOpen] = useState15(false);
+  const overflowButtonRef = useRef9(null);
+  const [dropdownPosition, setDropdownPosition] = useState15({ top: 0, left: 0 });
+  useEffect13(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -4032,7 +4653,7 @@ function ChatWidget({
   const loadingInitial = chatHook.loadingInitial ?? false;
   const customEmptyState = chatHook.customEmptyState;
   const customQuickReplies = chatHook.customQuickReplies;
-  const handleOpen = useCallback9(() => {
+  const handleOpen = useCallback10(() => {
     widgetState.open();
     widgetState.onMessagesLoaded(messageCount > 0);
   }, [widgetState, messageCount]);
@@ -4110,11 +4731,11 @@ function ChatSurface(props) {
 
 // src/persona-selector/PersonaSelector.tsx
 import {
-  useCallback as useCallback10,
-  useEffect as useEffect13,
+  useCallback as useCallback11,
+  useEffect as useEffect14,
   useId as useId3,
-  useRef as useRef9,
-  useState as useState15
+  useRef as useRef10,
+  useState as useState16
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
@@ -4143,15 +4764,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState15(false);
-  const [position, setPosition] = useState15({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef9(null);
-  const contentRef = useRef9(null);
+  const [isOpen, setIsOpen] = useState16(false);
+  const [position, setPosition] = useState16({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef10(null);
+  const contentRef = useRef10(null);
   const reactId = useId3();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
-  const close = useCallback10(() => setIsOpen(false), []);
-  useEffect13(() => {
+  const close = useCallback11(() => setIsOpen(false), []);
+  useEffect14(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -4163,7 +4784,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect13(() => {
+  useEffect14(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -4183,7 +4804,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect13(() => {
+  useEffect14(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -4341,6 +4962,7 @@ export {
   Composer,
   ComposerMicSlot,
   CopyButton,
+  DEFAULT_VAD_CONFIG,
   FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   MessageBubble,
@@ -4348,6 +4970,7 @@ export {
   MessageList,
   PersonaSelector,
   PulseRings,
+  RESONANCE_INITIAL_STATE,
   RecordingButton,
   RecordingTimer,
   RichAudioPlayer,
@@ -4358,12 +4981,18 @@ export {
   VoiceMicButton,
   artifactLabel,
   clearMediaQueryCache,
+  createAudioCuePlayer,
   createAudioPlayer,
+  createResonanceCallController,
+  createResonanceCueController,
+  createResonanceVadGate,
   defaultAnimationConfig,
   defaultBehavior,
   defaultChatConfig,
   defaultTheme,
   defaultTimestampConfig,
+  dispatchEffect,
+  effectForState,
   ensureTouchTargetStyle,
   formatArtifactDuration,
   formatArtifactSize,
@@ -4371,6 +5000,7 @@ export {
   formatRecordingTime,
   glassTheme,
   isPending,
+  isTerminal2 as isResonanceTerminal,
   isTerminal,
   makeArtifactId,
   makeRecorder,
@@ -4381,6 +5011,8 @@ export {
   normalizeLevels,
   normalizeStreamedMarkdown,
   resampleLevels,
+  resonanceCallReducer,
+  resonanceCuePolicy,
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
@@ -4391,6 +5023,7 @@ export {
   useDurableRecording,
   useMediaQuery,
   useRecorder,
+  useResonanceCallLoop,
   useTouchTargetStyle,
   useVoice,
   withTouchTarget

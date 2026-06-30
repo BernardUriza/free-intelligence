@@ -220,6 +220,8 @@ interface AgentConversation {
     turnError: TurnError | null;
     /** Send a message: pushes it optimistically, then drives the agent turn. */
     send: (text: string) => void;
+    /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
+    sendAndAwait: (text: string) => Promise<string>;
     /** Re-send the last user text after a failure. No-op if there is nothing to retry. */
     retry: () => void;
     /** Clear the current turnError without re-sending (the optimistic msg is already reverted). */

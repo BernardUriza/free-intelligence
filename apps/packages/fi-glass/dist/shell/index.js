@@ -1,7 +1,7 @@
 'use client';
 
 // src/shell/ChatWidget.tsx
-import { useCallback as useCallback8 } from "react";
+import { useCallback as useCallback9 } from "react";
 
 // src/shell/useChatWidgetState.ts
 import { useState, useCallback } from "react";
@@ -478,7 +478,7 @@ function ChatWidgetHeader({
 }
 
 // src/shell/ChatToolbar.tsx
-import { useState as useState12, useRef as useRef7, useEffect as useEffect11 } from "react";
+import { useState as useState13, useRef as useRef8, useEffect as useEffect12 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
 
@@ -913,6 +913,9 @@ import { useState as useState11, useEffect as useEffect10 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
 
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback8, useEffect as useEffect11, useMemo as useMemo3, useRef as useRef7, useState as useState12 } from "react";
+
 // src/shell/ChatToolbar.tsx
 import { Fragment as Fragment4, jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
 function ChatToolbar({
@@ -943,10 +946,10 @@ function ChatToolbar({
   canSend = false,
   sendLoading = false
 }) {
-  const [overflowOpen, setOverflowOpen] = useState12(false);
-  const overflowButtonRef = useRef7(null);
-  const [dropdownPosition, setDropdownPosition] = useState12({ top: 0, left: 0 });
-  useEffect11(() => {
+  const [overflowOpen, setOverflowOpen] = useState13(false);
+  const overflowButtonRef = useRef8(null);
+  const [dropdownPosition, setDropdownPosition] = useState13({ top: 0, left: 0 });
+  useEffect12(() => {
     if (overflowOpen && overflowButtonRef.current) {
       const rect = overflowButtonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -1517,7 +1520,7 @@ function ChatWidget({
   const loadingInitial = chatHook.loadingInitial ?? false;
   const customEmptyState = chatHook.customEmptyState;
   const customQuickReplies = chatHook.customQuickReplies;
-  const handleOpen = useCallback8(() => {
+  const handleOpen = useCallback9(() => {
     widgetState.open();
     widgetState.onMessagesLoaded(messageCount > 0);
   }, [widgetState, messageCount]);

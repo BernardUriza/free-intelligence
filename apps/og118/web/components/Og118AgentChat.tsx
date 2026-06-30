@@ -24,7 +24,7 @@
  * visible transcript (IndexedDB) and intra-deploy model continuity.
  */
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   AgentConversationSurface,
   AgentWorkspaceShell,
@@ -34,21 +34,51 @@ import {
   useConversationLibrary,
   useIndexedDBConversationLibrary,
 } from 'fi-glass/conversation';
-import { useAudioQueueStore } from 'fi-glass/voice';
+import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { useOg118Identity } from '@/lib/og118Identity';
 import { isAuth0Mode } from '@/lib/authMode';
 import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
+import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
+import { Og118ElementSelector } from './Og118ElementSelector';
 import { useOg118Projects } from '@/lib/useOg118Projects';
+import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { Og118MessageHeader, Og118ModelBadge } from './Og118MessageMeta';
 import { Og118AuthBanner } from './Og118AuthBanner';
 import { Og118VoiceErrorBanner } from './Og118VoiceErrorBanner';
+
+// RESONANCE_CALL_LOOP feature flag: ?resonance=1 query param or localStorage.
+// Off by default so the one-shot composer stays the only voice path until opted in.
+function readResonanceFlag(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('resonance') === '1' || p.get('RESONANCE_CALL_LOOP') === '1') return true;
+  return window.localStorage.getItem('RESONANCE_CALL_LOOP') === '1';
+}
+
+// Per-state copy + whether the equalizer shows live mic input. Live in
+// listening/speaking/silence_hold (mic open); dimmed while we process so Bernard
+// never mistakes "processing" for "still hearing you".
+const RESONANCE_LABEL: Record<string, string> = {
+  idle: 'Llamar (Resonance)',
+  listening: 'Escuchando…',
+  transcribing: 'Transcribiendo…',
+  thinking: 'Pensando…',
+  speaking: 'Hablando — puedes interrumpir',
+  interrupted: 'Te oigo — interrumpiendo',
+  silence_hold: 'Sigo aquí',
+  sleep_decay: 'Bajando volumen…',
+  ended: 'Llamada finalizada',
+};
+function resonanceVisualizerActive(state: string): boolean {
+  return state === 'listening' || state === 'speaking' || state === 'silence_hold';
+}
 
 export function Og118AgentChat() {
   // Identity-scoped local-first stores: each signed-in account gets its OWN
@@ -61,8 +91,9 @@ export function Og118AgentChat() {
   const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
   const projects = useOg118Projects(userId);
+  const elements = useOg118Elements(userId);
   const upload = useOg118ProjectUpload();
-  const agent = useOg118Agent(lib.activeId, projects.activeProjectId);
+  const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);
   const conversation = useAgentConversation(agent, {
     conversationId: lib.activeId,
     initialMessages: lib.activeMessages,
@@ -79,6 +110,24 @@ export function Og118AgentChat() {
   // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
   // in one consumer hook; it returns the render slots the surface distributes.
   const composer = useOg118VoiceComposer(audioQueueStore);
+
+  // RESONANCE: hands-free continuous voice call, behind the RESONANCE_CALL_LOOP
+  // flag (off by default — the one-shot composer above stays the fallback). A
+  // turn-text ref lets requestAssistantTurn resolve with the streamed answer.
+  const [resonanceEnabled] = useState(readResonanceFlag);
+  // Resonance speaks the SAME turn the transcript persists: sendAndAwait is the
+  // single writer of the user + assistant capsules and resolves with the text to
+  // speak. No raw agent.send, no transcript bypass (the capsule-less bug).
+  const requestAssistantTurn = useCallback(
+    (userText: string) => conversation.sendAndAwait(userText),
+    [conversation],
+  );
+  const resonance = useOg118ResonanceCall({
+    enabled: resonanceEnabled,
+    appendUserMessage: () => {}, // sendAndAwait owns the user capsule — keep this a no-op
+    requestAssistantTurn,
+    debug: resonanceEnabled,
+  });
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
   // affordance to paste the access token at runtime (it lives only in this
@@ -120,6 +169,12 @@ export function Og118AgentChat() {
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
+        <Og118ElementSelector
+          elements={elements.elements}
+          selected={elements.selected}
+          onSelect={elements.select}
+          loading={elements.loading}
+        />
         <Og118ProjectsSection
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
@@ -190,6 +245,31 @@ export function Og118AgentChat() {
             <>
               {authBanner}
               {voiceErrorBanner}
+              {resonanceEnabled && (
+                <div className="og-resonance-bar" data-ref="og118-resonance-bar">
+                  <button
+                    type="button"
+                    className="og-resonance-call-btn"
+                    data-ref="og118-resonance-call"
+                    onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
+                  >
+                    {resonance.isActive ? 'Colgar' : 'Llamar (Resonance)'}
+                  </button>
+                  {resonance.isActive && (
+                    <AudioVisualizer
+                      levels={resonance.bands}
+                      active={resonanceVisualizerActive(resonance.state)}
+                      variant="bars"
+                      label="Nivel de tu voz"
+                      className="og-resonance-visualizer"
+                      barClassName="og-voice-bar-bar"
+                    />
+                  )}
+                  <span className="og-resonance-state" data-ref="og118-resonance-state">
+                    {resonance.isHearingUser ? 'Te oigo' : (RESONANCE_LABEL[resonance.state] ?? resonance.state)}
+                  </span>
+                </div>
+              )}
               {composer.voiceBar}
               {composer.audioDraftPlayer}
               {composer.audioQueuePanel}

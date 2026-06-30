@@ -418,6 +418,7 @@ function useAgentConversation(agent, options = {}) {
       return last?.role === "user" ? prev.slice(0, -1) : prev;
     });
   }, []);
+  const awaitResolver = useRef(null);
   const send = useCallback(
     (text) => {
       const t = text.trim();
@@ -434,6 +435,18 @@ function useAgentConversation(agent, options = {}) {
     },
     [agent, controlled]
   );
+  const sendAndAwait = useCallback(
+    (text) => {
+      const t = text.trim();
+      if (!t) return Promise.resolve("");
+      if (agent.isStreaming) return Promise.reject(new Error("a turn is already streaming"));
+      return new Promise((resolve, reject) => {
+        awaitResolver.current = { resolve, reject };
+        send(t);
+      });
+    },
+    [agent.isStreaming, send]
+  );
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
   }, [send]);
@@ -446,6 +459,9 @@ function useAgentConversation(agent, options = {}) {
     pending.current = false;
     if (agent.turn.status === "error") {
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error(agent.turn.errorMessage || "turn failed"));
       if (!appHandledRef.current?.(agent.turn)) {
         setTurnError({
           kind: "stream",
@@ -454,11 +470,14 @@ function useAgentConversation(agent, options = {}) {
       }
       return;
     }
-    if (controlledRef.current) return;
-    if (agent.turn.text) {
+    const finalText = agent.turn.text || "";
+    if (!controlledRef.current && agent.turn.text) {
       skipPersist.current = false;
       setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
     }
+    const resolver = awaitResolver.current;
+    awaitResolver.current = null;
+    resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn, revertOptimistic]);
   useEffect2(() => {
     if (turnTimeoutMs <= 0) return;
@@ -467,6 +486,9 @@ function useAgentConversation(agent, options = {}) {
       pending.current = false;
       agentRef.current.abort?.();
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error("turn timed out"));
       setTimedOut(true);
       setTurnError({
         kind: "timeout",
@@ -510,6 +532,7 @@ function useAgentConversation(agent, options = {}) {
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
     send,
+    sendAndAwait,
     retry,
     dismissError,
     newConversation
@@ -517,7 +540,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { Fragment as Fragment3, useCallback as useCallback9, useEffect as useEffect14, useRef as useRef9, useState as useState15 } from "react";
+import { Fragment as Fragment3, useCallback as useCallback10, useEffect as useEffect15, useRef as useRef10, useState as useState16 } from "react";
 import { Send, Loader2 as Loader212 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -1664,6 +1687,9 @@ import { useState as useState14, useEffect as useEffect13 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
+// src/voice/useResonanceCallLoop.ts
+import { useCallback as useCallback9, useEffect as useEffect14, useMemo as useMemo3, useRef as useRef9, useState as useState15 } from "react";
+
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
 import { jsx as jsx25 } from "react/jsx-runtime";
@@ -1825,13 +1851,13 @@ function AgentConversationSurface({
   collapseToggleClassName
 }) {
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
-  const [input, setInput] = useState15("");
+  const [input, setInput] = useState16("");
   useTouchTargetStyle();
   const isMobileViewport = useMediaQuery("(max-width: 768px)");
   const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
-  const inputRef = useRef9(null);
-  const refocusComposer = useCallback9(() => {
+  const inputRef = useRef10(null);
+  const refocusComposer = useCallback10(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
     const active = document.activeElement;
@@ -1839,13 +1865,13 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
   }, [composerAppend]);
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef9("");
+  const baseInputRef = useRef10("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -1857,13 +1883,13 @@ function AgentConversationSurface({
     baseInputRef.current = input;
     void dictation.startRecording();
   };
-  const wasStreaming = useRef9(false);
-  useEffect14(() => {
+  const wasStreaming = useRef10(false);
+  useEffect15(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef9(false);
-  useEffect14(() => {
+  const wasTranscribing = useRef10(false);
+  useEffect15(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
@@ -2109,9 +2135,9 @@ function AgentConversationSurface({
 
 // src/agent/AgentWorkspaceShell.tsx
 import {
-  useCallback as useCallback10,
-  useEffect as useEffect15,
-  useState as useState16
+  useCallback as useCallback11,
+  useEffect as useEffect16,
+  useState as useState17
 } from "react";
 import { Menu } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
@@ -2155,16 +2181,16 @@ function AgentWorkspaceShell({
   style
 }) {
   const isMobile = useMediaQuery(mobileQuery);
-  const [isOpen, setIsOpen] = useState16(false);
+  const [isOpen, setIsOpen] = useState17(false);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
-  const open = useCallback10(() => setIsOpen(true), []);
-  const close = useCallback10(() => setIsOpen(false), []);
-  const toggle = useCallback10(() => setIsOpen((v) => !v), []);
-  useEffect15(() => {
+  const open = useCallback11(() => setIsOpen(true), []);
+  const close = useCallback11(() => setIsOpen(false), []);
+  const toggle = useCallback11(() => setIsOpen((v) => !v), []);
+  useEffect16(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -2177,7 +2203,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -2294,13 +2320,13 @@ function AgentWorkspaceShell({
 
 // src/agent/AgentSidebarItem.tsx
 import {
-  useCallback as useCallback11,
-  useRef as useRef10,
-  useState as useState17
+  useCallback as useCallback12,
+  useRef as useRef11,
+  useState as useState18
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect16 } from "react";
+import { useEffect as useEffect17 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -2408,7 +2434,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect16(() => {
+  useEffect17(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -2448,19 +2474,19 @@ function DestructiveActionSlot(props) {
   return /* @__PURE__ */ jsx28(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
-  const [editing, setEditing] = useState17(false);
-  const [draft, setDraft] = useState17("");
-  const cancelledRef = useRef10(false);
-  const start = useCallback11(() => {
+  const [editing, setEditing] = useState18(false);
+  const [draft, setDraft] = useState18("");
+  const cancelledRef = useRef11(false);
+  const start = useCallback12(() => {
     cancelledRef.current = false;
     setDraft(value);
     setEditing(true);
   }, [value]);
-  const cancel = useCallback11(() => {
+  const cancel = useCallback12(() => {
     cancelledRef.current = true;
     setEditing(false);
   }, []);
-  const commit = useCallback11(() => {
+  const commit = useCallback12(() => {
     if (cancelledRef.current) {
       cancelledRef.current = false;
       setEditing(false);
@@ -2597,7 +2623,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect17 } from "react";
+import { useEffect as useEffect18 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -2632,7 +2658,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect17(() => {
+  useEffect18(() => {
     ensureSidebarSectionStyle();
   }, []);
 }
