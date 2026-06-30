@@ -2685,6 +2685,7 @@ var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
 var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
 var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
+var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
 var CSS3 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
@@ -2718,6 +2719,15 @@ var CSS3 = `
   padding-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
   border-top: 1px solid var(--fi-section-divider, rgba(255, 255, 255, 0.06));
 }
+.${FI_SECTION_SCROLL_CLASS} {
+  min-height: 0;
+  overflow-y: auto;
+  /* Content-aware: the list grows by content and only scrolls past this cap.
+     rem-based (NOT vh) so a short viewport never crushes a few rows into a sliver
+     \u2014 the bug 30vh caused. Overridable per-section via the --fi-section-scroll-max
+     var (the maxBlockSize prop sets it inline). */
+  max-block-size: var(--fi-section-scroll-max, 18rem);
+}
 `;
 function ensureSidebarSectionStyle() {
   if (typeof document === "undefined") return;
@@ -2747,12 +2757,18 @@ function AgentSidebarSection({
   headerSlot,
   variant = "plain",
   footerSlot,
+  scrollBehavior = "none",
+  maxBlockSize,
   ariaLabel,
   className
 }) {
   useSidebarSectionStyle();
   const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
+  const body = showEmpty ? emptyState : children;
+  const scrollStyle = maxBlockSize != null ? {
+    ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
+  } : void 0;
   return /* @__PURE__ */ jsxs22(
     "section",
     {
@@ -2767,7 +2783,7 @@ function AgentSidebarSection({
           titleNode,
           actionSlot
         ] }),
-        showEmpty ? emptyState : children,
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx29("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
         footerSlot != null && /* @__PURE__ */ jsx29("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
@@ -2790,6 +2806,7 @@ export {
   FI_SECTION_CARD_CLASS,
   FI_SECTION_FOOTER_CLASS,
   FI_SECTION_HEAD_CLASS,
+  FI_SECTION_SCROLL_CLASS,
   FI_SECTION_TITLE_CLASS,
   FI_SIDEBAR_ITEM_CLASS,
   FI_SIDEBAR_SECTION_CLASS,

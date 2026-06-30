@@ -227,8 +227,6 @@ body {
   line-height: 1.4;
 }
 .og-projects-list {
-  max-height: 30vh;
-  overflow-y: auto;
   padding: 0 0.5rem 0.6rem;
   display: flex;
   flex-direction: column;

@@ -105,6 +105,7 @@ export {
   FI_SECTION_TITLE_CLASS,
   FI_SECTION_CARD_CLASS,
   FI_SECTION_FOOTER_CLASS,
+  FI_SECTION_SCROLL_CLASS,
 } from './sidebarSectionStyle';
 // B3-FIGLASS-UX-TOKENS-1: the spacing scale (--fi-space-1..5) + the functional
 // density contract (.fi-density-* set the derived spacing tokens the section/item
