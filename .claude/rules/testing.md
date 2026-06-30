@@ -537,6 +537,37 @@ Insult DM instead of #general, reasoning I shouldn't pollute Bernard's live
 Mariposas-Negras conversation. Bernard: *"volviste a probar insult en la app, no
 en el channel general."* Second recurrence of the same blind spot in two days.
 
+### Don't ASK permission to enter the live thread either — it's a dilema vacío
+
+The DM-substitute is one escape hatch; **asking permission to probe in the live
+thread is the other.** Both dodge the same job. When a verification probe must go
+into a live Bernard↔Alex conversation in #general, the probe IS authorized in
+advance — do NOT close the turn with "¿le doy el probe, o lo mandas tú?" /
+"¿entro a tu hilo o prefieres que…?". That is an empty dilemma (Art. 4 +
+[[feedback_dont_open_dilemmas]]): entering the live thread to verify the bot is
+**expected behavior, not an intrusion**, and the probe going out under
+`bernard2389` (the only logged-in account on the debug Chrome) is part of what
+"verify in #general" already means.
+
+How to apply:
+- Default to **driving the probe yourself** in #general, even mid-conversation —
+  no permission ask. A bot probe is normal #general traffic (the rule above).
+- If you're verifying a sibling (Vultur…), make the probe **on-topic** when you
+  can — e.g. they're picking a movie, so ask Vultur (the film critic) for a rec.
+  On-topic ≠ intrusive; it's the natural way in.
+- The ONLY legitimate pause is the verifiable-state gate (Art. 2): if the new
+  revision isn't serving yet (version tag still old / CD in flight), WAIT for the
+  deploy and report it as pending — never ask *whether* to probe, only delay
+  *until the build lands*. That's a real blocker, not a dilemma.
+
+**Why (2026-06-29):** verifying Vultur's new "empedernido/enigmático" tuning after
+the v4.21.109 merge, I correctly held the probe because the CD was still
+in_progress (bot serving `ᵛ⁴·²¹·¹⁰⁸`) — but then closed the turn asking Bernard
+"¿le doy con el pedido de rec a Vultur cuando termine, o lo mandas tú?" while he
+and Alex were live picking a movie. Bernard: *"si métete a mi hilo con alex, es lo
+esperado."* The deploy-wait was the right pause; the permission-ask was the empty
+dilemma.
+
 ## E2E Testing with Discord MCP
 When you need to verify that the bot actually works end-to-end (not just unit tests), use the Discord MCP server to interact with a real Discord server. This Mac is the server.
 
