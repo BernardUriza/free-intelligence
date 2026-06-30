@@ -19,7 +19,11 @@ import httpx
 
 RUNNER_URL = os.getenv("OG118_EXTERNAL_RUNNER_URL", "").rstrip("/")
 RUNNER_TOKEN = os.getenv("OG118_EXTERNAL_RUNNER_TOKEN", "")
-_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+# 45s read ceiling (down from 120s): an interactive chat turn that takes longer
+# is a failure to surface, not to wait on. Behind the ACA ingress a browser abort
+# may not reach uvicorn as http.disconnect, so a shorter read timeout bounds how
+# long a held POST (+ the engine's compute) survives a client that walked away.
+_TIMEOUT = httpx.Timeout(45.0, connect=10.0)
 
 
 def is_configured() -> bool:
