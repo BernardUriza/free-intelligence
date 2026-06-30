@@ -22,6 +22,8 @@ import {
   FI_SIDEBAR_SECTION_CLASS,
   FI_SECTION_HEAD_CLASS,
   FI_SECTION_TITLE_CLASS,
+  FI_SECTION_CARD_CLASS,
+  FI_SECTION_FOOTER_CLASS,
   useSidebarSectionStyle,
 } from './sidebarSectionStyle';
 
@@ -42,6 +44,18 @@ export interface AgentSidebarSectionProps {
   count: number;
   /** Replaces the default head (title + actionSlot) entirely when the consumer needs a custom header. */
   headerSlot?: ReactNode;
+  /**
+   * Distribution variant. `"plain"` (default) is the original borderless section —
+   * unchanged for existing consumers. `"card"` wraps the section in a padded,
+   * bordered, rounded card (token-driven via `--fi-section-card-*` + `--fi-radius-section`)
+   * so a sidebar group reads as a distinct surface with breathing room.
+   */
+  variant?: 'plain' | 'card';
+  /**
+   * Content rendered BELOW the rows/empty-state, separated by a divider + gap (e.g.
+   * an upload dropzone that must not collide with the list). Omit for no footer.
+   */
+  footerSlot?: ReactNode;
   /** Accessible label for the section element. */
   ariaLabel?: string;
   className?: string;
@@ -54,6 +68,8 @@ export function AgentSidebarSection({
   emptyState,
   count,
   headerSlot,
+  variant = 'plain',
+  footerSlot,
   ariaLabel,
   className,
 }: AgentSidebarSectionProps) {
@@ -66,7 +82,14 @@ export function AgentSidebarSection({
     );
   const showEmpty = count === 0 && emptyState != null;
   return (
-    <section className={joinClasses(FI_SIDEBAR_SECTION_CLASS, className)} aria-label={ariaLabel}>
+    <section
+      className={joinClasses(
+        FI_SIDEBAR_SECTION_CLASS,
+        variant === 'card' && FI_SECTION_CARD_CLASS,
+        className,
+      )}
+      aria-label={ariaLabel}
+    >
       {headerSlot ?? (
         <div className={FI_SECTION_HEAD_CLASS}>
           {titleNode}
@@ -74,6 +97,7 @@ export function AgentSidebarSection({
         </div>
       )}
       {showEmpty ? emptyState : children}
+      {footerSlot != null && <div className={FI_SECTION_FOOTER_CLASS}>{footerSlot}</div>}
     </section>
   );
 }

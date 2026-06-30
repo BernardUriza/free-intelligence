@@ -115,4 +115,47 @@ describe('AgentSidebarSection', () => {
     expect(screen.queryByText('Ignorado')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Ignorado' })).toBeNull();
   });
+
+  // B3-FIGLASS-SIDEBAR-SECTIONS-2 (PR4): card variant + footerSlot
+  it('defaults to the plain variant (no card class) — backward-compatible', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1} ariaLabel="P">
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section--card')).toBeNull();
+  });
+
+  it('applies the card class when variant="card"', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1} variant="card" ariaLabel="P">
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section--card')).toBeTruthy();
+  });
+
+  it('renders footerSlot below the rows in a divider-separated footer', () => {
+    render(
+      <AgentSidebarSection
+        title="Proyectos"
+        count={2}
+        footerSlot={<div data-testid="upload">upload</div>}
+      >
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    const footer = screen.getByTestId('upload').parentElement!;
+    expect(footer.className).toContain('fi-sidebar-section-footer');
+    expect(screen.getByTestId('rows')).toBeTruthy();
+  });
+
+  it('omits the footer wrapper entirely when footerSlot is absent', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1}>
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-footer')).toBeNull();
+  });
 });
