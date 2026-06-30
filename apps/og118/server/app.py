@@ -38,6 +38,7 @@ from fi_runner import Runner
 from elements_registry import Element, get_registry
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
+    MAX_AUDIO_BYTES,
     STTNotConfiguredError,
     STTProvider,
     STTUpstreamError,
@@ -65,6 +66,11 @@ _DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 _ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("OG118_ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()
 ]
+
+# Hard ceiling on a project-document upload (text only). Read with a +1 cap so the
+# in-memory bytes never exceed this regardless of the declared Content-Length — a
+# single huge POST can't OOM the single-replica container.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 # Auth gate. OG118_AUTH_MODE picks the level (default `bearer` = today's behavior,
 # nothing changes until explicitly flipped — the lockout-prevention guarantee):
@@ -462,7 +468,17 @@ async def stt_transcribe(
             },
         )
 
-    data = await audio.read()
+    # Cap the in-memory read at the audio limit + 1 (don't materialize an
+    # arbitrarily large body before the size check ran post-read).
+    data = await audio.read(MAX_AUDIO_BYTES + 1)
+    if len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "STT_AUDIO_TOO_LARGE",
+                "message": f"audio exceeds the {MAX_AUDIO_BYTES // (1024 * 1024)} MB limit",
+            },
+        )
     content_type = audio.content_type or DEFAULT_UPLOAD_CONTENT_TYPE
     try:
         validate_audio(data)
@@ -533,9 +549,14 @@ async def delete_project(
 ) -> dict:
     """Delete a project the caller owns AND its corpus (no orphaned consultable
     docs). 404 if missing or not owned (no existence probing)."""
-    if not registry.delete(project_id, principal.sub):
+    if not registry.owns(project_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
+    # Right-to-forget: purge the corpus FIRST (the un-erasable data), THEN drop the
+    # registry entry. If delete_corpus fails we 500 with the project still present +
+    # owned (the user retries) — never the old failure mode where the registry entry
+    # was already gone and the orphaned corpus could no longer be reached to delete.
     await rag.delete_corpus(project_id)
+    registry.delete(project_id, principal.sub)
     return {"deleted": project_id}
 
 
@@ -558,7 +579,17 @@ async def upload_project_document(
     # (bearer mode) skips it so pre-registry corpora keep working.
     if not principal.is_legacy_bearer and not registry.owns(project_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
-    raw = await file.read()
+    # Read at most MAX_UPLOAD_BYTES + 1 so a huge upload can't be materialized whole
+    # in RAM (OOM the single replica) — if we got more than the cap, reject.
+    raw = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "FILE_TOO_LARGE",
+                "message": f"file exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+            },
+        )
     if not raw:
         raise HTTPException(
             status_code=400, detail={"code": "EMPTY_FILE", "message": "uploaded file is empty"}
