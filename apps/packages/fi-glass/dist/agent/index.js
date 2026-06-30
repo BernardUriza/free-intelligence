@@ -2683,6 +2683,8 @@ import { useEffect as useEffect19 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
+var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
 var CSS3 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
@@ -2703,6 +2705,18 @@ var CSS3 = `
   letter-spacing: -0.01em;
   font-size: var(--fi-section-title-size, inherit);
   color: var(--fi-section-title-color, inherit);
+}
+.${FI_SECTION_CARD_CLASS} {
+  margin: var(--fi-section-card-margin, var(--fi-sidebar-gap, 0.5rem));
+  padding: var(--fi-section-card-padding, var(--fi-space-2, 0.5rem));
+  border: 1px solid var(--fi-section-card-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--fi-radius-section, 12px);
+  background: var(--fi-section-card-bg, transparent);
+}
+.${FI_SECTION_FOOTER_CLASS} {
+  margin-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  padding-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  border-top: 1px solid var(--fi-section-divider, rgba(255, 255, 255, 0.06));
 }
 `;
 function ensureSidebarSectionStyle() {
@@ -2731,19 +2745,33 @@ function AgentSidebarSection({
   emptyState,
   count,
   headerSlot,
+  variant = "plain",
+  footerSlot,
   ariaLabel,
   className
 }) {
   useSidebarSectionStyle();
   const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
-  return /* @__PURE__ */ jsxs22("section", { className: joinClasses2(FI_SIDEBAR_SECTION_CLASS, className), "aria-label": ariaLabel, children: [
-    headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
-      titleNode,
-      actionSlot
-    ] }),
-    showEmpty ? emptyState : children
-  ] });
+  return /* @__PURE__ */ jsxs22(
+    "section",
+    {
+      className: joinClasses2(
+        FI_SIDEBAR_SECTION_CLASS,
+        variant === "card" && FI_SECTION_CARD_CLASS,
+        className
+      ),
+      "aria-label": ariaLabel,
+      children: [
+        headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
+          titleNode,
+          actionSlot
+        ] }),
+        showEmpty ? emptyState : children,
+        footerSlot != null && /* @__PURE__ */ jsx29("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+      ]
+    }
+  );
 }
 export {
   AgentConversationSurface,
@@ -2759,6 +2787,8 @@ export {
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
   FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SECTION_CARD_CLASS,
+  FI_SECTION_FOOTER_CLASS,
   FI_SECTION_HEAD_CLASS,
   FI_SECTION_TITLE_CLASS,
   FI_SIDEBAR_ITEM_CLASS,
