@@ -16,9 +16,17 @@ import { createContext, useContext } from 'react';
 export interface Og118Identity {
   /** The signed-in account id (Auth0 principal `sub`), or null when unauthenticated. */
   userId: string | null;
+  /**
+   * True once an Authorization token is available for API calls. In auth0 mode it
+   * flips true only after TokenSync has mirrored the Auth0 access token into
+   * storage — so an auth-gated mount fetch (GET /projects) waits for it instead of
+   * racing the async token sync and 401-ing. Always true in bearer mode (the
+   * legacy token, if any, is read synchronously).
+   */
+  tokenReady: boolean;
 }
 
-const Og118IdentityContext = createContext<Og118Identity>({ userId: null });
+const Og118IdentityContext = createContext<Og118Identity>({ userId: null, tokenReady: true });
 
 export const Og118IdentityProvider = Og118IdentityContext.Provider;
 

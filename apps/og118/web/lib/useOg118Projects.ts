@@ -64,7 +64,10 @@ interface ServerProject {
   createdAt?: string;
 }
 
-export function useOg118Projects(userId: string | null = null): UseOg118Projects {
+export function useOg118Projects(
+  userId: string | null = null,
+  tokenReady: boolean = true,
+): UseOg118Projects {
   const projectsKey = scopedStoreName(PROJECTS_KEY_BASE, userId);
   const activeKey = scopedStoreName(ACTIVE_KEY_BASE, userId);
 
@@ -131,6 +134,11 @@ export function useOg118Projects(userId: string | null = null): UseOg118Projects
     setActiveProjectId(cachedActive && cached.some((p) => p.id === cachedActive) ? cachedActive : null);
     setReady(false);
 
+    // Wait for the Authorization token before the auth-gated server fetch: firing
+    // GET /projects before TokenSync mirrors the Auth0 token just 401s and leaves
+    // the section empty. The effect re-runs when tokenReady flips true.
+    if (!tokenReady) return;
+
     (async () => {
       try {
         const res = await fetch(`${API}/projects`, { headers: { ...authHeaders() } });
@@ -166,7 +174,7 @@ export function useOg118Projects(userId: string | null = null): UseOg118Projects
     return () => {
       cancelled = true;
     };
-  }, [projectsKey, activeKey, persist]);
+  }, [projectsKey, activeKey, persist, tokenReady]);
 
   const createProject = useCallback(
     async (name: string): Promise<string> => {
