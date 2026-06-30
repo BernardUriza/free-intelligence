@@ -35,8 +35,8 @@ const CSS = `
 .${FI_SIDEBAR_ITEM_CLASS} {
   display: flex;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.55rem 0.6rem;
+  gap: var(--fi-item-gap, 0.4rem);
+  padding: var(--fi-item-padding, 0.55rem 0.6rem);
   border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
