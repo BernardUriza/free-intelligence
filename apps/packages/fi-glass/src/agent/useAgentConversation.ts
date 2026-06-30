@@ -143,6 +143,8 @@ export interface AgentConversation {
   turnError: TurnError | null;
   /** Send a message: pushes it optimistically, then drives the agent turn. */
   send: (text: string) => void;
+  /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
+  sendAndAwait: (text: string) => Promise<string>;
   /** Re-send the last user text after a failure. No-op if there is nothing to retry. */
   retry: () => void;
   /** Clear the current turnError without re-sending (the optimistic msg is already reverted). */
@@ -220,6 +222,13 @@ export function useAgentConversation(
     });
   }, []);
 
+  // RESONANCE: the voice loop submits a transcript and awaits the assistant's
+  // final text (to speak). This hook stays the SOLE writer of the visible
+  // transcript — Resonance never mutates messages or calls agent.send directly,
+  // so a voice turn produces exactly one user + one assistant capsule. The
+  // settled turn's text resolves this; a failed/timed-out turn rejects it.
+  const awaitResolver = useRef<{ resolve: (t: string) => void; reject: (e: unknown) => void } | null>(null);
+
   const send = useCallback(
     (text: string) => {
       const t = text.trim();
@@ -244,6 +253,22 @@ export function useAgentConversation(
     [agent, controlled],
   );
 
+  // Promise-returning twin of send(): same single internal path (optimistic user
+  // capsule -> streaming assistant capsule -> fold + persist), but resolves with
+  // the final assistant text. The fold/error/timeout effects settle the resolver.
+  const sendAndAwait = useCallback(
+    (text: string): Promise<string> => {
+      const t = text.trim();
+      if (!t) return Promise.resolve('');
+      if (agent.isStreaming) return Promise.reject(new Error('a turn is already streaming'));
+      return new Promise<string>((resolve, reject) => {
+        awaitResolver.current = { resolve, reject };
+        send(t);
+      });
+    },
+    [agent.isStreaming, send],
+  );
+
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
   }, [send]);
@@ -264,6 +289,9 @@ export function useAgentConversation(
       // app claims this error class (e.g. og118's 401 token gate, which shows its
       // own banner — a blind retry there would just 401 again).
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error(agent.turn.errorMessage || 'turn failed'));
       if (!appHandledRef.current?.(agent.turn)) {
         setTurnError({
           kind: 'stream',
@@ -272,16 +300,20 @@ export function useAgentConversation(
       }
       return;
     }
+    const finalText = agent.turn.text || '';
     // Controlled mode never folds: the consumer's externalMessages already holds
     // the (possibly multi-message) turn it mapped from its own transport.
-    if (controlledRef.current) return;
-    if (agent.turn.text) {
+    if (!controlledRef.current && agent.turn.text) {
       // Clean finish with an answer: fold it in. This is the confirmed turn —
       // let persistence record user + assistant together (skipPersist stays
       // false through this settled emit).
       skipPersist.current = false;
       setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
     }
+    // Settle any awaited (sendAndAwait) turn with the assistant's final text.
+    const resolver = awaitResolver.current;
+    awaitResolver.current = null;
+    resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn, revertOptimistic]);
 
   // Idle watchdog: while a pushed turn is streaming, arm a timer that re-arms on
@@ -295,6 +327,9 @@ export function useAgentConversation(
       pending.current = false;
       agentRef.current.abort?.();
       revertOptimistic();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error('turn timed out'));
       setTimedOut(true);
       setTurnError({
         kind: 'timeout',
@@ -358,6 +393,7 @@ export function useAgentConversation(
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
     send,
+    sendAndAwait,
     retry,
     dismissError,
     newConversation,

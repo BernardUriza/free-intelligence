@@ -40,6 +40,7 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
     isStreaming: false,
     turnError: null,
     send: () => {},
+    sendAndAwait: () => Promise.resolve(''),
     retry: () => {},
     dismissError: () => {},
     newConversation: () => {},

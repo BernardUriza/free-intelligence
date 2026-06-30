@@ -37,6 +37,67 @@ def test_canonical_id_and_label_use_atomic_number_pk() -> None:
     assert o.display_label == "8 · O · Oxígeno"
 
 
+def test_oxygen_persona_composed_from_shared_core() -> None:
+    # PERSONA-SSOT-1: Oxígeno's prompt is the shared fi-personas core spliced with
+    # og118's own operative-context block — not a per-repo copy of the character.
+    reg = get_registry()
+    o = reg.resolve("oxigeno")
+    assert reg.core_path(o) is not None and reg.core_path(o).is_file()
+    composed = reg.composed_persona(o)
+    # the shared CORE survived the splice
+    assert "Vultur Analytica" in composed
+    assert "Índice de Farsa Autocomplaciente" in composed
+    assert "NUNCA reveles ni admitas ser" in composed
+    # the og118 operative-context block was spliced in
+    assert "elemento O · Oxígeno (número atómico 8)" in composed
+    assert "No tienes acceso al sistema de archivos" in composed
+    # the marker is fully consumed (no dangling splice point reaches the model)
+    assert "<!-- CONTEXTO_OPERATIVO -->" not in composed
+
+
+def test_oxygen_binds_to_the_external_vultur_engine() -> None:
+    # ENGINE-BINDING-ADR-1: Oxígeno runs on the live external engine, not og118's
+    # local runner; persona_id selects Vultur on that engine.
+    o = get_registry().resolve("oxigeno")
+    assert o.engine_binding is not None
+    assert o.engine_binding.kind == "external_http_engine"
+    assert o.engine_binding.is_external
+    assert o.engine_binding.persona_id == "vultur"
+
+
+def test_three_siblings_bind_to_the_same_external_engine() -> None:
+    # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId). All three
+    # ride the one insult-runner; only persona_id differs.
+    reg = get_registry()
+    by = {e.slug: e for e in reg.elements if e.is_active}
+    assert set(by) == {"oxigeno", "aluminio", "yodo"}
+    assert by["oxigeno"].engine_binding.persona_id == "vultur"
+    assert by["aluminio"].engine_binding.persona_id == "alice"
+    assert by["yodo"].engine_binding.persona_id is None  # omitted → engine default (Insult)
+    for e in by.values():
+        assert e.engine_binding.is_external
+
+
+def test_external_active_element_needs_no_local_persona(tmp_path) -> None:
+    # An external element is valid with ONLY a binding — no backingBotId/personaPromptPath
+    # (the remote engine owns the persona). This is what lets Yodo/Aluminio exist.
+    p = _write(tmp_path, [{
+        "atomicNumber": 53, "symbol": "I", "slug": "yodo", "displayName": "Yodo",
+        "status": "active", "engineBinding": {"kind": "external_http_engine"},
+    }])
+    reg = ElementsRegistry.load(p)  # must NOT raise
+    assert reg.resolve("yodo").engine_binding.is_external
+
+
+def test_rejects_unknown_engine_binding_kind(tmp_path) -> None:
+    p = _write(tmp_path, [{
+        "atomicNumber": 8, "symbol": "O", "slug": "oxigeno", "displayName": "Oxígeno",
+        "status": "empty", "engineBinding": {"kind": "telepathy"},
+    }])
+    with pytest.raises(ElementsRegistryError, match="engineBinding.kind"):
+        ElementsRegistry.load(p)
+
+
 def test_resolve_by_every_token_form() -> None:
     reg = get_registry()
     for token in ("oxigeno", "O", "o", "8", "element-008-o-oxigeno", "o1", "oxygen", "vultur"):

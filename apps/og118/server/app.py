@@ -33,6 +33,7 @@ from fi_runner.auth import (
 from fi_runner.rag_store import RagStoreClient
 from projects import ProjectRegistry
 from runner import build_runner
+from external_engine import stream_external_turn
 from fi_runner import Runner
 from elements_registry import Element, get_registry
 from stt import (
@@ -153,9 +154,13 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
     el = get_registry().resolve(element_token)
     if el is None or not el.is_active:
         return _runner, None
+    # External elements run on a remote engine (the chat_stream external branch),
+    # so no local runner is built — return the base runner as an unused placeholder.
+    if el.engine_binding is not None and el.engine_binding.is_external:
+        return _runner, el
     cached = _element_runners.get(el.id)
     if cached is None:
-        cached = build_runner(persona_path=get_registry().persona_path(el))
+        cached = build_runner(persona_text=get_registry().composed_persona(el))
         _element_runners[el.id] = cached
     return cached, el
 
@@ -269,6 +274,33 @@ async def health() -> dict:
     return {"ok": True}
 
 
+@app.get("/elements")
+async def list_elements() -> dict:
+    """The active "elementos" the UI selector offers (OG118-ELEMENTS-ADR-1).
+
+    Active-only by design: the 117 empty/reserved slots are catalog, not product —
+    surfacing them would read as an unfinished roster. Public on purpose: this is
+    names/symbols, never the persona prompts, so it carries nothing the bearer gate
+    protects and it must render before the user pastes a token."""
+    reg = get_registry()
+    return {
+        "elements": [
+            {
+                "id": e.id,
+                "atomicNumber": e.atomic_number,
+                "symbol": e.symbol,
+                "slug": e.slug,
+                "displayName": e.display_name,
+                "displayLabel": e.display_label,
+                "status": e.status,
+                "aliases": list(e.aliases),
+            }
+            for e in reg.elements
+            if e.is_active
+        ]
+    }
+
+
 @app.post("/chat/stream")
 async def chat_stream(
     req: ChatRequest,
@@ -283,6 +315,7 @@ async def chat_stream(
         raise HTTPException(status_code=404, detail="project not found")
 
     runner, element = _runner_and_element(req.element)
+    external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
         request_id = uuid.uuid4().hex[:12]
@@ -291,6 +324,21 @@ async def chat_stream(
         # (the ADR's E2E criterion). Absent when no active element is selected.
         if element is not None:
             yield _sse({"type": "element", "element": {"id": element.id, "label": element.display_label}})
+        # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
+        # og118's runner. Proxy the turn and surface the answer (single-shot, no
+        # local plan/step trace). og118's session_id keys the engine's context.
+        if external:
+            assert element is not None and element.engine_binding is not None
+            user_id = None if principal.is_legacy_bearer else principal.sub
+            async for ev in stream_external_turn(
+                persona_id=element.engine_binding.persona_id,
+                user_text=req.message,
+                session_uuid=req.session_id,
+                user_id=user_id,
+            ):
+                yield _sse(ev)
+            yield _sse({"type": "done"})
+            return
         try:
             history = [m.model_dump() for m in req.history] if req.history else None
             context = {"corpus_id": req.corpus_id} if req.corpus_id else None

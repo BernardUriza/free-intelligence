@@ -93,6 +93,43 @@ function mountConversation(
   return { ref, rerender: () => act(() => bump()), utils };
 }
 
+describe('useAgentConversation — sendAndAwait (RESONANCE voice turns)', () => {
+  afterEach(cleanup);
+
+  it('resolves with the final assistant text and persists one user + one assistant capsule', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    let resolved: string | undefined;
+    await act(async () => {
+      ref.current!.sendAndAwait('hola').then((t) => { resolved = t; });
+      rerender(); // streaming=true, optimistic user capsule pushed
+      state.turn = { ...thinkingTurn, text: 'respuesta de voz' };
+      state.isStreaming = false;
+      rerender(); // fold effect resolves the promise
+      await Promise.resolve();
+    });
+    expect(resolved).toBe('respuesta de voz');
+    const msgs = ref.current!.messages;
+    expect(msgs.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(msgs.filter((m) => m.role === 'assistant')).toHaveLength(1);
+  });
+
+  it('rejects when the turn errors (so Resonance can recover to listening)', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    let rejected = false;
+    await act(async () => {
+      ref.current!.sendAndAwait('hola').catch(() => { rejected = true; });
+      rerender();
+      state.turn = errorTurn('boom');
+      state.isStreaming = false;
+      rerender();
+      await Promise.resolve();
+    });
+    expect(rejected).toBe(true);
+  });
+});
+
 describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => {
   afterEach(cleanup);
 

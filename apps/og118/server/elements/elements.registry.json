@@ -58,7 +58,9 @@
       "displayName": "Oxígeno",
       "status": "active",
       "backingBotId": "vultur-bot",
-      "personaPromptPath": "personas/008-o-oxigeno.md",
+      "personaCorePath": "vultur.core.md",
+      "personaPromptPath": "personas/008-o-oxigeno.context.md",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "vultur" },
       "aliases": [
         "o1",
         "oxygen",
@@ -98,7 +100,8 @@
       "symbol": "Al",
       "slug": "aluminio",
       "displayName": "Aluminio",
-      "status": "empty"
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine", "personaId": "alice" }
     },
     {
       "atomicNumber": 14,
@@ -378,7 +381,8 @@
       "symbol": "I",
       "slug": "yodo",
       "displayName": "Yodo",
-      "status": "empty"
+      "status": "active",
+      "engineBinding": { "kind": "external_http_engine" }
     },
     {
       "atomicNumber": 54,
