@@ -15,4 +15,4 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 | [OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)](og118-elementos-118-gpt-personas.md) | Proposed | 2026-06-24 |
 | [B3-FIGLASS-CONVERSATION-RENAME-1 — editable chat names in fi-glass](b3-figlass-conversation-rename.md) | In progress | 2026-06-24 |
 | [RESONANCE — hands-free, screenless voice-call mode for og118](og118-resonance-voice-mode.md) | Proposed | 2026-06-29 |
-| [B3-FIGLASS-UX-DISTRIBUTION-1 — distribution contracts (tokens/semantic/cards/scroll/CQ)](b3-figlass-ux-distribution.md) | Proposed (audit done) | 2026-06-30 |
+| [B3-FIGLASS-UX-DISTRIBUTION-1 — distribution contracts (tokens/semantic/cards/scroll/CQ)](b3-figlass-ux-distribution.md) | 5/6 shipped (#306-310), PR6 optional | 2026-06-30 |
