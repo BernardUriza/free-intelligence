@@ -105,6 +105,14 @@ body {
   max-width: 16rem;
   margin: 0 0 0.5rem;
 }
+@container fi-composer (max-width: 420px) {
+  .og-elemento-label {
+    display: none;
+  }
+  .og-element-switch {
+    max-width: 100%;
+  }
+}
 .og-resonance-bar {
   display: flex;
   align-items: center;

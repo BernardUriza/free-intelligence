@@ -2037,7 +2037,7 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%" }, children: [
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
         hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
           "button",
           {
@@ -2316,12 +2316,16 @@ function AgentWorkspaceShell({
     flexDirection: "column",
     transform: isOpen ? "translateX(0)" : "translateX(-100%)",
     transition: "transform 0.24s ease",
-    willChange: "transform"
+    willChange: "transform",
+    containerType: "inline-size",
+    containerName: "fi-sidebar"
   } : {
     width: widthCss,
     flexShrink: 0,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    containerType: "inline-size",
+    containerName: "fi-sidebar"
   };
   return /* @__PURE__ */ jsxs20(
     "div",
@@ -2468,6 +2472,15 @@ var CSS2 = `
 @media (pointer: coarse) {
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
+  }
+}
+@container fi-sidebar (max-width: 220px) {
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    padding: var(--fi-item-padding-compact, 0.3rem 0.4rem);
+    gap: var(--fi-item-gap-compact, 0.25rem);
+  }
+  .${FI_ITEM_META_CLASS} {
+    display: none;
   }
 }
 .${FI_RESOURCE_RENAME_INPUT_CLASS} {
