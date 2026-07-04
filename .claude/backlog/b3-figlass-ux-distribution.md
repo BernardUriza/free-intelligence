@@ -1,8 +1,8 @@
 # B3-FIGLASS-UX-DISTRIBUTION-1 — distribution contracts for fi-glass (spacing/semantic/cards/scroll/CQ)
 
-Status: In progress — 5/6 shipped (PR1–PR5 merged, PR6 optional-deferred)
+Status: Done — 6/6 shipped (PR1–PR6 merged)
 Proposed: 2026-06-30 by Bernard (UX feedback on og118 sidebar) + coagent plan
-Updated: 2026-07-03 — arc verified live in og118 (see Status / progress)
+Updated: 2026-07-04 — PR6 (container queries) merged (#312); arc complete, verified live in og118
 
 ## What it is
 
@@ -68,15 +68,16 @@ smell.
 6. **B3-FIGLASS-CONTAINER-QUERIES-1** — `container-type:inline-size` per panel; narrow
    sidebar = compact rows, wide = show meta; narrow composer = icon-only labels. Last,
    because CQ without the semantic primitives just masks old CSS.
-   ⏸️ **OPTIONAL / DEFERRED** — not started. The arc's UX objective is already met by
-   PR2–PR5 (verified live); PR6 is responsive polish, greenlit per-level by Bernard when
-   wanted. No commits, no `container-type` in fi-glass as of 2026-07-03.
+   ✅ **DONE** (PR #312, `40b7bb91`). Established fi-glass's first named CQ containers
+   (`fi-sidebar` on the `<nav>`, `fi-composer` on the composer cap). `@container fi-sidebar
+   (max-width:220px)` hides item meta + compacts rows; og118 canary keys `@container
+   fi-composer (max-width:420px)` to collapse the Elemento label. Verified live: labels
+   toggle reactively at the container thresholds.
 
 ## The decision that's the owner's
 
-How deep to take the arc, and when. PR1–PR5 are shipped (#306–#310). The only remaining
-decision is **PR6 (container queries)** — optional responsive polish, greenlit per-level by
-Bernard when/if wanted. The arc's core UX objective is already met without it.
+RESOLVED. The full arc (PR1–PR6, #306–#312) shipped and merged with Bernard's per-level
+GO for each. Nothing left to decide; the item is Done.
 
 ## Status / progress (2026-07-03)
 
