@@ -11,3 +11,4 @@ en el engineering-playbook.
 | [LLM shadow router token bloat](llm-shadow-router-token-bloat.md) | Done (token bloat) | fix LOCAL `DirectAzureLLMRouter` desplegado + medido en prod: 9509→115 tokens (−98.8%). Shadow ON/direct (rev 169). A.2.2 report corrido (4/4 missing_vultur, 0 false, N chico). Gap empty-input arreglado (v4.21.84). Next: A.2.3 ≥50 direct calls → luego cutover gpt-4.1 (NO-GO hoy). Upstream fi_runner chat backend = mejora canónica separada, sin urgencia |
 
 - [Frugívoro persona](frugivoro-persona.md) — Proposed (2026-06-29). Erudite vegan-gastronomy Khimeras sibling + ethical black-box benchmark vs a competitor GPT.
+- [addressed_to_sibling over-suppression](addressed-to-sibling-over-suppression.md) — Proposed (2026-07-04). Cualquier alias como palabra silencia a Insult: "insult, invita a alice" nunca le llega. Fix gated tras el soak de ALICE single-host (orden coagent); luego cross-talk @frugi y rename vultur-gateway→persona-gateway.
