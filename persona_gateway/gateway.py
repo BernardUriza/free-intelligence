@@ -263,22 +263,95 @@ class PersonaClient(discord.Client):
         )
 
         messages = [*format_context(recent), {"role": "user", "content": ask}]
+        await self._run_and_deliver(
+            channel=message.channel,
+            channel_id=channel_id,
+            user_id=user_id,
+            guild_id=guild_id,
+            channel_name=channel_name,
+            messages=messages,
+        )
 
-        # Typing keepalive — fire-and-forget background task so the user sees
-        # "[Vultur] is typing…" during the long runner call. Deliberately NOT
-        # `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
-        # killing the turn before the runner runs — anti-pattern #1).
-        # Instead: a short-lived task that triggers typing every 7s and stops
-        # when a stop_event is set (after the runner responds).
+    async def respond_to_invite(
+        self,
+        *,
+        channel_id: str,
+        guild_id: str | None,
+        channel_name: str | None,
+        reason: str,
+        invited_by: str = "insult_rest",
+    ) -> None:
+        """Entry point for the gateway's ported /invite handler.
+
+        Mirrors the legacy ``personas.alice.cogs.chat.respond_to_invite`` contract
+        but routes through the persona-runner (this persona's brain) instead of a
+        persona-local LLM. Insult's ``reason`` is injected as the FRESHEST turn —
+        instruction context, not a visible user message — so the persona reads the
+        thread and responds with the lens the reason asks for. No user turn is
+        stored (there is none; Insult already wrote the message that triggered it).
+        """
+        channel = self.get_channel(int(channel_id))
+        if channel is None:
+            with contextlib.suppress(discord.HTTPException):
+                channel = await self.fetch_channel(int(channel_id))
+        if not isinstance(channel, discord.abc.Messageable):
+            log.warning(
+                "persona_gateway_invite_channel_not_found",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+            )
+            return
+
+        recent = await self.memory.get_recent(channel_id, RECENT_LIMIT)
+        instruction = (
+            f"[Insult te invitó a este turno. Razón: {reason}] "
+            "Lee el hilo de arriba y responde con la mirada que esa razón pide."
+        )
+        messages = [*format_context(recent), {"role": "user", "content": instruction}]
+        log.info(
+            "persona_gateway_invite_accepted",
+            persona_id=self.persona.persona_id,
+            channel_id=channel_id,
+            invited_by=invited_by,
+            reason_preview=reason[:100],
+        )
+        await self._run_and_deliver(
+            channel=channel,
+            channel_id=channel_id,
+            user_id=str(self.user.id) if self.user else "",
+            guild_id=guild_id,
+            channel_name=channel_name,
+            messages=messages,
+            turn_kind="invite",
+        )
+
+    async def _run_and_deliver(
+        self,
+        *,
+        channel: discord.abc.Messageable,
+        channel_id: str,
+        user_id: str,
+        guild_id: str | None,
+        channel_name: str | None,
+        messages: list[dict],
+        turn_kind: str = "mention",
+    ) -> None:
+        """Shared tail for mention + invite: runner call → post → persist.
+
+        Typing keepalive is a fire-and-forget background task so the user sees
+        "[persona] is typing…" during the long runner call. Deliberately NOT
+        `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
+        killing the turn before the runner runs — anti-pattern #1). Instead: a
+        short-lived task that re-triggers typing every ~9s and stops when the
+        stop_event is set (after the runner responds).
+        """
+        bot_id = self.user.id if self.user else 0
         _typing_stop = asyncio.Event()
 
         async def _typing_keepalive() -> None:
             while not _typing_stop.is_set():
                 with contextlib.suppress(discord.HTTPException):
-                    # discord.py's Typing context manager sends a typing event
-                    # and has a built-in 10s keepalive. We enter+exit every 9s
-                    # in our own loop so the indicator stays alive for long turns.
-                    async with message.channel.typing():
+                    async with channel.typing():
                         with contextlib.suppress(TimeoutError):
                             await asyncio.wait_for(_typing_stop.wait(), timeout=9.0)
                     if _typing_stop.is_set():
@@ -304,7 +377,7 @@ class PersonaClient(discord.Client):
             return
 
         for piece in chunk(text):
-            await message.channel.send(piece)
+            await channel.send(piece)
 
         await self.memory.store(
             channel_id,
@@ -322,21 +395,26 @@ class PersonaClient(discord.Client):
             persona_id=self.persona.persona_id,
             channel_id=channel_id,
             chars=len(text),
+            turn_kind=turn_kind,
         )
 
         # Auto-TTS: a long reply ships a voice clip of the FULL text so you can
         # listen instead of reading a wall. Gateway-only (the persona gateway has
         # no Arbor path, so arbor_active=False); gated by auto_tts_min_chars (0=off).
         if should_auto_tts(text, min_chars=self.auto_tts_min_chars, arbor_active=False):
-            await self._speak(message.channel, text, reason="auto")
+            await self._speak(channel, text, reason="auto")
 
 
-def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int]:
+def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int, str]:
     """Construct the deps shared by all persona-bots (same wiring as Insult).
 
     Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
     TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
     simply off (the gateway still runs); it is never delegated to Insult.
+
+    The last element is the `/invite` bearer token (INSULT_TO_ALICE_TOKEN) — the
+    same secret the legacy alice-bot endpoint used, so repointing the caller is a
+    no-op on the contract.
     """
     config = PersonaRuntimeConfig.from_env()
 
@@ -360,16 +438,36 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int]
         enabled=tts_client is not None,
         auto_tts_min_chars=auto_tts_min_chars,
     )
-    return memory, agent_client, tts_client, auto_tts_min_chars
+    invite_token = config.insult_to_alice_token.get_secret_value()
+    return memory, agent_client, tts_client, auto_tts_min_chars, invite_token
+
+
+def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str):
+    """Return the uvicorn serve() coroutine for the ported /invite endpoint.
+
+    Port 8788 mirrors the legacy alice-bot so the Container App ingress targetPort
+    is unchanged. Bound to 0.0.0.0 for the ACA ingress. Always served (even with
+    no token) so the /health probe answers; /invite itself fail-closes (503) when
+    the token is unset.
+    """
+    import uvicorn
+
+    from persona_gateway.invite_server import build_invite_app
+
+    app = build_invite_app(personas, invite_token)
+    server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8788, log_level="warning"))  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
+    log.info("persona_gateway_invite_api_starting", port=8788, token_configured=bool(invite_token))
+    return server.serve()
 
 
 async def _main() -> None:
-    memory, agent_client, tts_client, auto_tts_min_chars = _build_shared()
+    memory, agent_client, tts_client, auto_tts_min_chars, invite_token = _build_shared()
     await memory.connect()
 
     intents = discord.Intents.default()
     intents.message_content = True
 
+    personas: dict[str, PersonaClient] = {}
     starts = []
     for persona in gateway_personas():
         token = os.environ.get(persona.token_env, "").strip()
@@ -384,12 +482,17 @@ async def _main() -> None:
             tts_client=tts_client,
             auto_tts_min_chars=auto_tts_min_chars,
         )
+        personas[persona.persona_id] = client
         starts.append(client.start(token))
         log.info("persona_gateway_starting", persona_id=persona.persona_id)
 
     if not starts:
         log.error("persona_gateway_nothing_to_start", note="no persona token configured")
         return
+
+    # The /invite HTTP server runs in the same event loop as the bots, sharing the
+    # live PersonaClient registry so an invite routes to the persona's own brain.
+    starts.append(_serve_invite_api(personas, invite_token))
 
     try:
         await asyncio.gather(*starts)

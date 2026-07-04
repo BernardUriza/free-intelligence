@@ -1,0 +1,120 @@
+"""FastAPI server exposing the gateway's `/invite` endpoint.
+
+This is the gateway-hosted port of `personas.alice.api.server`. The legacy
+`alice-bot` container owned `/invite` while ALICE ran as a separate Discord bot;
+once ALICE moved into the persona gateway (one brain per `persona_id` via the
+runner), the invite endpoint must live here too — otherwise ALICE runs on two
+hosts with the same token (double replies) and the legacy container cannot be
+retired (it is the sole `/invite` host). See `.claude/rules/sibling-personas.md`.
+
+Insult is the only authorized caller. Auth is the same shared bearer token
+(`INSULT_TO_ALICE_TOKEN`) the legacy endpoint used, so repointing
+`discord-bot.ALICE_INVITE_URL` at the gateway needs no caller change.
+
+Endpoint contract (unchanged from the legacy server):
+
+    POST /invite
+    Authorization: Bearer <INSULT_TO_ALICE_TOKEN>
+    Content-Type: application/json
+    { "channel_id": "...", "guild_id": "...", "channel_name": "general", "reason": "..." }
+
+    → 202 Accepted  { "status": "invited", "channel_id": "..." }
+
+The persona responds asynchronously: the HTTP call returns as soon as the work
+is scheduled. Insult does not wait — the reply lands in Discord directly.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hmac
+from typing import TYPE_CHECKING
+
+import structlog
+from fastapi import FastAPI, Header, HTTPException, status
+from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from persona_gateway.gateway import PersonaClient
+
+log = structlog.get_logger()
+
+# Which persona Insult's /invite summons. The legacy endpoint was ALICE-only and
+# Insult's `invoke_alice` tool carries no persona_id, so the contract maps /invite
+# → the "alice" persona. Kept as a constant (not a request field) to preserve the
+# exact wire contract the caller already uses.
+INVITE_PERSONA_ID = "alice"
+
+
+class InviteRequest(BaseModel):
+    """What Insult sends when it wants the persona in the channel."""
+
+    channel_id: str = Field(..., min_length=1)
+    guild_id: str | None = None
+    channel_name: str | None = None
+    reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Free-text reason the persona is summoned. Instruction, not user message.",
+    )
+
+
+class InviteResponse(BaseModel):
+    status: str
+    channel_id: str
+    detail: str | None = None
+
+
+def build_invite_app(personas: dict[str, PersonaClient], expected_token: str) -> FastAPI:
+    """Wire FastAPI with bearer auth + the /invite handler.
+
+    `personas` is the live persona_id → PersonaClient registry the gateway builds
+    in `_main`; the handler routes the invite to `INVITE_PERSONA_ID`'s client.
+    """
+    app = FastAPI(title="Persona Gateway Invite API", version="1.0.0")
+    app.state.background_tasks = set()
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok", "service": "persona-gateway-invite"}
+
+    @app.post("/invite", response_model=InviteResponse, status_code=status.HTTP_202_ACCEPTED)
+    async def invite(req: InviteRequest, authorization: str | None = Header(default=None)) -> InviteResponse:
+        if not expected_token:
+            log.error("persona_gateway_invite_no_token_configured")
+            raise HTTPException(status_code=503, detail="Invite endpoint not configured (missing token).")
+
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+        provided = authorization[len("Bearer ") :]
+        if not hmac.compare_digest(provided, expected_token):
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        client = personas.get(INVITE_PERSONA_ID)
+        if client is None or client.user is None:
+            log.error("persona_gateway_invite_persona_not_ready", persona_id=INVITE_PERSONA_ID)
+            raise HTTPException(status_code=503, detail="Persona not finished booting; retry in a few seconds.")
+
+        # Fire-and-forget: the persona responds asynchronously. Keep a reference
+        # on app state so the task isn't GC'd mid-flight (RUF006); auto-pruned.
+        task = asyncio.create_task(
+            client.respond_to_invite(
+                channel_id=req.channel_id,
+                guild_id=req.guild_id,
+                channel_name=req.channel_name,
+                reason=req.reason,
+                invited_by="insult_rest",
+            )
+        )
+        app.state.background_tasks.add(task)
+        task.add_done_callback(app.state.background_tasks.discard)
+        log.info(
+            "persona_gateway_invite_scheduled",
+            persona_id=INVITE_PERSONA_ID,
+            channel_id=req.channel_id,
+            reason_preview=req.reason[:100],
+        )
+        return InviteResponse(status="invited", channel_id=req.channel_id)
+
+    return app
