@@ -236,12 +236,16 @@ export function AgentWorkspaceShell({
         transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.24s ease',
         willChange: 'transform',
+        containerType: 'inline-size',
+        containerName: 'fi-sidebar',
       }
     : {
         width: widthCss,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
+        containerType: 'inline-size',
+        containerName: 'fi-sidebar',
       };
 
   return (

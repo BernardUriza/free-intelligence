@@ -76,7 +76,7 @@ export function Og118ElementSelector({
       contentClassName="max-h-[400px] overflow-y-auto w-[360px]"
       renderTriggerValue={(sel) => (
         <span className="flex items-center gap-2 truncate">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300/80">
+          <span className="og-elemento-label text-[10px] font-semibold uppercase tracking-wide text-emerald-300/80">
             Elemento
           </span>
           {sel ? atomicBadge(sel, false) : null}
