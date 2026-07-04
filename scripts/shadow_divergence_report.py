@@ -29,7 +29,7 @@ RED verdict. The two criteria a report cannot exercise (kill switch, determinist
 fallback) stay MANUAL — the verdict never reads green on a thing it never ran.
 
 Reuses the Log Analytics REST path from ``scripts/kql.sh`` (workspace
-``a07bf4c8-...``, table ``ContainerAppConsoleLogs_CL``) and the live price model
+``14ebd989-...``, table ``ContainerAppConsoleLogs_CL``) and the live price model
 from ``demux_ai.router_budget`` — no new infra, no parallel price table.
 
 Usage:
@@ -54,7 +54,7 @@ _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-WORKSPACE = "a07bf4c8-22ff-455a-b7bd-91055da53b28"
+WORKSPACE = "14ebd989-62d2-4207-b099-f6e13256fd72"
 _LOGANALYTICS = f"https://api.loganalytics.io/v1/workspaces/{WORKSPACE}/query"
 
 # #general — the record-grade verification surface (see .claude/rules/testing.md).

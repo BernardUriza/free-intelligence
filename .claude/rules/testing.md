@@ -109,7 +109,7 @@ A complete diagnosis in this app is, in order:
 1. **Azure Log Analytics by time range — ALWAYS first.** Pull every event the
    bot emitted during the window where the user reports misbehavior. Use the
    KQL REST path documented in `memory/reference_azure_log_analytics.md`
-   (workspace customer ID `a07bf4c8-22ff-455a-b7bd-91055da53b28`, table
+   (workspace customer ID `14ebd989-62d2-4207-b099-f6e13256fd72`, table
    `ContainerAppConsoleLogs_CL`, filter `ContainerAppName_s == "insult-bot"`).
    Every structured signal lives here: `preset_classified`, `flow_pressure`,
    `flow_expression`, `llm_request`, `llm_response` (input/output tokens,

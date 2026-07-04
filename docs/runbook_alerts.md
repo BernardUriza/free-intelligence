@@ -108,7 +108,7 @@ filter by `dayofweek(TimeGenerated)` + `hourofday(TimeGenerated)` (UTC).
 ### Provisioning the alert (Portal — manual today, IaC later)
 
 1. Azure Portal → Log Analytics workspace
-   `a07bf4c8-22ff-455a-b7bd-91055da53b28` → **Alerts** → **+ Create**
+   `14ebd989-62d2-4207-b099-f6e13256fd72` → **Alerts** → **+ Create**
 2. Condition: **Custom log search**, paste the query above, set
    threshold = `0`, evaluation frequency `5m`, lookback `15m`.
 3. Action group: email + webhook. Severity 2 (Warning).

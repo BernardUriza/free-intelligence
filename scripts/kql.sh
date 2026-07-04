@@ -2,7 +2,7 @@
 # Run a KQL query against the insult-bot Log Analytics workspace.
 # Usage: ./scripts/kql.sh 'ContainerAppConsoleLogs_CL | where ...'
 set -euo pipefail
-WORKSPACE=a07bf4c8-22ff-455a-b7bd-91055da53b28
+WORKSPACE=14ebd989-62d2-4207-b099-f6e13256fd72
 if [ $# -lt 1 ]; then
   echo "Usage: $0 'KQL query'" >&2
   exit 1

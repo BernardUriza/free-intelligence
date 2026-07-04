@@ -1,6 +1,6 @@
 # KQL Queries — insult-bot prod
 
-Workspace customer ID: `a07bf4c8-22ff-455a-b7bd-91055da53b28`
+Workspace customer ID: `14ebd989-62d2-4207-b099-f6e13256fd72`
 Table: `ContainerAppConsoleLogs_CL`
 Filter: `ContainerAppName_s == "insult-bot"`
 Log string column: `Log_s`
