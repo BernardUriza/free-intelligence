@@ -52,6 +52,10 @@ algo falla conviene saber cuál fue).
 
 ## Status / next step
 
-Gated tras el fix de @frugi cross-talk (mismo gate que el gateway rename, ver
-[[addressed-to-sibling-over-suppression]]). Hermano de deuda de nomenclatura de
-[[rename-discord-bot-to-server-bot]].
+GATE ABIERTO (2026-07-05): el cross-talk @frugi era un doble-store multi-writer
+en el Postgres compartido (Insult plumbing + persona_gateway persistían el mismo
+turno). Fix raíz shipped en v4.21.116 `6385c1a` (discord_message_id + unique
+partial index + ON CONFLICT DO NOTHING) y E2E-verificado en #general: 1 fila por
+mensaje + `memory_store_deduped` en el gateway + Frugívoro respondiendo normal.
+Este move es el siguiente paso de la secuencia. Hermano de deuda de nomenclatura
+de [[rename-discord-bot-to-server-bot]].
