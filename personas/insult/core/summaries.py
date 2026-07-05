@@ -1,7 +1,7 @@
 """Cross-channel awareness via periodic channel summaries.
 
 **DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the workspace
-renderer (`insult/agent/workspace_renderer.py`) which mirrors
+renderer (`persona_runner/workspace_renderer.py`) which mirrors
 Postgres → markdown every 60s and the agent runner's on-demand
 Read/Grep over `messages/{channel_id}.md`. The persona's
 "Cross-Channel Awareness" clause instructs the agent to read those

@@ -86,7 +86,7 @@ FORBIDDEN_MODULES: list[str] = [
     # insult.core.reactions is intentionally absent here.
     "personas.insult.core.language",
     "personas.insult.core.stance_log",
-    "personas.insult.agent",
+    "persona_runner",
 ]
 
 

@@ -15,12 +15,12 @@ import pytest
 
 def test_renderer_module_imports():
     """Lazy import so we don't need POSTGRES_URL set to load the module."""
-    from personas.insult.agent import workspace_renderer  # noqa: F401
+    from persona_runner import workspace_renderer  # noqa: F401
 
 
 def test_frontmatter_shape(tmp_path: Path):
     """`_frontmatter` produces a parseable YAML block followed by a blank line."""
-    from personas.insult.agent.workspace_renderer import _frontmatter
+    from persona_runner.workspace_renderer import _frontmatter
 
     out = _frontmatter(user_id="x", count=3, when="2026-01-01T00:00:00Z")
     assert out.startswith("---\n")
@@ -36,7 +36,7 @@ def test_atomic_write_creates_parents_and_swaps(tmp_path: Path):
     Verifies the .tmp pattern: at no point should an empty / partial file
     be visible to a reader.
     """
-    from personas.insult.agent.workspace_renderer import _atomic_write
+    from persona_runner.workspace_renderer import _atomic_write
 
     target = tmp_path / "facts" / "deeply" / "nested" / "file.md"
     _atomic_write(target, "hello\nworld\n")
@@ -48,7 +48,7 @@ def test_atomic_write_creates_parents_and_swaps(tmp_path: Path):
 
 def test_atomic_write_overwrites_existing(tmp_path: Path):
     """Subsequent writes replace the previous content entirely."""
-    from personas.insult.agent.workspace_renderer import _atomic_write
+    from persona_runner.workspace_renderer import _atomic_write
 
     target = tmp_path / "out.md"
     _atomic_write(target, "first")
@@ -64,7 +64,7 @@ def test_atomic_write_no_partial_visible(tmp_path: Path):
     We can't truly race here in a unit test, but we can at least verify
     the file is non-empty immediately after write returns.
     """
-    from personas.insult.agent.workspace_renderer import _atomic_write
+    from persona_runner.workspace_renderer import _atomic_write
 
     target = tmp_path / "x.md"
     _atomic_write(target, "x" * 10000)

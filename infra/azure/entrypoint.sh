@@ -52,7 +52,7 @@ fi
 # the share entirely once CLAUDE.md is moved into the container image.
 #
 # To re-enable for debugging only: uncomment the python3 line below.
-# python3 -m personas.insult.agent.workspace_renderer > /tmp/insult-logs/renderer.log 2>&1 &
+# python3 -m persona_runner.workspace_renderer > /tmp/insult-logs/renderer.log 2>&1 &
 mkdir -p /tmp/insult-logs
 echo "[entrypoint] workspace_renderer DISABLED (F4 phase 3) — MCP tools query PG directly"
 
@@ -63,7 +63,7 @@ echo "[entrypoint] workspace_renderer DISABLED (F4 phase 3) — MCP tools query 
 # --workers 1 keeps it single-process: the agent loop is async and CPU-light,
 # more workers just multiply OAuth quota burn.
 echo "[entrypoint] starting FastAPI runner on :8080"
-exec uvicorn personas.insult.agent.runner:app \
+exec uvicorn persona_runner.runner:app \
   --host 0.0.0.0 \
   --port 8080 \
   --workers 1 \

@@ -174,7 +174,7 @@ def sync_helper() -> dict:
 
 def test_extract_mcp_tool_names_finds_insult_db_tools():
     """Sanity: the insult-side extractor still works against the real
-    `insult/agent/mcp_tools.py`. This is the path that has been live
+    `persona_runner/mcp_tools.py`. This is the path that has been live
     since the agent runner shipped — the test pins it doesn't silently
     break when sync_capabilities is refactored.
     """

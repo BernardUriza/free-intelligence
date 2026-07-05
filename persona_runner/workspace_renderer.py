@@ -212,7 +212,7 @@ async def _readme(pool: asyncpg.Pool) -> None:
     _ = pool  # unused; signature kept symmetric with renderers
     content = (
         "# Insult Agent SDK Workspace\n\n"
-        "Postgres state projected to markdown by `insult.agent.workspace_renderer`.\n"
+        "Postgres state projected to markdown by `persona_runner.workspace_renderer`.\n"
         "DO NOT edit these files manually — they are overwritten on every render.\n"
         "Source of truth: the `insultpg` Postgres database.\n\n"
         "## Layout\n\n"

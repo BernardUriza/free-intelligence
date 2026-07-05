@@ -18,7 +18,7 @@ import httpx
 import pytest
 
 from khimeras_shared.runner.agent_client import AgentRunnerClient
-from personas.insult.agent.runner import _frame_turn_text
+from persona_runner.runner import _frame_turn_text
 from personas.insult.core.presets import (
     PresetMode,
     PresetSelection,

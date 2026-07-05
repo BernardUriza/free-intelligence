@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from personas.insult.agent import mcp_tools
+from persona_runner import mcp_tools
 
 _handler = mcp_tools.deep_memory.handler
 

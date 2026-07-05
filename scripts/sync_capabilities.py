@@ -67,7 +67,7 @@ def detect_modules() -> dict[str, bool]:
         # Newer capabilities (2026-05) — detect by module presence
         "deep_memory": (INSULT / "core" / "deep_memory.py").exists(),
         "html_artifacts": (INSULT / "core" / "html_artifacts.py").exists(),
-        "agent_runner_mcp": (INSULT / "agent" / "mcp_tools.py").exists(),
+        "agent_runner_mcp": (ROOT / "persona_runner" / "mcp_tools.py").exists(),
     }
 
 
@@ -97,7 +97,7 @@ def extract_mcp_tool_names() -> list[dict]:
     second is its description. Returns names prefixed with
     `mcp__insult_db__` so they match the wire name the agent sees.
     """
-    mcp = INSULT / "agent" / "mcp_tools.py"
+    mcp = ROOT / "persona_runner" / "mcp_tools.py"
     if not mcp.exists():
         return []
     try:
@@ -295,9 +295,9 @@ def build_capabilities_block() -> str:
     )
 
     # MCP tools come from two sources at runtime:
-    #   1. insult/agent/mcp_tools.py — DB-access tools in-process
+    #   1. persona_runner/mcp_tools.py — DB-access tools in-process
     #   2. fi-core's mcp_server.py — anti-drift detectors via stdio subprocess
-    # Both are registered in insult/agent/runner.py:_build_options and the
+    # Both are registered in persona_runner/runner.py:_build_options and the
     # agent sees them with the same wire-name shape: mcp__<server>__<tool>.
     insult_mcp_tools = extract_mcp_tool_names() if modules.get("agent_runner_mcp") else []
     fi_core_mcp_tools = extract_fi_core_mcp_tools() if detect_fi_core() else []

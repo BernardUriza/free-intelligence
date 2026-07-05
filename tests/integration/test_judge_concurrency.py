@@ -13,7 +13,7 @@ import asyncio
 
 import pytest
 
-from personas.insult.agent import runner
+from persona_runner import runner
 
 
 @pytest.fixture(autouse=True)

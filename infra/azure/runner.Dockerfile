@@ -58,14 +58,17 @@ RUN npm install -g --silent @playwright/mcp \
 #     `ModuleNotFoundError: No module named 'khimeras_shared'` on EVERY turn
 #     (prod P0, 2026-06-16: PR #26 shipped without this COPY → all Insult turns
 #     fell over to ALICE for ~2h while /health stayed green on the plumbing).
-#   - personas/insult/agent/* for workspace_renderer + (Fase 2b) FastAPI runner
+#   - persona_runner/* — the shared runner service (FastAPI + workspace_renderer),
+#     top-level package since v4.21.118 (moved out of personas/insult/agent/: the
+#     runner serves ALL Claude personas via persona_id, it is not Insult behavior)
 #   - personas/insult/core/memory/* for asyncpg repos that the renderer queries
 # personas/alice/ is NOT copied — runner is bot-agnostic; only the workspace
 # matters at agent-loop time. personas/__init__.py is copied so `personas`
-# is an importable package (the demux moved insult/ → personas/insult/ in
-# p3-personas v4.21.x; the runner's internal imports are `from personas.insult.*`).
+# is an importable package (the runner still imports `from personas.insult.core.*`
+# for flows/presets/routing/deep_memory).
 COPY shared/ shared/
 COPY khimeras_shared/ khimeras_shared/
+COPY persona_runner/ persona_runner/
 # demux_ai/ — PR-4b slice 3 wired the gpt-4.1 host degrader into the persona's
 # composition root (`build_host_degrader_port` defers `from demux_ai.host_degrader
 # import HostDegrader`). The import is gated behind `host_router_enabled` (False in

@@ -397,7 +397,7 @@ async def _build_options(persona: str, model: str | None = None) -> Any:
     # keeps the stdio entry byte-identical to the pre-capability behavior.
     from fi_runner import ClaudeCodeBackend, MCPServerSpec, PermissionMode, ToolPolicy, capabilities
 
-    from personas.insult.agent.mcp_tools import (
+    from persona_runner.mcp_tools import (
         INSULT_DB_SERVER_NAME,
         INSULT_DB_TOOLS,
         build_insult_db_server,
@@ -472,11 +472,11 @@ async def _get_or_create_client(
         chosen_model = DEFAULT_MODEL
         route_meta: dict[str, Any] = {"routed": False}
         if user_id and user_text:
-            from personas.insult.agent.router_runtime import route_for_session
+            from persona_runner.router_runtime import route_for_session
 
             pg_conn = None
             try:
-                from personas.insult.agent.mcp_tools import _connect as _pg_connect
+                from persona_runner.mcp_tools import _connect as _pg_connect
 
                 pg_conn = await _pg_connect()
                 decision = await route_for_session(
