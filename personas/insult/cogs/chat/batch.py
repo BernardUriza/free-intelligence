@@ -35,6 +35,25 @@ MAX_MESSAGE_LENGTH = 4000
 BATCH_WAIT_SECONDS = 3.0  # Wait this long after last message before responding
 MIN_RESPONSE_GAP = 5.0  # Minimum seconds between bot responses to same user (token protection)
 
+_HOST_NAME_PREFIX = re.compile(r"@?insult\b", re.IGNORECASE)
+
+
+def _opens_addressing_host(message: discord.Message) -> bool:
+    """True when the message OPENS by addressing Insult (the host) by name or
+    by its own @mention pill.
+
+    The addressee is whoever HEADS the message: "insult, invita a alice" is a
+    request TO Insult that merely names a sibling, not a message FOR the
+    sibling. Without this guard the alias scan below muted Insult on every
+    explicit ask that names ALICE — so `invoke_alice` could never fire on a
+    direct request (msg_skipped_addressed_to_sibling, 2026-07-04 21:50Z).
+    """
+    content = (message.content or "").lstrip()
+    if _HOST_NAME_PREFIX.match(content):
+        return True
+    me = getattr(getattr(message, "guild", None), "me", None)
+    return me is not None and re.match(rf"<@!?{me.id}>", content) is not None
+
 
 def addressed_to_sibling(message: discord.Message) -> bool:
     """True when this message addresses any registered Khimeras sibling bot — so
@@ -57,7 +76,12 @@ def addressed_to_sibling(message: discord.Message) -> bool:
 
     Intrusive/clinical keywords are intentionally excluded: those are shared
     context both bots may address; this gate is only "I'm talking to a sibling."
+
+    A message that OPENS addressing Insult is never sibling-addressed, even if
+    it names or mentions a sibling later — the head of the message wins.
     """
+    if _opens_addressing_host(message):
+        return False
     sibling_ids = sibling_bot_user_ids()
     mention_ids = {str(u.id) for u in message.mentions}
     if mention_ids & sibling_ids:
