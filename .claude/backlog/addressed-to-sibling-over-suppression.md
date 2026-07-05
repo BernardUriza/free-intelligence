@@ -1,6 +1,6 @@
 # Fix addressed_to_sibling over-suppression (alias-anywhere silencia a Insult)
 
-Status: Proposed
+Status: Done
 Proposed: 2026-07-04 by Claude (descubierto durante la verificación de ALICE single-host; coagent lo puso en la cola post-soak)
 
 ## What it is
@@ -28,6 +28,7 @@ ALICE single-host y antes del rename vultur-gateway → persona-gateway.
 
 ## Status / next step
 
-Gated tras el soak del single-host (orden coagent 2026-07-04). Hermanos en la cola:
-delete de alice-bot legacy (gated Bernard), cross-talk @frugi (investigar aparte),
-rename del gateway.
+DONE 2026-07-05 — v4.21.113 (`783b00d`): `_opens_addressing_host()` corta el gate
+cuando el mensaje ABRE con "insult"/@Insult/mention-pill propio; 5 tests nuevos
+(positivo + resistencia, incl. "insultante" no des-mutea). alice-bot legacy ya
+eliminado (v4.21.112). Quedan en cola: cross-talk @frugi, rename vultur-gateway→persona-gateway.
