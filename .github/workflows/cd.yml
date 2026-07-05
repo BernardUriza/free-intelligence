@@ -8,8 +8,9 @@ name: CD
 # Surfaces and the image each consumes:
 #   * discord-bot        <- insult-bot image       (Dockerfile)
 #   * fact-consolidation <- insult-bot image       (same image, cron job)
-#   * alice-bot          <- alice-bot image        (Dockerfile.alice)
 #   * vultur-gateway     <- vultur-gateway image   (Dockerfile.gateway)
+#       (ALICE runs here as a gateway persona since v4.21.110; the legacy
+#        alice-bot Container App + Dockerfile.alice were retired 2026-07-05)
 #   * persona-runner      <- persona-runner image    (infra/azure/runner.Dockerfile)
 #
 # Per-image SOURCE deps come from each Dockerfile's COPY lines — the map below is
@@ -94,15 +95,12 @@ jobs:
           }
 
           BOT_SHA=$(running_tag discord-bot app)
-          ALICE_SHA=$(running_tag alice-bot app)
           GW_SHA=$(running_tag vultur-gateway app)
           RUNNER_SHA=$(running_tag persona-runner app)
 
           BUILD_BOT=$(changed "$BOT_SHA" \
             environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
             Dockerfile)
-          BUILD_ALICE=$(changed "$ALICE_SHA" \
-            environment.yml personas/alice/ shared/ Dockerfile.alice)
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
@@ -111,7 +109,6 @@ jobs:
 
           {
             echo "build_bot=$BUILD_BOT"
-            echo "build_alice=$BUILD_ALICE"
             echo "build_gw=$BUILD_GW"
             echo "build_runner=$BUILD_RUNNER"
           } >> "$GITHUB_OUTPUT"
@@ -121,7 +118,6 @@ jobs:
           echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| insult-bot (discord-bot + jobs) | \`${BOT_SHA:0:7}\` | $BUILD_BOT |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| alice-bot | \`${ALICE_SHA:0:7}\` | $BUILD_ALICE |" >> "$GITHUB_STEP_SUMMARY"
           echo "| vultur-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
           echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
 
@@ -132,13 +128,6 @@ jobs:
         run: |
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
             --image insult-bot:${{ env.NEW_SHA }} --image insult-bot:latest .
-
-      - name: Build alice-bot image
-        if: ${{ steps.detect.outputs.build_alice == 'true' }}
-        run: |
-          az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image alice-bot:${{ env.NEW_SHA }} --image alice-bot:latest \
-            --file Dockerfile.alice .
 
       - name: Build vultur-gateway image
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
@@ -168,12 +157,6 @@ jobs:
         run: |
           az containerapp job update --name fact-consolidation --resource-group "$RG" \
             --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
-
-      - name: Deploy alice-bot
-        if: ${{ steps.detect.outputs.build_alice == 'true' }}
-        run: |
-          az containerapp update --name alice-bot --resource-group "$RG" \
-            --image "$ACR/alice-bot:${{ env.NEW_SHA }}"
 
       - name: Deploy vultur-gateway
         # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
@@ -206,22 +189,6 @@ jobs:
             exit 1
           else
             echo "WARN discord-bot: could not confirm bot_ready, check manually"
-          fi
-
-      - name: Verify alice-bot health
-        if: ${{ steps.detect.outputs.build_alice == 'true' }}
-        run: |
-          sleep 15
-          az containerapp show -n alice-bot -g "$RG" --query "properties.latestRevisionName" -o tsv
-          ALICE_LOGS=$(az containerapp logs show -n alice-bot -g "$RG" --tail 30 2>&1 || true)
-          echo "$ALICE_LOGS" | tail -10
-          if echo "$ALICE_LOGS" | grep -q "alice_gateway_ready"; then
-            echo "OK alice-bot: gateway_ready event present"
-          elif echo "$ALICE_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
-            echo "FAIL alice-bot: crash detected on startup"
-            exit 1
-          else
-            echo "WARN alice-bot: could not confirm gateway_ready, check manually"
           fi
 
       - name: Verify vultur-gateway health
@@ -320,5 +287,5 @@ jobs:
           fi
 
       - name: Nothing-to-deploy notice
-        if: ${{ steps.detect.outputs.build_bot != 'true' && steps.detect.outputs.build_alice != 'true' && steps.detect.outputs.build_gw != 'true' && steps.detect.outputs.build_runner != 'true' }}
+        if: ${{ steps.detect.outputs.build_bot != 'true' && steps.detect.outputs.build_gw != 'true' && steps.detect.outputs.build_runner != 'true' }}
         run: echo "No surface changed since its running SHA — nothing built or deployed."

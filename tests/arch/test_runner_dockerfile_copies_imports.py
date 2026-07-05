@@ -28,11 +28,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 INSULT_PKG = REPO_ROOT / "personas" / "insult"
-ALICE_PKG = REPO_ROOT / "personas" / "alice"
 GATEWAY_PKG = REPO_ROOT / "persona_gateway"
 RUNNER_DOCKERFILE = REPO_ROOT / "infra" / "azure" / "runner.Dockerfile"
 PLUMBING_DOCKERFILE = REPO_ROOT / "Dockerfile"
-ALICE_DOCKERFILE = REPO_ROOT / "Dockerfile.alice"
 GATEWAY_DOCKERFILE = REPO_ROOT / "Dockerfile.gateway"
 
 # Local top-level packages that live in the repo root and are import roots the
@@ -87,11 +85,9 @@ def _dockerfile_copy_roots(dockerfile: Path) -> set[str]:
         # (khimeras_shared, shared) — a DIFFERENT import root than insult, so it
         # gets its own scan against Dockerfile.gateway. Same P0 guard.
         (GATEWAY_DOCKERFILE, GATEWAY_PKG, "vultur-gateway / persona_gateway"),
-        # alice-bot runs personas.alice, which imports khimeras_shared + shared
-        # top-level. Dockerfile.alice was NOT scanned here until the 2026-06-25
-        # recovery, where its missing `COPY khimeras_shared/` crashed the boot
-        # (ModuleNotFoundError). Same P0 guard, now closed for the 4th surface.
-        (ALICE_DOCKERFILE, ALICE_PKG, "alice-bot / personas.alice"),
+        # alice-bot / Dockerfile.alice retired 2026-07-05: ALICE runs as a
+        # gateway persona (persona_id=alice) since v4.21.110, so her import
+        # graph ships inside Dockerfile.gateway's scan above.
     ],
 )
 def test_dockerfile_copies_every_local_package_imported(dockerfile: Path, pkg_root: Path, label: str) -> None:
