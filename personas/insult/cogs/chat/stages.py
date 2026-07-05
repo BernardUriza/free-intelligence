@@ -58,6 +58,7 @@ from personas.insult.cogs.chat.context import (
     update_style_profile,
 )
 from personas.insult.cogs.chat.disclosure import scan_disclosure
+from personas.insult.cogs.chat.invites import fire_invite, parse_invite
 from personas.insult.cogs.chat.pipeline import (
     S2KnowledgeAssemblyInput,
     S2KnowledgeAssemblyResult,
@@ -948,6 +949,7 @@ async def interpret_output(
     (same parsers, same mutation order, same harvest)."""
     reactions = parse_reactions(src.raw_text)
     remembered_facts = parse_remembers(src.raw_text)
+    invite_reason = parse_invite(src.raw_text)
 
     # PR-G OutputMutationPort (capability seam): the guardrailed mutation
     # pipeline that lived inline here (echo-strip, length variation, opener
@@ -976,6 +978,7 @@ async def interpret_output(
         reactions=harvested_reactions,
         remembered_facts=remembered_facts,
         emojis_harvested_inline=emojis_harvested,
+        invite_reason=invite_reason,
     )
 
 
@@ -1006,6 +1009,22 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
         ctx.deps.spawn_task(
             persist_remembers(ctx.deps.memory, ctx.user_id, result.remembered_facts),
             name=f"persist_remembers:{ctx.user_id}",
+        )
+
+    if result.invite_reason:
+        log.info(
+            "invite_marker_parsed",
+            channel_id=ctx.channel_id,
+            reason_preview=result.invite_reason[:80],
+        )
+        ctx.deps.spawn_task(
+            fire_invite(
+                result.invite_reason,
+                channel_id=ctx.channel_id,
+                guild_id=str(ctx.guild_id) if ctx.guild_id else None,
+                channel_name=ctx.channel_name,
+            ),
+            name=f"invite_marker:{ctx.channel_id}",
         )
 
     ctx.reactions = result.reactions

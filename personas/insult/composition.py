@@ -344,6 +344,7 @@ class _CoreOutputMutationAdapter:
         # (insult.cogs.chat.reactions/remembers) and a module-level import
         # here is circular (cogs __init__ → cog.py → THIS module) — same
         # shape as the Preset Engine / S1b adapters above.
+        from personas.insult.cogs.chat.invites import strip_invites
         from personas.insult.cogs.chat.reactions import strip_reactions
         from personas.insult.cogs.chat.remembers import strip_remembers
 
@@ -377,6 +378,12 @@ class _CoreOutputMutationAdapter:
                 MutationStage(
                     name="strip_remembers",
                     apply=lambda t, _ctx: strip_remembers(t),
+                    max_shrink_pct=None,
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="strip_invites",
+                    apply=lambda t, _ctx: strip_invites(t),
                     max_shrink_pct=None,
                     on_violation="skip_stage",
                 ),

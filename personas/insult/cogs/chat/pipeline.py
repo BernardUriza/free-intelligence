@@ -372,12 +372,15 @@ class S4OutputInterpretationResult:
     - ``emojis_harvested_inline``: count of inline emojis rescued into
       ``reactions`` despite the model ignoring the ``[REACT:]`` wrapper — kept
       for telemetry parity with the legacy ``stage_post_llm_done`` event.
+    - ``invite_reason``: the summon reason parsed from an ``[INVITE:]`` marker
+      (None when absent) — the stage fires the gateway ``/invite`` with it.
     """
 
     response_text: str = ""
     reactions: list = field(default_factory=list)
     remembered_facts: list = field(default_factory=list)
     emojis_harvested_inline: int = 0
+    invite_reason: str | None = None
 
 
 @dataclass

@@ -305,7 +305,7 @@ def enforce_length_variation(text: str, recent_lengths: list[int]) -> str:
     tail = " ".join(sentences[4:])
 
     # Rescue any side-effect markers from the dropped tail.
-    rescued_markers = re.findall(r"\[(?:REMEMBER|REACT):[^\]]*\]", tail, flags=re.IGNORECASE)
+    rescued_markers = re.findall(r"\[(?:REMEMBER|REACT|INVITE):[^\]]*\]", tail, flags=re.IGNORECASE)
     truncated = head + ("\n" + " ".join(rescued_markers) if rescued_markers else "")
 
     log.info(
