@@ -1,6 +1,6 @@
 # El path runner no puede disparar invoke_alice (invite orgánico muerto desde el cutover)
 
-Status: Proposed
+Status: Done
 Proposed: 2026-07-05 by Claude (destapado al verificar el fix del supresor v4.21.113)
 
 ## What it is
@@ -33,5 +33,10 @@ generalizarse a `[INVITE:<persona_id>]` para Vultur/Frugívoro.
 
 ## Status / next step
 
-No construido. Hermanos en cola del coagent: cross-talk @frugi, rename
+DONE 2026-07-05 — v4.21.114 (`3f871a5`), slice aprobado por Bernard. `invites.py`
+(parse/strip/fire espejo de remembers.py) + wiring S4/stage/mutation-pipeline +
+rescue del truncador + sección persona.md. Verificado E2E en #general 08:16Z:
+[INVITE:] emitido por el runner → `invite_marker_fired accepted=True` →
+`persona_gateway_invite_accepted` → `turn_complete turn_kind=invite` → ALICE
+entregó su lectura en el mismo minuto, marcador invisible al usuario. Hermanos en cola del coagent: cross-talk @frugi, rename
 vultur-gateway→persona-gateway. Ver [[addressed-to-sibling-over-suppression]] (Done).
