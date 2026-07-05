@@ -12,3 +12,4 @@ en el engineering-playbook.
 
 - [Frugívoro persona](frugivoro-persona.md) — Proposed (2026-06-29). Erudite vegan-gastronomy Khimeras sibling + ethical black-box benchmark vs a competitor GPT.
 - [addressed_to_sibling over-suppression](addressed-to-sibling-over-suppression.md) — Done (2026-07-05, v4.21.113 `783b00d`). Cualquier alias como palabra silencia a Insult: "insult, invita a alice" nunca le llega. Fix gated tras el soak de ALICE single-host (orden coagent); luego cross-talk @frugi y rename vultur-gateway→persona-gateway.
+- [runner no dispara invoke_alice](runner-cannot-fire-invoke-alice.md) — Proposed (2026-07-05). agent_client regresa tool_calls=[] hardcodeado y el runner no conoce el tool: el invite orgánico Insult→ALICE solo vive en el failover. Slice canónico: marcador [INVITE:] estilo [REACT:]/[REMEMBER:].
