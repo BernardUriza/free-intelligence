@@ -84,6 +84,7 @@ class MemoryStore:
         guild_id: str | None = None,
         channel_name: str | None = None,
         model_used: str | None = None,
+        discord_message_id: str | None = None,
     ) -> None:
         await self._messages.store(
             channel_id,
@@ -95,6 +96,7 @@ class MemoryStore:
             guild_id=guild_id,
             channel_name=channel_name,
             model_used=model_used,
+            discord_message_id=discord_message_id,
         )
 
     async def get_recent(self, channel_id: str, limit: int = 20, user_id: str | None = None) -> list[dict]:

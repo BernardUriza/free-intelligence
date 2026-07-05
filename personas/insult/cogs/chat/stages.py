@@ -330,6 +330,7 @@ async def _stage_memory_store(ctx: TurnCtx) -> None:
         ctx.text_for_memory,
         ctx.guild_id,
         ctx.channel_name,
+        discord_message_id=str(ctx.message.id),
     )
 
     # Style profile BEFORE the trivial gate so short-message users still
