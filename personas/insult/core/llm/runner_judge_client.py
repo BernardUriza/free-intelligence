@@ -109,7 +109,7 @@ class RunnerJudgeClient:
             model: model id to request. Defaults to runner's
                 AGENT_RUNNER_JUDGE_MODEL env (Haiku class).
             max_tokens: max generation tokens. Default 4096.
-            tools / tool_choice: IGNORED — /v1/judge is text-only. The
+            tools / tool_choice: IGNORED — /v1/judge has no tool loop. The
                 params are kept in the signature to mirror utility_call's
                 shape so memory_consolidator does not need to know which
                 client implementation it has.
@@ -120,20 +120,32 @@ class RunnerJudgeClient:
         if tools is not None or tool_choice is not None:
             log.warning(
                 "runner_judge_tool_args_ignored",
-                note="/v1/judge is text-only; tools/tool_choice not forwarded",
+                note="/v1/judge has no tool loop; tools/tool_choice not forwarded",
             )
         # Collapse the messages list to a single user_text string —
-        # /v1/judge is one-shot, no conversation continuity. The
-        # consolidator always sends [{"role": "user", "content": "..."}]
-        # so this is a clean fit.
+        # /v1/judge is one-shot, no conversation continuity. String content
+        # concatenates; list content splits into text (concatenated) +
+        # image/document blocks forwarded as `attachments` so vision callers
+        # (image_transcript) ride the same client instead of a parallel one.
+        # Pre-v4.21.117 list content was DROPPED silently.
         user_text = ""
+        attachments: list[dict] = []
         for msg in messages:
-            role = msg.get("role", "")
+            if msg.get("role") != "user":
+                # Ignore non-user messages — utility_call shouldn't have them
+                # but defensive in case a caller passes assistant/system roles.
+                continue
             content = msg.get("content", "")
-            if role == "user" and isinstance(content, str):
+            if isinstance(content, str):
                 user_text += ("\n\n" if user_text else "") + content
-            # Ignore non-user messages — utility_call shouldn't have them
-            # but defensive in case a caller passes assistant/system roles.
+            elif isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "text" and block.get("text"):
+                        user_text += ("\n\n" if user_text else "") + block["text"]
+                    elif block.get("type") in {"image", "document"}:
+                        attachments.append(block)
 
         if not user_text.strip():
             raise ValueError("RunnerJudgeClient.utility_call: messages produced empty user_text")
@@ -143,6 +155,8 @@ class RunnerJudgeClient:
             "user_text": user_text,
             "max_tokens": max_tokens,
         }
+        if attachments:
+            payload["attachments"] = attachments
         if model:
             payload["model"] = model
 

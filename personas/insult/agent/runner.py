@@ -183,6 +183,11 @@ class JudgeRequest(BaseModel):
         default=None,
         description="Override AGENT_RUNNER_JUDGE_MODEL. Defaults to Haiku.",
     )
+    # v4.21.117: Anthropic-shape image/document content blocks, same contract
+    # as TurnRequest.attachments. Lets utility callers use the judge's vision
+    # (image transcription for longitudinal memory) — the judge was text-only
+    # before, which is why image content never survived past its live turn.
+    attachments: list[dict] | None = None
 
 
 class JudgeResponse(BaseModel):
@@ -191,6 +196,31 @@ class JudgeResponse(BaseModel):
     stop_reason: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+
+
+def _query_input_for(text: str, attachments: list[dict] | None) -> Any:
+    """Return the SDK query input for a text turn with optional attachments.
+
+    When the message has image/document attachments we build a multimodal
+    streaming message and hand the SDK an AsyncIterable. The SDK's
+    `query(str)` branch wraps strings into a text-only user message, which
+    silently discards the attachments — hence the dual path. See
+    `ClaudeSDKClient.query()` source. Shared by /v1/turn and /v1/judge.
+    """
+    if not attachments:
+        return text
+
+    content_blocks: list[dict] = [{"type": "text", "text": text}, *attachments]
+    streaming_msg = {
+        "type": "user",
+        "message": {"role": "user", "content": content_blocks},
+        "parent_tool_use_id": None,
+    }
+
+    async def _stream():
+        yield streaming_msg
+
+    return _stream()
 
 
 def _frame_turn_text(
@@ -658,7 +688,8 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     options = ClaudeAgentOptions(
         system_prompt=req.system_prompt,
         model=chosen_model,
-        # No tools, no MCP servers — pure text-in, text-out utility.
+        # No tools, no MCP servers — pure one-shot utility (text or
+        # text+image in, text out).
         allowed_tools=[],
         mcp_servers={},
         permission_mode="bypassPermissions",
@@ -689,7 +720,7 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
         sdk_start = time.monotonic()
         try:
             async with ClaudeSDKClient(options=options) as client:
-                await client.query(req.user_text)
+                await client.query(_query_input_for(req.user_text, req.attachments))
                 async for message in client.receive_response():
                     mtype = type(message).__name__
                     if mtype == "AssistantMessage":
@@ -712,6 +743,7 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     log.info(
         "agent_runner_judge_complete",
         model=model_used,
+        attachments=len(req.attachments or []),
         text_len=len(accumulated_text),
         input_tokens=input_tokens,
         output_tokens=output_tokens,
@@ -766,27 +798,8 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         behavioral_guidance=req.behavioral_guidance,
     )
 
-    # When the turn has image/document attachments we build a multimodal
-    # streaming message and hand the SDK an AsyncIterable. The SDK's
-    # `query(str)` branch wraps strings into a text-only user message,
-    # which silently discards the attachments — hence the dual path.
-    # See `ClaudeSDKClient.query()` source.
     has_attachments = bool(req.attachments)
-    if has_attachments:
-        content_blocks: list[dict] = [{"type": "text", "text": framed_text}]
-        content_blocks.extend(req.attachments or [])
-        streaming_msg = {
-            "type": "user",
-            "message": {"role": "user", "content": content_blocks},
-            "parent_tool_use_id": None,
-        }
-
-        async def _stream():
-            yield streaming_msg
-
-        query_input: Any = _stream()
-    else:
-        query_input = framed_text
+    query_input: Any = _query_input_for(framed_text, req.attachments)
 
     accumulated_text = ""
     tool_calls: list[dict] = []

@@ -113,6 +113,64 @@ async def test_utility_call_collapses_user_messages():
 
 
 @pytest.mark.asyncio
+async def test_utility_call_forwards_image_blocks_as_attachments():
+    """List-shaped content splits: text blocks → user_text, image/document
+    blocks → the `attachments` payload field (the runner's judge vision
+    path, v4.21.117). Pre-fix this content shape was DROPPED silently —
+    the image_transcript caller would have produced an empty request."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"text": "transcript"})
+
+    image_block = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AAAA"}}
+    c = RunnerJudgeClient(runner_url="https://x", token="t")
+    c._http = httpx.AsyncClient(transport=_make_transport(handler))
+
+    resp = await c.utility_call(
+        "transcribe",
+        [{"role": "user", "content": [{"type": "text", "text": "mira esto"}, image_block]}],
+    )
+
+    assert captured["body"]["user_text"] == "mira esto"
+    assert captured["body"]["attachments"] == [image_block]
+    assert resp.text == "transcript"
+    await c.aclose()
+
+
+@pytest.mark.asyncio
+async def test_utility_call_string_content_omits_attachments_key():
+    """Resistance: the consolidator's plain-string shape must produce a
+    payload WITHOUT an `attachments` key — byte-identical to the pre-fix
+    request, so the deployed runner contract is unchanged for old callers."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"text": "ok"})
+
+    c = RunnerJudgeClient(runner_url="https://x", token="t")
+    c._http = httpx.AsyncClient(transport=_make_transport(handler))
+
+    await c.utility_call("sys", [{"role": "user", "content": "hi"}])
+    assert "attachments" not in captured["body"]
+    await c.aclose()
+
+
+@pytest.mark.asyncio
+async def test_utility_call_image_only_content_still_raises():
+    """An image-only message (no text block) still raises — the runner's
+    JudgeRequest.user_text has min_length=1, so callers must supply an
+    instruction text alongside the image."""
+    image_block = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AAAA"}}
+    c = RunnerJudgeClient(runner_url="https://x", token="t")
+    with pytest.raises(ValueError, match="empty user_text"):
+        await c.utility_call("sys", [{"role": "user", "content": [image_block]}])
+    await c.aclose()
+
+
+@pytest.mark.asyncio
 async def test_utility_call_raises_on_empty_user_text():
     """If `messages` produces no user_text (all non-user roles, or
     empty content), raise ValueError instead of POSTing an empty body

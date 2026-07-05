@@ -99,6 +99,9 @@ class MemoryStore:
             discord_message_id=discord_message_id,
         )
 
+    async def append_to_message(self, discord_message_id: str, suffix: str) -> bool:
+        return await self._messages.append_content_by_discord_id(discord_message_id, suffix)
+
     async def get_recent(self, channel_id: str, limit: int = 20, user_id: str | None = None) -> list[dict]:
         return await self._messages.get_recent(channel_id, limit, user_id)
 

@@ -79,6 +79,31 @@ class MessagesRepository(BaseRepository):
             log.error("memory_store_failed", channel_id=channel_id, user_id=user_id, error=str(e))
             raise
 
+    async def append_content_by_discord_id(self, discord_message_id: str, suffix: str) -> bool:
+        """Append text to an already-stored row, keyed by its Discord message id.
+
+        Powers the image-transcript trace: the row is stored synchronously at
+        intake (empty content for an image-only message) and the vision
+        transcript arrives seconds later from a background task. Keying on
+        discord_message_id means the append lands no matter which writer won
+        the deduped insert. Returns True when a row was updated."""
+        try:
+            tag = await self._execute(
+                "UPDATE messages SET content = CASE WHEN content = '' THEN $2 "
+                "ELSE content || E'\\n' || $2 END "
+                "WHERE discord_message_id = $1",
+                discord_message_id,
+                suffix,
+            )
+        except asyncpg.PostgresError as e:
+            log.error(
+                "memory_append_failed",
+                discord_message_id=discord_message_id,
+                error=str(e),
+            )
+            raise
+        return tag == "UPDATE 1"
+
     async def delete_before(self, cutoff: float) -> int:
         """Delete messages older than cutoff timestamp. Returns count deleted."""
         count = await self._fetchval("SELECT COUNT(*) FROM messages WHERE timestamp < $1", cutoff)

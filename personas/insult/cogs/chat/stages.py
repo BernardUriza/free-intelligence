@@ -76,6 +76,7 @@ from personas.insult.cogs.chat.tools import execute_reminder_call, execute_tool_
 from personas.insult.core.contracts import PresetModifier
 from personas.insult.core.delivery import MESSAGE_DELIMITER, send_response
 from personas.insult.core.errors import ErrorType, classify_error, get_error_response
+from personas.insult.core.image_transcript import persist_image_transcript
 from personas.insult.core.llm import WEB_SEARCH_TOOL
 from personas.insult.core.reminders import detect_reminder_intent
 from personas.insult.core.routing import ModelTier, select_model
@@ -315,11 +316,6 @@ async def _stage_process_attachments(ctx: TurnCtx) -> None:
 
 
 async def _stage_memory_store(ctx: TurnCtx) -> None:
-    # Image summarization was removed: /v1/judge is text-only (can't see images),
-    # and the agent runner has native vision in the turn itself + the workspace
-    # renderer writes its image-describing reply to markdown — so the future-turn
-    # trace the old [Imagen: ...] annotation provided is already covered. The
-    # raw user text is what we persist.
     ctx.text_for_memory = ctx.text
 
     await store_user_message(
@@ -332,6 +328,28 @@ async def _stage_memory_store(ctx: TurnCtx) -> None:
         ctx.channel_name,
         discord_message_id=str(ctx.message.id),
     )
+
+    # Postgres only stores text, so an image-only message persists as an
+    # EMPTY row and future turns rebuild context with zero trace of what the
+    # image contained. The runner's native vision covers ONLY the live turn;
+    # the prior assumption (removed image_summary, v3.9.25) that the bot's
+    # own reply serves as the future-turn trace is false — the in-character
+    # reply carries commentary, not content (2026-07-05: the prescription/
+    # treatment-schedule image was re-sent repeatedly and re-hallucinated
+    # every time). Best-effort background vision transcript via /v1/judge,
+    # appended to the stored row by discord_message_id.
+    image_blocks = [b for b in ctx.attachment_blocks if isinstance(b, dict) and b.get("type") == "image"]
+    if image_blocks and ctx.deps.judge_client is not None:
+        ctx.deps.spawn_task(
+            persist_image_transcript(
+                ctx.deps.judge_client,
+                ctx.deps.memory,
+                str(ctx.message.id),
+                image_blocks,
+                model=ctx.deps.settings.summary_model,
+            ),
+            name="image_transcript",
+        )
 
     # Style profile BEFORE the trivial gate so short-message users still
     # accumulate signal for language/formality/emoji detection.
