@@ -260,6 +260,7 @@ class PersonaClient(discord.Client):
             ask,
             guild_id=guild_id,
             channel_name=channel_name,
+            discord_message_id=str(message.id),
         )
 
         messages = [*format_context(recent), {"role": "user", "content": ask}]

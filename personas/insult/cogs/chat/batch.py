@@ -175,6 +175,7 @@ class BatchManager:
                         stored_text,
                         guild_id=str(message.guild.id) if message.guild else None,
                         channel_name=message.channel.name if hasattr(message.channel, "name") else None,
+                        discord_message_id=str(message.id),
                     )
                 except Exception:
                     log.exception("chat_store_sibling_addressed_failed")
@@ -253,6 +254,7 @@ class BatchManager:
                     text,
                     guild_id=str(message.guild.id) if message.guild else None,
                     channel_name=message.channel.name if hasattr(message.channel, "name") else None,
+                    discord_message_id=str(message.id),
                 )
             except Exception:
                 log.exception("chat_store_cooldown_failed")

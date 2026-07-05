@@ -65,8 +65,20 @@ CREATE TABLE IF NOT EXISTS messages (
     for_user_id     TEXT,
     guild_id        TEXT,
     channel_name    TEXT,
-    model_used      TEXT
+    model_used      TEXT,
+    discord_message_id TEXT
 );
+-- MIGRATION v4.21.116: dedupe key for multi-writer stores. Both the Insult
+-- plumbing (canonical storage gateway) and each persona_gateway sibling
+-- receive the same Discord message on their own gateway connections and
+-- persist it — without this key every sibling-addressed turn lands twice
+-- (observed 7ms apart in prod, 2026-07-05). The unique partial index +
+-- ON CONFLICT DO NOTHING in MessagesRepository.store makes the write
+-- idempotent per Discord message regardless of writer topology. NULL ids
+-- (bot replies, proactive turns, moltbook) never conflict by design.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS discord_message_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_discord_id
+    ON messages(discord_message_id) WHERE discord_message_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_channel_ts ON messages(channel_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_user_context ON messages(channel_id, user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_for_user ON messages(channel_id, for_user_id, timestamp DESC);

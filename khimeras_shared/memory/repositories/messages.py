@@ -39,14 +39,23 @@ class MessagesRepository(BaseRepository):
         guild_id: str | None = None,
         channel_name: str | None = None,
         model_used: str | None = None,
+        discord_message_id: str | None = None,
     ) -> None:
         """Append a message. Raises asyncpg.PostgresError on failure so the caller
-        can decide whether to log-and-continue or bail."""
+        can decide whether to log-and-continue or bail.
+
+        ``discord_message_id`` makes the write idempotent: the Insult plumbing
+        and every persona_gateway sibling each receive the same Discord message
+        on their own gateway connection, and whichever stores it first wins —
+        the second insert is a no-op instead of a duplicate row poisoning the
+        shared context. NULL ids (bot replies, proactive, moltbook) never
+        conflict."""
         try:
-            await self._execute(
+            tag = await self._execute(
                 "INSERT INTO messages (channel_id, user_id, user_name, role, content, timestamp, "
-                "for_user_id, guild_id, channel_name, model_used) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                "for_user_id, guild_id, channel_name, model_used, discord_message_id) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) "
+                "ON CONFLICT (discord_message_id) WHERE discord_message_id IS NOT NULL DO NOTHING",
                 channel_id,
                 user_id,
                 user_name,
@@ -57,7 +66,15 @@ class MessagesRepository(BaseRepository):
                 guild_id,
                 channel_name,
                 model_used,
+                discord_message_id,
             )
+            if tag == "INSERT 0 0":
+                log.info(
+                    "memory_store_deduped",
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    discord_message_id=discord_message_id,
+                )
         except asyncpg.PostgresError as e:
             log.error("memory_store_failed", channel_id=channel_id, user_id=user_id, error=str(e))
             raise

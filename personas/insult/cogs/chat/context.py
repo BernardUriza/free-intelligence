@@ -92,6 +92,7 @@ async def store_user_message(
     text_for_memory: str,
     guild_id: str | None,
     channel_name: str | None,
+    discord_message_id: str | None = None,
 ) -> None:
     """Persist the user's message. Logs and swallows on failure."""
     try:
@@ -103,6 +104,7 @@ async def store_user_message(
             text_for_memory,
             guild_id=guild_id,
             channel_name=channel_name,
+            discord_message_id=discord_message_id,
         )
     except Exception:
         log.exception("chat_store_user_failed", channel_id=channel_id)
