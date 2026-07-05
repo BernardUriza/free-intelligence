@@ -54,6 +54,32 @@ armado) para no ensuciar el hilo interactivo del canal. Respetar el mismo
 `ToolPolicy` + corpus binding que un turno vivo (el worker NO es un path de más
 privilegio).
 
+## Framework note (fi-runner) — resumable plan is a FUTURE extract, not now
+
+Assessed 2026-07-05 (verified against fi-runner source). fi-runner does NOT need
+prep for slice 1 — what this feature needs is already there:
+- multi-step agentic turn → `Runner.run_stream`, exposed as `/v1/turn`;
+- session isolation for the job → pass a distinct `session_id` (`runner.py:171,199`),
+  so the job never pollutes the channel's interactive thread;
+- tool policy + corpus binding → already applied per turn.
+
+The ONE genuine framework gap: the `task_tracker` plan/step state is **in-turn
+only** — `_PlanStreamObserver` (`runner.py:464`) derives stream events but nothing
+persists the plan; `conversation_store` saves the user/assistant *exchange* for
+replay, NOT the plan progress. There is NO durable-job / resumable-turn primitive
+in fi-runner (the "background" hits there are observability narration, not jobs).
+So a long job that crashes mid-plan loses its progress.
+
+Do NOT build a resumable-plan primitive in fi-runner now — that would abstract from
+one unbuilt consumer (premature abstraction, exactly what framework-first-canary
+forbids). Slice 1 gets crash-robustness for free from the `reminders` pattern:
+the row persists, the loop re-reads on restart, re-calls `/v1/turn` **from the
+top**. A job that re-runs whole and eventually posts a valid result is fine for v1
+(costs one retry of tokens). ONLY if re-run-from-top proves too expensive (very
+long jobs, many steps wasted per retry) does a **persistent/resumable task_tracker
+plan** earn its place as a fi-runner primitive — extracted THEN, with this canary
+proving the need, not before.
+
 ## The decision that's the owner's
 
 Si se construye y cuándo — es un feature real en un bot de prod multi-guild.
