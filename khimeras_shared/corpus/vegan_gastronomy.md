@@ -74,36 +74,72 @@ no es recetar**. La fruta es alegría y herramienta, no penitencia ni ortodoxia.
 Bernard es correcto: **más agua + más fibra + menos fructosa = mejor perfil
 glucémico**. La fibra frena la absorción del azúcar y el agua diluye la carga; por
 eso dos frutas con la misma fructosa "pegan" distinto. No se trata de temerle a la
-fruta, sino de **elegir la fruta correcta para el uso correcto**. Cifras de fructosa
-en g/100g abajo (varían por madurez y variedad — son orden de magnitud, no dogma).
+fruta, sino de **elegir la fruta correcta para el uso correcto**. Cifras (IG =
+índice glucémico; azúcar en g/100g) varían por madurez y variedad — son orden de
+magnitud, no dogma.
 
-### Gama A — baja fructosa, alta agua/fibra (la base diaria del vulnerable)
+### El concepto que separa a Frugi del influencer: IG ≠ carga glucémica (GL)
+El **índice glucémico (IG)** mide qué tan rápido sube el azúcar UN gramo de carb de
+esa fruta. La **carga glucémica (GL)** lo corrige por cuánta carb trae la porción
+real. Por eso la **sandía** tiene IG alto (~76) pero GL bajísimo (~4): es 92% agua,
+casi no hay carb que cargar. Lo mismo el **melón** (IG ~65, GL ~4, 90% agua). La
+lección: **para fruta, la GL manda sobre el IG.** Una fruta acuosa de IG alto puede
+ser más suave que una densa de IG medio. Frugi razona en GL, no se asusta con el IG.
+Fuente: Watermelon GI vs GL, Glycemic Snap (glycemicsnap.com/blog/watermelon-glycemic-index); Fruit carbohydrates & GI determinants, PMC11854304.
+
+### Gama A — baja carga, alta agua/fibra (la base diaria del vulnerable)
 Para quien cuida glucosa: corticoide (prednisona), resistencia a insulina, diabetes.
-- **Lima** ~0 g · **Limón** casi 0 · **Aguacate** ~0.2 g (fruta, técnicamente)
-- **Arándano rojo / cranberry** <2 g · **Fresa** ~2.4 g · **Frambuesa / zarzamora** bajas
-- **Pitaya / fruta del dragón**: azúcar total ~7.6 g, IG 48–52 (bajo), **88% agua**,
-  fibra ~2.4 g/taza. Perfil ESTRELLA de esta gama — por eso va en el mandado de Alex.
-- **Papaya**: moderada (más que las berries, menos que las dulces) — buena por enzimas
-  digestivas y agua, en porción sensata.
+*Templadas:* **lima** ~0 azúcar · **limón** casi 0 · **toronja** IG ~25 · **cereza**
+IG ~22 · **chabacano/albaricoque** IG ~34 · **ciruela** IG ~39 · **durazno** IG ~42 ·
+**nectarina** IG ~43 · **aguacate** ~0.2 azúcar (fruta, técnicamente).
+*Berries:* **arándano rojo/cranberry** <2 azúcar · **fresa** ~2.4 · **frambuesa** ·
+**zarzamora** · **arándano azul/blueberry**.
+*Exóticas/tropicales:* **maracuyá** IG ~30 y **fibra récord 10.4 g/100g** (la más
+alta de todas) · **guayaba** IG ~31, fibra 5 g, vit C 228 mg, proteína 2.6 g ·
+**carambola/starfruit** bajo IG, mucha agua · **guanábana/soursop** IG ~32, fibra
+3.3 g · **tuna/nopal** (prickly pear) IG ~35, rica en magnesio · **pitaya/fruta del
+dragón** azúcar ~7.6, IG 48–52, **88% agua**, fibra 2.4 g/taza (ESTRELLA) · **papaya**
+moderada, enzimas digestivas + agua · **jícama** (fruta-raíz) casi pura agua+fibra ·
+**pepino** IG ~15.
 Uso Frugi: desayuno del que está en tratamiento, snack sin culpa, volumen y saciedad.
 
-### Gama B — fructosa media (energía equilibrada del día a día)
-- **Manzana** ~5.9 g · **Plátano** (no muy maduro) ~4.9 g · **Kiwi**, **pera**,
-  **naranja/mandarina**, **durazno**, **ciruela**, **cereza**.
+### Gama B — carga media (energía equilibrada del día a día)
+**Manzana** azúcar ~5.9 · **pera** · **kiwi** IG ~50 · **naranja/mandarina** ·
+**granada** IG ~53 (antioxidante potente) · **mango** IG ~51 (GL moderado) · **higo
+fresco** IG medio · **rambután** IG ~40, GL ~5 · **chirimoya/anona** IG moderado ·
+**melón cantaloupe** IG ~65 pero **GL ~4** (aquí manda la GL) · **mamey** IG bajo-medio
+pero denso y dulce (porción medida).
 Uso Frugi: energía sostenida, la fruta "de todos los días", combinable con grasa
 (tahini, nueces) para amortiguar el pico.
 
-### Gama C — alta fructosa (gozo y energía rápida, moderar en corticoide)
-- **Uva** ~8.1 g · **Mango** alto · **Higo**, **plátano muy maduro**, **sandía** (IG alto
-  aunque agua alta) · **Dátil** ~19.6 g (el tope — dulzor concentrado, poca agua).
+### Gama C — carga alta / dulzor concentrado (gozo y energía rápida, moderar)
+**Uva** azúcar ~8.1 · **lichi** IG ~79 (de los pocos IG realmente altos) · **plátano
+muy maduro** · **sandía** IG ~76 (pero GL ~4 por el agua — el asterisco eterno) ·
+**chicozapote** y **zapote negro** muy dulces · **higo seco** · **mamey muy maduro** ·
+**dátil** azúcar ~19.6, IG muy alto (el tope: dulzor concentrado, casi sin agua) ·
+**capulín** (cereza mexicana, agridulce) · **nance** · **tejocote** (rico en pectina
+—fibra soluble— y vit C; dulzor medio-alto).
 Uso Frugi: deporte, energía rápida, postre natural, alegría. En prednisona/diabetes:
 porción chica y **de mañana** (antes del pico esteroideo), nunca de noche.
+
+**Nota de honestidad (DNA de Frugi):** para varias exóticas mexicanas (capulín,
+nance, tejocote, chicozapote) NO hay IG de laboratorio publicado; su gama la estimo
+por composición (dulzor, agua, fibra), no por cifra medida — y así lo digo, no
+invento un número. Las tropicales con IG citado (maracuyá, guayaba, tuna, guanábana,
+rambután) sí tienen fuente.
 
 **La regla de oro de la gama:** si la persona está sana → toda la gama es bienvenida,
 variada. Si cuida glucosa → ancla en Gama A, disfruta Gama B con grasa/proteína,
 Gama C como gusto matinal y medido. Fruit-first no es "toda la fruta igual": es
-**saber la gama y elegir con criterio**.
-Fuente: Fruits lowest in fructose, myfooddata (tools.myfooddata.com/nutrient-ranking-tool/fructose/fruits/lowest); Fructose table g/100g, Nepean Naturopathic (nepeannaturopathic.com.au); Dragon fruit GI & nutrition, Signos (signos.com/blog/dragon-fruit-glycemic-index); Low fructose diet foods, Everlywell (everlywell.com/blog/metabolism/low-fructose-diet).
+**saber la gama y elegir con criterio** — y razonar en GL, no en IG suelto.
+
+**Sourcing de exóticas (para conseguirlas en México):** las tropicales/mexicanas
+son de temporada y de mercado, no de súper genérico. City Market / La Comer traen
+maracuyá, pitaya, carambola, guanábana; el **Mercado de San Juan** (CDMX) es el
+templo de lo exótico; los mercados locales y de temporada dan tuna, tejocote (otoño),
+capulín (primavera-verano), nance, mamey, chicozapote. En GDL: Mercado de Abastos y
+mercados municipales. Comprar en temporada = mejor precio, mejor sabor, menos huella.
+Fuente: Fruits lowest in fructose, myfooddata (tools.myfooddata.com/nutrient-ranking-tool/fructose/fruits/lowest); GI ranking de frutas, Glycemic Snap (glycemicsnap.com/blog/glycemic-index-of-fruits); Passion fruit / guava / prickly pear / soursop GI, foodstruct.com + glycemic-index.net; Low-GI exotic fruits, Exotic Fruits UK (exoticfruits.co.uk/blogs/exotic-fruit-guides/a-deep-dive-into-low-glycemic-index-exotic-fruits); Frutas mexicanas, TecnoAgro (tecnoagro.com.mx) + Fed. Mexicana de Diabetes (fmdiabetes.org).
 
 ---
 
