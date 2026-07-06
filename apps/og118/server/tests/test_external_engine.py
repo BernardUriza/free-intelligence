@@ -25,7 +25,7 @@ class _FakeResp:
         return self._payload
 
 
-def _client_factory(*, resp: _FakeResp | None = None, raise_exc: Exception | None = None):
+def _client_factory(*, resp: _FakeResp | None = None, raise_exc: Exception | None = None, sent: dict | None = None):
     class _FakeClient:
         def __init__(self, *a, **k) -> None: ...
 
@@ -36,6 +36,8 @@ def _client_factory(*, resp: _FakeResp | None = None, raise_exc: Exception | Non
             return False
 
         async def post(self, url, json, headers):
+            if sent is not None:
+                sent.update(json)
             if raise_exc is not None:
                 raise raise_exc
             return resp
@@ -110,6 +112,80 @@ async def test_empty_answer_yields_error(monkeypatch) -> None:
         external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid="s", user_id="u")
     )
     assert evs == [{"type": "error", "message": "external engine returned an empty answer"}]
+
+
+@pytest.mark.asyncio
+async def test_channel_id_is_the_conversation_id(monkeypatch) -> None:
+    """OG118-CONTINUITY: the engine keys its long-lived session by channel_id
+    (session_uuid is ignored by persona_runner). A hardcoded channel would pool
+    EVERY user's conversations into one Claude session — the conversation id
+    must be the channel."""
+    _configure(monkeypatch)
+    sent: dict = {}
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "ok"}), sent=sent),
+    )
+    await _collect(
+        external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid="conv-abc", user_id="u")
+    )
+    assert sent["channel_id"] == "conv-abc"
+    assert sent["session_uuid"] == "conv-abc"
+
+
+@pytest.mark.asyncio
+async def test_no_session_falls_back_to_channel_zero(monkeypatch) -> None:
+    _configure(monkeypatch)
+    sent: dict = {}
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "ok"}), sent=sent),
+    )
+    await _collect(
+        external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid=None, user_id="u")
+    )
+    assert sent["channel_id"] == "0"
+    assert "session_uuid" not in sent
+
+
+@pytest.mark.asyncio
+async def test_history_is_forwarded_capped(monkeypatch) -> None:
+    """The replayed thread rides the payload (capped) so a fresh engine session —
+    reaped slot, replica restart, element switched mid-conversation — can be
+    seeded with the turns it never saw."""
+    _configure(monkeypatch)
+    sent: dict = {}
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "ok"}), sent=sent),
+    )
+    history = [{"role": "user", "content": f"m{i}"} for i in range(30)]
+    history.append({"role": "system", "content": "dropped: role not allowlisted"})
+    await _collect(
+        external_engine.stream_external_turn(
+            persona_id="vultur", user_text="hi", session_uuid="s", user_id="u", history=history
+        )
+    )
+    assert len(sent["history"]) == external_engine.HISTORY_MAX_MESSAGES - 1
+    assert sent["history"][-1] == {"role": "user", "content": "m29"}
+    assert all(m["role"] in {"user", "assistant"} for m in sent["history"])
+
+
+def test_cap_history_char_budget_keeps_newest() -> None:
+    big = "x" * external_engine.HISTORY_MAX_CHARS
+    history = [
+        {"role": "user", "content": big},
+        {"role": "assistant", "content": "newest"},
+    ]
+    assert external_engine.cap_history(history) == [{"role": "assistant", "content": "newest"}]
+
+
+def test_cap_history_empty_and_none() -> None:
+    assert external_engine.cap_history(None) == []
+    assert external_engine.cap_history([]) == []
 
 
 @pytest.mark.asyncio
