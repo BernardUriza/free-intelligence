@@ -171,3 +171,81 @@ Frugi es erudito y honesto: usa a Cuvier como chispa de conversación y raíz cu
 del fruit-first, no como sentencia científica. Esa honestidad ES lo que lo separa de
 la influencer que lo cita como verdad absoluta.
 Fuente: Georges Cuvier, Wikiquote (en.wikiquote.org/wiki/Georges_Cuvier); Cuvier "natural food of man", The Animal Kingdom trans. McMurtrie 1834 p.37; Humans are omnivores (crítica moderna), Biology Online (biologyonline.com/articles/humans-omnivores); Vegetarianism, PMC9757465.
+
+---
+
+## El tofu — química del agua, textura como identidad
+
+**La variable que manda no es la marinada "mágica", es el TIPO de tofu y cuánta
+agua sigue atrapada en su red proteica.** Todo lo demás se deriva de eso.
+
+### Elegir la familia correcta (la mitad del problema "sabe a tofu")
+- **Sedoso / silken** (cuajado dentro del envase, más agua estructural, cremoso):
+  **NO se prensa** — prensarlo destruye justo lo que lo hace valioso. Brilla licuado,
+  triturado o en aplicaciones delicadas: salsas, dips, smoothies, aderezos, "ricotta"
+  o "egg salad" (machacado), omelets. Extra-firm silken aguanta un salteado ligero.
+- **Blando** refrigerado: drenar, no prensar. Licuado/vapor/postres húmedos.
+- **Firme y extra firme**: ganan MUCHÍSIMO con **extracción de agua**. Aguantan dorado,
+  parrilla, glaseado, textura cárnica. Extra firme = el más "meaty", conserva forma a
+  calor alto.
+Regla de oro: usar el tofu equivocado como si fuera el otro (sedoso para freír, extra
+firme para crema) es la causa #1 de la sensación "esto sabe a tofu".
+
+### Extracción de agua — tres rutas (la química de la ósmosis)
+1. **Prensado:** peso plano (no puntiagudo), base + capa absorbente, 15–30 min (10–15
+   basta para cubo crujiente; pasarse SECA el interior). Un estudio 2025 (Food Research
+   International) midió: el drenaje cae exponencialmente con el tiempo, la capacidad de
+   retención de agua se estabiliza al superar ~15× el peso del tofu, y **apretar de más
+   sube rigidez pero reduce la elasticidad agradable** — más presión no es mejor comida.
+2. **Salmuera caliente:** 2 tazas de agua hirviendo + 1 cda de sal kosher por bloque de
+   12–14 oz, remojar 10 min, secar. En pruebas de Nisha Vora **extrae más humedad que el
+   prensado** (ósmosis) y da tofu más crujiente.
+3. **Congelar → descongelar → exprimir:** los cristales de hielo dejan bolsas de aire al
+   derretirse → textura esponjosa, "cárnica", que absorbe marinada como esponja. La ruta
+   para "mordida" de carne.
+
+### Texturizado = darle identidad (romperlo escribe el sabor percibido)
+Crumble a mano (huevo revuelto / carne molida) · machacar silken (ricotta, egg salad,
+rellenos) · rasgar en trozos (tikka, curry — más "crevices" para marinada) · láminas
+finas ⅓" (cutlet, shawarma) · cubos ½–¾" (meal prep, BBQ) · rallar con box grater
+(hebra "chicken-y") · scoreado con palillos (fibras tipo filete/"salmón") · licuar
+(crema total — desaparece el bloque).
+
+### Marinado — absorbe sin misticismo
+El tofu absorbe mejor cuando **no está anegado**, tiene más superficie, o el congelado
+dejó huecos. **Marinada ESPESA > líquida** para crujiente (cubre sin empapar). Truco de
+arquitectura (Isa Chandra): **doble sabor** — marinada ligera interna (aceite + tamari +
+caldo) + glaseado externo al final (BBQ) → el paladar choca primero con humo/dulzor/char.
+Tiempos: 20–30 min cubos/slabs delgados; 2–8 h marinadas espesas tipo tikka (yogur vegano
+espeso, no aguado); ≥4 h para brines visuales tipo "pescado" (jugo de betabel + limón +
+sal + nori).
+
+### Cocción (parámetros de chefs, no de memoria)
+- **Horno:** 425 °F / 218 °C, 15 min + voltear + 15 min. Cubos separados + almidón.
+- **Sartén:** medio-alto, 6–7 min + ~5 min, 2–3 cda aceite. Con maicena = "deep-fried" sin freidora.
+- **Air-fryer:** 375 °F / 190 °C, 16–18 min. En pruebas de RPL, **más crujiente que el horno**.
+- **Parrilla/grill:** ~425 °F, 4–5 min por lado + glaseados de 2 min.
+- **Ahumado:** 225 °F 2.5–3 h SIN prensar ("el humo se pega mejor al agua") → marinar en
+  frío toda la noche → 300 °F 1 h + glaseados. Construcción de identidad, no receta rápida.
+
+### "Que no sepa a tofu" — cuatro palancas
+1. **Familia correcta** (ya dicho). 2. **Cambiar textura cambia sabor percibido**
+(congelar, rallar, scoreado). 3. **Aromas dominantes mandan:** huevo = kala namak +
+cúrcuma + levadura nutricional + tahini; mar = nori + limón + salsa de pescado vegana;
+parrilla = humo + BBQ pegajoso + caramelización; "chino" = soya + sésamo tostado +
+five-spice + pimienta blanca en marinada espesa. 4. **La superficie es disfraz sensorial:**
+almidón, breading, rice paper, rub, char de broiler — el primer contacto es crackle, no
+"bloque de soja".
+
+### Conservación (distinción que evita drama en el refri)
+- **Silken aséptico** (Mori-Nu): shelf-stable cerrado; abierto → refrigerar hermético
+  **SIN agua**, usar en 2–3 días máx.
+- **Water-packed refrigerado** (House Foods): sobrante → cubrir con agua fría limpia,
+  **cambiarla a diario**, 2–3 días. Recalentar cocido a 165 °F / 74 °C. Descongelar en
+  refri/microondas, nunca en la encimera.
+
+**Guardrail de honestidad (DNA de Frugi):** la literatura NO da umbrales instrumentales
+de "sabor a tofu" ni tasas domésticas exactas de difusión de marinada — lo que sí está
+probado es que estructura + reducción de agua + dorado + aromáticos dominantes cambian
+radicalmente la experiencia. Frugi da el mecanismo, no inventa el número que no existe.
+Fuente: deep research "Preparación de tofu" (destilado de House Foods, Mori-Nu, Rainbow Plant Life/Nisha Vora, Post Punk Kitchen/Isa Chandra, Wicked Kitchen, Hot for Food/Richard Makin, y Food Research International 2025 sobre drenaje/WHC del tofu firme).
