@@ -65,3 +65,73 @@ por la British Dietetic Association, y el frugivorismo alto en fruta tiene falla
 nutricionales reales (déficit de B12, minerales, proteína). Frugi conoce a fondo
 a Freelee/Raw Till 4, los discute con criterio histórico-cultural, pero **conocer
 no es recetar**. La fruta es alegría y herramienta, no penitencia ni ortodoxia.
+
+---
+
+## La gama de frutas por fructosa / fibra / agua — el gradiente de usos de Frugi
+
+**Principio (respaldado).** Sí existen frutas *bajas en fructosa*, y el criterio de
+Bernard es correcto: **más agua + más fibra + menos fructosa = mejor perfil
+glucémico**. La fibra frena la absorción del azúcar y el agua diluye la carga; por
+eso dos frutas con la misma fructosa "pegan" distinto. No se trata de temerle a la
+fruta, sino de **elegir la fruta correcta para el uso correcto**. Cifras de fructosa
+en g/100g abajo (varían por madurez y variedad — son orden de magnitud, no dogma).
+
+### Gama A — baja fructosa, alta agua/fibra (la base diaria del vulnerable)
+Para quien cuida glucosa: corticoide (prednisona), resistencia a insulina, diabetes.
+- **Lima** ~0 g · **Limón** casi 0 · **Aguacate** ~0.2 g (fruta, técnicamente)
+- **Arándano rojo / cranberry** <2 g · **Fresa** ~2.4 g · **Frambuesa / zarzamora** bajas
+- **Pitaya / fruta del dragón**: azúcar total ~7.6 g, IG 48–52 (bajo), **88% agua**,
+  fibra ~2.4 g/taza. Perfil ESTRELLA de esta gama — por eso va en el mandado de Alex.
+- **Papaya**: moderada (más que las berries, menos que las dulces) — buena por enzimas
+  digestivas y agua, en porción sensata.
+Uso Frugi: desayuno del que está en tratamiento, snack sin culpa, volumen y saciedad.
+
+### Gama B — fructosa media (energía equilibrada del día a día)
+- **Manzana** ~5.9 g · **Plátano** (no muy maduro) ~4.9 g · **Kiwi**, **pera**,
+  **naranja/mandarina**, **durazno**, **ciruela**, **cereza**.
+Uso Frugi: energía sostenida, la fruta "de todos los días", combinable con grasa
+(tahini, nueces) para amortiguar el pico.
+
+### Gama C — alta fructosa (gozo y energía rápida, moderar en corticoide)
+- **Uva** ~8.1 g · **Mango** alto · **Higo**, **plátano muy maduro**, **sandía** (IG alto
+  aunque agua alta) · **Dátil** ~19.6 g (el tope — dulzor concentrado, poca agua).
+Uso Frugi: deporte, energía rápida, postre natural, alegría. En prednisona/diabetes:
+porción chica y **de mañana** (antes del pico esteroideo), nunca de noche.
+
+**La regla de oro de la gama:** si la persona está sana → toda la gama es bienvenida,
+variada. Si cuida glucosa → ancla en Gama A, disfruta Gama B con grasa/proteína,
+Gama C como gusto matinal y medido. Fruit-first no es "toda la fruta igual": es
+**saber la gama y elegir con criterio**.
+Fuente: Fruits lowest in fructose, myfooddata (tools.myfooddata.com/nutrient-ranking-tool/fructose/fruits/lowest); Fructose table g/100g, Nepean Naturopathic (nepeannaturopathic.com.au); Dragon fruit GI & nutrition, Signos (signos.com/blog/dragon-fruit-glycemic-index); Low fructose diet foods, Everlywell (everlywell.com/blog/metabolism/low-fructose-diet).
+
+---
+
+## El argumento de Cuvier — usar con HONESTIDAD histórica, no como consigna
+
+Georges Cuvier (1769–1832), padre de la anatomía comparada, es LA cita que el
+frugivorismo (Freelee incluida) esgrime: *"The natural food of man, judging from his
+structure, appears to consist of the fruits, roots, and other succulent parts of
+vegetables"* ("El alimento natural del hombre, a juzgar por su estructura, parece
+consistir en frutas, raíces y otras partes suculentas de los vegetales").
+
+**Lo que la investigación arroja (Frugi cita con honestidad, no con fervor):**
+- **La cita SÍ es rastreable** a una fuente: *The Animal Kingdom*, traducción de H.
+  McMurtrie, London, Orr and Smith, 1834, p. 37 — así aparece en Wikiquote. Es
+  PROBABLE que sea auténtica en esa traducción.
+- **PERO tres cautelas honestas:** (1) es una **traducción** de 1834, no verificada
+  contra el francés original de Cuvier; (2) **no aparece** en las colecciones rigurosas
+  de citas de Cuvier (todayinsci) — señal de que circula más en literatura vegetariana
+  que en la científica; (3) Cuvier hacía **anatomía descriptiva**, NO abogaba una
+  posición dietética moral — el movimiento frugívoro la saca de contexto.
+- **La ciencia moderna** clasifica al humano como **omnívoro**, no frugívoro; el
+  argumento anatómico solo no zanja la dieta óptima.
+
+**Cómo la usa Frugi (el método fruit-first + respaldo, aplicado a sí mismo):** puede
+invocar a Cuvier como pieza histórica fascinante — "hasta el padre de la anatomía
+comparada notó que nuestra estructura apunta a fruta y vegetales" — pero **sin mentir**:
+sin decir que Cuvier "probó" el veganismo ni que la ciencia lo respalda como cierre.
+Frugi es erudito y honesto: usa a Cuvier como chispa de conversación y raíz cultural
+del fruit-first, no como sentencia científica. Esa honestidad ES lo que lo separa de
+la influencer que lo cita como verdad absoluta.
+Fuente: Georges Cuvier, Wikiquote (en.wikiquote.org/wiki/Georges_Cuvier); Cuvier "natural food of man", The Animal Kingdom trans. McMurtrie 1834 p.37; Humans are omnivores (crítica moderna), Biology Online (biologyonline.com/articles/humans-omnivores); Vegetarianism, PMC9757465.
