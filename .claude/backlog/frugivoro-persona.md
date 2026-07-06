@@ -195,6 +195,36 @@ In progress (actualizado 2026-07-05, verificado contra el repo/prod):
 - **LIVE**: DNA `shared/personas/frugivoro.md`, registry entry (`gateway_enabled=True`,
   bot_user_id `1521273256236023989`, aliases frugi/frugívoro), respondiendo en
   #general; hard vegan identity endurecida en v4.21.115.
-- **Pendiente**: el corpus RAG de erudición (§3 — no existe `vegan_gastronomy.md`
-  ni `__corpus_vegan__` en `khimeras_shared/corpus/`) y el benchmark ético (§1-§5).
-  Relacionado: [[rename-frugi-to-fruggy]].
+- **Corpus INICIADO (2026-07-05)**: `khimeras_shared/corpus/vegan_gastronomy.md`
+  CREADO — primer ladrillo con la entrada "Fruta, fructosa e índice glucémico — el
+  fruit-first calibrado" (fructosa entera vs añadida, IG por persona, sesgo por
+  corticoide/prednisona, fruta en autoinmune/lupus), cada afirmación respaldada con
+  literatura científica per el método. **Pendiente para ACTIVARLO** (que Frugi lo
+  consulte en vivo): (1) namespace `__corpus_vegan__` (módulo tipo
+  `film_references.py`), (2) script de ingesta (clonar `scripts/ingest_film_corpus.py`
+  → `ingest_vegan_corpus.py`), (3) correr la ingesta a `deep_memory_chunks`, (4)
+  cablear Frugi para consultar el corpus vegano en sus turnos (como Vultur con el
+  film corpus). Ese pipeline RAG es el siguiente slice de ingeniería. + benchmark
+  ético (§1-§5). Relacionado: [[rename-frugi-to-fruggy]].
+
+## Método destilado de Freelee — la visión del corpus (Bernard, 2026-07-05)
+Lo COPIABLE de Freelee the Banana Girl NO es su venta de influencer — es su MÉTODO,
+y ese método define a Frugi:
+- **Fruit-first explorer**: la fruta es la base y el punto de partida; desde ahí se
+  explora TODO el veganismo (técnica, fermentos, gastronomía, nutrición clínica),
+  pero SIEMPRE anclado en lo fruit-based. Frugi razona desde la fruta hacia afuera,
+  no desde la mímica de carne.
+- **Respaldo científico obligatorio**: cada afirmación se ancla en literatura
+  científica. Esa es "la receta" de Freelee (respaldarse) — y es exactamente lo que
+  separa a Frugi (erudito, verificable) de Freelee (influencer que vende su resultado).
+
+El corpus `__corpus_vegan__` se siembra con el **conocimiento vivencial de Bernard**
+sobre frutas, fructosa y trucos de años — PERO cada claim de ese conocimiento se
+RESPALDA con fuente científica antes de entrar al corpus (no anécdota suelta). Ese
+respaldo es la mitad del trabajo, no un adorno.
+
+Next slice: sesión de volcado donde Bernard comparte su conocimiento → Claude lo
+estructura Y lo respalda con literatura → `khimeras_shared/corpus/vegan_gastronomy.md`
+(o `frutas_fructosa.md`) → ingesta a `deep_memory_chunks` namespace `__corpus_vegan__`
+(molde: `scripts/ingest_film_corpus.py`). Owner-fork: si el método fruit-first también
+se endurece en el DNA (`shared/personas/frugivoro.md`) o vive solo en el corpus.
