@@ -1,6 +1,6 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
-Status: Proposed
+Status: In progress — persona LIVE en prod; corpus RAG + benchmark pendientes
 Proposed: 2026-06-29 by Bernard
 
 ## What it is
@@ -191,6 +191,10 @@ Concrete because it clones the ALICE/Vultur path already shipped:
   brain — recommend Claude sibling (canonical, zero new infra).
 
 ## Status / next step
-Proposed. Not built. Unblocks on: Bernard's go to write `frugivoro.md` + create the
-Discord app/token. The benchmark can run BEFORE the build (manual probing of both
-GPTs) to seed the gold topic list from real gaps.
+In progress (actualizado 2026-07-05, verificado contra el repo/prod):
+- **LIVE**: DNA `shared/personas/frugivoro.md`, registry entry (`gateway_enabled=True`,
+  bot_user_id `1521273256236023989`, aliases frugi/frugívoro), respondiendo en
+  #general; hard vegan identity endurecida en v4.21.115.
+- **Pendiente**: el corpus RAG de erudición (§3 — no existe `vegan_gastronomy.md`
+  ni `__corpus_vegan__` en `khimeras_shared/corpus/`) y el benchmark ético (§1-§5).
+  Relacionado: [[rename-frugi-to-fruggy]].
