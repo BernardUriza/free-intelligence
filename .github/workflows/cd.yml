@@ -104,8 +104,9 @@ jobs:
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
-            environment.yml shared/ khimeras_shared/ demux_ai/ personas/__init__.py \
-            personas/insult/ persona.md infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
+            environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
+            personas/__init__.py personas/insult/ persona.md \
+            infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
 
           {
             echo "build_bot=$BUILD_BOT"
