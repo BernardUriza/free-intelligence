@@ -8,7 +8,7 @@ name: CD
 # Surfaces and the image each consumes:
 #   * discord-bot        <- insult-bot image       (Dockerfile)
 #   * fact-consolidation <- insult-bot image       (same image, cron job)
-#   * vultur-gateway     <- vultur-gateway image   (Dockerfile.gateway)
+#   * persona-gateway     <- persona-gateway image   (Dockerfile.gateway)
 #       (ALICE runs here as a gateway persona since v4.21.110; the legacy
 #        alice-bot Container App + Dockerfile.alice were retired 2026-07-05)
 #   * persona-runner      <- persona-runner image    (infra/azure/runner.Dockerfile)
@@ -95,7 +95,7 @@ jobs:
           }
 
           BOT_SHA=$(running_tag discord-bot app)
-          GW_SHA=$(running_tag vultur-gateway app)
+          GW_SHA=$(running_tag persona-gateway app)
           RUNNER_SHA=$(running_tag persona-runner app)
 
           BUILD_BOT=$(changed "$BOT_SHA" \
@@ -118,7 +118,7 @@ jobs:
           echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| insult-bot (discord-bot + jobs) | \`${BOT_SHA:0:7}\` | $BUILD_BOT |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| vultur-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
           echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
 
       # --- Builds (only what changed) ---
@@ -129,11 +129,11 @@ jobs:
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
             --image insult-bot:${{ env.NEW_SHA }} --image insult-bot:latest .
 
-      - name: Build vultur-gateway image
+      - name: Build persona-gateway image
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
         run: |
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image vultur-gateway:${{ env.NEW_SHA }} --image vultur-gateway:latest \
+            --image persona-gateway:${{ env.NEW_SHA }} --image persona-gateway:latest \
             --file Dockerfile.gateway .
 
       - name: Build persona-runner image
@@ -158,13 +158,13 @@ jobs:
           az containerapp job update --name fact-consolidation --resource-group "$RG" \
             --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
 
-      - name: Deploy vultur-gateway
+      - name: Deploy persona-gateway
         # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
         continue-on-error: true
         run: |
-          az containerapp update --name vultur-gateway --resource-group "$RG" \
-            --image "$ACR/vultur-gateway:${{ env.NEW_SHA }}"
+          az containerapp update --name persona-gateway --resource-group "$RG" \
+            --image "$ACR/persona-gateway:${{ env.NEW_SHA }}"
 
       - name: Deploy persona-runner
         if: ${{ steps.detect.outputs.build_runner == 'true' }}
@@ -191,23 +191,23 @@ jobs:
             echo "WARN discord-bot: could not confirm bot_ready, check manually"
           fi
 
-      - name: Verify vultur-gateway health
+      - name: Verify persona-gateway health
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
         run: |
-          if az containerapp show -n vultur-gateway -g "$RG" --query "name" -o tsv 2>/dev/null; then
-            az containerapp show -n vultur-gateway -g "$RG" --query "properties.latestRevisionName" -o tsv
-            GW_LOGS=$(az containerapp logs show -n vultur-gateway -g "$RG" --tail 30 2>&1 || true)
+          if az containerapp show -n persona-gateway -g "$RG" --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n persona-gateway -g "$RG" --query "properties.latestRevisionName" -o tsv
+            GW_LOGS=$(az containerapp logs show -n persona-gateway -g "$RG" --tail 30 2>&1 || true)
             echo "$GW_LOGS" | tail -10
             if echo "$GW_LOGS" | grep -q "persona_gateway_starting"; then
-              echo "OK vultur-gateway: persona_gateway_starting event present"
+              echo "OK persona-gateway: persona_gateway_starting event present"
             elif echo "$GW_LOGS" | grep -q "critical\|CRITICAL\|Traceback\|persona_gateway_nothing_to_start"; then
-              echo "FAIL vultur-gateway: crash or no-token on startup"
+              echo "FAIL persona-gateway: crash or no-token on startup"
               exit 1
             else
-              echo "WARN vultur-gateway: could not confirm startup, check manually"
+              echo "WARN persona-gateway: could not confirm startup, check manually"
             fi
           else
-            echo "INFO vultur-gateway: not yet provisioned, skipping health check"
+            echo "INFO persona-gateway: not yet provisioned, skipping health check"
           fi
 
       - name: Verify persona-runner health

@@ -14,7 +14,7 @@ trimmed `.env`, and the bot just goes mute with ZERO signal. This is the same
 fragility class as Arbor TTS (`voice.md`) — and it is the documented root cause
 of the "Vultur no responde" incident (2026-06-16).
 
-The durable host is `vultur-gateway`:
+The durable host is `persona-gateway`:
 
 - **`Dockerfile.gateway`** clones `Dockerfile.alice` **minus the codex/node
   layer** — the gateway runs NO LLM of its own; it is a thin HTTP client of the
@@ -22,7 +22,7 @@ The durable host is `vultur-gateway`:
   `khimeras_shared/` + `shared/` (its real import graph), guarded against the
   ModuleNotFound copy-gap class by
   `tests/arch/test_runner_dockerfile_copies_imports.py`.
-- **Container App**: `insult-env`, **`minReplicas=maxReplicas=1`** — a Discord
+- **Container App**: `prod-env`, **`minReplicas=maxReplicas=1`** — a Discord
   bot with >1 replica connects N times and posts DUPLICATE replies; single
   instance is mandatory. **No ingress** (Discord is outbound-only). Secrets:
   `postgres-url`, `agent-runner-token`, `vultur-discord-token`; env mirrors
@@ -36,7 +36,7 @@ The durable host is `vultur-gateway`:
 When a sibling goes silent, the FIRST hypothesis is a dead host, not a code or
 corpus bug. In order:
 
-1. **Is its host alive?** The `vultur-gateway` Container App running + its
+1. **Is its host alive?** The `persona-gateway` Container App running + its
    revision healthy (or, pre-deploy, the local `python -m persona_gateway run`
    process + its env). A sibling has NO Azure Container App of its own unless one
    was stood up — confirm it exists before blaming the corpus/RAG.
@@ -63,6 +63,6 @@ proves otherwise. Do not iterate on the corpus, prompt, or RAG before steps 1-3.
 recomendar pelis." It was not a film-corpus bug — the `persona_gateway` process
 was not running AND its prod env was absent from the local `.env`, so Vultur had
 no live host and was mute to everything, not just pelis. The fix was to give it
-the durable `vultur-gateway` Container App home, mirroring `alice-bot`. The
+the durable `persona-gateway` Container App home, mirroring `alice-bot`. The
 recurring trap is treating a sibling like a code feature when it is really an
 ops/host problem — the same lesson Arbor TTS taught for voice.

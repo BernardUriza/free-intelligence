@@ -81,10 +81,10 @@ def _dockerfile_copy_roots(dockerfile: Path) -> set[str]:
     [
         (RUNNER_DOCKERFILE, INSULT_PKG, "persona-runner / personas.insult"),
         (PLUMBING_DOCKERFILE, INSULT_PKG, "discord-bot plumbing / personas.insult"),
-        # vultur-gateway runs persona_gateway, which imports its own set
+        # persona-gateway runs persona_gateway, which imports its own set
         # (khimeras_shared, shared) — a DIFFERENT import root than insult, so it
         # gets its own scan against Dockerfile.gateway. Same P0 guard.
-        (GATEWAY_DOCKERFILE, GATEWAY_PKG, "vultur-gateway / persona_gateway"),
+        (GATEWAY_DOCKERFILE, GATEWAY_PKG, "persona-gateway / persona_gateway"),
         # alice-bot / Dockerfile.alice retired 2026-07-05: ALICE runs as a
         # gateway persona (persona_id=alice) since v4.21.110, so her import
         # graph ships inside Dockerfile.gateway's scan above.

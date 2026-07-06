@@ -100,7 +100,7 @@ Coverage threshold is 80% in CI (`workflow.md`), 75% in `pyproject.toml` (local 
 
 ## Rules
 Detailed rules in `.claude/rules/`: architecture, robustness, testing, workflow, persona, voice, sibling-personas. Key non-obvious rules:
-- **Sibling personas (Vultur, future) run from a durable Azure Container App** (`vultur-gateway`, cloned from `alice-bot`), NEVER an ephemeral local-Mac process — see `.claude/rules/sibling-personas.md`. Diagnose "sibling X no responde" by host-liveness FIRST, not the corpus.
+- **Sibling personas (Vultur, future) run from a durable Azure Container App** (`persona-gateway`, cloned from `alice-bot`), NEVER an ephemeral local-Mac process — see `.claude/rules/sibling-personas.md`. Diagnose "sibling X no responde" by host-liveness FIRST, not the corpus.
 - **Never expose "Claude"/"Anthropic"/"AI"** in bot responses — character guard auto-retries and sanitizes
 - Error messages to users must be in-character (via `core/errors.py`)
 - All logging via structlog, never print()
