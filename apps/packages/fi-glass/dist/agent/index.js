@@ -2037,7 +2037,7 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%" }, children: [
+      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
         hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
           "button",
           {
@@ -2292,12 +2292,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs20("div", { "data-fi-slot": "main", style: mainStyle, children: [
+        header != null && /* @__PURE__ */ jsx27("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs20("main", { "data-fi-slot": "main", style: mainStyle, children: [
           /* @__PURE__ */ jsx27("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "rail", style: railStyle, children: rail })
+          rail != null && /* @__PURE__ */ jsx27("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx27("div", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx27("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2316,12 +2316,16 @@ function AgentWorkspaceShell({
     flexDirection: "column",
     transform: isOpen ? "translateX(0)" : "translateX(-100%)",
     transition: "transform 0.24s ease",
-    willChange: "transform"
+    willChange: "transform",
+    containerType: "inline-size",
+    containerName: "fi-sidebar"
   } : {
     width: widthCss,
     flexShrink: 0,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    containerType: "inline-size",
+    containerName: "fi-sidebar"
   };
   return /* @__PURE__ */ jsxs20(
     "div",
@@ -2330,9 +2334,10 @@ function AgentWorkspaceShell({
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
         /* @__PURE__ */ jsx27(
-          "div",
+          "nav",
           {
             "data-fi-slot": "sidebar",
+            "aria-label": toggleLabel,
             style: sidebarContainerStyle,
             "aria-hidden": drawerMode ? !isOpen : void 0,
             inert: drawerMode && !isOpen ? true : void 0,
@@ -2467,6 +2472,15 @@ var CSS2 = `
 @media (pointer: coarse) {
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
+  }
+}
+@container fi-sidebar (max-width: 220px) {
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    padding: var(--fi-item-padding-compact, 0.3rem 0.4rem);
+    gap: var(--fi-item-gap-compact, 0.25rem);
+  }
+  .${FI_ITEM_META_CLASS} {
+    display: none;
   }
 }
 .${FI_RESOURCE_RENAME_INPUT_CLASS} {
@@ -2682,6 +2696,9 @@ import { useEffect as useEffect19 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
+var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
+var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
 var CSS3 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
@@ -2702,6 +2719,27 @@ var CSS3 = `
   letter-spacing: -0.01em;
   font-size: var(--fi-section-title-size, inherit);
   color: var(--fi-section-title-color, inherit);
+}
+.${FI_SECTION_CARD_CLASS} {
+  margin: var(--fi-section-card-margin, var(--fi-sidebar-gap, 0.5rem));
+  padding: var(--fi-section-card-padding, var(--fi-space-2, 0.5rem));
+  border: 1px solid var(--fi-section-card-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--fi-radius-section, 12px);
+  background: var(--fi-section-card-bg, transparent);
+}
+.${FI_SECTION_FOOTER_CLASS} {
+  margin-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  padding-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  border-top: 1px solid var(--fi-section-divider, rgba(255, 255, 255, 0.06));
+}
+.${FI_SECTION_SCROLL_CLASS} {
+  min-height: 0;
+  overflow-y: auto;
+  /* Content-aware: the list grows by content and only scrolls past this cap.
+     rem-based (NOT vh) so a short viewport never crushes a few rows into a sliver
+     \u2014 the bug 30vh caused. Overridable per-section via the --fi-section-scroll-max
+     var (the maxBlockSize prop sets it inline). */
+  max-block-size: var(--fi-section-scroll-max, 18rem);
 }
 `;
 function ensureSidebarSectionStyle() {
@@ -2730,19 +2768,39 @@ function AgentSidebarSection({
   emptyState,
   count,
   headerSlot,
+  variant = "plain",
+  footerSlot,
+  scrollBehavior = "none",
+  maxBlockSize,
   ariaLabel,
   className
 }) {
   useSidebarSectionStyle();
   const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
-  return /* @__PURE__ */ jsxs22("section", { className: joinClasses2(FI_SIDEBAR_SECTION_CLASS, className), "aria-label": ariaLabel, children: [
-    headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
-      titleNode,
-      actionSlot
-    ] }),
-    showEmpty ? emptyState : children
-  ] });
+  const body = showEmpty ? emptyState : children;
+  const scrollStyle = maxBlockSize != null ? {
+    ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
+  } : void 0;
+  return /* @__PURE__ */ jsxs22(
+    "section",
+    {
+      className: joinClasses2(
+        FI_SIDEBAR_SECTION_CLASS,
+        variant === "card" && FI_SECTION_CARD_CLASS,
+        className
+      ),
+      "aria-label": ariaLabel,
+      children: [
+        headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
+          titleNode,
+          actionSlot
+        ] }),
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx29("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx29("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+      ]
+    }
+  );
 }
 export {
   AgentConversationSurface,
@@ -2758,7 +2816,10 @@ export {
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
   FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SECTION_CARD_CLASS,
+  FI_SECTION_FOOTER_CLASS,
   FI_SECTION_HEAD_CLASS,
+  FI_SECTION_SCROLL_CLASS,
   FI_SECTION_TITLE_CLASS,
   FI_SIDEBAR_ITEM_CLASS,
   FI_SIDEBAR_SECTION_CLASS,

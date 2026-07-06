@@ -17,11 +17,14 @@
  * consumer and reach the section through the generic slots below.
  */
 
-import { type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import {
   FI_SIDEBAR_SECTION_CLASS,
   FI_SECTION_HEAD_CLASS,
   FI_SECTION_TITLE_CLASS,
+  FI_SECTION_CARD_CLASS,
+  FI_SECTION_FOOTER_CLASS,
+  FI_SECTION_SCROLL_CLASS,
   useSidebarSectionStyle,
 } from './sidebarSectionStyle';
 
@@ -42,6 +45,30 @@ export interface AgentSidebarSectionProps {
   count: number;
   /** Replaces the default head (title + actionSlot) entirely when the consumer needs a custom header. */
   headerSlot?: ReactNode;
+  /**
+   * Distribution variant. `"plain"` (default) is the original borderless section —
+   * unchanged for existing consumers. `"card"` wraps the section in a padded,
+   * bordered, rounded card (token-driven via `--fi-section-card-*` + `--fi-radius-section`)
+   * so a sidebar group reads as a distinct surface with breathing room.
+   */
+  variant?: 'plain' | 'card';
+  /**
+   * Content rendered BELOW the rows/empty-state, separated by a divider + gap (e.g.
+   * an upload dropzone that must not collide with the list). Omit for no footer.
+   */
+  footerSlot?: ReactNode;
+  /**
+   * How the rows region sizes. `"none"` (default) lets the rows take their natural
+   * height (the original behavior). `"content"` wraps the rows in a content-aware
+   * scroll region: they grow by content and only scroll past `maxBlockSize` — a
+   * rem-based cap, NOT a viewport `vh` that crushes a few rows on short screens.
+   */
+  scrollBehavior?: 'none' | 'content';
+  /**
+   * The scroll cap for `scrollBehavior="content"` (number → px). Default `18rem`
+   * (~6 rows). Sets the `--fi-section-scroll-max` token on the scroll region.
+   */
+  maxBlockSize?: number | string;
   /** Accessible label for the section element. */
   ariaLabel?: string;
   className?: string;
@@ -54,6 +81,10 @@ export function AgentSidebarSection({
   emptyState,
   count,
   headerSlot,
+  variant = 'plain',
+  footerSlot,
+  scrollBehavior = 'none',
+  maxBlockSize,
   ariaLabel,
   className,
 }: AgentSidebarSectionProps) {
@@ -65,15 +96,37 @@ export function AgentSidebarSection({
       title
     );
   const showEmpty = count === 0 && emptyState != null;
+  const body = showEmpty ? emptyState : children;
+  const scrollStyle =
+    maxBlockSize != null
+      ? ({
+          ['--fi-section-scroll-max' as string]:
+            typeof maxBlockSize === 'number' ? `${maxBlockSize}px` : maxBlockSize,
+        } as CSSProperties)
+      : undefined;
   return (
-    <section className={joinClasses(FI_SIDEBAR_SECTION_CLASS, className)} aria-label={ariaLabel}>
+    <section
+      className={joinClasses(
+        FI_SIDEBAR_SECTION_CLASS,
+        variant === 'card' && FI_SECTION_CARD_CLASS,
+        className,
+      )}
+      aria-label={ariaLabel}
+    >
       {headerSlot ?? (
         <div className={FI_SECTION_HEAD_CLASS}>
           {titleNode}
           {actionSlot}
         </div>
       )}
-      {showEmpty ? emptyState : children}
+      {scrollBehavior === 'content' && !showEmpty ? (
+        <div className={FI_SECTION_SCROLL_CLASS} style={scrollStyle}>
+          {body}
+        </div>
+      ) : (
+        body
+      )}
+      {footerSlot != null && <div className={FI_SECTION_FOOTER_CLASS}>{footerSlot}</div>}
     </section>
   );
 }

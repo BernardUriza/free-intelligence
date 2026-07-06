@@ -109,6 +109,15 @@ const CSS = `
     opacity: 1;
   }
 }
+@container fi-sidebar (max-width: 220px) {
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    padding: var(--fi-item-padding-compact, 0.3rem 0.4rem);
+    gap: var(--fi-item-gap-compact, 0.25rem);
+  }
+  .${FI_ITEM_META_CLASS} {
+    display: none;
+  }
+}
 .${FI_RESOURCE_RENAME_INPUT_CLASS} {
   font-size: 0.85rem;
   color: var(--glass-chat-text, #e2e8f0);

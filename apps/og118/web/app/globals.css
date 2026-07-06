@@ -105,6 +105,14 @@ body {
   max-width: 16rem;
   margin: 0 0 0.5rem;
 }
+@container fi-composer (max-width: 420px) {
+  .og-elemento-label {
+    display: none;
+  }
+  .og-element-switch {
+    max-width: 100%;
+  }
+}
 .og-resonance-bar {
   display: flex;
   align-items: center;
@@ -199,7 +207,6 @@ body {
 .og-projects {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(10, 14, 22, 0.4);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -228,8 +235,6 @@ body {
   line-height: 1.4;
 }
 .og-projects-list {
-  max-height: 30vh;
-  overflow-y: auto;
   padding: 0 0.5rem 0.6rem;
   display: flex;
   flex-direction: column;

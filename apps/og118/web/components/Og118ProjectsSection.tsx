@@ -66,6 +66,8 @@ export function Og118ProjectsSection({
       className="og-projects"
       ariaLabel="Proyectos"
       title="Proyectos"
+      variant="card"
+      scrollBehavior="content"
       count={projects.length}
       actionSlot={
         <button
@@ -81,6 +83,34 @@ export function Og118ProjectsSection({
         <p className="og-projects-empty">
           Crea un proyecto, súbele archivos y pregúntale a og118 sobre ellos.
         </p>
+      }
+      footerSlot={
+        activeProjectId && onUpload ? (
+          <div className="og-project-upload">
+            <button
+              className={`${FI_TOUCH_TARGET_CLASS} og-project-upload-btn`}
+              onClick={() => onUpload(activeProjectId)}
+              disabled={disabled || uploadStatus === 'uploading'}
+              aria-label="Subir archivo al proyecto"
+            >
+              + Subir archivo (.txt / .md)
+            </button>
+            {uploadFile && uploadStatus && (
+              <ChatFilePreview
+                file={uploadFile}
+                status={uploadStatus}
+                progress={uploadProgress}
+                error={uploadError ?? undefined}
+                onCancel={() => onCancelUpload?.()}
+              />
+            )}
+            {uploadStatus === 'indexed' && typeof uploadChunks === 'number' && (
+              <p className="og-project-upload-done">
+                Indexado en el proyecto · {uploadChunks} fragmento{uploadChunks === 1 ? '' : 's'}
+              </p>
+            )}
+          </div>
+        ) : undefined
       }
     >
       <nav className="og-projects-list">
@@ -110,33 +140,6 @@ export function Og118ProjectsSection({
           />
         ))}
       </nav>
-
-      {activeProjectId && onUpload && (
-        <div className="og-project-upload">
-          <button
-            className={`${FI_TOUCH_TARGET_CLASS} og-project-upload-btn`}
-            onClick={() => onUpload(activeProjectId)}
-            disabled={disabled || uploadStatus === 'uploading'}
-            aria-label="Subir archivo al proyecto"
-          >
-            + Subir archivo (.txt / .md)
-          </button>
-          {uploadFile && uploadStatus && (
-            <ChatFilePreview
-              file={uploadFile}
-              status={uploadStatus}
-              progress={uploadProgress}
-              error={uploadError ?? undefined}
-              onCancel={() => onCancelUpload?.()}
-            />
-          )}
-          {uploadStatus === 'indexed' && typeof uploadChunks === 'number' && (
-            <p className="og-project-upload-done">
-              Indexado en el proyecto · {uploadChunks} fragmento{uploadChunks === 1 ? '' : 's'}
-            </p>
-          )}
-        </div>
-      )}
     </AgentSidebarSection>
   );
 }

@@ -115,4 +115,93 @@ describe('AgentSidebarSection', () => {
     expect(screen.queryByText('Ignorado')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Ignorado' })).toBeNull();
   });
+
+  // B3-FIGLASS-SIDEBAR-SECTIONS-2 (PR4): card variant + footerSlot
+  it('defaults to the plain variant (no card class) — backward-compatible', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1} ariaLabel="P">
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section--card')).toBeNull();
+  });
+
+  it('applies the card class when variant="card"', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1} variant="card" ariaLabel="P">
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section--card')).toBeTruthy();
+  });
+
+  it('renders footerSlot below the rows in a divider-separated footer', () => {
+    render(
+      <AgentSidebarSection
+        title="Proyectos"
+        count={2}
+        footerSlot={<div data-testid="upload">upload</div>}
+      >
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    const footer = screen.getByTestId('upload').parentElement!;
+    expect(footer.className).toContain('fi-sidebar-section-footer');
+    expect(screen.getByTestId('rows')).toBeTruthy();
+  });
+
+  it('omits the footer wrapper entirely when footerSlot is absent', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={1}>
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-footer')).toBeNull();
+  });
+
+  // B3-FIGLASS-SCROLL-REGIONS-1 (PR5): content-aware scroll region
+  it('does NOT wrap rows in a scroll region by default (scrollBehavior="none")', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={2}>
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-scroll')).toBeNull();
+  });
+
+  it('wraps rows in a content-aware scroll region when scrollBehavior="content"', () => {
+    const { container } = render(
+      <AgentSidebarSection title="Proyectos" count={2} scrollBehavior="content">
+        <nav data-testid="rows">rows</nav>
+      </AgentSidebarSection>,
+    );
+    const scroll = container.querySelector('.fi-sidebar-section-scroll');
+    expect(scroll).toBeTruthy();
+    expect(scroll!.querySelector('[data-testid="rows"]')).toBeTruthy();
+  });
+
+  it('does NOT scroll-wrap the empty state (only the rows)', () => {
+    const { container } = render(
+      <AgentSidebarSection
+        title="Proyectos"
+        count={0}
+        scrollBehavior="content"
+        emptyState={<p data-testid="empty">none</p>}
+      >
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    expect(container.querySelector('.fi-sidebar-section-scroll')).toBeNull();
+    expect(screen.getByTestId('empty')).toBeTruthy();
+  });
+
+  it('sets the --fi-section-scroll-max token from maxBlockSize (number → px)', () => {
+    const { container } = render(
+      <AgentSidebarSection title="P" count={2} scrollBehavior="content" maxBlockSize={240}>
+        <nav>rows</nav>
+      </AgentSidebarSection>,
+    );
+    const scroll = container.querySelector('.fi-sidebar-section-scroll') as HTMLElement;
+    expect(scroll.style.getPropertyValue('--fi-section-scroll-max')).toBe('240px');
+  });
 });

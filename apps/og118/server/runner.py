@@ -22,6 +22,7 @@ from fi_runner import (
 )
 
 PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
+COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
 
 
 def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = None) -> Runner:
@@ -35,12 +36,20 @@ def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = N
     so the persona is NOT a per-repo copy); otherwise it is loaded from
     `persona_path` (the default is the base og118 companion). Everything else —
     capabilities, the corpus binding, the COMPANION tool policy — is identical
-    across elements, so a persona swap never widens the filesystem guarantee."""
+    across elements, so a persona swap never widens the filesystem guarantee.
+
+    Whatever the persona is (base or a composed element), the shared og118
+    companion PLATFORM CONSTRAINTS are appended here — the single funnel both
+    paths pass through — so every element inherits them from ONE source without
+    copying the rule per persona or leaking it into the cross-repo fi-personas
+    core. Chief among them: the runtime is stateless, so the persona must never
+    promise background/async work it cannot do."""
+    base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     return Runner(
         backend=ClaudeCodeBackend(
             default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
         ),
-        persona=persona_text if persona_text is not None else load_prompt(persona_path),
+        persona=f"{base_persona}\n\n{load_prompt(COMPANION_CONSTRAINTS_PATH)}",
         # task_tracker → plan/step glass-box events. rag_store → the agent can
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +

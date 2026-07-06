@@ -570,7 +570,7 @@ export function AgentConversationSurface({
       <div style={{ padding: '0.75rem 1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Composer column shares the transcript's fluid center cap (the
             section itself spans full width so its top border does too). */}
-        <div style={{ maxWidth: contentInset, margin: '0 auto', width: '100%' }}>
+        <div style={{ maxWidth: contentInset, margin: '0 auto', width: '100%', containerType: 'inline-size', containerName: 'fi-composer' }}>
         {hasThread && showNewChatButton && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button
