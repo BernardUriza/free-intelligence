@@ -19,7 +19,8 @@ make dev-kill             # Kill all dev processes
 make test                 # pytest
 
 # Production Deploy
-git push origin dev       # → PR to main → CI/CD auto-deploy
+git checkout -b bernarduriza/<slug>   # transient branch → PR to main → CI/CD auto-deploy
+# (branch is deleted on merge; main is the only branch at rest)
 
 # Desktop Builds
 gh workflow run build-desktop.yml -f platform=windows
@@ -49,7 +50,7 @@ gh workflow run build-desktop.yml -f platform=windows
 ## 🎯 Core Principles
 
 1. **Bernard's Workflow:** Simplicity, focus, no tangents → [development/workflow.md](development/workflow.md)
-2. **Git Flow:** Work in `dev`, PR to `main` → [development/workflow.md](development/workflow.md#git-workflow)
+2. **Git Flow:** transient `bernarduriza/<slug>` branch → PR to `main`, branch deleted on merge (`dev` retired 2026-07-06) → [development/workflow.md](development/workflow.md#git-workflow)
 3. **Security:** ZERO TOLERANCE for secrets → [security/credentials.md](security/credentials.md)
 4. **Production:** CI/CD only, no manual edits → [security/ssh-policy.md](security/ssh-policy.md)
 
@@ -158,7 +159,7 @@ powershell -Command "Start-Process '<output.png>'"  # Show to user
 ## 🏷️ Conventions
 
 - **Commits:** Conventional Commits (feat/fix/docs/chore)
-- **Branches:** dev (work) + main (production only)
+- **Branches:** main only at rest; work rides transient `bernarduriza/<slug>` PR branches, deleted on merge
 - **PRs:** AI Gatekeeper (GPT-5) approval required
 - **Docs:** Hong Kong standard (zero bloat, zero duplication)
 
