@@ -166,9 +166,11 @@ def _make_ctx_llm(text: str, *, route, spawn: _SpawnCapture) -> TurnCtx:
 
 
 def _fake_route(target: str, reason: str = "llm_x"):
-    async def _route(_text: str) -> LLMShadowDecision:
+    async def _route(_text: str, _context: str | None = None) -> LLMShadowDecision:
+        _route.calls.append((_text, _context))
         return LLMShadowDecision(target=target, reason=reason, input_tokens=7, output_tokens=1)
 
+    _route.calls = []
     return _route
 
 
@@ -228,7 +230,7 @@ async def test_llm_shadow_disabled_emits_no_spawn():
 
 @pytest.mark.asyncio
 async def test_llm_shadow_fault_is_invisible_to_turn():
-    async def _boom(_text):
+    async def _boom(_text, _context=None):
         raise RuntimeError("azure exploded")
 
     spawn = _SpawnCapture()
@@ -272,6 +274,69 @@ async def test_llm_shadow_still_runs_on_normal_text():
     assert spawn.spawned[0][0] == "llm_shadow_router"
     assert not [e for e in logs if e["event"] == "llm_shadow_router_skipped"]
     spawn.spawned[0][1].close()
+
+
+class _FakeRouterMemory:
+    """Stand-in for the shared MemoryStore — canned recent rows, records calls."""
+
+    def __init__(self, rows: list[dict] | None = None, boom: bool = False) -> None:
+        self.rows = rows or []
+        self.boom = boom
+        self.calls: list[tuple[str, int]] = []
+
+    async def get_recent(self, channel_id: str, limit: int = 20, user_id=None) -> list[dict]:
+        self.calls.append((channel_id, limit))
+        if self.boom:
+            raise RuntimeError("pg down")
+        return self.rows
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_routes_with_recent_channel_context():
+    """HOST paso 2 (P0 2026-07-06): the router must see the channel's recent
+    conversation — Alex's bare pantry list mid-fruit-conversation routed
+    default_insult because the brain saw the message ALONE. The background task
+    fetches recent messages (off the critical path) and forwards them to route."""
+    spawn = _SpawnCapture()
+    route = _fake_route("frugivoro", "llm_frugivoro")
+    ctx = _make_ctx_llm("Avena\nChía\nZanahorias", route=route, spawn=spawn)
+    memory = _FakeRouterMemory(
+        rows=[
+            {"user_name": "bernard2389", "content": "dile a frugi lo que tienes"},
+            {"user_name": "Frugívoro", "content": "compárteme tu inventario"},
+        ]
+    )
+    ctx.deps.memory = memory
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+        await spawn.spawned[0][1]
+    text, context = route.calls[0]
+    assert text == "Avena\nChía\nZanahorias"
+    assert "bernard2389: dile a frugi lo que tienes" in context
+    assert "Frugívoro: compárteme tu inventario" in context
+    assert memory.calls, "the background task must fetch recent channel messages"
+    d = next(e for e in logs if e["event"] == "llm_shadow_router_decision")
+    assert d["llm_shadow_target"] == "frugivoro"
+    assert d["route_context_chars"] > 0
+
+
+@pytest.mark.asyncio
+async def test_llm_shadow_context_fetch_fault_still_routes_without_context():
+    # Resistance case: a memory fault must NOT kill the routing decision — the
+    # shadow routes context-less (None) and logs the fetch failure.
+    spawn = _SpawnCapture()
+    route = _fake_route("insult", "llm_insult")
+    ctx = _make_ctx_llm("hola qué onda", route=route, spawn=spawn)
+    ctx.deps.memory = _FakeRouterMemory(boom=True)
+    with capture_logs() as logs:
+        await _stage_bind_identity(ctx)
+        await spawn.spawned[0][1]
+    text, context = route.calls[0]
+    assert text == "hola qué onda"
+    assert context is None
+    assert any(e["event"] == "llm_router_context_fetch_failed" for e in logs)
+    d = next(e for e in logs if e["event"] == "llm_shadow_router_decision")
+    assert d["route_context_chars"] == 0
 
 
 # --- HOST 5/6 slice B: deterministic CUTOVER (flag-off no-op + flag-on routes) ---

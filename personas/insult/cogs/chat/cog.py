@@ -25,7 +25,7 @@ import discord
 import structlog
 from discord.ext import commands
 
-from personas.insult.cogs.chat.batch import BatchManager
+from personas.insult.cogs.chat.batch import BatchManager, addressed_to_sibling
 from personas.insult.cogs.chat.pipeline import TurnRuntimeDeps
 from personas.insult.cogs.chat.tasks import spawn_tracked_task
 from personas.insult.cogs.chat.tools import ALL_TOOLS
@@ -109,6 +109,25 @@ class ChatCog(commands.Cog):
             bot=self.bot,
             flush_callback=self._respond,
             transcribe_voice=transcribe_voice,
+        )
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+        """Re-run the sibling gate when an edit ADDS an address (P0 2026-07-06):
+        Alex sent his pantry list clean, then edited in "@frugi" — the gate only
+        runs on `on_message`, so Insult answered a message that now belonged to
+        Frugívoro. If the message is still pending in the batch, retract it (the
+        sibling's gateway picks the edit up via its own edit listener); if Insult
+        already responded, there is nothing to un-send — log and let it be."""
+        if before.author.bot or addressed_to_sibling(before) or not addressed_to_sibling(after):
+            return
+        retracted = self._batches.retract_if_pending(after)
+        log.info(
+            "msg_edit_addressed_to_sibling",
+            message_id=after.id,
+            user_id=after.author.id,
+            channel_id=after.channel.id,
+            retracted_from_batch=retracted,
         )
 
     @commands.command(name="chat")

@@ -61,15 +61,44 @@ _ROUTING_INSTRUCTION = (
     "- vultur: a film-criticism specialist. Pick vultur ONLY when the user is "
     "actively SEEKING film expertise — asking for a recommendation, a review, an "
     "opinion/analysis of a film, director, or scene. Merely MENTIONING a movie, a "
-    "show, or Netflix in passing is NOT enough — that stays with insult.\n\n"
+    "show, or Netflix in passing is NOT enough — that stays with insult.\n"
+    "- frugivoro: an erudite vegan/plant-based gastronomy and fruit-first "
+    "nutrition specialist. Pick frugivoro ONLY when the user is actively SEEKING "
+    "plant-based food expertise — asking what to cook, how a technique or "
+    "substitution works, meal planning from available ingredients, or fruit/"
+    "nutrition guidance. Merely MENTIONING food, a meal, or being hungry in "
+    "passing is NOT enough — that stays with insult.\n"
+    "- alice: an empathetic companion persona. Pick alice ONLY when the user "
+    "explicitly asks for alice by name.\n\n"
+    "CONVERSATION CONTEXT: when a recent-conversation block is provided, use it. "
+    "If the current message is a CONTINUATION of an exchange a specialist persona "
+    "was having — the user is answering that persona's question, supplying data "
+    "it asked for, or following up on its last reply — route to THAT persona even "
+    "if the current message alone looks generic.\n\n"
     "Examples:\n"
     '- "recomiéndame una peli de terror buena" -> vultur (wants a recommendation)\n'
     '- "qué opinas de Dune 2, vale la pena?" -> vultur (wants criticism)\n'
     '- "ayer vi una peli en Netflix y me quedé dormido" -> insult (mere mention)\n'
     '- "estoy harto, llevo todo el día viendo Netflix" -> insult (not seeking film expertise)\n'
-    '- "mi jefe es un personaje de película de terror" -> insult (figure of speech)\n\n'
-    "Reply with EXACTLY one lowercase word and nothing else: insult or vultur."
+    '- "mi jefe es un personaje de película de terror" -> insult (figure of speech)\n'
+    '- "qué hago de cenar con lentejas, espinacas y arroz?" -> frugivoro (seeking plant-based cooking)\n'
+    '- "me comí unos tacos buenísimos ayer" -> insult (mere mention of food)\n'
+    "- a bare pantry/ingredient inventory list, when the recent conversation was "
+    "about fruit or cooking with frugivoro -> frugivoro (continuation: the user is "
+    "supplying the data the food exchange needs)\n\n"
+    "Reply with EXACTLY one lowercase word and nothing else: "
+    "insult, vultur, alice or frugivoro."
 )
+
+
+def _compose_route_input(text: str, context: str | None) -> str:
+    """Build the user-message payload for the routing completion. Without context
+    it is the bare message (byte-identical to the pre-context router, so existing
+    telemetry stays comparable); with context the recent-conversation block rides
+    ABOVE the current message so the brain can detect continuations."""
+    if not context:
+        return text
+    return f"Recent channel conversation (oldest first):\n{context}\n---\nCurrent message to route:\n{text}"
 
 
 @dataclass(frozen=True)
@@ -116,12 +145,14 @@ class LLMShadowRouter:
             llm = HostRouterLLM()
         self._llm = llm
 
-    async def route(self, text: str) -> LLMShadowDecision:
-        """Classify ``text`` to a target persona via gpt-4.1. Returns a decision
-        with the parsed target + reason + token counts. Raises on a hard LLM
-        failure (``HostRouterError``) — the caller wraps it so a shadow fault is
-        invisible to the turn."""
-        result = await self._llm.complete(_ROUTING_INSTRUCTION, text)
+    async def route(self, text: str, context: str | None = None) -> LLMShadowDecision:
+        """Classify ``text`` to a target persona via gpt-4.1. ``context`` is an
+        optional recent-conversation block (newline-joined ``user: message`` lines)
+        that lets the brain route continuations to the persona already holding the
+        exchange. Returns a decision with the parsed target + reason + token
+        counts. Raises on a hard LLM failure (``HostRouterError``) — the caller
+        wraps it so a shadow fault is invisible to the turn."""
+        result = await self._llm.complete(_ROUTING_INSTRUCTION, _compose_route_input(text, context))
         target, reason = _parse_target(result.text)
         return LLMShadowDecision(
             target=target,
@@ -158,17 +189,19 @@ class DirectAzureLLMRouter:
             )
         return self._client
 
-    async def route(self, text: str) -> LLMShadowDecision:
-        """Classify ``text`` via a plain Azure chat completion. Returns the parsed
-        target + reason + REAL token counts (``usage.prompt_tokens`` is the number
-        the whole exercise is measuring). Raises on a hard API failure — the caller
-        wraps it so a shadow fault stays invisible to the turn."""
+    async def route(self, text: str, context: str | None = None) -> LLMShadowDecision:
+        """Classify ``text`` via a plain Azure chat completion. ``context`` is the
+        same optional recent-conversation block ``LLMShadowRouter.route`` takes
+        (shape-compatible contract). Returns the parsed target + reason + REAL
+        token counts (``usage.prompt_tokens`` is the number the whole exercise is
+        measuring). Raises on a hard API failure — the caller wraps it so a shadow
+        fault stays invisible to the turn."""
         client = self._ensure_client()
         resp = await client.chat.completions.create(  # type: ignore[attr-defined]
             model=self._deployment,
             messages=[
                 {"role": "system", "content": _ROUTING_INSTRUCTION},
-                {"role": "user", "content": text},
+                {"role": "user", "content": _compose_route_input(text, context)},
             ],
             max_tokens=8,
             temperature=0,
