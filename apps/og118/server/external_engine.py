@@ -1,13 +1,19 @@
 """og118 external engine proxy (ENGINE-BINDING-ADR-1, external_http_engine).
 
 When an element binds to an external FI engine — the already-running Vultur
-runner for Oxígeno — og118 does NOT run a local turn. It proxies the user text to
-that engine's `POST /v1/turn` and surfaces the answer. The engine owns its own
-persona (selected by `persona_id`) and its own context (keyed by `session_uuid`),
-so og118 sends only the message + the conversation key, never a persona or a
-replayed history. This is single-shot (the engine returns one LLMResponse, not an
-FI event stream), so an external element shows NO glass-box plan/step trace — that
-is the documented trade of reusing a live engine instead of copying it.
+runner for Oxígeno, the Insult runner for Yodo — og118 does NOT run a local turn.
+It proxies the user text to that engine's `POST /v1/turn` and surfaces the
+answer. The engine owns its own persona (selected by `persona_id`) and threads
+context in a long-lived session keyed by `channel_id` — its `session_uuid` field
+is accepted for schema compat but IGNORED (persona_runner v3.9.31+). So og118
+sends the og118 conversation id AS `channel_id` (one og118 thread ⇒ one engine
+session; a shared constant would pool every user's conversations into ONE Claude
+session — cross-account context bleed) and replays the capped client history so
+the engine can seed a FRESH session (reaped idle slot, replica restart, element
+switched mid-conversation) with the thread it never saw. This is single-shot
+(the engine returns one LLMResponse, not an FI event stream), so an external
+element shows NO glass-box plan/step trace — that is the documented trade of
+reusing a live engine instead of copying it.
 """
 
 from __future__ import annotations
@@ -25,9 +31,36 @@ RUNNER_TOKEN = os.getenv("OG118_EXTERNAL_RUNNER_TOKEN", "")
 # long a held POST (+ the engine's compute) survives a client that walked away.
 _TIMEOUT = httpx.Timeout(45.0, connect=10.0)
 
+# Same caps fi_runner applies to client-replayed history on the local path
+# (Runner.client_history_max_messages/_chars). The external path bypasses
+# fi_runner, so the cap is enforced here before the payload leaves og118.
+HISTORY_MAX_MESSAGES = 20
+HISTORY_MAX_CHARS = 16_000
+_HISTORY_ROLES = frozenset({"user", "assistant"})
+
 
 def is_configured() -> bool:
     return bool(RUNNER_URL and RUNNER_TOKEN)
+
+
+def cap_history(history: list[dict] | None) -> list[dict]:
+    """Bound the replayed thread the way fi_runner.sanitize_history does on the
+    local path: role-allowlisted, newest-first budget, chronological output."""
+    if not history:
+        return []
+    kept: list[dict] = []
+    total = 0
+    for msg in reversed(history[-HISTORY_MAX_MESSAGES:]):
+        role = str(msg.get("role", "")).strip().lower()
+        content = str(msg.get("content", "")).strip()
+        if role not in _HISTORY_ROLES or not content:
+            continue
+        if total + len(content) > HISTORY_MAX_CHARS:
+            break
+        kept.append({"role": role, "content": content})
+        total += len(content)
+    kept.reverse()
+    return kept
 
 
 async def stream_external_turn(
@@ -36,6 +69,7 @@ async def stream_external_turn(
     user_text: str,
     session_uuid: str | None,
     user_id: str | None,
+    history: list[dict] | None = None,
 ) -> AsyncIterator[dict]:
     """Proxy one turn to the external engine and yield og118 stream events.
 
@@ -47,15 +81,22 @@ async def stream_external_turn(
         return
 
     payload: dict = {
-        "channel_id": "0",
+        # The engine's continuity key is channel_id (one long-lived SDK session
+        # per channel — persona_runner ignores session_uuid). og118's conversation
+        # id IS the channel: per-thread continuity, zero cross-user sharing.
+        "channel_id": session_uuid or "0",
         "user_id": user_id or "0",
         "user_text": user_text,
         "persona_id": persona_id,
     }
-    # The engine threads context on session_uuid; reuse og118's conversation id so
-    # the same og118 thread maps to one engine session (continuity without replay).
     if session_uuid:
         payload["session_uuid"] = session_uuid
+    # Replayed client history (untrusted context, never authorization — same
+    # doctrine as the local path). The engine folds it only when it opens a
+    # fresh session for this channel; engines predating the field ignore it.
+    capped = cap_history(history)
+    if capped:
+        payload["history"] = capped
 
     headers = {"Authorization": f"Bearer {RUNNER_TOKEN}", "Content-Type": "application/json"}
     try:
