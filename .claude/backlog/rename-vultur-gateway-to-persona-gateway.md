@@ -1,6 +1,6 @@
 # Renombrar `vultur-gateway` → `persona-gateway`
 
-Status: Proposed
+Status: Done
 Proposed: 2026-07-05 (heredado de dos items Done que lo cargaban como follow-up:
 addressed-to-sibling over-suppression y el move a `persona_runner/`)
 
@@ -30,3 +30,13 @@ el swap) — mismo trade que RENAME-1b.
 
 No arrancado. Todo el flujo es drivable vía `az`; el único atom es el GO de
 Bernard por el blip.
+
+## Done (2026-07-05, v4.21.119 `17fc427`)
+
+Ejecutado con GO explícito de Bernard, patrón RENAME-1b: deactivate revisión de
+`vultur-gateway` → create `persona-gateway` en `prod-env` (secrets/env/scale
+idénticos, imagen 19db105, min=max=1, ingress interno :8788) → 3/3
+`persona_gateway_ready` guilds=1 (Vultur, ALICE, Frugívoro) → repoint
+`ALICE_INVITE_URL` en discord-bot → delete `vultur-gateway`. Código: cd.yml
+(build/deploy/health + repo de imagen), arch test label, sibling-personas.md
+(+ fix stale insult-env→prod-env), CLAUDE.md.

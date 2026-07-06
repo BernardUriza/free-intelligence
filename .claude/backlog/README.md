@@ -14,7 +14,7 @@ en el engineering-playbook. Items Done se retiran del folder (limpieza
 - [Frugívoro persona](frugivoro-persona.md) — In progress. Persona LIVE en prod (registry + gateway, v4.21.115); pendiente el corpus RAG de erudición (`__corpus_vegan__`) y el benchmark ético vs el GPT competidor.
 - [Cross-turn durable research jobs](cross-turn-research-jobs.md) — Proposed (2026-07-05). @mention → ack ya → worker durable corre el job multi-step → postea la respuesta al canal después. Async-real que NO encaja en og118 (stateless) pero SÍ aquí. Reusa el molde `reminders` (tabla + drain loop + retry) + `/v1/turn`; slice = tabla `research_jobs` + repo + `@tasks.loop`. GO del primer slice = Bernard.
 - [Renombrar Frugi → Fruggy](rename-frugi-to-fruggy.md) — Proposed (2026-07-05). Alias/display de la persona Frugívoro: "frugi" → "Fruggy". Slice en `shared/personas/registry.py` + grep total del nombre; forks del owner: ¿rename completo (display + username Discord) o solo alias, y ¿muere `frugi` como legacy?
-- [Renombrar `vultur-gateway` → `persona-gateway`](rename-vultur-gateway-to-persona-gateway.md) — Proposed (2026-07-05). El CA hospeda a TODOS los siblings, el nombre miente (verificado: sigue `vultur-gateway` en Azure). Molde: el rename insult-runner→persona-runner. Atom de Bernard: GO por el blip ~30s.
+- [Renombrar `vultur-gateway` → `persona-gateway`](rename-vultur-gateway-to-persona-gateway.md) — Done (2026-07-05, v4.21.119 `17fc427`, GO de Bernard). RENAME-1b live: persona-gateway en prod-env, 3/3 personas ready, ALICE_INVITE_URL re-apuntado, vultur-gateway borrado, cd.yml/docs renombrados.
 
 ## Retirados (Done, 2026-07-05 — historia en git)
 
