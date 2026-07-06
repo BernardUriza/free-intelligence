@@ -95,6 +95,14 @@ TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 # activity. Default 15 min — comfortably past the 5-min cache TTL so the
 # next turn after this re-opens with a fresh cache window anyway.
 SESSION_IDLE_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_SESSION_IDLE_TIMEOUT_S", "900"))
+# Hard ceiling on concurrent pool slots. Each slot is a live Node subprocess,
+# and og118 keys slots by client-minted conversation UUIDs (OG118-CONTINUITY),
+# so without a cap an authed caller can grow the pool without bound — the
+# 2026-05-22 judge pile-up OOM'd this exact 1-CPU/2Gi runner. At the cap the
+# least-recently-used slot is closed before a new one opens: Discord channels
+# keep durable context in the workspace and og118 reseeds from replayed
+# history, so an eviction costs one cold start, never permanent context loss.
+MAX_POOL_SESSIONS = int(os.environ.get("AGENT_RUNNER_MAX_POOL_SESSIONS", "8"))
 
 # Max concurrent /v1/judge SDK calls. Default 1 — the judge spawns a FRESH
 # Node subprocess per call (no session pool) and generates thousands of tokens
@@ -518,6 +526,30 @@ async def _get_or_create_client(
         if existing is not None:
             _pool_last_used[key] = time.time()
             return existing
+
+        # At the cap, evict least-recently-used slots before opening a new one.
+        # A slot mid-turn refreshed its last_used at turn start, so an in-flight
+        # session is only ever the LRU pick when EVERY slot is busy — at which
+        # point the box is past its concurrency budget anyway and that turn's
+        # error path rebuilds cleanly.
+        while len(_pool) >= MAX_POOL_SESSIONS:
+            lru_key = min(_pool, key=lambda k: _pool_last_used.get(k, 0.0))
+            evicted = _pool.pop(lru_key, None)
+            _pool_last_used.pop(lru_key, None)
+            _channel_locks.pop(lru_key, None)
+            _pool_models.pop(lru_key, None)
+            if evicted is not None:
+                try:
+                    await evicted.__aexit__(None, None, None)
+                    log.info(
+                        "agent_runner_session_evicted_lru",
+                        evicted_key=lru_key,
+                        for_key=key,
+                        pool_size=len(_pool),
+                        max_pool=MAX_POOL_SESSIONS,
+                    )
+                except Exception:
+                    log.exception("agent_runner_session_evict_failed", evicted_key=lru_key)
 
         # First turn for this channel — route, then build + enter client.
         chosen_model = DEFAULT_MODEL
