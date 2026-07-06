@@ -25,11 +25,15 @@ import httpx
 
 RUNNER_URL = os.getenv("OG118_EXTERNAL_RUNNER_URL", "").rstrip("/")
 RUNNER_TOKEN = os.getenv("OG118_EXTERNAL_RUNNER_TOKEN", "")
-# 45s read ceiling (down from 120s): an interactive chat turn that takes longer
-# is a failure to surface, not to wait on. Behind the ACA ingress a browser abort
-# may not reach uvicorn as http.disconnect, so a shorter read timeout bounds how
-# long a held POST (+ the engine's compute) survives a client that walked away.
-_TIMEOUT = httpx.Timeout(45.0, connect=10.0)
+# 95s read ceiling — ABOVE the engine's own TURN_TIMEOUT_S (90s) so the engine
+# is always the one that cuts, with its typed 502, never this proxy mid-turn.
+# The prior 45s (set when every turn shared one always-warm slot) is below the
+# measured legitimate worst case now that each conversation opens its own
+# engine session: cold-start first turns measured 8.3s / 40.1s / 15.8s live on
+# 2026-07-06 (persona load + router + history fold). The ingress-held-POST
+# concern that motivated shortening still holds — which is why this tracks the
+# engine's ceiling instead of returning to the old open-ended 120s.
+_TIMEOUT = httpx.Timeout(95.0, connect=10.0)
 
 # Same caps fi_runner applies to client-replayed history on the local path
 # (Runner.client_history_max_messages/_chars). The external path bypasses
