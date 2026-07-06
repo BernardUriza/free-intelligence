@@ -472,7 +472,14 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     runner_token = config.insult_agent_runner_token.get_secret_value()
     if not (runner_url and runner_token):
         raise RuntimeError("persona gateway requires INSULT_AGENT_RUNNER_URL + token")
-    agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)
+    # timeout_s=240 (vs the 120 default): a sibling's FIRST turn — cold session +
+    # curated facts + behavioral guidance — measured 134.5s in prod (2026-07-06,
+    # frugivoro meal plan). The 120s default read-timeout hung up 14s before the
+    # runner finished, so the user got the "…" fallback while a complete reply
+    # died unread. Siblings are mention-gated with a typing keepalive running, so
+    # a longer wait is honest UX; Insult's plumbing keeps its own 120s because
+    # its timeout feeds the ALICE failover path.
+    agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token, timeout_s=240.0)
 
     tts_client = build_susurro_tts_client(
         base_url=os.environ.get("SUSURRO_URL", DEFAULT_SUSURRO_URL),
