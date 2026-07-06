@@ -172,6 +172,80 @@ async def test_direct_route_is_shape_compatible_with_agentic():
     assert direct.reason == "llm_insult"
 
 
+@pytest.mark.asyncio
+async def test_route_parses_clean_frugivoro():
+    router = LLMShadowRouter(llm=_FakeLLM("frugivoro"))
+    decision = await router.route("qué hago de cenar con lentejas y espinacas?")
+    assert decision.target == "frugivoro"
+    assert decision.reason == "llm_frugivoro"
+
+
+@pytest.mark.asyncio
+async def test_route_with_context_composes_recent_block():
+    """HOST paso 2 (P0 2026-07-06): Alex's bare pantry list mid-fruit-conversation
+    routed default_insult because the router saw the message ALONE. With context,
+    the recent-conversation block rides above the current message."""
+    fake = _FakeLLM("frugivoro")
+    router = LLMShadowRouter(llm=fake)
+    context = (
+        "bernard2389: dile a frugi que tienes ahorita para que no alucine con el tahini\n"
+        "Frugívoro: perfecto, compárteme tu inventario y armamos el menú"
+    )
+    await router.route("Avena\nChía\nZanahorias\nJitomate", context)
+    _instruction, user_text = fake.calls[0]
+    assert "Recent channel conversation" in user_text
+    assert "dile a frugi" in user_text
+    assert "Current message to route:" in user_text
+    assert user_text.endswith("Avena\nChía\nZanahorias\nJitomate")
+
+
+@pytest.mark.asyncio
+async def test_route_without_context_is_byte_identical_to_before():
+    # Resistance case: no context → the payload is the bare message, so existing
+    # telemetry windows stay comparable (no silent input-shape change).
+    fake = _FakeLLM("insult")
+    router = LLMShadowRouter(llm=fake)
+    await router.route("hola")
+    _instruction, user_text = fake.calls[0]
+    assert user_text == "hola"
+
+
+@pytest.mark.asyncio
+async def test_direct_route_forwards_context_too():
+    # shape-compatible contract: the cheap transport composes the same payload.
+    client = _FakeAzureClient("frugivoro")
+    router = DirectAzureLLMRouter(client=client)
+    await router.route("Garbanzos\nLentejas", "Alex: estábamos viendo qué cocinar con frugi")
+    sent = client.calls[0]["messages"][1]["content"]
+    assert "Recent channel conversation" in sent
+    assert sent.endswith("Garbanzos\nLentejas")
+
+
+def test_routing_instruction_names_every_routable_persona():
+    """The 2026-07-06 root: _VALID_TARGETS knew frugivoro but the INSTRUCTION only
+    offered insult|vultur, so the brain literally could not pick frugivoro. Every
+    valid target must be described in the instruction the model actually reads."""
+    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    for target in llm_shadow_router._VALID_TARGETS:
+        assert target in instr, f"routing instruction never mentions {target!r}"
+
+
+def test_routing_instruction_encodes_continuation_rule():
+    """Pin the context rule: a continuation of a specialist's exchange routes to
+    that specialist (the founding P0 case: pantry list mid-fruit-conversation)."""
+    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    assert "continuation" in instr
+    assert "inventory" in instr  # the founding example rides in the instruction
+
+
+def test_routing_instruction_keeps_food_mere_mention_with_insult():
+    # Resistance case (mutator rule): casually mentioning food must NOT route to
+    # frugivoro — the mere-mention counter-example is pinned like Netflix's.
+    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    assert "tacos" in instr
+    assert "mere mention of food" in instr
+
+
 def test_valid_targets_mirror_the_registry_in_lockstep():
     # demux_ai must never import personas.*; the target set is mirrored as a
     # constant (parity with shadow_router._VULTUR_PREFIXES) — guard it stays in

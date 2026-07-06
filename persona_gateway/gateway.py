@@ -7,7 +7,9 @@ flow pipeline. The persona's `<id>.md` (loaded by the runner) defines behavior;
 the gateway only:
 
   1. listens on each persona-bot's gateway,
-  2. responds ONLY when that bot is @mentioned (never on its own, never to
+  2. responds ONLY when that bot is addressed — @mention, its own role mention,
+     or a vocative text alias ("frugi, qué opinas"), the complement of Insult's
+     suppression gate (same shared predicate; never on its own, never to
      another bot — mirrors the anti-self-invoke guard from Insult/ALICE),
   3. replays recent channel context + the cleaned message to the runner,
   4. posts the reply as that bot user (native name/avatar — no webhook),
@@ -25,6 +27,7 @@ import contextlib
 import io
 import os
 import re
+from collections.abc import Iterable
 
 import discord
 import structlog
@@ -40,6 +43,7 @@ from khimeras_shared.tts import (
     synthesize_susurro_tts,
 )
 from shared.personas import Persona, gateway_personas
+from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
 
 SPEAK_EMOJI = "🔊"
 
@@ -65,8 +69,12 @@ def clean_mention(content: str, bot_id: int) -> str:
     return cleaned.strip()
 
 
-def should_respond(message: discord.Message, bot_user: discord.abc.User | None) -> bool:
-    """A persona-bot answers iff it was @mentioned by a NON-bot author.
+def should_respond(
+    message: discord.Message,
+    bot_user: discord.abc.User | None,
+    aliases: Iterable[str] = (),
+) -> bool:
+    """A persona-bot answers iff a NON-bot author addressed it.
 
     - `author.bot` guard: never auto-invoke, never answer another bot (prevents
       Insult ↔ Vultur loops — same fix as Insult/ALICE v4.20.19).
@@ -78,6 +86,13 @@ def should_respond(message: discord.Message, bot_user: discord.abc.User | None) 
       not `<@userid>`, so it never landed in `message.mentions`. We honor it IFF
       the mentioned role is one THIS bot actually carries, and NEVER @everyone
       (its role id equals the guild id), so it stays mass-ping safe.
+    - VOCATIVE text alias of THIS persona also fires ("frugi, qué opinas") — the
+      complement of Insult's suppression gate. Both sides evaluate the SAME
+      predicate (``shared.personas.addressing``): before this, Insult muted on
+      any alias occurrence while the gateway needed a mention, so "dile a frugi
+      que…" got NO answer from anyone for 5 minutes (P0 2026-07-06 17:24Z). A
+      message that OPENS addressing Insult never alias-summons a sibling — the
+      head of the message wins, same as Insult's gate.
     """
     if bot_user is None or message.author.bot:
         return False
@@ -89,7 +104,20 @@ def should_respond(message: discord.Message, bot_user: discord.abc.User | None) 
         own_role_ids.discard(guild.id)  # @everyone — never a summon
         if any(role.id in own_role_ids for role in getattr(message, "role_mentions", [])):
             return True
-    return False
+    content = message.content or ""
+    return not opens_addressing_insult(content) and any_alias_is_addressee(aliases, content)
+
+
+def edit_summons(
+    before: discord.Message,
+    after: discord.Message,
+    bot_user: discord.abc.User | None,
+    aliases: Iterable[str] = (),
+) -> bool:
+    """True when an edit ADDS an address to this persona (not-addressed →
+    addressed transition). An edit to a message the persona already answered
+    (addressed before AND after) never re-triggers it."""
+    return not should_respond(before, bot_user, aliases) and should_respond(after, bot_user, aliases)
 
 
 def format_context(recent: list[dict]) -> list[dict]:
@@ -224,8 +252,28 @@ class PersonaClient(discord.Client):
             log.exception("persona_gateway_tts_failed", persona_id=self.persona.persona_id, reason=reason)
 
     async def on_message(self, message: discord.Message) -> None:
-        if not should_respond(message, self.user):
+        if not should_respond(message, self.user, self.persona.aliases):
             return
+        await self._dispatch(message)
+
+    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+        """An edit that ADDS an address to this persona summons it (P0 2026-07-06):
+        Alex sent his pantry list clean and edited in "@frugi" — `on_message` had
+        already run on the clean content, so the mention summoned nobody. Fires
+        ONLY on the not-addressed → addressed transition, so an edit to a message
+        this persona already answered never re-triggers it."""
+        if not edit_summons(before, after, self.user, self.persona.aliases):
+            return
+        log.info(
+            "persona_gateway_edit_summon",
+            persona_id=self.persona.persona_id,
+            message_id=after.id,
+            channel_id=str(after.channel.id),
+        )
+        await self._dispatch(after)
+
+    async def _dispatch(self, message: discord.Message) -> None:
+        """Shared guarded entry for message + edit summons."""
         try:
             await self._handle(message)
         except Exception:

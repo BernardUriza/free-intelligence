@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from persona_gateway.gateway import chunk, clean_mention, format_context, should_respond
+from persona_gateway.gateway import chunk, clean_mention, edit_summons, format_context, should_respond
 
 
 def _user(uid: int):
@@ -102,6 +102,49 @@ def test_ignores_role_the_bot_does_not_have():
     assert should_respond(msg, bot) is False
 
 
+def test_responds_to_vocative_alias_without_mention():
+    """P0 2026-07-06: Insult muted on the alias while the gateway needed a
+    mention → nobody answered. The gateway now fires on a vocative alias of ITS
+    persona — the complement of Insult's suppression gate."""
+    bot = _user(1)
+    msg = _msg(author_bot=False, mentions=[], content="frugi, qué opinas de mi lista?")
+    assert should_respond(msg, bot, ["frugivoro", "frugi"]) is True
+
+
+def test_ignores_alias_behind_object_marker():
+    """RESISTANCE (the founding case): 'dile a frugi que…' talks ABOUT frugi to
+    someone else — the gateway must NOT fire (Insult answers as usual)."""
+    bot = _user(1)
+    msg = _msg(
+        author_bot=False,
+        mentions=[],
+        content="si quieres dile a frugi que tienes ahorita para que no alucine",
+    )
+    assert should_respond(msg, bot, ["frugivoro", "frugi"]) is False
+
+
+def test_alias_never_summons_when_message_opens_addressing_insult():
+    """Head-wins parity with Insult's gate: 'insult, pregúntale a frugi…' is a
+    request TO Insult — even a vocative-looking alias later must not summon."""
+    bot = _user(1)
+    msg = _msg(author_bot=False, mentions=[], content="insult, frugi está exagerando?")
+    assert should_respond(msg, bot, ["frugivoro", "frugi"]) is False
+
+
+def test_ignores_vocative_alias_from_bot_author():
+    """RESISTANCE: another bot saying the alias must never summon (loop guard)."""
+    bot = _user(1)
+    msg = _msg(author_bot=True, mentions=[], content="frugi, contesta tú")
+    assert should_respond(msg, bot, ["frugivoro", "frugi"]) is False
+
+
+def test_no_aliases_arg_keeps_mention_only_behavior():
+    """RESISTANCE: callers not passing aliases (default) keep the old gate."""
+    bot = _user(1)
+    msg = _msg(author_bot=False, mentions=[], content="frugi, contesta")
+    assert should_respond(msg, bot) is False
+
+
 def test_ignores_own_role_mention_from_bot_author():
     # RESISTANCE: another bot pings Vultur's role → must NOT answer (no loops).
     bot = _user(123)
@@ -109,6 +152,34 @@ def test_ignores_own_role_mention_from_bot_author():
     guild = _guild(gid=789, bot_role_ids=[456])
     msg = _msg(author_bot=True, mentions=[], role_mentions=[bot_role], guild=guild)
     assert should_respond(msg, bot) is False
+
+
+# --- edit_summons (P0 2026-07-06: mention edited in AFTER send) --------------
+
+
+def test_edit_that_adds_mention_summons():
+    """Alex sent his pantry list clean and edited in '@frugi' — on_message had
+    already run on the clean content, so the mention summoned nobody."""
+    bot = _user(1)
+    before = _msg(author_bot=False, mentions=[], content="Avena, chía, zanahorias")
+    after = _msg(author_bot=False, mentions=[bot], content="Avena, chía, zanahorias @frugi")
+    assert edit_summons(before, after, bot, ["frugi"]) is True
+
+
+def test_edit_of_already_addressed_message_never_retriggers():
+    """RESISTANCE: fixing a typo in a message the persona already answered must
+    not summon it twice."""
+    bot = _user(1)
+    before = _msg(author_bot=False, mentions=[bot], content="frugi qué opinas de la avena")
+    after = _msg(author_bot=False, mentions=[bot], content="frugi qué opinas de la avena?")
+    assert edit_summons(before, after, bot, ["frugi"]) is False
+
+
+def test_edit_without_address_stays_silent():
+    bot = _user(1)
+    before = _msg(author_bot=False, mentions=[], content="hola")
+    after = _msg(author_bot=False, mentions=[], content="hola a todos")
+    assert edit_summons(before, after, bot, ["frugi"]) is False
 
 
 # --- clean_mention ----------------------------------------------------------

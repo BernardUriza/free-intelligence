@@ -27,6 +27,7 @@ import discord
 import structlog
 
 from personas.insult.core.errors import ErrorType, get_error_response
+from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
 from shared.personas.registry import sibling_aliases, sibling_bot_user_ids
 
 log = structlog.get_logger()
@@ -34,8 +35,6 @@ log = structlog.get_logger()
 MAX_MESSAGE_LENGTH = 4000
 BATCH_WAIT_SECONDS = 3.0  # Wait this long after last message before responding
 MIN_RESPONSE_GAP = 5.0  # Minimum seconds between bot responses to same user (token protection)
-
-_HOST_NAME_PREFIX = re.compile(r"@?insult\b", re.IGNORECASE)
 
 
 def _opens_addressing_host(message: discord.Message) -> bool:
@@ -47,9 +46,11 @@ def _opens_addressing_host(message: discord.Message) -> bool:
     sibling. Without this guard the alias scan below muted Insult on every
     explicit ask that names ALICE — so `invoke_alice` could never fire on a
     direct request (msg_skipped_addressed_to_sibling, 2026-07-04 21:50Z).
+    The name-prefix half lives in ``shared.personas.addressing`` so the
+    persona_gateway applies the SAME head-wins rule (complement contract).
     """
     content = (message.content or "").lstrip()
-    if _HOST_NAME_PREFIX.match(content):
+    if opens_addressing_insult(content):
         return True
     me = getattr(getattr(message, "guild", None), "me", None)
     return me is not None and re.match(rf"<@!?{me.id}>", content) is not None
@@ -73,6 +74,10 @@ def addressed_to_sibling(message: discord.Message) -> bool:
     3. **Text alias** — a whole-word alias the persona opted into in the registry
        (e.g. ALICE's "amix"/"ali"/"alicia"). Default-empty per persona to avoid
        false positives — e.g. "vultur" as a word could fire on film-critic talk.
+       An alias only counts as an ADDRESS when it is the addressee (vocative) —
+       an alias behind an object marker ("dile A frugi", "hablando DE frugi",
+       "CON frugi") is talking ABOUT the sibling to someone else, and Insult
+       must answer as usual (see ``_alias_is_addressee``).
 
     Intrusive/clinical keywords are intentionally excluded: those are shared
     context both bots may address; this gate is only "I'm talking to a sibling."
@@ -98,8 +103,7 @@ def addressed_to_sibling(message: discord.Message) -> bool:
                 ):
                     return True
 
-    low = (message.content or "").lower()
-    return any(re.search(rf"\b{re.escape(a.lower())}\b", low) for a in sibling_aliases() if a)
+    return any_alias_is_addressee(sibling_aliases(), message.content or "")
 
 
 @dataclass
@@ -123,6 +127,33 @@ class BatchManager:
     def record_response(self, user_id: int) -> None:
         """Call from `_respond` so MIN_RESPONSE_GAP starts ticking from now."""
         self._last_response_time[user_id] = time.monotonic()
+
+    def retract_if_pending(self, message: discord.Message) -> bool:
+        """Drop ``message`` from its pending batch (True if it was still there).
+
+        The edited-in-address case (P0 2026-07-06): a message enters the batch
+        clean, then an edit adds a sibling @mention/alias — the gate only ran on
+        the ORIGINAL content, so Insult would answer a message that now belongs
+        to a sibling (double reply: Insult + the sibling). Retracting is only
+        possible while the batch hasn't flushed; once Insult responded, the edit
+        is the sibling's alone to pick up (nothing to un-send).
+        """
+        batch_key = f"{message.channel.id}:{message.author.id}"
+        batch = self._pending.get(batch_key)
+        if batch is None:
+            return False
+        for i, queued in enumerate(batch.messages):
+            if queued.id == message.id:
+                batch.messages.pop(i)
+                batch.texts.pop(i)
+                break
+        else:
+            return False
+        if not batch.messages:
+            if batch.timer is not None:
+                batch.timer.cancel()
+            self._pending.pop(batch_key, None)
+        return True
 
     async def handle_incoming(
         self,

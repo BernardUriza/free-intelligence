@@ -81,3 +81,39 @@ def test_insultante_prefix_does_not_unmute():
     """RESISTANCE: 'insultante…' is not an address to Insult (word boundary);
     the sibling alias later still suppresses."""
     assert addressed_to_sibling(_msg("insultante lo de ayer, alice qué opinas")) is True
+
+
+def test_alias_behind_object_marker_does_not_suppress():
+    """The founding P0 case (2026-07-06 17:24Z): Bernard → Alex, 'dile a frugi
+    que tienes ahorita…' — talking ABOUT frugi, not TO frugi. The bare alias scan
+    muted Insult and (gateway being mention-only then) NOBODY answered for 5
+    minutes. An object-marked alias must NOT suppress."""
+    assert (
+        addressed_to_sibling(
+            _msg(
+                "ayer me falto mandarte la otra parte de la alacena bb, si quieres "
+                "dile a frugi que tienes ahorita para que no alucine que ya te ha "
+                "llegado el tahini"
+            )
+        )
+        is False
+    )
+
+
+def test_talking_about_sibling_with_de_does_not_suppress():
+    assert addressed_to_sibling(_msg("hablando de frugi, está medio loco no?")) is False
+
+
+def test_vocative_alias_still_suppresses():
+    """RESISTANCE: a real vocative ('frugi, qué opinas…') IS an address — Insult
+    stays silent and the gateway (same shared predicate) answers."""
+    assert addressed_to_sibling(_msg("frugi, qué opinas de mi lista de alimentos?")) is True
+
+
+def test_trailing_vocative_alias_still_suppresses():
+    assert addressed_to_sibling(_msg("gracias frugi")) is True
+
+
+def test_object_then_vocative_occurrence_suppresses():
+    """Occurrence-wise: object first, vocative second → still an address."""
+    assert addressed_to_sibling(_msg("no le hablo a frugi… bueno ya, frugi ayúdame")) is True

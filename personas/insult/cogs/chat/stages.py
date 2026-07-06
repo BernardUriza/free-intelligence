@@ -101,6 +101,33 @@ HOST_DEGRADE_TIMEOUT_S = 12.0
 _VULTUR_PREFIXES = ("@vultur ", "~vultur ")
 
 
+# How many recent channel messages ride into the routing decision as context.
+# Small on purpose: enough to detect "this is a continuation of frugivoro's
+# exchange" (the 2026-07-06 P0: Alex's bare pantry list mid-fruit-conversation
+# routed default_insult because the router saw the message alone), tiny enough
+# to keep the per-call token cost in the hundreds.
+ROUTER_CONTEXT_MESSAGES = 8
+
+
+async def _fetch_router_context(memory: Any, channel_id: str) -> str | None:
+    """Last N channel messages as ``user: message`` lines (oldest first) for the
+    routing brain. Best-effort: any fault returns None (route without context)
+    rather than failing the shadow decision."""
+    if memory is None:
+        return None
+    try:
+        rows = await memory.get_recent(channel_id, limit=ROUTER_CONTEXT_MESSAGES)
+    except Exception:
+        log.exception("llm_router_context_fetch_failed", channel_id=channel_id)
+        return None
+    lines = [
+        f"{row.get('user_name', '?')}: {str(row.get('content', ''))[:300]}"
+        for row in rows
+        if str(row.get("content", "")).strip()
+    ]
+    return "\n".join(lines) if lines else None
+
+
 async def _run_llm_shadow_decision(
     llm_shadow_route: Any,
     raw_text: str,
@@ -108,12 +135,18 @@ async def _run_llm_shadow_decision(
     guild_id: str | None,
     channel_id: str,
     router_budget: Any = None,
+    memory: Any = None,
 ) -> None:
     """Run the gpt-4.1 LLM shadow route (HOST 5/6 slice A.2) and LOG its decision
     next to where the turn ACTUALLY went. Runs as a BACKGROUND task so the Azure
     call never delays the user's reply (no observable behavior change, no cutover).
     Wrapped: a shadow fault logs ``llm_shadow_router_failed`` and is invisible to
     the turn — it must never raise into the pipeline.
+
+    Context-aware (HOST paso 2): fetches the last ``ROUTER_CONTEXT_MESSAGES``
+    channel messages INSIDE this background task (never on the turn's critical
+    path) so the brain can route continuations to the persona already holding
+    the exchange.
 
     Spend-capped: ``router_budget`` ($5/week, Bernard 2026-06-21) is checked BEFORE
     the Azure call and the call's real token cost recorded after. Over the weekly cap
@@ -128,8 +161,9 @@ async def _run_llm_shadow_decision(
             channel_id=channel_id,
         )
         return
+    context = await _fetch_router_context(memory, channel_id)
     try:
-        decision = await llm_shadow_route(raw_text)
+        decision = await llm_shadow_route(raw_text, context)
         if router_budget is not None:
             total = router_budget.record(decision.input_tokens, decision.output_tokens)
             log.info(
@@ -148,6 +182,7 @@ async def _run_llm_shadow_decision(
             guild_id=guild_id,
             channel_id=channel_id,
             route_input_len=len(raw_text),
+            route_context_chars=len(context) if context else 0,
             llm_input_tokens=decision.input_tokens,
             llm_output_tokens=decision.output_tokens,
         )
@@ -268,6 +303,7 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
                     ctx.guild_id,
                     ctx.channel_id,
                     getattr(ctx.deps, "router_budget", None),
+                    getattr(ctx.deps, "memory", None),
                 ),
                 name="llm_shadow_router",
             )
