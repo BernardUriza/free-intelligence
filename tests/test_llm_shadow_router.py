@@ -225,7 +225,7 @@ def test_routing_instruction_names_every_routable_persona():
     """The 2026-07-06 root: _VALID_TARGETS knew frugivoro but the INSTRUCTION only
     offered insult|vultur, so the brain literally could not pick frugivoro. Every
     valid target must be described in the instruction the model actually reads."""
-    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    instr = llm_shadow_router._routing_instruction().lower()
     for target in llm_shadow_router._VALID_TARGETS:
         assert target in instr, f"routing instruction never mentions {target!r}"
 
@@ -233,7 +233,7 @@ def test_routing_instruction_names_every_routable_persona():
 def test_routing_instruction_encodes_continuation_rule():
     """Pin the context rule: a continuation of a specialist's exchange routes to
     that specialist (the founding P0 case: pantry list mid-fruit-conversation)."""
-    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    instr = llm_shadow_router._routing_instruction().lower()
     assert "continuation" in instr
     assert "inventory" in instr  # the founding example rides in the instruction
 
@@ -241,9 +241,46 @@ def test_routing_instruction_encodes_continuation_rule():
 def test_routing_instruction_keeps_food_mere_mention_with_insult():
     # Resistance case (mutator rule): casually mentioning food must NOT route to
     # frugivoro — the mere-mention counter-example is pinned like Netflix's.
-    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    instr = llm_shadow_router._routing_instruction().lower()
     assert "tacos" in instr
     assert "mere mention of food" in instr
+
+
+def test_routing_instruction_continuation_overrides_specialty_gates():
+    """The 2026-07-07 P0: mid-exchange with vultur about non-binary identity,
+    'Eres un buitre no-cis. Entonces.' routed insult because the specialty gate
+    ('vultur ONLY when seeking film expertise') dominated the continuation clause.
+    The continuation rule must outrank every specialty gate and say so explicitly,
+    with the founding vultur case pinned as an example."""
+    instr = llm_shadow_router._routing_instruction().lower()
+    assert "regardless of topic" in instr
+    assert "no-cis" in instr
+    assert "presagio" in instr  # the second-participant continuation (Alex, 17:23)
+
+
+def test_routing_instruction_maps_display_names_to_targets():
+    # Context lines carry Discord display names ("Vultur Analytica"), not target
+    # tokens ("vultur") — the brain needs the mapping to see who holds the floor.
+    instr = llm_shadow_router._routing_instruction().lower()
+    assert "vultur analytica" in instr
+    assert "a.l.i.c.e." in instr
+    assert "frugívoro" in instr
+
+
+def test_routing_instruction_closed_exchange_returns_to_insult():
+    # Resistance case: continuation must not become sticky forever — a life
+    # update long after a specialist exchange closed stays with the host.
+    instr = llm_shadow_router._routing_instruction().lower()
+    assert "mason jar" in instr
+    assert "exchange closed" in instr
+
+
+def test_routing_instruction_loads_from_content_file_not_inline():
+    """prompts-as-content-not-code (P0, playbook SSOT): the routing prompt lives
+    in demux_ai/prompts/host_routing.md behind the mtime-aware khimeras_shared
+    loader — never as an inline Python constant requiring a redeploy to tune."""
+    assert not hasattr(llm_shadow_router, "_ROUTING_INSTRUCTION")
+    assert (llm_shadow_router._PROMPTS_DIR / "host_routing.md").exists()
 
 
 def test_valid_targets_mirror_the_registry_in_lockstep():
@@ -261,7 +298,7 @@ def test_routing_instruction_encodes_intent_not_mention():
     not on a topic word appearing. Someone reverting to keyword-matching ('mentions
     a movie -> vultur') would re-introduce the misroute Bernard hit. Pin the
     discriminating language + the mention counter-examples."""
-    instr = llm_shadow_router._ROUTING_INSTRUCTION.lower()
+    instr = llm_shadow_router._routing_instruction().lower()
     assert "intent" in instr
     assert "passing" in instr  # "mentioning ... in passing is NOT enough"
     assert "recommend" in instr or "recomi" in instr  # the seeking-expertise signal

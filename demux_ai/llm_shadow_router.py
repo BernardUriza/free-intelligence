@@ -25,9 +25,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
+
+from khimeras_shared.prompts import PromptCache, load_prompt
 
 if TYPE_CHECKING:
     from demux_ai.host_llm import HostRouterLLM
@@ -51,44 +54,12 @@ _DEFAULT_TARGET = "insult"
 # is guarded by ``test_valid_targets_mirror_the_registry_in_lockstep``.
 _VALID_TARGETS = ("insult", "vultur", "alice", "frugivoro")
 
-_ROUTING_INSTRUCTION = (
-    "You are the routing brain of a multi-persona Discord system. Decide which "
-    "persona should handle the user's message. Route on the user's INTENT, NOT on "
-    "whether a topic word appears.\n\n"
-    "Personas:\n"
-    "- insult: the default host — abrasive, psychologically probing. Handles "
-    "everything by default.\n"
-    "- vultur: a film-criticism specialist. Pick vultur ONLY when the user is "
-    "actively SEEKING film expertise — asking for a recommendation, a review, an "
-    "opinion/analysis of a film, director, or scene. Merely MENTIONING a movie, a "
-    "show, or Netflix in passing is NOT enough — that stays with insult.\n"
-    "- frugivoro: an erudite vegan/plant-based gastronomy and fruit-first "
-    "nutrition specialist. Pick frugivoro ONLY when the user is actively SEEKING "
-    "plant-based food expertise — asking what to cook, how a technique or "
-    "substitution works, meal planning from available ingredients, or fruit/"
-    "nutrition guidance. Merely MENTIONING food, a meal, or being hungry in "
-    "passing is NOT enough — that stays with insult.\n"
-    "- alice: an empathetic companion persona. Pick alice ONLY when the user "
-    "explicitly asks for alice by name.\n\n"
-    "CONVERSATION CONTEXT: when a recent-conversation block is provided, use it. "
-    "If the current message is a CONTINUATION of an exchange a specialist persona "
-    "was having — the user is answering that persona's question, supplying data "
-    "it asked for, or following up on its last reply — route to THAT persona even "
-    "if the current message alone looks generic.\n\n"
-    "Examples:\n"
-    '- "recomiéndame una peli de terror buena" -> vultur (wants a recommendation)\n'
-    '- "qué opinas de Dune 2, vale la pena?" -> vultur (wants criticism)\n'
-    '- "ayer vi una peli en Netflix y me quedé dormido" -> insult (mere mention)\n'
-    '- "estoy harto, llevo todo el día viendo Netflix" -> insult (not seeking film expertise)\n'
-    '- "mi jefe es un personaje de película de terror" -> insult (figure of speech)\n'
-    '- "qué hago de cenar con lentejas, espinacas y arroz?" -> frugivoro (seeking plant-based cooking)\n'
-    '- "me comí unos tacos buenísimos ayer" -> insult (mere mention of food)\n'
-    "- a bare pantry/ingredient inventory list, when the recent conversation was "
-    "about fruit or cooking with frugivoro -> frugivoro (continuation: the user is "
-    "supplying the data the food exchange needs)\n\n"
-    "Reply with EXACTLY one lowercase word and nothing else: "
-    "insult, vultur, alice or frugivoro."
-)
+_PROMPTS_DIR = Path(__file__).parent / "prompts"
+_PROMPT_CACHE: PromptCache = {}
+
+
+def _routing_instruction() -> str:
+    return load_prompt(_PROMPTS_DIR, "host_routing", _PROMPT_CACHE)
 
 
 def _compose_route_input(text: str, context: str | None) -> str:
@@ -152,7 +123,7 @@ class LLMShadowRouter:
         exchange. Returns a decision with the parsed target + reason + token
         counts. Raises on a hard LLM failure (``HostRouterError``) — the caller
         wraps it so a shadow fault is invisible to the turn."""
-        result = await self._llm.complete(_ROUTING_INSTRUCTION, _compose_route_input(text, context))
+        result = await self._llm.complete(_routing_instruction(), _compose_route_input(text, context))
         target, reason = _parse_target(result.text)
         return LLMShadowDecision(
             target=target,
@@ -200,7 +171,7 @@ class DirectAzureLLMRouter:
         resp = await client.chat.completions.create(  # type: ignore[attr-defined]
             model=self._deployment,
             messages=[
-                {"role": "system", "content": _ROUTING_INSTRUCTION},
+                {"role": "system", "content": _routing_instruction()},
                 {"role": "user", "content": _compose_route_input(text, context)},
             ],
             max_tokens=8,
