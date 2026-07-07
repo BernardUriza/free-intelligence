@@ -340,12 +340,12 @@ class _CoreOutputMutationAdapter:
         recent_response_lengths: list[int],
         recent_openers: list[str],
     ) -> str:
-        # Deferred import: the marker strippers live host-side
-        # (insult.cogs.chat.reactions/remembers) and a module-level import
+        # Deferred import: the invite/remember strippers live host-side
+        # (insult.cogs.chat.{invites,remembers}) and a module-level import
         # here is circular (cogs __init__ → cog.py → THIS module) — same
         # shape as the Preset Engine / S1b adapters above.
+        from khimeras_shared.reactions import strip_reactions
         from personas.insult.cogs.chat.invites import strip_invites
-        from personas.insult.cogs.chat.reactions import strip_reactions
         from personas.insult.cogs.chat.remembers import strip_remembers
 
         return await run_character_pipeline(

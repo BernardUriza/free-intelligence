@@ -81,7 +81,7 @@ async def test_mutate_preserves_intentional_quote() -> None:
 
 async def _inline_reference(raw: str, user_text: str) -> str:
     """The exact pipeline the stage ran inline pre-PR-G, for parity checks."""
-    from personas.insult.cogs.chat.reactions import strip_reactions
+    from khimeras_shared.reactions import strip_reactions
     from personas.insult.cogs.chat.remembers import strip_remembers
     from personas.insult.core.character import (
         MutationStage,

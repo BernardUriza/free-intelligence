@@ -20,7 +20,6 @@ This module keeps:
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import structlog
@@ -35,9 +34,9 @@ from fi_runner.pipeline import (
 from fi_runner.pipeline import run_pipeline as _run_pipeline
 from fi_runner.pipeline import run_pipeline_sync as _run_pipeline_sync
 
-log = structlog.get_logger()
+from khimeras_shared.reactions import REACTION_PATTERN
 
-_REACT_MARKER_RE = re.compile(r"\[REACT:[^\]]*\]")
+log = structlog.get_logger()
 
 
 def preserve_react_markers(before: str, after: str) -> bool:
@@ -46,8 +45,10 @@ def preserve_react_markers(before: str, after: str) -> bool:
     deduplicate_opener — the stage that triggered the whole invariant design —
     nuked the first line of a response, which carried the ``[REACT:🌊💙…]`` block
     meant for the user. Stages other than strip_reactions must keep the count.
+    Counts with the same shared REACTION_PATTERN the strip stage uses, so the
+    invariant and the stripper can never drift apart.
     """
-    return len(_REACT_MARKER_RE.findall(after)) >= len(_REACT_MARKER_RE.findall(before))
+    return len(REACTION_PATTERN.findall(after)) >= len(REACTION_PATTERN.findall(before))
 
 
 def _structlog_sink(event: str, fields: dict[str, Any]) -> None:

@@ -79,10 +79,10 @@ FORBIDDEN_MODULES: list[str] = [
     "personas.insult.core.arc_tracker",
     "personas.insult.core.style",
     "personas.insult.core.proactive",
-    # NOTE: the [REACT:] marker pipeline + Discord reaction egress relocated to
-    # insult.cogs.chat.reactions (host-side: parse/strip markers + add_reactions
-    # via the Discord API, pure stdlib+discord, zero persona/memory/LLM — same
-    # shape as attachments/disclosure). No longer a smart module, so
+    # NOTE: the [REACT:] marker pipeline + Discord reaction egress was promoted
+    # to khimeras_shared.reactions (shared contract: Insult's stage, ALICE's cog
+    # and the persona gateway all consume parse/strip/add_reactions — pure
+    # stdlib+discord, zero persona/memory/LLM). No longer a smart module, so
     # insult.core.reactions is intentionally absent here.
     "personas.insult.core.language",
     "personas.insult.core.stance_log",

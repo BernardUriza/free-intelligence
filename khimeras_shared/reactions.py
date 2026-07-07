@@ -1,8 +1,10 @@
-"""Emoji reaction system — parsing, stripping, and async execution.
+"""Emoji reaction contract — [REACT:] parsing, stripping, and async execution.
 
-Handles [REACT:emoji1,emoji2] markers in LLM responses:
+Shared across every persona host (Insult's chat pipeline, ALICE's cog, the
+persona gateway). Handles [REACT:emoji1,emoji2] markers in LLM responses:
 - parse_reactions(): extract emoji list from response text
 - strip_reactions(): remove [REACT:] markers from response text
+- harvest_orphan_emojis(): opt-in safety net for models that emit emojis inline
 - add_reactions(): async background task to add emojis to Discord messages
 """
 
@@ -15,32 +17,32 @@ import structlog
 
 log = structlog.get_logger()
 
-# [REACT:💀,🔥] parsed from LLM response
 REACTION_PATTERN = re.compile(r"\[REACT:([^\]]*)\]", re.IGNORECASE)
 MAX_REACTIONS = 8
-REACTION_DELAY_MIN = 0.5  # seconds before first reaction (human-like pause)
+REACTION_DELAY_MIN = 0.5
 REACTION_DELAY_MAX = 2.0
-REACTION_INTERVAL = 0.35  # seconds between multiple reactions (rate limit safety)
+REACTION_INTERVAL = 0.35
 
-# Unicode emoji grapheme — matches one emoji (base + optional ZWJ sequences, skin tones, variation selectors).
-# Used to split tokens where the LLM concatenated emojis without commas: "🦷🪬🫧" → ["🦷","🪬","🫧"].
 _EMOJI_GRAPHEME = re.compile(
     r"(?:"
-    r"[\U0001F1E6-\U0001F1FF]{2}"  # regional indicators (flags)
-    r"|[\U0001F000-\U0001FFFF\u2600-\u27BF\u2300-\u23FF\u2B00-\u2BFF]"  # base emoji
-    r"(?:[\U0001F3FB-\U0001F3FF])?"  # optional skin tone
-    r"(?:\uFE0F)?"  # optional variation selector
-    r"(?:\u200D"  # optional ZWJ sequences
+    r"[\U0001F1E6-\U0001F1FF]{2}"
+    r"|[\U0001F000-\U0001FFFF\u2600-\u27BF\u2300-\u23FF\u2B00-\u2BFF]"
+    r"(?:[\U0001F3FB-\U0001F3FF])?"
+    r"(?:\uFE0F)?"
+    r"(?:\u200D"
     r"[\U0001F000-\U0001FFFF\u2600-\u27BF][\U0001F3FB-\U0001F3FF]?\uFE0F?)*"
     r")"
 )
-_MAX_EMOJI_LEN = 16  # safety cap per token — anything longer is garbage
+_MAX_EMOJI_LEN = 16
 
 
 def _split_emoji_token(token: str) -> list[str]:
     """Split a token that may contain multiple concatenated unicode emojis.
 
-    Custom Discord emojis (<:name:id>) and single short emojis pass through unchanged.
+    Matches one emoji grapheme at a time (base + optional skin tone, variation
+    selector, ZWJ sequences, regional-indicator flags), so "🦷🪬🫧" → three
+    reactions instead of one Discord-rejected token. Custom Discord emojis
+    (<:name:id>) and single short emojis pass through unchanged.
     """
     if token.startswith("<") and token.endswith(">"):
         return [token]
@@ -94,6 +96,9 @@ def harvest_orphan_emojis(
     text, extracts unique emoji graphemes up to the per-turn cap, appends
     them to the reactions list, and strips them from the visible text.
 
+    Opt-in per persona: Insult enforces it (his DNA forbids inline emojis);
+    personas whose voice legitimately writes emojis inline must NOT call it.
+
     Args:
         response_without_markers: text after `strip_reactions` ran on it.
         already_parsed: emojis already extracted from explicit `[REACT:...]`
@@ -129,13 +134,10 @@ def harvest_orphan_emojis(
     if not found:
         return seen, response_without_markers
 
-    # Strip the harvested emojis from the text. Walk end→start so earlier
-    # offsets stay valid as we mutate the string.
     cleaned = response_without_markers
     for start, end, _ in reversed(found):
         cleaned = cleaned[:start] + cleaned[end:]
 
-    # Collapse runs of whitespace that the removal created (e.g. " ,  ," → ", ").
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
     cleaned = re.sub(r" +([.,;:!?])", r"\1", cleaned)
     cleaned = cleaned.strip()
@@ -146,10 +148,12 @@ def harvest_orphan_emojis(
 async def add_reactions(message: discord.Message, emojis: list[str]) -> None:
     """Add emoji reactions to a Discord message with human-like delay.
 
-    Designed to run as a background task via asyncio.create_task().
+    Sleeps REACTION_DELAY_MIN..MAX before the first reaction and
+    REACTION_INTERVAL between reactions (rate-limit safety). Stops at the
+    first failed emoji. Designed to run as a background task via
+    asyncio.create_task().
     """
     try:
-        # Initial delay — humans don't react instantly
         await asyncio.sleep(random.uniform(REACTION_DELAY_MIN, REACTION_DELAY_MAX))
 
         for i, emoji in enumerate(emojis):
@@ -158,8 +162,7 @@ async def add_reactions(message: discord.Message, emojis: list[str]) -> None:
                 log.info("reaction_added", emoji=emoji, message_id=message.id)
             except (discord.HTTPException, discord.NotFound) as e:
                 log.warning("reaction_failed", emoji=emoji, error=str(e))
-                break  # Don't try remaining if one fails
-            # Small delay between multiple reactions (rate limit safety)
+                break
             if i < len(emojis) - 1:
                 await asyncio.sleep(REACTION_INTERVAL)
     except Exception:

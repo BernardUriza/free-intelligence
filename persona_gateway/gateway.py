@@ -34,6 +34,7 @@ import structlog
 
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
+from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.tts import (
     DEFAULT_SUSURRO_URL,
@@ -182,6 +183,9 @@ class PersonaClient(discord.Client):
         self.tts_client = tts_client
         # Auto-speak replies at/above this length (0 = off, manual 🔊 only).
         self.auto_tts_min_chars = auto_tts_min_chars
+        # Strong refs to fire-and-forget reaction tasks so the event loop
+        # doesn't garbage-collect them mid-flight (RUF006).
+        self._bg_tasks: set[asyncio.Task[None]] = set()
 
     async def on_ready(self) -> None:
         log.info(
@@ -319,6 +323,7 @@ class PersonaClient(discord.Client):
             guild_id=guild_id,
             channel_name=channel_name,
             messages=messages,
+            react_to=message,
         )
 
     async def respond_to_invite(
@@ -384,6 +389,7 @@ class PersonaClient(discord.Client):
         channel_name: str | None,
         messages: list[dict],
         turn_kind: str = "mention",
+        react_to: discord.Message | None = None,
     ) -> None:
         """Shared tail for mention + invite: runner call → post → persist.
 
@@ -422,6 +428,19 @@ class PersonaClient(discord.Client):
                 await _typing_task
 
         text = (resp.text or "").strip()
+        reactions = parse_reactions(text)
+        if reactions:
+            text = strip_reactions(text)
+            if react_to is not None:
+                task = asyncio.create_task(add_reactions(react_to, reactions))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
+                log.info(
+                    "persona_gateway_reactions_fired",
+                    persona_id=self.persona.persona_id,
+                    emojis=reactions,
+                    turn_kind=turn_kind,
+                )
         if not text:
             return
 

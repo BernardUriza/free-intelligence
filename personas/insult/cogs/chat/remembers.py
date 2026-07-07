@@ -1,6 +1,6 @@
 """Fact-learning marker parser — `[REMEMBER:]` extraction and stripping.
 
-Mirrors the `[REACT:]` pipeline in `core/reactions.py`. The persona emits
+Mirrors the `[REACT:]` pipeline in `khimeras_shared.reactions`. The persona emits
 `[REMEMBER: <one-clause fact>]` markers when something durable about the
 user surfaces in a conversation. This module:
 

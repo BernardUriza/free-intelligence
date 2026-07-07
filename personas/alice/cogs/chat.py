@@ -41,6 +41,7 @@ from khimeras_shared.corpus import (
     detect_film_topic,
     film_criticism_guidance,
 )
+from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from personas.alice.config import settings as alice_settings
 from personas.alice.core.clinical_reflection import ClinicalReflector
 from personas.alice.core.llm import AliceLLMClient
@@ -274,6 +275,7 @@ class AliceChatCog(commands.Cog):
                 channel_name=getattr(message.channel, "name", None),
                 user_msg=message.content,
                 invited_by=invited_by,
+                react_to=message,
             )
 
     async def _should_open_gate(self, channel_id: str) -> str | None:
@@ -357,6 +359,7 @@ class AliceChatCog(commands.Cog):
         user_msg: str | None,
         invite_reason: str | None = None,
         invited_by: str = "user_mention",
+        react_to: discord.Message | None = None,
     ) -> str:
         """Shared response builder for both entry points.
 
@@ -442,7 +445,17 @@ class AliceChatCog(commands.Cog):
             return ""
 
         text = response.text.strip()
+        reactions = parse_reactions(text)
+        if reactions:
+            text = strip_reactions(text)
+            if react_to is not None:
+                task = asyncio.create_task(add_reactions(react_to, reactions))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
+                log.info("alice_reactions_fired", emojis=reactions, invited_by=invited_by)
         if not text:
+            if reactions:
+                return ""
             log.warning("alice_empty_response", model=response.model)
             await channel.send("…")
             return ""

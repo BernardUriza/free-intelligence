@@ -34,6 +34,7 @@ from khimeras_shared.corpus import (
     animal_tactics_guidance,
     film_criticism_guidance,
 )
+from khimeras_shared.reactions import add_reactions, harvest_orphan_emojis, parse_reactions
 from personas.insult.cogs.chat._failure import (
     Criticality,
     FailoverReason,
@@ -69,7 +70,6 @@ from personas.insult.cogs.chat.pipeline import (
     Stage,
     TurnCtx,
 )
-from personas.insult.cogs.chat.reactions import add_reactions, harvest_orphan_emojis, parse_reactions
 from personas.insult.cogs.chat.remembers import parse_remembers, persist_remembers
 from personas.insult.cogs.chat.tasks import extract_user_facts
 from personas.insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
