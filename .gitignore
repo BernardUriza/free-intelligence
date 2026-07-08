@@ -193,6 +193,7 @@ temp/
 docs/13 Startups de Salud Digital Revolucionando el Sector.pdf
 Icon?
 
-# og118 local dev artifacts — runtime RAG store, never committed
+# og118 local dev artifacts — runtime RAG store + conversation store, never committed
 apps/og118/server/fi_rag_store.h5
 apps/og118/server/fi_rag_store.h5.lock
+apps/og118/server/conversations/

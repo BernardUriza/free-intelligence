@@ -79,6 +79,84 @@ var IndexedDBConversationLibrary = class {
   }
 };
 
+// src/conversation/RemoteConversationLibrary.ts
+var RemoteConversationLibrary = class _RemoteConversationLibrary {
+  constructor(options) {
+    this.baseUrl = options.baseUrl.replace(/\/+$/, "");
+    this.headers = options.headers ?? (() => ({}));
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+  }
+  async request(method, path, body) {
+    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        ...body !== void 0 ? { "Content-Type": "application/json" } : {},
+        ...this.headers()
+      },
+      ...body !== void 0 ? { body: JSON.stringify(body) } : {}
+    });
+    return response;
+  }
+  static async fail(operation, response) {
+    throw new Error(
+      `RemoteConversationLibrary.${operation} failed: HTTP ${response.status}`
+    );
+  }
+  async list() {
+    const response = await this.request("GET", "/conversations");
+    if (!response.ok) await _RemoteConversationLibrary.fail("list", response);
+    const data = await response.json();
+    return data.conversations;
+  }
+  async get(id) {
+    const response = await this.request(
+      "GET",
+      `/conversations/${encodeURIComponent(id)}`
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) await _RemoteConversationLibrary.fail("get", response);
+    return await response.json();
+  }
+  async put(record) {
+    const response = await this.request(
+      "PUT",
+      `/conversations/${encodeURIComponent(record.id)}`,
+      record
+    );
+    if (!response.ok) await _RemoteConversationLibrary.fail("put", response);
+  }
+  async delete(id) {
+    const response = await this.request(
+      "DELETE",
+      `/conversations/${encodeURIComponent(id)}`
+    );
+    if (!response.ok) await _RemoteConversationLibrary.fail("delete", response);
+  }
+  async clear() {
+    const response = await this.request("DELETE", "/conversations");
+    if (!response.ok) await _RemoteConversationLibrary.fail("clear", response);
+  }
+};
+
+// src/conversation/migrateConversationLibrary.ts
+async function migrateConversationLibrary(source, target) {
+  const [sourceList, targetList] = await Promise.all([source.list(), target.list()]);
+  const existing = new Set(targetList.map((summary) => summary.id));
+  let migrated = 0;
+  let skipped = 0;
+  for (const summary of sourceList) {
+    if (existing.has(summary.id)) {
+      skipped += 1;
+      continue;
+    }
+    const record = await source.get(summary.id);
+    if (!record) continue;
+    await target.put(record);
+    migrated += 1;
+  }
+  return { migrated, skipped };
+}
+
 // src/conversation/useConversationLibrary.ts
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -249,6 +327,8 @@ function useIndexedDBConversationLibrary(identityKey, options = {}) {
 }
 export {
   IndexedDBConversationLibrary,
+  RemoteConversationLibrary,
+  migrateConversationLibrary,
   useConversationLibrary,
   useIndexedDBConversationLibrary
 };
