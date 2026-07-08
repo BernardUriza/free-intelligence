@@ -13,10 +13,11 @@
  * og118 supplies only the app-specific pieces: the TRANSPORT (useOg118Agent),
  * the access-token banner, branding/copy, the start screen, and the chat
  * sidebar. The reusable machinery — visible transcript, optimistic user message,
- * assistant fold, live AgentPanel, AND local-first persistence — lives in the
- * framework (fi-glass `useAgentConversation` + `useConversationLibrary` +
- * `IndexedDBConversationLibrary`). DD-002-LESSON: the consumer consumes the
- * primitive; it does not re-implement it.
+ * assistant fold, live AgentPanel, AND transcript persistence — lives in the
+ * framework (fi-glass `useAgentConversation` + `useConversationLibrary` over a
+ * ConversationLibrary adapter: the cloud store when signed in, IndexedDB
+ * otherwise — see useOg118ConversationLibrary). DD-002-LESSON: the consumer
+ * consumes the primitive; it does not re-implement it.
  *
  * Identity: the conversation library owns the active id, which IS the backend
  * session_id (passed to useOg118Agent). One id ⇒ the local transcript and the
@@ -30,10 +31,7 @@ import {
   AgentWorkspaceShell,
   useAgentConversation,
 } from 'fi-glass/agent';
-import {
-  useConversationLibrary,
-  useIndexedDBConversationLibrary,
-} from 'fi-glass/conversation';
+import { useConversationLibrary } from 'fi-glass/conversation';
 import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -45,6 +43,7 @@ import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { Og118ProjectsSection } from './Og118ProjectsSection';
 import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
+import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
@@ -87,7 +86,11 @@ export function Og118AgentChat() {
   // (the shared-device leak fix). The hooks memoize per identity; a null userId
   // (bearer / legacy single-tenant) keeps the original shared store.
   const { userId, tokenReady } = useOg118Identity();
-  const conversationLibrary = useIndexedDBConversationLibrary(userId);
+  // CONV-CLOUD-1: signed-in ⇒ the server conversation store is authoritative
+  // (after a one-time local→cloud migration); unauthenticated/bearer stays on
+  // the identity-scoped IndexedDB exactly as before.
+  const { library: conversationLibrary, cloud: conversationsCloud } =
+    useOg118ConversationLibrary(userId, tokenReady);
   const audioQueueStore = useAudioQueueStore(userId);
   const lib = useConversationLibrary(conversationLibrary);
   const projects = useOg118Projects(userId, tokenReady);
@@ -199,6 +202,7 @@ export function Og118AgentChat() {
         <Og118Sidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
+          cloud={conversationsCloud}
           onNew={() => {
             lib.newConversation();
             shell.close();

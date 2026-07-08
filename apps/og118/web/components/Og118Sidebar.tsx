@@ -34,6 +34,9 @@ export interface Og118SidebarProps {
   onRename: (id: string, title: string) => void;
   /** Disable switching/new/delete while a turn streams (avoids cross-thread folds). */
   disabled?: boolean;
+  /** True when the server store is authoritative (signed in) — the storage note
+   * and delete-confirm copy must tell the truth about where the data lives. */
+  cloud?: boolean;
 }
 
 export function shortTime(iso: string): string {
@@ -58,6 +61,7 @@ export function Og118Sidebar({
   onDelete,
   onRename,
   disabled = false,
+  cloud = false,
 }: Og118SidebarProps) {
   // B3-FIGLASS-MOBILE-2 — the "Nuevo chat" affordance inherits the framework 44×44
   // touch minimum; the rows inherit it from EditableResourceItem's action slots.
@@ -105,9 +109,10 @@ export function Og118Sidebar({
                   label="Borrar chat"
                   disabled={disabled}
                   onActivate={() => {
-                    if (
-                      window.confirm(`¿Borrar "${c.title}"? Solo se borra de este navegador.`)
-                    ) {
+                    const scope = cloud
+                      ? 'Se borra de tu cuenta en todos tus dispositivos.'
+                      : 'Solo se borra de este navegador.';
+                    if (window.confirm(`¿Borrar "${c.title}"? ${scope}`)) {
                       onDelete(c.id);
                     }
                   }}
@@ -120,7 +125,11 @@ export function Og118Sidebar({
         </nav>
       </AgentSidebarSection>
 
-      <p className="og-sidebar-privacy">Guardado localmente en este navegador.</p>
+      <p className="og-sidebar-privacy">
+        {cloud
+          ? 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.'
+          : 'Guardado localmente en este navegador.'}
+      </p>
     </aside>
   );
 }
