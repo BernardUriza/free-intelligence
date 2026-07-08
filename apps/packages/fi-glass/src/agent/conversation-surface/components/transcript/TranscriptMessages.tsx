@@ -13,9 +13,9 @@
 
 import { Fragment, type ReactNode } from 'react';
 import type { AgentTurnState, ChatMessage } from '@free-intelligence/core';
-import { MessageContent, MessageBubble, CopyButton } from '../../../messages';
-import { AgentPanel, type AgentPanelProps } from '../../AgentPanel';
-import { persistedTraceTurn } from '../persistedTraceTurn';
+import { MessageContent, MessageBubble, CopyButton } from '../../../../messages';
+import { AgentPanel, type AgentPanelProps } from '../../../AgentPanel';
+import { persistedTraceTurn } from '../../persistedTraceTurn';
 
 export interface TranscriptMessagesProps {
   messages: ChatMessage[];
