@@ -332,3 +332,25 @@ describe('<AgentConversationSurface> aboveComposer gap (B3-VOICE-FIGLASS-11)', (
     expect(html).not.toContain('fi-surface-above-composer');
   });
 });
+
+describe('<AgentConversationSurface> composer header slot (COMPOSER-FRAME-2)', () => {
+  it('renders composerHeader inside the composer frame header slot', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={makeConversation()}
+        composerHeader={<span>draft de audio</span>}
+        composerHeaderClassName="app-draft-row"
+      />
+    );
+    expect(html).toContain('data-fi-composer-slot="header"');
+    expect(html).toContain('app-draft-row');
+    expect(html).toContain('draft de audio');
+  });
+
+  it('renders no header slot wrapper when composerHeader is absent', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />
+    );
+    expect(html).not.toContain('data-fi-composer-slot="header"');
+  });
+});

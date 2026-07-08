@@ -242,3 +242,22 @@ describe('<AudioDraftPlayer> state transitions (SSR)', () => {
     expect(html).toContain('fi-audio-draft');
   });
 });
+
+describe('<AudioDraftPlayer> variant (COMPOSER-FRAME-2)', () => {
+  it('defaults to the card chrome (standalone frosted card)', () => {
+    const html = renderToStaticMarkup(<AudioDraftPlayer artifact={makeArtifact()} />);
+    expect(html).toContain('rounded-2xl');
+    expect(html).toContain('backdrop-blur-xl');
+    expect(html).not.toContain('fi-audio-draft--row');
+  });
+
+  it('renders the bare row chrome inside a composer frame (variant="row")', () => {
+    const html = renderToStaticMarkup(
+      <AudioDraftPlayer artifact={makeArtifact()} variant="row" />,
+    );
+    expect(html).toContain('fi-audio-draft--row');
+    expect(html).not.toContain('rounded-2xl');
+    expect(html).not.toContain('backdrop-blur-xl');
+    expect(html).not.toContain('shadow-lg');
+  });
+});

@@ -775,9 +775,18 @@ interface AudioDraftPlayerProps {
     pausedPreview?: Blob | null;
     /** Label for the primary action button (default: "Transcribir"). */
     primaryActionLabel?: string;
+    /**
+     * Visual chrome (COMPOSER-FRAME-2):
+     *  - `"card"` (default): standalone frosted card — the sibling-card layout
+     *    existing consumers render above the composer.
+     *  - `"row"`: bare flex row for living INSIDE the composer box (the
+     *    ComposerFrame header slot) — no background, border, radius or shadow;
+     *    the box already provides the chrome.
+     */
+    variant?: 'card' | 'row';
     className?: string;
 }
-declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, pausedPreview, primaryActionLabel, className, }: AudioDraftPlayerProps): react.JSX.Element;
+declare function AudioDraftPlayer({ artifact, onGetPlaybackUrl, onPrimary, onDiscard, onRetry, onResume, pausedPreview, primaryActionLabel, variant, className, }: AudioDraftPlayerProps): react.JSX.Element;
 
 /**
  * Concatenate same-format PCM WAV blobs into one WAV.
