@@ -80,6 +80,77 @@ describe('Og118ProjectsSection (1B — shared sidebar item)', () => {
   });
 });
 
+// qa-prompt-native: creation is the SAME inline-edit pattern as the rename —
+// no native window.prompt. Enter creates, Escape cancels, empty closes silently.
+describe('Og118ProjectsSection inline create', () => {
+  it('opens the inline input on "+ Nuevo" and creates on Enter (trimmed)', async () => {
+    const onCreate = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={onCreate}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo proyecto' }));
+    const input = screen.getByLabelText('Nombre del proyecto');
+    await userEvent.type(input, '  Negocio de mamá  {Enter}');
+    expect(onCreate).toHaveBeenCalledWith('Negocio de mamá');
+    expect(screen.queryByLabelText('Nombre del proyecto')).not.toBeInTheDocument();
+  });
+
+  it('cancels on Escape without creating', async () => {
+    const onCreate = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={onCreate}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo proyecto' }));
+    await userEvent.type(screen.getByLabelText('Nombre del proyecto'), 'borrador{Escape}');
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Nombre del proyecto')).not.toBeInTheDocument();
+  });
+
+  it('closes silently on Enter with an empty draft', async () => {
+    const onCreate = vi.fn();
+    render(
+      <Og118ProjectsSection
+        projects={projects}
+        activeProjectId={null}
+        onCreate={onCreate}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo proyecto' }));
+    await userEvent.keyboard('{Enter}');
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Nombre del proyecto')).not.toBeInTheDocument();
+  });
+
+  it('renders the input from the EMPTY state too (0 projects)', async () => {
+    render(
+      <Og118ProjectsSection
+        projects={[]}
+        activeProjectId={null}
+        onCreate={vi.fn()}
+        onSelect={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo proyecto' }));
+    expect(screen.getByLabelText('Nombre del proyecto')).toBeInTheDocument();
+    expect(screen.queryByText(/crea un proyecto/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('Og118ProjectsSection delete (confirm-gated)', () => {
   beforeEach(() => {
     vi.spyOn(window, 'confirm');
