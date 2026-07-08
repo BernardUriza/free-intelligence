@@ -100,7 +100,7 @@ jobs:
 
           BUILD_BOT=$(changed "$BOT_SHA" \
             environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
-            Dockerfile)
+            scripts/canary_probe.py Dockerfile)
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
@@ -158,6 +158,16 @@ jobs:
         run: |
           az containerapp job update --name fact-consolidation --resource-group "$RG" \
             --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
+
+      - name: Update insult-canary job image (if it exists)
+        # Same image as the bot. No-op until the hourly canary job is created by hand
+        # (infra/azure/canary-job.sh — resurrected 2026-07-08, phase 3.5 close-out).
+        if: ${{ steps.detect.outputs.build_bot == 'true' }}
+        continue-on-error: true
+        run: |
+          az containerapp job update --name insult-canary --resource-group "$RG" \
+            --image "$ACR/insult-bot:${{ env.NEW_SHA }}" 2>/dev/null \
+            || echo "insult-canary job not provisioned yet — skipping image sync"
 
       - name: Deploy persona-gateway
         # Continue-on-error so a not-yet-provisioned gateway never breaks the run.

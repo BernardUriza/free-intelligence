@@ -78,6 +78,17 @@ class Settings(BaseSettings):
     alice_bot_user_id: str = "1503983124982534284"
     alice_tts_voice: str = "nova"  # female tts-1 voice for ALICE's messages
 
+    # Canary ingress probe (proves live Discord ingress/egress + routing — the
+    # contract /debug/health couldn't prove). A dedicated canary bot posts
+    # "CANARY insult <uuid>" in #canary; Insult echoes "CANARY_OK <uuid>" with no
+    # LLM. All three are Discord snowflake IDs (never names). Empty = feature off.
+    # Resurrected 2026-07-08 (phase 3.5 close-out): the */5 cadence was the
+    # 2026-06-21 kill reason, NOT the mechanism — the ACA Job now fires hourly
+    # and both sides self-delete, so #canary stays visually empty.
+    canary_channel_id: str = ""
+    canary_bot_user_id: str = ""
+    insult_bot_user_id: str = ""
+
     # Channel summaries (cross-channel awareness)
     summary_model: str = "claude-haiku-4-5-20251001"
     summary_interval_minutes: int = 15
