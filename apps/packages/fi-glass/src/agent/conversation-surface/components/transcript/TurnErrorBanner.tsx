@@ -8,7 +8,7 @@
  * are the consumer's; sensible defaults render without any.
  */
 
-import type { TurnError } from '../../useAgentConversation';
+import type { TurnError } from '../../../useAgentConversation';
 
 export interface TurnErrorBannerProps {
   error: TurnError;
