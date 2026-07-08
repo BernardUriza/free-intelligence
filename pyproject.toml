@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.22.5"
+version = "4.22.6"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -66,7 +66,7 @@ omit = [
     "personas/insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
     "personas/insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
     "personas/insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
-    "personas/insult/tasks/*.py",  # Background task orchestrators (moltbook/reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
+    "personas/insult/tasks/*.py",  # Background task orchestrators (reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
     "persona_runner/router_runtime.py",  # Agent routing runtime — live Claude Agent SDK + PG required (same criterion as agent/runner.py)
     # personas/alice — same omit criteria as personas/insult equivalents
     "personas/alice/__main__.py",   # CLI entry point

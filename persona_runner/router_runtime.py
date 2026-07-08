@@ -57,6 +57,7 @@ from typing import Any
 import asyncpg
 import structlog
 
+from persona_runner.model_routing import ModelChoice, OpusBudget, select_model
 from personas.insult.core.flows.types import (
     AwarenessAnalysis,
     ConversationPattern,
@@ -70,7 +71,6 @@ from personas.insult.core.flows.types import (
     UserState,
 )
 from personas.insult.core.presets import classify_preset
-from personas.insult.core.routing import ModelChoice, OpusBudget, select_model
 
 log = structlog.get_logger()
 
