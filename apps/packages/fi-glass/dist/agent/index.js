@@ -1895,34 +1895,34 @@ function TurnErrorBanner({
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
 import { jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
-function TranscriptRegion({
-  conversation,
-  idle,
-  autoScroll,
-  contentInset,
-  resolveBubbleClass,
-  emptyState,
-  showPersistedTrace,
-  agentPanelProps,
-  showCopyAction,
-  renderHeader,
-  renderBadge,
-  renderActions,
-  collapseUserMessages,
-  collapseMaxHeight,
-  showMoreLabel,
-  showLessLabel,
-  collapseToggleClassName,
-  errorClassName,
-  retryLabel,
-  dismissLabel,
-  retryButtonClassName,
-  dismissButtonClassName,
-  scrollToBottomLabel,
-  scrollToBottomClassName,
-  scrollToBottomIconClassName
-}) {
+function TranscriptRegion({ surface, conversation, contentInset }) {
   const { messages, turn, isStreaming, turnError, retry, dismissError } = conversation;
+  const {
+    emptyState,
+    agentPanelProps,
+    renderHeader,
+    renderBadge,
+    renderActions,
+    messageBubbleClassName,
+    collapseMaxHeight,
+    showMoreLabel,
+    showLessLabel,
+    collapseToggleClassName,
+    errorClassName,
+    retryButtonClassName,
+    dismissButtonClassName,
+    scrollToBottomClassName,
+    scrollToBottomIconClassName,
+    showPersistedTrace = true,
+    showCopyAction = false,
+    collapseUserMessages = true,
+    autoScroll = true,
+    retryLabel = "Reintentar",
+    dismissLabel = "Descartar",
+    scrollToBottomLabel = "Ir al final"
+  } = surface;
+  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
+  const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
   const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
   return (
     // Relative anchor: hosts the scroll area + the floating jump-to-latest
@@ -2254,37 +2254,39 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
 import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
-function ComposerRegion({
-  contentInset,
-  hasThread,
-  isStreaming,
-  newConversation,
-  dictation,
-  input,
-  setInput,
-  onSend,
-  canSend,
-  inputRef,
-  showNewChatButton,
-  newChatLabel,
-  showSendButton,
-  sendLabel,
-  aboveComposer,
-  composerHeader,
-  composerHeaderClassName,
-  composerBoxClassName,
-  composerAreaClassName,
-  composerTextareaClassName,
-  composerControlsClassName,
-  composerPlaceholder,
-  micSlotOverride,
-  micSlotClassName,
-  micButtonClassName,
-  voiceVisualizerClassName,
-  voiceVisualizerBarClassName,
-  sendButtonClassName,
-  sendButtonIconClassName
-}) {
+function ComposerRegion({ surface, state, contentInset }) {
+  const {
+    input,
+    setInput,
+    onSend,
+    canSend,
+    inputRef,
+    dictation,
+    isStreaming,
+    hasThread,
+    newConversation
+  } = state;
+  const {
+    aboveComposer,
+    composerHeader,
+    composerHeaderClassName,
+    composerBoxClassName,
+    composerAreaClassName,
+    composerTextareaClassName,
+    composerControlsClassName,
+    composerPlaceholder,
+    micSlotOverride,
+    micSlotClassName,
+    micButtonClassName,
+    voiceVisualizerClassName,
+    voiceVisualizerBarClassName,
+    sendButtonClassName,
+    sendButtonIconClassName,
+    showNewChatButton = true,
+    newChatLabel = "New chat",
+    showSendButton = true,
+    sendLabel = "Enviar mensaje"
+  } = surface;
   const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx32(
     ComposerControls,
     {
@@ -2335,55 +2337,15 @@ function ComposerRegion({
 
 // src/agent/AgentConversationSurface.tsx
 import { jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
-function AgentConversationSurface({
-  conversation,
-  layout = "viewport",
-  composerPlaceholder,
-  newChatLabel = "New chat",
-  showNewChatButton = true,
-  emptyState,
-  aboveComposer,
-  composerHeader,
-  composerHeaderClassName,
-  agentPanelProps,
-  showPersistedTrace = true,
-  composerBoxClassName,
-  composerAreaClassName,
-  composerTextareaClassName,
-  composerControlsClassName,
-  showCopyAction = false,
-  renderHeader,
-  renderBadge,
-  renderActions,
-  messageBubbleClassName,
-  voiceAdapter,
-  micSlotClassName,
-  micButtonClassName,
-  onVoiceError,
-  voiceVisualizerClassName,
-  voiceVisualizerBarClassName,
-  showSendButton = true,
-  sendButtonClassName,
-  sendButtonIconClassName,
-  sendLabel = "Enviar mensaje",
-  composerAppend,
-  onComposerAppendConsumed,
-  micSlotOverride,
-  errorClassName,
-  retryLabel = "Reintentar",
-  dismissLabel = "Descartar",
-  retryButtonClassName,
-  dismissButtonClassName,
-  autoScroll = true,
-  scrollToBottomLabel = "Ir al final",
-  scrollToBottomClassName,
-  scrollToBottomIconClassName,
-  collapseUserMessages = true,
-  collapseMaxHeight,
-  showMoreLabel,
-  showLessLabel,
-  collapseToggleClassName
-}) {
+function AgentConversationSurface(props) {
+  const {
+    conversation,
+    layout = "viewport",
+    voiceAdapter,
+    onVoiceError,
+    composerAppend,
+    onComposerAppendConsumed
+  } = props;
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState16("");
   useTouchTargetStyle();
@@ -2394,79 +2356,37 @@ function AgentConversationSurface({
     isStreaming,
     isTranscribing: dictation.isTranscribing
   });
-  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
-  const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
-  const hasThread = messages.length > 0 || isStreaming;
   const onSend = () => {
     const t = input.trim();
     if (!t) return;
     setInput("");
     send(t);
   };
-  const canSend = input.trim().length > 0 && !isStreaming;
   return /* @__PURE__ */ jsxs25("div", { style: rootStyle, children: [
     /* @__PURE__ */ jsx33(
       TranscriptRegion,
       {
+        surface: props,
         conversation: { messages, turn, isStreaming, turnError, retry, dismissError },
-        idle,
-        autoScroll,
-        contentInset,
-        resolveBubbleClass,
-        emptyState,
-        showPersistedTrace,
-        agentPanelProps,
-        showCopyAction,
-        renderHeader,
-        renderBadge,
-        renderActions,
-        collapseUserMessages,
-        collapseMaxHeight,
-        showMoreLabel,
-        showLessLabel,
-        collapseToggleClassName,
-        errorClassName,
-        retryLabel,
-        dismissLabel,
-        retryButtonClassName,
-        dismissButtonClassName,
-        scrollToBottomLabel,
-        scrollToBottomClassName,
-        scrollToBottomIconClassName
+        contentInset
       }
     ),
     /* @__PURE__ */ jsx33(
       ComposerRegion,
       {
-        contentInset,
-        hasThread,
-        isStreaming,
-        newConversation,
-        dictation,
-        input,
-        setInput,
-        onSend,
-        canSend,
-        inputRef,
-        showNewChatButton,
-        newChatLabel,
-        showSendButton,
-        sendLabel,
-        aboveComposer,
-        composerHeader,
-        composerHeaderClassName,
-        composerBoxClassName,
-        composerAreaClassName,
-        composerTextareaClassName,
-        composerControlsClassName,
-        composerPlaceholder,
-        micSlotOverride,
-        micSlotClassName,
-        micButtonClassName,
-        voiceVisualizerClassName,
-        voiceVisualizerBarClassName,
-        sendButtonClassName,
-        sendButtonIconClassName
+        surface: props,
+        state: {
+          input,
+          setInput,
+          onSend,
+          canSend: input.trim().length > 0 && !isStreaming,
+          inputRef,
+          dictation,
+          isStreaming,
+          hasThread: messages.length > 0 || isStreaming,
+          newConversation
+        },
+        contentInset
       }
     )
   ] });

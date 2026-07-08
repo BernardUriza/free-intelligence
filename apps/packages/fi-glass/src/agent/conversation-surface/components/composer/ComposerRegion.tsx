@@ -8,6 +8,11 @@
  * and the controls row (visualizer/mic/send) is the footer. The composer
  * column shares the transcript's fluid center cap and names the `fi-composer`
  * container for container-query-driven density (PR #312).
+ *
+ * Contract shape (REGION-PROPS-1, kills the 29-prop thread-through): the
+ * region takes the surface's whole public props object as `surface` — it reads
+ * its slice and resolves ITS copy defaults — plus one `state` object with the
+ * orchestrator-owned composing state and the shared layout inset.
  */
 
 import type { ReactNode, RefObject } from 'react';
@@ -17,74 +22,61 @@ import type { SurfaceDictation } from '../../hooks';
 import { ComposerControls } from './ComposerControls';
 import { NewChatButton } from './NewChatButton';
 
-export interface ComposerRegionProps
-  extends Pick<
-    AgentConversationSurfaceProps,
-    | 'aboveComposer'
-    | 'composerHeader'
-    | 'composerHeaderClassName'
-    | 'composerBoxClassName'
-    | 'composerAreaClassName'
-    | 'composerTextareaClassName'
-    | 'composerControlsClassName'
-    | 'composerPlaceholder'
-    | 'micSlotOverride'
-    | 'micSlotClassName'
-    | 'micButtonClassName'
-    | 'voiceVisualizerClassName'
-    | 'voiceVisualizerBarClassName'
-    | 'sendButtonClassName'
-    | 'sendButtonIconClassName'
-  > {
-  /** The fluid center cap (100% minus the responsive gutter). */
-  contentInset: string;
-  hasThread: boolean;
-  isStreaming: boolean;
-  newConversation: () => void;
-  dictation: SurfaceDictation;
+/** The orchestrator-owned state the composer region renders. */
+export interface SurfaceComposerState {
   input: string;
   setInput: (value: string) => void;
   onSend: () => void;
   canSend: boolean;
   inputRef: RefObject<HTMLTextAreaElement | null>;
-  // Defaults resolved by the orchestrator → required here.
-  showNewChatButton: boolean;
-  newChatLabel: string;
-  showSendButton: boolean;
-  sendLabel: string;
+  dictation: SurfaceDictation;
+  isStreaming: boolean;
+  hasThread: boolean;
+  newConversation: () => void;
 }
 
-export function ComposerRegion({
-  contentInset,
-  hasThread,
-  isStreaming,
-  newConversation,
-  dictation,
-  input,
-  setInput,
-  onSend,
-  canSend,
-  inputRef,
-  showNewChatButton,
-  newChatLabel,
-  showSendButton,
-  sendLabel,
-  aboveComposer,
-  composerHeader,
-  composerHeaderClassName,
-  composerBoxClassName,
-  composerAreaClassName,
-  composerTextareaClassName,
-  composerControlsClassName,
-  composerPlaceholder,
-  micSlotOverride,
-  micSlotClassName,
-  micButtonClassName,
-  voiceVisualizerClassName,
-  voiceVisualizerBarClassName,
-  sendButtonClassName,
-  sendButtonIconClassName,
-}: ComposerRegionProps) {
+export interface ComposerRegionProps {
+  /** The surface's public props — the region reads its slice + copy defaults. */
+  surface: AgentConversationSurfaceProps;
+  state: SurfaceComposerState;
+  /** The fluid center cap (100% minus the responsive gutter). */
+  contentInset: string;
+}
+
+export function ComposerRegion({ surface, state, contentInset }: ComposerRegionProps) {
+  const {
+    input,
+    setInput,
+    onSend,
+    canSend,
+    inputRef,
+    dictation,
+    isStreaming,
+    hasThread,
+    newConversation,
+  } = state;
+  const {
+    aboveComposer,
+    composerHeader,
+    composerHeaderClassName,
+    composerBoxClassName,
+    composerAreaClassName,
+    composerTextareaClassName,
+    composerControlsClassName,
+    composerPlaceholder,
+    micSlotOverride,
+    micSlotClassName,
+    micButtonClassName,
+    voiceVisualizerClassName,
+    voiceVisualizerBarClassName,
+    sendButtonClassName,
+    sendButtonIconClassName,
+    showNewChatButton = true,
+    newChatLabel = 'New chat',
+    showSendButton = true,
+    sendLabel = 'Enviar mensaje',
+  } = surface;
+
   const footer: ReactNode =
     showSendButton || micSlotOverride != null || dictation.micAvailable ? (
       <ComposerControls

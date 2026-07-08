@@ -11,16 +11,14 @@
  * branding or backend. Apps inject those via slots (emptyState, aboveComposer)
  * and copy props.
  *
- * Pure orchestrator: the props contract, hooks and regions live in
- * ./conversation-surface — useSurfaceLayout (root sizing + fluid cap),
- * dictation/focus/append wiring, TranscriptRegion (scroll + messages + error +
- * jump-to-latest) and ComposerRegion (new-chat CTA + slots + ComposerFrame).
- * This file owns only the shared state (input, dictation) and the derivations
- * both regions read (idle, hasThread, canSend).
+ * Pure orchestrator (REGION-PROPS-1): the regions receive the surface's whole
+ * props object as `surface` and read their own slice + copy defaults — the
+ * orchestrator never re-threads passthroughs. It owns only the shared state
+ * (input, dictation, focus, append) and hands each region what IT derives:
+ * the conversation slice, the composing state, the layout inset.
  */
 
 import { useState } from 'react';
-import type { ChatMessage } from '@free-intelligence/core';
 import { useTouchTargetStyle } from '../shell/touchTarget';
 import type { AgentConversationSurfaceProps } from './conversation-surface/types';
 import {
@@ -36,55 +34,15 @@ export type {
   AgentConversationSurfaceLayout,
 } from './conversation-surface/types';
 
-export function AgentConversationSurface({
-  conversation,
-  layout = 'viewport',
-  composerPlaceholder,
-  newChatLabel = 'New chat',
-  showNewChatButton = true,
-  emptyState,
-  aboveComposer,
-  composerHeader,
-  composerHeaderClassName,
-  agentPanelProps,
-  showPersistedTrace = true,
-  composerBoxClassName,
-  composerAreaClassName,
-  composerTextareaClassName,
-  composerControlsClassName,
-  showCopyAction = false,
-  renderHeader,
-  renderBadge,
-  renderActions,
-  messageBubbleClassName,
-  voiceAdapter,
-  micSlotClassName,
-  micButtonClassName,
-  onVoiceError,
-  voiceVisualizerClassName,
-  voiceVisualizerBarClassName,
-  showSendButton = true,
-  sendButtonClassName,
-  sendButtonIconClassName,
-  sendLabel = 'Enviar mensaje',
-  composerAppend,
-  onComposerAppendConsumed,
-  micSlotOverride,
-  errorClassName,
-  retryLabel = 'Reintentar',
-  dismissLabel = 'Descartar',
-  retryButtonClassName,
-  dismissButtonClassName,
-  autoScroll = true,
-  scrollToBottomLabel = 'Ir al final',
-  scrollToBottomClassName,
-  scrollToBottomIconClassName,
-  collapseUserMessages = true,
-  collapseMaxHeight,
-  showMoreLabel,
-  showLessLabel,
-  collapseToggleClassName,
-}: AgentConversationSurfaceProps) {
+export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
+  const {
+    conversation,
+    layout = 'viewport',
+    voiceAdapter,
+    onVoiceError,
+    composerAppend,
+    onComposerAppendConsumed,
+  } = props;
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
@@ -101,91 +59,34 @@ export function AgentConversationSurface({
     isTranscribing: dictation.isTranscribing,
   });
 
-  // Resolve the per-bubble class. A string applies to every role (legacy); a
-  // function lets the consumer vary it per message/role. Returning undefined
-  // (e.g. for an unknown role) yields no extra class — never throws.
-  const resolveBubbleClass = (message: ChatMessage): string | undefined =>
-    typeof messageBubbleClassName === 'function'
-      ? messageBubbleClassName(message)
-      : messageBubbleClassName;
-
-  // Empty thread + nothing in flight → show the app's start screen.
-  const idle =
-    messages.length === 0 &&
-    !isStreaming &&
-    turn.status === 'thinking' &&
-    !turn.plan &&
-    turn.steps.length === 0 &&
-    !turn.text;
-  const hasThread = messages.length > 0 || isStreaming;
-
   const onSend = () => {
     const t = input.trim();
     if (!t) return;
     setInput('');
     send(t);
   };
-  const canSend = input.trim().length > 0 && !isStreaming;
 
   return (
     <div style={rootStyle}>
       <TranscriptRegion
+        surface={props}
         conversation={{ messages, turn, isStreaming, turnError, retry, dismissError }}
-        idle={idle}
-        autoScroll={autoScroll}
         contentInset={contentInset}
-        resolveBubbleClass={resolveBubbleClass}
-        emptyState={emptyState}
-        showPersistedTrace={showPersistedTrace}
-        agentPanelProps={agentPanelProps}
-        showCopyAction={showCopyAction}
-        renderHeader={renderHeader}
-        renderBadge={renderBadge}
-        renderActions={renderActions}
-        collapseUserMessages={collapseUserMessages}
-        collapseMaxHeight={collapseMaxHeight}
-        showMoreLabel={showMoreLabel}
-        showLessLabel={showLessLabel}
-        collapseToggleClassName={collapseToggleClassName}
-        errorClassName={errorClassName}
-        retryLabel={retryLabel}
-        dismissLabel={dismissLabel}
-        retryButtonClassName={retryButtonClassName}
-        dismissButtonClassName={dismissButtonClassName}
-        scrollToBottomLabel={scrollToBottomLabel}
-        scrollToBottomClassName={scrollToBottomClassName}
-        scrollToBottomIconClassName={scrollToBottomIconClassName}
       />
       <ComposerRegion
+        surface={props}
+        state={{
+          input,
+          setInput,
+          onSend,
+          canSend: input.trim().length > 0 && !isStreaming,
+          inputRef,
+          dictation,
+          isStreaming,
+          hasThread: messages.length > 0 || isStreaming,
+          newConversation,
+        }}
         contentInset={contentInset}
-        hasThread={hasThread}
-        isStreaming={isStreaming}
-        newConversation={newConversation}
-        dictation={dictation}
-        input={input}
-        setInput={setInput}
-        onSend={onSend}
-        canSend={canSend}
-        inputRef={inputRef}
-        showNewChatButton={showNewChatButton}
-        newChatLabel={newChatLabel}
-        showSendButton={showSendButton}
-        sendLabel={sendLabel}
-        aboveComposer={aboveComposer}
-        composerHeader={composerHeader}
-        composerHeaderClassName={composerHeaderClassName}
-        composerBoxClassName={composerBoxClassName}
-        composerAreaClassName={composerAreaClassName}
-        composerTextareaClassName={composerTextareaClassName}
-        composerControlsClassName={composerControlsClassName}
-        composerPlaceholder={composerPlaceholder}
-        micSlotOverride={micSlotOverride}
-        micSlotClassName={micSlotClassName}
-        micButtonClassName={micButtonClassName}
-        voiceVisualizerClassName={voiceVisualizerClassName}
-        voiceVisualizerBarClassName={voiceVisualizerBarClassName}
-        sendButtonClassName={sendButtonClassName}
-        sendButtonIconClassName={sendButtonIconClassName}
       />
     </div>
   );
