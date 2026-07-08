@@ -703,9 +703,9 @@ function ComposerFrame({
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && /* @__PURE__ */ jsx7("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    header != null && header !== false && /* @__PURE__ */ jsx7("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    footer != null && /* @__PURE__ */ jsx7(
+    footer != null && footer !== false && /* @__PURE__ */ jsx7(
       "div",
       {
         className: footerClassName,
