@@ -50,7 +50,6 @@ from personas.insult.core.presets import (
     PresetMode,
     PresetModifier,
     PresetSelection,
-    has_channel_noun,
 )
 from personas.insult.core.prompts_loader import load_prompt
 
@@ -76,7 +75,6 @@ _VALID_PRESETS = {
 _VALID_MODIFIERS = {
     "memory_recall",
     "contempt",
-    "action_intent",
     "multi_domain_synthesis",
 }
 
@@ -243,27 +241,6 @@ async def classify_preset_llm(
             stop_reason=response.stop_reason,
         )
         return None
-
-    # Syntactic gate: drop ACTION_INTENT if the message has no channel noun.
-    # The LLM occasionally emits action_intent for "setup/automation" messages
-    # that have nothing to do with Discord channel ops — and the resulting
-    # tool_choice="any" forces the model into get_channel_info as a no-op,
-    # which the bot then dumps to the user as its entire response.
-    # Production regression 2026-05-13: "Asi hasta tu podrias acceder a esa
-    # VM..." → action_intent → Opus called get_channel_info → bot replied
-    # "#general — (sin descripción)".
-    if PresetModifier.ACTION_INTENT in selection.modifiers and not has_channel_noun(current_message):
-        selection = PresetSelection(
-            mode=selection.mode,
-            modifiers=[m for m in selection.modifiers if m != PresetModifier.ACTION_INTENT],
-            confidence=selection.confidence,
-            reason=selection.reason + " [action_intent_gated:no_channel_noun]",
-        )
-        log.warning(
-            "preset_llm_action_intent_gated",
-            reason="no_channel_noun_in_message",
-            text_preview=current_message[:120],
-        )
 
     log.info(
         "preset_llm_classified",

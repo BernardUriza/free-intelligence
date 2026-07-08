@@ -28,7 +28,6 @@ from discord.ext import commands
 from personas.insult.cogs.chat.batch import BatchManager, addressed_to_sibling
 from personas.insult.cogs.chat.pipeline import TurnRuntimeDeps
 from personas.insult.cogs.chat.tasks import spawn_tracked_task
-from personas.insult.cogs.chat.tools import ALL_TOOLS
 from personas.insult.cogs.chat.turn import run_turn
 from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
@@ -181,7 +180,6 @@ class ChatCog(commands.Cog):
                     bot=self.bot,
                     expression_history=self._expression_history,
                     spawn_task=self._spawn_task,
-                    all_tools=ALL_TOOLS,
                     facts=default_facts_port(),
                     stance=default_stance_port(),
                     arc=default_arc_port(),

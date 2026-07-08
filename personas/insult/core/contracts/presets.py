@@ -26,7 +26,6 @@ class PresetMode(StrEnum):
 class PresetModifier(StrEnum):
     MEMORY_RECALL = "memory_recall"
     CONTEMPT = "contempt"
-    ACTION_INTENT = "action_intent"  # User wants a server action (channel creation, etc.)
     # Phase 2.5 (v3.6.3): user articulated a cross-domain conceptual link
     # (apartheid ↔ speciesism, neoliberalism ↔ self-help, etc.) and the
     # right move is to LEARN before challenging. See synthesis_detector.py

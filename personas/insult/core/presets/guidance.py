@@ -9,7 +9,7 @@ Editing any of those files is picked up on the next request without a restart.
 
 from __future__ import annotations
 
-from personas.insult.core.presets.types import PresetModifier, PresetSelection
+from personas.insult.core.presets.types import PresetSelection
 from personas.insult.core.prompts_loader import load_prompt
 
 # ---------------------------------------------------------------------------
@@ -70,9 +70,6 @@ def build_preset_prompt(selection: PresetSelection) -> str:
     preset_text = load_prompt(f"preset_guidance_{selection.mode.value}")
     parts = [intentionality, preset_text]
     for modifier in selection.modifiers:
-        if modifier == PresetModifier.ACTION_INTENT:
-            # No behavioral guidance — chat.py forces tool_choice instead.
-            continue
         guidance = load_prompt(f"preset_modifier_{modifier.value}")
         if guidance:
             parts.append(guidance)

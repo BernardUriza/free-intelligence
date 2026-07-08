@@ -5,7 +5,7 @@ discord.py's command decorator machinery which expects a real Context.
 The _respond() method uses message.channel.send, not ctx.send.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -102,32 +102,3 @@ class TestChatCog:
         await self._call_chat(cog, mock_ctx, "hola")
         send_calls = self._channel_send(mock_ctx).call_args_list
         assert len(send_calls) >= 2
-
-    @patch("personas.insult.cogs.chat.tools.send_response", new_callable=AsyncMock)
-    async def test_inaugurate_channel_generates_message(self, mock_send, cog):
-        """inaugurate_channel (now a free function in tools.py) should call
-        the runner's one-shot /v1/judge and send the response to the channel."""
-        from personas.insult.cogs.chat.tools import inaugurate_channel
-
-        cog.judge_client.utility_call = AsyncMock(return_value=LLMResponse(text="Bienvenidos a este canal."))
-        mock_channel = MagicMock()
-        mock_channel.name = "filosofia"
-        mock_creator = MagicMock()
-        mock_creator.id = 123
-        mock_creator.display_name = "Bernard"
-        cog.memory.get_facts = AsyncMock(return_value=[])
-
-        await inaugurate_channel(
-            mock_channel,
-            "filosofia",
-            mock_creator,
-            memory=cog.memory,
-            judge=cog.judge_client,
-            settings=cog.settings,
-        )
-
-        cog.judge_client.utility_call.assert_called_once()
-        mock_send.assert_called_once()
-        # Verify no tools passed (inauguration is text-only, no tool_use)
-        call_kwargs = cog.judge_client.utility_call.call_args
-        assert "tools" not in call_kwargs.kwargs

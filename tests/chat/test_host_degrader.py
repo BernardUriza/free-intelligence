@@ -122,7 +122,6 @@ def _mk_llm_ctx(*, host_degrader=None) -> TurnCtx:
             bot=MagicMock(),
             expression_history=MagicMock(),
             spawn_task=lambda *a, **kw: None,
-            all_tools=[],
             facts=MagicMock(),
             stance=MagicMock(),
             arc=MagicMock(),
@@ -140,8 +139,6 @@ def _mk_llm_ctx(*, host_degrader=None) -> TurnCtx:
     ctx.channel_name = "general"
     ctx.system_prompt = "sys"
     ctx.context = []
-    ctx.tools = []
-    ctx.tool_choice = None
     ctx.model_choice = None
     ctx.persona_id = None
     return ctx

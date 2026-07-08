@@ -1,8 +1,11 @@
-"""Reminder system — tool schemas, parsing, and formatting.
+"""Reminder system — time resolution, intent detection, recurrence math.
 
-Users ask for reminders in natural conversation, Claude detects the intent
-and calls create_reminder / list_reminders / cancel_reminder tools.
-Reminders are stored in SQLite and delivered by a background task in bot.py.
+Users ask for reminders in natural conversation; the persona emits a
+`[REMIND: <when> | <what>]` marker (parsed by `cogs/chat/reminds.py`) that
+persists via `memory.save_reminder`. Reminders are stored in Postgres and
+delivered by the background loops in `tasks/reminders.py`. The old
+create/list/cancel tool schemas died with the runner cutover — the agent
+runner returns `tool_calls=[]`, so a tool definition could never fire.
 """
 
 import re
@@ -11,107 +14,6 @@ from datetime import UTC, datetime
 import structlog
 
 log = structlog.get_logger()
-
-# ---------------------------------------------------------------------------
-# Tool definitions for Claude API
-# ---------------------------------------------------------------------------
-
-REMINDER_TOOLS = [
-    {
-        "name": "create_reminder",
-        "description": (
-            "Set a reminder for the group or a specific user. Use this when someone asks to be reminded "
-            "of something. Provide ONE of `remind_at` (absolute ISO 8601) or `in_seconds` (relative delta). "
-            "PREFER `in_seconds` for short relatives ('en 2 horas' → 7200, 'en 30 min' → 1800, "
-            "'mañana a esta hora' → 86400) — it sidesteps timezone/DST conversion errors. "
-            "Use `remind_at` only when the user names an absolute date or time-of-day "
-            "('mañana a las 9' → '2026-05-03T09:00:00-06:00'). "
-            "The current time is provided in the system prompt. "
-            "Always confirm the reminder in your response so the user knows when they'll be reminded."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "description": "What to remind about (e.g. 'ir al gastroenterologo', 'entregar el proyecto')",
-                },
-                "remind_at": {
-                    "type": "string",
-                    "description": (
-                        "Absolute ISO 8601 datetime with timezone offset "
-                        "(e.g. '2026-04-09T09:00:00-06:00'). Mutually exclusive with `in_seconds`."
-                    ),
-                },
-                "in_seconds": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": (
-                        "Relative delta in seconds from now. Use for short relatives like "
-                        "'en 2 horas' (7200), 'en 10 min' (600), 'mañana a esta hora' (86400). "
-                        "Mutually exclusive with `remind_at`."
-                    ),
-                },
-                "mention_user_ids": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Discord user IDs to mention when reminder fires. Empty = remind the whole channel.",
-                },
-                "recurring": {
-                    "type": "string",
-                    "enum": ["none", "daily", "weekly", "monthly"],
-                    "description": "Recurrence pattern. Default is 'none' (one-time).",
-                },
-                "requires_ack": {
-                    "type": "boolean",
-                    "description": (
-                        "Set to true ONLY for critical reminders the user has explicitly asked be enforced "
-                        "(medication, time-sensitive medical / legal / safety actions). When true, the bot "
-                        "re-fires the reminder once after a 30-minute window if the user has not reacted "
-                        "with ✅ to confirm. Default false. Do NOT set this for routine appointments or "
-                        "habit nudges — it is intentionally annoying and should be reserved for cases the "
-                        "user signaled they cannot afford to miss."
-                    ),
-                },
-            },
-            "required": ["description"],
-        },
-    },
-    {
-        "name": "list_reminders",
-        "description": (
-            "List all pending reminders for this channel. Use when someone asks 'que recordatorios hay?' or similar."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string",
-                    "description": "The channel ID to list reminders for (use the current channel)",
-                },
-            },
-            "required": ["channel_id"],
-        },
-    },
-    {
-        "name": "cancel_reminder",
-        "description": (
-            "Cancel a pending reminder by its ID. Use when someone says "
-            "'cancela el recordatorio del doctor' or similar."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "reminder_id": {
-                    "type": "integer",
-                    "description": "The ID of the reminder to cancel",
-                },
-            },
-            "required": ["reminder_id"],
-        },
-    },
-]
-
 
 # ---------------------------------------------------------------------------
 # Ack timing constants — used by the bot's overdue-ack sweep
@@ -151,11 +53,10 @@ _REMINDER_INTENT_RE = re.compile(
 def detect_reminder_intent(text: str) -> bool:
     """Return True if the user's message clearly asks the bot to create a reminder.
 
-    Used after an LLM turn to detect the case where the model failed to call
-    `create_reminder` despite an obvious request — typically because the API
-    rejected the tool schema and the BadRequest fallback stripped all tools.
-    Without this detector that failure mode is silent: the bot replies as if
-    everything is fine and the user only notices when the reminder never fires.
+    Used after an LLM turn to detect the case where the model failed to emit
+    a `[REMIND:]` marker despite an obvious request. Without this detector
+    that failure mode is silent: the bot replies as if everything is fine and
+    the user only notices when the reminder never fires.
     """
     return bool(_REMINDER_INTENT_RE.search(text))
 
@@ -252,35 +153,3 @@ def compute_next_occurrence(remind_at: float, recurring: str) -> float | None:
         return None
 
     return next_dt.timestamp()
-
-
-def format_reminder_list(reminders: list[dict]) -> str:
-    """Format a list of reminders for display in Discord.
-
-    Returns a human-readable string listing all reminders.
-    """
-    if not reminders:
-        return "No hay recordatorios pendientes."
-
-    lines = []
-    for r in reminders:
-        dt = datetime.fromtimestamp(r["remind_at"], tz=UTC)
-        # Convert to Mexico City time for display
-        from zoneinfo import ZoneInfo
-
-        dt_mx = dt.astimezone(ZoneInfo("America/Mexico_City"))
-        time_str = dt_mx.strftime("%d/%m/%Y %H:%M")
-
-        recurring_label = ""
-        if r.get("recurring", "none") != "none":
-            labels = {"daily": "diario", "weekly": "semanal", "monthly": "mensual"}
-            recurring_label = f" ({labels.get(r['recurring'], r['recurring'])})"
-
-        mentions = ""
-        if r.get("mention_user_ids"):
-            user_ids = r["mention_user_ids"].split(",")
-            mentions = " → " + ", ".join(f"<@{uid.strip()}>" for uid in user_ids if uid.strip())
-
-        lines.append(f"**#{r['id']}** — {r['description']} — {time_str}{recurring_label}{mentions}")
-
-    return "\n".join(lines)

@@ -1,4 +1,4 @@
-"""Tests for insult.core.reminders — tool schemas, parsing, and formatting."""
+"""Tests for insult.core.reminders — time resolution, intent detection, recurrence."""
 
 import time
 from datetime import UTC
@@ -8,10 +8,8 @@ import pytest
 from personas.insult.core.reminders import (
     ACK_MAX_RETRIES,
     ACK_TIMEOUT_SECONDS,
-    REMINDER_TOOLS,
     compute_next_occurrence,
     detect_reminder_intent,
-    format_reminder_list,
     parse_remind_at,
     resolve_remind_at,
 )
@@ -180,120 +178,3 @@ class TestComputeNextOccurrence:
 
     def test_invalid_recurring_returns_none(self):
         assert compute_next_occurrence(1700000000.0, "invalid") is None
-
-
-class TestFormatReminderList:
-    def test_empty_list(self):
-        result = format_reminder_list([])
-        assert "No hay recordatorios" in result
-
-    def test_single_reminder(self):
-        reminders = [
-            {
-                "id": 1,
-                "description": "ir al doctor",
-                "remind_at": 1700000000.0,
-                "recurring": "none",
-                "mention_user_ids": "",
-            }
-        ]
-        result = format_reminder_list(reminders)
-        assert "#1" in result
-        assert "ir al doctor" in result
-
-    def test_recurring_label(self):
-        reminders = [
-            {
-                "id": 2,
-                "description": "ejercicio",
-                "remind_at": 1700000000.0,
-                "recurring": "daily",
-                "mention_user_ids": "",
-            }
-        ]
-        result = format_reminder_list(reminders)
-        assert "diario" in result
-
-    def test_mention_user_ids(self):
-        reminders = [
-            {
-                "id": 3,
-                "description": "reunion",
-                "remind_at": 1700000000.0,
-                "recurring": "none",
-                "mention_user_ids": "123,456",
-            }
-        ]
-        result = format_reminder_list(reminders)
-        assert "<@123>" in result
-        assert "<@456>" in result
-
-    def test_multiple_reminders(self):
-        reminders = [
-            {
-                "id": 1,
-                "description": "cosa 1",
-                "remind_at": 1700000000.0,
-                "recurring": "none",
-                "mention_user_ids": "",
-            },
-            {
-                "id": 2,
-                "description": "cosa 2",
-                "remind_at": 1700100000.0,
-                "recurring": "weekly",
-                "mention_user_ids": "789",
-            },
-        ]
-        result = format_reminder_list(reminders)
-        assert "#1" in result
-        assert "#2" in result
-        assert "cosa 1" in result
-        assert "cosa 2" in result
-
-
-class TestToolSchemas:
-    def test_three_tools_defined(self):
-        assert len(REMINDER_TOOLS) == 3
-
-    def test_tool_names(self):
-        names = {t["name"] for t in REMINDER_TOOLS}
-        assert names == {"create_reminder", "list_reminders", "cancel_reminder"}
-
-    def test_create_reminder_required_fields(self):
-        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
-        required = create["input_schema"]["required"]
-        assert required == ["description"]
-
-    def test_create_reminder_supports_relative_delta(self):
-        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
-        props = create["input_schema"]["properties"]
-        assert "remind_at" in props
-        assert "in_seconds" in props
-        assert props["in_seconds"]["type"] == "integer"
-        assert props["in_seconds"]["minimum"] == 1
-
-    def test_list_reminders_required_fields(self):
-        list_tool = next(t for t in REMINDER_TOOLS if t["name"] == "list_reminders")
-        assert "channel_id" in list_tool["input_schema"]["required"]
-
-    def test_cancel_reminder_required_fields(self):
-        cancel = next(t for t in REMINDER_TOOLS if t["name"] == "cancel_reminder")
-        assert "reminder_id" in cancel["input_schema"]["required"]
-
-    def test_all_tools_have_description(self):
-        for tool in REMINDER_TOOLS:
-            assert "description" in tool
-            assert len(tool["description"]) > 10
-
-    def test_recurring_enum_values(self):
-        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
-        recurring_prop = create["input_schema"]["properties"]["recurring"]
-        assert set(recurring_prop["enum"]) == {"none", "daily", "weekly", "monthly"}
-
-    def test_create_reminder_supports_requires_ack(self):
-        create = next(t for t in REMINDER_TOOLS if t["name"] == "create_reminder")
-        prop = create["input_schema"]["properties"].get("requires_ack")
-        assert prop is not None
-        assert prop["type"] == "boolean"
-        assert "requires_ack" not in create["input_schema"]["required"]

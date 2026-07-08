@@ -113,46 +113,7 @@ class TestClassifyPreset:
         assert result.mode == PresetMode.PLAYFUL_ROAST
 
 
-class TestActionIntentFalsePositives:
-    """Regression v3.4.9: the old regex matched 'cambia...nombre' without
-    requiring 'canal', forcing tool_choice='any' and spurious get_channel_info
-    calls. The new regex requires canal/channel/espacio/sala/room in every
-    pattern within 40 chars of the verb."""
-
-    def test_milicia_metaphor_does_not_trigger_action(self):
-        msg = "solo le cambia el nombre al sistema para ponerles armas y uniformes"
-        result = classify_preset(msg)
-        assert PresetModifier.ACTION_INTENT not in result.modifiers
-
-    def test_abstract_change_name_does_not_trigger(self):
-        for msg in [
-            "cambio mi nombre legal el año pasado",
-            "cambiar el nombre de mi archivo de dotfiles",
-            "edita este texto y me lo regresas",
-        ]:
-            result = classify_preset(msg)
-            assert PresetModifier.ACTION_INTENT not in result.modifiers, f"false positive on: {msg!r}"
-
-    def test_generic_verb_alone_does_not_trigger(self):
-        for msg in ["hazme un favor", "ponme un ejemplo", "dame tu opinión", "crea una historia corta"]:
-            result = classify_preset(msg)
-            assert PresetModifier.ACTION_INTENT not in result.modifiers, f"false positive on: {msg!r}"
-
-
-class TestActionIntentTruePositives:
-    def test_real_channel_requests_trigger_action(self):
-        for msg in [
-            "crea un canal privado para la familia",
-            "hazme un channel nuevo",
-            "cambia el nombre del canal a dev-chat",
-            "ponle descripción al canal general",
-            "dale topic al canal de proyectos",
-            "quiero un espacio nuevo para hablar",
-            "create a new channel for work",
-        ]:
-            result = classify_preset(msg)
-            assert PresetModifier.ACTION_INTENT in result.modifiers, f"missed action_intent on: {msg!r}"
-
+class TestArcClassification:
     # --- ARC (Adaptive Relational Critique) ---
 
     def test_capitalism_triggers_arc(self):
@@ -216,24 +177,6 @@ class TestActionIntentTruePositives:
     def test_no_memory_recall_without_facts(self):
         result = classify_preset("ya no quiero programar en Python")
         assert PresetModifier.MEMORY_RECALL not in result.modifiers
-
-    # --- ACTION_INTENT ---
-
-    def test_create_channel_intent_spanish(self):
-        result = classify_preset("crea un canal de ciencia")
-        assert PresetModifier.ACTION_INTENT in result.modifiers
-
-    def test_create_channel_intent_english(self):
-        result = classify_preset("create a channel for programming")
-        assert PresetModifier.ACTION_INTENT in result.modifiers
-
-    def test_private_space_intent(self):
-        result = classify_preset("necesito un espacio privado")
-        assert PresetModifier.ACTION_INTENT in result.modifiers
-
-    def test_no_action_intent_on_casual(self):
-        result = classify_preset("hoy fui al canal de panama")
-        assert PresetModifier.ACTION_INTENT not in result.modifiers
 
     # --- CONTEXT WINDOW ---
 

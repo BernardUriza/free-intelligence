@@ -71,9 +71,8 @@ from personas.insult.cogs.chat.pipeline import (
     TurnCtx,
 )
 from personas.insult.cogs.chat.remembers import parse_remembers, persist_remembers
+from personas.insult.cogs.chat.reminds import fire_remind, parse_remind
 from personas.insult.cogs.chat.tasks import extract_user_facts
-from personas.insult.cogs.chat.tools import execute_reminder_call, execute_tool_calls
-from personas.insult.core.contracts import PresetModifier
 from personas.insult.core.delivery import MESSAGE_DELIMITER, send_response
 from personas.insult.core.errors import ErrorType, classify_error, get_error_response
 from personas.insult.core.image_transcript import persist_image_transcript
@@ -82,8 +81,6 @@ from personas.insult.core.triviality import is_trivial
 
 log = structlog.get_logger()
 
-
-_REMINDER_TOOL_NAMES = {"create_reminder", "list_reminders", "cancel_reminder"}
 
 # Upper bound for the host degrader (gpt-4.1) in the honest-degradation tail. The
 # notice is a 2-sentence completion and the static fallback is instant, so the
@@ -656,18 +653,6 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         )
 
 
-# --- Stage 09: tool config (stage name kept for KQL continuity — the 3-tier
-# model router that used to run here was deleted once the agent runner became
-# the only backend: it discards any per-turn model choice, the runner owns the
-# model) ---
-
-
-async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
-    ctx.tools = list(ctx.deps.all_tools)
-    force_tool = PresetModifier.ACTION_INTENT in ctx.preset.modifiers
-    ctx.tool_choice = {"type": "any"} if force_tool else None
-
-
 # --- Stage 10: LLM call (BUSINESS-critical, the heart of the turn) ---
 #
 # Every turn rides the agent runner (/v1/turn) now — there is no legacy
@@ -781,8 +766,6 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         "llm_call_start",
         prompt_chars=len(ctx.system_prompt),
         context_messages=len(ctx.context),
-        tools=[t.get("name", t.get("type", "?")) for t in ctx.tools],
-        tool_choice=(ctx.tool_choice or {}).get("type"),
         primary_model=ctx.deps.settings.llm_model,
     )
     # The agent runner is the only turn backend. ``backend`` is kept as a
@@ -799,8 +782,6 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
     typing_task = spawn_typing_keepalive(ctx.message.channel)
     try:
         llm_kwargs: dict[str, Any] = {
-            "tools": ctx.tools,
-            "tool_choice": ctx.tool_choice,
             "on_timeout": _notify_retry,
         }
         if backend == "agent_runner":
@@ -995,62 +976,18 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         typing_task.cancel()
 
     ctx.llm_ms = int((time.monotonic() - llm_start) * 1000)
-    tool_names = [tc.name for tc in ctx.llm_response.tool_calls]
     log.info(
         "llm_call_complete",
         llm_ms=ctx.llm_ms,
         text_len=len(ctx.llm_response.text),
-        tool_calls=len(ctx.llm_response.tool_calls),
-        tool_names=tool_names,
         model_used=ctx.llm_response.model_used,
         elapsed_ms=ctx.elapsed_ms(),
     )
 
-    # v3.8.3 no-op-tool-only retry: when force_tool was True and the model
-    # responded with ONLY `get_channel_info` and no text, it picked the
-    # lowest-impact tool just to satisfy tool_choice="any". The user gets
-    # silence (or a generic error fallback). Retry once without forced
-    # tools so the model actually engages with the message.
-    is_force_tool = ctx.tool_choice == {"type": "any"}
-    only_no_op = bool(tool_names) and set(tool_names) == {"get_channel_info"}
-    if is_force_tool and only_no_op and not ctx.llm_response.text.strip():
-        log.warning(
-            "llm_no_op_tool_retry",
-            original_tool_names=tool_names,
-            reason="forced_tool_choice_picked_get_channel_info_only",
-        )
-        retry_tools = [t for t in ctx.tools if t.get("name") != "get_channel_info"]
-        retry_kwargs: dict[str, Any] = {
-            "tools": retry_tools,
-            "tool_choice": None,
-            "on_timeout": _notify_retry,
-        }
-        try:
-            if backend == "agent_runner":
-                retry_kwargs["channel_id"] = ctx.channel_id
-                retry_kwargs["user_id"] = ctx.user_id
-            ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **retry_kwargs)
-            tool_names = [tc.name for tc in ctx.llm_response.tool_calls]
-            log.info(
-                "llm_no_op_tool_retry_complete",
-                text_len=len(ctx.llm_response.text),
-                tool_calls=len(ctx.llm_response.tool_calls),
-                tool_names=tool_names,
-            )
-        except Exception as e:
-            log.warning(
-                "llm_no_op_tool_retry_failed",
-                error_type=type(e).__name__,
-                error_msg=str(e)[:200],
-            )
-            # Keep the original (empty-text) response — _stage_ensure_payload
-            # will fall back to the generic in-character error.
-
-    # v3.7.2-class safety net: warn if user clearly asked for a reminder
-    # but the LLM did not call ``create_reminder``.
-    ctx.intent_unattended = "create_reminder" not in tool_names and detect_reminder_intent(ctx.text)
-    if ctx.intent_unattended:
-        log.warning("reminder_intent_unattended", text_preview=ctx.text[:120], tool_names=tool_names)
+    # v3.7.2-class safety net: flag when the user clearly asked for a
+    # reminder. S4 vetoes the flag if a ``[REMIND:]`` marker was emitted;
+    # otherwise the in-character "no agendé recordatorio" tail fires.
+    ctx.intent_unattended = detect_reminder_intent(ctx.text)
 
 
 # --- Stage 11: post-LLM mutations ---
@@ -1063,15 +1000,15 @@ async def interpret_output(
     response + its side channels (reactions, remembered facts).
 
     Orchestrates the post-LLM read of the model output: parse the ``[REACT:]`` /
-    ``[REMEMBER:]`` markers, run the character mutation pipeline (echo-strip,
-    length variation, opener dedup, marker stripping), apply the unattended-
-    reminder tail, and harvest inline orphan emojis. S4 owns neither persistence
-    nor delivery — it returns the parsed/mutated results and the stage applies
-    the side effects. Behavior is identical to the inline block this replaces
-    (same parsers, same mutation order, same harvest)."""
+    ``[REMEMBER:]`` / ``[REMIND:]`` / ``[INVITE:]`` markers, run the character
+    mutation pipeline (echo-strip, length variation, opener dedup, marker
+    stripping), apply the unattended-reminder tail, and harvest inline orphan
+    emojis. S4 owns neither persistence nor delivery — it returns the
+    parsed/mutated results and the stage applies the side effects."""
     reactions = parse_reactions(src.raw_text)
     remembered_facts = parse_remembers(src.raw_text)
     invite_reason = parse_invite(src.raw_text)
+    remind_request = parse_remind(src.raw_text)
 
     # PR-G OutputMutationPort (capability seam): the guardrailed mutation
     # pipeline that lived inline here (echo-strip, length variation, opener
@@ -1084,7 +1021,7 @@ async def interpret_output(
         recent_openers=src.recent_openers,
     )
 
-    if src.intent_unattended and response.strip():
+    if src.intent_unattended and remind_request is None and response.strip():
         response = response.rstrip() + "\n\n*(no agendé recordatorio formal — si querías uno, dime día y hora.)*"
 
     # Safety net: if the LLM emitted emojis inline (ignoring the `[REACT:...]`
@@ -1101,6 +1038,7 @@ async def interpret_output(
         remembered_facts=remembered_facts,
         emojis_harvested_inline=emojis_harvested,
         invite_reason=invite_reason,
+        remind_request=remind_request,
     )
 
 
@@ -1148,6 +1086,29 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
             ),
             name=f"invite_marker:{ctx.channel_id}",
         )
+
+    if result.remind_request is not None:
+        ctx.remind_scheduled = True
+        log.info(
+            "remind_marker_parsed",
+            channel_id=ctx.channel_id,
+            when_raw=result.remind_request.when_raw[:80],
+            description_preview=result.remind_request.description[:80],
+            recurring=result.remind_request.recurring,
+        )
+        ctx.deps.spawn_task(
+            fire_remind(
+                result.remind_request,
+                memory=ctx.deps.memory,
+                bot=ctx.deps.bot,
+                channel=ctx.message.channel,
+                guild_id=str(ctx.guild_id) if ctx.guild_id else None,
+                created_by=ctx.user_id,
+            ),
+            name=f"remind_marker:{ctx.channel_id}",
+        )
+    elif ctx.intent_unattended:
+        log.warning("reminder_intent_unattended", text_preview=ctx.text[:120])
 
     ctx.reactions = result.reactions
     ctx.response_text = result.response_text
@@ -1246,87 +1207,41 @@ async def _stage_persist_arc_and_message(ctx: TurnCtx) -> None:
     )
 
 
-# --- Stage 13: spawn reaction/tool tasks (BACKGROUND) ---
+# --- Stage 13: spawn reaction tasks (BACKGROUND) ---
 
 
 async def _stage_spawn_side_effects(ctx: TurnCtx) -> None:
     if ctx.reactions:
         ctx.deps.spawn_task(add_reactions(ctx.message, ctx.reactions), name="reactions")
 
-    if ctx.llm_response.tool_calls:
-        reminder_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name in _REMINDER_TOOL_NAMES]
-        other_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _REMINDER_TOOL_NAMES]
-        for rc in reminder_calls:
-            ctx.deps.spawn_task(
-                execute_reminder_call(ctx.message, rc, ctx.deps.memory, ctx.deps.bot),
-                name=f"reminder:{rc.name}",
-            )
-        if other_calls and ctx.message.guild:
-            ctx.deps.spawn_task(
-                execute_tool_calls(
-                    ctx.message,
-                    other_calls,
-                    memory=ctx.deps.memory,
-                    judge=ctx.deps.judge_client,
-                    settings=ctx.deps.settings,
-                    spawn_task=ctx.deps.spawn_task,
-                ),
-                name=f"tool_calls:{','.join(tc.name for tc in other_calls)}",
-            )
-
 
 # --- Stage 14: ensure non-empty payload (fallback to in-character generic) ---
 
-# Tools whose handler does NOT post a user-visible message in the channel
-# of origin. When the LLM emits one of these alone with no text body, the
-# turn would deliver silence — so the empty-response fallback must fire.
-# `get_channel_info` joined this set in v3.8.3 after the no-op tool dump
-# regression; create_reminder / cancel_reminder have always been silent.
-_NON_VISIBLE_TOOL_NAMES = {"get_channel_info", "create_reminder", "cancel_reminder"}
-
 
 async def _stage_ensure_payload(ctx: TurnCtx) -> None:
-    # Silent-tool-call recovery (v3.8.0) — MUST run BEFORE the empty-fallback
-    # check. When the LLM fires `create_reminder` or `cancel_reminder` without
-    # writing any user-facing text, the delivery stage skips entirely
-    # (has_side_effects=True + empty body → `delivery_skipped`) and the
-    # user sees nothing in the channel where they asked. The reminder
-    # is saved, the side-channel #insult-reminders post fires, but the
-    # author still sits staring at silence and re-asks. v3.7.x logs
-    # showed this manifesting as "se volvió a morir por pedir un
-    # recordatorio" — the bot wasn't dead, just mute. Inject a short
-    # in-character confirmation so the conversation channel acknowledges
-    # the action. Other tool calls (`list_reminders`, channel ops) already
-    # post their own visible artifact in `tools.py` so they don't need it.
-    if not ctx.response_text.strip() and ctx.llm_response.tool_calls:
-        silent_tool_names = {"create_reminder", "cancel_reminder"}
-        silent_tools = [tc.name for tc in ctx.llm_response.tool_calls if tc.name in silent_tool_names]
-        if silent_tools:
-            confirmations = {
-                "create_reminder": "Ya. Te aviso.",
-                "cancel_reminder": "Cancelado.",
-            }
-            ctx.response_text = confirmations[silent_tools[0]]
-            log.info(
-                "silent_tool_call_recovered",
-                tool=silent_tools[0],
-                injected_text_len=len(ctx.response_text),
-            )
+    # Silent-marker recovery — MUST run BEFORE the empty-fallback check.
+    # When the LLM emits ONLY a `[REMIND:]` marker with no visible text,
+    # stripping the marker leaves an empty body and the user sits staring
+    # at silence in the channel where they asked (the v3.7.x "se volvió a
+    # morir por pedir un recordatorio" class — the bot wasn't dead, just
+    # mute). Inject a short in-character confirmation so the conversation
+    # channel acknowledges the scheduled reminder.
+    if not ctx.response_text.strip() and ctx.remind_scheduled:
+        ctx.response_text = "Ya. Te aviso."
+        log.info(
+            "silent_remind_marker_recovered",
+            injected_text_len=len(ctx.response_text),
+        )
 
-    # Empty-response fallback: after silent-tool recovery, if still empty
-    # AND no visible side effects, deliver an in-character generic error.
-    # `get_channel_info` is in `_NON_VISIBLE_TOOL_NAMES` since v3.8.4 — when
-    # it's the only tool call with no text, the no-op-retry in
-    # `_stage_call_llm` already produced a real response or this falls back.
-    visible_tool_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _NON_VISIBLE_TOOL_NAMES]
-    has_side_effects = bool(ctx.reactions or visible_tool_calls)
-    if not ctx.response_text.strip() and not has_side_effects:
+    # Empty-response fallback: after silent-marker recovery, if still empty
+    # AND no visible side effects (reactions), deliver an in-character
+    # generic error.
+    if not ctx.response_text.strip() and not ctx.reactions:
         log.warning(
             "empty_response_fallback",
             raw_llm_len=len(ctx.raw_response_text),
             raw_llm_preview=ctx.raw_response_text[:200],
             final_len=len(ctx.response_text),
-            tool_calls=len(ctx.llm_response.tool_calls),
         )
         ctx.response_text = get_error_response(ErrorType.GENERIC)
         return
@@ -1336,8 +1251,7 @@ async def _stage_ensure_payload(ctx: TurnCtx) -> None:
 
 
 async def _stage_deliver(ctx: TurnCtx) -> None:
-    visible_tool_calls = [tc for tc in ctx.llm_response.tool_calls if tc.name not in _NON_VISIBLE_TOOL_NAMES]
-    has_side_effects = bool(ctx.reactions or visible_tool_calls)
+    has_side_effects = bool(ctx.reactions)
     delivery_start = time.monotonic()
     try:
         await send_response(ctx.message.channel, ctx.response_text, has_side_effects=has_side_effects)
@@ -1438,7 +1352,6 @@ async def _stage_telemetry(ctx: TurnCtx) -> None:
             "expression_flavor": ctx.flow_analysis.expression.selected_flavor.value,
             "epistemic_move": ctx.flow_analysis.epistemic.recommended_move.value,
             "awareness_pattern": ctx.flow_analysis.awareness.detected_pattern.value,
-            "tools": [tc.name for tc in ctx.llm_response.tool_calls] if ctx.llm_response.tool_calls else [],
             "reactions": ctx.reactions,
         }
     )
@@ -1494,11 +1407,6 @@ DEFAULT_STAGES: list[Stage] = [
     Stage("load_facts", Criticality.BUSINESS, _stage_load_facts),
     Stage("scan_disclosure", Criticality.BUSINESS, _stage_scan_disclosure),
     Stage("classify_and_analyze", Criticality.BUSINESS, _stage_classify_and_analyze),
-    Stage(
-        "resolve_tools_and_model",
-        Criticality.BUSINESS,
-        _stage_resolve_tools_and_model,
-    ),
     Stage("call_llm", Criticality.BUSINESS, _stage_call_llm),
     Stage("post_llm_mutations", Criticality.BUSINESS, _stage_post_llm_mutations),
     Stage(

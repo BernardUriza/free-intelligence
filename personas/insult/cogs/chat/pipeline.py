@@ -109,9 +109,8 @@ class TurnRuntimeDeps:
     (``memory``), the config singleton (``settings``), the Discord
     gateway handle (``bot``), the anti-repetition ledger
     (``expression_history``),
-    the background-task spawner (``spawn_task``), the tool catalogue
-    (``all_tools``), and the two runner-backed LLM surfaces
-    (``agent_client`` / ``judge_client``).
+    the background-task spawner (``spawn_task``), and the two
+    runner-backed LLM surfaces (``agent_client`` / ``judge_client``).
 
     They are grouped here, frozen, to separate *what the host supplies*
     from *the mutable turn state* a stage reads-and-writes on ``TurnCtx``.
@@ -131,7 +130,6 @@ class TurnRuntimeDeps:
     bot: Any
     expression_history: Any
     spawn_task: Callable[..., None]
-    all_tools: list
     # Domain-service ports (S2 render + S5 write) and capability ports, wired
     # by insult.composition. The pipeline depends on the Protocol, never the
     # insult.core.* impl.
@@ -243,15 +241,14 @@ class TurnCtx:
     flow_guidance: str = ""
     stances: list = field(default_factory=list)
 
-    # --- Prompt + tool config ---
+    # --- Prompt config ---
     system_prompt: str = ""
-    tools: list = field(default_factory=list)
-    tool_choice: dict | None = None
 
     # --- LLM output ---
     llm_response: Any = None
     llm_ms: int = 0
     intent_unattended: bool = False
+    remind_scheduled: bool = False
 
     # --- Post-LLM transforms ---
     response_text: str = ""
@@ -347,8 +344,9 @@ class S4OutputInterpretationInput:
       consumes it (to detect quoted-back fragments).
     - ``recent_openers`` / ``recent_response_lengths``: the anti-repetition
       windows feeding ``deduplicate_opener`` / ``enforce_length_variation``.
-    - ``intent_unattended``: whether a reminder intent went unhandled this turn,
-      which appends the in-character "no agendé recordatorio" tail.
+    - ``intent_unattended``: whether the user's message clearly asked for a
+      reminder; when no ``[REMIND:]`` marker was emitted, the in-character
+      "no agendé recordatorio" tail is appended.
     """
 
     raw_text: str
@@ -378,6 +376,8 @@ class S4OutputInterpretationResult:
       for telemetry parity with the legacy ``stage_post_llm_done`` event.
     - ``invite_reason``: the summon reason parsed from an ``[INVITE:]`` marker
       (None when absent) — the stage fires the gateway ``/invite`` with it.
+    - ``remind_request``: the reminder parsed from a ``[REMIND:]`` marker
+      (None when absent) — the stage fires ``fire_remind`` with it.
     """
 
     response_text: str = ""
@@ -385,6 +385,7 @@ class S4OutputInterpretationResult:
     remembered_facts: list = field(default_factory=list)
     emojis_harvested_inline: int = 0
     invite_reason: str | None = None
+    remind_request: Any = None
 
 
 @dataclass

@@ -47,8 +47,8 @@ async def test_distinct_discord_ids_both_insert(pg_memory_store):
 
 
 async def test_null_discord_id_never_conflicts(pg_memory_store):
-    """Resistance: bot replies / proactive / moltbook stores carry no Discord
-    message id — repeated NULLs must all insert (partial index excludes NULL)."""
+    """Resistance: bot replies / proactive stores carry no Discord message
+    id — repeated NULLs must all insert (partial index excludes NULL)."""
     await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "respuesta 1")
     await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "respuesta 2")
     await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "respuesta 3")

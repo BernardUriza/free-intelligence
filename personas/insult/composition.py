@@ -347,6 +347,7 @@ class _CoreOutputMutationAdapter:
         from khimeras_shared.reactions import strip_reactions
         from personas.insult.cogs.chat.invites import strip_invites
         from personas.insult.cogs.chat.remembers import strip_remembers
+        from personas.insult.cogs.chat.reminds import strip_reminds
 
         return await run_character_pipeline(
             [
@@ -378,6 +379,12 @@ class _CoreOutputMutationAdapter:
                 MutationStage(
                     name="strip_remembers",
                     apply=lambda t, _ctx: strip_remembers(t),
+                    max_shrink_pct=None,
+                    on_violation="skip_stage",
+                ),
+                MutationStage(
+                    name="strip_reminds",
+                    apply=lambda t, _ctx: strip_reminds(t),
                     max_shrink_pct=None,
                     on_violation="skip_stage",
                 ),

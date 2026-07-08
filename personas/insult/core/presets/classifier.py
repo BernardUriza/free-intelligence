@@ -11,7 +11,6 @@ import re
 
 from personas.insult.core.patterns import count_pattern_hits as _count_pattern_hits
 from personas.insult.core.presets.patterns import (
-    _ACTION_INTENT_PATTERNS,
     _ARC_PATTERNS,
     _CONTEMPT_PATTERNS,
     _INTELLECTUAL_PATTERNS,
@@ -67,10 +66,6 @@ def classify_preset(
     stripped = current_message.strip()
     if stripped and len(stripped) <= 3 and _count_pattern_hits(stripped, _CONTEMPT_PATTERNS) > 0:
         modifiers.append(PresetModifier.CONTEMPT)
-
-    # ACTION_INTENT: user wants a server action (channel creation)
-    if _count_pattern_hits(current_message, _ACTION_INTENT_PATTERNS) > 0:
-        modifiers.append(PresetModifier.ACTION_INTENT)
 
     # MEMORY_RECALL: check if user facts exist and could connect to current message
     if user_facts:

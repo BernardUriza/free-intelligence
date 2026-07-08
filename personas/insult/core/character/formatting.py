@@ -284,10 +284,11 @@ def enforce_length_variation(text: str, recent_lengths: list[int]) -> str:
     avg loss ~130 words per fire, often single-sentence output). 4 keeps
     the core idea legible while still breaking the medium-length streak.
 
-    Markers (`[REMEMBER:]`, `[REACT:]`) found in the dropped tail are
-    re-appended so the longitudinal memory and reaction layers don't
-    silently lose state when length-variation kicks in. Without this
-    rescue a fact the model decided to record would vanish.
+    Markers (`[REMEMBER:]`, `[REACT:]`, `[INVITE:]`, `[REMIND:]`) found in
+    the dropped tail are re-appended so the longitudinal memory, reaction,
+    summon, and reminder layers don't silently lose state when
+    length-variation kicks in. Without this rescue a fact the model decided
+    to record — or a reminder it promised — would vanish.
     """
     if not text or len(recent_lengths) < 3:
         return text
@@ -305,7 +306,7 @@ def enforce_length_variation(text: str, recent_lengths: list[int]) -> str:
     tail = " ".join(sentences[4:])
 
     # Rescue any side-effect markers from the dropped tail.
-    rescued_markers = re.findall(r"\[(?:REMEMBER|REACT|INVITE):[^\]]*\]", tail, flags=re.IGNORECASE)
+    rescued_markers = re.findall(r"\[(?:REMEMBER|REACT|INVITE|REMIND):[^\]]*\]", tail, flags=re.IGNORECASE)
     truncated = head + ("\n" + " ".join(rescued_markers) if rescued_markers else "")
 
     log.info(
