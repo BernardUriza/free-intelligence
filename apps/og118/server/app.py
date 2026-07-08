@@ -31,6 +31,7 @@ from fi_runner.auth import (
     make_auth_dependency,
 )
 from fi_runner.rag_store import RagStoreClient
+from conversations import ConversationStore, valid_conversation_id
 from projects import ProjectRegistry
 from runner import build_runner
 from external_engine import stream_external_turn
@@ -223,6 +224,23 @@ def get_project_registry() -> ProjectRegistry:
         )
         _project_registry = ProjectRegistry(os.getenv("OG118_PROJECT_REGISTRY_PATH", default))
     return _project_registry
+
+
+_conversation_store: ConversationStore | None = None
+
+
+def get_conversation_store() -> ConversationStore:
+    """Dependency seam: the per-account cloud conversation store (one JSON per
+    conversation on the Azure Files volume). Root from OG118_CONVERSATIONS_PATH,
+    defaulting next to FI_RAG_STORE_PATH. Overridable in tests."""
+    global _conversation_store
+    if _conversation_store is None:
+        default = os.path.join(
+            os.path.dirname(os.getenv("FI_RAG_STORE_PATH", "/opt/fi/data/fi_rag_store.h5")),
+            "conversations",
+        )
+        _conversation_store = ConversationStore(os.getenv("OG118_CONVERSATIONS_PATH", default))
+    return _conversation_store
 
 
 class HistoryMessage(BaseModel):
@@ -622,3 +640,95 @@ async def upload_project_document(
             },
         )
     return {"corpus_id": project_id, "doc_id": doc_id, "chunks": chunks}
+
+
+# Hard ceiling on one persisted conversation (sanitized transcript JSON). A
+# runaway thread gets rejected loud instead of growing an unbounded file on the
+# single-replica volume.
+MAX_CONVERSATION_BYTES = 4 * 1024 * 1024
+
+
+class ConversationRecordRequest(BaseModel):
+    """The core ConversationRecord shape (fi-glass sanitizes upstream: messages
+    carry role/content/timestamp/trace only, never auth metadata). Extra fields
+    are dropped by pydantic — the same invariant as ProjectCreateRequest."""
+
+    id: str
+    title: str
+    titleCustom: bool | None = None
+    createdAt: str
+    updatedAt: str
+    messages: list[dict]
+    preview: str
+    schemaVersion: int
+
+
+@app.get("/conversations")
+async def list_conversations(
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """The caller's conversations as light summaries, newest first (sidebar)."""
+    return {"conversations": store.list_for(principal.sub)}
+
+
+@app.get("/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """One full record. Ownership is structural (per-owner directory), so a
+    foreign id is indistinguishable from a missing one — 404, never 403."""
+    record = store.get(principal.sub, conversation_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    return record
+
+
+@app.put("/conversations/{conversation_id}")
+async def put_conversation(
+    conversation_id: str,
+    record: ConversationRecordRequest,
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """Upsert the record under the caller's account. The path id is canonical
+    (a body id that disagrees is rejected — no writing conversation A while
+    addressing conversation B)."""
+    if not valid_conversation_id(conversation_id):
+        raise HTTPException(status_code=422, detail="invalid conversation id")
+    if record.id != conversation_id:
+        raise HTTPException(status_code=422, detail="body id does not match path id")
+    payload = record.model_dump(exclude_none=True)
+    if len(json.dumps(payload)) > MAX_CONVERSATION_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "CONVERSATION_TOO_LARGE",
+                "message": f"conversation exceeds the {MAX_CONVERSATION_BYTES // (1024 * 1024)} MB limit",
+            },
+        )
+    store.put(principal.sub, payload)
+    return {"id": conversation_id}
+
+
+@app.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """Remove one conversation (no-op if absent — mirrors the client library
+    contract, and leaks nothing about other accounts' ids)."""
+    store.delete(principal.sub, conversation_id)
+    return {"deleted": conversation_id}
+
+
+@app.delete("/conversations")
+async def clear_conversations(
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """Remove every conversation the caller owns (the library `clear()`)."""
+    return {"cleared": store.clear_for(principal.sub)}
