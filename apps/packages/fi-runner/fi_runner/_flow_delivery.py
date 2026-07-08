@@ -15,6 +15,8 @@ This module is the helper layer for that flow:
   - :func:`narrate_and_publish` — the body of that background task: ask the
     backend to refine, publish the narrated diagram superseding the
     mechanical one.
+  - :func:`drain_narrations` — await the tracked pool on shutdown so no
+    narration is silently lost (the closing half of ``schedule_narration``).
 
 All functions are RUNNER-AGNOSTIC — they take the few pieces of state they
 need as arguments (emit sink, backend, narrator, callback). The Runner
@@ -148,10 +150,35 @@ async def narrate_and_publish(
     _call_turn_flow(request_id, refined, emit=emit, on_turn_flow=on_turn_flow)
 
 
+async def drain_narrations(
+    task_pool: set["asyncio.Task[None]"],
+    *,
+    emit: EmitSink,
+) -> None:
+    """Await every in-flight narration so none is lost on shutdown.
+
+    ``return_exceptions=True`` is required so one failed narration doesn't
+    cancel the others mid-drain. Every failure is surfaced as a
+    ``narration_drain_error`` event — otherwise narrations that raised would
+    be silently swallowed by gather (a documented asyncio footgun).
+    ``BaseException`` (not ``Exception``) catches ``CancelledError`` too —
+    gather's ``return_exceptions`` does not auto-detect it via ``Exception``."""
+    if not task_pool:
+        return
+    results = await asyncio.gather(*tuple(task_pool), return_exceptions=True)
+    for r in results:
+        if isinstance(r, BaseException):
+            emit("narration_drain_error", {
+                "error_type": type(r).__name__,
+                "error": str(r),
+            })
+
+
 __all__ = [
     "EmitSink",
     "TurnFlowCallback",
     "deliver_turn_flow",
     "schedule_narration",
     "narrate_and_publish",
+    "drain_narrations",
 ]
