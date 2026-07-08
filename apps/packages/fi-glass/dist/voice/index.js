@@ -558,7 +558,10 @@ function createAudioPlayer(options = {}) {
     }
   }
   function load(source) {
-    if (disposed) return;
+    if (disposed) {
+      disposed = false;
+      el = null;
+    }
     const element = ensureElement();
     releaseOwnedUrl();
     let url;
@@ -769,6 +772,63 @@ import {
 } from "lucide-react";
 import { useEffect as useEffect4 } from "react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
+function ensureAudioScrubberStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SCRUBBER_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SCRUBBER_STYLE_ID;
+  el.textContent = `
+    input[data-fi-audio-progress] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    input[data-fi-audio-progress]::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 9999px;
+      background: linear-gradient(
+        to right,
+        currentColor var(--fi-audio-progress, 0%),
+        rgba(148, 163, 184, 0.3) var(--fi-audio-progress, 0%)
+      );
+    }
+    input[data-fi-audio-progress]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -4px;
+      border-radius: 9999px;
+      background: currentColor;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    }
+    input[data-fi-audio-progress]::-moz-range-track {
+      height: 4px;
+      border-radius: 9999px;
+      background: rgba(148, 163, 184, 0.3);
+    }
+    input[data-fi-audio-progress]::-moz-range-progress {
+      height: 4px;
+      border-radius: 9999px;
+      background: currentColor;
+    }
+    input[data-fi-audio-progress]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: none;
+      border-radius: 9999px;
+      background: currentColor;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    }
+    input[data-fi-audio-progress]:disabled {
+      opacity: 0.35;
+    }
+  `;
+  document.head.appendChild(el);
+}
 var ICON2 = "w-4 h-4";
 var BTN2 = "p-2 disabled:opacity-40";
 function formatPlaybackTime(seconds) {
@@ -816,6 +876,10 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
+  useEffect4(() => {
+    ensureAudioScrubberStyle();
+  }, []);
+  const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
   const btnClass = `${FI_TOUCH_TARGET_CLASS} ${buttonClassName ?? BTN2}`;
   const iconClass = iconClassName ?? ICON2;
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
@@ -887,6 +951,7 @@ function RichAudioPlayer({
             "aria-label": "Progreso de reproducci\xF3n",
             "aria-valuetext": positionLabel,
             className: progressClassName,
+            style: { "--fi-audio-progress": `${progressPct}%` },
             "data-fi-audio-progress": ""
           }
         ),
@@ -2516,7 +2581,7 @@ function AudioDraftPlayer({
                 className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
                 buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
                 iconClassName: "w-4 h-4",
-                progressClassName: "flex-1 min-w-0 h-1 accent-amber-400 cursor-pointer disabled:cursor-not-allowed"
+                progressClassName: "flex-1 min-w-0 text-amber-400 cursor-pointer disabled:cursor-not-allowed"
               }
             ),
             /* @__PURE__ */ jsx13("span", { className: "hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0", children: "En pausa" })
@@ -2543,7 +2608,7 @@ function AudioDraftPlayer({
               className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
               buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
               iconClassName: "w-4 h-4",
-              progressClassName: "flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+              progressClassName: "flex-1 min-w-0 text-emerald-400 cursor-pointer disabled:cursor-not-allowed"
             }
           ),
           /* @__PURE__ */ jsxs9("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [

@@ -216,7 +216,17 @@ export function createAudioPlayer(
   }
 
   function load(source: AudioSource): void {
-    if (disposed) return;
+    // A load() can only come from a live owner, so it revives a disposed
+    // engine instead of no-opping. React StrictMode (dev) runs the owning
+    // hook's effect cleanup+setup on mount, disposing the memoized controller
+    // that the remount keeps using — without revival every subsequent load()
+    // dies silently and the player renders permanently disabled. The old
+    // element is dropped (dispose already detached its listeners) and
+    // ensureElement re-acquires a fresh one.
+    if (disposed) {
+      disposed = false;
+      el = null;
+    }
     const element = ensureElement();
     // Drop the previous owned URL before we lose the reference to it.
     releaseOwnedUrl();

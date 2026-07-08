@@ -120,7 +120,7 @@ export function AudioDraftPlayer({
             className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
             buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
             iconClassName="w-4 h-4"
-            progressClassName="flex-1 min-w-0 h-1 accent-amber-400 cursor-pointer disabled:cursor-not-allowed"
+            progressClassName="flex-1 min-w-0 text-amber-400 cursor-pointer disabled:cursor-not-allowed"
           />
           <span className="hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0">
             En pausa
@@ -149,7 +149,7 @@ export function AudioDraftPlayer({
             className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
             buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
             iconClassName="w-4 h-4"
-            progressClassName="flex-1 min-w-0 h-1 accent-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+            progressClassName="flex-1 min-w-0 text-emerald-400 cursor-pointer disabled:cursor-not-allowed"
           />
           <div className="hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45">
             {artifact.size > 0 && <span>{formatArtifactSize(artifact.size)}</span>}

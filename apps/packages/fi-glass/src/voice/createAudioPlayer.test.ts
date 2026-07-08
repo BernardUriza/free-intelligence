@@ -181,6 +181,29 @@ describe('createAudioPlayer', () => {
     expect(player.getState().status).not.toBe('error');
   });
 
+  it('load() after dispose() revives the engine with a fresh element (StrictMode)', () => {
+    const els: FakeAudioElement[] = [];
+    const { player } = harness({
+      createElement: () => {
+        const el = new FakeAudioElement();
+        els.push(el);
+        return el;
+      },
+    });
+    player.load(fakeBlob());
+    player.dispose();
+    player.load(fakeBlob());
+    expect(els).toHaveLength(2);
+    expect(els[1].listenerCount('loadedmetadata')).toBe(1);
+    expect(player.getState()).toMatchObject({
+      status: 'loading',
+      currentSrc: 'blob:fake-2',
+    });
+    els[1].duration = 7;
+    els[1].emit('loadedmetadata');
+    expect(player.getState()).toMatchObject({ isLoading: false, duration: 7 });
+  });
+
   it('notifies subscribers and stops after unsubscribe', () => {
     const { el, player } = harness();
     const seen = vi.fn();
