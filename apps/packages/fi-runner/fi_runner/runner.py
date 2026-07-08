@@ -46,12 +46,31 @@ from .router import ModelRouter
 # Extracted internals — kept private (leading underscore) to signal they
 # are implementation detail; consumers should import from ``fi_runner``
 # directly, not these submodules.
-from ._flow_delivery import deliver_turn_flow, schedule_narration
+from ._flow_delivery import deliver_turn_flow, drain_narrations, schedule_narration
 from ._guards_executor import guard_level as _guard_level, run_guards
 from ._plan_events import _derive_plan_events, _PlanStreamObserver
 from ._runner_config import FlowNarrator, RetryPolicy
 
 _log = logging.getLogger("fi_runner.runner")
+
+
+@dataclass
+class _TurnSetup:
+    """Everything both turn entrypoints derive before touching the backend.
+
+    ``run`` and ``run_stream`` used to compute this preamble independently —
+    two copies of validation, request-id minting, MCP resolution, model
+    routing, history folding and context binding that had to stay in sync by
+    hand. One shape, computed once by :meth:`Runner._prepare_turn`.
+    """
+
+    request_id: str
+    t0: float
+    mcp_servers: list[MCPServerSpec]
+    model: str | None
+    backend_message: str
+    backend_session_id: str | None
+    context_addendum: str
 
 
 __all__ = [
@@ -242,6 +261,121 @@ class Runner:
             parts.append(reinforcement)
         return "\n\n".join(parts).strip()
 
+    async def _prepare_turn(
+        self,
+        user_message: str,
+        session_id: str | None,
+        context: dict[str, Any] | None,
+        request_id: str | None,
+        history: Iterable[Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+    ) -> _TurnSetup:
+        """The shared turn preamble (see :class:`_TurnSetup`): validate, mint the
+        request id, resolve MCP servers, route the model, fold continuity and
+        render the context binding. Raises ``ValueError`` on an empty message."""
+        if not user_message or not user_message.strip():
+            raise ValueError("user_message must be non-empty")
+        request_id = request_id or uuid.uuid4().hex[:12]
+        t0 = time.perf_counter()
+        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
+        model = self.model
+        if self.model_router is not None:
+            chosen = await self.model_router.choose(
+                user_message=user_message, default=self.model, context=context or {}
+            )
+            if chosen:
+                model = chosen
+        # Container-safe continuity by history replay: fold the transcript (client-
+        # supplied or from the store) into the prompt sent to the backend, keeping
+        # the backend stateless. Guards still see the ORIGINAL user_message.
+        backend_message, backend_session_id = await self._fold_history(
+            user_message, session_id, history, emit, request_id
+        )
+        # Per-turn context binding (e.g. the active corpus): rendered once, constant
+        # across retries; the guard reinforcement is what varies per attempt.
+        context_addendum = self._render_context_prompt(context, emit, request_id)
+        return _TurnSetup(
+            request_id=request_id,
+            t0=t0,
+            mcp_servers=mcp_servers,
+            model=model,
+            backend_message=backend_message,
+            backend_session_id=backend_session_id,
+            context_addendum=context_addendum,
+        )
+
+    async def _settle_turn(
+        self,
+        result: TurnResult,
+        setup: _TurnSetup,
+        *,
+        model: str | None,
+        attempts: int,
+        streamed: bool,
+        phase: str,
+        session_id: str | None,
+        user_message: str,
+        context: dict[str, Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+    ) -> TurnResult:
+        """The shared turn settlement, previously duplicated between :meth:`run`
+        and :meth:`run_stream`: tool-call telemetry → optional write-ahead append
+        (R14) → post-processors → ``turn_completed`` → success append.
+
+        ``model`` is passed separately from ``setup.model`` because the retry
+        loop may have escalated to the fallback model — ``turn_completed``
+        reports what actually ran. Tool-trace telemetry is PHI-safe: only
+        name/server/status reach the event stream, never the tool input."""
+        for i, call in enumerate(result.tool_calls):
+            emit(
+                "tool_called",
+                {
+                    "request_id": setup.request_id,
+                    "index": i,
+                    "name": call.name,
+                    "server": call.server,
+                    "is_error": call.is_error,
+                },
+            )
+        # R14: optional write-ahead append BEFORE post-processors. Stores the
+        # post-guards but pre-mutation text — useful when the consumer needs
+        # the durable record to predate any cosmetic transform.
+        if self.pre_emit_append:
+            await self._append_to_store(
+                session_id, user_message, result.text,
+                request_id=setup.request_id, phase=f"{phase}_pre_emit", emit=emit,
+            )
+        result = await self._apply_post_processors(
+            result, context, request_id=setup.request_id, emit=emit
+        )
+        completed: dict[str, Any] = {
+            "request_id": setup.request_id,
+            "model": model,
+            "latency_ms": round((time.perf_counter() - setup.t0) * 1000, 2),
+            "tokens": result.usage,
+            "mcp_count": len(setup.mcp_servers),
+            "tool_count": len(result.tool_calls),
+            "attempts": attempts,
+            "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
+        }
+        if streamed:
+            completed["streamed"] = True
+        emit("turn_completed", completed)
+        # Success → persist the exchange for replay (the ORIGINAL user_message,
+        # not the folded transcript). Only on success: a crash stores no half
+        # turn. Reached only when conversation_store + session_id are set.
+        # Failure is SURFACED as ``conversation_store_error`` but does NOT
+        # raise — the user already saw a valid response; we don't roll back
+        # the turn just because persistence flaked. The next turn will lose
+        # this exchange from history (silent context loss), so monitoring on
+        # this event is required for production durability.
+        if not self.pre_emit_append:
+            await self._append_to_store(
+                session_id, user_message, result.text,
+                request_id=setup.request_id, phase=phase, emit=emit,
+            )
+        return result
+
     async def run(
         self,
         user_message: str,
@@ -270,10 +404,6 @@ class Runner:
         Raises ``ValueError`` on empty ``user_message`` and :class:`BackendError`
         if the backend fails (the original exception is chained as ``__cause__``).
         """
-        if not user_message or not user_message.strip():
-            raise ValueError("user_message must be non-empty")
-        request_id = request_id or uuid.uuid4().hex[:12]
-
         # EVERY turn self-documents — observability is not opt-in. Mirror this
         # turn's events into a local buffer (local → safe under concurrent runs)
         # so we can render its path (and narrate it) once it settles.
@@ -283,43 +413,28 @@ class Runner:
             turn_events.append((event, fields))
             self._emit(event, fields)
 
-        t0 = time.perf_counter()
-        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
+        setup = await self._prepare_turn(
+            user_message, session_id, context, request_id, history, emit
+        )
+        request_id = setup.request_id
         attempts = max(1, self.retry_policy.max_attempts)
         reinforcement = ""
-        model = self.model
-        if self.model_router is not None:
-            chosen = await self.model_router.choose(
-                user_message=user_message, default=self.model, context=context or {}
-            )
-            if chosen:
-                model = chosen
+        model = setup.model
         result: TurnResult | None = None
         attempt = 0
-
-        # Container-safe continuity by history replay: fold the transcript (client-
-        # supplied or from the store) into the prompt sent to the backend, keeping
-        # the backend stateless. Guards still see the ORIGINAL user_message.
-        backend_message, backend_session_id = await self._fold_history(
-            user_message, session_id, history, emit, request_id
-        )
-
-        # Per-turn context binding (e.g. the active corpus): rendered once, constant
-        # across retries; the guard reinforcement is what varies per attempt.
-        context_addendum = self._render_context_prompt(context, emit, request_id)
 
         try:
             for attempt in range(attempts):
                 is_last = attempt == attempts - 1
-                system_prompt = self._compose_system_prompt(context_addendum, reinforcement)
+                system_prompt = self._compose_system_prompt(setup.context_addendum, reinforcement)
                 try:
                     result = await self.backend.run_turn(
                         system_prompt=system_prompt,
-                        user_message=backend_message,
-                        mcp_servers=mcp_servers,
+                        user_message=setup.backend_message,
+                        mcp_servers=setup.mcp_servers,
                         tool_policy=self.tool_policy,
                         model=model,
-                        session_id=backend_session_id,
+                        session_id=setup.backend_session_id,
                     )
                 except BackendError:
                     raise  # already typed — don't double-wrap
@@ -352,54 +467,12 @@ class Runner:
                 model = self.retry_policy.fallback_model or model
 
             assert result is not None  # the loop runs at least once
-            # Tool-trace → telemetry. PHI-safe: only name/server/status reach the
-            # event stream (and the diagram), never the tool input/args.
-            for i, call in enumerate(result.tool_calls):
-                emit(
-                    "tool_called",
-                    {
-                        "request_id": request_id,
-                        "index": i,
-                        "name": call.name,
-                        "server": call.server,
-                        "is_error": call.is_error,
-                    },
-                )
-            # R14: optional write-ahead append BEFORE post-processors. Stores the
-            # post-guards but pre-mutation text — useful when the consumer needs
-            # the durable record to predate any cosmetic transform.
-            if self.pre_emit_append:
-                await self._append_to_store(
-                    session_id, user_message, result.text,
-                    request_id=request_id, phase="run_pre_emit", emit=emit,
-                )
-            result = await self._apply_post_processors(result, context, request_id=request_id, emit=emit)
-            emit(
-                "turn_completed",
-                {
-                    "request_id": request_id,
-                    "model": model,
-                    "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
-                    "tokens": result.usage,
-                    "mcp_count": len(mcp_servers),
-                    "tool_count": len(result.tool_calls),
-                    "attempts": attempt + 1,
-                    "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
-                },
+            result = await self._settle_turn(
+                result, setup,
+                model=model, attempts=attempt + 1, streamed=False, phase="run",
+                session_id=session_id, user_message=user_message,
+                context=context, emit=emit,
             )
-            # Success → persist the exchange for replay (the ORIGINAL user_message,
-            # not the folded transcript). Only on success: a crash stores no half
-            # turn. Reached only when conversation_store + session_id are set.
-            # Failure is SURFACED as ``conversation_store_error`` but does NOT
-            # raise — the user already saw a valid response; we don't roll back
-            # the turn just because persistence flaked. The next turn will lose
-            # this exchange from history (silent context loss), so monitoring on
-            # this event is required for production durability.
-            if not self.pre_emit_append:
-                await self._append_to_store(
-                    session_id, user_message, result.text,
-                    request_id=request_id, phase="run", emit=emit,
-                )
             # Success → narrate this turn in the BACKGROUND (the INSIDE view).
             # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:
@@ -437,26 +510,10 @@ class Runner:
         Backends without ``run_turn_stream`` fall back to one result event. Telemetry
         (turn_completed, tool_called, guard_critical) still fires via on_event; the
         flow diagram + narration are run()-only (not produced for streamed turns)."""
-        if not user_message or not user_message.strip():
-            raise ValueError("user_message must be non-empty")
-        request_id = request_id or uuid.uuid4().hex[:12]
-        t0 = time.perf_counter()
-        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
-        model = self.model
-        if self.model_router is not None:
-            chosen = await self.model_router.choose(user_message=user_message, default=self.model, context=context or {})
-            if chosen:
-                model = chosen
-
-        # Per-turn context binding — the same addendum the agent gets in run().
-        context_addendum = self._render_context_prompt(context, self._emit, request_id)
-
-        # Container-safe continuity (same as run): fold the transcript (client-
-        # supplied or from the store) into the backend message; guards still see
-        # the ORIGINAL user_message.
-        backend_message, backend_session_id = await self._fold_history(
-            user_message, session_id, history, self._emit, request_id
+        setup = await self._prepare_turn(
+            user_message, session_id, context, request_id, history, self._emit
         )
+        request_id = setup.request_id
 
         # Per-turn observer for the plan-first derived events. Tracks the
         # per-plan_id counters (done/failed/cancelled) needed to pick the
@@ -467,8 +524,9 @@ class Runner:
         try:
             if hasattr(self.backend, "run_turn_stream"):
                 async for event in self.backend.run_turn_stream(
-                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
-                    tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
+                    system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
+                    user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
+                    tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
                 ):
                     if event.get("type") == "result":
                         result = event["result"]
@@ -508,13 +566,14 @@ class Runner:
             else:
                 # Backend can't stream → one-shot, surfaced as a single result event.
                 result = await self.backend.run_turn(
-                    system_prompt=self._compose_system_prompt(context_addendum, ""), user_message=backend_message, mcp_servers=mcp_servers,
-                    tool_policy=self.tool_policy, model=model, session_id=backend_session_id,
+                    system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
+                    user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
+                    tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
                 )
         except BackendError:
             raise
         except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
-            self._emit("backend_error", {"backend": type(self.backend).__name__, "model": model, "attempt": 1, "error": str(exc)})
+            self._emit("backend_error", {"backend": type(self.backend).__name__, "model": setup.model, "attempt": 1, "error": str(exc)})
             raise BackendError(f"{type(self.backend).__name__} failed (stream): {exc}") from exc
 
         assert result is not None  # the backend always emits a result
@@ -531,30 +590,12 @@ class Runner:
                     final=True, request_id=request_id, emit=self._emit,
                 )
                 result = replace(result, text=text, guard_outcomes=outcomes)
-            # R14: optional write-ahead append (same semantic as run()).
-            if self.pre_emit_append:
-                await self._append_to_store(
-                    session_id, user_message, result.text,
-                    request_id=request_id, phase="run_stream_pre_emit", emit=self._emit,
-                )
-            for i, call in enumerate(result.tool_calls):
-                self._emit("tool_called", {
-                    "request_id": request_id, "index": i, "name": call.name,
-                    "server": call.server, "is_error": call.is_error,
-                })
-            result = await self._apply_post_processors(result, context, request_id=request_id, emit=self._emit)
-            self._emit("turn_completed", {
-                "request_id": request_id, "model": model,
-                "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
-                "tokens": result.usage, "mcp_count": len(mcp_servers),
-                "tool_count": len(result.tool_calls), "attempts": 1, "streamed": True,
-                "guard_levels": {n: _guard_level(o.metadata) for n, o in result.guard_outcomes.items()},
-            })
-            if not self.pre_emit_append:
-                await self._append_to_store(
-                    session_id, user_message, result.text,
-                    request_id=request_id, phase="run_stream", emit=self._emit,
-                )
+            result = await self._settle_turn(
+                result, setup,
+                model=setup.model, attempts=1, streamed=True, phase="run_stream",
+                session_id=session_id, user_message=user_message,
+                context=context, emit=self._emit,
+            )
         except Exception as exc:  # noqa: BLE001 - R10: never lose the result event
             self._emit("stream_postprocess_error", {
                 "request_id": request_id,
@@ -682,23 +723,11 @@ class Runner:
         """Drain pending background narrations (so none is lost) and release
         backend resources (pooled sessions, etc.), if any. Idempotent.
 
-        ``return_exceptions=True`` is required so one failed narration doesn't
-        cancel the others mid-drain. We iterate the results to surface every
-        failure as a ``narration_drain_error`` event — otherwise narrations
-        that raised would be silently swallowed by gather (a documented
-        asyncio footgun)."""
-        if self._narration_tasks:
-            results = await asyncio.gather(
-                *tuple(self._narration_tasks), return_exceptions=True
-            )
-            for r in results:
-                if isinstance(r, BaseException):
-                    # BaseException catches CancelledError too — gather's
-                    # return_exceptions does NOT auto-detect it via Exception.
-                    self._emit("narration_drain_error", {
-                        "error_type": type(r).__name__,
-                        "error": str(r),
-                    })
+        The drain semantics (gather with ``return_exceptions``, surfacing each
+        failure as ``narration_drain_error``) live in
+        :func:`fi_runner._flow_delivery.drain_narrations`, the closing half of
+        ``schedule_narration``."""
+        await drain_narrations(self._narration_tasks, emit=self._emit)
         close = getattr(self.backend, "aclose", None)
         if close is not None:
             await close()
