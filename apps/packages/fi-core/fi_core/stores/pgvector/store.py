@@ -1,56 +1,18 @@
-"""Postgres + pgvector-backed implementation of ``DocumentChunkStore``.
+"""``PgVectorChunkStore`` — the protocol surface of the pgvector store.
 
-Reference implementation of the storage protocol defined in
-``fi_core.rag.protocols.DocumentChunkStore``, backed by PostgreSQL with
-the ``pgvector`` extension. Designed for multi-tenant chat substrates
-and similar workloads where relational filters (namespace, status,
-attribute) combine with vector similarity at query time.
-
-Use case vs the HDF5 sibling:
-
-- **Concurrent writers**: Postgres handles them natively; the HDF5 store
-  is single-writer per file. Pick this implementation when you have
-  multiple processes ingesting into the same logical store.
-- **Transactional consistency**: ``save_chunks`` runs in one
-  transaction; cascading delete rolls back atomically on failure.
-- **Operational cost**: heavier than HDF5 — needs a Postgres server,
-  the ``vector`` extension installed (Azure Flexible Server enables it
-  via ``azure.extensions=VECTOR``; self-hosted needs the ``pgvector``
-  package + ``CREATE EXTENSION vector``), and a connection pool.
-
-Schema convention (per task spec): two tables, prefix-parameterized so
-multiple stores can coexist in one database without colliding.
-
-  - ``{prefix}_documents`` (document_id PK, namespace, content,
-    status, created_at, indexed_at, attributes jsonb)
-  - ``{prefix}_chunks`` (chunk_id PK, document_id FK, namespace, text,
-    source_type, source_ref, embedding vector(N), created_at)
-
-N (the embedding dimension) is parameterized at construction time and
-locked at schema-init. Cosine similarity uses pgvector's ``<=>``
-operator (smaller-is-closer); the returned ``similarity`` is
-``1 - distance`` so the value is in [0, 1] across stores.
-
-Index choice: IVFFlat with ``vector_cosine_ops`` and ``lists=100`` —
-matches what the discord-bot deep-memory schema uses and is the
-standard pgvector starting point for tables under ~1M rows. For larger
-catalogs migrate to HNSW (``CREATE INDEX ... USING hnsw``) which is
-more memory-hungry but offers better recall at scale.
-
-Optional dependency: ``asyncpg`` + ``pgvector``. Install via
-``pip install 'fi-core[stores-pgvector]'``.
+See the package docstring (``fi_core.stores.pgvector``) for use-case
+guidance and schema convention; DDL lives in ``schema``, row mapping in
+``rows``, connection bootstrap in ``fi_core.stores._pg`` and chunk-id
+derivation in ``fi_core.stores._common``.
 """
 
 from __future__ import annotations
 
 import json
-import uuid as _uuid
-from datetime import datetime, timezone
 from typing import Any
 
 try:
     import asyncpg
-    from pgvector.asyncpg import register_vector
 except ImportError as e:
     raise ImportError(
         "fi_core.stores.pgvector requires asyncpg and pgvector. "
@@ -64,15 +26,18 @@ from fi_core.rag.types import (
     DocumentRecord,
     RetrievedChunk,
 )
-
+from fi_core.stores._common import chunk_id_from, now
+from fi_core.stores._pg import (
+    create_vector_pool,
+    ensure_vector_extension,
+    init_vector_connection,
+)
+from fi_core.stores.pgvector.rows import row_to_document_record
+from fi_core.stores.pgvector.schema import schema_statements
 
 # Default table prefix. Consumers can override at construction so multiple
 # stores can coexist in one database without colliding.
 _DEFAULT_PREFIX = "fi_core"
-
-# pgvector cosine index. lists=100 is the standard starting point for tables
-# under ~1M rows; consumers crossing that threshold should rebuild as HNSW.
-_IVFFLAT_LISTS = 100
 
 
 class PgVectorChunkStore:
@@ -136,37 +101,19 @@ class PgVectorChunkStore:
     async def _get_pool(self) -> "asyncpg.Pool":
         """Return the connection pool, lazily building from DSN if needed.
 
-        The pgvector codec is registered per-connection via asyncpg's
-        ``init=`` callback so ``vector(N)`` columns round-trip as
-        ``list[float]`` without explicit casts. Registration is
-        best-effort — if the extension isn't installed yet, the codec
-        is skipped and ``init_schema()`` will install it + recreate the
-        pool so subsequent connections get the codec.
+        The pgvector codec is registered per-connection via the shared
+        ``fi_core.stores._pg`` bootstrap so ``vector(N)`` columns
+        round-trip as ``list[float]`` without explicit casts.
+        Registration is best-effort — if the extension isn't installed
+        yet, the codec is skipped and ``init_schema()`` will install it
+        so subsequent connections get the codec.
         """
         if self._pool is not None:
             return self._pool
         assert self._dsn is not None
-        self._pool = await asyncpg.create_pool(
-            self._dsn,
-            min_size=1,
-            max_size=4,
-            init=self._init_connection,
-        )
-        return self._pool
-
-    @staticmethod
-    async def _init_connection(conn: "asyncpg.Connection") -> None:
-        """asyncpg pool init callback: register the pgvector codec.
-
-        Tolerant of the case where the extension isn't installed yet
-        — in that branch the codec is skipped silently and the caller
-        is expected to call ``init_schema()`` to install + reopen.
-        """
-        try:
-            await register_vector(conn)
-        except Exception:
-            # Extension not present yet; init_schema() will rebuild.
-            pass
+        pool = await create_vector_pool(self._dsn, min_size=1, max_size=4)
+        self._pool = pool
+        return pool
 
     async def close(self) -> None:
         """Close the pool if this instance built it.
@@ -187,84 +134,28 @@ class PgVectorChunkStore:
         database, or the extension to be pre-installed by a superuser
         (typical in managed Postgres products).
 
-        The ``vector`` extension is installed via a one-shot bare
-        connection BEFORE the pool is built, so the pool's per-
-        connection ``init=`` codec registration sees the type.
-        Otherwise asyncpg's codec lookup races against a not-yet-
-        created type and fails with ``unknown type: public.vector``.
+        The ``vector`` extension is installed BEFORE the pool is built
+        (``fi_core.stores._pg.ensure_vector_extension``) so the pool's
+        per-connection codec registration sees the type — otherwise
+        asyncpg's codec lookup races against a not-yet-created type and
+        fails with ``unknown type: public.vector``.
         """
         if self._pool is None and self._dsn is not None:
-            # One-shot bare connection to install the extension first.
-            bare = await asyncpg.connect(self._dsn)
-            try:
-                await bare.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            finally:
-                await bare.close()
+            await ensure_vector_extension(self._dsn)
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             # If the pool was supplied externally OR built before extension
             # creation, this is the safety net.
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            try:
-                await register_vector(conn)
-            except Exception:
-                pass
+            await init_vector_connection(conn)
             async with conn.transaction():
-                await conn.execute(
-                    f"""
-                    CREATE TABLE IF NOT EXISTS {self._docs_table} (
-                        document_id     TEXT NOT NULL,
-                        namespace       TEXT NOT NULL,
-                        content         TEXT NOT NULL,
-                        status          TEXT NOT NULL DEFAULT 'pending',
-                        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        indexed_at      TIMESTAMPTZ,
-                        attributes      JSONB NOT NULL DEFAULT '{{}}'::jsonb,
-                        PRIMARY KEY (namespace, document_id)
-                    )
-                    """
-                )
-                await conn.execute(
-                    f"""
-                    CREATE INDEX IF NOT EXISTS idx_{self.table_prefix}_docs_ns_status
-                        ON {self._docs_table} (namespace, status)
-                    """
-                )
-                await conn.execute(
-                    f"""
-                    CREATE TABLE IF NOT EXISTS {self._chunks_table} (
-                        chunk_id        TEXT NOT NULL,
-                        document_id     TEXT NOT NULL,
-                        namespace       TEXT NOT NULL,
-                        text            TEXT NOT NULL,
-                        source_type     TEXT NOT NULL,
-                        source_ref      TEXT NOT NULL,
-                        embedding       vector({self.embedding_dim}) NOT NULL,
-                        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        PRIMARY KEY (namespace, chunk_id),
-                        FOREIGN KEY (namespace, document_id)
-                            REFERENCES {self._docs_table} (namespace, document_id)
-                            ON DELETE CASCADE
-                    )
-                    """
-                )
-                await conn.execute(
-                    f"""
-                    CREATE INDEX IF NOT EXISTS idx_{self.table_prefix}_chunks_doc
-                        ON {self._chunks_table} (namespace, document_id)
-                    """
-                )
-                # IVFFlat cosine index. lists=100 is the standard starting
-                # point for tables under ~1M rows (matches the discord-bot
-                # deep-memory convention). Migrate to HNSW above that.
-                await conn.execute(
-                    f"""
-                    CREATE INDEX IF NOT EXISTS idx_{self.table_prefix}_chunks_embedding
-                        ON {self._chunks_table}
-                        USING ivfflat (embedding vector_cosine_ops)
-                        WITH (lists = {_IVFFLAT_LISTS})
-                    """
-                )
+                for statement in schema_statements(
+                    table_prefix=self.table_prefix,
+                    docs_table=self._docs_table,
+                    chunks_table=self._chunks_table,
+                    embedding_dim=self.embedding_dim,
+                ):
+                    await conn.execute(statement)
         self._schema_ready = True
 
     async def _ensure_schema(self) -> None:
@@ -400,8 +291,8 @@ class PgVectorChunkStore:
         metadata: DocumentMetadata | None = None,
     ) -> str:
         await self._ensure_schema()
-        meta = metadata or DocumentMetadata(created_at=_now())
-        created_at = meta.created_at or _now()
+        meta = metadata or DocumentMetadata(created_at=now())
+        created_at = meta.created_at or now()
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             try:
@@ -452,7 +343,7 @@ class PgVectorChunkStore:
             )
         if row is None:
             return None
-        return _row_to_document_record(row)
+        return row_to_document_record(row)
 
     async def list_documents(
         self,
@@ -489,7 +380,7 @@ class PgVectorChunkStore:
         """
         async with pool.acquire() as conn:
             rows = await conn.fetch(query, *params)
-        return [_row_to_document_record(r) for r in rows]
+        return [row_to_document_record(r) for r in rows]
 
     async def update_document(
         self,
@@ -608,7 +499,7 @@ class PgVectorChunkStore:
                     f"Embedding dim {len(ce.embedding)} != store dim {self.embedding_dim} "
                     f"for chunk (source_ref={ce.chunk.source_ref!r})"
                 )
-            chunk_id = _chunk_id_from(document_id, ce.chunk)
+            chunk_id = chunk_id_from(ce.chunk, document_id=document_id)
             result = await conn.execute(
                 f"""
                 INSERT INTO {self._chunks_table}
@@ -624,7 +515,7 @@ class PgVectorChunkStore:
                 ce.chunk.source_type,
                 ce.chunk.source_ref,
                 ce.embedding,
-                ce.chunk.created_at or _now(),
+                ce.chunk.created_at or now(),
             )
             if result.endswith(" 1"):
                 saved += 1
@@ -711,60 +602,3 @@ class PgVectorChunkStore:
                 document_id,
             )
         return row is not None
-
-
-# ----------------------------------------------------------------------
-# Internal helpers
-# ----------------------------------------------------------------------
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _row_to_document_record(row: "asyncpg.Record") -> DocumentRecord:
-    """Reconstruct a DocumentRecord from an asyncpg Record row."""
-    raw_attrs = row["attributes"]
-    if isinstance(raw_attrs, str):
-        try:
-            attributes = json.loads(raw_attrs)
-        except (ValueError, TypeError):
-            attributes = {}
-    elif isinstance(raw_attrs, dict):
-        attributes = raw_attrs
-    else:
-        attributes = {}
-    return DocumentRecord(
-        document_id=row["document_id"],
-        namespace=row["namespace"],
-        content=row["content"],
-        metadata=DocumentMetadata(
-            status=row["status"],
-            created_at=row["created_at"],
-            indexed_at=row["indexed_at"],
-            attributes=attributes,
-        ),
-        chunk_count=int(row["chunk_count"] or 0),
-    )
-
-
-def _chunk_id_from(document_id: str, chunk: Chunk) -> str:
-    """Deterministic chunk_id from (document_id, source_ref, text-hash-prefix).
-
-    Idempotency contract: re-running an ingest with the same Chunk must
-    produce the same chunk_id so the ``ON CONFLICT DO NOTHING`` insert
-    short-circuits. Matches the HDF5 sibling's convention.
-    """
-    text_hash = format(abs(hash(chunk.text)) % (1 << 32), "08x")
-    safe_source_ref = chunk.source_ref.replace("/", "_").replace(":", "_")
-    # Include document_id prefix so the same chunk text under different
-    # documents in the same namespace still gets distinct primary keys.
-    safe_doc_id = document_id.replace("/", "_").replace(":", "_")
-    return f"{safe_doc_id}__{safe_source_ref}_{text_hash}"
-
-
-# Unused but kept for forward-compat: callers that want a UUID for a
-# brand-new chunk can use this when they're not deriving from a hashable
-# source_ref. Not used by the Protocol surface.
-def _new_uuid_chunk_id() -> str:  # pragma: no cover - reserved
-    return _uuid.uuid4().hex

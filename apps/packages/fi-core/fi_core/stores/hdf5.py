@@ -49,7 +49,7 @@ import os
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +74,8 @@ from fi_core.rag.types import (
     DocumentRecord,
     RetrievedChunk,
 )
+from fi_core.stores._common import chunk_id_from as _chunk_id_from
+from fi_core.stores._common import now as _now
 
 
 # HDF5 top-level group name for namespaces. All consumer data sits under here.
@@ -792,10 +794,6 @@ class HDF5ChunkStore:
 # ----------------------------------------------------------------------
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def _iso(dt: datetime) -> str:
     return dt.isoformat()
 
@@ -847,13 +845,3 @@ def _to_document_record(
     )
 
 
-def _chunk_id_from(chunk: Chunk) -> str:
-    """Deterministic chunk_id from (source_ref, text-hash-prefix).
-
-    Idempotency contract: re-running an ingest with the same Chunk
-    must produce the same chunk_id so the HDF5 create_group call
-    short-circuits.
-    """
-    text_hash = format(abs(hash(chunk.text)) % (1 << 32), "08x")
-    safe_source_ref = chunk.source_ref.replace("/", "_").replace(":", "_")
-    return f"{safe_source_ref}_{text_hash}"

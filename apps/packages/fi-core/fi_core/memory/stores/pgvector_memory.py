@@ -48,12 +48,13 @@ except ImportError as e:  # pragma: no cover - import-time error path
     ) from e
 
 try:
-    import pgvector.asyncpg as _pgvector_asyncpg
     from pgvector import Vector
 except ImportError as e:  # pragma: no cover
     raise ImportError(
         "fi_core.memory.stores.pgvector_memory requires pgvector. Install with: pip install 'fi-core[memory]'"
     ) from e
+
+from fi_core.stores._pg import create_vector_pool, ensure_vector_extension
 
 from fi_core.memory.types import ConsolidationOp, Fact, FactSource
 from fi_core.rag.hybrid import reciprocal_rank_fusion  # single RRF impl (dep-free)
@@ -206,31 +207,20 @@ class PgMemoryStore:
         """Create table + indexes idempotently and ensure pgvector codec is
         registered on every connection acquired from the pool.
 
-        Codec registration MUST happen before the pool is built (the
-        well-known asyncpg "unknown type: vector" pitfall fixed in
-        ``PgVectorChunkStore`` — same fix here): we open a single bare
-        connection, ``CREATE EXTENSION IF NOT EXISTS vector``, then
-        construct the pool with a per-connection ``init`` hook that
-        re-registers the codec.
+        The extension-before-pool sequencing (the well-known asyncpg
+        "unknown type: vector" pitfall) lives in the shared
+        ``fi_core.stores._pg`` bootstrap, consumed by every
+        Postgres-backed store.
         """
-        # One-shot bare connection to ensure the extension exists.
-        bootstrap = await asyncpg.connect(self._dsn)
-        try:
-            await bootstrap.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-        finally:
-            await bootstrap.close()
-
-        async def _init_conn(conn: asyncpg.Connection) -> None:
-            await _pgvector_asyncpg.register_vector(conn)
-
-        self._pool = await asyncpg.create_pool(
+        await ensure_vector_extension(self._dsn)
+        pool = await create_vector_pool(
             self._dsn,
             min_size=self._pool_min,
             max_size=self._pool_max,
-            init=_init_conn,
         )
+        self._pool = pool
 
-        async with self._pool.acquire() as conn:
+        async with pool.acquire() as conn:
             await conn.execute(_DDL_PRINCIPAL_FACTS)
             for stmt in _DDL_INDEXES:
                 await conn.execute(stmt)
