@@ -121,7 +121,6 @@ def _mk_llm_ctx(*, host_degrader=None) -> TurnCtx:
             settings=settings,
             bot=MagicMock(),
             expression_history=MagicMock(),
-            opus_budget=MagicMock(),
             spawn_task=lambda *a, **kw: None,
             all_tools=[],
             facts=MagicMock(),

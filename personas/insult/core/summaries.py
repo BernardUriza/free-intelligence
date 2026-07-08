@@ -1,14 +1,13 @@
 """Cross-channel awareness via periodic channel summaries.
 
-**DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the workspace
+**Superseded-in-spirit (v3.9.25, 2026-05-14)** by the workspace
 renderer (`persona_runner/workspace_renderer.py`) which mirrors
 Postgres → markdown every 60s and the agent runner's on-demand
-Read/Grep over `messages/{channel_id}.md`. The persona's
-"Cross-Channel Awareness" clause instructs the agent to read those
-files when the user references another channel, replacing the
-periodic Haiku summary pass. With ``LEGACY_LLM_ENABLED=false`` the
-call here returns empty. Safe to delete once we confirm the agent
-naturally reads workspace files on cross-channel queries.
+Read/Grep over `messages/{channel_id}.md`. The periodic task here
+still runs (``tasks/summaries.py``, via ``RunnerJudgeClient`` →
+/v1/judge since the direct-Anthropic client died). Safe to delete
+once we confirm the agent naturally reads workspace files on
+cross-channel queries.
 
 Provides LLM-based channel summarization and a "Server Pulse" digest
 that gives the bot awareness of what's happening across all channels.

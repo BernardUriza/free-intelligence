@@ -66,8 +66,8 @@ class PresetEngineResult:
     - ``selection``: the effective classification. It is contracts
       vocabulary, NOT an opaque carry (unlike ``ArcState``) — the pipeline
       may read ``mode``/``modifiers``/``display_label``/``reason`` and pass
-      it on to ``build_adaptive_prompt`` / ``analyze_flows`` /
-      ``select_model``, all of which already type it.
+      it on to ``build_adaptive_prompt`` / ``analyze_flows``, both of which
+      already type it.
     - ``classifier_source``: ``"llm"`` or ``"regex"`` — which strategy won.
     - ``classifier_ms``: wall-clock of the LLM attempt (0 when disabled).
     - ``vulnerable_overlay``: whether the selection carries the safety
@@ -116,17 +116,19 @@ class PolicyBundle:
     ``PresetEngineResult``: it is the return shape of one concrete
     capability, not reusable domain vocabulary.
 
-    - ``system_prompt``: the FULLY composed legacy system prompt (persona +
-      time + preset layer + style + flow + arc + stance + facts + serenity +
-      other-people). What ``LLMClient.chat`` receives on the legacy path.
+    - ``system_prompt``: the FULLY composed system prompt (persona + time +
+      preset layer + style + flow + arc + stance + facts + serenity +
+      other-people). The agent runner discards it (it rebuilds persona +
+      facts itself); it is still composed for telemetry (`prompt_chars`)
+      and as the one render whose fragments feed the runner payload.
     - ``flow_guidance``: the rendered flow-behavioral fragment alone — the
-      runner path (``_build_behavioral_guidance``) re-uses it so both paths
-      render flows ONCE from the same analysis (no drift, same contract as
+      runner path (``_build_behavioral_guidance``) re-uses it so both renders
+      happen ONCE from the same analysis (no drift, same contract as
       ``PresetEngineResult.guidance_block``).
     - ``flow_analysis``: the 4-flow analysis. Contracts vocabulary
       (``insult.core.contracts.flows``), NOT an opaque carry — the pipeline
-      reads its fields for telemetry and forwards it to ``select_model`` /
-      stance derive / ``assess_adherence``, all of which already type it.
+      reads its fields for telemetry and forwards it to stance derive /
+      ``assess_adherence``, both of which already type it.
     - ``preset``: the effective ``PresetSelection`` (passes through the
       pre-resolved Preset Engine selection unchanged; kept in the bundle so
       the pipeline never assumes that invariant).

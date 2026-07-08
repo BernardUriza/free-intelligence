@@ -1,21 +1,26 @@
 # Voice (TTS) Rules
 
 How Insult speaks. There are TWO TTS backends; which one runs is decided at
-request time by whether `ARBOR_TTS_URL` is set.
+request time by whether `ARBOR_TTS_URL` is set. **Prod runs susurro only** —
+`ARBOR_TTS_URL` is not set on the Container App (arbor is LOCAL-ONLY by the
+2026-06-01 decision), and the old direct Azure `tts`/`whisper` deployments were
+DELETED when voice migrated to the susurro gateway (2026-06-19).
 
 ## Two backends, one switch
 
 | Backend | When | Voice | Where it runs |
 |---|---|---|---|
-| **Azure OpenAI TTS** (default/fallback) | `ARBOR_TTS_URL` unset | `onyx` (Insult) / `nova` (ALICE) | Azure `insult-openai` `tts` deployment |
-| **Arbor TTS** (external) | `ARBOR_TTS_URL` set | `arbor` (ChatGPT consumer voice) | external HTTP service on a residential host |
+| **susurro gateway** (default) | `ARBOR_TTS_URL` unset | `onyx` (Insult) / `nova` (ALICE) | `sus.bernarduriza.com` (`/v1/tts`, `/v1/stt`) — project-keyed proxy over a dedicated Azure OpenAI; key in `~/.secrets/susurro-key-discord-bot.txt`, prod secret `SUSURRO_KEY` |
+| **Arbor TTS** (external, local-only) | `ARBOR_TTS_URL` set | `arbor` (ChatGPT consumer voice) | external HTTP service on a residential host |
 
-Code: `insult/cogs/voice.py` — `on_raw_reaction_add` (🔊 reaction) →
-`generate_arbor_tts_audio()` when `settings.arbor_tts_url` is truthy, else the
-Azure `client.audio.speech.create(...)` path. Config vars in `insult/config.py`:
-`arbor_tts_url`, `arbor_tts_token` (SecretStr), `arbor_tts_voice` (default
-`arbor`), `arbor_tts_timeout_seconds` (default 240). The bot calls the service
-with `Authorization: Bearer <token>` and `POST /tts {text, voice, format}`.
+Code: `personas/insult/cogs/voice/cog.py` — `on_raw_reaction_add` (🔊 reaction) →
+`generate_arbor_tts_audio()` when `settings.arbor_tts_url` is truthy, else
+`synthesize_susurro_tts()` (`khimeras_shared/tts.py`) against the susurro
+gateway. Config vars in `personas/insult/config.py`: `susurro_url`,
+`susurro_key` (SecretStr), plus `arbor_tts_url`, `arbor_tts_token` (SecretStr),
+`arbor_tts_voice` (default `arbor`), `arbor_tts_timeout_seconds` (default 240).
+The arbor path calls the service with `Authorization: Bearer <token>` and
+`POST /tts {text, voice, format}`.
 
 ## The Arbor service (`arbor-tts/`)
 

@@ -77,9 +77,7 @@ from personas.insult.core.contracts import PresetModifier
 from personas.insult.core.delivery import MESSAGE_DELIMITER, send_response
 from personas.insult.core.errors import ErrorType, classify_error, get_error_response
 from personas.insult.core.image_transcript import persist_image_transcript
-from personas.insult.core.llm import WEB_SEARCH_TOOL
 from personas.insult.core.reminders import detect_reminder_intent
-from personas.insult.core.routing import ModelTier, select_model
 from personas.insult.core.triviality import is_trivial
 
 log = structlog.get_logger()
@@ -219,8 +217,9 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
     # @vultur rule by construction, so even ON the routing is a true structural
     # no-op today (the strangler-fig first cut that proves the seam). The gpt-4.1
     # LLM router is NEVER acted on here — adding its multi-second blocking call to
-    # every turn is forbidden; it stays shadow-only until a later, separately gated
-    # sub-slice. Fail-safe + kill switch: a cutover fault keeps ctx.persona_id as
+    # every turn is forbidden; its cutover lives in its own gated stage
+    # (``_stage_llm_router_cutover``, slice C, after memory_store, implicit turns
+    # only). Fail-safe + kill switch: a cutover fault keeps ctx.persona_id as
     # the LIVE rule set it (the turn never breaks because the host router errored).
     host_router_cutover = getattr(ctx.deps, "host_router_cutover", None)
     if host_router_cutover is not None:
@@ -657,35 +656,16 @@ async def _stage_classify_and_analyze(ctx: TurnCtx) -> None:
         )
 
 
-# --- Stage 09: tools + model routing ---
+# --- Stage 09: tool config (stage name kept for KQL continuity — the 3-tier
+# model router that used to run here was deleted once the agent runner became
+# the only backend: it discards any per-turn model choice, the runner owns the
+# model) ---
 
 
 async def _stage_resolve_tools_and_model(ctx: TurnCtx) -> None:
-    ctx.tools = [*ctx.deps.all_tools, WEB_SEARCH_TOOL]
+    ctx.tools = list(ctx.deps.all_tools)
     force_tool = PresetModifier.ACTION_INTENT in ctx.preset.modifiers
     ctx.tool_choice = {"type": "any"} if force_tool else None
-
-    if getattr(ctx.deps.settings, "model_router_enabled", False):
-        ctx.model_choice = select_model(
-            ctx.preset,
-            ctx.flow_analysis,
-            ctx.disclosure.severity,
-            casual_model=ctx.deps.settings.casual_model,
-            depth_model=ctx.deps.settings.llm_model,
-            crisis_model=ctx.deps.settings.crisis_model,
-            opus_24h_count=ctx.deps.opus_budget.count(ctx.user_id),
-            opus_24h_cap=ctx.deps.opus_budget.cap,
-        )
-        log.info(
-            "model_routed",
-            tier=ctx.model_choice.tier.value,
-            primary=ctx.model_choice.primary,
-            fallback=ctx.model_choice.fallback,
-            reason=ctx.model_choice.reason,
-            preset=ctx.preset.display_label,
-            disclosure_severity=ctx.disclosure.severity,
-            user_id=ctx.user_id,
-        )
 
 
 # --- Stage 10: LLM call (BUSINESS-critical, the heart of the turn) ---
@@ -803,8 +783,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
         context_messages=len(ctx.context),
         tools=[t.get("name", t.get("type", "?")) for t in ctx.tools],
         tool_choice=(ctx.tool_choice or {}).get("type"),
-        primary_model=ctx.model_choice.primary if ctx.model_choice else ctx.deps.settings.llm_model,
-        fallback_model=ctx.model_choice.fallback if ctx.model_choice else None,
+        primary_model=ctx.deps.settings.llm_model,
     )
     # The agent runner is the only turn backend. ``backend`` is kept as a
     # constant so the agent-runner-specific payload blocks (channel_id,
@@ -824,9 +803,6 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             "tool_choice": ctx.tool_choice,
             "on_timeout": _notify_retry,
         }
-        if ctx.model_choice is not None:
-            llm_kwargs["model"] = ctx.model_choice.primary
-            llm_kwargs["fallback_model"] = ctx.model_choice.fallback
         if backend == "agent_runner":
             llm_kwargs["channel_id"] = ctx.channel_id
             llm_kwargs["user_id"] = ctx.user_id
@@ -1049,9 +1025,6 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             "tool_choice": None,
             "on_timeout": _notify_retry,
         }
-        if ctx.model_choice is not None:
-            retry_kwargs["model"] = ctx.model_choice.primary
-            retry_kwargs["fallback_model"] = ctx.model_choice.fallback
         try:
             if backend == "agent_runner":
                 retry_kwargs["channel_id"] = ctx.channel_id
@@ -1078,10 +1051,6 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
     ctx.intent_unattended = "create_reminder" not in tool_names and detect_reminder_intent(ctx.text)
     if ctx.intent_unattended:
         log.warning("reminder_intent_unattended", text_preview=ctx.text[:120], tool_names=tool_names)
-
-    # Opus budget: only record on success so transient failures don't burn the cap.
-    if ctx.model_choice is not None and ctx.model_choice.tier == ModelTier.CRISIS:
-        ctx.deps.opus_budget.record(ctx.user_id)
 
 
 # --- Stage 11: post-LLM mutations ---

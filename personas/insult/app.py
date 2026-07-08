@@ -14,7 +14,6 @@ from personas.insult.config import Settings, settings
 from personas.insult.core.contracts.history import ExpressionHistory
 from personas.insult.core.contracts.memory import MemoryLifecyclePort
 from personas.insult.core.llm.runner_judge_client import RunnerJudgeClient
-from personas.insult.core.routing import OpusBudget
 from personas.insult.core.siesta import SiestaPoller
 
 log = structlog.get_logger()
@@ -44,7 +43,6 @@ class Container:
     # they must outlive any single turn — born here at the composition root
     # rather than mid-cog, alongside the rest of the host-wired runtime.
     expression_history: ExpressionHistory
-    opus_budget: OpusBudget
     agent_client: AgentRunnerClient | None = None
     judge_client: RunnerJudgeClient | None = None
 
@@ -58,7 +56,6 @@ def create_app() -> Container:
     memory = create_memory_store(settings.postgres_url.get_secret_value())
     siesta = SiestaPoller()
     expression_history = ExpressionHistory()
-    opus_budget = OpusBudget(cap=getattr(settings, "opus_24h_cap", 20))
 
     # The agent runner is the ONLY LLM surface. Both clients hit the same
     # Container App (OAuth Max); they only differ in endpoint:
@@ -88,7 +85,6 @@ def create_app() -> Container:
         bot=bot,
         siesta=siesta,
         expression_history=expression_history,
-        opus_budget=opus_budget,
         agent_client=agent_client,
         judge_client=judge_client,
     )

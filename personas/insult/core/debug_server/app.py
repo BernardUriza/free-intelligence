@@ -15,7 +15,6 @@ from personas.insult.core.debug_server.content import (
     _handle_arc_reset,
     _handle_artifact_view,
     _handle_channels,
-    _handle_costs,
     _handle_disclosure_list,
     _handle_facts,
     _handle_messages,
@@ -91,7 +90,6 @@ def build_app(
     app.router.add_get("/debug/moltbook/preview-engagement", _handle_moltbook_engagement_preview)
     app.router.add_get("/debug/moltbook/engagement-draft", _handle_moltbook_engagement_draft)
     app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
-    app.router.add_get("/debug/costs", _handle_costs)
     app.router.add_get("/debug/facts", _handle_facts)
     app.router.add_post("/sync/serenityops", _handle_sync_serenityops)
     # Public HTML artifact viewer (no auth — id is the credential).

@@ -1,6 +1,6 @@
 """Read-only inspection endpoints + the arc-reset escape hatch.
 
-messages / channels / stats / disclosure / facts / costs are pure reads;
+messages / channels / stats / disclosure / facts are pure reads;
 arc/reset is the one write here (force a stuck CRISIS arc back to STABILITY);
 the /a/{id} artifact viewer streams stored HTML verbatim (public, no auth).
 """
@@ -106,12 +106,6 @@ async def _handle_arc_reset(request: web.Request) -> web.Response:
     await memory.upsert_arc(channel_id, user_id, "stability", _time.time(), 0, 0, 0)
     new = await memory.get_arc(channel_id, user_id)
     return web.json_response({"prior": prior, "new": new})
-
-
-async def _handle_costs(_request: web.Request) -> web.Response:
-    from personas.insult.core.llm import get_usage_report
-
-    return web.json_response(get_usage_report())
 
 
 async def _handle_facts(request: web.Request) -> web.Response:

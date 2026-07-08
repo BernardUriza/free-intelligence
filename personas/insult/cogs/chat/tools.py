@@ -24,20 +24,17 @@ from personas.insult.core.actions import (
     execute_edit_channel,
     execute_get_channel_info,
 )
-from personas.insult.core.alice_tool import INVOKE_ALICE_TOOL, execute_invoke_alice
 from personas.insult.core.delivery import send_response
 from personas.insult.core.guild_setup import post_reminder_set
 from personas.insult.core.reminders import REMINDER_TOOLS, format_reminder_list, resolve_remind_at
 
 log = structlog.get_logger()
 
-# Static tool list — built once at import, reused every turn.
-# `invoke_alice` lets Insult summon ALICE (sibling OpenAI bot) into the
-# channel when the conversation needs lucidity/clinical empathy that
-# doesn't fit Insult's confrontational register. Failsafe: if ALICE is
-# not deployed yet (token missing, network unreachable), the handler
-# logs a warning and returns — Insult's own turn proceeds normally.
-ALL_TOOLS: list = list(CHANNEL_TOOLS) + list(REMINDER_TOOLS) + [INVOKE_ALICE_TOOL]
+# Static tool list — built once at import, reused every turn. ALICE is
+# summoned via the `[INVITE:]` marker (invites.py), not a tool definition —
+# the old `invoke_alice` tool schema was dead (the agent runner returns no
+# tool_calls) and got deleted.
+ALL_TOOLS: list = list(CHANNEL_TOOLS) + list(REMINDER_TOOLS)
 
 
 async def execute_reminder_call(
@@ -155,23 +152,6 @@ async def execute_tool_calls(
                     )
                 else:
                     log.warning("tool_call_returned_none", tool=tool_call.name)
-
-            elif tool_call.name == "invoke_alice":
-                # Fire-and-forget bridge to ALICE's /invite REST endpoint.
-                # Handler is failsafe: missing token / down endpoint /
-                # network error all log + return False; Insult's own
-                # response in this turn is unaffected. ALICE arrives in
-                # the channel asynchronously when she's done; her reply
-                # writes to the shared `messages` table so Insult sees it
-                # on subsequent turns.
-                guild_id = str(message.guild.id) if message.guild else None
-                channel_name = getattr(message.channel, "name", None) if message.guild else None
-                await execute_invoke_alice(
-                    tool_call.input,
-                    channel_id=str(message.channel.id),
-                    guild_id=guild_id,
-                    channel_name=channel_name,
-                )
 
             elif tool_call.name == "get_channel_info" and isinstance(message.channel, discord.TextChannel):
                 # Silent in v3.8.3+: the tool exists so the LLM can read

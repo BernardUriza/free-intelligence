@@ -84,9 +84,10 @@ pip-audit                                       # security deps
 - One logical change per commit
 
 ## Version Bumping
-- On every commit, bump the patch version (micro point) in BOTH:
+- On every commit, bump the patch version (micro point) in ALL THREE:
   - `pyproject.toml` → `version = "X.Y.Z"`
-  - `insult/cogs/chat.py` → `VERSION_TAG = "ᵇᵉᵗᵃ ᵛX·Y·Z"` (superscript unicode)
+  - `personas/insult/__init__.py` → `__version__ = "X.Y.Z"`
+  - `personas/insult/core/delivery.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript unicode)
 - The version tag appears at the bottom of every bot response so we can track which deploy is responding
 - Bump patch (Z) for fixes/small changes, minor (Y) for features, major (X) for breaking changes
 

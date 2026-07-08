@@ -103,36 +103,6 @@ class TestChatCog:
         send_calls = self._channel_send(mock_ctx).call_args_list
         assert len(send_calls) >= 2
 
-    async def test_web_search_tool_included_in_normal_chat(self, cog, mock_ctx):
-        """Web search tool should be passed to LLM for normal messages."""
-        cog.agent_client.chat = AsyncMock(return_value=LLMResponse(text="respuesta"))
-        await self._call_chat(cog, mock_ctx, "hola que tal")
-        call_kwargs = cog.agent_client.chat.call_args
-        tools = call_kwargs.kwargs.get("tools", [])
-        tool_types = [t.get("type", "") for t in tools]
-        assert "web_search_20250305" in tool_types
-
-    async def test_web_search_open_even_on_crisis(self, cog, mock_ctx):
-        """During RESPECTFUL_SERIOUS the web_search tool is registered OPEN
-        (no allowed_domains). Before v3.7.51 we registered a domain-locked
-        medical variant for vulnerable users — but Anthropic's API only
-        accepts one tool per name, and switching variants between turns
-        invalidated the prompt cache. Worse, an isolated psychiatric-med
-        signal in a user's facts (e.g. Bernard taking sertralina) forced
-        every search to the medical allowlist, so 'búscame Plata Card' or
-        'busca el Selina hostel' returned zero results. Source-quality
-        steering for clinical queries lives in `_VULNERABLE_OVERLAY_PROMPT`
-        now, not in the tool definition."""
-        cog.agent_client.chat = AsyncMock(return_value=LLMResponse(text="Habla. Que pasa?"))
-        await self._call_chat(cog, mock_ctx, "me quiero morir")
-        call_kwargs = cog.agent_client.chat.call_args
-        tools = call_kwargs.kwargs.get("tools", [])
-        web_search_tools = [t for t in tools if t.get("type") == "web_search_20250305"]
-        assert len(web_search_tools) == 1
-        # The tool MUST be open — no allowlist, no blocklist, no user_location.
-        assert "allowed_domains" not in web_search_tools[0]
-        assert "blocked_domains" not in web_search_tools[0]
-
     @patch("personas.insult.cogs.chat.tools.send_response", new_callable=AsyncMock)
     async def test_inaugurate_channel_generates_message(self, mock_send, cog):
         """inaugurate_channel (now a free function in tools.py) should call

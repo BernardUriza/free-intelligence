@@ -1,8 +1,8 @@
 """The serving path (runner) MUST expose WebSearch — the false-green guard.
 
-tests/chat/test_chat_cog.py asserts ``web_search_20250305`` on the LEGACY
-stages.py path, which does NOT serve prod (LEGACY_LLM_ENABLED=false). That test
-is green while the real path is blind — exactly how the 2026-06-14 incident hid:
+The plumbing no longer defines a web_search tool at all (the agent runner
+discards plumbing-side tool definitions), so the runner allowlist here is the
+ONLY place WebSearch can come from — exactly how the 2026-06-14 incident hid:
 Insult could not answer "are there more novels in this saga?" because the runner
 allowlist (builtin_allowed plus MCP tools) had an empty builtin_allowed,
 silently stripping WebSearch.

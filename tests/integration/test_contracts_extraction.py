@@ -94,44 +94,6 @@ def test_memory_store_satisfies_debug_memory_port() -> None:
     assert not missing, f"MemoryStore is missing DebugMemoryPort methods: {missing}"
 
 
-def test_routing_uses_the_canonical_enum_members() -> None:
-    """The router compares preset.mode against PresetMode members. If routing
-    imported a *different* PresetMode object, those `in`/`==` checks would
-    silently never match. This asserts the wiring is shared end to end."""
-    from personas.insult.core.contracts.flows import (
-        AwarenessAnalysis,
-        ConversationPattern,
-        EpistemicAnalysis,
-        EpistemicMove,
-        ExpressionAnalysis,
-        FlowAnalysis,
-        PressureAnalysis,
-        ResponseShape,
-        StyleFlavor,
-        UserState,
-    )
-    from personas.insult.core.contracts.presets import PresetMode, PresetSelection
-    from personas.insult.core.routing import ModelTier, select_model
-
-    flow = FlowAnalysis(
-        epistemic=EpistemicAnalysis(0.0, 0.0, 0.0, False, 0, EpistemicMove.NONE, ""),
-        pressure=PressureAnalysis(UserState.NEUTRAL, 0.5, 2, "", False),
-        expression=ExpressionAnalysis(ResponseShape.ONE_HIT, StyleFlavor.DRY, "", ""),
-        awareness=AwarenessAnalysis(ConversationPattern.NONE, 0.0, None, None, 0),
-    )
-    # ARC is a DEPTH preset — proves the member reaches the router's set lookup.
-    choice = select_model(
-        PresetSelection(mode=PresetMode.ARC),
-        flow,
-        disclosure_severity=0,
-        casual_model="h",
-        depth_model="s",
-        crisis_model="o",
-    )
-    assert choice.tier is ModelTier.DEPTH
-    assert choice.reason == "depth_preset"
-
-
 def test_contracts_package_is_a_stdlib_only_leaf() -> None:
     """The neutral contracts must not import any insult.* module — that would
     re-couple the host-importable layer to smart/persona internals."""

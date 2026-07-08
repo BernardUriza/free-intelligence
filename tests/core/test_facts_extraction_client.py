@@ -1,13 +1,12 @@
-"""Fact extraction must work with ANY utility_call client — the real
-LLMClient or a RunnerJudgeClient.
+"""Fact extraction must work with ANY duck-typed utility_call client.
 
-Regression for the 2026-05-20 finding: with LEGACY_LLM_ENABLED=false the
-LLMClient.utility_call became a no-op (returned empty text), so the
+Regression for the 2026-05-20 finding: the (since-deleted) legacy
+LLMClient.utility_call became a no-op when the flag turned it off, so the
 automatic extraction safety net failed every turn
 (`facts_extraction_failed: Expecting value: line 1 column 1`). stages.py
-now injects a RunnerJudgeClient (OAuth Max via /v1/judge) when legacy is
-off. These tests pin the duck-typed contract: extract_facts only needs
-`.utility_call` returning an object with `.text` + `.stop_reason`.
+injects a RunnerJudgeClient (OAuth Max via /v1/judge) — the only utility
+backend now. These tests pin the duck-typed contract: extract_facts only
+needs `.utility_call` returning an object with `.text` + `.stop_reason`.
 """
 
 from __future__ import annotations

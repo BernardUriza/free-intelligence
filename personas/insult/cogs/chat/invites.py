@@ -9,10 +9,10 @@ This module:
 - `fire_invite(reason, ...)`: POST the persona gateway's `/invite` via
   `execute_invoke_alice`, best-effort in the background
 
-Why a marker and not a structured tool call: with `LEGACY_LLM_ENABLED=false`
-every Insult turn runs on the persona-runner (a Claude Code agent whose tool
-universe is its own), and `AgentRunnerClient` returns `tool_calls=[]` — so the
-legacy `invoke_alice` tool can never fire from a runner turn. Markers are the
+Why a marker and not a structured tool call: every Insult turn runs on the
+persona-runner (a Claude Code agent whose tool universe is its own), and
+`AgentRunnerClient` returns `tool_calls=[]` — a plumbing-side tool definition
+can never fire from a runner turn. Markers are the
 canonical in-band channel for runner→plumbing intents (`[REACT:]`,
 `[REMEMBER:]`); this extends the same contract to summoning a sibling.
 """

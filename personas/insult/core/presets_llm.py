@@ -1,16 +1,14 @@
 """LLM-based preset classifier — `decisional middleware` for preset selection.
 
-**DEPRECATED (v3.9.25, 2026-05-14)** — replaced by the persona's
-"Implicit Mode Reflex" clause which makes preset selection a silent
-in-band behavior of the agent runner itself. The regex classifier
-in `insult.core.presets.classify_preset()` still runs as a structural
-signal (telemetry) but the LLM middleware here has no consumer when
-the agent path is canonical. With
-``PRESET_CLASSIFIER_LLM_ENABLED=false`` (or
-``LEGACY_LLM_ENABLED=false``) the call returns empty and we fall
-through to the regex result. Safe to delete once we confirm the
-agent's mode reflex produces preset-equivalent behavior across the
-full message distribution.
+LIVE on the runner path: the Preset Engine capability port
+(``composition._CorePresetEngineAdapter``) calls ``classify_preset_llm``
+per turn (via ``RunnerJudgeClient`` → /v1/judge, Haiku) and the winning
+selection is rendered into ``behavioral_guidance`` for the agent runner —
+the classifier's tone decision is one of the few plumbing-side signals
+that survives into the runner payload. The regex classifier always
+shadow-runs for divergence telemetry and is the fallback on timeout /
+error (``PRESET_CLASSIFIER_LLM_ENABLED=false`` is the regex-only kill
+switch).
 
 The regex classifier in `insult.core.presets.classify_preset()` is fast and
 deterministic but blind to context. A user writing `tu sabes varios ya...`
@@ -62,9 +60,8 @@ log = structlog.get_logger()
 # Prompt — cacheable prefix + dynamic turn data
 # ---------------------------------------------------------------------------
 #
-# Structure: 600-token preamble (cacheable across turns via the
-# CACHE_BOUNDARY split in `_build_system_blocks`) + ~200 tokens of dynamic
-# context per turn. Output: strict JSON, no preamble, no explanation.
+# Structure: 600-token stable preamble + ~200 tokens of dynamic context
+# per turn. Output: strict JSON, no preamble, no explanation.
 
 _VALID_PRESETS = {
     "default_abrasive",

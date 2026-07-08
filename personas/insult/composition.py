@@ -606,8 +606,9 @@ def build_host_router_cutover(settings: Any) -> Any | None:
     Gated on BOTH ``host_router_cutover_enabled`` AND ``shadow_router_enabled``:
     the cutover acts on the DETERMINISTIC shadow target, so it is incoherent to
     cut over while the shadow it cuts over is killed. No gpt-4.1, no Azure, no
-    spend, zero added latency — it is a pure function (unlike the LLM router,
-    which stays shadow-only). The ``demux_ai`` import is DEFERRED here so this
+    spend, zero added latency — it is a pure function (the LLM router's own
+    cutover is slice C, ``build_llm_router_cutover_route`` above, separately
+    gated). The ``demux_ai`` import is DEFERRED here so this
     composition root stays the ONE place that touches ``demux_ai``; the cog
     forwards the handle onto ``TurnRuntimeDeps.host_router_cutover``."""
     if not getattr(settings, "host_router_cutover_enabled", False):

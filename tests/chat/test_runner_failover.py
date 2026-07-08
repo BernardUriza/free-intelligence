@@ -104,7 +104,6 @@ def _mk_llm_ctx(*, chat_exc: Exception, alice_failover_enabled: bool = True) -> 
             settings=settings,
             bot=MagicMock(),
             expression_history=MagicMock(),
-            opus_budget=MagicMock(),
             spawn_task=lambda *a, **kw: None,
             all_tools=[],
             facts=MagicMock(),

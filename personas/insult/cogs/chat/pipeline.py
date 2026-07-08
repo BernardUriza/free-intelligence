@@ -108,7 +108,7 @@ class TurnRuntimeDeps:
     dependencies the cog injects ONCE per turn — the data plane
     (``memory``), the config singleton (``settings``), the Discord
     gateway handle (``bot``), the anti-repetition ledger
-    (``expression_history``), the Opus spend budget (``opus_budget``),
+    (``expression_history``),
     the background-task spawner (``spawn_task``), the tool catalogue
     (``all_tools``), and the two runner-backed LLM surfaces
     (``agent_client`` / ``judge_client``).
@@ -130,7 +130,6 @@ class TurnRuntimeDeps:
     settings: Any
     bot: Any
     expression_history: Any
-    opus_budget: Any
     spawn_task: Callable[..., None]
     all_tools: list
     # Domain-service ports (S2 render + S5 write) and capability ports, wired
@@ -248,7 +247,6 @@ class TurnCtx:
     system_prompt: str = ""
     tools: list = field(default_factory=list)
     tool_choice: dict | None = None
-    model_choice: Any = None  # ModelChoice from routing
 
     # --- LLM output ---
     llm_response: Any = None

@@ -50,11 +50,11 @@ Anaconda.org channel, declared in environment.yml's channels list.
 > doctrines). The chat UI primitives are cross-repo: `@free-intelligence/core` +
 > `fi-glass` on public npm (free-intelligence PR #245), consumed by the python-bot template.
 
-**Nomenclature note (post-RENAME-1b / v3.9.30)**: this repo deploys to three Azure Container Apps with names that match their roles. The plumbing container is **`discord-bot`** — it batches Discord events and routes to runners, doing zero LLM work directly when `LEGACY_LLM_ENABLED=false`. The Insult persona lives in **`persona-runner`** (Claude Code Agent SDK). The ALICE persona lives in **`alice-bot`** (Azure OpenAI gpt-4.1). The ACR image artifact is still named `insult-bot:<sha>` (legacy). Full table + rationale in `.claude/rules/architecture.md`.
+**Nomenclature note (post-RENAME-1b / v3.9.30)**: this repo deploys to three Azure Container Apps with names that match their roles. The plumbing container is **`discord-bot`** — it batches Discord events and routes to runners, doing zero LLM work directly (the legacy direct-Anthropic client and its `LEGACY_LLM_ENABLED` flag are deleted; the agent runner is the only turn backend). The Insult persona lives in **`persona-runner`** (Claude Code Agent SDK). The ALICE persona lives in **`alice-bot`** (Azure OpenAI gpt-4.1). The ACR image artifact is still named `insult-bot:<sha>` (legacy). Full table + rationale in `.claude/rules/architecture.md`.
 
-**Request flow**: User message → `ChatCog.on_message` (cogs/chat.py) → memory store + profile update → context build (recent 50 + 5 keyword-relevant) → preset classification (core/presets.py) → `build_adaptive_prompt` (core/character.py) layers system prompt → `LLMClient.chat` (core/llm.py) with break detection + anti-pattern monitoring → parse reactions `[REACT:]` → response chunked to Discord (1990 char limit) → background: emoji reactions + fact extraction.
+**Request flow**: User message → `ChatCog.on_message` (cogs/chat/cog.py) → staged turn pipeline (cogs/chat/stages.py `DEFAULT_STAGES`): memory store → LLM-router cutover gate → context build (recent 50 + 5 keyword-relevant) → preset classification (Preset Engine port: Haiku via /v1/judge with regex shadow/fallback) → behavioral guidance + knowledge assembly → `AgentRunnerClient.chat` (khimeras_shared/runner/agent_client.py → persona-runner /v1/turn; the runner rebuilds persona + facts itself and discards plumbing `system_prompt`/`tools`/`model`) → post-LLM mutation port (echo-strip, length variation, opener dedup, `[REACT:]`/`[REMEMBER:]`/`[INVITE:]` markers) → response chunked to Discord (1990 char limit) → background: emoji reactions + fact extraction via /v1/judge.
 
-**DI container**: `app.py` creates a `Container` dataclass holding Settings, MemoryStore, LLMClient, and Bot. Cogs receive the container via constructor. All tests mock this container (see `tests/conftest.py` for fixtures).
+**DI container**: `app.py` creates a `Container` dataclass holding Settings, MemoryStore, AgentRunnerClient (/v1/turn), RunnerJudgeClient (/v1/judge), and Bot. Cogs receive the container via constructor. All tests mock this container (see `tests/conftest.py` for fixtures).
 
 **Config**: `config.py` uses Pydantic BaseSettings with `.env` file taking priority over shell env vars (custom source ordering). Settings singleton is created at module import time — tests that import from `insult.core.*` modules work fine, but importing `insult.config` directly requires `.env` to exist.
 
@@ -80,14 +80,12 @@ Anaconda.org channel, declared in environment.yml's channels list.
 
 **4-Flow behavioral analysis** (core/flows.py): Pre-generation pipeline that runs AFTER preset selection, BEFORE LLM call. 4 flows: Epistemic Control (detects claims, contradictions, fluff → recommends epistemic moves), Adaptive Pressure (classifies user state → pressure level 1-5), Dynamic Expression (selects response shape + style flavor with anti-repetition tracking), Conversational Awareness (detects loops, deflection, performative arguing). Output injected as Layer 3.5 in system prompt. Post-generation validator checks adherence. 5 structured telemetry events per message: `flow_epistemic`, `flow_pressure`, `flow_expression`, `flow_awareness`, `flow_adherence_violation`.
 
-**Post-generation pipeline** (core/llm.py + core/character.py):
-1. `strip_metadata()` — remove leaked timestamps, speaker labels, `[SEND]` markers
-2. `detect_break()` — 20 regex patterns for character identity leaks → retry with reinforced prompt → sanitize as fallback
-3. `detect_anti_patterns()` — 16 patterns for assistant drift (customer-support, therapy-speak, summarizing) → log warning, don't block
+**Post-generation pipeline** (OutputMutationPort, wired in `composition.py` over `core/character/` mutators):
+1. `strip_echoed_quotes` / `enforce_length_variation` / `deduplicate_opener` — guardrailed mutation stages (max-shrink caps, marker preservation)
+2. `strip_reactions` / `strip_remembers` / `strip_invites` — marker lifecycle (`[REACT:]`, `[REMEMBER:]`, `[INVITE:]`)
+3. Character-break/anti-drift detection now lives runner-side (fi_runner antidrift guard in persona-runner); the plumbing no longer retries on breaks
 
-**Memory** (core/memory.py): Append-only SQLite via aiosqlite. Context is built per-channel (all users see same conversation), but style profiles are per-user. `_ensure_connection()` auto-reconnects before every DB operation.
-
-**Azure backup**: Optional. If `AZURE_STORAGE_CONNECTION_STRING` is set, DB uploads every 10 min and downloads on first startup.
+**Memory** (core/memory.py over `khimeras_shared/memory/`): Append-only **Azure PostgreSQL** (`POSTGRES_URL`; the data plane moved out of the container 2026-05-13 — the SQLite-in-blob layout and its deploy race are dead). Context is built per-channel (all users see same conversation), but style profiles are per-user. `_ensure_connection()` auto-reconnects before every DB operation.
 
 ## Testing Patterns
 

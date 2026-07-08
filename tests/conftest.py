@@ -8,7 +8,6 @@ import pytest
 
 from personas.insult.core.contracts.history import ExpressionHistory
 from personas.insult.core.llm import LLMResponse
-from personas.insult.core.routing import OpusBudget
 from personas.insult.core.style import UserStyleProfile
 
 # Pull in the Postgres-backed fixture (`pg_memory_store`) plus its supporting
@@ -101,11 +100,6 @@ def mock_settings():
     s.command_prefix = "!"
     s.llm_model = "claude-sonnet-4-20250514"
     s.discord_token = "fake-token"  # noqa: S105
-    # Router feature flag OFF in tests — legacy single-model path.
-    s.model_router_enabled = False
-    s.casual_model = "claude-haiku-4-5-20251001"
-    s.crisis_model = "claude-opus-4-7"
-    s.opus_24h_cap = 20
     # Preset LLM classifier OFF in tests by default — the regex classifier
     # is the legacy behavior the existing test suite expects. Individual
     # tests that need to exercise the LLM middleware path can override
@@ -154,10 +148,9 @@ def mock_container(mock_settings, mock_memory, mock_agent_client, mock_judge_cli
     container.judge_client = mock_judge_client
     container.bot = mock_bot
     container.siesta = mock_siesta
-    # Real per-bot runtime singletons (mirrors app.Container) so the cog
-    # forwards genuine objects into TurnRuntimeDeps, not MagicMock stand-ins.
+    # Real per-bot runtime singleton (mirrors app.Container) so the cog
+    # forwards a genuine object into TurnRuntimeDeps, not a MagicMock stand-in.
     container.expression_history = ExpressionHistory()
-    container.opus_budget = OpusBudget(cap=20)
     return container
 
 

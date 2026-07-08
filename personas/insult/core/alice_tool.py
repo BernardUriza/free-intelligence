@@ -1,16 +1,18 @@
-"""Insult → ALICE bridge.
+"""Insult → ALICE bridge — the `/invite` HTTP handler.
 
-Tool spec + handler that lets Insult invite ALICE into a conversation
-when the turn needs lucidity / clinical empathy / longitudinal mirroring
-that doesn't fit Insult's confrontational register.
+`execute_invoke_alice` fires an HTTP POST to ALICE's `/invite` endpoint in
+the background. ALICE replies asynchronously into the same channel — Insult
+doesn't wait, doesn't block, doesn't get her answer back. Both bots see
+each other's outputs via the shared `messages` table on subsequent turns.
 
-The tool is purely additive: it does NOT change Insult's normal response
-flow. When the LLM emits an `invoke_alice` call, Insult ALSO writes her
-own response (if any) AND fires an HTTP POST to ALICE's `/invite`
-endpoint in the background. ALICE replies asynchronously into the same
-channel — Insult doesn't wait, doesn't block, doesn't get her answer
-back. Both bots see each other's outputs via the shared `messages`
-table on subsequent turns.
+Two callers, both marker/policy driven (there is no Anthropic tool-use
+definition anymore — the agent runner returns no tool_calls, so the old
+``INVOKE_ALICE_TOOL`` schema was dead and got deleted):
+
+- the `[INVITE: reason]` marker path (``cogs/chat/invites.py``) — the
+  canonical way Insult summons ALICE;
+- the runner-down failover in ``_stage_call_llm`` — ALICE takes the turn
+  when Insult's brain is unreachable.
 
 Design note: this is the inverse of LiteLLM-style multi-LLM routing.
 We're NOT picking between Anthropic and OpenAI for the SAME turn. We're
@@ -28,42 +30,6 @@ import httpx
 import structlog
 
 log = structlog.get_logger()
-
-# Tool definition in Anthropic-tool-use schema (compatible with the
-# `tools=[...]` arg of `messages.create`). Insult's LLM sees this and
-# can emit `{"name": "invoke_alice", "input": {"reason": "...", ...}}`.
-INVOKE_ALICE_TOOL: dict = {
-    "name": "invoke_alice",
-    "description": (
-        "Invita a ALICE — un bot hermano especializado en lucidez y empatía clínica — "
-        "a este canal cuando la conversación necesita una mirada distinta a la tuya. "
-        "Úsalo cuando: (a) hay sufrimiento emocional sostenido que ya no se beneficia "
-        "de tu filo, (b) la persona necesita un espejo no-confrontacional para ver "
-        "patrones longitudinales, (c) la conversación está tocando temas clínicos "
-        "(crisis, terapia, salud mental) donde tu register puede sentirse fuera de lugar, "
-        "(d) Bernard o Alex te lo piden explícitamente. NO la uses para delegar trabajo "
-        "que tú deberías hacer — ALICE complementa, no reemplaza. Tras invitarla, sigue "
-        "respondiendo tú si tienes algo que aportar; ella responderá asíncronamente y "
-        "ambas voces convivirán en el hilo."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "reason": {
-                "type": "string",
-                "description": (
-                    "Razón concreta por la que invitas a ALICE. Va dirigida a ELLA, no al "
-                    "usuario. Sé específico: 'Bernard está minimizando ansiedad de Alex y "
-                    "yo estoy disparando análisis técnico cuando se necesita escucha' es "
-                    "útil; 'ayuda' no es útil."
-                ),
-                "minLength": 20,
-                "maxLength": 800,
-            },
-        },
-        "required": ["reason"],
-    },
-}
 
 
 async def execute_invoke_alice(

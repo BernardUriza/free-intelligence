@@ -9,9 +9,9 @@ State ownership:
   - `BatchManager` owns batch buffers, dedup set, and cooldown timestamps
   - `_background_tasks` set is handed to `spawn_tracked_task` so every
     fire-and-forget task gets automatic cleanup + terminal log
-  - `_expression_history` and `_opus_budget` are shared per-bot runtime
-    singletons constructed at the composition root (`app.Container`); the
-    cog holds the handles and forwards them in the per-turn `TurnRuntimeDeps`
+  - `_expression_history` is a shared per-bot runtime singleton
+    constructed at the composition root (`app.Container`); the cog holds
+    the handle and forwards it in the per-turn `TurnRuntimeDeps`
 """
 
 from __future__ import annotations
@@ -66,7 +66,6 @@ class ChatCog(commands.Cog):
         # (app.Container); the cog just holds the handles it forwards.
         self._expression_history = container.expression_history
         self._batches = BatchManager()
-        self._opus_budget = container.opus_budget
         # Preset Engine adapter: built once with its runtime deps (judge
         # client + settings) — unlike the stateless default_* ports below.
         self._preset_engine = build_preset_engine_port(self.judge_client, self.settings)
@@ -181,7 +180,6 @@ class ChatCog(commands.Cog):
                     settings=self.settings,
                     bot=self.bot,
                     expression_history=self._expression_history,
-                    opus_budget=self._opus_budget,
                     spawn_task=self._spawn_task,
                     all_tools=ALL_TOOLS,
                     facts=default_facts_port(),

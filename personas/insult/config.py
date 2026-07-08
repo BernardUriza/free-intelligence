@@ -24,19 +24,12 @@ class Settings(BaseSettings):
     command_prefix: str = "!"
 
     # LLM model selection. There's no direct-Anthropic client anymore — all
-    # generation goes through the agent runner (OAuth Max). This is just the
-    # model id the runner is asked to use as the DEPTH tier when the router
-    # is enabled (and the default everywhere else).
+    # generation goes through the agent runner (OAuth Max). This id is used
+    # by the one-shot /v1/judge utility calls and for turn telemetry; the
+    # runner owns the conversational model choice.
     llm_model: str = "claude-sonnet-4-6"
     system_prompt: str = "You are a helpful assistant."
     persona_file: Path = _PROJECT_ROOT / "persona.md"
-
-    # Model Router (3-tier: casual/depth/crisis). See .claude/plans/model_router.md.
-    # llm_model above acts as the DEPTH tier when the router is enabled.
-    model_router_enabled: bool = False
-    casual_model: str = "claude-haiku-4-5-20251001"
-    crisis_model: str = "claude-opus-4-7"
-    opus_24h_cap: int = 20
 
     # Preset classifier — LLM middleware that decides preset+modifiers from
     # CONTEXT (not regex). Falls back automatically to the regex classifier

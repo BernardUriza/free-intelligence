@@ -26,7 +26,7 @@ under `personas/`, a light host (`demux_ai/`), and shared contracts
 The old flat `insult/...` paths below the move no longer exist.
 
 - `demux_ai/` — light host: explicit persona selection + gpt-4.1 routing. Live modules: `host.py`, `host_llm.py` (the gpt-4.1 host-router model client, PR-4b slice 1+), `registry.py`, `__main__.py` (`python -m demux_ai run`). No longer a skeleton.
-- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `agent/`, `prompts/*.md` (hot-reloaded), `tasks/`.
+- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `prompts/*.md` (hot-reloaded), `tasks/`.
 - `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
 - `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the persona-runner) via `persona_id`. `gateway.py`.
 - `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
@@ -93,22 +93,22 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
 
 ## Prompts
 - **The universal rule now lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the discord-bot-specific instantiation (its loader + file list); the cross-repo law is the SSOT. It was a distillation error that this rule stayed repo-local from 2026-05-12 until 2026-06-23 — see the SSOT's "why this rule exists".
-- LLM-facing prompts MUST live in `insult/prompts/*.md`, loaded via `insult.core.prompts_loader.load_prompt(name)` — NEVER as inline Python strings.
+- LLM-facing prompts MUST live in `personas/insult/prompts/*.md`, loaded via `personas.insult.core.prompts_loader.load_prompt(name)` — NEVER as inline Python strings.
 - The loader is mtime-aware: editing the `.md` file is picked up by the running bot on the next request without a redeploy or restart. Inline strings require a version bump and full deploy cycle just to change tone.
 - Call `load_prompt("<name>")` inside the function that uses the prompt, NOT at module level — so the mtime check fires per-request and hot-reload actually works.
 - Migration pattern when extracting an inline prompt:
-  1. Create `insult/prompts/<name>.md` with the prompt content verbatim
+  1. Create `personas/insult/prompts/<name>.md` with the prompt content verbatim
   2. Replace the Python constant with `load_prompt("<name>")` inside the consumer function
   3. Delete the inline constant
 - Exception: ≤5-line structural fragments that the prompt builder concatenates (e.g. `CACHE_BOUNDARY`, single-line headers) may stay inline — they are scaffolding, not content humans iterate.
 - Existing prompt-loader users to mirror: `moltbook_outbound_draft`, `moltbook_outbound_redaction`, `moltbook_reply_to_commenter`, `moltbook_engagement_comment`, `facts_extraction`, `language_cure`.
-- Known violations (technical debt — migrate when touched):
-  - `insult/core/presets.py` — `PRESET_GUIDANCE`, `MODIFIER_GUIDANCE`, `_VULNERABLE_OVERLAY_PROMPT`, `_INTENTIONALITY_DIRECTIVE`
-  - `insult/core/presets_llm.py` — `_CLASSIFIER_SYSTEM_PROMPT`
-  - `insult/core/character/prompts.py` — inline layers of `build_adaptive_prompt`
-  - `insult/core/flows/guidance.py` — shape/flavor/pressure guidance blocks
-  - `insult/core/flows/prompt.py` — flow prompt assembly
-  - `insult/core/summaries.py`, `image_summary.py`, `stance_log.py` — utility prompts
+- Known violations (technical debt — migrate when touched; paths post-demux):
+  - `personas/insult/core/presets/` — `PRESET_GUIDANCE`, `MODIFIER_GUIDANCE`, `_VULNERABLE_OVERLAY_PROMPT`, `_INTENTIONALITY_DIRECTIVE`
+  - `personas/insult/core/presets_llm.py` — `_CLASSIFIER_SYSTEM_PROMPT`
+  - `personas/insult/core/character/prompts.py` — inline layers of `build_adaptive_prompt`
+  - `personas/insult/core/flows/guidance.py` — shape/flavor/pressure guidance blocks
+  - `personas/insult/core/flows/prompt.py` — flow prompt assembly
+  - `personas/insult/core/summaries.py`, `stance_log.py` — utility prompts
 - Why this rule exists: prompts are CONTENT, not code. Inline Python forces escape gymnastics on quotes, hides prompt edits in code diffs, and locks editability behind redeploy. The `prompts_loader.py` infrastructure has existed since the moltbook integration — but the convention was never documented, so subsequent commits kept adding inline prompts. Detected 2026-05-12 while debugging flat replies; the most recent `_CLASSIFIER_SYSTEM_PROMPT` addition violated the convention.
 
 ## Reactions
