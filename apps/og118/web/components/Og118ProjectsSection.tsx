@@ -17,7 +17,14 @@
 
 import { ChatFilePreview, FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from 'fi-glass/shell';
 import type { UploadStatus } from 'fi-glass/shell';
-import { AgentSidebarItem, AgentSidebarSection, DestructiveActionSlot } from 'fi-glass/agent';
+import {
+  AgentSidebarItem,
+  AgentSidebarSection,
+  DestructiveActionSlot,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+  useInlineRename,
+  useSidebarItemStyle,
+} from 'fi-glass/agent';
 import type { Og118Project } from '../lib/useOg118Projects';
 
 export interface Og118ProjectsSectionProps {
@@ -55,11 +62,17 @@ export function Og118ProjectsSection({
   onCancelUpload,
 }: Og118ProjectsSectionProps) {
   useTouchTargetStyle();
-
-  const handleNew = () => {
-    const name = window.prompt('Nombre del proyecto (p. ej. "Negocio de mamá")');
-    if (name && name.trim()) onCreate(name.trim());
-  };
+  // qa-prompt-native: creation shares the SAME inline-edit machine + input
+  // styling as the rename (fi-glass useInlineRename / EditableResourceItem) —
+  // Enter creates, Escape cancels, an empty draft closes silently.
+  useSidebarItemStyle();
+  const create = useInlineRename(
+    '',
+    (name) => {
+      if (name.trim()) onCreate(name.trim());
+    },
+    { maxLength: 80, emptyPolicy: 'keep' },
+  );
 
   return (
     <AgentSidebarSection
@@ -72,7 +85,7 @@ export function Og118ProjectsSection({
       actionSlot={
         <button
           className={`${FI_TOUCH_TARGET_CLASS} og-projects-new`}
-          onClick={handleNew}
+          onClick={create.start}
           disabled={disabled}
           aria-label="Nuevo proyecto"
         >
@@ -80,9 +93,11 @@ export function Og118ProjectsSection({
         </button>
       }
       emptyState={
-        <p className="og-projects-empty">
-          Crea un proyecto, súbele archivos y pregúntale a og118 sobre ellos.
-        </p>
+        create.editing ? undefined : (
+          <p className="og-projects-empty">
+            Crea un proyecto, súbele archivos y pregúntale a og118 sobre ellos.
+          </p>
+        )
       }
       footerSlot={
         activeProjectId && onUpload ? (
@@ -114,6 +129,16 @@ export function Og118ProjectsSection({
       }
     >
       <nav className="og-projects-list">
+        {create.editing && (
+          <div className="og-project-create">
+            <input
+              className={FI_RESOURCE_RENAME_INPUT_CLASS}
+              aria-label="Nombre del proyecto"
+              placeholder='p. ej. "Negocio de mamá"'
+              {...create.inputProps}
+            />
+          </div>
+        )}
         {projects.map((p) => (
           <AgentSidebarItem
             key={p.id}

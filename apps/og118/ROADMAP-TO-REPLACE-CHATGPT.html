@@ -558,9 +558,9 @@
       <div class="item-note">DONE. RECONCILE 2026-06-28 (receipt): cerrado por PROJECTS-DOCS-E2E / PR #290 (merge d4fddf99, merged 2026-06-28, en main). Code receipt verificado: og118/web/components/Og118ProjectsSection.tsx:114-133 monta el botón "+ Subir archivo (.txt / .md)" + ChatFilePreview (status/progress/error) + feedback "Indexado · N fragmentos"; transporte og118/web/lib/useOg118ProjectUpload.ts (file picker app-owned). Consume el primitivo especulativo fi-glass ChatFilePreview + UploadStatus (proj-glass). Smoke E2E (GATE4 #4): catalogo.txt → "Indexado · 1 fragmento" + RAG #5: search_documents → "$47 pesos" (dato solo en el doc). Deploy a staging integrado pendiente de re-probe pero el fix está en main con smoke observable.</div></div>
       <span class="item-tag">qa-upload-ui</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">[P2] Project creation uses native window.prompt() — inconsistent with the polished inline rename</div>
-      <div class="item-note">OPEN. RECONCILE 2026-06-28 (verificado): sigue presente — Og118ProjectsSection.tsx:60 usa window.prompt('Nombre del proyecto…'). Sin fix. Unificar con el inline-edit estilizado del rename.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] Project creation uses native window.prompt() — inconsistent with the polished inline rename</div>
+      <div class="item-note">CERRADO 2026-07-08. La creación reusa la MISMA máquina del rename (fi-glass useInlineRename + FI_RESOURCE_RENAME_INPUT_CLASS — Art. 6, cero primitives nuevos): "+ Nuevo" abre un input inline gemelo del rename (autofocus, placeholder), Enter crea (trimmed), Escape cancela, draft vacío cierra silencioso; funciona también desde el empty state (suprime el copy mientras editas). 4 tests nuevos (57/57) + verificado live en Chrome (input montado con borde esmeralda, focus, Escape restaura el empty-state).</div></div>
       <span class="item-tag">qa-prompt-native</span></label>
 
     <label class="item"><input type="checkbox">

@@ -56,6 +56,11 @@ body {
   padding: 0 0.6rem 0.55rem;
 }
 
+/* qa-prompt-native: the inline create-project row — twins the rename input. */
+.og-project-create {
+  padding: 0.25rem 0.35rem 0.35rem;
+}
+
 /* COMPOSER-FRAME-2: the audio-draft row inside the composer box — a subtle
    divider separates the draft from the textarea below it. */
 .og-composer-draft-row {
