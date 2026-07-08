@@ -79,6 +79,16 @@ describe('<ComposerFrame> slots', () => {
     expect(order).toEqual(['header', 'body', 'footer']);
   });
 
+  it('treats a `false` slot (the `cond && <X/>` pattern) as empty — no ghost row', () => {
+    render(
+      <ComposerFrame header={false} footer={false}>
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    expect(slot('header')).toBeNull();
+    expect(slot('footer')).toBeNull();
+  });
+
   it('injects the tokenized stylesheet once', () => {
     render(
       <ComposerFrame footer={<span>f</span>}>

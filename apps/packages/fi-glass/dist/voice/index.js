@@ -868,11 +868,12 @@ function RichAudioPlayer({
     duration,
     currentTime
   } = player;
+  const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
   useEffect4(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
-  }, [source, autoPlay]);
+  }, [sourceKey, autoPlay]);
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();

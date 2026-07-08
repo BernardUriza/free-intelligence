@@ -532,9 +532,9 @@ function ComposerFrame({
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    header != null && header !== false && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    footer != null && /* @__PURE__ */ jsx8(
+    footer != null && footer !== false && /* @__PURE__ */ jsx8(
       "div",
       {
         className: footerClassName,
@@ -1383,11 +1383,12 @@ function RichAudioPlayer({
     duration,
     currentTime
   } = player;
+  const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
   useEffect7(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
-  }, [source, autoPlay]);
+  }, [sourceKey, autoPlay]);
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();

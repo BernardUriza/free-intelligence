@@ -86,13 +86,13 @@ export function ComposerFrame({
   useComposerFrameStyle();
   return (
     <div className={className} style={style} data-fi-composer-frame="">
-      {header != null && (
+      {header != null && header !== false && (
         <div className={headerClassName} data-fi-composer-slot="header">
           {header}
         </div>
       )}
       {children}
-      {footer != null && (
+      {footer != null && footer !== false && (
         <div
           className={footerClassName}
           style={footerStyle}
