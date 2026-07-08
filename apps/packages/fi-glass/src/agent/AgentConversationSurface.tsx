@@ -16,7 +16,7 @@ import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties,
 import { Send, Loader2 } from 'lucide-react';
 import { useStickToBottom } from 'use-stick-to-bottom';
 import type { AgentTurnState, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
-import { Composer } from '../composer';
+import { Composer, ComposerFrame } from '../composer';
 import { MessageContent, MessageBubble, CopyButton } from '../messages';
 import { ComposerMicSlot, AudioVisualizer, useDictation } from '../voice';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
@@ -600,8 +600,77 @@ export function AgentConversationSurface({
             the controls row, mirroring the shell's chat-input-floating-box
             (AURITY). The canary audit found mic/send floating OUTSIDE the
             frosted box as siblings; the box structure is framework-owned so
-            every consumer inherits the corrected anatomy. */}
-        <div className={composerBoxClassName}>
+            every consumer inherits the corrected anatomy. COMPOSER-FRAME-1
+            formalizes it as ComposerFrame (header/body/footer slots): the
+            controls row is the footer slot; the header slot is where drafts
+            and previews will land. */}
+        <ComposerFrame
+          className={composerBoxClassName}
+          footerClassName={composerControlsClassName}
+          footer={
+            showSendButton || micSlotOverride != null || micAvailable ? (
+              <>
+                {/* Built-in dictation visualizer — suppressed when micSlotOverride is used */}
+                {micSlotOverride == null && micAvailable && dictation.isRecording && (
+                  // Live equalizer: reacts to the mic's frequency bands so the user
+                  // sees they're being heard. Only mounted while recording, fed by the
+                  // analyser the dictation hook already runs — no extra Web Audio here.
+                  <AudioVisualizer
+                    levels={dictation.bands}
+                    active={dictation.isRecording}
+                    variant="bars"
+                    label="Nivel del micrófono"
+                    className={voiceVisualizerClassName}
+                    barClassName={voiceVisualizerBarClassName}
+                  />
+                )}
+                {/* micSlotOverride replaces the built-in ComposerMicSlot + dictation */}
+                {micSlotOverride != null
+                  ? micSlotOverride
+                  : micAvailable && (
+                    <ComposerMicSlot
+                      available
+                      recording={dictation.isRecording}
+                      busy={dictation.isTranscribing}
+                      onStart={startDictation}
+                      onStop={() => void dictation.stopRecording()}
+                      className={micSlotClassName}
+                      buttonClassName={micButtonClassName}
+                    />
+                  )}
+                {showSendButton && (
+                  // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+                  // still sends; this is the visible button. Disabled until there's
+                  // trimmed text and nothing is streaming.
+                  <button
+                    type="button"
+                    onClick={onSend}
+                    disabled={!canSend}
+                    aria-label={sendLabel}
+                    className={
+                      sendButtonClassName
+                        ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}`
+                        : FI_TOUCH_TARGET_CLASS
+                    }
+                  >
+                    {isStreaming ? (
+                      <Loader2
+                        className={
+                          sendButtonIconClassName
+                            ? `${sendButtonIconClassName} animate-spin`
+                            : 'animate-spin'
+                        }
+                        aria-hidden
+                      />
+                    ) : (
+                      <Send className={sendButtonIconClassName} aria-hidden />
+                    )}
+                  </button>
+                )}
+              </>
+            ) : null
+          }
+        >
           <Composer
             message={input}
             loading={isStreaming}
@@ -618,71 +687,7 @@ export function AgentConversationSurface({
             // input after dictation/send/stream — no internal-DOM reach.
             textareaRef={inputRef}
           />
-          {(showSendButton || micSlotOverride != null || micAvailable) && (
-            <div
-              className={composerControlsClassName}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}
-            >
-              {/* Built-in dictation visualizer — suppressed when micSlotOverride is used */}
-              {micSlotOverride == null && micAvailable && dictation.isRecording && (
-                // Live equalizer: reacts to the mic's frequency bands so the user
-                // sees they're being heard. Only mounted while recording, fed by the
-                // analyser the dictation hook already runs — no extra Web Audio here.
-                <AudioVisualizer
-                  levels={dictation.bands}
-                  active={dictation.isRecording}
-                  variant="bars"
-                  label="Nivel del micrófono"
-                  className={voiceVisualizerClassName}
-                  barClassName={voiceVisualizerBarClassName}
-                />
-              )}
-              {/* micSlotOverride replaces the built-in ComposerMicSlot + dictation */}
-              {micSlotOverride != null
-                ? micSlotOverride
-                : micAvailable && (
-                  <ComposerMicSlot
-                    available
-                    recording={dictation.isRecording}
-                    busy={dictation.isTranscribing}
-                    onStart={startDictation}
-                    onStop={() => void dictation.stopRecording()}
-                    className={micSlotClassName}
-                    buttonClassName={micButtonClassName}
-                  />
-                )}
-              {showSendButton && (
-                // Explicit send affordance (mirrors the shell/AURITY composer). Enter
-                // still sends; this is the visible button. Disabled until there's
-                // trimmed text and nothing is streaming.
-                <button
-                  type="button"
-                  onClick={onSend}
-                  disabled={!canSend}
-                  aria-label={sendLabel}
-                  className={
-                    sendButtonClassName
-                      ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}`
-                      : FI_TOUCH_TARGET_CLASS
-                  }
-                >
-                  {isStreaming ? (
-                    <Loader2
-                      className={
-                        sendButtonIconClassName
-                          ? `${sendButtonIconClassName} animate-spin`
-                          : 'animate-spin'
-                      }
-                      aria-hidden
-                    />
-                  ) : (
-                    <Send className={sendButtonIconClassName} aria-hidden />
-                  )}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        </ComposerFrame>
         </div>
       </div>
     </div>
