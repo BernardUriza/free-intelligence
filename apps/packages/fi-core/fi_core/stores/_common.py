@@ -10,6 +10,7 @@ idempotency contract when a corpus migrates stores.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 
 from fi_core.rag.types import Chunk
@@ -25,8 +26,15 @@ def sanitize_ref(ref: str) -> str:
 
 
 def chunk_text_hash(text: str) -> str:
-    """8-hex-digit hash of the chunk text, the id's uniqueness suffix."""
-    return format(abs(hash(text)) % (1 << 32), "08x")
+    """8-hex-digit hash of the chunk text, the id's uniqueness suffix.
+
+    sha256, NOT ``hash()``: Python salts str hashes per process
+    (PYTHONHASHSEED), so the original ``abs(hash(text))`` produced a
+    DIFFERENT id for the same chunk on every restart — silently voiding
+    the stores' idempotency contract and re-ingesting duplicates across
+    process boundaries. sha256 is stable across processes and platforms.
+    """
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
 def chunk_id_from(chunk: Chunk, *, document_id: str | None = None) -> str:
