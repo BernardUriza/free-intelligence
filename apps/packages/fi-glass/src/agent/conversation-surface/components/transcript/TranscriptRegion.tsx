@@ -5,9 +5,14 @@
  * the surface: pin-to-bottom scroll container (B3-FIGLASS-12), fluid center cap
  * on the INNER wrapper (B3-FIGLASS-15: the scrollbar stays at the viewport
  * edge), the empty-state / transcript switch, the recoverable turn-error
- * banner (B3-FIGLASS-8) and the floating jump-to-latest button. Owns the
- * use-stick-to-bottom instance outright — no scroll state leaks up to the
- * orchestrator.
+ * banner (B3-FIGLASS-8) and the floating jump-to-latest button.
+ *
+ * Contract shape (REGION-PROPS-1, kills the 20-prop thread-through): the
+ * region takes the surface's whole public props object as `surface` — it reads
+ * its slice and resolves ITS copy defaults — plus the orchestrator-owned
+ * conversation slice and the shared layout inset. Region-local derivations
+ * (idle, per-bubble class resolution) live here, not upstairs; the
+ * use-stick-to-bottom instance is owned outright — no scroll state leaks up.
  */
 
 import { useStickToBottom } from 'use-stick-to-bottom';
@@ -18,71 +23,61 @@ import type { AgentConversationSurfaceProps } from '../../types';
 import { TranscriptMessages } from './TranscriptMessages';
 import { TurnErrorBanner } from './TurnErrorBanner';
 
-export interface TranscriptRegionProps
-  extends Pick<
-    AgentConversationSurfaceProps,
-    | 'emptyState'
-    | 'agentPanelProps'
-    | 'renderHeader'
-    | 'renderBadge'
-    | 'renderActions'
-    | 'collapseMaxHeight'
-    | 'showMoreLabel'
-    | 'showLessLabel'
-    | 'collapseToggleClassName'
-    | 'errorClassName'
-    | 'retryButtonClassName'
-    | 'dismissButtonClassName'
-    | 'scrollToBottomClassName'
-    | 'scrollToBottomIconClassName'
-  > {
+export interface TranscriptRegionProps {
+  /** The surface's public props — the region reads its slice + copy defaults. */
+  surface: AgentConversationSurfaceProps;
+  /** The live conversation slice the transcript renders. */
   conversation: Pick<
     AgentConversation,
     'messages' | 'turn' | 'isStreaming' | 'turnError' | 'retry' | 'dismissError'
   >;
-  /** True when the thread is empty and idle → render the app's start screen. */
-  idle: boolean;
-  autoScroll: boolean;
   /** The fluid center cap (100% minus the responsive gutter). */
   contentInset: string;
-  resolveBubbleClass: (message: ChatMessage) => string | undefined;
-  // Defaults resolved by the orchestrator → required here.
-  showPersistedTrace: boolean;
-  showCopyAction: boolean;
-  collapseUserMessages: boolean;
-  retryLabel: string;
-  dismissLabel: string;
-  scrollToBottomLabel: string;
 }
 
-export function TranscriptRegion({
-  conversation,
-  idle,
-  autoScroll,
-  contentInset,
-  resolveBubbleClass,
-  emptyState,
-  showPersistedTrace,
-  agentPanelProps,
-  showCopyAction,
-  renderHeader,
-  renderBadge,
-  renderActions,
-  collapseUserMessages,
-  collapseMaxHeight,
-  showMoreLabel,
-  showLessLabel,
-  collapseToggleClassName,
-  errorClassName,
-  retryLabel,
-  dismissLabel,
-  retryButtonClassName,
-  dismissButtonClassName,
-  scrollToBottomLabel,
-  scrollToBottomClassName,
-  scrollToBottomIconClassName,
-}: TranscriptRegionProps) {
+export function TranscriptRegion({ surface, conversation, contentInset }: TranscriptRegionProps) {
   const { messages, turn, isStreaming, turnError, retry, dismissError } = conversation;
+  const {
+    emptyState,
+    agentPanelProps,
+    renderHeader,
+    renderBadge,
+    renderActions,
+    messageBubbleClassName,
+    collapseMaxHeight,
+    showMoreLabel,
+    showLessLabel,
+    collapseToggleClassName,
+    errorClassName,
+    retryButtonClassName,
+    dismissButtonClassName,
+    scrollToBottomClassName,
+    scrollToBottomIconClassName,
+    showPersistedTrace = true,
+    showCopyAction = false,
+    collapseUserMessages = true,
+    autoScroll = true,
+    retryLabel = 'Reintentar',
+    dismissLabel = 'Descartar',
+    scrollToBottomLabel = 'Ir al final',
+  } = surface;
+
+  // Resolve the per-bubble class. A string applies to every role (legacy); a
+  // function lets the consumer vary it per message/role. Returning undefined
+  // (e.g. for an unknown role) yields no extra class — never throws.
+  const resolveBubbleClass = (message: ChatMessage): string | undefined =>
+    typeof messageBubbleClassName === 'function'
+      ? messageBubbleClassName(message)
+      : messageBubbleClassName;
+
+  // Empty thread + nothing in flight → show the app's start screen.
+  const idle =
+    messages.length === 0 &&
+    !isStreaming &&
+    turn.status === 'thinking' &&
+    !turn.plan &&
+    turn.steps.length === 0 &&
+    !turn.text;
 
   // B3-FIGLASS-12 — pin-to-bottom. The hook is called unconditionally (hooks
   // rule); when autoScroll is off the refs simply never attach, so it observes
