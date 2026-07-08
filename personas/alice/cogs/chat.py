@@ -465,9 +465,9 @@ class AliceChatCog(commands.Cog):
         # can correlate the visible reply with the deployed image. Same
         # affordance Insult uses (`VERSION_TAG` in `core/delivery.py`).
         chunks = chunk_paragraph_aware(text, max_chars=1900)
-        from personas.alice import __version__ as _alice_version
+        from khimeras_shared.version import VERSION_TAG
 
-        version_tag = f"\n-# ᵃ{_alice_version.replace('.', '·')}"
+        version_tag = f"\n-# {VERSION_TAG}"
         for i, chunk in enumerate(chunks):
             payload = chunk + (version_tag if i == len(chunks) - 1 else "")
             try:

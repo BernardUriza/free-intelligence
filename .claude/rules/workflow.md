@@ -87,7 +87,7 @@ pip-audit                                       # security deps
 - On every commit, bump the patch version (micro point) in ALL THREE:
   - `pyproject.toml` → `version = "X.Y.Z"`
   - `personas/insult/__init__.py` → `__version__ = "X.Y.Z"`
-  - `personas/insult/core/delivery.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript unicode)
+  - `khimeras_shared/version.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript unicode — SHARED: Insult delivery + persona_gateway + legacy alice all wear this same deploy tag)
 - The version tag appears at the bottom of every bot response so we can track which deploy is responding
 - Bump patch (Z) for fixes/small changes, minor (Y) for features, major (X) for breaking changes
 

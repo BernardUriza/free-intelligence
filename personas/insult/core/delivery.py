@@ -12,6 +12,7 @@ import time
 import discord
 import structlog
 
+from khimeras_shared.version import VERSION_TAG
 from shared.text import (
     DISCORD_MAX_CHARS,
     MESSAGE_DELIMITER,
@@ -24,8 +25,6 @@ log = structlog.get_logger()
 TYPING_CHARS_PER_SECOND = 50  # ~250 CPM, fast mobile typing speed
 MIN_TYPING_DELAY = 0.8
 MAX_TYPING_DELAY = 5.0
-VERSION_TAG = "ᵛ⁴·²²·¹¹"  # superscript unicode — visible but unobtrusive
-
 
 # Preserve the legacy module-level name so existing Insult callers and
 # tests that import `from personas.insult.core.delivery import chunk_text` keep

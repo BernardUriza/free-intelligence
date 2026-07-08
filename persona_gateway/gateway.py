@@ -44,6 +44,7 @@ from khimeras_shared.tts import (
     split_for_tts,
     synthesize_susurro_tts,
 )
+from khimeras_shared.version import VERSION_TAG
 from shared.personas import Persona, gateway_personas
 from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
 
@@ -480,7 +481,11 @@ class PersonaClient(discord.Client):
         if not text:
             return
 
-        for piece in chunk(text):
+        pieces = chunk(text)
+        tag = f"\n-# {VERSION_TAG}"
+        if pieces and len(pieces[-1]) + len(tag) <= 2000:
+            pieces[-1] += tag
+        for piece in pieces:
             await channel.send(piece)
 
         await self.memory.store(
