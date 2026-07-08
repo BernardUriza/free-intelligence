@@ -69,7 +69,7 @@ az containerapp job create \
   --environment "$ENV_ID" \
   --trigger-type Schedule \
   --cron-expression "7 * * * *" \
-  --replica-timeout 60 \
+  --replica-timeout 180 \
   --replica-retry-limit 0 \
   --replica-completion-count 1 \
   --parallelism 1 \
