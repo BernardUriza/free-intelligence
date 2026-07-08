@@ -1,9 +1,9 @@
 """Proactive check-in loop (every 30 min, context-aware).
 
-~70% social check-in, ~30% world scan. Coordinates with the Moltbook
-inbound digest through the shared ``ProactiveState`` so the two never
-double-tap the same channel. Generation rides the runner's one-shot
-/v1/judge; no-ops when the runner isn't wired.
+~70% social check-in, ~30% world scan. Publishes its send decisions through
+the shared ``ProactiveState`` so no other unprompted loop double-taps the
+same channel. Generation rides the runner's one-shot /v1/judge; no-ops when
+the runner isn't wired.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ log = structlog.get_logger()
 
 
 def build_proactive_task(bot, container, memory, state: ProactiveState) -> tasks.Loop:
-    """Return the (unstarted) proactive loop. ``state`` is shared with the
-    Moltbook inbound task for should_send_now coordination."""
+    """Return the (unstarted) proactive loop. ``state`` is shared so other
+    unprompted loops can coordinate through should_send_now."""
 
     @tasks.loop(minutes=30)
     async def _proactive_task():

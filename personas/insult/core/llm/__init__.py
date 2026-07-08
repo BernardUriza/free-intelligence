@@ -8,7 +8,7 @@ backend. The conversational turn client ``AgentRunnerClient`` lives in
 What remains here:
 
 - ``runner_judge_client``: ``RunnerJudgeClient`` → POST /v1/judge (one-shot
-  text-only utility calls: facts, summaries, moltbook, proactive, reminders).
+  text-only utility calls: facts, summaries, proactive, reminders).
 - a re-export of the shared ``LLMResponse`` contract so existing imports
   (``from personas.insult.core.llm import LLMResponse``) keep working.
 """

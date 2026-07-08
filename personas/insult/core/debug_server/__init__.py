@@ -12,26 +12,21 @@ Security model:
   (Azure Container Apps without ingress is private by default).
 
 This used to be one ~1075-line module; it's now a package split by concern:
-- ``keys``      — app keys, MoltbookDebugContext, auth middleware, response helpers
+- ``keys``      — app keys, auth middleware, response helpers
 - ``health``    — /debug/health + the Postgres probe
 - ``content``   — read-only inspection endpoints + arc reset + artifact viewer
 - ``reminders`` — admin reminder CRUD
-- ``moltbook``  — /debug/moltbook/* preview + manual-override endpoints
 - ``sync``      — /sync/serenityops snapshot ingest
 - ``app``       — build_app + start/stop lifecycle
 
 This barrel re-exports the public surface so existing imports
-(``from personas.insult.core.debug_server import MoltbookDebugContext, build_app, ...``)
+(``from personas.insult.core.debug_server import build_app, ...``)
 keep working unchanged.
 """
 
 from personas.insult.core.debug_server.app import build_app, start_debug_server, stop_debug_server
-from personas.insult.core.debug_server.keys import MoltbookDebugContext
-from personas.insult.core.debug_server.moltbook import _draft_hash
 
 __all__ = [
-    "MoltbookDebugContext",
-    "_draft_hash",
     "build_app",
     "start_debug_server",
     "stop_debug_server",

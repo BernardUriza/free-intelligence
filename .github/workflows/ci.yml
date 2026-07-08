@@ -174,8 +174,8 @@ jobs:
         # `cookies=` parameter are re-sent after a cross-origin redirect, leaking
         # them if an attacker controls the redirect. MEDIUM (CVSS 6.6). The app
         # NEVER uses the `cookies=` parameter (verified: discord.py auth is
-        # header-based; the only ClientSession, moltbook, calls
-        # `session.request(..., headers=, params=, json=)` with no cookies). Same
+        # header-based, and since the Moltbook deletion of 2026-07-07 the app
+        # owns no outbound aiohttp ClientSession at all). Same
         # fix (aiohttp 3.14.0, not yet in conda-forge for py314). Authorized by
         # Bernard 2026-06-03. DROP with the other aiohttp ignore when 3.14.0 lands.
         #

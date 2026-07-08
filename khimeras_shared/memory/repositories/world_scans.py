@@ -35,13 +35,13 @@ class WorldScansRepository(BaseRepository):
         """Append a scan. Failures logged-not-raised — a dropped scan is recoverable.
 
         `source` discriminates ingestion origin (`web` for the existing
-        web_search path, `moltbook` and friends for the carretera).
+        web_search path; external-feed ingesters name their own).
         `external_id` enables dedupe via the partial UNIQUE index on
         (source, external_id) — `ON CONFLICT DO NOTHING` turns a duplicate
         into a no-op rather than a constraint error.
 
         Returns True if a row was inserted, False if it was a deduped no-op
-        (e.g. same Moltbook post id seen twice). Web scans always insert."""
+        (same external post id seen twice). Web scans always insert."""
         try:
             # When the unique partial index matches an existing row, ON CONFLICT
             # DO NOTHING suppresses the insert and RETURNING yields zero rows;
@@ -89,8 +89,8 @@ class WorldScansRepository(BaseRepository):
         """Most recent scans for prompt injection.
 
         When `source` is None, returns scans from any source (legacy behavior).
-        Pass `source='web'` to keep the original-only feed, or e.g.
-        `source='moltbook'` to read only the Moltbook digest stream."""
+        Pass `source='web'` to keep the original-only feed, or a specific
+        source name to read only that ingestion stream."""
         if source is None:
             rows = await self._fetch(
                 "SELECT topic, findings, commentary, timestamp, source, external_id "
@@ -117,9 +117,9 @@ class WorldScansRepository(BaseRepository):
         ]
 
     async def has_external_id(self, source: str, external_id: str) -> bool:
-        """Quick existence check used by the inbound digest fetcher to skip
-        posts already curated. Cheaper than the full INSERT ... ON CONFLICT
-        round when the caller wants to short-circuit BEFORE running the LLM."""
+        """Quick existence check so an external-feed ingester can skip posts
+        already curated. Cheaper than the full INSERT ... ON CONFLICT round
+        when the caller wants to short-circuit BEFORE running the LLM."""
         val = await self._fetchval(
             "SELECT 1 FROM world_scans WHERE source = $1 AND external_id = $2 LIMIT 1",
             source,

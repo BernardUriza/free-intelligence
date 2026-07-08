@@ -1,9 +1,8 @@
 """Shared helper: find the most recently active text channel.
 
-Five background tasks (proactive, Moltbook inbound / engagement / heartbeat
-/ outbound) all needed "the channel whose newest stored message is the most
-recent across all guilds". It was copy-pasted five times, differing only in
-the debug skip-event name. Centralized here.
+Background tasks that message the server unprompted need "the channel whose
+newest stored message is the most recent across all guilds". Centralized here
+so each consumer only differs in its debug skip-event name.
 """
 
 from __future__ import annotations

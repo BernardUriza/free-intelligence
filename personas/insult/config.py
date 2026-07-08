@@ -90,39 +90,6 @@ class Settings(BaseSettings):
     debug_host: str = "127.0.0.1"
     debug_port: int = 8787
 
-    # Moltbook integration (see .claude/plans/elegant-foraging-knuth.md).
-    # All four lanes default ON now (revived 2026-05-25 after the LLMClient→
-    # /v1/judge migration restored their LLM path). The real fail-closed gate
-    # is INFRASTRUCTURE, not policy: an empty `moltbook_api_key` makes the
-    # source None → every lane short-circuits, and inbound/outbound also need
-    # `moltbook_submolts`. So a deployment without the key/submolts/runner
-    # stays silent regardless of these flags; set them to False only to mute a
-    # lane that IS otherwise wired. The SAFETY gates (PII redaction,
-    # vulnerability/disclosure, salience) run inside each lane and are NOT
-    # affected by these switches.
-    moltbook_api_key: SecretStr = SecretStr("")
-    moltbook_base_url: str = "https://www.moltbook.com/api/v1"
-    # Comma-separated submolt names, e.g. "m/philosophy,m/ai-agents". Parsed
-    # via the moltbook_submolts property to keep .env friendly (Pydantic
-    # parsing of list[str] from env requires JSON, which is awkward to type).
-    moltbook_submolts_raw: str = ""
-    moltbook_outbound_enabled: bool = True
-    moltbook_inbound_enabled: bool = True
-    moltbook_engagement_enabled: bool = True
-    # Heartbeat replies-to-commenters task. Polls /api/v1/home every 20
-    # minutes for activity_on_your_posts and replies via the agent's own
-    # LLM. See Phase 7 plan + .claude/plans/elegant-foraging-knuth.md.
-    moltbook_heartbeat_enabled: bool = True
-    # Discord channel id where the bot reports its Moltbook activity
-    # (publishes + engagement comments). Empty string disables narration.
-    moltbook_report_channel_id: str = ""
-    # Comma-separated agent names the bot must NOT engage with (no
-    # comments, no priority lookup, no inbound digest surfacing). Use
-    # for noisy / spammy / off-topic agents the operator finds
-    # exhausting. Moltbook has no server-side block API — this is the
-    # local equivalent.
-    moltbook_blocked_authors_raw: str = "cicadafinanceintern"
-
     # Paths (legacy SQLite path kept for tooling that still touches files
     # during the cut-over; the live memory store no longer reads it).
     storage_dir: Path = _PROJECT_ROOT / "storage"
@@ -218,8 +185,9 @@ class Settings(BaseSettings):
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,
-    # LLM_TIMEOUT, LLM_MAX_RETRIES — that outlived the direct-Anthropic client in
-    # prod env + local .env). ``forbid`` would crash startup on any of those.
+    # LLM_TIMEOUT, LLM_MAX_RETRIES, MOLTBOOK_* — that outlived their deleted
+    # consumers in prod env + local .env). ``forbid`` would crash startup on any
+    # of those.
     # Trade-off accepted: a typo'd known field is silently dropped rather than
     # caught — acceptable since the fields that matter have explicit defaults and
     # are exercised by the test suite.
@@ -236,17 +204,6 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """dotenv wins over shell env vars — prevents stale key overrides."""
         return (init_settings, dotenv_settings, env_settings, file_secret_settings)
-
-    @property
-    def moltbook_submolts(self) -> list[str]:
-        """Parsed submolt list from the comma-separated env value."""
-        return [s.strip() for s in self.moltbook_submolts_raw.split(",") if s.strip()]
-
-    @property
-    def moltbook_blocked_authors(self) -> frozenset[str]:
-        """Parsed block-list. Lowercased so author comparisons are
-        case-insensitive (Moltbook display names sometimes drift case)."""
-        return frozenset(a.strip().lower() for a in self.moltbook_blocked_authors_raw.split(",") if a.strip())
 
     def ensure_dirs(self):
         self.storage_dir.mkdir(parents=True, exist_ok=True)

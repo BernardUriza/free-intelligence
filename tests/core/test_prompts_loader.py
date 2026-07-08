@@ -29,18 +29,18 @@ def _isolate_cache():
 
 
 def test_load_prompt_returns_real_content():
-    """The 9 migrated prompts MUST be loadable. If one is missing, the
+    """The migrated prompts MUST be loadable. If one is missing, the
     deploy would crash on the first LLM call — better catch it here."""
-    text = load_prompt("moltbook_outbound_draft")
+    text = load_prompt("facts_extraction")
     assert isinstance(text, str)
     assert len(text) > 100
-    assert "Joan Bright" in text  # the format reference is in the prompt
+    assert "fact extractor" in text
 
 
 def test_load_prompt_strips_trailing_newline():
     """Editors leave a trailing newline; the loader normalizes that out
     so callers don't see double newlines when concatenating."""
-    text = load_prompt("moltbook_outbound_draft")
+    text = load_prompt("facts_extraction")
     assert not text.endswith("\n")
 
 
@@ -62,9 +62,6 @@ def test_list_available_prompts_includes_all_migrated():
         "facts_extraction",
         "language_cure",
         "memory_consolidator_judge",
-        "moltbook_inbound_render",
-        "moltbook_outbound_draft",
-        "moltbook_outbound_redaction",
         "proactive_social",
         "proactive_world_scan",
         "siesta_diary",

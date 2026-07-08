@@ -1,9 +1,9 @@
 """Shared mutable state for proactive-messaging coordination.
 
-Proactive check-ins and the Moltbook inbound digest must NOT double-tap the
-same channel, so both consult ``last_proactive_ts`` + ``unanswered`` through
-``should_send_now``. The proactive task owns the writes; inbound only reads.
-This dataclass lives here so both tasks — now in separate modules — share a
+Every loop that messages a channel unprompted consults ``last_proactive_ts``
++ ``unanswered`` through ``should_send_now`` so two loops never double-tap
+the same channel. The proactive task owns the writes; other consumers only
+read. This dataclass lives here so consumers in separate modules share a
 single instance.
 """
 
@@ -18,7 +18,7 @@ log = structlog.get_logger()
 
 @dataclass
 class ProactiveState:
-    """One instance, shared by the proactive + inbound loops."""
+    """One instance, shared by every unprompted-messaging loop."""
 
     last_proactive_ts: float | None = None
     unanswered: int = 0  # exponential-backoff counter, bumped per unanswered proactive

@@ -48,7 +48,7 @@ class MessagesRepository(BaseRepository):
         and every persona_gateway sibling each receive the same Discord message
         on their own gateway connection, and whichever stores it first wins —
         the second insert is a no-op instead of a duplicate row poisoning the
-        shared context. NULL ids (bot replies, proactive, moltbook) never
+        shared context. NULL ids (bot replies, proactive turns) never
         conflict."""
         try:
             tag = await self._execute(

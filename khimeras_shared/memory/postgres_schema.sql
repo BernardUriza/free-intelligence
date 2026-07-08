@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS messages (
 -- (observed 7ms apart in prod, 2026-07-05). The unique partial index +
 -- ON CONFLICT DO NOTHING in MessagesRepository.store makes the write
 -- idempotent per Discord message regardless of writer topology. NULL ids
--- (bot replies, proactive turns, moltbook) never conflict by design.
+-- (bot replies, proactive turns) never conflict by design.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS discord_message_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_discord_id
     ON messages(discord_message_id) WHERE discord_message_id IS NOT NULL;

@@ -1,9 +1,9 @@
 """aiohttp app assembly + lifecycle for the debug server.
 
-Wires the auth middleware, the app-key context (memory, token, moltbook),
-and every route from the per-domain handler modules. ``build_app`` is the
-single place the route table lives; ``start_debug_server`` / ``stop_debug_server``
-own the runner lifecycle.
+Wires the auth middleware, the app-key context (memory, token), and every
+route from the per-domain handler modules. ``build_app`` is the single place
+the route table lives; ``start_debug_server`` / ``stop_debug_server`` own the
+runner lifecycle.
 """
 
 from __future__ import annotations
@@ -23,19 +23,8 @@ from personas.insult.core.debug_server.content import (
 from personas.insult.core.debug_server.health import _handle_health
 from personas.insult.core.debug_server.keys import (
     _MEMORY_KEY,
-    _MOLTBOOK_KEY,
     _TOKEN_KEY,
-    MoltbookDebugContext,
     _auth_middleware,
-)
-from personas.insult.core.debug_server.moltbook import (
-    _handle_moltbook_backfill,
-    _handle_moltbook_engage,
-    _handle_moltbook_engagement_draft,
-    _handle_moltbook_engagement_preview,
-    _handle_moltbook_feed,
-    _handle_moltbook_post,
-    _handle_moltbook_preview_outbound,
 )
 from personas.insult.core.debug_server.reminders import (
     _handle_create_reminder,
@@ -51,13 +40,8 @@ log = structlog.get_logger()
 def build_app(
     memory: object,
     debug_token: str,
-    moltbook_ctx: MoltbookDebugContext | None = None,
 ) -> web.Application:
     """Construct the aiohttp Application with routes and middleware.
-
-    `moltbook_ctx` is optional — when None the /debug/moltbook/* endpoints
-    return 503. This lets the server start in deployments without a
-    Moltbook key without leaking error spam at boot.
 
     ``memory`` is typed ``object`` on purpose: this host plumbing only stashes
     the store into the app under ``_MEMORY_KEY`` and never calls a method on it
@@ -72,7 +56,6 @@ def build_app(
     # safe; only the AppKey's declared type disagrees.
     app[_MEMORY_KEY] = memory  # type: ignore[reportArgumentType]
     app[_TOKEN_KEY] = debug_token
-    app[_MOLTBOOK_KEY] = moltbook_ctx
     app.router.add_get("/debug/health", _handle_health)
     app.router.add_get("/debug/messages", _handle_messages)
     app.router.add_get("/debug/channels", _handle_channels)
@@ -83,13 +66,6 @@ def build_app(
     app.router.add_post("/debug/reminders", _handle_create_reminder)
     app.router.add_delete("/debug/reminders/{id}", _handle_delete_reminder)
     app.router.add_patch("/debug/reminders/{id}", _handle_patch_reminder)
-    app.router.add_get("/debug/moltbook/feed", _handle_moltbook_feed)
-    app.router.add_get("/debug/moltbook/preview-outbound", _handle_moltbook_preview_outbound)
-    app.router.add_post("/debug/moltbook/post", _handle_moltbook_post)
-    app.router.add_post("/debug/moltbook/backfill", _handle_moltbook_backfill)
-    app.router.add_get("/debug/moltbook/preview-engagement", _handle_moltbook_engagement_preview)
-    app.router.add_get("/debug/moltbook/engagement-draft", _handle_moltbook_engagement_draft)
-    app.router.add_post("/debug/moltbook/engage", _handle_moltbook_engage)
     app.router.add_get("/debug/facts", _handle_facts)
     app.router.add_post("/sync/serenityops", _handle_sync_serenityops)
     # Public HTML artifact viewer (no auth — id is the credential).
@@ -102,10 +78,9 @@ async def start_debug_server(
     debug_token: str,
     host: str = "127.0.0.1",
     port: int = 8787,
-    moltbook_ctx: MoltbookDebugContext | None = None,
 ) -> web.AppRunner:
     """Start the debug server and return the runner for lifecycle management."""
-    app = build_app(memory, debug_token, moltbook_ctx=moltbook_ctx)
+    app = build_app(memory, debug_token)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, host, port)

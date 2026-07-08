@@ -28,9 +28,9 @@ class Container:
       - ``agent_client`` (/v1/turn): the conversational turn engine. Every
         chat turn rides this.
       - ``judge_client`` (/v1/judge): one-shot, text-only utility calls
-        (fact extraction, summaries, moltbook drafting/redaction, proactive
-        check-ins, reminders). The caller supplies the system prompt, so
-        persona-flavored aux work routes here too.
+        (fact extraction, summaries, proactive check-ins, reminders). The
+        caller supplies the system prompt, so persona-flavored aux work
+        routes here too.
     Both are None only when the runner URL/token aren't configured; aux
     callers degrade gracefully when ``judge_client`` is None.
     """
@@ -61,7 +61,7 @@ def create_app() -> Container:
     # Container App (OAuth Max); they only differ in endpoint:
     #   - agent_client → /v1/turn  (conversational turns)
     #   - judge_client → /v1/judge (one-shot utility: facts, summaries,
-    #                               moltbook, proactive, reminders)
+    #                               proactive, reminders)
     # Built only when both URL and token are configured.
     agent_client: AgentRunnerClient | None = None
     judge_client: RunnerJudgeClient | None = None

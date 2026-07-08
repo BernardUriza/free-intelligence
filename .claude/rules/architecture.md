@@ -101,7 +101,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   2. Replace the Python constant with `load_prompt("<name>")` inside the consumer function
   3. Delete the inline constant
 - Exception: ≤5-line structural fragments that the prompt builder concatenates (e.g. `CACHE_BOUNDARY`, single-line headers) may stay inline — they are scaffolding, not content humans iterate.
-- Existing prompt-loader users to mirror: `moltbook_outbound_draft`, `moltbook_outbound_redaction`, `moltbook_reply_to_commenter`, `moltbook_engagement_comment`, `facts_extraction`, `language_cure`.
+- Existing prompt-loader users to mirror: `facts_extraction`, `language_cure`, `proactive_social`, `proactive_world_scan`, `siesta_diary`, `memory_consolidator_judge`.
 - Known violations (technical debt — migrate when touched; paths post-demux):
   - `personas/insult/core/presets/` — `PRESET_GUIDANCE`, `MODIFIER_GUIDANCE`, `_VULNERABLE_OVERLAY_PROMPT`, `_INTENTIONALITY_DIRECTIVE`
   - `personas/insult/core/presets_llm.py` — `_CLASSIFIER_SYSTEM_PROMPT`
@@ -109,7 +109,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   - `personas/insult/core/flows/guidance.py` — shape/flavor/pressure guidance blocks
   - `personas/insult/core/flows/prompt.py` — flow prompt assembly
   - `personas/insult/core/summaries.py`, `stance_log.py` — utility prompts
-- Why this rule exists: prompts are CONTENT, not code. Inline Python forces escape gymnastics on quotes, hides prompt edits in code diffs, and locks editability behind redeploy. The `prompts_loader.py` infrastructure has existed since the moltbook integration — but the convention was never documented, so subsequent commits kept adding inline prompts. Detected 2026-05-12 while debugging flat replies; the most recent `_CLASSIFIER_SYSTEM_PROMPT` addition violated the convention.
+- Why this rule exists: prompts are CONTENT, not code. Inline Python forces escape gymnastics on quotes, hides prompt edits in code diffs, and locks editability behind redeploy. The `prompts_loader.py` infrastructure has existed since the (now-deleted, 2026-07-07) Moltbook integration — but the convention was never documented, so subsequent commits kept adding inline prompts. Detected 2026-05-12 while debugging flat replies; the most recent `_CLASSIFIER_SYSTEM_PROMPT` addition violated the convention.
 
 ## Reactions
 - LLM includes `[REACT:emoji1,emoji2]` in response (max 3 emojis)

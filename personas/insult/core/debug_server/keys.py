@@ -1,32 +1,17 @@
 """Shared debug-server infrastructure: app keys, auth, response helpers.
 
 Everything the route handlers (and ``app.build_app``) need in common lives
-here: the typed aiohttp app keys, the ``MoltbookDebugContext`` dataclass, the
-small ``web.json_response`` shortcuts, and the bearer-auth middleware.
+here: the typed aiohttp app keys, the small ``web.json_response`` shortcuts,
+and the bearer-auth middleware.
 """
 
 from __future__ import annotations
 
 import hmac
-from dataclasses import dataclass
-from typing import Any
 
 from aiohttp import web
 
 from personas.insult.core.contracts.memory import DebugMemoryPort
-
-
-@dataclass
-class MoltbookDebugContext:
-    """Wires the OUTBOUND lane components into the debug server so the
-    /debug/moltbook/* endpoints can preview drafts and force-post without
-    waiting for the cron. None when MOLTBOOK_API_KEY is unset (the lane
-    itself is fail-closed; the debug endpoints follow the same posture)."""
-
-    source_factory: Any  # Callable[[], MoltbookSource | None]
-    judge: Any  # RunnerJudgeClient | None
-    settings: Any
-
 
 # Typed aiohttp app keys (avoid NotAppKeyWarning). The memory key is typed by
 # the structural DebugMemoryPort (the handlers' static view); the runtime tag is
@@ -34,7 +19,6 @@ class MoltbookDebugContext:
 # store injected in app.py satisfies the port structurally.
 _MEMORY_KEY: web.AppKey[DebugMemoryPort] = web.AppKey("memory", object)  # type: ignore[arg-type]
 _TOKEN_KEY: web.AppKey[str] = web.AppKey("debug_token", str)
-_MOLTBOOK_KEY: web.AppKey[MoltbookDebugContext | None] = web.AppKey("moltbook_ctx", object)  # type: ignore[arg-type]
 
 
 def _unauthorized() -> web.Response:

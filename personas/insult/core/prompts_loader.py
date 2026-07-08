@@ -12,8 +12,8 @@ effect, exactly as before the extraction.
 
 Usage (unchanged):
     from personas.insult.core.prompts_loader import load_prompt
-    text = load_prompt("moltbook_outbound_draft")
-    # -> reads personas/insult/prompts/moltbook_outbound_draft.md
+    text = load_prompt("facts_extraction")
+    # -> reads personas/insult/prompts/facts_extraction.md
 """
 
 from __future__ import annotations

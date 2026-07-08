@@ -17,11 +17,10 @@ from personas.insult.app import Container, create_app
 from personas.insult.cogs import ChatCog, UtilityCog
 from personas.insult.cogs.voice import VoiceCog
 from personas.insult.core.backup import is_azure_configured
-from personas.insult.core.debug_server import MoltbookDebugContext, start_debug_server, stop_debug_server
+from personas.insult.core.debug_server import start_debug_server, stop_debug_server
 from personas.insult.core.errors import ErrorType, get_error_response
 from personas.insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from personas.insult.tasks.health import build_health_check
-from personas.insult.tasks.moltbook import MoltbookTasks
 from personas.insult.tasks.proactive import build_proactive_task
 from personas.insult.tasks.reminders import build_reminder_tasks, handle_snooze_reaction
 from personas.insult.tasks.state import ProactiveState
@@ -38,8 +37,7 @@ def _build(container: Container):
     _debug_runner = None  # type: ignore[var-annotated]
 
     # --- Background tasks (bodies in insult.tasks.*) ---
-    proactive_state = ProactiveState()  # shared by proactive + moltbook inbound
-    moltbook = MoltbookTasks(bot, container, memory, proactive_state)
+    proactive_state = ProactiveState()
     watchdog = GatewayWatchdog(bot)
     health_check = build_health_check(bot, memory)
     summarize_channels = build_summarize_channels_task(bot, container, memory)
@@ -55,7 +53,6 @@ def _build(container: Container):
         ack_overdue,
         proactive,
         summarize_channels,
-        *moltbook.all_loops(),
     ]
 
     # Expose the proactive backoff reset for ChatCog's batch manager.
@@ -76,7 +73,6 @@ def _build(container: Container):
         await container.siesta.stop()
         if _debug_runner is not None:
             await stop_debug_server(_debug_runner)
-        await moltbook.aclose()
         await memory.close()
         # No blob upload on shutdown — DB lives in managed Postgres since the
         # 2026-05-12 migration. Container shutdown is a no-op for data.
@@ -114,11 +110,6 @@ def _build(container: Container):
                     debug_token=debug_token,
                     host=container.settings.debug_host,
                     port=container.settings.debug_port,
-                    moltbook_ctx=MoltbookDebugContext(
-                        source_factory=moltbook.get_source,
-                        judge=container.judge_client,
-                        settings=container.settings,
-                    ),
                 )
             except Exception:
                 log.exception("debug_server_start_failed")
@@ -167,8 +158,6 @@ def _build(container: Container):
             await bot.add_cog(ChatCog(container))
             await bot.add_cog(UtilityCog(container))
             await bot.add_cog(VoiceCog(container))
-            # Moltbook loops run unconditionally; each task short-circuits when
-            # api_key / submolts / *_enabled are not set (fail-closed default).
             for loop in background_loops:
                 loop.start()
             if is_azure_configured():
