@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { CSSProperties, Ref, TextareaHTMLAttributes } from 'react';
+import { CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
 
 interface ComposerProps {
     /** Current message value */
@@ -72,4 +72,24 @@ interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaEle
  */
 declare const AutoResizeTextarea: react.ForwardRefExoticComponent<AutoResizeTextareaProps & react.RefAttributes<HTMLTextAreaElement>>;
 
-export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, type ComposerProps };
+/** Inject the idempotent composer-frame stylesheet (no-op on the server / if already present). */
+declare function ensureComposerFrameStyle(): void;
+/** Ensure the composer-frame stylesheet is present for the lifetime of the component. */
+declare function useComposerFrameStyle(): void;
+interface ComposerFrameProps {
+    /** The body — the textarea row. Rendered directly (no wrapper element). */
+    children: ReactNode;
+    /** Optional header slot — previews/drafts above the body (e.g. an audio draft). */
+    header?: ReactNode;
+    /** Optional footer slot — the controls row below the body (chips, mic, send). */
+    footer?: ReactNode;
+    /** Class for the single container (the consumer's frosted box preset). */
+    className?: string;
+    style?: CSSProperties;
+    headerClassName?: string;
+    footerClassName?: string;
+    footerStyle?: CSSProperties;
+}
+declare function ComposerFrame({ children, header, footer, className, style, headerClassName, footerClassName, footerStyle, }: ComposerFrameProps): react.JSX.Element;
+
+export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, ComposerFrame, type ComposerFrameProps, type ComposerProps, ensureComposerFrameStyle, useComposerFrameStyle };

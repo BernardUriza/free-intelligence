@@ -119,8 +119,65 @@ function Composer({
     }
   ) });
 }
+
+// src/composer/ComposerFrame.tsx
+import { useEffect as useEffect2 } from "react";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
+var CSS = `
+[data-fi-composer-slot="header"] {
+  margin-bottom: var(--fi-space-2, 0.5rem);
+}
+[data-fi-composer-slot="footer"] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fi-space-2, 0.5rem);
+}
+`;
+function ensureComposerFrameStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = COMPOSER_FRAME_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useComposerFrameStyle() {
+  useEffect2(() => {
+    ensureComposerFrameStyle();
+  }, []);
+}
+function ComposerFrame({
+  children,
+  header,
+  footer,
+  className,
+  style,
+  headerClassName,
+  footerClassName,
+  footerStyle
+}) {
+  useComposerFrameStyle();
+  return /* @__PURE__ */ jsxs2("div", { className, style, "data-fi-composer-frame": "", children: [
+    header != null && /* @__PURE__ */ jsx3("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    children,
+    footer != null && /* @__PURE__ */ jsx3(
+      "div",
+      {
+        className: footerClassName,
+        style: footerStyle,
+        "data-fi-composer-slot": "footer",
+        children: footer
+      }
+    )
+  ] });
+}
 export {
   AutoResizeTextarea,
-  Composer
+  Composer,
+  ComposerFrame,
+  ensureComposerFrameStyle,
+  useComposerFrameStyle
 };
 //# sourceMappingURL=index.js.map

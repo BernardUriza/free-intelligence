@@ -4,3 +4,9 @@ export {
   AutoResizeTextarea,
   type AutoResizeTextareaProps,
 } from './AutoResizeTextarea';
+export {
+  ComposerFrame,
+  ensureComposerFrameStyle,
+  useComposerFrameStyle,
+  type ComposerFrameProps,
+} from './ComposerFrame';

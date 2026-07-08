@@ -540,7 +540,7 @@ function useAgentConversation(agent, options = {}) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { Fragment as Fragment3, useCallback as useCallback10, useEffect as useEffect15, useRef as useRef10, useState as useState16 } from "react";
+import { Fragment as Fragment3, useCallback as useCallback10, useEffect as useEffect16, useRef as useRef10, useState as useState16 } from "react";
 import { Send, Loader2 as Loader212 } from "lucide-react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
@@ -664,6 +664,60 @@ function Composer({
   ) });
 }
 
+// src/composer/ComposerFrame.tsx
+import { useEffect as useEffect4 } from "react";
+import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
+var CSS = `
+[data-fi-composer-slot="header"] {
+  margin-bottom: var(--fi-space-2, 0.5rem);
+}
+[data-fi-composer-slot="footer"] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fi-space-2, 0.5rem);
+}
+`;
+function ensureComposerFrameStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = COMPOSER_FRAME_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useComposerFrameStyle() {
+  useEffect4(() => {
+    ensureComposerFrameStyle();
+  }, []);
+}
+function ComposerFrame({
+  children,
+  header,
+  footer,
+  className,
+  style,
+  headerClassName,
+  footerClassName,
+  footerStyle
+}) {
+  useComposerFrameStyle();
+  return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
+    header != null && /* @__PURE__ */ jsx7("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    children,
+    footer != null && /* @__PURE__ */ jsx7(
+      "div",
+      {
+        className: footerClassName,
+        style: footerStyle,
+        "data-fi-composer-slot": "footer",
+        children: footer
+      }
+    )
+  ] });
+}
+
 // src/messages/styles.ts
 var messageStyles = {
   // Container
@@ -763,8 +817,8 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect4, useId as useId2, useRef as useRef3, useState as useState4 } from "react";
-import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { useEffect as useEffect5, useId as useId2, useRef as useRef3, useState as useState4 } from "react";
+import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
   children,
@@ -779,7 +833,7 @@ function CollapsibleText({
   const contentRef = useRef3(null);
   const [expanded, setExpanded] = useState4(false);
   const [overflowing, setOverflowing] = useState4(false);
-  useEffect4(() => {
+  useEffect5(() => {
     const el = contentRef.current;
     if (!el) return;
     const measure = () => setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
@@ -791,8 +845,8 @@ function CollapsibleText({
   }, [maxHeight]);
   const clamped = overflowing && !expanded;
   const mask = `linear-gradient(rgb(0,0,0) calc(100% - ${fadeHeight}px), transparent)`;
-  return /* @__PURE__ */ jsxs6("div", { className, children: [
-    /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsxs7("div", { className, children: [
+    /* @__PURE__ */ jsx8(
       "div",
       {
         id: contentId,
@@ -806,7 +860,7 @@ function CollapsibleText({
         children
       }
     ),
-    overflowing && /* @__PURE__ */ jsx7(
+    overflowing && /* @__PURE__ */ jsx8(
       "button",
       {
         type: "button",
@@ -832,27 +886,27 @@ function CollapsibleText({
 }
 
 // src/messages/MessageContent.tsx
-import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var mdComponents = {
-  p: ({ children }) => /* @__PURE__ */ jsx8("p", { className: markdownStyles.p, children }),
-  strong: ({ children }) => /* @__PURE__ */ jsx8("strong", { className: markdownStyles.strong, children }),
-  em: ({ children }) => /* @__PURE__ */ jsx8("em", { className: markdownStyles.em, children }),
-  code: ({ children }) => /* @__PURE__ */ jsx8("code", { className: markdownStyles.code, children }),
-  pre: ({ children }) => /* @__PURE__ */ jsx8("pre", { className: markdownStyles.pre, children }),
-  ul: ({ children }) => /* @__PURE__ */ jsx8("ul", { className: markdownStyles.ul, children }),
-  ol: ({ children }) => /* @__PURE__ */ jsx8("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs7("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx8("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx8("span", { className: "flex-1", children })
+  p: ({ children }) => /* @__PURE__ */ jsx9("p", { className: markdownStyles.p, children }),
+  strong: ({ children }) => /* @__PURE__ */ jsx9("strong", { className: markdownStyles.strong, children }),
+  em: ({ children }) => /* @__PURE__ */ jsx9("em", { className: markdownStyles.em, children }),
+  code: ({ children }) => /* @__PURE__ */ jsx9("code", { className: markdownStyles.code, children }),
+  pre: ({ children }) => /* @__PURE__ */ jsx9("pre", { className: markdownStyles.pre, children }),
+  ul: ({ children }) => /* @__PURE__ */ jsx9("ul", { className: markdownStyles.ul, children }),
+  ol: ({ children }) => /* @__PURE__ */ jsx9("ol", { className: markdownStyles.ol, children }),
+  li: ({ children }) => /* @__PURE__ */ jsxs8("li", { className: markdownStyles.li, children: [
+    /* @__PURE__ */ jsx9("span", { className: markdownStyles.bullet, children: "\u2022" }),
+    /* @__PURE__ */ jsx9("span", { className: "flex-1", children })
   ] }),
-  h1: ({ children }) => /* @__PURE__ */ jsx8("h1", { className: markdownStyles.h1, children }),
-  h2: ({ children }) => /* @__PURE__ */ jsx8("h2", { className: markdownStyles.h2, children }),
-  h3: ({ children }) => /* @__PURE__ */ jsx8("h3", { className: markdownStyles.h3, children }),
-  blockquote: ({ children }) => /* @__PURE__ */ jsx8("blockquote", { className: markdownStyles.blockquote, children }),
-  a: ({ href, children }) => /* @__PURE__ */ jsx8("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
+  h1: ({ children }) => /* @__PURE__ */ jsx9("h1", { className: markdownStyles.h1, children }),
+  h2: ({ children }) => /* @__PURE__ */ jsx9("h2", { className: markdownStyles.h2, children }),
+  h3: ({ children }) => /* @__PURE__ */ jsx9("h3", { className: markdownStyles.h3, children }),
+  blockquote: ({ children }) => /* @__PURE__ */ jsx9("blockquote", { className: markdownStyles.blockquote, children }),
+  a: ({ href, children }) => /* @__PURE__ */ jsx9("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx8(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx9(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
@@ -868,17 +922,17 @@ var MessageContent = memo(function MessageContent2({
   const { content: styles } = messageStyles;
   const body = isUser ? (
     // User: plain text, preserve whitespace
-    /* @__PURE__ */ jsx8("p", { className: "whitespace-pre-wrap", children: content })
+    /* @__PURE__ */ jsx9("p", { className: "whitespace-pre-wrap", children: content })
   ) : (
     // Assistant: markdown (overridable)
     renderMarkdown(content)
   );
-  return /* @__PURE__ */ jsxs7(
+  return /* @__PURE__ */ jsxs8(
     "div",
     {
       className: `${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`,
       children: [
-        collapsible && !isStreaming ? /* @__PURE__ */ jsx8(
+        collapsible && !isStreaming ? /* @__PURE__ */ jsx9(
           CollapsibleText,
           {
             maxHeight: collapsedMaxHeight,
@@ -888,7 +942,7 @@ var MessageContent = memo(function MessageContent2({
             children: body
           }
         ) : body,
-        isStreaming && /* @__PURE__ */ jsx8("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
+        isStreaming && /* @__PURE__ */ jsx9("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
       ]
     }
   );
@@ -899,7 +953,7 @@ import { memo as memo2, useCallback as useCallback2, useState as useState5 } fro
 import { Copy, Check } from "lucide-react";
 
 // src/shell/touchTarget.ts
-import { useEffect as useEffect5 } from "react";
+import { useEffect as useEffect6 } from "react";
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -922,7 +976,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect5(() => {
+  useEffect6(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -931,7 +985,7 @@ function withTouchTarget(className) {
 }
 
 // src/messages/CopyButton.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
+import { jsx as jsx10 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
   onError,
@@ -959,21 +1013,21 @@ var CopyButton = memo2(function CopyButton2({
       onError?.(err);
     }
   }, [content, onError, resetMs]);
-  return /* @__PURE__ */ jsx9(
+  return /* @__PURE__ */ jsx10(
     "button",
     {
       onClick: handleCopy,
       className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
-      children: copied ? /* @__PURE__ */ jsx9(Check, { className: icon }) : /* @__PURE__ */ jsx9(Copy, { className: icon })
+      children: copied ? /* @__PURE__ */ jsx10(Check, { className: icon }) : /* @__PURE__ */ jsx10(Copy, { className: icon })
     }
   );
 });
 
 // src/messages/MessageBubble.tsx
 import { memo as memo3 } from "react";
-import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -986,17 +1040,17 @@ var MessageBubble = memo3(function MessageBubble2({
 }) {
   const { message: styles } = messageStyles;
   const isUser = role === "user";
-  return /* @__PURE__ */ jsxs8(
+  return /* @__PURE__ */ jsxs9(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
       children: [
-        header && /* @__PURE__ */ jsx10("div", { className: "flex items-center gap-2 mb-1", children: header }),
-        reasoning && /* @__PURE__ */ jsx10("div", { className: "mt-3 mb-3", children: reasoning }),
+        header && /* @__PURE__ */ jsx11("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        reasoning && /* @__PURE__ */ jsx11("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
-        badge && /* @__PURE__ */ jsx10("div", { className: "mt-2", children: badge }),
+        badge && /* @__PURE__ */ jsx11("div", { className: "mt-2", children: badge }),
         actions
       ]
     }
@@ -1004,7 +1058,7 @@ var MessageBubble = memo3(function MessageBubble2({
 });
 
 // src/messages/MessageList.tsx
-import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef as forwardRef2 } from "react";
@@ -1035,7 +1089,7 @@ var BUTTON_SIZES = {
 };
 
 // src/voice/recording/RecordingButton.tsx
-import { jsx as jsx12 } from "react/jsx-runtime";
+import { jsx as jsx13 } from "react/jsx-runtime";
 var RecordingButton = forwardRef2(
   function RecordingButton2({
     size = "md",
@@ -1052,7 +1106,7 @@ var RecordingButton = forwardRef2(
   }, ref) {
     const sizeConfig = BUTTON_SIZES[size];
     const DisplayIcon = iconSpin ? Loader22 : Icon;
-    return /* @__PURE__ */ jsx12(
+    return /* @__PURE__ */ jsx13(
       "button",
       {
         ref,
@@ -1060,7 +1114,7 @@ var RecordingButton = forwardRef2(
         disabled,
         "aria-label": ariaLabel,
         className: `fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? "rec-btn-disabled" : "rec-btn-enabled"} ${className}`,
-        children: /* @__PURE__ */ jsx12(
+        children: /* @__PURE__ */ jsx13(
           DisplayIcon,
           {
             className: `${sizeConfig.icon} ${iconColor} ${iconSpin ? "rec-icon-spin" : ""}`
@@ -1073,33 +1127,33 @@ var RecordingButton = forwardRef2(
 
 // src/voice/recording/PulseRings.tsx
 import { motion } from "framer-motion";
-import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingTimer.tsx
 import { motion as motion2 } from "framer-motion";
-import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/recording/StatusText.tsx
 import { Loader2 as Loader23 } from "lucide-react";
 import { motion as motion3 } from "framer-motion";
-import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/VoiceMicButton.tsx
 import { Mic, Square, Loader2 as Loader24 } from "lucide-react";
 import { motion as motion4 } from "framer-motion";
-import { jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader25, Play } from "lucide-react";
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx18 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect6, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
+import { useEffect as useEffect7, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader26, AlertCircle } from "lucide-react";
-import { useEffect as useEffect7 } from "react";
-import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
+import { useEffect as useEffect8 } from "react";
+import { jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
 import {
@@ -1111,11 +1165,11 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect8 } from "react";
-import { jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
+import { useEffect as useEffect9 } from "react";
+import { jsx as jsx20, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
-import { jsx as jsx20 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 var MIN_BAR_PCT = 4;
 function normalizeLevels(levels) {
   return levels.map(
@@ -1150,7 +1204,7 @@ function AudioVisualizer({
   if (variant === "pulse") {
     const peak = active && normalized.length ? Math.max(...normalized) : 0;
     const scale = 1 + peak;
-    return /* @__PURE__ */ jsx20(
+    return /* @__PURE__ */ jsx21(
       "div",
       {
         role: "img",
@@ -1158,7 +1212,7 @@ function AudioVisualizer({
         className,
         "data-fi-audio-visualizer": "pulse",
         "data-active": active ? "" : void 0,
-        children: /* @__PURE__ */ jsx20(
+        children: /* @__PURE__ */ jsx21(
           "span",
           {
             "data-fi-pulse-core": "",
@@ -1174,7 +1228,7 @@ function AudioVisualizer({
   }
   const count = barCount && barCount > 0 ? barCount : normalized.length;
   const bars = resampleLevels(normalized, count);
-  return /* @__PURE__ */ jsx20(
+  return /* @__PURE__ */ jsx21(
     "div",
     {
       role: "img",
@@ -1185,7 +1239,7 @@ function AudioVisualizer({
       style: { display: "inline-flex", alignItems: "flex-end" },
       children: bars.map((level, i) => {
         const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
-        return /* @__PURE__ */ jsx20(
+        return /* @__PURE__ */ jsx21(
           "span",
           {
             "data-fi-audio-bar": "",
@@ -1201,7 +1255,7 @@ function AudioVisualizer({
 
 // src/voice/ComposerMicSlot.tsx
 import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader28 } from "lucide-react";
-import { jsx as jsx21 } from "react/jsx-runtime";
+import { jsx as jsx22 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
 function ComposerMicSlot({
@@ -1229,7 +1283,7 @@ function ComposerMicSlot({
     else onStart?.();
   };
   const Icon = !available ? MicOff : busy ? Loader28 : recording ? Square4 : Mic2;
-  return /* @__PURE__ */ jsx21("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsx22("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx22(
     "button",
     {
       type: "button",
@@ -1240,7 +1294,7 @@ function ComposerMicSlot({
       "aria-label": label,
       title: !available ? unavailableLabel : void 0,
       className: btnClass,
-      children: /* @__PURE__ */ jsx21(
+      children: /* @__PURE__ */ jsx22(
         Icon,
         {
           className: busy ? `${iconClass} animate-spin` : iconClass,
@@ -1513,7 +1567,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState8, useRef as useRef7, useEffect as useEffect9 } from "react";
+import { useState as useState8, useRef as useRef7, useEffect as useEffect10 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1547,7 +1601,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef7(null);
   const animationFrameRef = useRef7(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect9(() => {
+  useEffect10(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1654,13 +1708,13 @@ var AUDIO_QUEUE_DEFAULTS = {
 import { useMemo as useMemo2 } from "react";
 
 // src/voice/useDurableRecording.ts
-import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect10 } from "react";
+import { useState as useState10, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect11 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState11, useEffect as useEffect11, useCallback as useCallback7 } from "react";
+import { useState as useState11, useEffect as useEffect12, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect12, useState as useState13 } from "react";
+import { useEffect as useEffect13, useState as useState13 } from "react";
 import { Loader2 as Loader210, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -1677,22 +1731,22 @@ import {
   Trash2,
   FileAudio
 } from "lucide-react";
-import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
-
-// src/voice/AudioQueuePanel.tsx
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
-// src/voice/AudioDraftPlayer.tsx
-import { useState as useState14, useEffect as useEffect13 } from "react";
-import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+// src/voice/AudioQueuePanel.tsx
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
+// src/voice/AudioDraftPlayer.tsx
+import { useState as useState14, useEffect as useEffect14 } from "react";
+import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
+import { jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect14, useMemo as useMemo3, useRef as useRef9, useState as useState15 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect15, useMemo as useMemo3, useRef as useRef9, useState as useState15 } from "react";
 
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
-import { jsx as jsx25 } from "react/jsx-runtime";
+import { jsx as jsx26 } from "react/jsx-runtime";
 var placement = {
   position: "absolute",
   bottom: 12,
@@ -1720,7 +1774,7 @@ function ScrollToBottomButton({
   className,
   iconClassName
 }) {
-  return /* @__PURE__ */ jsx25(
+  return /* @__PURE__ */ jsx26(
     "button",
     {
       type: "button",
@@ -1728,7 +1782,7 @@ function ScrollToBottomButton({
       "aria-label": label,
       className: className ? `fi-scroll-to-bottom ${className}` : "fi-scroll-to-bottom",
       style: className ? placement : { ...placement, ...skin },
-      children: /* @__PURE__ */ jsx25(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
+      children: /* @__PURE__ */ jsx26(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }
   );
 }
@@ -1788,7 +1842,7 @@ function useMediaQuery(query, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 function persistedTraceTurn(message) {
   const trace = message.trace;
   if (!trace) return null;
@@ -1865,7 +1919,7 @@ function AgentConversationSurface({
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -1884,12 +1938,12 @@ function AgentConversationSurface({
     void dictation.startRecording();
   };
   const wasStreaming = useRef10(false);
-  useEffect15(() => {
+  useEffect16(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
   const wasTranscribing = useRef10(false);
-  useEffect15(() => {
+  useEffect16(() => {
     if (wasTranscribing.current && !dictation.isTranscribing) refocusComposer();
     wasTranscribing.current = dictation.isTranscribing;
   }, [dictation.isTranscribing, refocusComposer]);
@@ -1909,33 +1963,33 @@ function AgentConversationSurface({
     // gutter) lives on INNER content wrappers (transcript + composer), never on
     // the scroll container, so the scrollbar renders at the viewport edge like
     // ChatGPT/AURITY /chat instead of glued to the centered column.
-    /* @__PURE__ */ jsxs19("div", { style: rootStyle, children: [
-      /* @__PURE__ */ jsxs19("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-        /* @__PURE__ */ jsx26(
+    /* @__PURE__ */ jsxs20("div", { style: rootStyle, children: [
+      /* @__PURE__ */ jsxs20("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
+        /* @__PURE__ */ jsx27(
           "div",
           {
             ref: autoScroll ? stick.scrollRef : void 0,
             style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
-            children: /* @__PURE__ */ jsxs19(
+            children: /* @__PURE__ */ jsxs20(
               "div",
               {
                 ref: autoScroll ? stick.contentRef : void 0,
                 style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
                 children: [
-                  idle ? emptyState : /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+                  idle ? emptyState : /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
                     messages.map((m, i) => {
                       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
-                      return /* @__PURE__ */ jsxs19(Fragment3, { children: [
-                        traceTurn && /* @__PURE__ */ jsx26(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-                        /* @__PURE__ */ jsx26(
+                      return /* @__PURE__ */ jsxs20(Fragment3, { children: [
+                        traceTurn && /* @__PURE__ */ jsx27(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+                        /* @__PURE__ */ jsx27(
                           MessageBubble,
                           {
                             role: m.role,
                             header: renderHeader?.(m),
                             badge: renderBadge?.(m),
-                            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
+                            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx27(CopyButton, { content: m.content }) : void 0),
                             className: resolveBubbleClass(m),
-                            children: /* @__PURE__ */ jsx26(
+                            children: /* @__PURE__ */ jsx27(
                               MessageContent,
                               {
                                 isUser: m.role === "user",
@@ -1951,8 +2005,8 @@ function AgentConversationSurface({
                         )
                       ] }, i);
                     }),
-                    isStreaming && /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }),
-                    isStreaming && turn.text && /* @__PURE__ */ jsx26(
+                    isStreaming && /* @__PURE__ */ jsx27(AgentPanel, { turn, ...agentPanelProps }),
+                    isStreaming && turn.text && /* @__PURE__ */ jsx27(
                       MessageBubble,
                       {
                         role: "assistant",
@@ -1961,11 +2015,11 @@ function AgentConversationSurface({
                           content: turn.text,
                           timestamp: ""
                         }),
-                        children: /* @__PURE__ */ jsx26(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+                        children: /* @__PURE__ */ jsx27(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
                       }
                     )
                   ] }),
-                  turnError && /* @__PURE__ */ jsxs19(
+                  turnError && /* @__PURE__ */ jsxs20(
                     "div",
                     {
                       role: "alert",
@@ -1982,8 +2036,8 @@ function AgentConversationSurface({
                         gap: "0.75rem"
                       },
                       children: [
-                        /* @__PURE__ */ jsx26("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
-                        /* @__PURE__ */ jsx26(
+                        /* @__PURE__ */ jsx27("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: turnError.message }),
+                        /* @__PURE__ */ jsx27(
                           "button",
                           {
                             type: "button",
@@ -2001,7 +2055,7 @@ function AgentConversationSurface({
                             children: retryLabel
                           }
                         ),
-                        /* @__PURE__ */ jsx26(
+                        /* @__PURE__ */ jsx27(
                           "button",
                           {
                             type: "button",
@@ -2027,7 +2081,7 @@ function AgentConversationSurface({
             )
           }
         ),
-        autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx26(
+        autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx27(
           ScrollToBottomButton,
           {
             onClick: () => void stick.scrollToBottom(),
@@ -2037,8 +2091,8 @@ function AgentConversationSurface({
           }
         )
       ] }),
-      /* @__PURE__ */ jsx26("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs19("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
+      /* @__PURE__ */ jsx27("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs20("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx27("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx27(
           "button",
           {
             onClick: newConversation,
@@ -2056,78 +2110,76 @@ function AgentConversationSurface({
             children: newChatLabel
           }
         ) }),
-        aboveComposer && /* @__PURE__ */ jsx26("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsxs19("div", { className: composerBoxClassName, children: [
-          /* @__PURE__ */ jsx26(
-            Composer,
-            {
-              message: input,
-              loading: isStreaming,
-              placeholder: composerPlaceholder,
-              onMessageChange: setInput,
-              onSend,
-              areaClassName: composerAreaClassName,
-              textareaClassName: composerTextareaClassName,
-              wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
-              textareaRef: inputRef
-            }
-          ),
-          (showSendButton || micSlotOverride != null || micAvailable) && /* @__PURE__ */ jsxs19(
-            "div",
-            {
-              className: composerControlsClassName,
-              style: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 },
-              children: [
-                micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
-                // sees they're being heard. Only mounted while recording, fed by the
-                // analyser the dictation hook already runs — no extra Web Audio here.
-                /* @__PURE__ */ jsx26(
-                  AudioVisualizer,
-                  {
-                    levels: dictation.bands,
-                    active: dictation.isRecording,
-                    variant: "bars",
-                    label: "Nivel del micr\xF3fono",
-                    className: voiceVisualizerClassName,
-                    barClassName: voiceVisualizerBarClassName
-                  }
-                ),
-                micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx26(
-                  ComposerMicSlot,
-                  {
-                    available: true,
-                    recording: dictation.isRecording,
-                    busy: dictation.isTranscribing,
-                    onStart: startDictation,
-                    onStop: () => void dictation.stopRecording(),
-                    className: micSlotClassName,
-                    buttonClassName: micButtonClassName
-                  }
-                ),
-                showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
-                // still sends; this is the visible button. Disabled until there's
-                // trimmed text and nothing is streaming.
-                /* @__PURE__ */ jsx26(
-                  "button",
-                  {
-                    type: "button",
-                    onClick: onSend,
-                    disabled: !canSend,
-                    "aria-label": sendLabel,
-                    className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
-                    children: isStreaming ? /* @__PURE__ */ jsx26(
-                      Loader212,
-                      {
-                        className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
-                        "aria-hidden": true
-                      }
-                    ) : /* @__PURE__ */ jsx26(Send, { className: sendButtonIconClassName, "aria-hidden": true })
-                  }
-                )
-              ]
-            }
-          )
-        ] })
+        aboveComposer && /* @__PURE__ */ jsx27("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx27(
+          ComposerFrame,
+          {
+            className: composerBoxClassName,
+            footerClassName: composerControlsClassName,
+            footer: showSendButton || micSlotOverride != null || micAvailable ? /* @__PURE__ */ jsxs20(Fragment4, { children: [
+              micSlotOverride == null && micAvailable && dictation.isRecording && // Live equalizer: reacts to the mic's frequency bands so the user
+              // sees they're being heard. Only mounted while recording, fed by the
+              // analyser the dictation hook already runs — no extra Web Audio here.
+              /* @__PURE__ */ jsx27(
+                AudioVisualizer,
+                {
+                  levels: dictation.bands,
+                  active: dictation.isRecording,
+                  variant: "bars",
+                  label: "Nivel del micr\xF3fono",
+                  className: voiceVisualizerClassName,
+                  barClassName: voiceVisualizerBarClassName
+                }
+              ),
+              micSlotOverride != null ? micSlotOverride : micAvailable && /* @__PURE__ */ jsx27(
+                ComposerMicSlot,
+                {
+                  available: true,
+                  recording: dictation.isRecording,
+                  busy: dictation.isTranscribing,
+                  onStart: startDictation,
+                  onStop: () => void dictation.stopRecording(),
+                  className: micSlotClassName,
+                  buttonClassName: micButtonClassName
+                }
+              ),
+              showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+              // still sends; this is the visible button. Disabled until there's
+              // trimmed text and nothing is streaming.
+              /* @__PURE__ */ jsx27(
+                "button",
+                {
+                  type: "button",
+                  onClick: onSend,
+                  disabled: !canSend,
+                  "aria-label": sendLabel,
+                  className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
+                  children: isStreaming ? /* @__PURE__ */ jsx27(
+                    Loader212,
+                    {
+                      className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
+                      "aria-hidden": true
+                    }
+                  ) : /* @__PURE__ */ jsx27(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+                }
+              )
+            ] }) : null,
+            children: /* @__PURE__ */ jsx27(
+              Composer,
+              {
+                message: input,
+                loading: isStreaming,
+                placeholder: composerPlaceholder,
+                onMessageChange: setInput,
+                onSend,
+                areaClassName: composerAreaClassName,
+                textareaClassName: composerTextareaClassName,
+                wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+                textareaRef: inputRef
+              }
+            )
+          }
+        )
       ] }) })
     ] })
   );
@@ -2136,15 +2188,15 @@ function AgentConversationSurface({
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback11,
-  useEffect as useEffect17,
+  useEffect as useEffect18,
   useState as useState17
 } from "react";
 import { Menu } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect16 } from "react";
+import { useEffect as useEffect17 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
-var CSS = `
+var CSS2 = `
 .fi-agent-workspace {
   --fi-space-1: 0.25rem;
   --fi-space-2: 0.5rem;
@@ -2184,17 +2236,17 @@ function ensureDensityStyle() {
   if (document.getElementById(DENSITY_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = DENSITY_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect16(() => {
+  useEffect17(() => {
     ensureDensityStyle();
   }, []);
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+import { jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -2242,10 +2294,10 @@ function AgentWorkspaceShell({
   const open = useCallback11(() => setIsOpen(true), []);
   const close = useCallback11(() => setIsOpen(false), []);
   const toggle = useCallback11(() => setIsOpen((v) => !v), []);
-  useEffect17(() => {
+  useEffect18(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect17(() => {
+  useEffect18(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -2258,7 +2310,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect17(() => {
+  useEffect18(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -2283,7 +2335,7 @@ function AgentWorkspaceShell({
     `fi-density-${density}`,
     className
   ].filter(Boolean).join(" ");
-  const content = /* @__PURE__ */ jsxs20(
+  const content = /* @__PURE__ */ jsxs21(
     "div",
     {
       "data-fi-workspace": "agent",
@@ -2292,12 +2344,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx27("header", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs20("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx27("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx27("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        header != null && /* @__PURE__ */ jsx28("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs21("main", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx28("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx28("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx27("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx28("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2327,13 +2379,13 @@ function AgentWorkspaceShell({
     containerType: "inline-size",
     containerName: "fi-sidebar"
   };
-  return /* @__PURE__ */ jsxs20(
+  return /* @__PURE__ */ jsxs21(
     "div",
     {
       "data-fi-workspace": "agent-with-sidebar",
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx27(
+        /* @__PURE__ */ jsx28(
           "nav",
           {
             "data-fi-slot": "sidebar",
@@ -2344,7 +2396,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx27(
+        drawerMode && /* @__PURE__ */ jsx28(
           "div",
           {
             onClick: close,
@@ -2360,7 +2412,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx27(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx28(
           "button",
           {
             type: "button",
@@ -2369,7 +2421,7 @@ function AgentWorkspaceShell({
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
             style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
-            children: /* @__PURE__ */ jsx27(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx28(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -2386,7 +2438,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect18 } from "react";
+import { useEffect as useEffect19 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -2396,7 +2448,7 @@ var FI_ITEM_ACTION_CLASS = "fi-item-action";
 var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
 var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
 var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
-var CSS2 = `
+var CSS3 = `
 .${FI_SIDEBAR_ITEM_CLASS} {
   display: flex;
   align-items: flex-start;
@@ -2499,17 +2551,17 @@ function ensureSidebarItemStyle() {
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_ITEM_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect18(() => {
+  useEffect19(() => {
     ensureSidebarItemStyle();
   }, []);
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment4, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2524,7 +2576,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsx29(
     "button",
     {
       type: "button",
@@ -2540,7 +2592,7 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx28(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx29(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState18(false);
@@ -2607,8 +2659,8 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !selected && !editing;
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx28("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
-  return /* @__PURE__ */ jsxs21(
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs22(
     "div",
     {
       className: joinClasses(
@@ -2629,10 +2681,10 @@ function AgentSidebarItem({
         }
       },
       children: [
-        /* @__PURE__ */ jsxs21("div", { className: FI_ITEM_BODY_CLASS, children: [
+        /* @__PURE__ */ jsxs22("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx28("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx29("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx29("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -2656,7 +2708,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx28(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx29(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -2664,7 +2716,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsx29(
     AgentSidebarItem,
     {
       selected,
@@ -2675,8 +2727,8 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment4, { children: [
-        /* @__PURE__ */ jsx28(
+      actions: !rename.editing && /* @__PURE__ */ jsxs22(Fragment5, { children: [
+        /* @__PURE__ */ jsx29(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -2692,7 +2744,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect19 } from "react";
+import { useEffect as useEffect20 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -2700,7 +2752,7 @@ var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
 var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
 var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
-var CSS3 = `
+var CSS4 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
   display: flex;
   flex-direction: column;
@@ -2747,17 +2799,17 @@ function ensureSidebarSectionStyle() {
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_SECTION_STYLE_ID;
-  el.textContent = CSS3;
+  el.textContent = CSS4;
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect19(() => {
+  useEffect20(() => {
     ensureSidebarSectionStyle();
   }, []);
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
+import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2776,13 +2828,13 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx30("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
     ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
   } : void 0;
-  return /* @__PURE__ */ jsxs22(
+  return /* @__PURE__ */ jsxs23(
     "section",
     {
       className: joinClasses2(
@@ -2792,12 +2844,12 @@ function AgentSidebarSection({
       ),
       "aria-label": ariaLabel,
       children: [
-        headerSlot ?? /* @__PURE__ */ jsxs22("div", { className: FI_SECTION_HEAD_CLASS, children: [
+        headerSlot ?? /* @__PURE__ */ jsxs23("div", { className: FI_SECTION_HEAD_CLASS, children: [
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx29("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx29("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx30("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx30("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );
