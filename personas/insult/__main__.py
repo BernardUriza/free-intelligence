@@ -121,17 +121,17 @@ def consolidate_facts(
         # No ANTHROPIC_API_KEY needed; OAuth Max lives ONLY in the runner.
         from personas.insult.core.llm.runner_judge_client import RunnerJudgeClient
 
-        runner_url = settings.insult_agent_runner_url
-        runner_token = settings.insult_agent_runner_token.get_secret_value()
+        runner_url = settings.persona_runner_url
+        runner_token = settings.persona_runner_token.get_secret_value()
         if not runner_url or not runner_token:
             raise RuntimeError(
-                "Consolidator requires INSULT_AGENT_RUNNER_URL + "
-                "INSULT_AGENT_RUNNER_TOKEN env vars. Set them on the job:\n"
+                "Consolidator requires PERSONA_RUNNER_URL + "
+                "PERSONA_RUNNER_TOKEN env vars. Set them on the job:\n"
                 "  az containerapp job secret set -n fact-consolidation -g insult-rg \\\n"
                 "      --secrets agent-runner-token=<TOKEN>\n"
                 "  az containerapp job update -n fact-consolidation -g insult-rg \\\n"
-                "      --set-env-vars INSULT_AGENT_RUNNER_URL=https://persona-runner... \\\n"
-                "                     INSULT_AGENT_RUNNER_TOKEN=secretref:agent-runner-token"
+                "      --set-env-vars PERSONA_RUNNER_URL=https://persona-runner... \\\n"
+                "                     PERSONA_RUNNER_TOKEN=secretref:agent-runner-token"
             )
         llm = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
         try:

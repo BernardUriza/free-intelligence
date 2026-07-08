@@ -523,10 +523,10 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     config = PersonaRuntimeConfig.from_env()
 
     memory = MemoryStore(config.postgres_url.get_secret_value())
-    runner_url = config.insult_agent_runner_url
-    runner_token = config.insult_agent_runner_token.get_secret_value()
+    runner_url = config.persona_runner_url
+    runner_token = config.persona_runner_token.get_secret_value()
     if not (runner_url and runner_token):
-        raise RuntimeError("persona gateway requires INSULT_AGENT_RUNNER_URL + token")
+        raise RuntimeError("persona gateway requires PERSONA_RUNNER_URL + token")
     # timeout_s=240 (vs the 120 default): a sibling's FIRST turn — cold session +
     # curated facts + behavioral guidance — measured 134.5s in prod (2026-07-06,
     # frugivoro meal plan). The 120s default read-timeout hung up 14s before the

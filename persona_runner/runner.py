@@ -4,7 +4,7 @@ Endpoint contract (called by `insult.core.llm.agent_client.AgentRunnerClient`
 from the Insult Container App, behind a per-user feature flag):
 
     POST /v1/turn
-    Authorization: Bearer <INSULT_AGENT_RUNNER_TOKEN>
+    Authorization: Bearer <PERSONA_RUNNER_TOKEN>
     Content-Type: application/json
     {
       "channel_id": "1489...",
@@ -88,7 +88,7 @@ PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/persona.md"))
 # the directory (path traversal) — anything else falls back to Insult.
 PERSONAS_DIR = Path(os.environ.get("PERSONAS_DIR", "/app/personas"))
 _PERSONA_ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
-RUNNER_AUTH_TOKEN = os.environ.get("INSULT_AGENT_RUNNER_TOKEN", "")
+RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("INSULT_AGENT_RUNNER_TOKEN", "")
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 # Close a per-channel ClaudeSDKClient after this many seconds of no turn

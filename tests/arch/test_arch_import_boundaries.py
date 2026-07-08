@@ -363,7 +363,7 @@ def test_shared_never_imports_personas() -> None:
 #     deps → khimeras_shared.{memory,style,vectors}; old paths kept as re-export
 #     shims). Gateway now imports MemoryStore from khimeras_shared.memory.
 #   - config edge CLOSED in PR-2 (the 3 runtime-infra fields — postgres_url,
-#     insult_agent_runner_url/token — now come from the neutral env-backed
+#     persona_runner_url/token — now come from the neutral env-backed
 #     khimeras_shared.persona.PersonaRuntimeConfig, NOT personas.insult.config).
 # Ratchet complete: gateway→persona is now ZERO, locked strict (empty baseline).
 GATEWAY_PERSONA_BASELINE: frozenset[tuple[str, str]] = frozenset()

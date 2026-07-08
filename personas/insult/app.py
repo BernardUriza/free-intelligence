@@ -65,8 +65,8 @@ def create_app() -> Container:
     # Built only when both URL and token are configured.
     agent_client: AgentRunnerClient | None = None
     judge_client: RunnerJudgeClient | None = None
-    runner_url = settings.insult_agent_runner_url
-    runner_token = settings.insult_agent_runner_token.get_secret_value()
+    runner_url = settings.persona_runner_url
+    runner_token = settings.persona_runner_token.get_secret_value()
     if runner_url and runner_token:
         agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token)
         judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)

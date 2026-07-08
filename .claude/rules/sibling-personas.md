@@ -26,7 +26,7 @@ The durable host is `persona-gateway`:
   bot with >1 replica connects N times and posts DUPLICATE replies; single
   instance is mandatory. **No ingress** (Discord is outbound-only). Secrets:
   `postgres-url`, `agent-runner-token`, `vultur-discord-token`; env mirrors
-  discord-bot's runner wiring (`INSULT_AGENT_RUNNER_URL` plain value).
+  discord-bot's runner wiring (`PERSONA_RUNNER_URL` plain value).
 - **`cd.yml`** builds + deploys + startup-health-checks (`persona_gateway_starting`)
   the gateway with the same SHA as the rest, so `persona_gateway/` or `shared/`
   changes can't lag on a hand-pushed tag.
@@ -41,7 +41,7 @@ corpus bug. In order:
    process + its env). A sibling has NO Azure Container App of its own unless one
    was stood up — confirm it exists before blaming the corpus/RAG.
 2. **Is its env present?** The gateway needs `POSTGRES_URL`,
-   `INSULT_AGENT_RUNNER_URL`, `INSULT_AGENT_RUNNER_TOKEN`, and its
+   `PERSONA_RUNNER_URL`, `PERSONA_RUNNER_TOKEN`, and its
    `<PERSONA>_DISCORD_TOKEN`. Missing any → it crashes at
    `PersonaRuntimeConfig.from_env()` / logs `persona_gateway_no_token` and never
    starts. (The local `.env` historically lacked these — only Insult's

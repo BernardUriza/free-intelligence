@@ -22,8 +22,8 @@ Returns the same `LLMResponse` dataclass.
 
 OAuth Max only. The runner has the credentials in
 `~/.claude/.credentials.json`. The runner is reached via
-`INSULT_AGENT_RUNNER_URL` with a shared bearer in
-`INSULT_AGENT_RUNNER_TOKEN`. On 429 quota exhaustion the runner returns
+`PERSONA_RUNNER_URL` with a shared bearer in
+`PERSONA_RUNNER_TOKEN`. On 429 quota exhaustion the runner returns
 in-character error text; the caller surfaces it normally.
 
 ## What the runner IGNORES (intentionally)
@@ -174,7 +174,7 @@ class AgentRunnerClient:
     """The turn backend — delegates each chat turn to the runner.
 
     Constructor takes the runner URL and bearer auth. Both come from env
-    (`INSULT_AGENT_RUNNER_URL` + `INSULT_AGENT_RUNNER_TOKEN`).
+    (`PERSONA_RUNNER_URL` + `PERSONA_RUNNER_TOKEN`).
     """
 
     def __init__(

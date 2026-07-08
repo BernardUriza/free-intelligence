@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 import structlog
-from pydantic import SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 log = structlog.get_logger()
@@ -117,8 +117,14 @@ class Settings(BaseSettings):
     # through `AgentRunnerClient` (/v1/turn) and every one-shot utility call
     # through `RunnerJudgeClient` (/v1/judge) — both on OAuth Max. These two
     # creds are the bot's ONLY LLM backend.
-    insult_agent_runner_url: str = ""
-    insult_agent_runner_token: SecretStr = SecretStr("")
+    persona_runner_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("PERSONA_RUNNER_URL", "INSULT_AGENT_RUNNER_URL"),
+    )
+    persona_runner_token: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("PERSONA_RUNNER_TOKEN", "INSULT_AGENT_RUNNER_TOKEN"),
+    )
 
     # When the agent runner times out / 5xx's / rate-limits, invite ALICE to
     # take the turn instead of failing the user-facing message. ALICE reads
