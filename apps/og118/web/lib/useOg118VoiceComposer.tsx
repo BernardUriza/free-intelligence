@@ -117,6 +117,7 @@ export function useOg118VoiceComposer(audioQueueStore: AudioQueueStore): Og118Vo
       onPrimary={() => { void recording.stopRecording().then(() => queue.reload()); }}
       onDiscard={() => { recording.cancelRecording(); }}
       primaryActionLabel="Guardar"
+      variant="row"
       className="og-audio-draft og-audio-draft--paused"
     />
   ) : draftArtifact ? (
@@ -127,6 +128,7 @@ export function useOg118VoiceComposer(audioQueueStore: AudioQueueStore): Og118Vo
       onRetry={queue.retryTranscription}
       onDiscard={queue.deleteArtifact}
       primaryActionLabel="Transcribir"
+      variant="row"
       className="og-audio-draft"
     />
   ) : null;

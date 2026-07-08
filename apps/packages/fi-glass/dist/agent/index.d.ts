@@ -231,6 +231,14 @@ interface AgentConversation {
 }
 declare function useAgentConversation(agent: AgentHook, options?: UseAgentConversationOptions): AgentConversation;
 
+/**
+ * fi-glass · conversation-surface/types — the public contract of
+ * AgentConversationSurface. The props interface is the surface's documented
+ * API (every slot/copy/style hook a consumer can inject); it lives here so the
+ * orchestrator component stays readable. Re-exported unchanged from
+ * `../AgentConversationSurface` — consumers never import from this path.
+ */
+
 type AgentConversationSurfaceLayout = 'viewport' | 'contained';
 interface AgentConversationSurfaceProps {
     /** The conversation state + actions from `useAgentConversation`. */
@@ -260,6 +268,16 @@ interface AgentConversationSurfaceProps {
     emptyState?: ReactNode;
     /** Slot rendered just above the composer (e.g. an app's auth banner). */
     aboveComposer?: ReactNode;
+    /**
+     * Header slot INSIDE the composer box (ComposerFrame's header) — drafts and
+     * previews that belong to the message being composed, e.g. a recorded-audio
+     * draft (COMPOSER-FRAME-2). Renders between the box edge and the textarea;
+     * the wrapper exists only while the slot is filled. Contrast with
+     * `aboveComposer`, which stacks OUTSIDE the box (system banners, queues).
+     */
+    composerHeader?: ReactNode;
+    /** Class for the composer header slot wrapper (e.g. a consumer's divider row). */
+    composerHeaderClassName?: string;
     /** Pass-through styling/icons for the live-turn AgentPanel. */
     agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
     /**
@@ -288,7 +306,7 @@ interface AgentConversationSurfaceProps {
     composerControlsClassName?: string;
     /**
      * When true (and no `renderActions` override), each transcript message gets a
-     * default {@link CopyButton} in the bubble's actions slot. Default: false
+     * default CopyButton in the bubble's actions slot. Default: false
      * (the dense agentic surface stays action-free unless the app opts in). The
      * live streaming message never gets a copy action.
      */
@@ -422,7 +440,8 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
-declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, agentPanelProps, showPersistedTrace, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
+
+declare function AgentConversationSurface({ conversation, layout, composerPlaceholder, newChatLabel, showNewChatButton, emptyState, aboveComposer, composerHeader, composerHeaderClassName, agentPanelProps, showPersistedTrace, composerBoxClassName, composerAreaClassName, composerTextareaClassName, composerControlsClassName, showCopyAction, renderHeader, renderBadge, renderActions, messageBubbleClassName, voiceAdapter, micSlotClassName, micButtonClassName, onVoiceError, voiceVisualizerClassName, voiceVisualizerBarClassName, showSendButton, sendButtonClassName, sendButtonIconClassName, sendLabel, composerAppend, onComposerAppendConsumed, micSlotOverride, errorClassName, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, autoScroll, scrollToBottomLabel, scrollToBottomClassName, scrollToBottomIconClassName, collapseUserMessages, collapseMaxHeight, showMoreLabel, showLessLabel, collapseToggleClassName, }: AgentConversationSurfaceProps): react.JSX.Element;
 
 interface ScrollToBottomButtonProps {
     onClick: () => void;

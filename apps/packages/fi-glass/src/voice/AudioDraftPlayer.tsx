@@ -52,6 +52,15 @@ export interface AudioDraftPlayerProps {
   pausedPreview?: Blob | null;
   /** Label for the primary action button (default: "Transcribir"). */
   primaryActionLabel?: string;
+  /**
+   * Visual chrome (COMPOSER-FRAME-2):
+   *  - `"card"` (default): standalone frosted card — the sibling-card layout
+   *    existing consumers render above the composer.
+   *  - `"row"`: bare flex row for living INSIDE the composer box (the
+   *    ComposerFrame header slot) — no background, border, radius or shadow;
+   *    the box already provides the chrome.
+   */
+  variant?: 'card' | 'row';
   className?: string;
 }
 
@@ -64,6 +73,7 @@ export function AudioDraftPlayer({
   onResume,
   pausedPreview = null,
   primaryActionLabel = 'Transcribir',
+  variant = 'card',
   className = '',
 }: AudioDraftPlayerProps) {
   useTouchTargetStyle();
@@ -102,7 +112,11 @@ export function AudioDraftPlayer({
 
   return (
     <div
-      className={`fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`}
+      className={
+        variant === 'row'
+          ? `fi-audio-draft fi-audio-draft--row flex items-center gap-3 px-2 py-1.5 ${className}`
+          : `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`
+      }
       role="group"
       aria-label="Audio grabado"
     >

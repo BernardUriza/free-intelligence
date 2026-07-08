@@ -3040,6 +3040,7 @@ function AudioDraftPlayer({
   onResume,
   pausedPreview = null,
   primaryActionLabel = "Transcribir",
+  variant = "card",
   className = ""
 }) {
   useTouchTargetStyle();
@@ -3073,7 +3074,7 @@ function AudioDraftPlayer({
   return /* @__PURE__ */ jsxs15(
     "div",
     {
-      className: `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
+      className: variant === "row" ? `fi-audio-draft fi-audio-draft--row flex items-center gap-3 px-2 py-1.5 ${className}` : `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
       role: "group",
       "aria-label": "Audio grabado",
       children: [
