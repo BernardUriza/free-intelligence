@@ -186,21 +186,21 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-06-21 · GATE 3 (Auth real) SHIPPED — Auth0 live en staging.og118.ai: primitiva reusable fi_runner.auth (#268), ownership por cuenta (#269, A no ve lo de B), backend dual mode DESPLEGADO + verificado en staging (bearer legacy O JWT Auth0), apps Auth0 creadas, frontend Auth0 SPA + cutover SWA (#270/#272/#273/#274). Round-trip Google login → JWT → /chat/stream → 200 verificado e2e (localhost→staging-backend); staging renderiza el login. Falta solo: smoke humano del click en staging-host + flip opcional a auth0-only. · proj-account RESUELTO (corpus_id server-side, #267) · Canary Projects E2E verificado en prod (#262/#263) + persistencia volumen Azure Files · Continuidad sin store (#260) · Pendiente: smoke humano de voz (FIGLASS-18)</p>
+  <p class="subtitle">Actualizado 2026-07-08 · Voz DESBLOQUEADA: gateway susurro (sus.bernarduriza.com) verificado live con JWT Auth0 real — qa-tts-502 y qa-stt-502 CERRADOS · Rediseño del composer SHIPPED (4 PRs hoy: #321 scrubber temado + fix StrictMode del player, #322 ComposerFrame header/body/footer, #323 draft de audio DENTRO del composer + refactor conversation-surface, #325 cruel-critic fixes) · Antes: GATE 3 Auth0 SHIPPED (#268/#269/#272/#273/#274), UX-DISTRIBUTION 6/6 (#307–#312), continuidad external-engine (#316), conversaciones cloud (#320), honesty guard (#314) · Pendiente del rediseño: chip ELEMENTO + Resonance al footer del frame</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
   </div>
 
   <div class="rc-status">
-    <div class="rc-head"><strong>Release Candidate Status</strong> — <code>RC-BLOCKED-BY-HUMAN/DEPLOY-VERIFICATION</code> (2026-06-30)</div>
-    <div>Checks completados: <strong>45/47</strong> · P0 abiertos: <strong>0</strong> · P1 autónomos abiertos: <strong>0</strong></div>
-    <div style="margin-top:0.5rem">Pendientes — ambos requieren manos/oídos/sesión reales, no se marcan DONE sin smoke vivo (Art. 2, no fake-green):</div>
+    <div class="rc-head"><strong>Release Candidate Status</strong> — <code>RC-BLOCKED-BY-HUMAN-SMOKE</code> (2026-07-08)</div>
+    <div>Checks completados: <strong>46/47</strong> · P0 abiertos: <strong>0</strong> · P1 autónomos abiertos: <strong>0</strong></div>
+    <div style="margin-top:0.5rem">Cerrado desde el 06-30: <strong>VOICE-GATEWAY-AUTH-SMOKE</strong> — endpoints TTS/STT apuntaban al Cognitive regional (sin tts/whisper) en vez del gateway susurro; fix en GitHub vars/secrets + ACA, <strong>verificado live con JWT Auth0 real</strong> (qa-tts-502 / qa-stt-502 abajo).</div>
+    <div style="margin-top:0.5rem">Pendiente único — requiere oídos reales, no se marca DONE sin smoke vivo (Art. 2):</div>
     <ul>
-      <li><strong>AUDIO-HUMAN-SMOKE</strong> — re-smoke del audio durable FIGLASS (pausa/reanuda → preview audible con ambos segmentos → stop → transcribir). Requiere mic + oídos de Bernard.</li>
-      <li><strong>VOICE-GATEWAY-AUTH-SMOKE</strong> — TTS <code>/tts/synthesize</code> y STT <code>/stt/transcribe</code> contra el gateway susurro (<code>sus.bernarduriza.com</code>). Requiere config deploy (vars/secrets + ACA) + smoke vivo Auth0-gated. Sin commit de fix en main; sigue OPEN.</li>
+      <li><strong>AUDIO-HUMAN-SMOKE</strong> — veredicto audible de Bernard sobre el audio durable (preview con ambos segmentos audible, TTS suena bien). La mitad MECÁNICA quedó re-verificada 2026-07-08 con mic real en la anatomía nueva: grabar → pausar (fila paused en el header del composer) → reanudar → stop → draft dentro de la caja → play avanza 0:02/0:05 → descartar limpia el slot. Falta solo el juicio perceptual (Regla 17: el metric es proxy, los oídos son ground truth).</li>
     </ul>
-    <div style="margin-top:0.5rem">Próximo actor: <strong>Bernard</strong> (mic/audio + sesión Auth0) / ops (confirmar secrets+deploy del gateway). Runbook ejecutable: <code>GATE4-HUMAN-SMOKE-RUNBOOK.md</code>.</div>
+    <div style="margin-top:0.5rem">Próximo actor: <strong>Bernard</strong> (oídos + daily-driver). Runbook ejecutable: <code>GATE4-HUMAN-SMOKE-RUNBOOK.md</code>.</div>
   </div>
 
   <!-- GATES -->
@@ -359,6 +359,34 @@
       <span class="item-tag">B3-OG118-MOBILE-1</span></label>
   </div>
 
+  <!-- REDISEÑO DEL COMPOSER 2026-07-08 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Rediseño del composer — anatomía única header/body/footer (2026-07-08)</span>
+      <span class="section-badge badge-active">4/5 — falta footer (ELEMENTO + Resonance)</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Scrubber de audio temado + fix StrictMode del player engine</div>
+      <div class="item-note">PR #321 (merge 8b1ec0c2). Origen: "esta zona se ve rara" — el scrubber era el input range NATIVO del browser (accent-* solo tiñe, no re-dibuja). fi-glass ahora inyecta stylesheet propio (track 4px, fill currentColor vía --fi-audio-progress, thumb 12px); consumers eligen color con text-*. Bonus cazado al verificar: StrictMode disponía el controller memoizado de useAudioPlayer → todo load() era no-op silencioso (player muerto en dev); load() revive un engine disposed, con test de regresión. Verificado live: grabación real, duración carga, fill sigue el playhead.</div></div>
+      <span class="item-tag">#321</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">ComposerFrame — primitive de anatomía header/body/footer (COMPOSER-FRAME-1)</div>
+      <div class="item-note">PR #322 (merge cf04fc6d). Consenso investigado (ChatGPT, Claude.ai, Gemini, WhatsApp, Vercel AI Elements PromptInput): UNA tarjeta con header (drafts/previews), body (textarea, SIN wrapper — DOM byte-idéntico) y footer (controles). Spacing tokenizado (--fi-space-2). AgentConversationSurface lo adopta como no-op visual (computados idénticos, verificado live). El paso lo dictó el coagent: "crear la caja antes de ordenar lo que va dentro".</div></div>
+      <span class="item-tag">#322</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Draft de audio DENTRO del composer (header slot) + refactor conversation-surface</div>
+      <div class="item-note">PR #323 (merge 8d0cdfc4). El draft (y el estado paused) salen del stack de acreción aboveComposer y viven en el header del frame como fila sin chrome de tarjeta (AudioDraftPlayer variant="row") con separador sutil — patrón WhatsApp/Claude: el draft sobre el textarea al que cae su transcript. Incluye el refactor de la sesión paralela (monolito 710 líneas → orquestador 286 + conversation-surface/ 12 archivos), commiteado como cierre coherente (git.md: nunca amputar trabajo paralelo). E2E con mic real: draft renderiza en data-fi-composer-slot=header, fuera del stack externo.</div></div>
+      <span class="item-tag">#323</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Cruel-critic del arco: load por VALOR del source + guard de slot false</div>
+      <div class="item-note">PR #325 (merge 57a14192). GRAVE: RichAudioPlayer cargaba por identidad de objeto → cualquier re-render del padre reseteaba playback a 0 (y con autoPlay la re-arrancaba: ticks de streaming, polls de Resonance). Ahora keyea por valor (Blob por ref, url por string); probado live: draft siguió reproduciendo al abrir el dropdown ELEMENTO. IMPORTANT: slots del ComposerFrame trataban false como contenido (fila fantasma) — guard + test. Deuda registrada sin bloquear: key={i} en transcript (colapso se filtra entre conversaciones), error.message crudo en TurnErrorBanner, race de appends rápidos en useComposerAppend.</div></div>
+      <span class="item-tag">#325</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Chip ELEMENTO + botón Resonance al footer del frame — matar la barra suelta y el chip huérfano</div>
+      <div class="item-note">Último paso del target: ELEMENTO como select del footer izquierdo (patrón model-picker de ChatGPT/AI Elements), Resonance como botón circular waveform junto al mic (patrón Gemini Live) — el estado de llamada solo aparece durante llamada activa. Con esto la zona queda en UNA sola superficie: banners de sistema + cola de audios como únicos elementos externos. El coagent quedó instruido para dictar el corte cuando Bernard dé el GO.</div></div>
+      <span class="item-tag">composer-footer</span></label>
+  </div>
+
   <!-- DAILY DRIVER -->
   <div class="section">
     <div class="section-header">
@@ -372,7 +400,7 @@
 
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">Dictado por voz → texto en composer → enviar → respuesta con TTS → flujo completo</div>
-      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30: el gateway susurro YA está wireado y verificado vivo (ver qa-tts-502 + qa-stt-502: TTS 200 audio real, STT alcanza Whisper real). La mitad cliente (captura/visualizer/draft/playback local) ya pasa (qa-pass-voicecapture). El lazo completo resta SOLO del round-trip Auth0 por la UI de og118 + match del secret en ACA.</div></div>
+      <div class="item-note">OPEN (solo juicio humano) — UPDATE 2026-07-08: el gateway susurro quedó CERRADO y verificado live con JWT Auth0 real (qa-tts-502/qa-stt-502). La mitad cliente re-verificada hoy en la anatomía nueva del composer (draft en el header slot, mic real, playback avanza). Lo que resta es el veredicto de daily-driver de Bernard usando el lazo completo en su día real.</div></div>
       <span class="item-tag">DD-voice</span></label>
 
     <label class="item"><input type="checkbox">
@@ -510,14 +538,14 @@
       <span class="section-title">QA stress test — staging full-feature sweep (2026-06-27)</span>
       <span class="section-badge badge-pending">2 P1 · 3 P2 PENDIENTES (reconciliado 2026-06-28)</span>
     </div>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">[P1] TTS "Escuchar (Nova)" broken — /tts/synthesize returns 502, upstream Azure OpenAI provider returns 404</div>
-      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30 (verificado vivo, no asumido): el diagnóstico "404 upstream / sin fix / no corroborado" del 06-28 está SUPERADO. La config deploy-time YA está completa: GitHub vars OG118_TTS_ENDPOINT=sus.bernarduriza.com + OG118_TTS_DEPLOYMENT=tts (set 06-27) + secret OG118_TTS_API_KEY (06-27); el CD (og118-backend.yml) los wirea a ACA merge-only y corrieron 6 deploys exitosos tras setearlos (#288…#301). Probe autenticado directo al gateway con la key og118 (~/.secrets/susurro-key-og118.txt): POST /openai/deployments/tts/audio/speech → 200, 31680 bytes de audio MPEG real. El gateway sirve la ruta (NO 404). Resta SOLO: (a) round-trip por la UI de og118 con sesión Auth0, (b) confirmar que el secret guardado en ACA == esta key (set el mismo día, riesgo bajo).</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] TTS "Escuchar (Nova)" broken — /tts/synthesize returns 502, upstream Azure OpenAI provider returns 404</div>
+      <div class="item-note">CERRADO (verificado live). Causa raíz: los endpoints apuntaban al Cognitive regional (insult-openai, sin deployments tts/whisper) en vez del gateway susurro sus.bernarduriza.com. Fix en GitHub vars/secrets + ACA viva; round-trip verificado live con JWT Auth0 real por la UI de og118. (Historial del diagnóstico 06-28→06-30 en git blame de esta nota.)</div></div>
       <span class="item-tag">qa-tts-502</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">[P1] STT "Transcribir" broken — /stt/transcribe returns 502, upstream provider returns 404 (NOT a MIME bug)</div>
-      <div class="item-note">OPEN (casi cerrado) — RECONCILE 2026-06-30 (verificado vivo): mismo desenlace que qa-tts-502. GitHub vars OG118_STT_ENDPOINT=sus.bernarduriza.com + OG118_STT_DEPLOYMENT=whisper + secret OG118_STT_API_KEY (set 06-27), wireados a ACA por el CD (6 deploys post-set). Probe autenticado al gateway con la key og118: POST /openai/deployments/whisper/audio/transcriptions → autentica y proxea al Whisper REAL en North Central US (respondió 429 RateLimitReached tier S0, transitorio — NO 404/config). La ruta existe y el upstream está vivo. La hipótesis MIME sigue REFUTADA. Resta SOLO el round-trip Auth0 por la UI + match de secret en ACA.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] STT "Transcribir" broken — /stt/transcribe returns 502, upstream provider returns 404 (NOT a MIME bug)</div>
+      <div class="item-note">CERRADO (verificado live). Misma causa raíz y mismo fix que qa-tts-502 (gateway susurro + vars/secrets + ACA); verificado live con JWT Auth0 real. La hipótesis MIME quedó refutada en el camino.</div></div>
       <span class="item-tag">qa-stt-502</span></label>
 
     <label class="item"><input type="checkbox" checked>
@@ -586,7 +614,7 @@
       <span class="item-tag">qa-pass-console</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1): glass-box trace #289 + upload UI #290 + a11y 24cc558a + clearTranscribed #244 CERRADOS con receipt; P1 supervivientes = qa-tts-502 + qa-stt-502 · UPDATE 2026-06-30: gateway susurro verificado vivo (TTS 200 / STT alcanza Whisper), resta solo round-trip Auth0 + match de secret en ACA</footer>
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1) · UPDATE 2026-06-30: gateway susurro verificado vivo · UPDATE 2026-07-08: qa-tts-502/qa-stt-502 CERRADOS (round-trip live con JWT Auth0 real) + rediseño del composer 4/5 (#321 scrubber+StrictMode, #322 ComposerFrame, #323 draft-in-composer + refactor conversation-surface, #325 cruel-critic) — pendiente footer (ELEMENTO+Resonance); RC 46/47, único bloqueo = oídos de Bernard</footer>
 </div>
 
 <script>
