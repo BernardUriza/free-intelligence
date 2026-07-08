@@ -12,6 +12,14 @@ export {
   type IndexedDBConversationLibraryOptions,
 } from './IndexedDBConversationLibrary';
 export {
+  RemoteConversationLibrary,
+  type RemoteConversationLibraryOptions,
+} from './RemoteConversationLibrary';
+export {
+  migrateConversationLibrary,
+  type MigrateConversationsResult,
+} from './migrateConversationLibrary';
+export {
   useConversationLibrary,
   type UseConversationLibraryOptions,
   type ConversationLibraryState,
