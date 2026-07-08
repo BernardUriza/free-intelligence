@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Og118ProjectsSection } from '../Og118ProjectsSection';
+import { Og118ProjectsSection } from '../projects';
 import type { Og118Project } from '../../lib/useOg118Projects';
 
 const projects: Og118Project[] = [
