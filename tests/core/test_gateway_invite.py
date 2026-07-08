@@ -96,3 +96,45 @@ def test_health_is_public():
         r = http.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+
+
+def test_invite_persona_id_routes_to_that_persona():
+    # HOST 5/6 slice C: the LLM router cutover summons vultur/frugivoro through
+    # the SAME endpoint via the optional persona_id field.
+    alice = _ready_client()
+    vultur = _ready_client()
+    app = build_invite_app({INVITE_PERSONA_ID: alice, "vultur": vultur}, TOKEN)
+    payload = {**PAYLOAD, "persona_id": "vultur", "invited_by": "host_router"}
+    with TestClient(app) as http:
+        r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 202
+    vultur.respond_to_invite.assert_called_once()
+    alice.respond_to_invite.assert_not_called()
+    kwargs = vultur.respond_to_invite.call_args.kwargs
+    assert kwargs["invited_by"] == "host_router"
+
+
+def test_invite_omitted_persona_id_keeps_alice_wire_contract():
+    # RESISTANCE: the legacy caller sends no persona_id — alice answers, exactly
+    # as before the field existed.
+    alice = _ready_client()
+    vultur = _ready_client()
+    app = build_invite_app({INVITE_PERSONA_ID: alice, "vultur": vultur}, TOKEN)
+    with TestClient(app) as http:
+        r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 202
+    alice.respond_to_invite.assert_called_once()
+    vultur.respond_to_invite.assert_not_called()
+    assert alice.respond_to_invite.call_args.kwargs["invited_by"] == "insult_rest"
+
+
+def test_invite_explicit_unknown_persona_is_400():
+    # RESISTANCE: an explicitly-requested persona the gateway doesn't host is a
+    # caller bug (400), never a silent alice fallback and never a retryable 503.
+    alice = _ready_client()
+    app = build_invite_app({INVITE_PERSONA_ID: alice}, TOKEN)
+    payload = {**PAYLOAD, "persona_id": "gandalf"}
+    with TestClient(app) as http:
+        r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 400
+    alice.respond_to_invite.assert_not_called()

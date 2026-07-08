@@ -205,6 +205,23 @@ class Settings(BaseSettings):
     # shipping the wiring.
     host_router_cutover_enabled: bool = False
 
+    # HOST 5/6 slice C — the gpt-4.1 LLM router CUTOVER. Defaults False. When True
+    # the cog wires the context-aware LLM router ONTO the critical path for
+    # IMPLICIT turns only (no @mention/prefix routing already decided): a new
+    # pipeline stage after memory_store calls route(text, recent_context) with a
+    # hard timeout; a sibling decision suppresses Insult's reply and summons that
+    # persona through the gateway's /invite (its own face, canonical delivery).
+    # Fail-safe on every edge — timeout, router fault, budget cap, non-202 invite
+    # → Insult answers as today (a routing fault must never produce a mute turn).
+    # Explicit addressing ALWAYS outranks the LLM decision. Flipping it True in
+    # prod is a separate gated act (spend + latency on routed turns).
+    llm_router_cutover_enabled: bool = False
+
+    # Hard ceiling for the on-path routing call under the LLM cutover. Past it
+    # the turn falls back to Insult (fail-safe), the reply is never held hostage
+    # by a slow Azure completion.
+    llm_router_cutover_timeout_seconds: float = 3.0
+
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model
     # (deploy metadata, plus retired settings — ANTHROPIC_API_KEY, LLM_MAX_TOKENS,

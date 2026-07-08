@@ -32,6 +32,7 @@ from collections.abc import Iterable
 import discord
 import structlog
 
+from khimeras_shared.attachments import process_attachments
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
@@ -297,8 +298,9 @@ class PersonaClient(discord.Client):
         channel_name = getattr(message.channel, "name", None)
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
-        if not ask:
-            return  # bare @mention with no text — nothing to review
+        attachment_blocks = await self._process_attachments(message)
+        if not ask and not attachment_blocks:
+            return  # bare @mention with no text and no readable attachment
 
         # Recent context BEFORE storing the current turn, so it isn't duplicated.
         recent = await self.memory.get_recent(channel_id, RECENT_LIMIT)
@@ -315,7 +317,11 @@ class PersonaClient(discord.Client):
             discord_message_id=str(message.id),
         )
 
-        messages = [*format_context(recent), {"role": "user", "content": ask}]
+        user_content: str | list[dict] = ask
+        if attachment_blocks:
+            text_blocks = [{"type": "text", "text": ask}] if ask else []
+            user_content = [*text_blocks, *attachment_blocks]
+        messages = [*format_context(recent), {"role": "user", "content": user_content}]
         await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
@@ -325,6 +331,30 @@ class PersonaClient(discord.Client):
             messages=messages,
             react_to=message,
         )
+
+    async def _process_attachments(self, message: discord.Message) -> list[dict]:
+        """Image/document attachments of the summoning message → Anthropic blocks.
+
+        Reuses Insult's shared processor (5MB cap with image compression,
+        png/jpg/gif/webp + text/pdf, in-character rejection notices). The blocks
+        ride the final user message; `AgentRunnerClient` extracts them and the
+        runner builds the multimodal SDK input — same E2E path Insult uses, so
+        siblings finally SEE images (P0 2026-07-07: "no llegó imagen a mi mesa
+        de disección"). Invite turns have no source message, so they carry none.
+        """
+        if not message.attachments or message.flags.voice:
+            return []
+        blocks, errors = await process_attachments(message.attachments)
+        for err in errors:
+            with contextlib.suppress(discord.HTTPException):
+                await message.channel.send(err)
+        log.info(
+            "persona_gateway_attachments_processed",
+            persona_id=self.persona.persona_id,
+            blocks=len(blocks),
+            errors=len(errors),
+        )
+        return blocks
 
     async def respond_to_invite(
         self,
@@ -357,10 +387,16 @@ class PersonaClient(discord.Client):
             return
 
         recent = await self.memory.get_recent(channel_id, RECENT_LIMIT)
-        instruction = (
-            f"[Insult te invitó a este turno. Razón: {reason}] "
-            "Lee el hilo de arriba y responde con la mirada que esa razón pide."
-        )
+        if invited_by == "host_router":
+            instruction = (
+                f"[El turno es tuyo: la conversación del canal es la que tú traías. Contexto: {reason}] "
+                "Lee el hilo de arriba y responde directo al último mensaje, en tu voz."
+            )
+        else:
+            instruction = (
+                f"[Insult te invitó a este turno. Razón: {reason}] "
+                "Lee el hilo de arriba y responde con la mirada que esa razón pide."
+            )
         messages = [*format_context(recent), {"role": "user", "content": instruction}]
         log.info(
             "persona_gateway_invite_accepted",

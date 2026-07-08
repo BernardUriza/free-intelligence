@@ -556,18 +556,42 @@ def build_router_budget(settings: Any) -> Any | None:
     """Build the gpt-4.1 router's weekly spend cap — or ``None`` (HOST 5/6).
 
     Returns a process-level ``RouterBudget`` (single-replica → one event-loop owns
-    the counter) ONLY when the LLM router is enabled, since the cap only has meaning
-    where there is spend to cap. ``$5/week`` by default (Bernard, 2026-06-21),
-    overridable via ``ROUTER_WEEKLY_BUDGET_USD``. ``demux_ai`` import deferred so the
-    composition root stays the one place that touches it; the cog forwards the handle
-    onto ``TurnRuntimeDeps.router_budget`` and the LLM-shadow stage consults it."""
-    if not getattr(settings, "llm_shadow_router_enabled", False):
+    the counter) ONLY when a gpt-4.1 router is enabled (shadow OR cutover), since
+    the cap only has meaning where there is spend to cap. ``$5/week`` by default
+    (Bernard, 2026-06-21), overridable via ``ROUTER_WEEKLY_BUDGET_USD``. ``demux_ai``
+    import deferred so the composition root stays the one place that touches it; the
+    cog forwards the handle onto ``TurnRuntimeDeps.router_budget`` and the router
+    stages consult it."""
+    if not (
+        getattr(settings, "llm_shadow_router_enabled", False) or getattr(settings, "llm_router_cutover_enabled", False)
+    ):
         return None
     from demux_ai.router_budget import RouterBudget
 
     budget = RouterBudget()
     log.info("router_budget_built", cap_usd=budget.cap_usd)
     return budget
+
+
+def build_llm_router_cutover_route(settings: Any) -> Any | None:
+    """Build the LLM router CUTOVER callable — or ``None`` (HOST 5/6 slice C).
+
+    Returns the bound ``DirectAzureLLMRouter.route`` (async
+    ``(text, context) -> LLMShadowDecision``) only when
+    ``settings.llm_router_cutover_enabled`` is True. Always the DIRECT transport:
+    the decision now sits ON the turn's critical path, so the ~9.5k-token agentic
+    harness (multi-second codex call) is disqualified — a one-word classification
+    must cost hundreds of tokens and land inside the cutover timeout. The
+    ``demux_ai`` import is DEFERRED inside the enabled branch; the cog forwards
+    the handle onto ``TurnRuntimeDeps.llm_router_cutover_route``."""
+    if not getattr(settings, "llm_router_cutover_enabled", False):
+        log.info("llm_router_cutover_disabled")
+        return None
+    from demux_ai.llm_shadow_router import DirectAzureLLMRouter
+
+    router = DirectAzureLLMRouter()
+    log.info("llm_router_cutover_built", transport="direct")
+    return router.route
 
 
 def build_host_router_cutover(settings: Any) -> Any | None:

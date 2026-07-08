@@ -72,6 +72,8 @@ async def execute_invoke_alice(
     channel_id: str,
     guild_id: str | None = None,
     channel_name: str | None = None,
+    persona_id: str | None = None,
+    invited_by: str | None = None,
 ) -> bool:
     """Fire-and-forget POST to ALICE's /invite endpoint.
 
@@ -110,6 +112,10 @@ async def execute_invoke_alice(
         "channel_name": channel_name,
         "reason": reason,
     }
+    if persona_id:
+        payload["persona_id"] = persona_id
+    if invited_by:
+        payload["invited_by"] = invited_by
 
     try:
         # follow_redirects=True because Azure Container Apps internal ingress

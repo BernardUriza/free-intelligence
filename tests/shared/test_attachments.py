@@ -1,9 +1,9 @@
-"""Tests for insult.cogs.chat.attachments — file classification and processing."""
+"""Tests for khimeras_shared.attachments — file classification and processing."""
 
 import io
 from unittest.mock import AsyncMock
 
-from personas.insult.cogs.chat.attachments import (
+from khimeras_shared.attachments import (
     MAX_ATTACHMENT_SIZE,
     AttachmentType,
     classify_attachment,

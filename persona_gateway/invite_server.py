@@ -39,10 +39,11 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
-# Which persona Insult's /invite summons. The legacy endpoint was ALICE-only and
-# Insult's `invoke_alice` tool carries no persona_id, so the contract maps /invite
-# → the "alice" persona. Kept as a constant (not a request field) to preserve the
-# exact wire contract the caller already uses.
+# Which persona /invite summons when the request carries no persona_id. The
+# legacy endpoint was ALICE-only and Insult's `invoke_alice` tool carries no
+# persona_id, so the bare wire contract still maps /invite → "alice"; the
+# optional `persona_id` field (HOST 5/6 slice C) lets the LLM router cutover
+# summon any gateway persona through the same endpoint.
 INVITE_PERSONA_ID = "alice"
 
 
@@ -57,6 +58,14 @@ class InviteRequest(BaseModel):
         min_length=1,
         max_length=1000,
         description="Free-text reason the persona is summoned. Instruction, not user message.",
+    )
+    persona_id: str | None = Field(
+        default=None,
+        description="Gateway persona to summon. Omitted → alice (legacy wire contract).",
+    )
+    invited_by: str | None = Field(
+        default=None,
+        description="Summon source label for telemetry/instruction framing. Omitted → insult_rest.",
     )
 
 
@@ -91,9 +100,17 @@ def build_invite_app(personas: dict[str, PersonaClient], expected_token: str) ->
         if not hmac.compare_digest(provided, expected_token):
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        client = personas.get(INVITE_PERSONA_ID)
+        persona_id = req.persona_id or INVITE_PERSONA_ID
+        client = personas.get(persona_id)
+        if client is None and req.persona_id:
+            log.warning(
+                "persona_gateway_invite_unknown_persona",
+                persona_id=persona_id,
+                known=sorted(personas),
+            )
+            raise HTTPException(status_code=400, detail=f"Unknown persona_id {persona_id!r}.")
         if client is None or client.user is None:
-            log.error("persona_gateway_invite_persona_not_ready", persona_id=INVITE_PERSONA_ID)
+            log.error("persona_gateway_invite_persona_not_ready", persona_id=persona_id)
             raise HTTPException(status_code=503, detail="Persona not finished booting; retry in a few seconds.")
 
         # Fire-and-forget: the persona responds asynchronously. Keep a reference
@@ -104,15 +121,16 @@ def build_invite_app(personas: dict[str, PersonaClient], expected_token: str) ->
                 guild_id=req.guild_id,
                 channel_name=req.channel_name,
                 reason=req.reason,
-                invited_by="insult_rest",
+                invited_by=req.invited_by or "insult_rest",
             )
         )
         app.state.background_tasks.add(task)
         task.add_done_callback(app.state.background_tasks.discard)
         log.info(
             "persona_gateway_invite_scheduled",
-            persona_id=INVITE_PERSONA_ID,
+            persona_id=persona_id,
             channel_id=req.channel_id,
+            invited_by=req.invited_by or "insult_rest",
             reason_preview=req.reason[:100],
         )
         return InviteResponse(status="invited", channel_id=req.channel_id)

@@ -34,6 +34,7 @@ from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
     build_host_degrader_port,
     build_host_router_cutover,
+    build_llm_router_cutover_route,
     build_llm_shadow_router,
     build_preset_engine_port,
     build_router_budget,
@@ -88,9 +89,15 @@ class ChatCog(commands.Cog):
         # the bind stage ACTS on the deterministic router's decision (sets
         # persona_id) instead of only logging; a fault falls back to the live rule.
         self._host_router_cutover = build_host_router_cutover(self.settings)
-        # Weekly $5 spend cap for the gpt-4.1 router (HOST 5/6). None unless the LLM
-        # router is enabled; the LLM-shadow stage consults it and fails safe when
-        # the week's spend crosses the cap.
+        # LLM router CUTOVER (HOST 5/6 slice C). None unless
+        # llm_router_cutover_enabled — default OFF. When wired, the
+        # llm_router_cutover stage ACTS on the gpt-4.1 decision for implicit
+        # turns: a sibling target suppresses Insult and summons that persona via
+        # the gateway /invite; every fault falls back to Insult.
+        self._llm_router_cutover_route = build_llm_router_cutover_route(self.settings)
+        # Weekly $5 spend cap for the gpt-4.1 router (HOST 5/6). None unless a
+        # gpt-4.1 router is enabled (shadow or cutover); the router stages consult
+        # it and fail safe when the week's spend crosses the cap.
         self._router_budget = build_router_budget(self.settings)
 
     @commands.Cog.listener()
@@ -190,6 +197,7 @@ class ChatCog(commands.Cog):
                     shadow_route=self._shadow_route,
                     llm_shadow_route=self._llm_shadow_route,
                     host_router_cutover=self._host_router_cutover,
+                    llm_router_cutover_route=self._llm_router_cutover_route,
                     router_budget=self._router_budget,
                 ),
             )

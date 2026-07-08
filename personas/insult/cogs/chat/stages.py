@@ -29,6 +29,7 @@ import anthropic
 import discord
 import structlog
 
+from khimeras_shared.attachments import process_attachments
 from khimeras_shared.corpus import (
     animal_liberation_guidance,
     animal_tactics_guidance,
@@ -47,7 +48,6 @@ from personas.insult.cogs.chat._failure import (
     spawn_typing_indicator,
     spawn_typing_keepalive,
 )
-from personas.insult.cogs.chat.attachments import process_attachments
 from personas.insult.cogs.chat.capability_ports import OutputMutationPort, RetrievalPort, S1bPolicyPort
 from personas.insult.cogs.chat.context import (
     build_context,
@@ -405,6 +405,104 @@ async def _stage_ensure_not_trivial(ctx: TurnCtx) -> None:
     if not ctx.message.attachments and is_trivial(ctx.text):
         log.info("skipped_trivial_message", text=ctx.text[:40])
         raise StageStop("trivial_skipped")
+
+
+# --- Stage 04b: LLM router cutover (HOST 5/6 slice C) ---
+
+
+def _routable_sibling_ids() -> frozenset[str]:
+    """Gateway personas the LLM router may route a turn to — the registered
+    siblings (never "insult": that is this pipeline continuing normally)."""
+    from shared.personas.registry import all_personas
+
+    return frozenset(p.persona_id for p in all_personas())
+
+
+async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
+    """ACT on the context-aware gpt-4.1 routing decision for IMPLICIT turns
+    (HOST 5/6 slice C — the LLM sibling of the deterministic slice-B cutover).
+
+    Runs AFTER memory_store on purpose: the user's message is already in the
+    shared Postgres, so a summoned sibling's ``get_recent`` sees the turn it is
+    answering. Explicit addressing always outranks this stage (persona_id set →
+    skip); a sibling decision suppresses Insult's reply and summons the persona
+    through the gateway ``/invite`` (its own bot face, the canonical delivery).
+
+    Fail-safe on EVERY edge — no route wired, empty text, budget cap, timeout,
+    router fault, unknown target, non-202 invite → the stage returns and Insult
+    answers exactly as today. A routing fault must never produce a mute turn.
+    """
+    route = getattr(ctx.deps, "llm_router_cutover_route", None)
+    if route is None:
+        return
+    if ctx.persona_id is not None:
+        return
+    if not ctx.text.strip():
+        return
+    budget = getattr(ctx.deps, "router_budget", None)
+    if budget is not None and not budget.can_spend():
+        log.warning(
+            "llm_router_cutover_budget_exceeded",
+            spent_usd=round(budget.spent_this_week(), 4),
+            cap_usd=budget.cap_usd,
+            channel_id=ctx.channel_id,
+        )
+        return
+    timeout_s = float(getattr(ctx.deps.settings, "llm_router_cutover_timeout_seconds", 3.0))
+    start = time.monotonic()
+    try:
+        context = await _fetch_router_context(ctx.deps.memory, ctx.channel_id)
+        decision = await asyncio.wait_for(route(ctx.text, context), timeout_s)
+    except Exception:
+        log.exception(
+            "llm_router_cutover_failed",
+            channel_id=ctx.channel_id,
+            latency_ms=int((time.monotonic() - start) * 1000),
+        )
+        return
+    if budget is not None:
+        budget.record(decision.input_tokens, decision.output_tokens)
+    diverged = decision.target != "insult"
+    log.info(
+        "llm_router_cutover_decision",
+        target=decision.target,
+        reason=decision.reason,
+        diverged=diverged,
+        latency_ms=int((time.monotonic() - start) * 1000),
+        guild_id=ctx.guild_id,
+        channel_id=ctx.channel_id,
+        route_input_len=len(ctx.text),
+        llm_input_tokens=decision.input_tokens,
+        llm_output_tokens=decision.output_tokens,
+    )
+    if not diverged:
+        return
+    if decision.target not in _routable_sibling_ids():
+        log.warning("llm_router_cutover_unroutable_target", target=decision.target)
+        return
+    summon_reason = f"{ctx.user_name}: «{ctx.text[:600]}»"
+    accepted = await fire_invite(
+        summon_reason,
+        channel_id=ctx.channel_id,
+        guild_id=ctx.guild_id,
+        channel_name=ctx.channel_name,
+        persona_id=decision.target,
+        invited_by="host_router",
+    )
+    if not accepted:
+        log.warning(
+            "llm_router_cutover_invite_rejected",
+            target=decision.target,
+            channel_id=ctx.channel_id,
+        )
+        return
+    log.info(
+        "llm_router_cutover_routed",
+        target=decision.target,
+        channel_id=ctx.channel_id,
+        guild_id=ctx.guild_id,
+    )
+    raise StageStop(f"routed_to_{decision.target}")
 
 
 # --- Stage 06: build context + facts ---
@@ -1421,6 +1519,7 @@ DEFAULT_STAGES: list[Stage] = [
     Stage("emit_typing", Criticality.BACKGROUND, _stage_emit_typing),
     Stage("process_attachments", Criticality.BUSINESS, _stage_process_attachments),
     Stage("memory_store", Criticality.BUSINESS, _stage_memory_store),
+    Stage("llm_router_cutover", Criticality.BUSINESS, _stage_llm_router_cutover),
     Stage("ensure_not_trivial", Criticality.BUSINESS, _stage_ensure_not_trivial),
     Stage("build_context", Criticality.BUSINESS, _stage_build_context),
     Stage("load_facts", Criticality.BUSINESS, _stage_load_facts),

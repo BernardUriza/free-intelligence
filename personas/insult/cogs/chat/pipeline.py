@@ -168,6 +168,12 @@ class TurnRuntimeDeps:
     # shadow ONLY (instant, zero added latency, no LLM/Azure spend); the gpt-4.1 LLM
     # router stays shadow-only. A cutover fault falls back to the live rule.
     host_router_cutover: Callable[[str | None, str], str | None] | None = None
+    # LLM router CUTOVER (HOST 5/6 slice C). The same async route contract as
+    # ``llm_shadow_route`` but ACTED on: None unless ``llm_router_cutover_enabled``.
+    # When wired, the llm_router_cutover stage (after memory_store) calls it ON the
+    # critical path for implicit turns; a sibling decision suppresses Insult and
+    # summons the persona via the gateway /invite. Every fault falls back to Insult.
+    llm_router_cutover_route: Callable[[str], Any] | None = None
 
     # Weekly $5 spend cap for the gpt-4.1 router (HOST 5/6, Bernard 2026-06-21), or
     # None when the LLM router is disabled. The LLM-shadow stage checks ``can_spend()``

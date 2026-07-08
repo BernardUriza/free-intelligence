@@ -68,9 +68,13 @@ async def fire_invite(
     channel_id: str,
     guild_id: str | None,
     channel_name: str | None,
+    persona_id: str | None = None,
+    invited_by: str | None = None,
 ) -> bool:
     """POST the gateway `/invite` for this channel. Best-effort: failures are
-    logged, never raised — the user-visible turn already delivered."""
+    logged, never raised — the user-visible turn already delivered. ``persona_id``
+    picks the summoned sibling (gateway default: alice, the legacy wire contract);
+    ``invited_by`` labels the summon source for gateway telemetry."""
     from personas.insult.core.alice_tool import execute_invoke_alice
 
     try:
@@ -79,6 +83,8 @@ async def fire_invite(
             channel_id=channel_id,
             guild_id=guild_id,
             channel_name=channel_name,
+            persona_id=persona_id,
+            invited_by=invited_by,
         )
     except Exception:
         log.exception("invite_marker_fire_failed", channel_id=channel_id, reason_preview=reason[:80])
@@ -86,6 +92,7 @@ async def fire_invite(
     log.info(
         "invite_marker_fired",
         channel_id=channel_id,
+        persona_id=persona_id or "alice",
         accepted=ok,
         reason_preview=reason[:80],
     )
