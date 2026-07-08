@@ -80,7 +80,8 @@ async def test_no_other_people_leaves_user_text_clean(client):
     """RESISTANCE: without the block, user_text is just the message — no stray tags."""
     await client.chat("sys", _msgs("hola bot"))
     ut = _FakeClient.captured["user_text"]
-    assert ut == "hola bot"
+    # <current_time> always rides along now; the message is the tail.
+    assert ut.endswith("hola bot")
     assert "other_people_in_channel" not in ut
 
 

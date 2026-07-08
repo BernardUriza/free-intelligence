@@ -64,8 +64,9 @@ async def test_chat_prepends_relevant_memory_block(_patch_httpx):
     payload = _CapturingClient.last_payload
     assert payload is not None
     ut = payload["user_text"]
-    assert ut == ("<relevant_memory>\n- Larisa es la terapeuta de Alex\n</relevant_memory>\n\nquién es Larisa?")
-    assert ut.index("relevant_memory") < ut.index("quién es Larisa?")
+    # <current_time> now leads the dynamic tail (non-cacheable), then memory, then message.
+    assert "<relevant_memory>\n- Larisa es la terapeuta de Alex\n</relevant_memory>" in ut
+    assert ut.index("<current_time>") < ut.index("relevant_memory") < ut.index("quién es Larisa?")
 
 
 async def test_chat_no_memory_leaves_user_text_untouched(_patch_httpx):
@@ -80,7 +81,8 @@ async def test_chat_no_memory_leaves_user_text_untouched(_patch_httpx):
     )
     payload = _CapturingClient.last_payload
     assert payload is not None
-    assert payload["user_text"] == "quién es Larisa?"
+    # <current_time> always rides along now; the message is the tail, no memory block.
+    assert payload["user_text"].endswith("quién es Larisa?")
     assert "relevant_memory" not in payload["user_text"]
 
 

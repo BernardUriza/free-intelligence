@@ -87,7 +87,8 @@ async def test_single_message_leaves_user_text_clean(client):
     """RESISTANCE: a lone message has no prior context — no stray block."""
     await client.chat("sys", [{"role": "user", "content": "hola bot"}])
     ut = _FakeClient.captured["user_text"]
-    assert ut == "hola bot"
+    # <current_time> always rides along now; the message is the tail.
+    assert ut.endswith("hola bot")
     assert "recent_conversation" not in ut
 
 

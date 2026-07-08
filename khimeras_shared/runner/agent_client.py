@@ -60,6 +60,7 @@ import httpx
 import structlog
 
 from khimeras_shared.llm.types import LLMResponse
+from shared.time_context import _get_current_time_context
 
 log = structlog.get_logger()
 
@@ -242,6 +243,15 @@ class AgentRunnerClient:
         # user_text the runner DOES read — same mechanism as relevant_memory, no
         # runner change needed. (2026-06-03 second-layer fix.)
         prefix_blocks: list[str] = []
+        # Wall-clock time is SSOT'd in shared.time_context but only ever reached
+        # the plumbing-built system_prompt — which the runner DISCARDS under
+        # LEGACY=false. So NEITHER Insult NOR the siblings knew the date/time
+        # (Frugívoro built a weekly menu saying "domingo prep" on a Wednesday).
+        # Same class of loss as `other_people`; same fix: forward it as a
+        # dynamic prefix_block on the user_text every persona's runner DOES read.
+        # Goes FIRST + never cached (changes every minute — must not sit in a
+        # cacheable region). One seam, all personas inherit it. (2026-07-08.)
+        prefix_blocks.append(f"<current_time>\n{_get_current_time_context()} — America/Mexico_City\n</current_time>")
         if relevant_memory:
             prefix_blocks.append(f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>")
         if other_people:
