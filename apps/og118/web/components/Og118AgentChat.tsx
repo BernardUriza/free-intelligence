@@ -271,7 +271,6 @@ export function Og118AgentChat() {
                 </div>
               )}
               {composer.voiceBar}
-              {composer.audioDraftPlayer}
               {composer.audioQueuePanel}
               <div className="og-element-switch" data-ref="og118-element-switch">
                 <Og118ElementSelector
@@ -286,6 +285,11 @@ export function Og118AgentChat() {
           // The frosted preset goes on the BOX (textarea + controls row inside
           // one floating container, AURITY anatomy); og118 owns only spacing.
           composerBoxClassName="og-composer-box glass-chat-composer"
+          // COMPOSER-FRAME-2: the recorded-audio draft lives INSIDE the box
+          // (ComposerFrame header slot), WhatsApp/Claude review pattern — the
+          // transcript lands in the textarea right below it.
+          composerHeader={composer.audioDraftPlayer}
+          composerHeaderClassName="og-composer-draft-row"
           composerAreaClassName="og-composer-area"
           composerTextareaClassName="glass-chat-composer-input"
           composerControlsClassName="og-composer-controls"
