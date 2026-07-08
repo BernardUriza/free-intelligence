@@ -168,7 +168,7 @@ body {
 .og-voice-progress {
   flex: 1;
   min-width: 60px;
-  accent-color: var(--og-accent, #34d399);
+  color: var(--og-accent, #34d399);
 }
 /* Idle equalizer: the resting bars stay visible via min-height even though the
    visualizer renders them flat (active={false}); margin-left pushes the voice
