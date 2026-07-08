@@ -170,13 +170,22 @@ export function RichAudioPlayer({
     currentTime,
   } = player;
 
+  // Key the load effect on the source's VALUE, not its object identity: call
+  // sites build `{ url }` inline, so every parent re-render yields a new object
+  // while the audio is unchanged. Identity-keyed loading re-ran load() on each
+  // render — resetting playback to 0 (and with autoPlay, restarting it) whenever
+  // anything re-rendered the parent mid-playback. A Blob keys by reference
+  // (parents hold it in state); a url source keys by its string.
+  const sourceKey =
+    source == null ? null : source instanceof Blob ? source : source.url;
   useEffect(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
-    // play/load are stable controller methods; re-run only when the source changes.
+    // play/load are stable controller methods; re-run only when the source
+    // VALUE changes (sourceKey), never on parent-render object churn.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, autoPlay]);
+  }, [sourceKey, autoPlay]);
 
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
