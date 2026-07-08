@@ -1,21 +1,12 @@
-/**
- * useFIConversation Hook (DEPRECATED)
- *
- * This file is kept for backward compatibility.
- * Use `useChat` from '@/hooks/useChat' instead.
- *
- * @deprecated Use `useChat` instead
- */
-
-// Re-export everything from the new modular implementation
+// Re-export from apps/aurity/hooks - CONSOLIDATION
+// useEmotionalContext is deliberately NOT re-exported here: the package's
+// src/index.ts exports its own copy and a star re-export would collide (TS2308).
 export {
   useChat,
-  useChat as useFIConversation,
+  useFIConversation,
   metricsToBackendFormat,
-  useEmotionalContext,
-} from './useChat';
-
+} from '../../../hooks/useFIConversation';
 export type {
-  UseChatOptions as UseFIConversationOptions,
-  UseChatReturn as UseFIConversationReturn,
-} from './useChat';
+  UseFIConversationOptions,
+  UseFIConversationReturn,
+} from '../../../hooks/useFIConversation';

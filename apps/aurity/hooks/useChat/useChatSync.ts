@@ -80,6 +80,8 @@ export function useChatSync({
       const loaded = storage.load(storageKey);
       if (loaded.length > 0) {
         const deduped = mergeMessages(loaded, []);
+        log.debug('Storage loaded', { loaded: loaded.length, deduped: deduped.length });
+
         if (deduped.length > INITIAL_MESSAGES_LIMIT) {
           const visibleMessages = deduped.slice(-INITIAL_MESSAGES_LIMIT);
           const olderMessages = deduped.slice(0, -INITIAL_MESSAGES_LIMIT);
@@ -159,6 +161,8 @@ export function useChatSync({
   useEffect(() => {
     const enabled = !!doctorId && !!storageKey;
     if (!enabled || loadingInitial) return;
+
+    log.debug('WebSocket connecting');
 
     realtimeSync.connect(doctorId, (message) => {
 

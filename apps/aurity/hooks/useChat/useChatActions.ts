@@ -28,6 +28,8 @@ export interface UseChatActionsOptions {
   autoIntroduction: boolean;
   /** Enable model thinking/reasoning (Qwen3). Default true. Set false to save compute. */
   enableThinking?: boolean;
+  /** Response style: 'concise' (3-4 sentences) or 'explanatory' (detailed). Default 'explanatory'. */
+  responseMode?: 'concise' | 'explanatory';
   storage: IMessageStorage;
 
   // State
@@ -66,6 +68,7 @@ export function useChatActions({
   storageKey,
   autoIntroduction,
   enableThinking = true, // Default: enable thinking (Qwen3 reasoning)
+  responseMode = 'explanatory', // Default: detailed responses
   storage,
   messages,
   loadingInitial,
@@ -147,6 +150,7 @@ export function useChatActions({
           phase,
           id: introMsgId,
           voice: response.voice,
+          model: response.model,
         },
       };
 
@@ -229,7 +233,8 @@ export function useChatActions({
         session_id: storageKey || 'unknown',
         behavior_metrics: behaviorMetrics,
         enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-        response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
+        // Per-call context wins; the hook-level prop is the default.
+        response_mode: (context?.response_mode as 'concise' | 'explanatory' | undefined) ?? responseMode,
       });
 
       if (response.emotional_analysis) {
@@ -248,6 +253,7 @@ export function useChatActions({
           phase,
           id: assistantMsgId,
           voice: response.voice,
+          model: response.model,
         },
       };
 
@@ -270,7 +276,7 @@ export function useChatActions({
       if (err instanceof BackendUnavailableError || isConnectionError(err)) {
         const offlineMsg: FIMessage = {
           role: 'assistant',
-          content: 'No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
+          content: '[Warning] No se pudo conectar al servidor. Tu mensaje se guardó localmente.',
           timestamp: new Date().toISOString(),
           metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('offline') },
         };
@@ -284,14 +290,14 @@ export function useChatActions({
 
       const errorMsg: FIMessage = {
         role: 'assistant',
-        content: `Error: ${errorMessage}. Click "Retry" to try again.`,
+        content: `[Error] ${errorMessage}. Click "Retry" to try again.`,
         timestamp: new Date().toISOString(),
         metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
       };
       setMessages(prev => [...prev, errorMsg]);
       return null;
     }
-  }, [phase, context, messages, storageKey, enableThinking, setMessages, setLoading, setError, setIsTyping, setLastEmotionalAnalysis, lastMessageRef, lastBehaviorMetricsRef]);
+  }, [phase, context, messages, storageKey, enableThinking, responseMode, setMessages, setLoading, setError, setIsTyping, setLastEmotionalAnalysis, lastMessageRef, lastBehaviorMetricsRef]);
 
   // ========================================================================
   // Send Message with Streaming (2025-2026 Best Practices)
@@ -344,7 +350,8 @@ export function useChatActions({
           session_id: storageKey || 'unknown',
           behavior_metrics: behaviorMetrics,
           enable_thinking: enableThinking, // Toggle model thinking/reasoning (Qwen3)
-          response_mode: context?.response_mode as 'concise' | 'explanatory' | undefined, // concise vs explanatory
+          // Per-call context wins; the hook-level prop is the default.
+          response_mode: (context?.response_mode as 'concise' | 'explanatory' | undefined) ?? responseMode,
         },
         {
           onThinking: (thinking) => {
@@ -421,7 +428,7 @@ export function useChatActions({
 
             const errorMsg: FIMessage = {
               role: 'assistant',
-              content: `Error: ${errorMessage}. Click "Retry" to try again.`,
+              content: `[Error] ${errorMessage}. Click "Retry" to try again.`,
               timestamp: new Date().toISOString(),
               metadata: { tone: 'neutral' as FITone, phase, id: generateMessageId('error') },
             };
@@ -461,7 +468,7 @@ export function useChatActions({
         }
       );
     });
-  }, [phase, context, messages, storageKey, enableThinking, setMessages, setLoading, setError, setIsTyping, lastMessageRef, lastBehaviorMetricsRef, stopStream, resetStreaming]);
+  }, [phase, context, messages, storageKey, enableThinking, responseMode, setMessages, setLoading, setError, setIsTyping, lastMessageRef, lastBehaviorMetricsRef, stopStream, resetStreaming]);
 
   // ========================================================================
   // Retry

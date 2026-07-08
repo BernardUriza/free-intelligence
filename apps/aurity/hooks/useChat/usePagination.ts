@@ -62,6 +62,7 @@ export function usePagination({
         });
 
         olderMessagesBufferRef.current = remaining;
+        log.debug('From buffer', { loaded: bufferChunk.length, remaining: remaining.length });
 
         if (remaining.length === 0 && doctorId) {
           setHasMoreMessages(true); // May have more on backend
@@ -82,6 +83,7 @@ export function usePagination({
 
       setMessages(prev => {
         const newMessages = deduplicateMessages(prev, result.messages);
+        log.debug('Backend returned', { fetched: result.messages.length, new: newMessages.length });
 
         if (newMessages.length === 0) {
           setHasMoreMessages(false);
