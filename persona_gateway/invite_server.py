@@ -34,6 +34,8 @@ import structlog
 from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
+from persona_gateway.boot import GatewayBootState
+
 if TYPE_CHECKING:
     from persona_gateway.gateway import PersonaClient
 
@@ -75,18 +77,40 @@ class InviteResponse(BaseModel):
     detail: str | None = None
 
 
-def build_invite_app(personas: dict[str, PersonaClient], expected_token: str) -> FastAPI:
+def build_invite_app(
+    personas: dict[str, PersonaClient],
+    expected_token: str,
+    boot: GatewayBootState | None = None,
+) -> FastAPI:
     """Wire FastAPI with bearer auth + the /invite handler.
 
     `personas` is the live persona_id → PersonaClient registry the gateway builds
     in `_main`; the handler routes the invite to `INVITE_PERSONA_ID`'s client.
+    `boot` carries the shared boot signals `/health` reports honestly.
     """
     app = FastAPI(title="Persona Gateway Invite API", version="1.0.0")
     app.state.background_tasks = set()
+    state = boot if boot is not None else GatewayBootState()
+
+    def _ready_personas() -> list[str]:
+        return sorted(
+            persona_id
+            for persona_id, client in personas.items()
+            if getattr(client, "user", None) is not None and not state.is_down(persona_id)
+        )
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "persona-gateway-invite"}
+    async def health() -> dict[str, object]:
+        ready = _ready_personas()
+        return {
+            "status": "ok",
+            "service": "persona-gateway-invite",
+            "serving": bool(ready),
+            "personas_ready": ready,
+            "personas_expected": sorted(personas),
+            "personas_down": sorted(state.personas_down),
+            "db_connected": state.db_connected,
+        }
 
     @app.post("/invite", response_model=InviteResponse, status_code=status.HTTP_202_ACCEPTED)
     async def invite(req: InviteRequest, authorization: str | None = Header(default=None)) -> InviteResponse:

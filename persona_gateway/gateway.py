@@ -27,6 +27,7 @@ import contextlib
 import io
 import os
 import re
+import time
 from collections.abc import Iterable
 
 import discord
@@ -45,6 +46,7 @@ from khimeras_shared.tts import (
     synthesize_susurro_tts,
 )
 from khimeras_shared.version import VERSION_TAG
+from persona_gateway.boot import GatewayBootState
 from shared.personas import Persona, gateway_personas
 from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
 
@@ -59,6 +61,8 @@ log = structlog.get_logger()
 
 RECENT_LIMIT = 30  # how many prior channel messages to replay to the runner
 DISCORD_LIMIT = 1990  # leave headroom under Discord's 2000-char message cap
+BIND_TIMEOUT_SECONDS = 15.0  # well under the ACA StartUp probe's failure budget
+BIND_POLL_SECONDS = 0.05
 
 
 def clean_mention(content: str, bot_id: int) -> str:
@@ -558,39 +562,91 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     return memory, agent_client, tts_client, auto_tts_min_chars, invite_token
 
 
-def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str):
-    """Return the uvicorn serve() coroutine for the ported /invite endpoint.
+def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
+    """Return `(server, serve_coro)` for the ported /invite endpoint.
 
     Port 8788 mirrors the legacy alice-bot so the Container App ingress targetPort
     is unchanged. Bound to 0.0.0.0 for the ACA ingress. Always served (even with
     no token) so the /health probe answers; /invite itself fail-closes (503) when
-    the token is unset.
+    the token is unset. The caller awaits `_wait_until_bound(server)` before doing
+    anything that can block.
     """
     import uvicorn
 
     from persona_gateway.invite_server import build_invite_app
 
-    app = build_invite_app(personas, invite_token)
+    app = build_invite_app(personas, invite_token, boot)
     server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8788, log_level="warning"))  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
     log.info("persona_gateway_invite_api_starting", port=8788, token_configured=bool(invite_token))
-    return server.serve()
+    return server, server.serve()
+
+
+async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bool:
+    """Block until uvicorn is actually listening, not merely scheduled.
+
+    `asyncio.create_task(server.serve())` yields a task, not a bound socket. Every
+    subsequent await — Postgres, Discord login — could otherwise run first and
+    hang with port 8788 still closed, which is precisely what the ACA StartUp
+    probe punishes. `server.started` flips only after the socket accepts.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if getattr(server, "started", False):
+            return True
+        await asyncio.sleep(BIND_POLL_SECONDS)
+    log.error("persona_gateway_bind_timeout", port=8788, timeout_s=timeout)
+    return False
+
+
+async def _connect_memory(memory, boot: GatewayBootState) -> None:
+    """Connect Postgres off the probe's critical path.
+
+    A cold Postgres must never keep port 8788 from binding: the ACA StartUp probe
+    kills the replica, the restart burns another Discord IDENTIFY, and the
+    crashloop feeds itself. `MemoryStore._ensure_connection` reconnects before
+    every operation, so a boot-time failure degrades rather than kills.
+    """
+    try:
+        await memory.connect()
+    except Exception as exc:
+        log.exception("persona_gateway_db_connect_failed", error=type(exc).__name__)
+        return
+    boot.mark_db_connected()
+
+
+async def _supervise_persona(persona_id: str, coro, boot: GatewayBootState) -> None:
+    """Await one persona's Discord session, isolating its death from its siblings.
+
+    `Client.start` only returns when the session ends. Whatever it raises — a
+    throttled IDENTIFY, a revoked token, a gateway hang — belongs to THIS persona
+    and must not tear down the process: the other bots keep serving, `/invite`
+    keeps answering, and `/health` reports the loss.
+    """
+    try:
+        await coro
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        log.exception("persona_gateway_persona_failed", persona_id=persona_id, error=type(exc).__name__)
+    else:
+        log.error("persona_gateway_persona_exited", persona_id=persona_id)
+    boot.mark_persona_down(persona_id)
 
 
 async def _main() -> None:
     memory, agent_client, tts_client, auto_tts_min_chars, invite_token = _build_shared()
-    await memory.connect()
 
     intents = discord.Intents.default()
     intents.message_content = True
 
     personas: dict[str, PersonaClient] = {}
-    starts = []
+    tokens: dict[str, str] = {}
     for persona in gateway_personas():
         token = os.environ.get(persona.token_env, "").strip()
         if not token:
             log.warning("persona_gateway_no_token", persona_id=persona.persona_id, env=persona.token_env)
             continue
-        client = PersonaClient(
+        personas[persona.persona_id] = PersonaClient(
             persona,
             memory,
             agent_client,
@@ -598,21 +654,40 @@ async def _main() -> None:
             tts_client=tts_client,
             auto_tts_min_chars=auto_tts_min_chars,
         )
-        personas[persona.persona_id] = client
-        starts.append(client.start(token))
-        log.info("persona_gateway_starting", persona_id=persona.persona_id)
+        tokens[persona.persona_id] = token
 
-    if not starts:
+    if not personas:
         log.error("persona_gateway_nothing_to_start", note="no persona token configured")
         return
 
-    # The /invite HTTP server runs in the same event loop as the bots, sharing the
-    # live PersonaClient registry so an invite routes to the persona's own brain.
-    starts.append(_serve_invite_api(personas, invite_token))
+    boot = GatewayBootState()
+
+    # The HTTP server binds BEFORE Postgres and before any Discord login, so the
+    # StartUp probe answers as soon as the process is alive. Until a persona
+    # finishes on_ready, /health reports serving=false — honestly.
+    server, serve_coro = _serve_invite_api(personas, invite_token, boot)
+    api_task = asyncio.create_task(serve_coro, name="invite-api")
+    if await _wait_until_bound(server):
+        log.info("persona_gateway_api_bound", port=8788)
+
+    await _connect_memory(memory, boot)
+
+    persona_tasks = [
+        asyncio.create_task(
+            _supervise_persona(persona_id, client.start(tokens[persona_id]), boot),
+            name=f"persona:{persona_id}",
+        )
+        for persona_id, client in personas.items()
+    ]
+    for persona_id in personas:
+        log.info("persona_gateway_starting", persona_id=persona_id)
 
     try:
-        await asyncio.gather(*starts)
+        await asyncio.gather(*persona_tasks)
+        log.error("persona_gateway_all_personas_down", personas=sorted(personas))
     finally:
+        api_task.cancel()
+        await asyncio.gather(api_task, return_exceptions=True)
         await memory.close()
 
 
