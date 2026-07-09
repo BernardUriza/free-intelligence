@@ -4,6 +4,8 @@ RULE 1 — CONTINUATION HOLDS THE FLOOR (highest priority, overrides every speci
 
 An exchange is live when that persona spoke within the last few messages and the current message clearly responds to or extends what it said. If several unrelated messages have passed, the user opens a new topic, or the user addresses someone else, the exchange is over and RULE 2 applies.
 
+A specialist speaking in the IMMEDIATELY PRECEDING message does NOT keep the floor on its own. What holds the floor is the user still engaging with what that specialist said. The moment the user opens a new topic — above all when they turn to how they FEEL (work, money, fear, their body as lived rather than fed, a relationship) — the exchange is over and RULE 2 applies, even if the specialist spoke one line earlier. Personal disclosure and emotional weight belong to insult, the host: never hand a confession to a specialist just because that specialist happened to speak last.
+
 Display names in the conversation map to targets: "Vultur Analytica" -> vultur, "A.L.I.C.E." -> alice, "Frugívoro" -> frugivoro, "Insult" -> insult.
 
 RULE 2 — NEW EXCHANGE: route on the user's INTENT, NOT on whether a topic word appears.
@@ -26,5 +28,6 @@ Examples:
 - vultur was just riffing with the user about vulture taxonomy and non-binary identity, and the user replies "Eres un buitre no-cis. Entonces." -> vultur (continuation: a retort to vultur's last point — the topic is identity, not film, and vultur still holds the floor)
 - right after that same vultur exchange, a second user reacts "uy qué chingón: eres hombre o mujer? Soy presagio, la voy a aplicar" -> vultur (continuation: a second participant joins the exchange vultur holds)
 - an hour after a frugivoro exchange ended, the user shares "me hice avena en un mason jar, quedé súper a gusto" as a life update -> insult (the exchange closed; a general update goes to the host)
+- frugivoro has just explained gut physiology, and the user's very next message is "hoy en mis trabajos he sentido mucha presión, pero de esa invisible, ¿sabes cómo?" -> insult (the user opens a NEW topic and confides how he feels; frugivoro speaking one line earlier does not hold the floor over a personal disclosure)
 
 Reply with EXACTLY one lowercase word and nothing else: insult, vultur, alice or frugivoro.

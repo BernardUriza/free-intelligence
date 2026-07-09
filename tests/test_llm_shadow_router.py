@@ -303,3 +303,16 @@ def test_routing_instruction_encodes_intent_not_mention():
     assert "passing" in instr  # "mentioning ... in passing is NOT enough"
     assert "recommend" in instr or "recomi" in instr  # the seeking-expertise signal
     assert "netflix" in instr  # the exact false-positive trigger, now a counter-example
+
+
+def test_routing_instruction_gives_personal_disclosure_back_to_the_host():
+    """Guard the misroute the offline eval caught (2026-07-09, 1/30 real #general
+    messages): right after frugivoro explained gut physiology, Bernard opened a new
+    topic — "hoy en mis trabajos he sentido mucha presión, ¿sabes cómo?" — and the
+    router handed that confession to the nutritionist, because frugivoro had spoken
+    one line earlier. A specialist speaking last does not own a change of subject,
+    and emotional weight is the host's whole reason to exist. Pin both halves."""
+    instr = llm_shadow_router._routing_instruction().lower()
+    assert "does not keep the floor" in instr
+    assert "disclosure" in instr
+    assert "presión" in instr  # the counter-example, verbatim from the eval
