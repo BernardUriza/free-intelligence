@@ -20,6 +20,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from structlog.testing import capture_logs
 
 import personas.insult.cogs.chat.stages as stages
 from demux_ai.llm_shadow_router import LLMShadowDecision
@@ -79,6 +80,60 @@ async def test_insult_decision_continues_without_invite(monkeypatch):
     monkeypatch.setattr(stages, "fire_invite", fire)
     await _stage_llm_router_cutover(ctx)
     fire.assert_not_called()
+
+
+# --- telemetry: the watch metric must not lie -------------------------------
+#
+# It shipped as `diverged`, computed `target != "insult"` — with nothing to
+# diverge FROM. Every healthy sibling summon read as a disagreement, so the
+# "divergence rate" Bernard was told to watch counted the router WORKING.
+
+
+@pytest.mark.asyncio
+async def test_sibling_route_is_logged_as_routed_to_sibling_not_diverged(monkeypatch):
+    ctx = _make_ctx()
+    ctx.deps.llm_router_cutover_route = AsyncMock(return_value=_decision("vultur"))
+    monkeypatch.setattr(stages, "fire_invite", AsyncMock(return_value=True))
+    with capture_logs() as logs, pytest.raises(StageStop):
+        await _stage_llm_router_cutover(ctx)
+    ev = next(e for e in logs if e["event"] == "llm_router_cutover_decision")
+    assert ev["routed_to_sibling"] is True
+    assert ev["target"] == "vultur"
+    assert "diverged" not in ev, "the old lying field name must be gone, not aliased"
+
+
+@pytest.mark.asyncio
+async def test_insult_route_is_logged_as_not_routed_to_sibling(monkeypatch):
+    ctx = _make_ctx("hola qué onda")
+    ctx.deps.llm_router_cutover_route = AsyncMock(return_value=_decision("insult"))
+    monkeypatch.setattr(stages, "fire_invite", AsyncMock(return_value=True))
+    with capture_logs() as logs:
+        await _stage_llm_router_cutover(ctx)
+    ev = next(e for e in logs if e["event"] == "llm_router_cutover_decision")
+    assert ev["routed_to_sibling"] is False
+    assert ev["target"] == "insult"
+
+
+def test_timeout_ceiling_clears_the_observed_success_tail():
+    """The 3.0s ceiling clipped a p95 of 1401ms / max 2865ms and lost 11.9% of
+    calls to pure timeouts. Whatever this value is, it must sit above the tail
+    the healthy path actually reaches.
+
+    Read from source, not imported: `personas.insult.config` builds its Settings
+    singleton at import time and needs a `.env` that CI does not have.
+    """
+    import re
+    from pathlib import Path
+
+    config_src = (Path(__file__).resolve().parents[2] / "personas" / "insult" / "config.py").read_text()
+    match = re.search(r"llm_router_cutover_timeout_seconds:\s*float\s*=\s*([\d.]+)", config_src)
+    assert match, "llm_router_cutover_timeout_seconds default not found in config.py"
+
+    ceiling_ms = float(match.group(1)) * 1000
+    observed_success_max_ms = 2865
+    assert ceiling_ms > observed_success_max_ms * 1.5, (
+        f"ceiling {ceiling_ms}ms leaves no headroom over the observed {observed_success_max_ms}ms success tail"
+    )
 
 
 @pytest.mark.asyncio

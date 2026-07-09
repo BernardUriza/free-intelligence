@@ -197,7 +197,18 @@ class Settings(BaseSettings):
     # Hard ceiling for the on-path routing call under the LLM cutover. Past it
     # the turn falls back to Insult (fail-safe), the reply is never held hostage
     # by a slow Azure completion.
-    llm_router_cutover_timeout_seconds: float = 3.0
+    #
+    # Raised 3.0 → 5.0 on 2026-07-08 from the first post-flip window (42 calls,
+    # 26h): 5 failures, EVERY one at latency_ms 3003-3012 — pure timeouts at the
+    # ceiling, an 11.9% loss rate. Successful decisions sat at p50=1081ms,
+    # p95=1401ms, max=2865ms, so the ceiling was clipping a tail that the healthy
+    # path never approaches.
+    #
+    # What the next window must answer, because this window CANNOT: whether those
+    # 5 were slow (recoverable at 5s) or hung (upstream fault). If failures
+    # persist and cluster at ~5000ms, the ceiling is not the problem — stop
+    # raising it and investigate the Azure completion instead.
+    llm_router_cutover_timeout_seconds: float = 5.0
 
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
     # Container App's environment always carries vars this model doesn't model

@@ -458,12 +458,16 @@ async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
         return
     if budget is not None:
         budget.record(decision.input_tokens, decision.output_tokens)
-    diverged = decision.target != "insult"
+    # NOT "diverged": nothing is being compared against. This says the router
+    # picked someone other than Insult, which for a correct frugivoro/vultur
+    # summon is the router WORKING. The old `diverged` name made every healthy
+    # sibling route read as a disagreement and inflated the watch metric.
+    routed_to_sibling = decision.target != "insult"
     log.info(
         "llm_router_cutover_decision",
         target=decision.target,
         reason=decision.reason,
-        diverged=diverged,
+        routed_to_sibling=routed_to_sibling,
         latency_ms=int((time.monotonic() - start) * 1000),
         guild_id=ctx.guild_id,
         channel_id=ctx.channel_id,
@@ -471,7 +475,7 @@ async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
         llm_input_tokens=decision.input_tokens,
         llm_output_tokens=decision.output_tokens,
     )
-    if not diverged:
+    if not routed_to_sibling:
         return
     if decision.target not in _routable_sibling_ids():
         log.warning("llm_router_cutover_unroutable_target", target=decision.target)
