@@ -24,8 +24,6 @@ from __future__ import annotations
 
 import re
 
-import structlog
-
 from personas.insult.core.character.detection import (
     CACHE_BOUNDARY,
     IDENTITY_REINFORCE_THRESHOLD,
@@ -40,8 +38,6 @@ from personas.insult.core.presets import (
     is_vulnerable_overlay_selection,
 )
 from shared.time_context import _get_current_time_context
-
-log = structlog.get_logger()
 
 
 def build_adaptive_prompt(
@@ -94,16 +90,6 @@ def build_adaptive_prompt(
     # and insult/core/vulnerability.py for the scoring that flags a user.
     if is_vulnerable_overlay_selection(preset):
         prompt += build_vulnerable_overlay_prompt()
-
-    log.info(
-        "preset_classified",
-        mode=preset.display_label,
-        mode_internal=preset.mode.value,
-        modifiers=[m.value for m in preset.modifiers],
-        confidence=round(preset.confidence, 2),
-        reason=preset.reason,
-        vulnerable_overlay=is_vulnerable_overlay_selection(preset),
-    )
 
     # --- Layer 3.5: Flow behavioral guidance ---
     if flow_analysis:

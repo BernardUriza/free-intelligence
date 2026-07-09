@@ -74,9 +74,14 @@ def record_event(event: dict) -> None:
     elif evt in ("llm_rate_error", "llm_timeout_error", "llm_auth_error", "llm_api_error"):
         _counters["llm_errors"] += 1
     elif evt == "preset_classified":
+        # `preset` is the field name the ONE emitter uses (chat stage 08). A second
+        # emitter in the prompt layer used to fire the same event with `mode=`,
+        # double-counting messages_total while only single-counting the per-preset
+        # keys — so every `preset_X / messages_total` ratio read HALF its real
+        # value, and the "flag if 90%+ is DEFAULT_ABRASIVE" drift alarm could never
+        # trip. One event, one emitter.
         _counters["messages_total"] += 1
-        mode = entry.get("mode", "")
-        key = f"preset_{mode}"
+        key = f"preset_{entry.get('preset', '')}"
         if key in _counters:
             _counters[key] += 1
     elif evt == "character_break_detected":

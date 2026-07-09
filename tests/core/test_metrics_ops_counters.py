@@ -94,3 +94,35 @@ def test_metrics_snapshot_includes_ops_counters():
         "agent_runner_image_turns",
     ):
         assert k in counters, f"{k} missing from metrics snapshot"
+
+
+# --- preset_classified: one turn, one count ---------------------------------
+#
+# The event had TWO emitters (chat stage 08 with `preset=`, the prompt layer with
+# `mode=`). Both bumped messages_total; only the `mode=` one matched a per-preset
+# key. So `preset_X / messages_total` read HALF its true value and the documented
+# "flag if 90%+ of classifications are DEFAULT_ABRASIVE" drift alarm could not
+# trip at any real drift level. Prod: 418 events for 219 turns.
+
+
+def test_one_classified_turn_counts_one_message():
+    before = metrics._counters["messages_total"]
+    metrics.record_event({"event": "preset_classified", "preset": "default_abrasive"})
+    assert metrics._counters["messages_total"] == before + 1
+
+
+def test_classified_turn_increments_its_preset_key():
+    before = metrics._counters["preset_playful_roast"]
+    metrics.record_event({"event": "preset_classified", "preset": "playful_roast"})
+    assert metrics._counters["preset_playful_roast"] == before + 1
+
+
+def test_the_drift_ratio_is_readable_from_the_counters():
+    """RESISTANCE: with the double emitter this ratio came out at 0.5 for a
+    channel that was 100% abrasive — the alarm's threshold was unreachable."""
+    metrics._counters["messages_total"] = 0
+    metrics._counters["preset_default_abrasive"] = 0
+    for _ in range(10):
+        metrics.record_event({"event": "preset_classified", "preset": "default_abrasive"})
+    ratio = metrics._counters["preset_default_abrasive"] / metrics._counters["messages_total"]
+    assert ratio == 1.0, f"a fully abrasive channel must read 100%, read {ratio:.0%}"
