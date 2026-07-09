@@ -219,3 +219,19 @@ describe('identity scoping (no cross-account leak)', () => {
     expect(JSON.parse(legacyRaw as string)).toHaveLength(1);
   });
 });
+
+// qa-stale-localstorage: the pre-identity-scoping globals (bare `og118.projects`
+// / `og118.activeProjectId`, pre-#276) are vestigial — the live keys always carry
+// an identity suffix and the server owns the list. The hook sweeps them on mount.
+describe('useOg118Projects legacy-global sweep (qa-stale-localstorage)', () => {
+  it('removes the bare pre-scoping keys on mount, leaving scoped keys alone', async () => {
+    localStorage.setItem('og118.projects', '[]');
+    localStorage.setItem('og118.activeProjectId', 'p-old');
+    localStorage.setItem('og118.projects--legacy', '[{"id":"keep"}]');
+    const { result } = renderHook(() => useOg118Projects(null, true));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(localStorage.getItem('og118.projects')).toBeNull();
+    expect(localStorage.getItem('og118.activeProjectId')).toBeNull();
+    expect(localStorage.getItem('og118.projects--legacy')).not.toBeNull();
+  });
+});

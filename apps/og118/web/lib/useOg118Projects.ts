@@ -119,6 +119,19 @@ export function useOg118Projects(
     [activeKey],
   );
 
+  // qa-stale-localstorage: sweep the pre-identity-scoping globals (pre-#276).
+  // The scoped keys ALWAYS carry a suffix (signed-out = `--legacy`), so the bare
+  // keys can never be the live store; and Projects are server-owned (#292), so
+  // the vestigial globals hold nothing of record.
+  useEffect(() => {
+    try {
+      localStorage.removeItem(PROJECTS_KEY_BASE);
+      localStorage.removeItem(ACTIVE_KEY_BASE);
+    } catch {
+      /* private mode / storage disabled */
+    }
+  }, []);
+
   // Hydrate on identity change: render the cache instantly, then reconcile to the
   // SERVER list (the owner of record). The server list REPLACES the cache, so a
   // project that lives only in this browser (stale cache, or another account's,

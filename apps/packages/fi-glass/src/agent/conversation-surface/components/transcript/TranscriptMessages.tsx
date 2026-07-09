@@ -57,8 +57,12 @@ export function TranscriptMessages({
       {messages.map((m, i) => {
         const traceTurn =
           showPersistedTrace && m.role === 'assistant' ? persistedTraceTurn(m) : null;
+        // Index-only keys leak per-instance state (the user-message collapse
+        // toggle) across conversations: switching threads reuses indices 0..n
+        // and React reuses the instances. The timestamp disambiguates threads;
+        // the index disambiguates same-instant messages within one.
         return (
-          <Fragment key={i}>
+          <Fragment key={`${m.timestamp}-${i}`}>
             {traceTurn && <AgentPanel turn={traceTurn} {...agentPanelProps} />}
             <MessageBubble
               role={m.role}
