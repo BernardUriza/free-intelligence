@@ -88,11 +88,29 @@ body {
 .og-send-btn:hover:not(:disabled) {
   box-shadow: 0 3px 14px rgba(5, 150, 105, 0.4);
 }
+/* The disabled fill used to be rgba(30,41,59,.8) on a rgba(30,41,59,.6) box —
+   the same colour at a different alpha, so the button had no SHAPE in the state
+   the user sees most (empty composer). An outline keeps it legible as a control
+   while still reading as unavailable. */
 .og-send-btn:disabled {
-  background: rgba(30, 41, 59, 0.8);
-  color: #64748b;
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #94a3b8;
   box-shadow: none;
   cursor: not-allowed;
+}
+/* Streaming: the primary control cancels. Red says "this stops it", where the
+   old disabled spinner said "wait, and you can do nothing". */
+.og-stop-btn {
+  background: rgba(220, 38, 38, 0.9);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fee2e2;
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+  cursor: pointer;
+}
+.og-stop-btn:hover:not(:disabled) {
+  background: rgb(220, 38, 38);
+  box-shadow: 0 3px 14px rgba(220, 38, 38, 0.45);
 }
 .og-send-icon {
   width: 1rem;
@@ -114,9 +132,15 @@ body {
   background: rgba(10, 14, 22, 0.4);
   backdrop-filter: blur(var(--glass-blur, 12px));
 }
+/* COMPOSER-FOOTER-ZONES-1 — the footer's left rail. The element selector and
+   the call control used to be sibling cards stacked above the box; they are
+   settings you pick BEFORE composing, so they belong on the rail beside the
+   send button, not in their own floating surfaces. */
+.og-composer-rail {
+  flex-wrap: wrap;
+}
 .og-element-switch {
   max-width: 16rem;
-  margin: 0 0 0.5rem;
 }
 @container fi-composer (max-width: 420px) {
   .og-elemento-label {
@@ -125,35 +149,50 @@ body {
   .og-element-switch {
     max-width: 100%;
   }
+  /* The rail is icon-only on a narrow composer; the send button keeps priority. */
+  .og-resonance-call-label {
+    display: none;
+  }
 }
-.og-resonance-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid rgba(52, 211, 153, 0.18);
-  background: rgba(10, 14, 22, 0.4);
-  backdrop-filter: blur(var(--glass-blur, 12px));
-}
+/* The call control is SECONDARY to send: an outlined chip, not a filled pill
+   competing with the primary action. Filled only while a call is live. */
 .og-resonance-call-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.8rem;
-  border: none;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(52, 211, 153, 0.35);
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  color: #052e1a;
-  background: linear-gradient(135deg, var(--og-accent, #34d399), #059669);
-  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.25);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  color: var(--og-accent, #34d399);
+  background: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.og-resonance-call-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 .og-resonance-call-btn:hover {
-  box-shadow: 0 3px 14px rgba(5, 150, 105, 0.4);
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.6);
+}
+.og-resonance-call-btn-active {
+  color: #fee2e2;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.28);
+}
+.og-resonance-call-btn-active:hover {
+  background: rgba(220, 38, 38, 0.42);
+  border-color: rgba(248, 113, 113, 0.75);
+}
+/* A live call renders INSIDE the composer's header slot — the composer becomes
+   the call surface. It shares the draft row's divider. */
+.og-resonance-live {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 .og-resonance-visualizer {
   display: flex;

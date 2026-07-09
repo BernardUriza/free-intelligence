@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { Phone, PhoneOff } from 'lucide-react';
 import {
   AgentConversationSurface,
   AgentWorkspaceShell,
@@ -64,8 +65,11 @@ function readResonanceFlag(): boolean {
 // Per-state copy + whether the equalizer shows live mic input. Live in
 // listening/speaking/silence_hold (mic open); dimmed while we process so Bernard
 // never mistakes "processing" for "still hearing you".
+//
+// `idle` carries NO copy: the state line renders only during a call, and the
+// call button already says "Llamar". Mapping idle to the button's own label is
+// what printed "Llamar (Resonance)  LLAMAR (RESONANCE)" side by side.
 const RESONANCE_LABEL: Record<string, string> = {
-  idle: 'Llamar (Resonance)',
   listening: 'Escuchando…',
   transcribing: 'Transcribiendo…',
   thinking: 'Pensando…',
@@ -241,37 +245,22 @@ export function Og118AgentChat() {
           // hamburger), so the CTA is one tap away — no affordance is lost.
           showNewChatButton={false}
           emptyState={<Og118StartScreen />}
+          // Only what must INTERRUPT stays outside the box: system banners and
+          // the audio queue. Everything the user SETS before composing moved
+          // into the composer's footer rail (COMPOSER-FOOTER-ZONES-1).
           aboveComposer={
             <>
               {authBanner}
               {voiceErrorBanner}
-              {resonanceEnabled && (
-                <div className="og-resonance-bar" data-ref="og118-resonance-bar">
-                  <button
-                    type="button"
-                    className="og-resonance-call-btn"
-                    data-ref="og118-resonance-call"
-                    onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
-                  >
-                    {resonance.isActive ? 'Colgar' : 'Llamar (Resonance)'}
-                  </button>
-                  {resonance.isActive && (
-                    <AudioVisualizer
-                      levels={resonance.bands}
-                      active={resonanceVisualizerActive(resonance.state)}
-                      variant="bars"
-                      label="Nivel de tu voz"
-                      className="og-resonance-visualizer"
-                      barClassName="og-voice-bar-bar"
-                    />
-                  )}
-                  <span className="og-resonance-state" data-ref="og118-resonance-state">
-                    {resonance.isHearingUser ? 'Te oigo' : (RESONANCE_LABEL[resonance.state] ?? resonance.state)}
-                  </span>
-                </div>
-              )}
               {composer.voiceBar}
               {composer.audioQueuePanel}
+            </>
+          }
+          // The footer's left rail: element selector + the Resonance call
+          // control. A call is a MODE, not a banner — idle it costs one icon,
+          // and its live state rises into the composer header below.
+          composerFooterStart={
+            <>
               <div className="og-element-switch" data-ref="og118-element-switch">
                 <Og118ElementSelector
                   elements={elements.elements}
@@ -280,15 +269,57 @@ export function Og118AgentChat() {
                   loading={elements.loading}
                 />
               </div>
+              {resonanceEnabled && (
+                <button
+                  type="button"
+                  className={`og-resonance-call-btn${resonance.isActive ? ' og-resonance-call-btn-active' : ''}`}
+                  data-ref="og118-resonance-call"
+                  aria-pressed={resonance.isActive}
+                  aria-label={resonance.isActive ? 'Colgar la llamada' : 'Llamar por voz (Resonance)'}
+                  onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
+                >
+                  {resonance.isActive ? <PhoneOff aria-hidden /> : <Phone aria-hidden />}
+                  <span className="og-resonance-call-label">
+                    {resonance.isActive ? 'Colgar' : 'Llamar'}
+                  </span>
+                </button>
+              )}
             </>
           }
+          composerFooterStartClassName="og-composer-rail"
           // The frosted preset goes on the BOX (textarea + controls row inside
           // one floating container, AURITY anatomy); og118 owns only spacing.
           composerBoxClassName="og-composer-box glass-chat-composer"
           // COMPOSER-FRAME-2: the recorded-audio draft lives INSIDE the box
           // (ComposerFrame header slot), WhatsApp/Claude review pattern — the
-          // transcript lands in the textarea right below it.
-          composerHeader={composer.audioDraftPlayer}
+          // transcript lands in the textarea right below it. An active call
+          // surfaces its equalizer + state here too: the composer BECOMES the
+          // call surface instead of a card floating above it. The ternary keeps
+          // an empty fragment from mounting a ghost header row.
+          composerHeader={
+            resonance.isActive || composer.audioDraftPlayer ? (
+              <>
+                {resonance.isActive && (
+                  <div className="og-resonance-live" data-ref="og118-resonance-bar">
+                    <AudioVisualizer
+                      levels={resonance.bands}
+                      active={resonanceVisualizerActive(resonance.state)}
+                      variant="bars"
+                      label="Nivel de tu voz"
+                      className="og-resonance-visualizer"
+                      barClassName="og-voice-bar-bar"
+                    />
+                    <span className="og-resonance-state" data-ref="og118-resonance-state">
+                      {resonance.isHearingUser
+                        ? 'Te oigo'
+                        : (RESONANCE_LABEL[resonance.state] ?? resonance.state)}
+                    </span>
+                  </div>
+                )}
+                {composer.audioDraftPlayer}
+              </>
+            ) : null
+          }
           composerHeaderClassName="og-composer-draft-row"
           composerAreaClassName="og-composer-area"
           composerTextareaClassName="glass-chat-composer-input"
@@ -304,6 +335,10 @@ export function Og118AgentChat() {
           // Visible send button (like AURITY), styled with the og emerald accent.
           sendButtonClassName="og-send-btn"
           sendButtonIconClassName="og-send-icon"
+          // While streaming the send button becomes a live stop control; the
+          // danger tint says "this cancels" rather than "this is loading".
+          stopButtonClassName="og-stop-btn"
+          stopLabel="Detener la respuesta"
           // Per-role bubble tint via the fi-glass resolver slot (FIGLASS-3):
           // user turns get the emerald fill, assistant turns keep the frosted
           // glass card. Both classes ship in the glass-chat preset and the
