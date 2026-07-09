@@ -28,3 +28,7 @@ data/chatgpt_export/
 .vultur_tok_tmp*
 data/vegan_corpus_sources/
 discord_backup_codes.txt
+
+# Working dir for tooling that dumps REAL #general messages (scripts/router_eval.py
+# writes its per-case detail here). Verbatim conversations — health, money, drugs.
+scratchpad/

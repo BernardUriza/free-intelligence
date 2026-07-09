@@ -18,9 +18,18 @@ Fidelidad (si algo de esto se desvía, el eval mide otro sistema):
 No escribe nada: es lectura de Postgres + llamadas de clasificación. NO contamina la
 ventana orgánica (no pasa por Discord ni emite `llm_router_cutover_decision`).
 
+Reproducibilidad: sin `--until`, el eval toma los mensajes más recientes, así que
+mañana mide OTRO conjunto y no sirve como regresión. El set de 30 casos con el que
+se cazó y corrigió el secuestro de v4.22.23 se recupera cortando el pool en
+`2026-07-09T04:11:00Z` (justo después de la respuesta de Vultur al probe). Ese es
+el set canónico: re-córrelo tras tocar `demux_ai/prompts/host_routing.md`.
+
 Uso:
     POSTGRES_URL=... AZURE_OPENAI_KEY=... python scripts/router_eval.py --limit 30
     python scripts/router_eval.py --limit 30 --dry-run   # extrae y muestra, cero gasto
+
+    # el set de regresión canónico, congelado:
+    python scripts/router_eval.py --limit 30 --until 2026-07-09T04:11:00Z
 """
 
 from __future__ import annotations
@@ -60,15 +69,16 @@ def _context_block(rows: list[dict], upto: int) -> str | None:
     return "\n".join(lines) if lines else None
 
 
-async def _load_messages(pg_url: str, channel_id: str, pool: int) -> list[dict]:
+async def _load_messages(pg_url: str, channel_id: str, pool: int, until_ts: float | None = None) -> list[dict]:
     import asyncpg
 
     conn = await asyncpg.connect(pg_url)
     try:
         rows = await conn.fetch(
             "SELECT user_id, user_name, role, content, timestamp FROM messages "
-            "WHERE channel_id = $1 ORDER BY timestamp DESC LIMIT $2",
+            "WHERE channel_id = $1 AND timestamp <= $2 ORDER BY timestamp DESC LIMIT $3",
             channel_id,
+            until_ts if until_ts is not None else 1e18,
             pool,
         )
     finally:
@@ -82,6 +92,12 @@ async def main() -> int:
     ap.add_argument("--pool", type=int, default=400, help="mensajes a traer para muestrear")
     ap.add_argument("--channel", default=GENERAL_CHANNEL_ID)
     ap.add_argument("--dry-run", action="store_true", help="no llama a gpt-4.1")
+    ap.add_argument(
+        "--until",
+        default=None,
+        help="corta el pool en este instante ISO-8601 (ej. 2026-07-09T04:11:00Z). "
+        "Sin él, el eval toma los mensajes MÁS RECIENTES y evalúa un conjunto distinto cada día.",
+    )
     ap.add_argument("--out", default="scratchpad/router_eval.json")
     args = ap.parse_args()
 
@@ -90,7 +106,14 @@ async def main() -> int:
         print("falta POSTGRES_URL", file=sys.stderr)
         return 2
 
-    rows = await _load_messages(pg_url, args.channel, args.pool)
+    until_ts = None
+    if args.until:
+        from datetime import datetime
+
+        until_ts = datetime.fromisoformat(args.until.replace("Z", "+00:00")).timestamp()
+        print(f"ventana congelada hasta {args.until} (epoch {until_ts:.0f})")
+
+    rows = await _load_messages(pg_url, args.channel, args.pool, until_ts)
     user_msgs = [(i, r) for i, r in enumerate(rows) if r["role"] == "user" and str(r["content"]).strip()]
     cases = [(i, r) for i, r in user_msgs if not _addressed_to_sibling(str(r["content"]))]
     skipped = len(user_msgs) - len(cases)
