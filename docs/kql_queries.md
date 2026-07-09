@@ -1,18 +1,47 @@
-# KQL Queries — insult-bot prod
+# KQL Queries — Khimeras prod
 
-Workspace customer ID: `14ebd989-62d2-4207-b099-f6e13256fd72`
+Workspace customer ID: `14ebd989-62d2-4207-b099-f6e13256fd72` (`workspace-insultrgEXbl`, eastus2).
+The old `a07bf4c8-…` workspace is FROZEN at 2026-06-25T05:01 — every query against it
+returns stale rows or none.
+
 Table: `ContainerAppConsoleLogs_CL`
-Filter: `ContainerAppName_s == "insult-bot"`
+Filter: `ContainerAppName_s in ("discord-bot", "persona-gateway", "persona-runner")`
+(the plumbing container was renamed from `insult-bot` on 2026-05-14)
 Log string column: `Log_s`
 
-Logs ship as **JSON** when the Container App runs with `LOG_FORMAT=json` (v3.5.9+).
-Each `Log_s` is a complete JSON object like
-`{"event":"llm_response","model":"claude-sonnet-4-6","output_tokens":22,"stop_reason":"end_turn","timestamp":"..."}`.
-Use `parse_json(Log_s)` to pull structured fields. The legacy ANSI-string
-queries (using `extract()` regex) stay valid as a fallback when a revision
-runs without the env var.
-
 Run via `scripts/kql.sh 'QUERY'` or paste into Azure Portal → Log Analytics workspace → Logs.
+
+## Two traps that make a query silently return zero rows
+
+**1. `has` is not `contains`.** `has` matches indexed *terms* and returns **0** for
+several of our event names, while `contains` finds them. Measured 2026-07-08 over
+the same 14 days:
+
+| predicate | `has` | `contains` |
+|---|---|---|
+| `chat_turn_end` | **0** | 536 |
+| `llm_router_cutover_failed` | **0** | 10 |
+| `invite_marker_fired` | **0** | 7 |
+| `canary_probe_ok` | 25 | 25 |
+
+Two of the three Azure alert rules were built on `has` and could never fire. **Use
+`contains` for event names.** A zero-row result is not evidence of a healthy system.
+
+**2. Before v4.22.16, prod emitted ANSI, not JSON.** No Container App set
+`LOG_FORMAT`, so structlog used `ConsoleRenderer` and wrote escape codes *inside*
+every key=value pair (`\e[36moutcome\e[0m=\e[35mfailed\e[0m`). `scripts/kql.sh`
+strips ANSI when printing, so the logs *looked* clean while `contains 'outcome=failed'`
+matched nothing. Since v4.22.16 the three Dockerfiles pin `ENV LOG_FORMAT=json`
+(ratcheted by `tests/arch/test_dockerfiles_log_json.py`), so each `Log_s` is a real
+JSON object:
+
+```json
+{"event":"chat_turn_end","outcome":"ok","request_id":"aa3d3711","total_ms":27256}
+```
+
+Use `parse_json(Log_s)` for structured fields on rows newer than that deploy. For a
+window that spans it, `contains` works on both formats — which is why the alert
+rules use it.
 
 ## 1. Event rate (pipeline sanity check)
 

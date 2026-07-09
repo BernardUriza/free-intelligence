@@ -105,6 +105,45 @@ do not page:
 In KQL, restrict the alert query window using `datetime_local_to_utc()` or
 filter by `dayofweek(TimeGenerated)` + `hourofday(TimeGenerated)` (UTC).
 
+## The three alert rules that actually exist (verified 2026-07-08)
+
+Print them, never trust this list: `./scripts/dr_inventory.sh`.
+
+| Rule | Sev | Every | Fires when |
+|---|---|---|---|
+| `insult-canary-heartbeat-absent` | 1 | 30m | zero `canary_probe_ok` in 150m |
+| `insult-turn-failure-rate` | 2 | 15m | ≥3 failed turns / router timeouts / gateway failures in 30m |
+| `invite-accepted-without-completion` | 1 | 15m | an invite was accepted but no persona turn completed |
+
+All three route to action group `prod-trust-ag` → bernarduriza@gmail.com.
+
+### The 2026-07-08 incident: all three were dead, two of them silently
+
+Discovered while measuring the router cutover. Two independent faults, stacked:
+
+1. **Wrong workspace.** All three had `scopes` pointing at
+   `workspace-insultrgA7Kz` (`a07bf4c8-…`), which has been FROZEN since the
+   2026-06-25 billing incident. They were querying a dead workspace.
+2. **`has` instead of `contains`.** Their predicates (`Log_s has 'chat_turn_end'`,
+   `has 'outcome=failed'`, `has 'llm_router_cutover_failed'`) match **zero rows**
+   — see `docs/kql_queries.md` § traps. `insult-turn-failure-rate` could not have
+   fired if every turn in production had failed.
+
+The canary rule was the nastiest: it fires on `ok_count == 0`, and a dead
+workspace always yields zero, so it sat **Fired since 2026-07-08T01:42** — a false
+positive for 25h while the canary was healthy. With `autoMitigate` it would not
+have re-notified, so a *real* canary death would have produced **no new signal**.
+An alert stuck Fired is worse than no alert.
+
+**Fix:** Azure refuses `scopes` updates on a scheduled query rule
+(`BadRequest: Scope can not be updated`), so all three were **deleted and
+recreated** in `eastus2` against the live workspace, with `contains` predicates
+validated against real rows first (7 real failures / 3 real canary heartbeats).
+
+**Lesson:** an alert that has never fired is not evidence of health. Before
+trusting one, run its query by hand and confirm it returns the rows you expect on
+a window where you KNOW the bad thing happened.
+
 ### Provisioning the alert (Portal — manual today, IaC later)
 
 1. Azure Portal → Log Analytics workspace
