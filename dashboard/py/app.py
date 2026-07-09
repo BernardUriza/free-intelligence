@@ -297,7 +297,13 @@ def _render_metrics():
     document["val-uptime"].text = f"{hours}h {mins}m"
     document["val-messages"].text = str(db.get("total_messages", counters.get("messages_total", 0)))
     document["val-latency"].text = f"{bot.get('latency_ms', 0)}ms"
-    document["val-errors"].text = str(counters.get("llm_errors", 0))
+    # `llm_errors` was deleted: its emitter (the legacy LLMClient) is gone, so the
+    # figure sat at 0 forever and read as health. These three DO fire.
+    document["val-errors"].text = str(
+        counters.get("facts_failed", 0)
+        + counters.get("alice_failovers", 0)
+        + counters.get("gateway_zombie_restarts", 0)
+    )
 
     # Preset distribution bars
     _render_presets(counters)
@@ -342,13 +348,13 @@ def _render_counters(counters):
 
     from browser import html
     items = [
-        ("LLM Requests", counters.get("llm_requests", 0)),
-        ("Character Breaks", counters.get("character_breaks", 0)),
-        ("Anti-patterns", counters.get("anti_patterns", 0)),
         ("Whisper Transcriptions", counters.get("whisper_transcriptions", 0)),
         ("Reminders Created", counters.get("reminders_created", 0)),
         ("Facts Extracted", counters.get("facts_extracted", 0)),
         ("Facts Failed", counters.get("facts_failed", 0)),
+        ("Remember Facts Added", counters.get("remember_facts_added", 0)),
+        ("ALICE Failovers", counters.get("alice_failovers", 0)),
+        ("Gateway Restarts", counters.get("gateway_zombie_restarts", 0)),
     ]
 
     for label, value in items:

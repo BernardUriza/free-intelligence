@@ -1,12 +1,16 @@
 [project]
 name = "insult"
-version = "4.22.28"
+version = "4.22.29"
 requires-python = ">=3.14"
 
 [tool.ruff]
 target-version = "py314"
 line-length = 120
 exclude = ["dashboard/", "scripts/"]  # Brython uses <= as DOM op; scripts are tooling
+# Without this, `exclude` is ignored whenever a path is passed EXPLICITLY — which is
+# exactly what the pre-commit hook does with the staged files. So `ruff check .` passed
+# while committing a one-line dashboard edit failed on 60 pre-existing Brython `<=`.
+force-exclude = true
 
 [tool.ruff.lint]
 select = [
