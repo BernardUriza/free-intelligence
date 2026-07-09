@@ -145,6 +145,18 @@ export interface AgentConversation {
   send: (text: string) => void;
   /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
   sendAndAwait: (text: string) => Promise<string>;
+  /**
+   * Cancel the streaming turn at the user's request. Present only when the
+   * transport supports {@link AgentHook.abort} — a surface renders its stop
+   * affordance off this being defined, never off `isStreaming` alone.
+   *
+   * A user stop is NOT a failure: the partial text the assistant already wrote
+   * is folded into the thread (ChatGPT parity) and the optimistic user message
+   * stays. That behavior is not re-implemented here — aborting drops
+   * `isStreaming` without an error event, so the existing fold effect settles
+   * the turn on its own.
+   */
+  stop?: () => void;
   /** Re-send the last user text after a failure. No-op if there is nothing to retry. */
   retry: () => void;
   /** Clear the current turnError without re-sending (the optimistic msg is already reverted). */
@@ -268,6 +280,11 @@ export function useAgentConversation(
     },
     [agent.isStreaming, send],
   );
+
+  const stop = useCallback(() => {
+    if (!agentRef.current.isStreaming) return;
+    agentRef.current.abort?.();
+  }, []);
 
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
@@ -394,6 +411,7 @@ export function useAgentConversation(
     turnError,
     send,
     sendAndAwait,
+    stop: agent.abort ? stop : undefined,
     retry,
     dismissError,
     newConversation,

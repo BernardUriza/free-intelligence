@@ -506,6 +506,13 @@ var CSS = `
   justify-content: flex-end;
   gap: var(--fi-space-2, 0.5rem);
 }
+[data-fi-composer-slot="footer-start"] {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-space-2, 0.5rem);
+  min-width: 0;
+  margin-right: auto;
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
@@ -520,27 +527,33 @@ function useComposerFrameStyle() {
     ensureComposerFrameStyle();
   }, []);
 }
+var filled = (slot) => slot != null && slot !== false;
 function ComposerFrame({
   children,
   header,
   footer,
+  footerStart,
   className,
   style,
   headerClassName,
   footerClassName,
-  footerStyle
+  footerStyle,
+  footerStartClassName
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && header !== false && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    filled(header) && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    footer != null && footer !== false && /* @__PURE__ */ jsx8(
+    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs6(
       "div",
       {
         className: footerClassName,
         style: footerStyle,
         "data-fi-composer-slot": "footer",
-        children: footer
+        children: [
+          filled(footerStart) && /* @__PURE__ */ jsx8("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          footer
+        ]
       }
     )
   ] });

@@ -89,6 +89,66 @@ describe('<ComposerFrame> slots', () => {
     expect(slot('footer')).toBeNull();
   });
 
+  it('renders footerStart as the footer\'s first child, inside the footer slot', () => {
+    render(
+      <ComposerFrame
+        footerStart={<button>persona</button>}
+        footerStartClassName="rail"
+        footer={<button>send</button>}
+      >
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    const start = slot('footer-start');
+    expect(start).not.toBeNull();
+    expect(start!.className).toBe('rail');
+    expect(start!.parentElement).toBe(slot('footer'));
+    expect(slot('footer')!.firstElementChild).toBe(start);
+  });
+
+  it('mounts the footer for a footerStart even when there is no footer content', () => {
+    render(
+      <ComposerFrame footerStart={<button>persona</button>}>
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    expect(slot('footer')).not.toBeNull();
+    expect(slot('footer-start')!.textContent).toBe('persona');
+  });
+
+  // The whole point of `margin-right: auto` over flipping `justify-content`:
+  // every existing consumer's footer must be untouched.
+  it('leaves a footer without footerStart byte-identical — no rail wrapper', () => {
+    render(
+      <ComposerFrame footer={<button>send</button>} footerClassName="ctl">
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    expect(slot('footer-start')).toBeNull();
+    expect(slot('footer')!.children.length).toBe(1);
+    expect(slot('footer')!.firstElementChild!.tagName).toBe('BUTTON');
+  });
+
+  it('treats a `false` footerStart as empty — no ghost rail', () => {
+    render(
+      <ComposerFrame footerStart={false} footer={<button>send</button>}>
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    expect(slot('footer-start')).toBeNull();
+  });
+
+  it('keeps the left rail reachable: footerStart claims it with margin-right auto', () => {
+    render(
+      <ComposerFrame footerStart={<span>chip</span>}>
+        <textarea aria-label="body" />
+      </ComposerFrame>
+    );
+    const css = document.getElementById('fi-composer-frame-style')!.textContent!;
+    expect(css).toContain('[data-fi-composer-slot="footer-start"]');
+    expect(css).toContain('margin-right: auto');
+  });
+
   it('injects the tokenized stylesheet once', () => {
     render(
       <ComposerFrame footer={<span>f</span>}>

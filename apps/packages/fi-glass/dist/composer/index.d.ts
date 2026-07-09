@@ -83,13 +83,19 @@ interface ComposerFrameProps {
     header?: ReactNode;
     /** Optional footer slot — the controls row below the body (chips, mic, send). */
     footer?: ReactNode;
+    /**
+     * Optional footer LEFT rail — tool chips (model/persona, attach, call). Claims
+     * the left with `margin-right: auto`; omit it and the footer is unchanged.
+     */
+    footerStart?: ReactNode;
     /** Class for the single container (the consumer's frosted box preset). */
     className?: string;
     style?: CSSProperties;
     headerClassName?: string;
     footerClassName?: string;
     footerStyle?: CSSProperties;
+    footerStartClassName?: string;
 }
-declare function ComposerFrame({ children, header, footer, className, style, headerClassName, footerClassName, footerStyle, }: ComposerFrameProps): react.JSX.Element;
+declare function ComposerFrame({ children, header, footer, footerStart, className, style, headerClassName, footerClassName, footerStyle, footerStartClassName, }: ComposerFrameProps): react.JSX.Element;
 
 export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, ComposerFrame, type ComposerFrameProps, type ComposerProps, ensureComposerFrameStyle, useComposerFrameStyle };
