@@ -1804,7 +1804,7 @@ function TranscriptMessages({
             )
           }
         )
-      ] }, i);
+      ] }, `${m.timestamp}-${i}`);
     }),
     isStreaming && /* @__PURE__ */ jsx24(AgentPanel, { turn, ...agentPanelProps }),
     isStreaming && turn.text && /* @__PURE__ */ jsx24(
