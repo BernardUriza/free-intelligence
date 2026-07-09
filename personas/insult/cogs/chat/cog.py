@@ -33,13 +33,11 @@ from personas.insult.cogs.chat.turn import run_turn
 from personas.insult.cogs.chat.voice import transcribe_voice
 from personas.insult.composition import (
     build_host_degrader_port,
-    build_host_router_cutover,
     build_llm_router_cutover_route,
     build_llm_shadow_router,
     build_preset_engine_port,
     build_router_budget,
     build_s1b_policy_port,
-    build_shadow_router,
     default_arc_port,
     default_facts_port,
     default_output_mutation_port,
@@ -75,19 +73,11 @@ class ChatCog(commands.Cog):
         # Host degrader (gpt-4.1 honest-degradation). None unless
         # host_router_enabled — INERT in prod, so demux_ai/fi_runner never load.
         self._host_degrader = build_host_degrader_port(self.settings)
-        # Deterministic shadow router (HOST 5/6 slice A). Pure callable or None —
-        # the bind stage logs current vs shadow target; never changes routing.
-        self._shadow_route = build_shadow_router(self.settings)
         # gpt-4.1 LLM shadow router (HOST 5/6 slice A.2). None unless
         # llm_shadow_router_enabled — default OFF (it SPENDS). When on, the bind
         # stage runs it off the critical path to log the host brain's independent
         # target vs current; never changes routing, no cutover.
         self._llm_shadow_route = build_llm_shadow_router(self.settings)
-        # Deterministic CUTOVER handle (HOST 5/6 slice B). None unless
-        # host_router_cutover_enabled — default OFF, behavior-neutral. When wired,
-        # the bind stage ACTS on the deterministic router's decision (sets
-        # persona_id) instead of only logging; a fault falls back to the live rule.
-        self._host_router_cutover = build_host_router_cutover(self.settings)
         # LLM router CUTOVER (HOST 5/6 slice C). None unless
         # llm_router_cutover_enabled — default OFF. When wired, the
         # llm_router_cutover stage ACTS on the gpt-4.1 decision for implicit
@@ -196,9 +186,7 @@ class ChatCog(commands.Cog):
                     agent_client=self.agent_client,
                     judge_client=self.judge_client,
                     host_degrader=self._host_degrader,
-                    shadow_route=self._shadow_route,
                     llm_shadow_route=self._llm_shadow_route,
-                    host_router_cutover=self._host_router_cutover,
                     llm_router_cutover_route=self._llm_router_cutover_route,
                     router_budget=self._router_budget,
                 ),

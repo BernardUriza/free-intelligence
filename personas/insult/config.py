@@ -140,23 +140,12 @@ class Settings(BaseSettings):
     # gated act (real spend), not part of shipping the wiring.
     host_router_enabled: bool = False
 
-    # HOST 5/6 slice A — the DETERMINISTIC shadow router. Defaults True (unlike the
-    # gpt-4.1 flags above, which default False to avoid spend): the shadow is pure
-    # config-only routing (no LLM, no Azure, zero cost) and behavior-NEUTRAL — it
-    # only LOGS what the host would route to (``shadow_router_decision``) next to
-    # where the turn actually goes. Defaulting it on is the point: a shadow gated
-    # off measures nothing. Flip False as a kill switch if the per-turn log proves
-    # noisy; cutover (acting on the shadow target) is a separate, later slice.
-    shadow_router_enabled: bool = True
-
     # HOST 5/6 slice A.2 — the gpt-4.1 LLM shadow router. Defaults False (like the
-    # other gpt-4.1 flags): unlike the deterministic shadow above, this one calls
-    # Azure per turn and SPENDS. When True the cog builds demux_ai.llm_shadow_router
+    # other gpt-4.1 flags): it calls Azure per turn and SPENDS. When True the cog builds demux_ai.llm_shadow_router
     # (gpt-4.1) and the bind-identity stage runs it OFF the critical path (a
     # background task) to LOG ``llm_shadow_router_decision`` (current vs the host
     # brain's independent target) — never acted on, no cutover. Flipping it True in
-    # prod is the spend authorization itself, a deliberate gated act; the
-    # deterministic shadow keeps measuring agreement for free regardless.
+    # prod is the spend authorization itself, a deliberate gated act.
     llm_shadow_router_enabled: bool = False
 
     # HOST 5/6 slice A.2 — transport for the LLM shadow router when enabled.
@@ -166,21 +155,6 @@ class Settings(BaseSettings):
     # completion — only instruction+input, hundreds of tokens). Set "direct" to
     # measure/keep the cheap path; same routing decision either way.
     llm_shadow_transport: str = "agentic"
-
-    # HOST 5/6 slice B — the CUTOVER switch. Defaults False (behavior-neutral):
-    # the demux host stops merely SHADOWING and the deterministic router's decision
-    # ACTUALLY routes the turn (sets persona_id). The cut is deliberately the
-    # DETERMINISTIC shadow ONLY — it's a pure function (zero added latency, no LLM,
-    # no Azure spend) AND it mirrors the live @vultur rule by construction, so even
-    # flipped ON the routing is byte-identical to today: a true structural no-op
-    # that proves the routing seam (the textbook strangler-fig first cut). The
-    # gpt-4.1 LLM router stays SHADOW-only (it's a multi-second blocking call — a
-    # later sub-slice gates it to ambiguous turns with a timeout fallback). The
-    # cutover handle is wired only when this is True AND shadow_router_enabled is
-    # True; a cutover fault always falls back to the live rule (kill switch + fail
-    # safe). Flipping it True in prod is a separate gated act — never part of
-    # shipping the wiring.
-    host_router_cutover_enabled: bool = False
 
     # HOST 5/6 slice C — the gpt-4.1 LLM router CUTOVER. Defaults False. When True
     # the cog wires the context-aware LLM router ONTO the critical path for

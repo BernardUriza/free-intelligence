@@ -15,10 +15,9 @@ It NEVER serves a persona and NEVER impersonates — it emits a routing label, t
 turn still goes wherever the live rule sent it (no cutover).
 
 Boundary: ``demux_ai`` must never import ``personas.*`` (host→persona ratchet is
-0). The valid-target set is mirrored as a constant — parity with
-``shadow_router._VULTUR_PREFIXES`` — kept in lockstep with the registered
-personas (``shared/personas/registry.py``) + the implicit Insult host, WITHOUT
-importing any persona package.
+0). The valid-target set is mirrored as a constant, kept in lockstep with the
+registered personas (``shared/personas/registry.py``) + the implicit Insult host,
+WITHOUT importing any persona package.
 """
 
 from __future__ import annotations

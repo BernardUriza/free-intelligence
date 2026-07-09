@@ -93,9 +93,6 @@ HOST_DEGRADE_TIMEOUT_S = 12.0
 # --- Stage 01: identity binding (no I/O, just derive fields from message) ---
 
 
-_VULTUR_PREFIXES = ("@vultur ", "~vultur ")
-
-
 # How many recent channel messages ride into the routing decision as context.
 # Small on purpose: enough to detect "this is a continuation of frugivoro's
 # exchange" (the 2026-07-06 P0: Alex's bare pantry list mid-fruit-conversation
@@ -194,48 +191,13 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
     ctx.channel_name = msg.channel.name if hasattr(msg.channel, "name") else None
     ctx.context_key = f"{ctx.channel_id}:{ctx.user_id}"
 
-    # Multi-persona routing: @vultur / ~vultur prefix → route to Vultur persona.
-    # Keep the RAW text (pre-strip) so the shadow router below sees the same input
-    # the live rule did — otherwise it would never observe the prefix and falsely
-    # diverge on every Vultur turn.
-    raw_text = ctx.text
-    lowered = ctx.text.lower()
-    for prefix in _VULTUR_PREFIXES:
-        if lowered.startswith(prefix):
-            ctx.persona_id = "vultur"
-            ctx.text = ctx.text[len(prefix) :].strip()
-            break
-
-    # HOST 5/6 slice B — CUTOVER. When the cutover handle is wired (default None →
-    # OFF → byte-identical to today), the demux host's DETERMINISTIC routing
-    # decision ACTUALLY routes the turn: it sets ctx.persona_id instead of only
-    # being shadow-logged below. We cut over the deterministic shadow ONLY — it is
-    # a pure function (zero added latency, no LLM/Azure spend) AND mirrors the live
-    # @vultur rule by construction, so even ON the routing is a true structural
-    # no-op today (the strangler-fig first cut that proves the seam). The gpt-4.1
-    # LLM router is NEVER acted on here — adding its multi-second blocking call to
-    # every turn is forbidden; its cutover lives in its own gated stage
-    # (``_stage_llm_router_cutover``, slice C, after memory_store, implicit turns
-    # only). Fail-safe + kill switch: a cutover fault keeps ctx.persona_id as
-    # the LIVE rule set it (the turn never breaks because the host router errored).
-    host_router_cutover = getattr(ctx.deps, "host_router_cutover", None)
-    if host_router_cutover is not None:
-        live_persona_id = ctx.persona_id
-        try:
-            cutover_persona_id = host_router_cutover(live_persona_id, raw_text)
-            ctx.persona_id = cutover_persona_id
-            log.info(
-                "host_router_cutover_applied",
-                live_persona_id=live_persona_id,
-                cutover_persona_id=cutover_persona_id,
-                diverged=cutover_persona_id != live_persona_id,
-                guild_id=ctx.guild_id,
-            )
-        except Exception:
-            # Keep the live rule's persona_id (already set above) — never break the
-            # turn on a routing fault.
-            ctx.persona_id = live_persona_id
-            log.exception("host_router_cutover_failed", live_persona_id=live_persona_id)
+    # Prefix addressing (`@vultur ` / `~vultur ` as literal TEXT) is DEAD — retired
+    # 2026-07-08 with the strangler-fig's last cut, once the gpt-4.1 cutover went
+    # live. A sibling is now reached by a real Discord mention or a vocative alias
+    # ("frugi, ..."), both owned by the gateway's `should_respond`, or by the LLM
+    # router summoning it through /invite. The deterministic shadow (slice A) and
+    # its cutover (slice B) went with it: both mirrored this prefix rule BY
+    # CONSTRUCTION, so with the rule gone they could only ever report themselves.
 
     log.info(
         "chat_turn_start",
@@ -248,41 +210,19 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
         persona_id=ctx.persona_id,
     )
 
-    # HOST 5/6 slice A — SHADOW router. Compute what the demux host WOULD route to
-    # and log it next to where the turn actually goes; NEVER change ctx.persona_id
-    # (no cutover, no observable behavior change). Wrapped so a shadow fault is
-    # invisible to the turn — the shadow must never break the happy path.
-    shadow_route = getattr(ctx.deps, "shadow_route", None)
-    if shadow_route is not None:
-        try:
-            current_target = ctx.persona_id or "insult"
-            decision = shadow_route(raw_text)
-            log.info(
-                "shadow_router_decision",
-                current_target=current_target,
-                shadow_target=decision.target,
-                shadow_reason=decision.reason,
-                diverged=decision.target != current_target,
-                guild_id=ctx.guild_id,
-                explicit_vultur_trigger=decision.reason == "vultur_prefix",
-                route_input_len=len(raw_text),
-            )
-        except Exception:
-            log.exception("shadow_router_failed")
-
-    # HOST 5/6 slice A.2 — gpt-4.1 LLM SHADOW router. The deterministic shadow
-    # above mirrors the live @vultur rule by construction, so it can never diverge;
-    # this one asks the host BRAIN to pick a target INDEPENDENTLY, so a genuine
-    # divergence is finally observable. Spend-gated (llm_shadow_route is None unless
-    # llm_shadow_router_enabled) and run OFF the critical path via spawn_task — the
-    # Azure call must never delay the reply. Behavior-neutral: never changes routing.
+    # HOST 5/6 slice A.2 — gpt-4.1 LLM SHADOW router. Asks the host BRAIN to pick a
+    # target INDEPENDENTLY, so a genuine divergence is observable (unlike the retired
+    # deterministic shadow, which mirrored the prefix rule and could only agree with
+    # it). Spend-gated (llm_shadow_route is None unless llm_shadow_router_enabled)
+    # and run OFF the critical path via spawn_task — the Azure call must never delay
+    # the reply. Behavior-neutral: never changes routing.
     llm_shadow_route = getattr(ctx.deps, "llm_shadow_route", None)
     if llm_shadow_route is not None:
         # Gap B (rev161 autopsy): an attachment-only / empty-text turn has no
         # user_message for the gpt-4.1 router, which raised a spurious error-level
         # ValueError. Skip it cleanly — non-error, behavior-neutral — so empty turns
         # don't pollute the A.2.3 measurement error rate.
-        if not raw_text.strip():
+        if not ctx.text.strip():
             log.info(
                 "llm_shadow_router_skipped",
                 reason="empty_input",
@@ -294,7 +234,7 @@ async def _stage_bind_identity(ctx: TurnCtx) -> None:
             ctx.deps.spawn_task(
                 _run_llm_shadow_decision(
                     llm_shadow_route,
-                    raw_text,
+                    ctx.text,
                     current_target,
                     ctx.guild_id,
                     ctx.channel_id,

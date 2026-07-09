@@ -146,25 +146,12 @@ class TurnRuntimeDeps:
     # None unless ``host_router_enabled`` is True, in which case the
     # honest-degradation tail asks it for the notice instead of the static one.
     host_degrader: HostDegraderPort | None = None
-    # Deterministic shadow router (HOST 5/6 slice A). A pure ``str -> ShadowDecision``
-    # callable from demux_ai, or None when ``shadow_router_enabled`` is False. The
-    # bind-identity stage calls it to LOG ``shadow_router_decision`` (current vs
-    # shadow target) — it never changes where the turn routes. No LLM, no spend.
-    shadow_route: Callable[[str], Any] | None = None
     # LLM shadow router (HOST 5/6 slice A.2). An ASYNC ``str -> LLMShadowDecision``
     # callable (gpt-4.1 via demux_ai), or None when ``llm_shadow_router_enabled`` is
     # False (default — it SPENDS). The bind-identity stage runs it OFF the critical
     # path (a background task) to LOG ``llm_shadow_router_decision`` (current vs the
     # host brain's independent target) — never changes routing, no cutover.
     llm_shadow_route: Callable[[str], Any] | None = None
-    # Deterministic CUTOVER handle (HOST 5/6 slice B). A pure
-    # ``(live_persona_id, raw_text) -> str | None`` callable from demux_ai, or None
-    # when ``host_router_cutover_enabled`` is False (the default). When wired, the
-    # bind-identity stage ACTS on it — the host router's decision SETS ctx.persona_id
-    # (routes the turn) instead of only logging. It cuts over the DETERMINISTIC
-    # shadow ONLY (instant, zero added latency, no LLM/Azure spend); the gpt-4.1 LLM
-    # router stays shadow-only. A cutover fault falls back to the live rule.
-    host_router_cutover: Callable[[str | None, str], str | None] | None = None
     # LLM router CUTOVER (HOST 5/6 slice C). The same async route contract as
     # ``llm_shadow_route`` but ACTED on: None unless ``llm_router_cutover_enabled``.
     # When wired, the llm_router_cutover stage (after memory_store) calls it ON the

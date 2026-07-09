@@ -70,7 +70,7 @@ from personas.insult.core.flows import (  # noqa: E402
 )
 from personas.insult.core.memory import MemoryStore  # noqa: E402
 
-DEFAULT_DB = "/tmp/memory-live.db"  # noqa: S108
+DEFAULT_DB = "/tmp/memory-live.db"
 DEFAULT_CHANNEL = "1489180895264116736"  # #general
 
 

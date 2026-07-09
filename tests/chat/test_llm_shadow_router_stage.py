@@ -1,21 +1,30 @@
-"""Stage-01 Vultur trigger: @vultur / ~vultur prefix → persona_id routing.
+"""Stage-01 bind-identity: the gpt-4.1 LLM SHADOW router (HOST 5/6 slice A.2).
 
-Four required cases (coagent spec):
-1. @vultur <text> → persona_id="vultur", text stripped
-2. ~vultur <text> → persona_id="vultur", text stripped
-3. normal message  → persona_id=None (Insult default)
-4. bare trigger (no text after prefix) → persona_id="vultur", text=""
+Prefix addressing (`@vultur ` / `~vultur ` as literal TEXT) was RETIRED on
+2026-07-08, closing the strangler-fig once the gpt-4.1 cutover went live. With it
+went the deterministic shadow (slice A) and its cutover (slice B): both mirrored
+the prefix rule BY CONSTRUCTION, so with the rule gone they could only ever agree
+with themselves — they measured nothing.
 
-Mutator rules: positive + resistance (normal messages untouched).
+What still routes a turn to a sibling: a real Discord mention or a vocative alias
+("frugi, ..."), both owned by the gateway's `should_respond` (covered by
+`tests/integration/test_sibling_addressing.py`), and the LLM router summoning the
+persona through /invite (covered by `tests/chat/test_llm_router_cutover.py`).
+
+What survives here is the ONE shadow that could ever disagree: the gpt-4.1 router
+picking a target independently, off the critical path, never acted on.
 """
 
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from structlog.testing import capture_logs
 
+from demux_ai.llm_shadow_router import LLMShadowDecision
 from personas.insult.cogs.chat.pipeline import TurnCtx
 from personas.insult.cogs.chat.stages import _stage_bind_identity
 
@@ -30,120 +39,38 @@ def _make_ctx(text: str) -> TurnCtx:
     msg.attachments = []
     msg.flags.voice = False
     ctx = TurnCtx(message=msg, text=text, turn_start=time.monotonic(), deps=MagicMock())
-    # Both shadow routers OFF by default — a MagicMock attr is truthy, which would
-    # otherwise fire the deterministic shadow (Mock route) and spawn an un-awaited
-    # LLM-shadow coro. Tests that exercise a shadow opt in explicitly.
-    ctx.deps.shadow_route = None
+    # A MagicMock attr is truthy, which would spawn an un-awaited LLM-shadow coro.
     ctx.deps.llm_shadow_route = None
-    # HOST 5/6 slice B cutover handle OFF by default (same MagicMock-truthiness
-    # reason). Tests that exercise the cutover opt in explicitly.
-    ctx.deps.host_router_cutover = None
     return ctx
 
 
+# --- the retirement itself: prefix text must NOT route -----------------------
+
+
 @pytest.mark.asyncio
-async def test_at_vultur_sets_persona_id():
+@pytest.mark.parametrize("text", ["@vultur reseña Hereditary", "~vultur reseña Hereditary"])
+async def test_prefix_text_no_longer_routes_to_vultur(text: str) -> None:
+    """The retired rule: `@vultur ` as plain text is now just text."""
+    ctx = _make_ctx(text)
+    await _stage_bind_identity(ctx)
+    assert ctx.persona_id is None, "prefix addressing was retired 2026-07-08"
+
+
+@pytest.mark.asyncio
+async def test_prefix_text_is_no_longer_stripped_from_the_message() -> None:
+    """Resistance case: the text must reach the persona INTACT, not silently
+    mutilated by a rule that no longer routes."""
     ctx = _make_ctx("@vultur reseña Hereditary")
     await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"
-    assert ctx.text == "reseña Hereditary"
+    assert ctx.text == "@vultur reseña Hereditary"
 
 
 @pytest.mark.asyncio
-async def test_tilde_vultur_sets_persona_id():
-    ctx = _make_ctx("~vultur ¿qué piensas de Midsommar?")
-    await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"
-    assert ctx.text == "¿qué piensas de Midsommar?"
-
-
-@pytest.mark.asyncio
-async def test_normal_message_keeps_insult_default():
-    ctx = _make_ctx("oye insult qué onda")
+async def test_normal_message_keeps_insult_default() -> None:
+    ctx = _make_ctx("hola qué onda")
     await _stage_bind_identity(ctx)
     assert ctx.persona_id is None
-    assert ctx.text == "oye insult qué onda"
-
-
-@pytest.mark.asyncio
-async def test_bare_trigger_no_text():
-    ctx = _make_ctx("@vultur ")
-    await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"
-    assert ctx.text == ""
-
-
-# --- HOST 5/6 slice A: shadow router (behavior-neutral + logged) -------------
-
-from structlog.testing import capture_logs  # noqa: E402
-
-from demux_ai.shadow_router import shadow_route  # noqa: E402
-
-
-def _make_ctx_shadow(text: str, *, route=shadow_route) -> TurnCtx:
-    ctx = _make_ctx(text)
-    ctx.deps.shadow_route = route
-    return ctx
-
-
-@pytest.mark.asyncio
-async def test_shadow_logs_decision_for_normal_message():
-    ctx = _make_ctx_shadow("oye insult qué onda")
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    # behavior-neutral: live routing untouched
-    assert ctx.persona_id is None
-    assert ctx.text == "oye insult qué onda"
-    sd = [e for e in logs if e["event"] == "shadow_router_decision"]
-    assert len(sd) == 1
-    assert sd[0]["current_target"] == "insult"
-    assert sd[0]["shadow_target"] == "insult"
-    assert sd[0]["diverged"] is False
-
-
-@pytest.mark.asyncio
-async def test_shadow_mirrors_live_vultur_no_divergence():
-    # Shadow sees the RAW (pre-strip) text, so it observes the @vultur prefix the
-    # same way the live rule did → shadow_target=vultur, diverged=False.
-    ctx = _make_ctx_shadow("@vultur reseña Hereditary")
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"
-    assert ctx.text == "reseña Hereditary"
-    sd = next(e for e in logs if e["event"] == "shadow_router_decision")
-    assert sd["current_target"] == "vultur"
-    assert sd["shadow_target"] == "vultur"
-    assert sd["diverged"] is False
-
-
-@pytest.mark.asyncio
-async def test_shadow_disabled_emits_no_decision():
-    ctx = _make_ctx_shadow("hola", route=None)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert not [e for e in logs if e["event"] == "shadow_router_decision"]
-
-
-@pytest.mark.asyncio
-async def test_shadow_fault_is_invisible_to_turn():
-    def _boom(_text):
-        raise RuntimeError("shadow exploded")
-
-    ctx = _make_ctx_shadow("@vultur dame cine", route=_boom)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    # the turn is unaffected by a shadow fault
-    assert ctx.persona_id == "vultur"
-    assert ctx.text == "dame cine"
-    assert any(e["event"] == "shadow_router_failed" for e in logs)
-    assert not [e for e in logs if e["event"] == "shadow_router_decision"]
-
-
-# --- HOST 5/6 slice A.2: gpt-4.1 LLM shadow router (background + divergence) ---
-
-from types import SimpleNamespace  # noqa: E402
-
-from demux_ai.llm_shadow_router import LLMShadowDecision  # noqa: E402
+    assert ctx.text == "hola qué onda"
 
 
 class _SpawnCapture:
@@ -234,11 +161,12 @@ async def test_llm_shadow_fault_is_invisible_to_turn():
         raise RuntimeError("azure exploded")
 
     spawn = _SpawnCapture()
-    ctx = _make_ctx_llm("@vultur dame cine", route=_boom, spawn=spawn)
+    ctx = _make_ctx_llm("dame cine", route=_boom, spawn=spawn)
     with capture_logs() as logs:
         await _stage_bind_identity(ctx)
-        # the turn is unaffected — live routing already sent it to vultur
-        assert ctx.persona_id == "vultur"
+        # the turn is unaffected — the shadow never touches routing, and with the
+        # prefix rule retired an un-addressed turn stays with Insult.
+        assert ctx.persona_id is None
         await spawn.spawned[0][1]  # drain: must not raise
     assert any(e["event"] == "llm_shadow_router_failed" for e in logs)
     assert not [e for e in logs if e["event"] == "llm_shadow_router_decision"]
@@ -337,106 +265,3 @@ async def test_llm_shadow_context_fetch_fault_still_routes_without_context():
     assert any(e["event"] == "llm_router_context_fetch_failed" for e in logs)
     d = next(e for e in logs if e["event"] == "llm_shadow_router_decision")
     assert d["route_context_chars"] == 0
-
-
-# --- HOST 5/6 slice B: deterministic CUTOVER (flag-off no-op + flag-on routes) ---
-#
-# A cutover handle is a callable ``(live_persona_id, raw_text) -> str | None`` that
-# returns the persona the turn should run as. It is wired ONLY when
-# host_router_cutover_enabled (default False) AND the deterministic shadow is on.
-# When the handle is None (the default), routing is byte-identical to today.
-
-
-def _make_ctx_cutover(text: str, *, cutover, route=shadow_route) -> TurnCtx:
-    ctx = _make_ctx(text)
-    ctx.deps.shadow_route = route
-    ctx.deps.host_router_cutover = cutover
-    return ctx
-
-
-def _det_cutover(live_persona_id, raw_text):
-    # The real handle composition builds: apply_cutover(live, shadow_route(raw)).
-    from demux_ai.shadow_router import apply_cutover
-
-    return apply_cutover(live_persona_id=live_persona_id, decision=shadow_route(raw_text))
-
-
-@pytest.mark.asyncio
-async def test_cutover_off_is_behavior_neutral_for_vultur():
-    # Flag off (handle None) → routing untouched, even on a @vultur turn. The shadow
-    # still logs (slice A) but NOTHING acts on it.
-    ctx = _make_ctx_cutover("@vultur reseña Hereditary", cutover=None)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"  # set by the LIVE rule, not the cutover
-    assert ctx.text == "reseña Hereditary"
-    assert not [e for e in logs if e["event"].startswith("host_router_cutover")]
-
-
-@pytest.mark.asyncio
-async def test_cutover_off_is_behavior_neutral_for_insult():
-    ctx = _make_ctx_cutover("oye insult qué onda", cutover=None)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id is None
-    assert not [e for e in logs if e["event"].startswith("host_router_cutover")]
-
-
-@pytest.mark.asyncio
-async def test_cutover_on_routes_per_decision_vultur():
-    # Flag ON: the deterministic cutover sets persona_id. Today it equals the live
-    # rule (vultur) — a true no-op result — but it is now the CUTOVER that set it.
-    ctx = _make_ctx_cutover("@vultur reseña Hereditary", cutover=_det_cutover)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"
-    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
-    assert ev["live_persona_id"] == "vultur"
-    assert ev["cutover_persona_id"] == "vultur"
-    assert ev["diverged"] is False
-
-
-@pytest.mark.asyncio
-async def test_cutover_on_routes_per_decision_insult():
-    ctx = _make_ctx_cutover("oye insult qué onda", cutover=_det_cutover)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id is None
-    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
-    assert ev["live_persona_id"] is None
-    assert ev["cutover_persona_id"] is None
-    assert ev["diverged"] is False
-
-
-@pytest.mark.asyncio
-async def test_cutover_can_change_routing_when_decision_differs():
-    # Prove the seam ACTUALLY routes: a (hypothetical future) cutover that disagrees
-    # with the live rule changes persona_id. Slice B's deterministic handle never
-    # does this today, but the mechanism must be able to.
-    def _force_vultur(_live, _raw):
-        return "vultur"
-
-    ctx = _make_ctx_cutover("oye insult qué onda", cutover=_force_vultur)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"  # live rule said None; cutover overrode it
-    ev = next(e for e in logs if e["event"] == "host_router_cutover_applied")
-    assert ev["live_persona_id"] is None
-    assert ev["cutover_persona_id"] == "vultur"
-    assert ev["diverged"] is True
-
-
-@pytest.mark.asyncio
-async def test_cutover_fault_falls_back_to_live_rule():
-    # A cutover fault must NEVER break the turn — persona_id stays as the live rule
-    # set it, and a host_router_cutover_failed event is logged.
-    def _boom(_live, _raw):
-        raise RuntimeError("cutover exploded")
-
-    ctx = _make_ctx_cutover("@vultur dame cine", cutover=_boom)
-    with capture_logs() as logs:
-        await _stage_bind_identity(ctx)
-    assert ctx.persona_id == "vultur"  # live rule's value preserved
-    assert ctx.text == "dame cine"
-    assert any(e["event"] == "host_router_cutover_failed" for e in logs)
-    assert not [e for e in logs if e["event"] == "host_router_cutover_applied"]
