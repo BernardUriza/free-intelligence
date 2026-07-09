@@ -178,10 +178,13 @@ class Settings(BaseSettings):
     # p95=1401ms, max=2865ms, so the ceiling was clipping a tail that the healthy
     # path never approaches.
     #
-    # What the next window must answer, because this window CANNOT: whether those
-    # 5 were slow (recoverable at 5s) or hung (upstream fault). If failures
-    # persist and cluster at ~5000ms, the ceiling is not the problem — stop
-    # raising it and investigate the Azure completion instead.
+    # First evidence, same day (04:10:18Z, `~vultur ¿cuánto es dos más dos?`): a
+    # real decision landed at latency_ms=3202 → routed to Vultur, who answered.
+    # The old 3.0s ceiling would have timed that turn out and fed it to Insult.
+    # So at least part of the loss was SLOW, not hung.
+    #
+    # Still open: if failures reappear and cluster at ~5000ms, the ceiling is not
+    # the problem — stop raising it and investigate the Azure completion instead.
     llm_router_cutover_timeout_seconds: float = 5.0
 
     # ``extra="ignore"`` is the deliberate, container-appropriate posture: a
