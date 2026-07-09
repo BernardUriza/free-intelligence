@@ -117,6 +117,13 @@ class ClaudeCodeBackend:
             "allowed_tools": self._allowlist(mcp_servers, tool_policy),
             "disallowed_tools": list(tool_policy.builtin_disallowed),
             "permission_mode": tool_policy.permission_mode.value,
+            # A Runner serves requests; it must never inherit the MCP servers of
+            # whatever machine it happens to run on. Without this the CLI merges
+            # the host's `.mcp.json` / user config, so a local og118 turn booted
+            # the developer's chrome-devtools + cloudflare servers and opened
+            # OAuth consent tabs in their browser. Only the servers this Runner
+            # declares in `capabilities` are mounted.
+            "strict_mcp_config": True,
         }
         chosen_model = model or self.default_model
         if chosen_model:
