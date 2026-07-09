@@ -414,8 +414,11 @@
       <span class="item-tag">DD-nav</span></label>
 
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Acceso desde móvil (Capacitor / browser móvil) sin regresiones</div>
-      <div class="item-note">OPEN. RECONCILE 2026-06-28: GATE4 #16 = 🔵 needs a real device — superficie de Bernard, no verificable headless. Pendiente además B3-OG118-MOBILE-1 (sidebar responsive collapse).</div></div>
+      <div class="item-body"><div class="item-text">Acceso desde móvil (PWA standalone instalable / browser móvil) sin regresiones</div>
+      <div class="item-note">SHIPPED, PENDIENTE VERIFICACIÓN EN DISPOSITIVO. 2026-07-09 (#336): og118 se instala en iPhone como app standalone, gratis, sin Capacitor. B3-OG118-MOBILE-1 (drawer responsive) cerrado el 06-30. Capacitor NUNCA existió en el repo (cero config/ios/xcodeproj/dep); free-provisioning caduca cada 7 días → descartado, una app Capacitor real cuesta $99/año.
+      DOS TRAMPAS, ambas verificadas contra el HTML servido, no contra la config: (1) NO se añade manifest.json a propósito — iOS usa su `scope` para mantener standalone, Auth0 es otro origen, así que con manifest el login sale del standalone a un navegador cuyo storage NO comparte con la app instalada y vuelve sin sesión; `apple-mobile-web-app-capable` da standalone sin scope. (2) Next ≥15 NO emite ese tag desde `appleWebApp.capable` (PR vercel/next.js#70363 lo cambió por `mobile-web-app-capable`, que Safari ignora) → se emite vía `metadata.other`.
+      Verificado live en staging.og118.ai: tag presente, 0 manifests, viewport-fit=cover, apple-touch-icon 180×180 HTTP 200, safe-area-inset-* en el chunk servido. Micrófono en standalone OK (WebKit 185448 FIXED, iOS 13.4).
+      🔵 FALTA: Bernard instala desde Safari iOS y comprueba el round-trip de Auth0 — único paso no verificable headless. Certeza de que el redirect sobrevive sin manifest: PROBABLE, no confirmada (la fuente, pwacompat#15, es de 2018 y el repo se archivó en 2025). Si rompe → Capacitor + Apple Developer Program ($99/año), donde el OAuth se resuelve nativo con ASWebAuthenticationSession.</div></div>
       <span class="item-tag">DD-mobile</span></label>
   </div>
 
