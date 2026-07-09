@@ -10,6 +10,9 @@ plus the resistance cases that must NOT suppress Insult.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
 
 from personas.insult.cogs.chat.batch import addressed_to_sibling
 from shared.personas.registry import sibling_bot_user_ids
@@ -117,3 +120,66 @@ def test_trailing_vocative_alias_still_suppresses():
 def test_object_then_vocative_occurrence_suppresses():
     """Occurrence-wise: object first, vocative second → still an address."""
     assert addressed_to_sibling(_msg("no le hablo a frugi… bueno ya, frugi ayúdame")) is True
+
+
+# --- what actually keeps the router off an addressed turn -------------------
+#
+# `_stage_llm_router_cutover` opens with `if ctx.persona_id is not None: return`,
+# which reads like the protection. It is not: the prefix was the ONLY thing that
+# ever set `persona_id`, and it died with the strangler-fig (88481c9), so that
+# guard is unreachable today. The real gate is HERE — `handle_incoming` returns
+# before the turn is ever queued, so the pipeline (and the router with it) never
+# runs on a message addressed to a sibling. Pin the gate that actually holds.
+
+
+def _discord_msg(content, *, mention_ids=(), author_bot=False):
+    author = SimpleNamespace(id=222, bot=author_bot, display_name="tester")
+    channel = SimpleNamespace(id=111, name="general")
+    return SimpleNamespace(
+        content=content,
+        mentions=[SimpleNamespace(id=int(i)) for i in mention_ids],
+        guild=None,
+        author=author,
+        channel=channel,
+        id=999,
+        attachments=[],
+        flags=SimpleNamespace(voice=False),
+    )
+
+
+@pytest.mark.asyncio
+async def test_turn_addressed_to_sibling_never_reaches_the_pipeline():
+    """A message addressed to a sibling is PERSISTED but never queued, so the LLM
+    router stage cannot fire a second summons on top of the sibling's own reply."""
+    from personas.insult.cogs.chat.batch import BatchManager
+
+    manager = BatchManager()
+    memory = AsyncMock()
+    await manager.handle_incoming(
+        _discord_msg("frugi, qué ceno hoy?"),
+        settings=SimpleNamespace(command_prefix="!"),
+        memory=memory,
+        bot=SimpleNamespace(),
+        flush_callback=AsyncMock(),
+        transcribe_voice=AsyncMock(return_value=None),
+    )
+    assert manager._pending == {}, "an addressed turn must never enter the pipeline"
+    memory.store.assert_awaited_once()  # still stored: Insult is the storage gateway
+
+
+@pytest.mark.asyncio
+async def test_unaddressed_turn_does_reach_the_pipeline():
+    """RESISTANCE: without the gate firing, the turn queues normally — otherwise the
+    test above would pass on a batcher that drops everything."""
+    from personas.insult.cogs.chat.batch import BatchManager
+
+    manager = BatchManager()
+    await manager.handle_incoming(
+        _discord_msg("hoy sentí mucha presión en el trabajo"),
+        settings=SimpleNamespace(command_prefix="!"),
+        memory=AsyncMock(),
+        bot=SimpleNamespace(),
+        flush_callback=AsyncMock(),
+        transcribe_voice=AsyncMock(return_value=None),
+    )
+    assert manager._pending, "an unaddressed turn must be queued for the pipeline"

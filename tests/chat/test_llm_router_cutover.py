@@ -154,7 +154,20 @@ def test_stage_has_no_second_ceiling_of_its_own():
 
 
 @pytest.mark.asyncio
-async def test_explicit_addressing_outranks_router():
+async def test_preset_persona_id_outranks_router_seam_contract_only():
+    """SEAM CONTRACT, NOT production coverage — read this before trusting it green.
+
+    Nothing sets `ctx.persona_id` anymore: the `~vultur `/`@vultur ` prefix was its
+    only writer and died with the strangler-fig (88481c9). So in production this
+    stage always sees None and the guard below is unreachable. What actually keeps
+    the router off an addressed turn is `batch.handle_incoming`, which returns
+    before the turn is ever queued — pinned in
+    `tests/integration/test_sibling_addressing.py`.
+
+    Kept because the guard is the seam's contract: if a future host writes
+    `persona_id` again (a demux front-door picking the persona), explicit addressing
+    must still outrank the LLM. It just doesn't guard anything today.
+    """
     ctx = _make_ctx("@vultur reseña Hereditary", persona_id="vultur")
     route = AsyncMock(return_value=_decision("insult"))
     ctx.deps.llm_router_cutover_route = route
