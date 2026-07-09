@@ -384,7 +384,7 @@ async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
             channel_id=ctx.channel_id,
         )
         return
-    timeout_s = float(getattr(ctx.deps.settings, "llm_router_cutover_timeout_seconds", 3.0))
+    timeout_s = float(ctx.deps.settings.llm_router_cutover_timeout_seconds)
     start = time.monotonic()
     try:
         context = await _fetch_router_context(ctx.deps.memory, ctx.channel_id)

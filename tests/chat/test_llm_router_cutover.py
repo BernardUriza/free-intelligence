@@ -136,6 +136,23 @@ def test_timeout_ceiling_clears_the_observed_success_tail():
     )
 
 
+def test_stage_has_no_second_ceiling_of_its_own():
+    """The ceiling lives in config.py, once. A `getattr(settings, ..., 3.0)` in
+    the stage is a second, silently stale copy: the day the setting is renamed,
+    the stage stops raising and quietly reinstalls the 3.0s ceiling that lost
+    11.9% of the calls.
+    """
+    import re
+    from pathlib import Path
+
+    stages_src = (
+        Path(__file__).resolve().parents[2] / "personas" / "insult" / "cogs" / "chat" / "stages.py"
+    ).read_text()
+    assert not re.search(r"getattr\([^)]*llm_router_cutover_timeout_seconds[^)]*,\s*[\d.]+\s*\)", stages_src), (
+        "the stage carries its own timeout default — config.py is the only source of truth"
+    )
+
+
 @pytest.mark.asyncio
 async def test_explicit_addressing_outranks_router():
     ctx = _make_ctx("@vultur reseña Hereditary", persona_id="vultur")
