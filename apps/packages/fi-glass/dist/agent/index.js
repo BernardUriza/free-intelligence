@@ -2350,36 +2350,51 @@ function ComposerRegion({ surface, state, contentInset }) {
       stopButtonClassName
     }
   ) : null;
-  return /* @__PURE__ */ jsx32("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs24("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-    hasThread && showNewChatButton && /* @__PURE__ */ jsx32(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-    aboveComposer && /* @__PURE__ */ jsx32("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-    /* @__PURE__ */ jsx32(
-      ComposerFrame,
-      {
-        className: composerBoxClassName,
-        header: composerHeader,
-        headerClassName: composerHeaderClassName,
-        footerClassName: composerControlsClassName,
-        footerStart: composerFooterStart,
-        footerStartClassName: composerFooterStartClassName,
-        footer,
-        children: /* @__PURE__ */ jsx32(
-          Composer,
+  return /* @__PURE__ */ jsx32(
+    "div",
+    {
+      style: {
+        // The composer is the surface's bottom edge, so it is what a notched
+        // phone's home indicator overlaps once the app runs full-bleed
+        // (`viewport-fit=cover` / an installed standalone PWA). env() resolves
+        // to 0px everywhere else, so the desktop padding is unchanged.
+        padding: "0.75rem 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "calc(1rem + env(safe-area-inset-left, 0px))",
+        paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
+        borderTop: "1px solid rgba(255,255,255,0.06)"
+      },
+      children: /* @__PURE__ */ jsxs24("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx32(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx32("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx32(
+          ComposerFrame,
           {
-            message: input,
-            loading: isStreaming,
-            placeholder: composerPlaceholder,
-            onMessageChange: setInput,
-            onSend,
-            areaClassName: composerAreaClassName,
-            textareaClassName: composerTextareaClassName,
-            wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
-            textareaRef: inputRef
+            className: composerBoxClassName,
+            header: composerHeader,
+            headerClassName: composerHeaderClassName,
+            footerClassName: composerControlsClassName,
+            footerStart: composerFooterStart,
+            footerStartClassName: composerFooterStartClassName,
+            footer,
+            children: /* @__PURE__ */ jsx32(
+              Composer,
+              {
+                message: input,
+                loading: isStreaming,
+                placeholder: composerPlaceholder,
+                onMessageChange: setInput,
+                onSend,
+                areaClassName: composerAreaClassName,
+                textareaClassName: composerTextareaClassName,
+                wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+                textareaRef: inputRef
+              }
+            )
           }
         )
-      }
-    )
-  ] }) });
+      ] })
+    }
+  );
 }
 
 // src/agent/AgentConversationSurface.tsx
