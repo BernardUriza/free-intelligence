@@ -14,6 +14,17 @@
  *   body   — the textarea row (required)
  *   footer — the controls row (tool chips left, voice/send right)
  *
+ * The footer's LEFT rail is `footerStart` (B3-FIGLASS-COMPOSER-FOOTER-ZONES-1):
+ * the tool-chip zone the anatomy above always described but the stylesheet made
+ * unreachable, since a lone `justify-content: flex-end` pinned every control to
+ * the right and left ~95% of the row dead. Consumers had nowhere to put a model
+ * chip, an attach button or a call control, so each grew its own sibling card
+ * above the box — the exact accretion this frame exists to prevent.
+ *
+ * `footerStart` claims the left rail with `margin-right: auto`, which beats the
+ * container's `justify-content` without changing it. A footer with no
+ * `footerStart` therefore renders byte-identically to before.
+ *
  * This primitive owns ONLY that container + slot structure. It assumes nothing
  * about audio, personas, models or voice — consumers fill the slots. The body
  * renders WITHOUT a wrapper element so existing consumers' box layout is
@@ -38,6 +49,19 @@ const CSS = `
   align-items: center;
   justify-content: flex-end;
   gap: var(--fi-space-2, 0.5rem);
+}
+[data-fi-composer-slot="footer-start"] {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-space-2, 0.5rem);
+  min-width: 0;
+  margin-right: auto;
+}
+/* A consumer's aboveComposer is usually a fragment of conditional banners, so it
+ * is ALWAYS truthy and its wrapper mounts even with nothing inside — leaving a
+ * ghost row of margin above the box. Collapse it when it renders empty. */
+.fi-surface-above-composer:empty {
+  display: none;
 }
 `;
 
@@ -65,39 +89,54 @@ export interface ComposerFrameProps {
   header?: ReactNode;
   /** Optional footer slot — the controls row below the body (chips, mic, send). */
   footer?: ReactNode;
+  /**
+   * Optional footer LEFT rail — tool chips (model/persona, attach, call). Claims
+   * the left with `margin-right: auto`; omit it and the footer is unchanged.
+   */
+  footerStart?: ReactNode;
   /** Class for the single container (the consumer's frosted box preset). */
   className?: string;
   style?: CSSProperties;
   headerClassName?: string;
   footerClassName?: string;
   footerStyle?: CSSProperties;
+  footerStartClassName?: string;
 }
+
+const filled = (slot: ReactNode) => slot != null && slot !== false;
 
 export function ComposerFrame({
   children,
   header,
   footer,
+  footerStart,
   className,
   style,
   headerClassName,
   footerClassName,
   footerStyle,
+  footerStartClassName,
 }: ComposerFrameProps) {
   useComposerFrameStyle();
   return (
     <div className={className} style={style} data-fi-composer-frame="">
-      {header != null && header !== false && (
+      {filled(header) && (
         <div className={headerClassName} data-fi-composer-slot="header">
           {header}
         </div>
       )}
       {children}
-      {footer != null && footer !== false && (
+      {(filled(footer) || filled(footerStart)) && (
         <div
           className={footerClassName}
           style={footerStyle}
           data-fi-composer-slot="footer"
         >
+          {filled(footerStart) && (
+            <div className={footerStartClassName} data-fi-composer-slot="footer-start">
+              {footerStart}
+            </div>
+          )}
           {footer}
         </div>
       )}

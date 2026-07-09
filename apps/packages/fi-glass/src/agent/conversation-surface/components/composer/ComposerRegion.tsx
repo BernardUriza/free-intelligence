@@ -31,6 +31,8 @@ export interface SurfaceComposerState {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   dictation: SurfaceDictation;
   isStreaming: boolean;
+  /** Cancel the streaming turn — undefined when the transport cannot abort. */
+  onStop?: () => void;
   hasThread: boolean;
   newConversation: () => void;
 }
@@ -52,6 +54,7 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     inputRef,
     dictation,
     isStreaming,
+    onStop,
     hasThread,
     newConversation,
   } = state;
@@ -59,6 +62,8 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     aboveComposer,
     composerHeader,
     composerHeaderClassName,
+    composerFooterStart,
+    composerFooterStartClassName,
     composerBoxClassName,
     composerAreaClassName,
     composerTextareaClassName,
@@ -71,10 +76,12 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     voiceVisualizerBarClassName,
     sendButtonClassName,
     sendButtonIconClassName,
+    stopButtonClassName,
     showNewChatButton = true,
     newChatLabel = 'New chat',
     showSendButton = true,
     sendLabel = 'Enviar mensaje',
+    stopLabel = 'Detener respuesta',
   } = surface;
 
   const footer: ReactNode =
@@ -90,9 +97,12 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
         canSend={canSend}
         isStreaming={isStreaming}
         onSend={onSend}
+        onStop={onStop}
         sendLabel={sendLabel}
+        stopLabel={stopLabel}
         sendButtonClassName={sendButtonClassName}
         sendButtonIconClassName={sendButtonIconClassName}
+        stopButtonClassName={stopButtonClassName}
       />
     ) : null;
 
@@ -119,6 +129,8 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
           header={composerHeader}
           headerClassName={composerHeaderClassName}
           footerClassName={composerControlsClassName}
+          footerStart={composerFooterStart}
+          footerStartClassName={composerFooterStartClassName}
           footer={footer}
         >
           <Composer

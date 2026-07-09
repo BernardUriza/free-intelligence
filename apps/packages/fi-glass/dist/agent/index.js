@@ -447,6 +447,10 @@ function useAgentConversation(agent, options = {}) {
     },
     [agent.isStreaming, send]
   );
+  const stop = useCallback(() => {
+    if (!agentRef.current.isStreaming) return;
+    agentRef.current.abort?.();
+  }, []);
   const retry = useCallback(() => {
     if (lastSent.current) send(lastSent.current);
   }, [send]);
@@ -533,6 +537,7 @@ function useAgentConversation(agent, options = {}) {
     turnError,
     send,
     sendAndAwait,
+    stop: agent.abort ? stop : void 0,
     retry,
     dismissError,
     newConversation
@@ -2124,6 +2129,19 @@ var CSS = `
   justify-content: flex-end;
   gap: var(--fi-space-2, 0.5rem);
 }
+[data-fi-composer-slot="footer-start"] {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-space-2, 0.5rem);
+  min-width: 0;
+  margin-right: auto;
+}
+/* A consumer's aboveComposer is usually a fragment of conditional banners, so it
+ * is ALWAYS truthy and its wrapper mounts even with nothing inside \u2014 leaving a
+ * ghost row of margin above the box. Collapse it when it renders empty. */
+.fi-surface-above-composer:empty {
+  display: none;
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
@@ -2138,34 +2156,40 @@ function useComposerFrameStyle() {
     ensureComposerFrameStyle();
   }, []);
 }
+var filled = (slot) => slot != null && slot !== false;
 function ComposerFrame({
   children,
   header,
   footer,
+  footerStart,
   className,
   style,
   headerClassName,
   footerClassName,
-  footerStyle
+  footerStyle,
+  footerStartClassName
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs22("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && header !== false && /* @__PURE__ */ jsx29("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    filled(header) && /* @__PURE__ */ jsx29("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    footer != null && footer !== false && /* @__PURE__ */ jsx29(
+    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs22(
       "div",
       {
         className: footerClassName,
         style: footerStyle,
         "data-fi-composer-slot": "footer",
-        children: footer
+        children: [
+          filled(footerStart) && /* @__PURE__ */ jsx29("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          footer
+        ]
       }
     )
   ] });
 }
 
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
-import { Send, Loader2 as Loader212 } from "lucide-react";
+import { Send, Loader2 as Loader212, Square as Square5 } from "lucide-react";
 import { Fragment as Fragment4, jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
@@ -2178,10 +2202,14 @@ function ComposerControls({
   canSend,
   isStreaming,
   onSend,
+  onStop,
   sendLabel = "Enviar mensaje",
+  stopLabel = "Detener respuesta",
   sendButtonClassName,
-  sendButtonIconClassName
+  sendButtonIconClassName,
+  stopButtonClassName
 }) {
+  const stopping = isStreaming && onStop != null;
   return /* @__PURE__ */ jsxs23(Fragment4, { children: [
     micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx30(
       AudioVisualizer,
@@ -2209,15 +2237,24 @@ function ComposerControls({
     showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
     // still sends; this is the visible button. Disabled until there's
     // trimmed text and nothing is streaming.
+    //
+    // While streaming, a transport that can abort turns this into a live
+    // STOP button — the primary control must never be a spinner the user
+    // can only watch. Without abort support it falls back to that spinner.
     /* @__PURE__ */ jsx30(
       "button",
       {
         type: "button",
-        onClick: onSend,
-        disabled: !canSend,
-        "aria-label": sendLabel,
-        className: sendButtonClassName ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}` : FI_TOUCH_TARGET_CLASS,
-        children: isStreaming ? /* @__PURE__ */ jsx30(
+        onClick: stopping ? onStop : onSend,
+        disabled: stopping ? false : !canSend,
+        "aria-label": stopping ? stopLabel : sendLabel,
+        "data-fi-composer-send-state": stopping ? "stop" : isStreaming ? "busy" : "send",
+        className: [
+          FI_TOUCH_TARGET_CLASS,
+          sendButtonClassName,
+          stopping ? stopButtonClassName : void 0
+        ].filter(Boolean).join(" "),
+        children: stopping ? /* @__PURE__ */ jsx30(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx30(
           Loader212,
           {
             className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
@@ -2263,6 +2300,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     inputRef,
     dictation,
     isStreaming,
+    onStop,
     hasThread,
     newConversation
   } = state;
@@ -2270,6 +2308,8 @@ function ComposerRegion({ surface, state, contentInset }) {
     aboveComposer,
     composerHeader,
     composerHeaderClassName,
+    composerFooterStart,
+    composerFooterStartClassName,
     composerBoxClassName,
     composerAreaClassName,
     composerTextareaClassName,
@@ -2282,10 +2322,12 @@ function ComposerRegion({ surface, state, contentInset }) {
     voiceVisualizerBarClassName,
     sendButtonClassName,
     sendButtonIconClassName,
+    stopButtonClassName,
     showNewChatButton = true,
     newChatLabel = "New chat",
     showSendButton = true,
-    sendLabel = "Enviar mensaje"
+    sendLabel = "Enviar mensaje",
+    stopLabel = "Detener respuesta"
   } = surface;
   const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx32(
     ComposerControls,
@@ -2300,9 +2342,12 @@ function ComposerRegion({ surface, state, contentInset }) {
       canSend,
       isStreaming,
       onSend,
+      onStop,
       sendLabel,
+      stopLabel,
       sendButtonClassName,
-      sendButtonIconClassName
+      sendButtonIconClassName,
+      stopButtonClassName
     }
   ) : null;
   return /* @__PURE__ */ jsx32("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs24("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
@@ -2315,6 +2360,8 @@ function ComposerRegion({ surface, state, contentInset }) {
         header: composerHeader,
         headerClassName: composerHeaderClassName,
         footerClassName: composerControlsClassName,
+        footerStart: composerFooterStart,
+        footerStartClassName: composerFooterStartClassName,
         footer,
         children: /* @__PURE__ */ jsx32(
           Composer,
@@ -2346,7 +2393,7 @@ function AgentConversationSurface(props) {
     composerAppend,
     onComposerAppendConsumed
   } = props;
-  const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
+  const { messages, turn, isStreaming, turnError, send, stop, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState16("");
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
@@ -2383,6 +2430,7 @@ function AgentConversationSurface(props) {
           inputRef,
           dictation,
           isStreaming,
+          onStop: stop,
           hasThread: messages.length > 0 || isStreaming,
           newConversation
         },

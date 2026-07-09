@@ -13,7 +13,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Square } from 'lucide-react';
 import { ComposerMicSlot, AudioVisualizer } from '../../../../voice';
 import { FI_TOUCH_TARGET_CLASS } from '../../../../shell/touchTarget';
 import type { SurfaceDictation } from '../../hooks';
@@ -29,10 +29,20 @@ export interface ComposerControlsProps {
   canSend: boolean;
   isStreaming: boolean;
   onSend: () => void;
+  /**
+   * Cancel the streaming turn. Defined only when the transport supports abort —
+   * when it is, the send button becomes an ENABLED stop button while streaming
+   * instead of a disabled spinner the user can do nothing with.
+   */
+  onStop?: () => void;
   /** aria-label for the send button. Default: "Enviar mensaje". */
   sendLabel?: string;
+  /** aria-label for the stop button. Default: "Detener respuesta". */
+  stopLabel?: string;
   sendButtonClassName?: string;
   sendButtonIconClassName?: string;
+  /** Class for the button in its stop state (e.g. a consumer's danger tint). */
+  stopButtonClassName?: string;
 }
 
 export function ComposerControls({
@@ -46,10 +56,14 @@ export function ComposerControls({
   canSend,
   isStreaming,
   onSend,
+  onStop,
   sendLabel = 'Enviar mensaje',
+  stopLabel = 'Detener respuesta',
   sendButtonClassName,
   sendButtonIconClassName,
+  stopButtonClassName,
 }: ComposerControlsProps) {
+  const stopping = isStreaming && onStop != null;
   return (
     <>
       {/* Built-in dictation visualizer — suppressed when micSlotOverride is used.
@@ -84,18 +98,27 @@ export function ComposerControls({
         // Explicit send affordance (mirrors the shell/AURITY composer). Enter
         // still sends; this is the visible button. Disabled until there's
         // trimmed text and nothing is streaming.
+        //
+        // While streaming, a transport that can abort turns this into a live
+        // STOP button — the primary control must never be a spinner the user
+        // can only watch. Without abort support it falls back to that spinner.
         <button
           type="button"
-          onClick={onSend}
-          disabled={!canSend}
-          aria-label={sendLabel}
-          className={
-            sendButtonClassName
-              ? `${FI_TOUCH_TARGET_CLASS} ${sendButtonClassName}`
-              : FI_TOUCH_TARGET_CLASS
-          }
+          onClick={stopping ? onStop : onSend}
+          disabled={stopping ? false : !canSend}
+          aria-label={stopping ? stopLabel : sendLabel}
+          data-fi-composer-send-state={stopping ? 'stop' : isStreaming ? 'busy' : 'send'}
+          className={[
+            FI_TOUCH_TARGET_CLASS,
+            sendButtonClassName,
+            stopping ? stopButtonClassName : undefined,
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
-          {isStreaming ? (
+          {stopping ? (
+            <Square className={sendButtonIconClassName} fill="currentColor" aria-hidden />
+          ) : isStreaming ? (
             <Loader2
               className={
                 sendButtonIconClassName
