@@ -60,4 +60,10 @@ COPY persona.md .
 # now but the dir is still referenced by some import-time code).
 RUN mkdir -p storage
 
+# A container logs to a machine, not to a terminal. Without this, structlog falls
+# back to ConsoleRenderer and writes ANSI escapes INSIDE every key=value pair
+# (`\e[36moutcome\e[0m=\e[35mfailed`), so every KQL predicate over a field —
+# including the alert rules — silently matches zero rows.
+ENV LOG_FORMAT=json
+
 CMD ["python", "-m", "personas.insult", "run"]

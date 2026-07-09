@@ -24,6 +24,8 @@ for table in d["tables"]:
     cols = [c["name"] for c in table["columns"]]
     print("\t".join(cols))
     for row in table["rows"]:
-        cleaned = [ansi.sub("", str(v)) if v else "" for v in row]
+        # `if v else ""` would turn a real 0 / False / 0.0 into an empty cell —
+        # a count of zero must READ as zero, not as missing data.
+        cleaned = ["" if v is None else ansi.sub("", str(v)) for v in row]
         print("\t".join(cleaned))
 '

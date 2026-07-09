@@ -40,4 +40,7 @@ COPY persona_gateway/ persona_gateway/
 COPY khimeras_shared/ khimeras_shared/
 COPY shared/ shared/
 
+# See Dockerfile: ConsoleRenderer's ANSI escapes break every KQL field predicate.
+ENV LOG_FORMAT=json
+
 CMD ["python", "-m", "persona_gateway", "run"]

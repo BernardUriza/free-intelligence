@@ -105,5 +105,8 @@ RUN useradd --create-home --shell /bin/bash --uid 10001 runner \
 USER runner
 ENV HOME=/home/runner
 
+# See ../../Dockerfile: ConsoleRenderer's ANSI escapes break every KQL field predicate.
+ENV LOG_FORMAT=json
+
 EXPOSE 8080
 CMD ["/entrypoint.sh"]
