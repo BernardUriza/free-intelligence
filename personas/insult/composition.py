@@ -152,6 +152,46 @@ class _CoreFactsAdapter:
         return merge_facts_additive
 
 
+_LATE_PRESET_TASKS: set[asyncio.Task] = set()
+
+
+def _observe_late_preset(task: asyncio.Task, started: float, regex_preset: Any, timeout_s: float) -> None:
+    """Let a timed-out preset classification finish, and log what it cost and said.
+
+    The old code called ``task.cancel()`` here. But the Haiku was ALREADY paid by
+    then: ``/v1/judge`` spawns a Node subprocess per call, so by the time our
+    ceiling fires the runner is mid-generation. Cancelling threw away a result we
+    had bought, and — worse — left `preset_llm_timeout_fallback` logging only the
+    ceiling, never the latency it was exceeded by. 210 of 219 prod turns fell back
+    to regex and NOBODY could tell whether the ceiling was off by 50ms or by 5s.
+
+    So: observe instead of cancel. Costs nothing extra, and answers the only two
+    questions that decide the ceiling's fate — how long it really takes, and
+    whether the LLM would have classified this turn differently from the regex.
+    """
+    _LATE_PRESET_TASKS.add(task)
+
+    def _done(finished: asyncio.Task) -> None:
+        _LATE_PRESET_TASKS.discard(finished)
+        if finished.cancelled():
+            return
+        exc = finished.exception()
+        if exc is not None:
+            log.warning("preset_llm_late_failed", error=type(exc).__name__)
+            return
+        late = finished.result()
+        log.info(
+            "preset_llm_late_result",
+            latency_ms=int((time.monotonic() - started) * 1000),
+            timeout_ms=int(timeout_s * 1000),
+            llm_mode=late.mode.value if late is not None else None,
+            regex_mode=regex_preset.mode.value,
+            would_have_diverged=bool(late is not None and late.mode != regex_preset.mode),
+        )
+
+    task.add_done_callback(_done)
+
+
 class _CorePresetEngineAdapter:
     """Adapts the preset classification stack (``insult.core.presets`` +
     ``insult.core.presets_llm``) to the ``PresetEnginePort`` Protocol.
@@ -180,6 +220,13 @@ class _CorePresetEngineAdapter:
         # By first resolve() call every package is fully initialized.
         from personas.insult.cogs.chat.capability_ports import PresetEngineResult
 
+        # Shadow-run the regex classifier ALWAYS so we can detect LLM/regex
+        # divergence (F5 hybrid recommendation). Cost is ~0.1ms vs the Haiku
+        # 300ms — trivial. The regex is also the fallback when llm_preset is
+        # None. Pure regex, no I/O: if THIS raises it is a code bug and it
+        # propagates loud (same behavior as the inline version).
+        regex_preset = classify_preset(text, recent, user_facts)
+
         llm_preset = None
         classifier_source = "regex"
         classifier_ms = 0
@@ -198,8 +245,8 @@ class _CorePresetEngineAdapter:
             try:
                 llm_preset = await asyncio.wait_for(task, timeout=timeout_s)
             except TimeoutError:
-                task.cancel()
                 log.warning("preset_llm_timeout_fallback", timeout_s=timeout_s)
+                _observe_late_preset(task, classifier_start, regex_preset, timeout_s)
                 llm_preset = None
             except Exception:
                 log.exception("preset_llm_task_failed_fallback")
@@ -208,12 +255,6 @@ class _CorePresetEngineAdapter:
             if llm_preset is not None:
                 classifier_source = "llm"
 
-        # Shadow-run the regex classifier ALWAYS so we can detect LLM/regex
-        # divergence (F5 hybrid recommendation). Cost is ~0.1ms vs the Haiku
-        # 300ms — trivial. The regex is also the fallback when llm_preset is
-        # None. Pure regex, no I/O: if THIS raises it is a code bug and it
-        # propagates loud (same behavior as the inline version).
-        regex_preset = classify_preset(text, recent, user_facts)
         selection = llm_preset if llm_preset is not None else regex_preset
 
         if llm_preset is not None and llm_preset.mode != regex_preset.mode:
