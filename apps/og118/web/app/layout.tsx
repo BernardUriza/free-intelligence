@@ -5,12 +5,40 @@ import './globals.css';
 // Imported last so its opt-in `.glass-chat-*` classes win where og118 applies them.
 import 'fi-glass/glass-chat.css';
 
+// INSTALLABLE ON iOS WITHOUT A WEB APP MANIFEST — ON PURPOSE.
+//
+// iOS reads the manifest's `scope` to decide which URLs may stay in standalone
+// mode. Auth0 lives on another origin, so the login redirect is ALWAYS
+// out-of-scope: with a manifest present, iOS drops standalone, finishes the
+// login in a browser whose storage it does not share with the installed app,
+// and the PWA comes back still signed out.
+//
+// `apple-mobile-web-app-capable` (Next: `appleWebApp.capable`) grants standalone
+// WITHOUT introducing a scope, so the Auth0 round-trip survives. Adding a
+// manifest.json here would break sign-in on iPhone. Don't.
 export const metadata: Metadata = {
-  title: 'og118.ai',
-  description: 'soon. something radioactive here.',
+  title: 'og118',
+  description: 'Tu agente og118 — conversaciones, proyectos y voz.',
   metadataBase: new URL('https://og118.ai'),
   alternates: { canonical: '/' },
   icons: { icon: '/favicon.png', apple: '/apple-touch-icon.png' },
+  // `black` keeps the status bar opaque and the web view below it. The
+  // `black-translucent` variant renders full-bleed UNDER the clock, which would
+  // need a verified top safe-area inset in the shell — not something to ship
+  // unverified on a device I cannot see.
+  appleWebApp: {
+    capable: true,
+    title: 'og118',
+    statusBarStyle: 'black',
+  },
+  // `appleWebApp.capable` does NOT emit `apple-mobile-web-app-capable` on
+  // Next >= 15: PR vercel/next.js#70363 swapped it for the unprefixed
+  // `mobile-web-app-capable` because Chrome flagged the Apple tag as
+  // deprecated. Safari reads ONLY the prefixed one (Apple, "Configuring Web
+  // Applications"), so without this line "Add to Home Screen" opens a plain
+  // Safari tab instead of a standalone app. Verified against the emitted
+  // out/index.html, not against the config. See next.js#70272, #74524.
+  other: { 'apple-mobile-web-app-capable': 'yes' },
   openGraph: {
     type: 'website',
     url: 'https://og118.ai/',
@@ -30,6 +58,13 @@ export const viewport: Viewport = {
   themeColor: '#0a0e16',
   width: 'device-width',
   initialScale: 1,
+  // Full-bleed to the physical screen edges. Without it iOS letterboxes the
+  // view and every env(safe-area-inset-*) resolves to 0 — which is exactly the
+  // value fi-glass's composer relies on to clear the home indicator.
+  viewportFit: 'cover',
+  // Pinch-zoom stays ENABLED (WCAG 1.4.4). The usual reason to disable it —
+  // iOS auto-zooming on input focus — does not apply: that only fires under a
+  // 16px font, and the composer textarea already computes to exactly 16px.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
