@@ -541,281 +541,9 @@ function useAgentConversation(agent, options = {}) {
 
 // src/agent/AgentConversationSurface.tsx
 import { useState as useState16 } from "react";
-import { useStickToBottom } from "use-stick-to-bottom";
-
-// src/composer/AutoResizeTextarea.tsx
-import {
-  forwardRef,
-  useEffect as useEffect3,
-  useId,
-  useImperativeHandle,
-  useRef as useRef2,
-  useState as useState3
-} from "react";
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
-  value,
-  onChange,
-  maxRows = 5,
-  showCounter = false,
-  maxLength,
-  wrapperClassName = "",
-  wrapperStyle,
-  className = "",
-  id,
-  name,
-  ...props
-}, ref) {
-  const textareaRef = useRef2(null);
-  useImperativeHandle(ref, () => textareaRef.current);
-  const [rows, setRows] = useState3(1);
-  const generatedId = useId();
-  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
-  const resolvedName = name ?? resolvedId;
-  useEffect3(() => {
-    if (!textareaRef.current) return;
-    const textarea = textareaRef.current;
-    textarea.rows = 1;
-    textarea.style.height = "auto";
-    const computed = window.getComputedStyle(textarea);
-    const parsed = parseFloat(computed.lineHeight);
-    const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
-    );
-    setRows(newRows);
-    textarea.rows = newRows;
-    textarea.style.height = `${newRows * lineHeight}px`;
-    textarea.style.width = "100%";
-  }, [value, maxRows]);
-  const charCount = typeof value === "string" ? value.length : 0;
-  const isNearLimit = maxLength && charCount > maxLength * 0.9;
-  const isOverLimit = maxLength && charCount > maxLength;
-  return /* @__PURE__ */ jsxs5("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
-    /* @__PURE__ */ jsx5(
-      "textarea",
-      {
-        ref: textareaRef,
-        id: resolvedId,
-        name: resolvedName,
-        value,
-        onChange,
-        maxLength,
-        className: `
-          resize-none
-          ${className}
-        `,
-        rows,
-        ...props
-      }
-    ),
-    showCounter && maxLength && /* @__PURE__ */ jsxs5("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
-      charCount,
-      "/",
-      maxLength
-    ] })
-  ] });
-});
-
-// src/composer/Composer.tsx
-import { jsx as jsx6 } from "react/jsx-runtime";
-function Composer({
-  message,
-  loading = false,
-  disabled = false,
-  placeholder = "Escribe tu mensaje...",
-  onMessageChange,
-  onSend,
-  maxRows = 5,
-  areaClassName,
-  wrapperClassName,
-  wrapperStyle,
-  textareaClassName,
-  id,
-  name,
-  textareaRef
-}) {
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (loading || disabled) return;
-      onSend();
-    }
-  };
-  return /* @__PURE__ */ jsx6("div", { className: areaClassName, children: /* @__PURE__ */ jsx6(
-    AutoResizeTextarea,
-    {
-      ref: textareaRef,
-      id,
-      name,
-      value: message,
-      onChange: (e) => onMessageChange(e.target.value),
-      onKeyDown: handleKeyDown,
-      placeholder,
-      disabled,
-      maxRows,
-      showCounter: false,
-      wrapperClassName,
-      wrapperStyle,
-      className: textareaClassName
-    }
-  ) });
-}
-
-// src/composer/ComposerFrame.tsx
-import { useEffect as useEffect4 } from "react";
-import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
-var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS = `
-[data-fi-composer-slot="header"] {
-  margin-bottom: var(--fi-space-2, 0.5rem);
-}
-[data-fi-composer-slot="footer"] {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--fi-space-2, 0.5rem);
-}
-`;
-function ensureComposerFrameStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS;
-  document.head.appendChild(el);
-}
-function useComposerFrameStyle() {
-  useEffect4(() => {
-    ensureComposerFrameStyle();
-  }, []);
-}
-function ComposerFrame({
-  children,
-  header,
-  footer,
-  className,
-  style,
-  headerClassName,
-  footerClassName,
-  footerStyle
-}) {
-  useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && header !== false && /* @__PURE__ */ jsx7("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
-    children,
-    footer != null && footer !== false && /* @__PURE__ */ jsx7(
-      "div",
-      {
-        className: footerClassName,
-        style: footerStyle,
-        "data-fi-composer-slot": "footer",
-        children: footer
-      }
-    )
-  ] });
-}
-
-// src/agent/ScrollToBottomButton.tsx
-import { ChevronDown } from "lucide-react";
-import { jsx as jsx8 } from "react/jsx-runtime";
-var placement = {
-  position: "absolute",
-  bottom: 12,
-  left: "50%",
-  transform: "translateX(-50%)"
-};
-var skin = {
-  width: 32,
-  height: 32,
-  borderRadius: 9999,
-  border: "1px solid rgba(255,255,255,0.15)",
-  background: "rgba(15,23,42,0.85)",
-  color: "#e2e8f0",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  backdropFilter: "blur(4px)",
-  WebkitBackdropFilter: "blur(4px)",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.35)"
-};
-function ScrollToBottomButton({
-  onClick,
-  label = "Ir al final",
-  className,
-  iconClassName
-}) {
-  return /* @__PURE__ */ jsx8(
-    "button",
-    {
-      type: "button",
-      onClick,
-      "aria-label": label,
-      className: className ? `fi-scroll-to-bottom ${className}` : "fi-scroll-to-bottom",
-      style: className ? placement : { ...placement, ...skin },
-      children: /* @__PURE__ */ jsx8(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
-    }
-  );
-}
-
-// src/shell/useMediaQuery.ts
-import { useSyncExternalStore } from "react";
-var mqlCache = /* @__PURE__ */ new Map();
-function getMql(query, useCache = true) {
-  if (typeof window === "undefined" || !("matchMedia" in window)) {
-    return null;
-  }
-  if (useCache) {
-    const cached = mqlCache.get(query);
-    if (cached) return cached;
-  }
-  const mql = window.matchMedia(query);
-  if (useCache) {
-    mqlCache.set(query, mql);
-  }
-  return mql;
-}
-function useMediaQuery(query, options) {
-  const ssrMatch = options?.ssrMatch ?? false;
-  const useRaf = options?.useRaf ?? true;
-  const cache = options?.cache ?? true;
-  const mql = getMql(query, cache);
-  const getSnapshot = () => mql ? mql.matches : ssrMatch;
-  const getServerSnapshot = () => ssrMatch;
-  const subscribe = (onStoreChange) => {
-    if (!mql) return () => {
-    };
-    let rafId = 0;
-    const handler = () => {
-      if (!useRaf) {
-        onStoreChange();
-        return;
-      }
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => onStoreChange());
-    };
-    const mqlAny = mql;
-    if (typeof mqlAny.addEventListener === "function") {
-      mqlAny.addEventListener("change", handler);
-    } else if (typeof mqlAny.addListener === "function") {
-      mqlAny.addListener(handler);
-    }
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (typeof mqlAny.removeEventListener === "function") {
-        mqlAny.removeEventListener("change", handler);
-      } else if (typeof mqlAny.removeListener === "function") {
-        mqlAny.removeListener(handler);
-      }
-    };
-  };
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-}
 
 // src/shell/touchTarget.ts
-import { useEffect as useEffect5 } from "react";
+import { useEffect as useEffect3 } from "react";
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -838,7 +566,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect5(() => {
+  useEffect3(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -847,10 +575,10 @@ function withTouchTarget(className) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
-import { useCallback as useCallback2, useEffect as useEffect6, useRef as useRef3 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect4, useRef as useRef2 } from "react";
 function useComposerFocus(options) {
   const { isStreaming, isTranscribing } = options;
-  const inputRef = useRef3(null);
+  const inputRef = useRef2(null);
   const refocusComposer = useCallback2(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
@@ -859,13 +587,13 @@ function useComposerFocus(options) {
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  const wasStreaming = useRef3(false);
-  useEffect6(() => {
+  const wasStreaming = useRef2(false);
+  useEffect4(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef3(false);
-  useEffect6(() => {
+  const wasTranscribing = useRef2(false);
+  useEffect4(() => {
     if (wasTranscribing.current && !isTranscribing) refocusComposer();
     wasTranscribing.current = isTranscribing;
   }, [isTranscribing, refocusComposer]);
@@ -873,10 +601,10 @@ function useComposerFocus(options) {
 }
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
-import { useRef as useRef10 } from "react";
+import { useRef as useRef9 } from "react";
 
 // src/voice/recording/RecordingButton.tsx
-import { forwardRef as forwardRef2 } from "react";
+import { forwardRef } from "react";
 import { Loader2 as Loader22 } from "lucide-react";
 
 // src/voice/recording/types.ts
@@ -904,8 +632,8 @@ var BUTTON_SIZES = {
 };
 
 // src/voice/recording/RecordingButton.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
-var RecordingButton = forwardRef2(
+import { jsx as jsx5 } from "react/jsx-runtime";
+var RecordingButton = forwardRef(
   function RecordingButton2({
     size = "md",
     bgColor,
@@ -921,7 +649,7 @@ var RecordingButton = forwardRef2(
   }, ref) {
     const sizeConfig = BUTTON_SIZES[size];
     const DisplayIcon = iconSpin ? Loader22 : Icon;
-    return /* @__PURE__ */ jsx9(
+    return /* @__PURE__ */ jsx5(
       "button",
       {
         ref,
@@ -929,7 +657,7 @@ var RecordingButton = forwardRef2(
         disabled,
         "aria-label": ariaLabel,
         className: `fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? "rec-btn-disabled" : "rec-btn-enabled"} ${className}`,
-        children: /* @__PURE__ */ jsx9(
+        children: /* @__PURE__ */ jsx5(
           DisplayIcon,
           {
             className: `${sizeConfig.icon} ${iconColor} ${iconSpin ? "rec-icon-spin" : ""}`
@@ -942,33 +670,33 @@ var RecordingButton = forwardRef2(
 
 // src/voice/recording/PulseRings.tsx
 import { motion } from "framer-motion";
-import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 
 // src/voice/recording/RecordingTimer.tsx
 import { motion as motion2 } from "framer-motion";
-import { jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 
 // src/voice/recording/StatusText.tsx
 import { Loader2 as Loader23 } from "lucide-react";
 import { motion as motion3 } from "framer-motion";
-import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 
 // src/voice/VoiceMicButton.tsx
 import { Mic, Square, Loader2 as Loader24 } from "lucide-react";
 import { motion as motion4 } from "framer-motion";
-import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader25, Play } from "lucide-react";
-import { jsx as jsx14 } from "react/jsx-runtime";
+import { jsx as jsx10 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect7, useMemo, useRef as useRef4, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useEffect as useEffect5, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader26, AlertCircle } from "lucide-react";
-import { useEffect as useEffect8 } from "react";
-import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+import { useEffect as useEffect6 } from "react";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
 import {
@@ -980,11 +708,11 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect9 } from "react";
-import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+import { useEffect as useEffect7 } from "react";
+import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx13 } from "react/jsx-runtime";
 var MIN_BAR_PCT = 4;
 function normalizeLevels(levels) {
   return levels.map(
@@ -1019,7 +747,7 @@ function AudioVisualizer({
   if (variant === "pulse") {
     const peak = active && normalized.length ? Math.max(...normalized) : 0;
     const scale = 1 + peak;
-    return /* @__PURE__ */ jsx17(
+    return /* @__PURE__ */ jsx13(
       "div",
       {
         role: "img",
@@ -1027,7 +755,7 @@ function AudioVisualizer({
         className,
         "data-fi-audio-visualizer": "pulse",
         "data-active": active ? "" : void 0,
-        children: /* @__PURE__ */ jsx17(
+        children: /* @__PURE__ */ jsx13(
           "span",
           {
             "data-fi-pulse-core": "",
@@ -1043,7 +771,7 @@ function AudioVisualizer({
   }
   const count = barCount && barCount > 0 ? barCount : normalized.length;
   const bars = resampleLevels(normalized, count);
-  return /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsx13(
     "div",
     {
       role: "img",
@@ -1054,7 +782,7 @@ function AudioVisualizer({
       style: { display: "inline-flex", alignItems: "flex-end" },
       children: bars.map((level, i) => {
         const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
-        return /* @__PURE__ */ jsx17(
+        return /* @__PURE__ */ jsx13(
           "span",
           {
             "data-fi-audio-bar": "",
@@ -1070,7 +798,7 @@ function AudioVisualizer({
 
 // src/voice/ComposerMicSlot.tsx
 import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader28 } from "lucide-react";
-import { jsx as jsx18 } from "react/jsx-runtime";
+import { jsx as jsx14 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
 function ComposerMicSlot({
@@ -1098,7 +826,7 @@ function ComposerMicSlot({
     else onStart?.();
   };
   const Icon = !available ? MicOff : busy ? Loader28 : recording ? Square4 : Mic2;
-  return /* @__PURE__ */ jsx18("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx18(
+  return /* @__PURE__ */ jsx14("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx14(
     "button",
     {
       type: "button",
@@ -1109,7 +837,7 @@ function ComposerMicSlot({
       "aria-label": label,
       title: !available ? unavailableLabel : void 0,
       className: btnClass,
-      children: /* @__PURE__ */ jsx18(
+      children: /* @__PURE__ */ jsx14(
         Icon,
         {
           className: busy ? `${iconClass} animate-spin` : iconClass,
@@ -1121,13 +849,13 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef5, useState as useState4 } from "react";
+import { useCallback as useCallback3, useRef as useRef4, useState as useState3 } from "react";
 
 // src/voice/useDictation.ts
-import { useCallback as useCallback5, useState as useState7 } from "react";
+import { useCallback as useCallback5, useState as useState6 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState5, useRef as useRef6, useCallback as useCallback4 } from "react";
+import { useState as useState4, useRef as useRef5, useCallback as useCallback4 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -1217,17 +945,17 @@ function useRecorder(config) {
     externalStream = null,
     deviceId = null
   } = config;
-  const [isRecording, setIsRecording] = useState5(false);
-  const [recordingTime, setRecordingTime] = useState5(0);
-  const [fullAudioBlob, setFullAudioBlob] = useState5(null);
-  const [fullAudioUrl, setFullAudioUrl] = useState5(null);
-  const [currentStream, setCurrentStream] = useState5(null);
-  const recorderRef = useRef6(null);
-  const continuousRecorderRef = useRef6(null);
-  const currentStreamRef = useRef6(null);
-  const recordingTimerRef = useRef6(null);
-  const fullAudioUrlRef = useRef6(null);
-  const chunkNumberRef = useRef6(0);
+  const [isRecording, setIsRecording] = useState4(false);
+  const [recordingTime, setRecordingTime] = useState4(0);
+  const [fullAudioBlob, setFullAudioBlob] = useState4(null);
+  const [fullAudioUrl, setFullAudioUrl] = useState4(null);
+  const [currentStream, setCurrentStream] = useState4(null);
+  const recorderRef = useRef5(null);
+  const continuousRecorderRef = useRef5(null);
+  const currentStreamRef = useRef5(null);
+  const recordingTimerRef = useRef5(null);
+  const fullAudioUrlRef = useRef5(null);
+  const chunkNumberRef = useRef5(0);
   const startRecording = useCallback4(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -1382,7 +1110,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState6, useRef as useRef7, useEffect as useEffect10 } from "react";
+import { useState as useState5, useRef as useRef6, useEffect as useEffect8 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1410,13 +1138,13 @@ function useAudioAnalysis(stream, config) {
     isActive,
     bandCount = 24
   } = config;
-  const [audioLevel, setAudioLevel] = useState6(0);
-  const [bands, setBands] = useState6([]);
-  const analyserRef = useRef7(null);
-  const audioContextRef = useRef7(null);
-  const animationFrameRef = useRef7(null);
+  const [audioLevel, setAudioLevel] = useState5(0);
+  const [bands, setBands] = useState5([]);
+  const analyserRef = useRef6(null);
+  const audioContextRef = useRef6(null);
+  const animationFrameRef = useRef6(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect10(() => {
+  useEffect8(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1458,8 +1186,8 @@ function useAudioAnalysis(stream, config) {
 // src/voice/useDictation.ts
 function useDictation(adapter, opts = {}) {
   const { timeSliceMs = 3e4, deviceId = null, onTranscriptUpdate, onError } = opts;
-  const [liveTranscript, setLiveTranscript] = useState7("");
-  const [isTranscribing, setIsTranscribing] = useState7(false);
+  const [liveTranscript, setLiveTranscript] = useState6("");
+  const [isTranscribing, setIsTranscribing] = useState6(false);
   const handleChunk = useCallback5(
     async (blob, chunkNumber) => {
       if (!adapter?.transcribe) return;
@@ -1523,17 +1251,17 @@ var AUDIO_QUEUE_DEFAULTS = {
 import { useMemo as useMemo2 } from "react";
 
 // src/voice/useDurableRecording.ts
-import { useState as useState8, useRef as useRef8, useCallback as useCallback6, useEffect as useEffect11 } from "react";
+import { useState as useState7, useRef as useRef7, useCallback as useCallback6, useEffect as useEffect9 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState9, useEffect as useEffect12, useCallback as useCallback7 } from "react";
+import { useState as useState8, useEffect as useEffect10, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect13, useState as useState11 } from "react";
+import { useEffect as useEffect11, useState as useState10 } from "react";
 import { Loader2 as Loader210, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState10, useCallback as useCallback8 } from "react";
+import { useState as useState9, useCallback as useCallback8 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -1546,24 +1274,24 @@ import {
   Trash2,
   FileAudio
 } from "lucide-react";
-import { jsx as jsx19, jsxs as jsxs13 } from "react/jsx-runtime";
+import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 
 // src/voice/AudioQueuePanel.tsx
-import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState12, useEffect as useEffect14 } from "react";
+import { useState as useState11, useEffect as useEffect12 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
-import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect15, useMemo as useMemo3, useRef as useRef9, useState as useState13 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef8, useState as useState12 } from "react";
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
 function useSurfaceDictation(options) {
   const { voiceAdapter, input, setInput, onVoiceError } = options;
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef10("");
+  const baseInputRef = useRef9("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -1585,17 +1313,125 @@ function useSurfaceDictation(options) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerAppend.ts
-import { useEffect as useEffect16 } from "react";
+import { useEffect as useEffect14 } from "react";
 function useComposerAppend(options) {
   const { composerAppend, onComposerAppendConsumed, setInput } = options;
-  useEffect16(() => {
+  useEffect14(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
   }, [composerAppend]);
 }
 
-// src/agent/conversation-surface/components/TranscriptMessages.tsx
+// src/shell/useMediaQuery.ts
+import { useSyncExternalStore as useSyncExternalStore2 } from "react";
+var mqlCache = /* @__PURE__ */ new Map();
+function getMql(query, useCache = true) {
+  if (typeof window === "undefined" || !("matchMedia" in window)) {
+    return null;
+  }
+  if (useCache) {
+    const cached = mqlCache.get(query);
+    if (cached) return cached;
+  }
+  const mql = window.matchMedia(query);
+  if (useCache) {
+    mqlCache.set(query, mql);
+  }
+  return mql;
+}
+function useMediaQuery(query, options) {
+  const ssrMatch = options?.ssrMatch ?? false;
+  const useRaf = options?.useRaf ?? true;
+  const cache = options?.cache ?? true;
+  const mql = getMql(query, cache);
+  const getSnapshot = () => mql ? mql.matches : ssrMatch;
+  const getServerSnapshot = () => ssrMatch;
+  const subscribe = (onStoreChange) => {
+    if (!mql) return () => {
+    };
+    let rafId = 0;
+    const handler = () => {
+      if (!useRaf) {
+        onStoreChange();
+        return;
+      }
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => onStoreChange());
+    };
+    const mqlAny = mql;
+    if (typeof mqlAny.addEventListener === "function") {
+      mqlAny.addEventListener("change", handler);
+    } else if (typeof mqlAny.addListener === "function") {
+      mqlAny.addListener(handler);
+    }
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (typeof mqlAny.removeEventListener === "function") {
+        mqlAny.removeEventListener("change", handler);
+      } else if (typeof mqlAny.removeListener === "function") {
+        mqlAny.removeListener(handler);
+      }
+    };
+  };
+  return useSyncExternalStore2(subscribe, getSnapshot, getServerSnapshot);
+}
+
+// src/agent/conversation-surface/hooks/useSurfaceLayout.ts
+function useSurfaceLayout(layout) {
+  const isMobileViewport = useMediaQuery("(max-width: 768px)");
+  const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
+  const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
+  return { rootStyle, contentInset };
+}
+
+// src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
+import { useStickToBottom } from "use-stick-to-bottom";
+
+// src/agent/ScrollToBottomButton.tsx
+import { ChevronDown } from "lucide-react";
+import { jsx as jsx18 } from "react/jsx-runtime";
+var placement = {
+  position: "absolute",
+  bottom: 12,
+  left: "50%",
+  transform: "translateX(-50%)"
+};
+var skin = {
+  width: 32,
+  height: 32,
+  borderRadius: 9999,
+  border: "1px solid rgba(255,255,255,0.15)",
+  background: "rgba(15,23,42,0.85)",
+  color: "#e2e8f0",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  backdropFilter: "blur(4px)",
+  WebkitBackdropFilter: "blur(4px)",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.35)"
+};
+function ScrollToBottomButton({
+  onClick,
+  label = "Ir al final",
+  className,
+  iconClassName
+}) {
+  return /* @__PURE__ */ jsx18(
+    "button",
+    {
+      type: "button",
+      onClick,
+      "aria-label": label,
+      className: className ? `fi-scroll-to-bottom ${className}` : "fi-scroll-to-bottom",
+      style: className ? placement : { ...placement, ...skin },
+      children: /* @__PURE__ */ jsx18(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
+    }
+  );
+}
+
+// src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
 import { Fragment as Fragment3 } from "react";
 
 // src/messages/styles.ts
@@ -1677,7 +1513,7 @@ var markdownStyles = {
   h1: "text-lg font-semibold text-white mt-4 mb-2",
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
-  blockquote: "my-3 pl-3 border-l-2 border-slate-600/50 text-slate-400 italic text-[13px]",
+  blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]",
   link: "text-amber-400/90 hover:text-amber-300 underline underline-offset-2 transition-colors"
 };
 
@@ -1697,8 +1533,8 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect17, useId as useId2, useRef as useRef11, useState as useState14 } from "react";
-import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { useEffect as useEffect15, useId, useRef as useRef10, useState as useState13 } from "react";
+import { jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
   children,
@@ -1709,11 +1545,11 @@ function CollapsibleText({
   className,
   toggleClassName
 }) {
-  const contentId = useId2();
-  const contentRef = useRef11(null);
-  const [expanded, setExpanded] = useState14(false);
-  const [overflowing, setOverflowing] = useState14(false);
-  useEffect17(() => {
+  const contentId = useId();
+  const contentRef = useRef10(null);
+  const [expanded, setExpanded] = useState13(false);
+  const [overflowing, setOverflowing] = useState13(false);
+  useEffect15(() => {
     const el = contentRef.current;
     if (!el) return;
     const measure = () => setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
@@ -1725,8 +1561,8 @@ function CollapsibleText({
   }, [maxHeight]);
   const clamped = overflowing && !expanded;
   const mask = `linear-gradient(rgb(0,0,0) calc(100% - ${fadeHeight}px), transparent)`;
-  return /* @__PURE__ */ jsxs16("div", { className, children: [
-    /* @__PURE__ */ jsx22(
+  return /* @__PURE__ */ jsxs14("div", { className, children: [
+    /* @__PURE__ */ jsx19(
       "div",
       {
         id: contentId,
@@ -1740,7 +1576,7 @@ function CollapsibleText({
         children
       }
     ),
-    overflowing && /* @__PURE__ */ jsx22(
+    overflowing && /* @__PURE__ */ jsx19(
       "button",
       {
         type: "button",
@@ -1766,27 +1602,27 @@ function CollapsibleText({
 }
 
 // src/messages/MessageContent.tsx
-import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { jsx as jsx20, jsxs as jsxs15 } from "react/jsx-runtime";
 var mdComponents = {
-  p: ({ children }) => /* @__PURE__ */ jsx23("p", { className: markdownStyles.p, children }),
-  strong: ({ children }) => /* @__PURE__ */ jsx23("strong", { className: markdownStyles.strong, children }),
-  em: ({ children }) => /* @__PURE__ */ jsx23("em", { className: markdownStyles.em, children }),
-  code: ({ children }) => /* @__PURE__ */ jsx23("code", { className: markdownStyles.code, children }),
-  pre: ({ children }) => /* @__PURE__ */ jsx23("pre", { className: markdownStyles.pre, children }),
-  ul: ({ children }) => /* @__PURE__ */ jsx23("ul", { className: markdownStyles.ul, children }),
-  ol: ({ children }) => /* @__PURE__ */ jsx23("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs17("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx23("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx23("span", { className: "flex-1", children })
+  p: ({ children }) => /* @__PURE__ */ jsx20("p", { className: markdownStyles.p, children }),
+  strong: ({ children }) => /* @__PURE__ */ jsx20("strong", { className: markdownStyles.strong, children }),
+  em: ({ children }) => /* @__PURE__ */ jsx20("em", { className: markdownStyles.em, children }),
+  code: ({ children }) => /* @__PURE__ */ jsx20("code", { className: markdownStyles.code, children }),
+  pre: ({ children }) => /* @__PURE__ */ jsx20("pre", { className: markdownStyles.pre, children }),
+  ul: ({ children }) => /* @__PURE__ */ jsx20("ul", { className: markdownStyles.ul, children }),
+  ol: ({ children }) => /* @__PURE__ */ jsx20("ol", { className: markdownStyles.ol, children }),
+  li: ({ children }) => /* @__PURE__ */ jsxs15("li", { className: markdownStyles.li, children: [
+    /* @__PURE__ */ jsx20("span", { className: markdownStyles.bullet, children: "\u2022" }),
+    /* @__PURE__ */ jsx20("span", { className: "flex-1", children })
   ] }),
-  h1: ({ children }) => /* @__PURE__ */ jsx23("h1", { className: markdownStyles.h1, children }),
-  h2: ({ children }) => /* @__PURE__ */ jsx23("h2", { className: markdownStyles.h2, children }),
-  h3: ({ children }) => /* @__PURE__ */ jsx23("h3", { className: markdownStyles.h3, children }),
-  blockquote: ({ children }) => /* @__PURE__ */ jsx23("blockquote", { className: markdownStyles.blockquote, children }),
-  a: ({ href, children }) => /* @__PURE__ */ jsx23("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
+  h1: ({ children }) => /* @__PURE__ */ jsx20("h1", { className: markdownStyles.h1, children }),
+  h2: ({ children }) => /* @__PURE__ */ jsx20("h2", { className: markdownStyles.h2, children }),
+  h3: ({ children }) => /* @__PURE__ */ jsx20("h3", { className: markdownStyles.h3, children }),
+  blockquote: ({ children }) => /* @__PURE__ */ jsx20("blockquote", { className: markdownStyles.blockquote, children }),
+  a: ({ href, children }) => /* @__PURE__ */ jsx20("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx23(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx20(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
@@ -1802,17 +1638,17 @@ var MessageContent = memo(function MessageContent2({
   const { content: styles } = messageStyles;
   const body = isUser ? (
     // User: plain text, preserve whitespace
-    /* @__PURE__ */ jsx23("p", { className: "whitespace-pre-wrap", children: content })
+    /* @__PURE__ */ jsx20("p", { className: "whitespace-pre-wrap", children: content })
   ) : (
     // Assistant: markdown (overridable)
     renderMarkdown(content)
   );
-  return /* @__PURE__ */ jsxs17(
+  return /* @__PURE__ */ jsxs15(
     "div",
     {
       className: `${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`,
       children: [
-        collapsible && !isStreaming ? /* @__PURE__ */ jsx23(
+        collapsible && !isStreaming ? /* @__PURE__ */ jsx20(
           CollapsibleText,
           {
             maxHeight: collapsedMaxHeight,
@@ -1822,16 +1658,16 @@ var MessageContent = memo(function MessageContent2({
             children: body
           }
         ) : body,
-        isStreaming && /* @__PURE__ */ jsx23("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
+        isStreaming && /* @__PURE__ */ jsx20("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
       ]
     }
   );
 });
 
 // src/messages/CopyButton.tsx
-import { memo as memo2, useCallback as useCallback10, useState as useState15 } from "react";
+import { memo as memo2, useCallback as useCallback10, useState as useState14 } from "react";
 import { Copy, Check } from "lucide-react";
-import { jsx as jsx24 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
   onError,
@@ -1843,7 +1679,7 @@ var CopyButton = memo2(function CopyButton2({
   copiedLabel = "Copiado",
   resetMs = 2e3
 }) {
-  const [copied, setCopied] = useState15(false);
+  const [copied, setCopied] = useState14(false);
   useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
@@ -1859,21 +1695,21 @@ var CopyButton = memo2(function CopyButton2({
       onError?.(err);
     }
   }, [content, onError, resetMs]);
-  return /* @__PURE__ */ jsx24(
+  return /* @__PURE__ */ jsx21(
     "button",
     {
       onClick: handleCopy,
       className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
-      children: copied ? /* @__PURE__ */ jsx24(Check, { className: icon }) : /* @__PURE__ */ jsx24(Copy, { className: icon })
+      children: copied ? /* @__PURE__ */ jsx21(Check, { className: icon }) : /* @__PURE__ */ jsx21(Copy, { className: icon })
     }
   );
 });
 
 // src/messages/MessageBubble.tsx
 import { memo as memo3 } from "react";
-import { jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
+import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -1886,17 +1722,17 @@ var MessageBubble = memo3(function MessageBubble2({
 }) {
   const { message: styles } = messageStyles;
   const isUser = role === "user";
-  return /* @__PURE__ */ jsxs18(
+  return /* @__PURE__ */ jsxs16(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
       children: [
-        header && /* @__PURE__ */ jsx25("div", { className: "flex items-center gap-2 mb-1", children: header }),
-        reasoning && /* @__PURE__ */ jsx25("div", { className: "mt-3 mb-3", children: reasoning }),
+        header && /* @__PURE__ */ jsx22("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        reasoning && /* @__PURE__ */ jsx22("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
-        badge && /* @__PURE__ */ jsx25("div", { className: "mt-2", children: badge }),
+        badge && /* @__PURE__ */ jsx22("div", { className: "mt-2", children: badge }),
         actions
       ]
     }
@@ -1904,7 +1740,7 @@ var MessageBubble = memo3(function MessageBubble2({
 });
 
 // src/messages/MessageList.tsx
-import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
+import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // src/agent/conversation-surface/persistedTraceTurn.ts
 function persistedTraceTurn(message) {
@@ -1922,8 +1758,8 @@ function persistedTraceTurn(message) {
   };
 }
 
-// src/agent/conversation-surface/components/TranscriptMessages.tsx
-import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+// src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -1941,20 +1777,20 @@ function TranscriptMessages({
   showLessLabel,
   collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+  return /* @__PURE__ */ jsxs18("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
-      return /* @__PURE__ */ jsxs20(Fragment3, { children: [
-        traceTurn && /* @__PURE__ */ jsx27(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-        /* @__PURE__ */ jsx27(
+      return /* @__PURE__ */ jsxs18(Fragment3, { children: [
+        traceTurn && /* @__PURE__ */ jsx24(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsx24(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader?.(m),
             badge: renderBadge?.(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx27(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx24(CopyButton, { content: m.content }) : void 0),
             className: resolveBubbleClass(m),
-            children: /* @__PURE__ */ jsx27(
+            children: /* @__PURE__ */ jsx24(
               MessageContent,
               {
                 isUser: m.role === "user",
@@ -1968,10 +1804,10 @@ function TranscriptMessages({
             )
           }
         )
-      ] }, i);
+      ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsx27(AgentPanel, { turn, ...agentPanelProps }),
-    isStreaming && turn.text && /* @__PURE__ */ jsx27(
+    isStreaming && /* @__PURE__ */ jsx24(AgentPanel, { turn, ...agentPanelProps }),
+    isStreaming && turn.text && /* @__PURE__ */ jsx24(
       MessageBubble,
       {
         role: "assistant",
@@ -1980,14 +1816,14 @@ function TranscriptMessages({
           content: turn.text,
           timestamp: ""
         }),
-        children: /* @__PURE__ */ jsx27(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+        children: /* @__PURE__ */ jsx24(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
       }
     )
   ] });
 }
 
-// src/agent/conversation-surface/components/TurnErrorBanner.tsx
-import { jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
+import { jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 function TurnErrorBanner({
   error,
   onRetry,
@@ -1998,7 +1834,7 @@ function TurnErrorBanner({
   retryButtonClassName,
   dismissButtonClassName
 }) {
-  return /* @__PURE__ */ jsxs21(
+  return /* @__PURE__ */ jsxs19(
     "div",
     {
       role: "alert",
@@ -2015,8 +1851,8 @@ function TurnErrorBanner({
         gap: "0.75rem"
       },
       children: [
-        /* @__PURE__ */ jsx28("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx28(
+        /* @__PURE__ */ jsx25("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx25(
           "button",
           {
             type: "button",
@@ -2034,7 +1870,7 @@ function TurnErrorBanner({
             children: retryLabel
           }
         ),
-        /* @__PURE__ */ jsx28(
+        /* @__PURE__ */ jsx25(
           "button",
           {
             type: "button",
@@ -2057,32 +1893,280 @@ function TurnErrorBanner({
   );
 }
 
-// src/agent/conversation-surface/components/NewChatButton.tsx
-import { jsx as jsx29 } from "react/jsx-runtime";
-function NewChatButton({ onClick, disabled, label = "New chat" }) {
-  return /* @__PURE__ */ jsx29("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx29(
-    "button",
+// src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
+import { jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+function TranscriptRegion({ surface, conversation, contentInset }) {
+  const { messages, turn, isStreaming, turnError, retry, dismissError } = conversation;
+  const {
+    emptyState,
+    agentPanelProps,
+    renderHeader,
+    renderBadge,
+    renderActions,
+    messageBubbleClassName,
+    collapseMaxHeight,
+    showMoreLabel,
+    showLessLabel,
+    collapseToggleClassName,
+    errorClassName,
+    retryButtonClassName,
+    dismissButtonClassName,
+    scrollToBottomClassName,
+    scrollToBottomIconClassName,
+    showPersistedTrace = true,
+    showCopyAction = false,
+    collapseUserMessages = true,
+    autoScroll = true,
+    retryLabel = "Reintentar",
+    dismissLabel = "Descartar",
+    scrollToBottomLabel = "Ir al final"
+  } = surface;
+  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
+  const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
+  const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
+  return (
+    // Relative anchor: hosts the scroll area + the floating jump-to-latest
+    // button, so the button stays glued to the transcript's bottom edge.
+    /* @__PURE__ */ jsxs20("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
+      /* @__PURE__ */ jsx26(
+        "div",
+        {
+          ref: autoScroll ? stick.scrollRef : void 0,
+          style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
+          children: /* @__PURE__ */ jsxs20(
+            "div",
+            {
+              ref: autoScroll ? stick.contentRef : void 0,
+              style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
+              children: [
+                idle ? emptyState : /* @__PURE__ */ jsx26(
+                  TranscriptMessages,
+                  {
+                    messages,
+                    turn,
+                    isStreaming,
+                    showPersistedTrace,
+                    agentPanelProps,
+                    showCopyAction,
+                    renderHeader,
+                    renderBadge,
+                    renderActions,
+                    resolveBubbleClass,
+                    collapseUserMessages,
+                    collapseMaxHeight,
+                    showMoreLabel,
+                    showLessLabel,
+                    collapseToggleClassName
+                  }
+                ),
+                turnError && /* @__PURE__ */ jsx26(
+                  TurnErrorBanner,
+                  {
+                    error: turnError,
+                    onRetry: retry,
+                    onDismiss: dismissError,
+                    className: errorClassName,
+                    retryLabel,
+                    dismissLabel,
+                    retryButtonClassName,
+                    dismissButtonClassName
+                  }
+                )
+              ]
+            }
+          )
+        }
+      ),
+      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx26(
+        ScrollToBottomButton,
+        {
+          onClick: () => void stick.scrollToBottom(),
+          label: scrollToBottomLabel,
+          className: scrollToBottomClassName,
+          iconClassName: scrollToBottomIconClassName
+        }
+      )
+    ] })
+  );
+}
+
+// src/composer/AutoResizeTextarea.tsx
+import {
+  forwardRef as forwardRef2,
+  useEffect as useEffect16,
+  useId as useId2,
+  useImperativeHandle,
+  useRef as useRef11,
+  useState as useState15
+} from "react";
+import { jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
+  value,
+  onChange,
+  maxRows = 5,
+  showCounter = false,
+  maxLength,
+  wrapperClassName = "",
+  wrapperStyle,
+  className = "",
+  id,
+  name,
+  ...props
+}, ref) {
+  const textareaRef = useRef11(null);
+  useImperativeHandle(ref, () => textareaRef.current);
+  const [rows, setRows] = useState15(1);
+  const generatedId = useId2();
+  const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
+  const resolvedName = name ?? resolvedId;
+  useEffect16(() => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    textarea.rows = 1;
+    textarea.style.height = "auto";
+    const computed = window.getComputedStyle(textarea);
+    const parsed = parseFloat(computed.lineHeight);
+    const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+    const newRows = Math.max(
+      1,
+      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
+    );
+    setRows(newRows);
+    textarea.rows = newRows;
+    textarea.style.height = `${newRows * lineHeight}px`;
+    textarea.style.width = "100%";
+  }, [value, maxRows]);
+  const charCount = typeof value === "string" ? value.length : 0;
+  const isNearLimit = maxLength && charCount > maxLength * 0.9;
+  const isOverLimit = maxLength && charCount > maxLength;
+  return /* @__PURE__ */ jsxs21("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
+    /* @__PURE__ */ jsx27(
+      "textarea",
+      {
+        ref: textareaRef,
+        id: resolvedId,
+        name: resolvedName,
+        value,
+        onChange,
+        maxLength,
+        className: `
+          resize-none
+          ${className}
+        `,
+        rows,
+        ...props
+      }
+    ),
+    showCounter && maxLength && /* @__PURE__ */ jsxs21("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
+      charCount,
+      "/",
+      maxLength
+    ] })
+  ] });
+});
+
+// src/composer/Composer.tsx
+import { jsx as jsx28 } from "react/jsx-runtime";
+function Composer({
+  message,
+  loading = false,
+  disabled = false,
+  placeholder = "Escribe tu mensaje...",
+  onMessageChange,
+  onSend,
+  maxRows = 5,
+  areaClassName,
+  wrapperClassName,
+  wrapperStyle,
+  textareaClassName,
+  id,
+  name,
+  textareaRef
+}) {
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (loading || disabled) return;
+      onSend();
+    }
+  };
+  return /* @__PURE__ */ jsx28("div", { className: areaClassName, children: /* @__PURE__ */ jsx28(
+    AutoResizeTextarea,
     {
-      onClick,
+      ref: textareaRef,
+      id,
+      name,
+      value: message,
+      onChange: (e) => onMessageChange(e.target.value),
+      onKeyDown: handleKeyDown,
+      placeholder,
       disabled,
-      style: {
-        padding: "0.35rem 0.75rem",
-        borderRadius: 8,
-        border: "1px solid rgba(255,255,255,0.15)",
-        background: "transparent",
-        color: "#94a3b8",
-        fontSize: "0.8rem",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1
-      },
-      children: label
+      maxRows,
+      showCounter: false,
+      wrapperClassName,
+      wrapperStyle,
+      className: textareaClassName
     }
   ) });
 }
 
-// src/agent/conversation-surface/components/ComposerControls.tsx
+// src/composer/ComposerFrame.tsx
+import { useEffect as useEffect17 } from "react";
+import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
+var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
+var CSS = `
+[data-fi-composer-slot="header"] {
+  margin-bottom: var(--fi-space-2, 0.5rem);
+}
+[data-fi-composer-slot="footer"] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--fi-space-2, 0.5rem);
+}
+`;
+function ensureComposerFrameStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = COMPOSER_FRAME_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useComposerFrameStyle() {
+  useEffect17(() => {
+    ensureComposerFrameStyle();
+  }, []);
+}
+function ComposerFrame({
+  children,
+  header,
+  footer,
+  className,
+  style,
+  headerClassName,
+  footerClassName,
+  footerStyle
+}) {
+  useComposerFrameStyle();
+  return /* @__PURE__ */ jsxs22("div", { className, style, "data-fi-composer-frame": "", children: [
+    header != null && header !== false && /* @__PURE__ */ jsx29("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    children,
+    footer != null && footer !== false && /* @__PURE__ */ jsx29(
+      "div",
+      {
+        className: footerClassName,
+        style: footerStyle,
+        "data-fi-composer-slot": "footer",
+        children: footer
+      }
+    )
+  ] });
+}
+
+// src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader212 } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -2098,7 +2182,7 @@ function ComposerControls({
   sendButtonClassName,
   sendButtonIconClassName
 }) {
-  return /* @__PURE__ */ jsxs22(Fragment4, { children: [
+  return /* @__PURE__ */ jsxs23(Fragment4, { children: [
     micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx30(
       AudioVisualizer,
       {
@@ -2145,193 +2229,167 @@ function ComposerControls({
   ] });
 }
 
+// src/agent/conversation-surface/components/composer/NewChatButton.tsx
+import { jsx as jsx31 } from "react/jsx-runtime";
+function NewChatButton({ onClick, disabled, label = "New chat" }) {
+  return /* @__PURE__ */ jsx31("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx31(
+    "button",
+    {
+      onClick,
+      disabled,
+      style: {
+        padding: "0.35rem 0.75rem",
+        borderRadius: 8,
+        border: "1px solid rgba(255,255,255,0.15)",
+        background: "transparent",
+        color: "#94a3b8",
+        fontSize: "0.8rem",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1
+      },
+      children: label
+    }
+  ) });
+}
+
+// src/agent/conversation-surface/components/composer/ComposerRegion.tsx
+import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+function ComposerRegion({ surface, state, contentInset }) {
+  const {
+    input,
+    setInput,
+    onSend,
+    canSend,
+    inputRef,
+    dictation,
+    isStreaming,
+    hasThread,
+    newConversation
+  } = state;
+  const {
+    aboveComposer,
+    composerHeader,
+    composerHeaderClassName,
+    composerBoxClassName,
+    composerAreaClassName,
+    composerTextareaClassName,
+    composerControlsClassName,
+    composerPlaceholder,
+    micSlotOverride,
+    micSlotClassName,
+    micButtonClassName,
+    voiceVisualizerClassName,
+    voiceVisualizerBarClassName,
+    sendButtonClassName,
+    sendButtonIconClassName,
+    showNewChatButton = true,
+    newChatLabel = "New chat",
+    showSendButton = true,
+    sendLabel = "Enviar mensaje"
+  } = surface;
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx32(
+    ComposerControls,
+    {
+      dictation,
+      micSlotOverride,
+      micSlotClassName,
+      micButtonClassName,
+      voiceVisualizerClassName,
+      voiceVisualizerBarClassName,
+      showSendButton,
+      canSend,
+      isStreaming,
+      onSend,
+      sendLabel,
+      sendButtonClassName,
+      sendButtonIconClassName
+    }
+  ) : null;
+  return /* @__PURE__ */ jsx32("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs24("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+    hasThread && showNewChatButton && /* @__PURE__ */ jsx32(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+    aboveComposer && /* @__PURE__ */ jsx32("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+    /* @__PURE__ */ jsx32(
+      ComposerFrame,
+      {
+        className: composerBoxClassName,
+        header: composerHeader,
+        headerClassName: composerHeaderClassName,
+        footerClassName: composerControlsClassName,
+        footer,
+        children: /* @__PURE__ */ jsx32(
+          Composer,
+          {
+            message: input,
+            loading: isStreaming,
+            placeholder: composerPlaceholder,
+            onMessageChange: setInput,
+            onSend,
+            areaClassName: composerAreaClassName,
+            textareaClassName: composerTextareaClassName,
+            wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+            textareaRef: inputRef
+          }
+        )
+      }
+    )
+  ] }) });
+}
+
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx31, jsxs as jsxs23 } from "react/jsx-runtime";
-function AgentConversationSurface({
-  conversation,
-  layout = "viewport",
-  composerPlaceholder,
-  newChatLabel = "New chat",
-  showNewChatButton = true,
-  emptyState,
-  aboveComposer,
-  composerHeader,
-  composerHeaderClassName,
-  agentPanelProps,
-  showPersistedTrace = true,
-  composerBoxClassName,
-  composerAreaClassName,
-  composerTextareaClassName,
-  composerControlsClassName,
-  showCopyAction = false,
-  renderHeader,
-  renderBadge,
-  renderActions,
-  messageBubbleClassName,
-  voiceAdapter,
-  micSlotClassName,
-  micButtonClassName,
-  onVoiceError,
-  voiceVisualizerClassName,
-  voiceVisualizerBarClassName,
-  showSendButton = true,
-  sendButtonClassName,
-  sendButtonIconClassName,
-  sendLabel = "Enviar mensaje",
-  composerAppend,
-  onComposerAppendConsumed,
-  micSlotOverride,
-  errorClassName,
-  retryLabel = "Reintentar",
-  dismissLabel = "Descartar",
-  retryButtonClassName,
-  dismissButtonClassName,
-  autoScroll = true,
-  scrollToBottomLabel = "Ir al final",
-  scrollToBottomClassName,
-  scrollToBottomIconClassName,
-  collapseUserMessages = true,
-  collapseMaxHeight,
-  showMoreLabel,
-  showLessLabel,
-  collapseToggleClassName
-}) {
+import { jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+function AgentConversationSurface(props) {
+  const {
+    conversation,
+    layout = "viewport",
+    voiceAdapter,
+    onVoiceError,
+    composerAppend,
+    onComposerAppendConsumed
+  } = props;
   const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } = conversation;
   const [input, setInput] = useState16("");
   useTouchTargetStyle();
-  const isMobileViewport = useMediaQuery("(max-width: 768px)");
-  const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
-  const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
+  const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
   const dictation = useSurfaceDictation({ voiceAdapter, input, setInput, onVoiceError });
   const inputRef = useComposerFocus({
     isStreaming,
     isTranscribing: dictation.isTranscribing
   });
-  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
-  const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
-  const hasThread = messages.length > 0 || isStreaming;
   const onSend = () => {
     const t = input.trim();
     if (!t) return;
     setInput("");
     send(t);
   };
-  const canSend = input.trim().length > 0 && !isStreaming;
-  const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
-  return (
-    // B3-FIGLASS-15: the ROOT is full-width — the fluid cap (100% minus a 60px
-    // gutter) lives on INNER content wrappers (transcript + composer), never on
-    // the scroll container, so the scrollbar renders at the viewport edge like
-    // ChatGPT/AURITY /chat instead of glued to the centered column.
-    /* @__PURE__ */ jsxs23("div", { style: rootStyle, children: [
-      /* @__PURE__ */ jsxs23("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-        /* @__PURE__ */ jsx31(
-          "div",
-          {
-            ref: autoScroll ? stick.scrollRef : void 0,
-            style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
-            children: /* @__PURE__ */ jsxs23(
-              "div",
-              {
-                ref: autoScroll ? stick.contentRef : void 0,
-                style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
-                children: [
-                  idle ? emptyState : /* @__PURE__ */ jsx31(
-                    TranscriptMessages,
-                    {
-                      messages,
-                      turn,
-                      isStreaming,
-                      showPersistedTrace,
-                      agentPanelProps,
-                      showCopyAction,
-                      renderHeader,
-                      renderBadge,
-                      renderActions,
-                      resolveBubbleClass,
-                      collapseUserMessages,
-                      collapseMaxHeight,
-                      showMoreLabel,
-                      showLessLabel,
-                      collapseToggleClassName
-                    }
-                  ),
-                  turnError && /* @__PURE__ */ jsx31(
-                    TurnErrorBanner,
-                    {
-                      error: turnError,
-                      onRetry: retry,
-                      onDismiss: dismissError,
-                      className: errorClassName,
-                      retryLabel,
-                      dismissLabel,
-                      retryButtonClassName,
-                      dismissButtonClassName
-                    }
-                  )
-                ]
-              }
-            )
-          }
-        ),
-        autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx31(
-          ScrollToBottomButton,
-          {
-            onClick: () => void stick.scrollToBottom(),
-            label: scrollToBottomLabel,
-            className: scrollToBottomClassName,
-            iconClassName: scrollToBottomIconClassName
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsx31("div", { style: { padding: "0.75rem 1rem 1.25rem", borderTop: "1px solid rgba(255,255,255,0.06)" }, children: /* @__PURE__ */ jsxs23("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx31(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-        aboveComposer && /* @__PURE__ */ jsx31("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsx31(
-          ComposerFrame,
-          {
-            className: composerBoxClassName,
-            header: composerHeader,
-            headerClassName: composerHeaderClassName,
-            footerClassName: composerControlsClassName,
-            footer: showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx31(
-              ComposerControls,
-              {
-                dictation,
-                micSlotOverride,
-                micSlotClassName,
-                micButtonClassName,
-                voiceVisualizerClassName,
-                voiceVisualizerBarClassName,
-                showSendButton,
-                canSend,
-                isStreaming,
-                onSend,
-                sendLabel,
-                sendButtonClassName,
-                sendButtonIconClassName
-              }
-            ) : null,
-            children: /* @__PURE__ */ jsx31(
-              Composer,
-              {
-                message: input,
-                loading: isStreaming,
-                placeholder: composerPlaceholder,
-                onMessageChange: setInput,
-                onSend,
-                areaClassName: composerAreaClassName,
-                textareaClassName: composerTextareaClassName,
-                wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
-                textareaRef: inputRef
-              }
-            )
-          }
-        )
-      ] }) })
-    ] })
-  );
+  return /* @__PURE__ */ jsxs25("div", { style: rootStyle, children: [
+    /* @__PURE__ */ jsx33(
+      TranscriptRegion,
+      {
+        surface: props,
+        conversation: { messages, turn, isStreaming, turnError, retry, dismissError },
+        contentInset
+      }
+    ),
+    /* @__PURE__ */ jsx33(
+      ComposerRegion,
+      {
+        surface: props,
+        state: {
+          input,
+          setInput,
+          onSend,
+          canSend: input.trim().length > 0 && !isStreaming,
+          inputRef,
+          dictation,
+          isStreaming,
+          hasThread: messages.length > 0 || isStreaming,
+          newConversation
+        },
+        contentInset
+      }
+    )
+  ] });
 }
 
 // src/agent/AgentWorkspaceShell.tsx
@@ -2395,7 +2453,7 @@ function useDensityStyle() {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -2484,7 +2542,7 @@ function AgentWorkspaceShell({
     `fi-density-${density}`,
     className
   ].filter(Boolean).join(" ");
-  const content = /* @__PURE__ */ jsxs24(
+  const content = /* @__PURE__ */ jsxs26(
     "div",
     {
       "data-fi-workspace": "agent",
@@ -2493,12 +2551,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx32("header", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs24("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx32("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx32("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        header != null && /* @__PURE__ */ jsx34("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs26("main", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx34("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx34("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx32("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx34("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2528,13 +2586,13 @@ function AgentWorkspaceShell({
     containerType: "inline-size",
     containerName: "fi-sidebar"
   };
-  return /* @__PURE__ */ jsxs24(
+  return /* @__PURE__ */ jsxs26(
     "div",
     {
       "data-fi-workspace": "agent-with-sidebar",
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx32(
+        /* @__PURE__ */ jsx34(
           "nav",
           {
             "data-fi-slot": "sidebar",
@@ -2545,7 +2603,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx32(
+        drawerMode && /* @__PURE__ */ jsx34(
           "div",
           {
             onClick: close,
@@ -2561,7 +2619,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx32(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx34(
           "button",
           {
             type: "button",
@@ -2570,7 +2628,7 @@ function AgentWorkspaceShell({
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
             style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
-            children: /* @__PURE__ */ jsx32(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx34(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -2710,7 +2768,7 @@ function useSidebarItemStyle() {
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment5, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2725,7 +2783,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx33(
+  return /* @__PURE__ */ jsx35(
     "button",
     {
       type: "button",
@@ -2741,7 +2799,7 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx33(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx35(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState18(false);
@@ -2808,8 +2866,8 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !selected && !editing;
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx33("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
-  return /* @__PURE__ */ jsxs25(
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx35("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs27(
     "div",
     {
       className: joinClasses(
@@ -2830,10 +2888,10 @@ function AgentSidebarItem({
         }
       },
       children: [
-        /* @__PURE__ */ jsxs25("div", { className: FI_ITEM_BODY_CLASS, children: [
+        /* @__PURE__ */ jsxs27("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx33("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx33("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx35("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx35("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -2857,7 +2915,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx33(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx35(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -2865,7 +2923,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx33(
+  return /* @__PURE__ */ jsx35(
     AgentSidebarItem,
     {
       selected,
@@ -2876,8 +2934,8 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs25(Fragment5, { children: [
-        /* @__PURE__ */ jsx33(
+      actions: !rename.editing && /* @__PURE__ */ jsxs27(Fragment5, { children: [
+        /* @__PURE__ */ jsx35(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -2958,7 +3016,7 @@ function useSidebarSectionStyle() {
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+import { jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2977,13 +3035,13 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx34("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx36("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
     ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
   } : void 0;
-  return /* @__PURE__ */ jsxs26(
+  return /* @__PURE__ */ jsxs28(
     "section",
     {
       className: joinClasses2(
@@ -2993,12 +3051,12 @@ function AgentSidebarSection({
       ),
       "aria-label": ariaLabel,
       children: [
-        headerSlot ?? /* @__PURE__ */ jsxs26("div", { className: FI_SECTION_HEAD_CLASS, children: [
+        headerSlot ?? /* @__PURE__ */ jsxs28("div", { className: FI_SECTION_HEAD_CLASS, children: [
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx34("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx34("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx36("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx36("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );

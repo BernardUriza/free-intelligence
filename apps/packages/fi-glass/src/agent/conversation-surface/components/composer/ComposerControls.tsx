@@ -14,9 +14,9 @@
 
 import type { ReactNode } from 'react';
 import { Send, Loader2 } from 'lucide-react';
-import { ComposerMicSlot, AudioVisualizer } from '../../../voice';
-import { FI_TOUCH_TARGET_CLASS } from '../../../shell/touchTarget';
-import type { SurfaceDictation } from '../hooks';
+import { ComposerMicSlot, AudioVisualizer } from '../../../../voice';
+import { FI_TOUCH_TARGET_CLASS } from '../../../../shell/touchTarget';
+import type { SurfaceDictation } from '../../hooks';
 
 export interface ComposerControlsProps {
   dictation: SurfaceDictation;

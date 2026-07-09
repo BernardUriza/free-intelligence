@@ -79,7 +79,7 @@ var markdownStyles = {
   h1: "text-lg font-semibold text-white mt-4 mb-2",
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
-  blockquote: "my-3 pl-3 border-l-2 border-slate-600/50 text-slate-400 italic text-[13px]",
+  blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]",
   link: "text-amber-400/90 hover:text-amber-300 underline underline-offset-2 transition-colors"
 };
 

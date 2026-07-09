@@ -563,9 +563,9 @@
       <div class="item-note">CERRADO 2026-07-08. La creación reusa la MISMA máquina del rename (fi-glass useInlineRename + FI_RESOURCE_RENAME_INPUT_CLASS — Art. 6, cero primitives nuevos): "+ Nuevo" abre un input inline gemelo del rename (autofocus, placeholder), Enter crea (trimmed), Escape cancela, draft vacío cierra silencioso; funciona también desde el empty state (suprime el copy mientras editas). 4 tests nuevos (57/57) + verificado live en Chrome (input montado con borde esmeralda, focus, Escape restaura el empty-state).</div></div>
       <span class="item-tag">qa-prompt-native</span></label>
 
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">[P2] Stale legacy global localStorage key og118.projects = [] lingers beside the identity-scoped key</div>
-      <div class="item-note">OPEN. RECONCILE 2026-06-28 (verificado): el scoping por identidad sí está (useOg118Projects.ts usa scopedStoreName(PROJECTS_KEY_BASE='og118.projects', userId), #276), pero NO hay cleanup/migración que retire la global legacy og118.projects=[] (removeItem solo del activeKey). Sigue como residuo. NOTA: #292 hizo Projects server-owned, lo que vuelve la global aún más vestigial — barrerla o migrarla.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] Stale legacy global localStorage key og118.projects = [] lingers beside the identity-scoped key</div>
+      <div class="item-note">CERRADO 2026-07-08. useOg118Projects barre las globals pre-scoping (og118.projects + og118.activeProjectId desnudas) al montar — decisión: barrer, no migrar, porque las keys scoped SIEMPRE llevan sufijo (signed-out = --legacy, #276) y Projects es server-owned (#292): la global no guarda nada de registro. Test unitario (deja intactas las scoped) + verificado live en el navegador real: las keys desnudas desaparecieron, solo quedan --google-oauth2|… y --legacy.</div></div>
       <span class="item-tag">qa-stale-localstorage</span></label>
 
     <label class="item"><input type="checkbox">
