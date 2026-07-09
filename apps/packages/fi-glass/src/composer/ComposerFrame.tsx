@@ -57,6 +57,12 @@ const CSS = `
   min-width: 0;
   margin-right: auto;
 }
+/* A consumer's aboveComposer is usually a fragment of conditional banners, so it
+ * is ALWAYS truthy and its wrapper mounts even with nothing inside — leaving a
+ * ghost row of margin above the box. Collapse it when it renders empty. */
+.fi-surface-above-composer:empty {
+  display: none;
+}
 `;
 
 /** Inject the idempotent composer-frame stylesheet (no-op on the server / if already present). */
