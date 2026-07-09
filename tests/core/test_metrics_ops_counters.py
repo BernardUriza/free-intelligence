@@ -126,3 +126,56 @@ def test_the_drift_ratio_is_readable_from_the_counters():
         metrics.record_event({"event": "preset_classified", "preset": "default_abrasive"})
     ratio = metrics._counters["preset_default_abrasive"] / metrics._counters["messages_total"]
     assert ratio == 1.0, f"a fully abrasive channel must read 100%, read {ratio:.0%}"
+
+
+# --- the harness: a counter that cannot rise is worse than no counter ---------
+#
+# 2026-07-09 audit: five of them were unreachable. `llm_requests` / `llm_errors`
+# lost their emitter when the legacy LLMClient was deleted; `character_breaks` /
+# `anti_patterns` lost theirs when the guard moved runner-side; `reminders_created`
+# listened for `reminder_created` while `reminds.py` logs `remind_marker_fired`.
+# 30 days of prod: all five sat at exactly 0. The dashboard painted them as calm
+# zeros — and hung a red alert off `llm_errors > 0`, an alarm that could not ring.
+
+
+def _counted_event_names() -> set[str]:
+    """The event names `record_event` branches on, read from its source."""
+    import ast
+    import inspect
+    import textwrap
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(metrics.record_event)))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Name) and node.left.id == "evt":
+            for comparator in node.comparators:
+                if isinstance(comparator, ast.Constant) and isinstance(comparator.value, str):
+                    names.add(comparator.value)
+                elif isinstance(comparator, ast.Tuple):
+                    names.update(e.value for e in comparator.elts if isinstance(e, ast.Constant))
+    return names
+
+
+def test_every_counted_event_has_a_live_emitter():
+    from pathlib import Path
+
+    root = Path(metrics.__file__).resolve().parents[3]  # …/personas/insult/core/metrics.py → repo root
+    sources = [
+        (path, path.read_text(encoding="utf-8", errors="ignore"))
+        for pkg in ("personas", "shared", "khimeras_shared")
+        for path in (root / pkg).rglob("*.py")
+        if path.name != "metrics.py"
+    ]
+    orphans = [event for event in sorted(_counted_event_names()) if not any(f'"{event}"' in src for _, src in sources)]
+    assert not orphans, (
+        f"counted events with no emitter anywhere in the source: {orphans}. "
+        "A counter that cannot rise renders as a calm zero — delete it or fix the event name."
+    )
+
+
+def test_the_harness_can_actually_fail():
+    """RESISTANCE: the check above must be able to catch an orphan, not just pass
+    because the parser found nothing to check."""
+    assert "preset_classified" in _counted_event_names()
+    assert "remind_marker_fired" in _counted_event_names()
+    assert "reminder_created" not in _counted_event_names(), "the dead event name is back"

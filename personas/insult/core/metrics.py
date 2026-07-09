@@ -27,18 +27,24 @@ _log_buffer: deque[dict] = deque(maxlen=MAX_LOG_ENTRIES)
 _message_traces: deque[dict] = deque(maxlen=MAX_MESSAGE_TRACES)
 
 # Global counters (reset on restart)
+# Every key here MUST be reachable: some event a live emitter actually logs must
+# increment it. `test_every_counted_event_has_a_live_emitter` enforces that, because
+# a counter that cannot rise is worse than a missing one — the dashboard renders it
+# as a calm zero, indistinguishable from health.
+#
+# Removed 2026-07-09 after 30 days of prod showed each at exactly 0, never once
+# emitted: `llm_requests` / `llm_errors` (their emitter, the legacy `LLMClient`, was
+# deleted when the runner took over the turn), `character_breaks` / `anti_patterns`
+# (the guard moved runner-side and logs under different names). The dashboard even
+# painted a red alert off `llm_errors > 0` — an alarm that could never ring.
 _counters: dict[str, int] = {
     "messages_total": 0,
-    "llm_requests": 0,
-    "llm_errors": 0,
     "preset_default_abrasive": 0,
     "preset_playful_roast": 0,
     "preset_intellectual_pressure": 0,
     "preset_relational_probe": 0,
     "preset_respectful_serious": 0,
     "preset_meta_deflection": 0,
-    "character_breaks": 0,
-    "anti_patterns": 0,
     "whisper_transcriptions": 0,
     "reminders_created": 0,
     "facts_extracted": 0,
@@ -69,11 +75,7 @@ def record_event(event: dict) -> None:
 
     # Update counters based on event type
     evt = entry["event"]
-    if evt == "llm_request":
-        _counters["llm_requests"] += 1
-    elif evt in ("llm_rate_error", "llm_timeout_error", "llm_auth_error", "llm_api_error"):
-        _counters["llm_errors"] += 1
-    elif evt == "preset_classified":
+    if evt == "preset_classified":
         # `preset` is the field name the ONE emitter uses (chat stage 08). A second
         # emitter in the prompt layer used to fire the same event with `mode=`,
         # double-counting messages_total while only single-counting the per-preset
@@ -84,13 +86,12 @@ def record_event(event: dict) -> None:
         key = f"preset_{entry.get('preset', '')}"
         if key in _counters:
             _counters[key] += 1
-    elif evt == "character_break_detected":
-        _counters["character_breaks"] += 1
-    elif evt == "anti_pattern_detected":
-        _counters["anti_patterns"] += 1
     elif evt == "whisper_transcribed":
         _counters["whisper_transcriptions"] += 1
-    elif evt == "reminder_created":
+    elif evt == "remind_marker_fired":
+        # NOT "reminder_created": no emitter ever logged that name. `reminds.py`
+        # logs `remind_marker_fired` when it schedules one. 30 days of prod: the
+        # counter read 0 while reminders were being created.
         _counters["reminders_created"] += 1
     elif evt == "facts_extracted":
         _counters["facts_extracted"] += 1
