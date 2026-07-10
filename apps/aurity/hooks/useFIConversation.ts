@@ -2,7 +2,7 @@
  * useFIConversation Hook (DEPRECATED)
  *
  * This file is kept for backward compatibility.
- * Use `useChat` from '@aurity-standalone/hooks/useChat' instead.
+ * Use `useChat` from '@/hooks/useChat' instead.
  *
  * @deprecated Use `useChat` instead
  */

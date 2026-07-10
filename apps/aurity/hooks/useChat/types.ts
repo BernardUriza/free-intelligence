@@ -39,6 +39,9 @@ export interface UseChatOptions {
   /** Enable model thinking/reasoning (Qwen3). Default true. Set false to save compute. */
   enableThinking?: boolean;
 
+  /** Response style: 'concise' (3-4 sentences) or 'explanatory' (detailed). Default 'explanatory'. */
+  responseMode?: 'concise' | 'explanatory';
+
   // Dependency Injection (SOLID: Dependency Inversion)
   storage?: IMessageStorage;
   backendSync?: IBackendSync;

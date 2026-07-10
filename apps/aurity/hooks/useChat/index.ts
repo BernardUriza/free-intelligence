@@ -32,6 +32,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     storageKey,
     autoIntroduction = false,
     enableThinking = true, // Default: enable thinking (Qwen3 reasoning)
+    responseMode = 'explanatory', // Default: detailed responses
     storage: injectedStorage,
     backendSync: injectedBackendSync,
     realtimeSync: injectedRealtimeSync,
@@ -85,6 +86,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     storageKey,
     autoIntroduction,
     enableThinking, // Toggle model thinking/reasoning (Qwen3)
+    responseMode, // Response style (concise/explanatory)
     storage,
     messages: state.messages,
     loadingInitial: state.loadingInitial,
