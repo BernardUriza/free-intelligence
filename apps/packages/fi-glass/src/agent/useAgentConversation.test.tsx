@@ -130,6 +130,71 @@ describe('useAgentConversation — sendAndAwait (RESONANCE voice turns)', () => 
   });
 });
 
+describe('useAgentConversation — user stop (COMPOSER-FOOTER-ZONES-1)', () => {
+  afterEach(cleanup);
+
+  it('is undefined when the transport cannot abort — a surface must not offer stop', () => {
+    const { hook } = makeFakeAgent();
+    const noAbort: AgentHook = { ...hook, abort: undefined };
+    const { ref } = mountConversation(noAbort);
+    expect(ref.current!.stop).toBeUndefined();
+  });
+
+  it('aborts the in-flight turn on the user\'s request', () => {
+    const { hook, abort } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    act(() => { ref.current!.send('hola'); });
+    rerender();
+    expect(ref.current!.isStreaming).toBe(true);
+    act(() => { ref.current!.stop!(); });
+    expect(abort).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op when nothing is streaming', () => {
+    const { hook, abort } = makeFakeAgent();
+    const { ref } = mountConversation(hook);
+    act(() => { ref.current!.stop!(); });
+    expect(abort).not.toHaveBeenCalled();
+  });
+
+  // A user stop is NOT a failure: keep the user's message AND the partial answer
+  // the assistant already streamed (ChatGPT parity), with no error banner.
+  it('folds the partial assistant text and keeps the user message — no turnError', () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    act(() => { ref.current!.send('hola'); });
+    rerender();
+    state.turn = { ...thinkingTurn, text: 'respuesta a medio escr' };
+    rerender();
+    act(() => { ref.current!.stop!(); });
+    // A real abort drops streaming WITHOUT emitting an error event.
+    state.isStreaming = false;
+    rerender();
+
+    const msgs = ref.current!.messages;
+    expect(msgs.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(msgs.filter((m) => m.role === 'assistant')).toHaveLength(1);
+    expect(msgs.find((m) => m.role === 'assistant')!.content).toBe('respuesta a medio escr');
+    expect(ref.current!.turnError).toBeNull();
+    expect(ref.current!.isStreaming).toBe(false);
+  });
+
+  it('keeps the user message alone when stopped before any text streamed', () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook);
+    act(() => { ref.current!.send('hola'); });
+    rerender();
+    act(() => { ref.current!.stop!(); });
+    state.isStreaming = false;
+    rerender();
+
+    const msgs = ref.current!.messages;
+    expect(msgs.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(msgs.filter((m) => m.role === 'assistant')).toHaveLength(0);
+    expect(ref.current!.turnError).toBeNull();
+  });
+});
+
 describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => {
   afterEach(cleanup);
 

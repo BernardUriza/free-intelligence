@@ -43,7 +43,7 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     composerAppend,
     onComposerAppendConsumed,
   } = props;
-  const { messages, turn, isStreaming, turnError, send, retry, dismissError, newConversation } =
+  const { messages, turn, isStreaming, turnError, send, stop, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
   // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
@@ -83,6 +83,7 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
           inputRef,
           dictation,
           isStreaming,
+          onStop: stop,
           hasThread: messages.length > 0 || isStreaming,
           newConversation,
         }}

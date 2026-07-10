@@ -51,6 +51,18 @@ export interface AgentConversationSurfaceProps {
   composerHeader?: ReactNode;
   /** Class for the composer header slot wrapper (e.g. a consumer's divider row). */
   composerHeaderClassName?: string;
+  /**
+   * Footer LEFT-rail slot INSIDE the composer box (ComposerFrame's footerStart)
+   * — the tool-chip zone: model/persona selector, attach, a voice-call control.
+   * Anything the user sets BEFORE composing, and that would otherwise grow into
+   * its own card above the box (B3-FIGLASS-COMPOSER-FOOTER-ZONES-1).
+   *
+   * Contrast with `aboveComposer` (system banners that must interrupt) and
+   * `composerHeader` (previews OF the message being composed).
+   */
+  composerFooterStart?: ReactNode;
+  /** Class for the footer left-rail wrapper. */
+  composerFooterStartClassName?: string;
   /** Pass-through styling/icons for the live-turn AgentPanel. */
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
   /**
@@ -151,6 +163,13 @@ export interface AgentConversationSurfaceProps {
   sendButtonIconClassName?: string;
   /** aria-label for the send button. Default: "Enviar mensaje". */
   sendLabel?: string;
+  /**
+   * Class applied to the send button ADDITIVELY while it is a stop button
+   * (streaming + the transport can abort) — e.g. a consumer's danger tint.
+   */
+  stopButtonClassName?: string;
+  /** aria-label for the stop button. Default: "Detener respuesta". */
+  stopLabel?: string;
   /**
    * B3-VOICE-OG118-6 — append text to the composer from an external source
    * (e.g. a durable-queue transcription). When non-empty, the surface appends

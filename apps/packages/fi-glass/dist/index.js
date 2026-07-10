@@ -58,12 +58,15 @@ var messageStyles = {
       border border-slate-700/50 shadow-lg
     `,
     button: {
-      base: "p-1 rounded transition-colors duration-150",
-      idle: "hover:bg-slate-700 text-slate-400 hover:text-slate-200",
+      // B3-FIGLASS-VISUAL-1: was p-1 + w-3 (20px, slate-400) — a barely-visible
+      // 12px glyph on desktop where fi-touch-target doesn't inflate it. Nudged
+      // to a ~26px target with a brighter idle tint, still secondary to the text.
+      base: "p-1.5 rounded transition-colors duration-150",
+      idle: "hover:bg-slate-700 text-slate-300 hover:text-white",
       active: "bg-emerald-500/20 text-emerald-400",
       speaking: "bg-amber-500/20 text-amber-400"
     },
-    icon: "w-3 h-3"
+    icon: "w-3.5 h-3.5"
   },
   // Date divider
   dateDivider: {
@@ -92,13 +95,17 @@ var markdownStyles = {
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
   blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]",
-  link: "text-amber-400/90 hover:text-amber-300 underline underline-offset-2 transition-colors"
+  // B3-FIGLASS-VISUAL-1: links were amber-400, one shade off the amber-300 of
+  // inline `code` — you couldn't tell a clickable link from literal code.
+  // Emerald is the chat accent and reads unmistakably as "interactive".
+  link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
 };
 
 // src/messages/MessageContent.tsx
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 // src/messages/normalizeStreamedMarkdown.ts
 var FENCE_SPLIT = /(```[\s\S]*?(?:```|$))/;
@@ -200,7 +207,7 @@ var mdComponents = {
   a: ({ href, children }) => /* @__PURE__ */ jsx2("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx2(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx2(ReactMarkdown, { remarkPlugins: [remarkGfm, remarkBreaks], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
@@ -506,6 +513,19 @@ var CSS = `
   justify-content: flex-end;
   gap: var(--fi-space-2, 0.5rem);
 }
+[data-fi-composer-slot="footer-start"] {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-space-2, 0.5rem);
+  min-width: 0;
+  margin-right: auto;
+}
+/* A consumer's aboveComposer is usually a fragment of conditional banners, so it
+ * is ALWAYS truthy and its wrapper mounts even with nothing inside \u2014 leaving a
+ * ghost row of margin above the box. Collapse it when it renders empty. */
+.fi-surface-above-composer:empty {
+  display: none;
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
@@ -520,27 +540,33 @@ function useComposerFrameStyle() {
     ensureComposerFrameStyle();
   }, []);
 }
+var filled = (slot) => slot != null && slot !== false;
 function ComposerFrame({
   children,
   header,
   footer,
+  footerStart,
   className,
   style,
   headerClassName,
   footerClassName,
-  footerStyle
+  footerStyle,
+  footerStartClassName
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs6("div", { className, style, "data-fi-composer-frame": "", children: [
-    header != null && header !== false && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    filled(header) && /* @__PURE__ */ jsx8("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    footer != null && footer !== false && /* @__PURE__ */ jsx8(
+    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs6(
       "div",
       {
         className: footerClassName,
         style: footerStyle,
         "data-fi-composer-slot": "footer",
-        children: footer
+        children: [
+          filled(footerStart) && /* @__PURE__ */ jsx8("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          footer
+        ]
       }
     )
   ] });

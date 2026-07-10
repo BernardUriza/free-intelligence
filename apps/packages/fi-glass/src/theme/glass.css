@@ -4,24 +4,30 @@
  * Behavior is byte-for-byte identical to the in-aurity version; the only change
  * is the mobile blur, now driven by the --glass-blur-compact token (same 8px
  * value) instead of a hardcoded literal.
+ *
+ * NO `-webkit-backdrop-filter` anywhere in this file — on purpose
+ * (B3-FIGLASS-VISUAL-2). When the standard and the -webkit- form are both
+ * written with the same value, Next 16's lightningcss deduplicates them down to
+ * ONLY `-webkit-backdrop-filter`. Chrome ignores that prefixed form (it is a
+ * Safari-ism), so the whole glass effect computed `none` in Chrome — confirmed
+ * in the served production CSS. The browserslist targets (Safari 18.5+) all
+ * support the unprefixed property, so the standard form alone renders AND
+ * survives minification. Do not add the -webkit- line back.
  */
 .glass {
   background: rgba(255, 255, 255, var(--glass-opacity));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   border: 1px solid var(--glass-border);
 }
 
 .glass-dark {
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 @media (max-width: 768px) {
   .glass {
     backdrop-filter: blur(var(--glass-blur-compact));
-    -webkit-backdrop-filter: blur(var(--glass-blur-compact));
   }
 }

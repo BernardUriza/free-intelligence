@@ -62,4 +62,23 @@ describe('<MessageContent> markdown headings', () => {
     expect(html).not.toContain('<h2');
     expect(html).toContain('fin.## esto no es heading');
   });
+
+  // B3-FIGLASS-VISUAL-1: LLMs separate lines with a SINGLE newline; CommonMark
+  // folds it into a space, collapsing the whole reply into one glued <p>.
+  // remark-breaks must honor the single \n as a <br>.
+  it('renders a single newline as a line break, not a collapsed space', () => {
+    const html = renderToStaticMarkup(
+      <MessageContent isUser={false} content={'Primera linea.\nSegunda linea.'} />,
+    );
+    expect(html).toContain('<br');
+    expect(html).toContain('Primera linea.');
+    expect(html).toContain('Segunda linea.');
+  });
+
+  it('still splits a blank line into separate paragraphs', () => {
+    const html = renderToStaticMarkup(
+      <MessageContent isUser={false} content={'Uno.\n\nDos.'} />,
+    );
+    expect((html.match(/<p/g) || []).length).toBe(2);
+  });
 });

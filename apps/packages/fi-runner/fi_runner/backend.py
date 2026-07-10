@@ -145,9 +145,18 @@ class MCPServerSpec:
 # your code" — a real exposure seen on og118. Naming them makes the persona's "you
 # have no filesystem" TRUE, not merely asserted. MCP tools (a project's rag_store,
 # task_tracker) are NOT builtins and stay available.
+# The harness's OWN task builtins are blocked for a different reason than the rest:
+# they COMPETE with the task_tracker MCP and win. Told to "declare a plan", the
+# agent reaches for the always-present TaskCreate instead of
+# mcp__fi_core_task_tracker__declare_plan. Those calls arrive with `server: None`,
+# so `_plan_events.derive` drops them and the glass-box plan/step stream is never
+# emitted — the agent plans, and the UI shows nothing. Blocking them leaves the
+# MCP as the only way to declare a plan, which is exactly what the trace needs.
 COMPANION_BLOCKED_BUILTINS: tuple[str, ...] = (
     "Bash", "Write", "Edit", "NotebookEdit",  # no shell / file mutation
     "Read", "Grep", "Glob", "LS", "Task",     # no host filesystem / repo
+    "TaskCreate", "TaskUpdate", "TaskGet",    # no harness task tools: they shadow
+    "TaskList", "TaskOutput", "TaskStop",     # the task_tracker MCP (glass-box)
 )
 
 
