@@ -151,10 +151,17 @@
   width: fit-content;
   margin-left: auto;
   margin-right: 0;
-  border-radius: var(--glass-chat-radius);
+  border-radius: 16px;
   border-bottom-right-radius: 4px;
-  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  /* B3-FIGLASS-VISUAL-1: literal blur, not blur(var(--glass-blur)) saturate(var(…)).
+     Next 16's lightningcss silently DROPS the whole backdrop-filter when its
+     value nests a custom property inside a filter function — verified in the
+     production bundle: the preset is named "glass" yet every bubble computed
+     backdrop-filter:none. A soft shadow lifts the bubble off the layered page
+     (the preset never had one — it read flat). */
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 .glass-chat-bubble-assistant {
   background: var(--glass-chat-bubble-assistant);
@@ -163,10 +170,11 @@
   max-width: 85%;
   margin-left: 0;
   margin-right: auto;
-  border-radius: var(--glass-chat-radius);
+  border-radius: 16px;
   border-bottom-left-radius: 4px;
-  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 /* Gradient CTA (start-screen primary action). */
@@ -214,4 +222,30 @@
 .fi-scroll-to-bottom:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.85);
   outline-offset: 2px;
+}
+
+/* B3-FIGLASS-VISUAL-1: themed scrollbars. Every scrollable region under the
+   preset root (the transcript, the sidebar) inherited the OS default — a light
+   bar on a dark immersive surface. Scoped to `.glass-chat` so it never leaks to
+   the host page's own scrollbars. */
+.glass-chat *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.glass-chat *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.glass-chat *::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.glass-chat *::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+  background-clip: padding-box;
+}
+.glass-chat * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
 }

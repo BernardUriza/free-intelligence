@@ -1485,12 +1485,15 @@ var messageStyles = {
       border border-slate-700/50 shadow-lg
     `,
     button: {
-      base: "p-1 rounded transition-colors duration-150",
-      idle: "hover:bg-slate-700 text-slate-400 hover:text-slate-200",
+      // B3-FIGLASS-VISUAL-1: was p-1 + w-3 (20px, slate-400) — a barely-visible
+      // 12px glyph on desktop where fi-touch-target doesn't inflate it. Nudged
+      // to a ~26px target with a brighter idle tint, still secondary to the text.
+      base: "p-1.5 rounded transition-colors duration-150",
+      idle: "hover:bg-slate-700 text-slate-300 hover:text-white",
       active: "bg-emerald-500/20 text-emerald-400",
       speaking: "bg-amber-500/20 text-amber-400"
     },
-    icon: "w-3 h-3"
+    icon: "w-3.5 h-3.5"
   },
   // Date divider
   dateDivider: {
@@ -1519,13 +1522,17 @@ var markdownStyles = {
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
   blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]",
-  link: "text-amber-400/90 hover:text-amber-300 underline underline-offset-2 transition-colors"
+  // B3-FIGLASS-VISUAL-1: links were amber-400, one shade off the amber-300 of
+  // inline `code` — you couldn't tell a clickable link from literal code.
+  // Emerald is the chat accent and reads unmistakably as "interactive".
+  link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
 };
 
 // src/messages/MessageContent.tsx
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 // src/messages/normalizeStreamedMarkdown.ts
 var FENCE_SPLIT = /(```[\s\S]*?(?:```|$))/;
@@ -1627,7 +1634,7 @@ var mdComponents = {
   a: ({ href, children }) => /* @__PURE__ */ jsx20("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx20(ReactMarkdown, { remarkPlugins: [remarkGfm], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx20(ReactMarkdown, { remarkPlugins: [remarkGfm, remarkBreaks], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,

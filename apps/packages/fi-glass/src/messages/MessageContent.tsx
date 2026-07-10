@@ -14,6 +14,7 @@
 import { memo, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { messageStyles, markdownStyles } from './styles';
 import { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 import { CollapsibleText } from './CollapsibleText';
@@ -72,10 +73,14 @@ const mdComponents: Partial<Components> = {
 
 function defaultRenderMarkdown(content: string): ReactNode {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-      {/* B3-FIGLASS-9: repair chunk-boundary glue (e.g. "fin.## Título") so a
-          heading the stream stuck onto the previous sentence still renders as a
-          heading. Pure + fence-safe; see normalizeStreamedMarkdown. */}
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={mdComponents}>
+      {/* remarkBreaks (B3-FIGLASS-VISUAL-1): LLMs separate paragraphs with a
+          SINGLE newline far more than a double one — a real reply carried 155
+          single vs 20 double. CommonMark folds a single \n into a space, so the
+          whole answer collapsed into one <p> and rendered as a wall of glued
+          sentences ("…inaceptable.Quiero…"). remark-breaks honors the model's
+          single \n as a visible line break, the way ChatGPT/Claude.ai do.
+          normalizeStreamedMarkdown still repairs the heading-glue case. */}
       {normalizeStreamedMarkdown(content)}
     </ReactMarkdown>
   );
