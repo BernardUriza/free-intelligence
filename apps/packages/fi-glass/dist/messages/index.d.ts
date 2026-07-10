@@ -45,12 +45,12 @@ declare const messageStyles: {
     readonly actions: {
         readonly container: "\n      absolute top-2 right-2\n      flex items-center gap-0.5\n      opacity-0 group-hover:opacity-100\n      transition-opacity duration-150\n      bg-slate-800/95 backdrop-blur-sm rounded-md p-0.5\n      border border-slate-700/50 shadow-lg\n    ";
         readonly button: {
-            readonly base: "p-1 rounded transition-colors duration-150";
-            readonly idle: "hover:bg-slate-700 text-slate-400 hover:text-slate-200";
+            readonly base: "p-1.5 rounded transition-colors duration-150";
+            readonly idle: "hover:bg-slate-700 text-slate-300 hover:text-white";
             readonly active: "bg-emerald-500/20 text-emerald-400";
             readonly speaking: "bg-amber-500/20 text-amber-400";
         };
-        readonly icon: "w-3 h-3";
+        readonly icon: "w-3.5 h-3.5";
     };
     readonly dateDivider: {
         readonly container: "my-4 flex items-center gap-3";
@@ -77,7 +77,7 @@ declare const markdownStyles: {
     readonly h2: "text-base font-semibold text-white mt-3 mb-1.5";
     readonly h3: "text-sm font-semibold text-slate-100 mt-2 mb-1";
     readonly blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]";
-    readonly link: "text-amber-400/90 hover:text-amber-300 underline underline-offset-2 transition-colors";
+    readonly link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors";
 };
 
 interface MessageContentProps {
