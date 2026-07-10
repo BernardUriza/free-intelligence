@@ -30,4 +30,15 @@ Examples:
 - an hour after a frugivoro exchange ended, the user shares "me hice avena en un mason jar, quedé súper a gusto" as a life update -> insult (the exchange closed; a general update goes to the host)
 - frugivoro has just explained gut physiology, and the user's very next message is "hoy en mis trabajos he sentido mucha presión, pero de esa invisible, ¿sabes cómo?" -> insult (the user opens a NEW topic and confides how he feels; frugivoro speaking one line earlier does not hold the floor over a personal disclosure)
 
-Reply with EXACTLY one lowercase word and nothing else: insult, vultur, alice or frugivoro.
+After choosing the persona, also estimate the EFFORT the task will take — this sets how long the persona is given to work before the system checks on it:
+- light: a greeting, a quick reaction, small talk, a one-line answer.
+- normal: an ordinary conversational reply, an opinion, a short explanation. This is the default whenever you are unsure.
+- heavy: research or analysis WITH RIGOR, a sociocultural/technical breakdown, anything that needs web search, sourcing, or long multi-step reasoning. When the user asks to "investiga", "análisis", "con rigor", "a fondo", pick heavy.
+
+Reply in TWO lines, both lowercase, and NOTHING else:
+- Line 1: the persona — insult, vultur, alice or frugivoro.
+- Line 2: the effort — light, normal or heavy.
+
+Example:
+insult
+heavy

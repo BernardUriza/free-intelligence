@@ -305,6 +305,60 @@ def test_routing_instruction_encodes_intent_not_mention():
     assert "netflix" in instr  # the exact false-positive trigger, now a counter-example
 
 
+@pytest.mark.asyncio
+async def test_route_parses_target_and_effort_two_lines():
+    # The brain now replies target on line 1, effort on line 2. Both extracted;
+    # the target clean-match survives (first-line match, not whole-text).
+    router = LLMShadowRouter(llm=_FakeLLM("insult\nheavy"))
+    decision = await router.route("investígame con rigor el barrio bravo")
+    assert decision.target == "insult"
+    assert decision.reason == "llm_insult"  # still CLEAN, not _loose
+    assert decision.effort == "heavy"
+
+
+@pytest.mark.asyncio
+async def test_route_parses_light_effort():
+    router = LLMShadowRouter(llm=_FakeLLM("insult\nlight"))
+    decision = await router.route("hola")
+    assert decision.target == "insult"
+    assert decision.effort == "light"
+
+
+@pytest.mark.asyncio
+async def test_route_effort_defaults_normal_when_absent():
+    # Old-style one-word reply (no effort line) → the middle budget, never light.
+    router = LLMShadowRouter(llm=_FakeLLM("vultur"))
+    decision = await router.route("reseña de Dune")
+    assert decision.target == "vultur"
+    assert decision.effort == "normal"
+
+
+@pytest.mark.asyncio
+async def test_route_effort_defaults_normal_when_unparseable():
+    router = LLMShadowRouter(llm=_FakeLLM("insult\n¯\\_(ツ)_/¯"))
+    decision = await router.route("x")
+    assert decision.effort == "normal"
+
+
+@pytest.mark.asyncio
+async def test_direct_route_parses_effort_too():
+    client = _FakeAzureClient("frugivoro\nnormal")
+    router = DirectAzureLLMRouter(client=client)
+    decision = await router.route("qué ceno")
+    assert decision.target == "frugivoro"
+    assert decision.effort == "normal"
+
+
+def test_routing_instruction_describes_effort_estimate():
+    # The brain must be TOLD to estimate effort, with the heavy triggers pinned so
+    # a "con rigor" investigation gets the long budget instead of timing out.
+    instr = llm_shadow_router._routing_instruction().lower()
+    assert "effort" in instr
+    for effort in ("light", "normal", "heavy"):
+        assert effort in instr
+    assert "rigor" in instr  # the exact trigger from the 2026-07-10 incident
+
+
 def test_routing_instruction_gives_personal_disclosure_back_to_the_host():
     """Guard the misroute the offline eval caught (2026-07-09, 1/30 real #general
     messages): right after frugivoro explained gut physiology, Bernard opened a new

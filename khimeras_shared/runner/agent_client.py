@@ -210,6 +210,7 @@ class AgentRunnerClient:
         cache_breakpoints: int = 0,
         tool_choice: str | None = None,
         on_timeout: Callable[[], Any] | None = None,
+        timeout_s: float | None = None,
         channel_id: str | None = None,
         user_id: str | None = None,
         session_uuid: str | None = None,
@@ -309,7 +310,11 @@ class AgentRunnerClient:
         if session_uuid:
             payload["session_uuid"] = session_uuid
 
-        timeout = httpx.Timeout(self._timeout_s, connect=self._connect_timeout_s)
+        # A per-turn read-timeout override (the arbiter's time budget for THIS
+        # task) supersedes the fixed default. The connect timeout stays constant
+        # — connecting has nothing to do with how long the task itself may run.
+        effective_timeout_s = timeout_s if timeout_s is not None else self._timeout_s
+        timeout = httpx.Timeout(effective_timeout_s, connect=self._connect_timeout_s)
         headers = {
             "Authorization": f"Bearer {self._runner_token}",
             "Content-Type": "application/json",
@@ -372,7 +377,7 @@ class AgentRunnerClient:
                 )
                 # A read timeout means the runner never answered — treat the brain
                 # as down so a real sibling persona can take the turn.
-                raise RunnerDownError(f"runner read timeout after {self._timeout_s}s") from e
+                raise RunnerDownError(f"runner read timeout after {effective_timeout_s}s") from e
             except httpx.HTTPError as e:
                 log.exception(
                     "agent_runner_client_http_error",

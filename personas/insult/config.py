@@ -126,11 +126,28 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("PERSONA_RUNNER_TOKEN", "INSULT_AGENT_RUNNER_TOKEN"),
     )
 
-    # When the agent runner times out / 5xx's / rate-limits, invite ALICE to
-    # take the turn instead of failing the user-facing message. ALICE reads
-    # the recent channel from Postgres and replies in her own persona. The
-    # user sees a continuation in voice B instead of a canned error.
+    # When the agent runner is genuinely DOWN (its /health is unreachable, or the
+    # arbiter's hard cap is hit), invite ALICE to take the turn instead of failing
+    # the user-facing message. NOTE (2026-07-10 arbiter): a *slow* runner no longer
+    # reaches here — the arbiter EXTENDS a turn whose /health still answers, so
+    # ALICE only ever covers a runner that actually died. Retiring this cover in
+    # favor of the DeMux's honest degradation is the immediate follow-up (Phase 1b).
     alice_failover_enabled: bool = True
+
+    # --- The DeMux arbiter: per-turn time budget for the runner (2026-07-10) ---
+    # The runner read timeout is no longer a flat 120s. The gpt-4.1 host router
+    # estimates the task's effort (light/normal/heavy); the arbiter grants the
+    # matching budget and, past it, EXTENDS a runner still answering /health
+    # instead of failing it over. These are the effort→budget seconds.
+    runner_budget_light_s: float = 45.0
+    runner_budget_normal_s: float = 120.0  # = the old flat timeout: normal turns unchanged
+    runner_budget_heavy_s: float = 300.0
+    # Absolute ceiling: past this the turn is cut even if the runner still answers,
+    # so a truly hung turn can never hold the channel forever.
+    runner_hard_cap_s: float = 420.0
+    # How often, past the initial budget, the arbiter probes /health to decide
+    # extend-vs-intervene. Two consecutive unreachable probes = confirmed death.
+    runner_checkpoint_s: float = 20.0
 
     # PR-4b slice 3 — INERT switch for the gpt-4.1 host degrader. False (default)
     # keeps the honest-degradation tail on the static in-character notice and

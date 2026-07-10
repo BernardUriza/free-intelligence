@@ -250,6 +250,12 @@ class TurnCtx:
     # persona. None = Insult (default).
     persona_id: str | None = None
 
+    # The arbiter's time budget for THIS turn, in seconds — set by the LLM router
+    # cutover stage from the gpt-4.1 effort estimate (light/normal/heavy). None =
+    # the router didn't run (or gave nothing): the call stage falls back to the
+    # normal budget. See _stage_call_llm's arbiter supervision.
+    time_budget_s: float | None = None
+
     # --- Telemetry / outcome ---
     delivery_mode: str = ""  # "text" | "reaction" | "silent"
 

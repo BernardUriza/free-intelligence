@@ -36,6 +36,7 @@ from khimeras_shared.corpus import (
     film_criticism_guidance,
 )
 from khimeras_shared.reactions import add_reactions, harvest_orphan_emojis, parse_reactions
+from personas.insult.cogs.chat._arbiter import supervise_runner_turn
 from personas.insult.cogs.chat._failure import (
     Criticality,
     FailoverReason,
@@ -354,6 +355,19 @@ def _routable_sibling_ids() -> frozenset[str]:
     return frozenset(p.persona_id for p in all_personas())
 
 
+def _effort_to_budget_s(effort: str, settings: Any) -> float:
+    """Map the router's effort estimate onto the arbiter's initial time budget.
+    Unknown effort → the normal (middle) budget — never the shortest, so a
+    misparse can't starve a real task of time. Reads via getattr with the config
+    defaults so a settings object missing a budget field falls back to normal
+    instead of crashing the stage (fail-safe on every edge)."""
+    if effort == "light":
+        return float(getattr(settings, "runner_budget_light_s", 45.0))
+    if effort == "heavy":
+        return float(getattr(settings, "runner_budget_heavy_s", 300.0))
+    return float(getattr(settings, "runner_budget_normal_s", 120.0))
+
+
 async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
     """ACT on the context-aware gpt-4.1 routing decision for IMPLICIT turns
     (HOST 5/6 slice C — the LLM sibling of the deterministic slice-B cutover).
@@ -398,6 +412,11 @@ async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
         return
     if budget is not None:
         budget.record(decision.input_tokens, decision.output_tokens)
+    # The arbiter's time budget for this turn — from the same gpt-4.1 call that
+    # picked the target. When the turn stays with Insult (below), _stage_call_llm
+    # reads it to size the runner supervision. A sibling summon (StageStop) never
+    # reaches the call stage, so its budget is moot.
+    ctx.time_budget_s = _effort_to_budget_s(getattr(decision, "effort", "normal"), ctx.deps.settings)
     # NOT "diverged": nothing is being compared against. This says the router
     # picked someone other than Insult, which for a correct frugivoro/vultur
     # summon is the router WORKING. The old `diverged` name made every healthy
@@ -725,9 +744,10 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
     # re-fires `send_typing` every ~7s and is cancelled in `finally`.
     typing_task = spawn_typing_keepalive(ctx.message.channel)
     try:
-        llm_kwargs: dict[str, Any] = {
-            "on_timeout": _notify_retry,
-        }
+        # The retry_notice ("sigo en ello") is driven by the arbiter at budget
+        # exhaustion now, NOT by chat()'s own on_timeout (which would only fire at
+        # the hard cap, after the arbiter already decided).
+        llm_kwargs: dict[str, Any] = {}
         if backend == "agent_runner":
             llm_kwargs["channel_id"] = ctx.channel_id
             llm_kwargs["user_id"] = ctx.user_id
@@ -765,7 +785,27 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
             if knowledge.other_people_block:
                 llm_kwargs["other_people"] = knowledge.other_people_block
                 log.info("agent_other_people_forwarded", participants=len(ctx.other_participants_facts))
-        ctx.llm_response = await llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs)
+        # Arbiter supervision (2026-07-10): the gpt-4.1 router estimated this
+        # turn's effort → time budget (ctx.time_budget_s); the runner read timeout
+        # is the hard cap so httpx never cuts first, and the arbiter EXTENDS a
+        # still-alive runner past the budget instead of failing it over. Only a
+        # runner that stops answering /health (or the hard cap) raises
+        # RunnerDownError into the failover/degradation path below.
+        settings = ctx.deps.settings
+        normal_budget_s = float(getattr(settings, "runner_budget_normal_s", 120.0))
+        hard_cap_s = float(getattr(settings, "runner_hard_cap_s", 420.0))
+        checkpoint_s = float(getattr(settings, "runner_checkpoint_s", 20.0))
+        budget_s = ctx.time_budget_s if ctx.time_budget_s is not None else normal_budget_s
+        llm_kwargs["timeout_s"] = hard_cap_s
+        chat_task = asyncio.create_task(llm_client.chat(ctx.system_prompt, ctx.context, **llm_kwargs))
+        ctx.llm_response = await supervise_runner_turn(
+            chat_task,
+            budget_s=budget_s,
+            hard_cap_s=hard_cap_s,
+            checkpoint_s=checkpoint_s,
+            health_probe=llm_client.health,
+            on_budget_exceeded=_notify_retry,
+        )
     except Exception as e:
         if isinstance(e, anthropic.BadRequestError):
             failure_class = FailureClass.LLM_BAD_REQUEST

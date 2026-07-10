@@ -53,6 +53,15 @@ _DEFAULT_TARGET = "insult"
 # is guarded by ``test_valid_targets_mirror_the_registry_in_lockstep``.
 _VALID_TARGETS = ("insult", "vultur", "alice", "frugivoro")
 
+# The effort estimate the routing brain attaches to the turn — the arbiter's time
+# budget for THIS task. ``light`` = a greeting / quick reaction; ``normal`` = an
+# ordinary reply; ``heavy`` = research or analysis with web search / long
+# reasoning. Falls back to ``normal`` (the MIDDLE budget, never the shortest)
+# whenever the brain gives nothing parseable — so a chatty model never starves a
+# real task of time.
+_VALID_EFFORTS = ("light", "normal", "heavy")
+_DEFAULT_EFFORT = "normal"
+
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _PROMPT_CACHE: PromptCache = {}
 
@@ -76,27 +85,48 @@ class LLMShadowDecision:
     """A gpt-4.1 shadow routing decision: which persona the host brain would pick,
     plus a greppable reason token (``llm_<target>`` clean / ``llm_<target>_loose``
     extracted-from-prose / ``llm_unparseable``) so divergence telemetry can be
-    bucketed by parse quality. Token counts ride along for spend accounting."""
+    bucketed by parse quality. Token counts ride along for spend accounting.
+
+    ``effort`` is the brain's estimate of how long THIS task will take — the
+    arbiter's per-turn time budget. Defaults to ``normal`` (the middle budget)
+    when the brain didn't emit one, so old callers and unparseable replies are
+    safe."""
 
     target: str
     reason: str
     input_tokens: int = 0
     output_tokens: int = 0
+    effort: str = _DEFAULT_EFFORT
 
 
 def _parse_target(text: str) -> tuple[str, str]:
     """Map a host-LLM completion onto a (target, reason) pair. Tolerant: a clean
-    one-word reply is ``llm_<target>``; a target name buried in prose is
-    ``llm_<target>_loose``; nothing recognizable falls back to the default with
-    ``llm_unparseable`` so the shadow never crashes on a chatty model."""
-    lowered = text.strip().lower()
+    one-word FIRST LINE is ``llm_<target>`` (the effort, if any, rides on line 2);
+    a target name buried in prose is ``llm_<target>_loose``; nothing recognizable
+    falls back to the default with ``llm_unparseable`` so the shadow never crashes
+    on a chatty model. Matching the first line (not the whole text) keeps the
+    clean-match intact now that the brain replies with target + effort."""
+    stripped = text.strip()
+    first_line = stripped.splitlines()[0].strip().lower() if stripped else ""
     for target in _VALID_TARGETS:
-        if lowered == target:
+        if first_line == target:
             return target, f"llm_{target}"
+    lowered = stripped.lower()
     for target in _VALID_TARGETS:
         if target in lowered:
             return target, f"llm_{target}_loose"
     return _DEFAULT_TARGET, "llm_unparseable"
+
+
+def _parse_effort(text: str) -> str:
+    """Extract the effort estimate from a host-LLM completion. Tolerant: the first
+    recognized effort word anywhere in the reply wins; nothing recognizable →
+    ``normal`` (the middle budget). Never raises."""
+    lowered = text.lower()
+    for effort in _VALID_EFFORTS:
+        if effort in lowered:
+            return effort
+    return _DEFAULT_EFFORT
 
 
 class LLMShadowRouter:
@@ -129,6 +159,7 @@ class LLMShadowRouter:
             reason=reason,
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
+            effort=_parse_effort(result.text),
         )
 
 
@@ -173,7 +204,7 @@ class DirectAzureLLMRouter:
                 {"role": "system", "content": _routing_instruction()},
                 {"role": "user", "content": _compose_route_input(text, context)},
             ],
-            max_tokens=8,
+            max_tokens=16,
             temperature=0,
         )
         out = resp.choices[0].message.content or ""
@@ -184,6 +215,7 @@ class DirectAzureLLMRouter:
             reason=reason,
             input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
             output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+            effort=_parse_effort(out),
         )
 
 
