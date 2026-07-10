@@ -353,6 +353,13 @@ export function Og118AgentChat() {
           // identity/branding, so the wiring lives here, not in fi-glass.
           renderHeader={(m) => <Og118MessageHeader message={m} />}
           renderBadge={(m) => <Og118ModelBadge message={m} />}
+          // The glass-box is the product's differentiator, and it was rendering
+          // as bare text: AgentPanel defaults `classNames.card` to '', so the
+          // plan drew with background rgba(0,0,0,0), border 0, padding 0 —
+          // indistinguishable from the answer beneath it.
+          agentPanelProps={{
+            classNames: { card: 'og-agent-card', hint: 'og-agent-hint' },
+          }}
           // Copy stays on every message; Speak is added on assistant messages
           // only. renderActions overrides the default showCopyAction.
           renderActions={(m) => (

@@ -459,3 +459,22 @@ body {
 .og-mic-saving-spinner {
   color: #f59e0b;
 }
+
+/* GLASS-BOX SURFACE — the plan/steps/sources panels.
+   fi-glass leaves `classNames.card` empty by default, so without this the
+   glass-box rendered as bare text (transparent, no border, no padding) and
+   read as part of the answer. It is the product's differentiator; it gets a
+   surface of its own, quieter than an assistant bubble so it reads as
+   machinery rather than speech. */
+.og-agent-card {
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.16);
+  background: rgba(10, 14, 22, 0.55);
+  backdrop-filter: blur(var(--glass-blur, 12px));
+}
+.og-agent-hint {
+  color: var(--og-accent-muted, #94a3b8);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
