@@ -186,7 +186,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-07-08 · Voz DESBLOQUEADA: gateway susurro (sus.bernarduriza.com) verificado live con JWT Auth0 real — qa-tts-502 y qa-stt-502 CERRADOS · Rediseño del composer SHIPPED (4 PRs hoy: #321 scrubber temado + fix StrictMode del player, #322 ComposerFrame header/body/footer, #323 draft de audio DENTRO del composer + refactor conversation-surface, #325 cruel-critic fixes) · Antes: GATE 3 Auth0 SHIPPED (#268/#269/#272/#273/#274), UX-DISTRIBUTION 6/6 (#307–#312), continuidad external-engine (#316), conversaciones cloud (#320), honesty guard (#314) · Pendiente del rediseño: chip ELEMENTO + Resonance al footer del frame</p>
+  <p class="subtitle">Actualizado 2026-07-10 · <strong style="color:#34d399">og118 ES EL DAILY DRIVER</strong>: venció Pro de ChatGPT → 7 PRs en 2 días lo volvieron su reemplazo real. Dominio prod app.og118.ai (TLS, mismo backend/chats) · instalable en iPhone (standalone, sin manifest) · botón STOP real · EL PLAN EN VIVO por fin se ve (roto en 3 capas: harness eclipsaba el MCP #338, panel sin superficie + enterrado por scroll #339) · pulido visual 5/5 + glassmorphism real (#340/#341, backdrop-filter que lightningcss tiraba) · composer footer COMPLETO (#335 ELEMENTO+Resonance) · aurity useChat dedup (#329) · Antes (07-08): rediseño composer #321–#325, voz desbloqueada (susurro), GATE 3 Auth0 SHIPPED</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -213,7 +213,7 @@
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
     <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
     <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + frontend login SHIPPED + verificado e2e; falta solo smoke humano staging-host + flip opcional auth0-only</div>
-    <div class="gate-row"><span class="gate-dot dot-gray"></span> Gate 4 — Cutover público og118.ai + DNS — pendiente Gate 3</div>
+    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 4 — Cutover público — <strong>app.og118.ai LIVE en prod</strong> (TLS válido, Auth0 callbacks, CORS, mismo backend/chats, 2026-07-10). Falta solo el apex og118.ai (hoy = landing) — decisión de Bernard, DNS ya en Cloudflare</div>
   </div>
 
   <!-- SMOKE INTERACTIVO -->
@@ -362,8 +362,8 @@
   <!-- REDISEÑO DEL COMPOSER 2026-07-08 -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">Rediseño del composer — anatomía única header/body/footer (2026-07-08)</span>
-      <span class="section-badge badge-active">4/5 — falta footer (ELEMENTO + Resonance)</span>
+      <span class="section-title">Rediseño del composer — anatomía única header/body/footer (2026-07-08 → 07-09)</span>
+      <span class="section-badge badge-done">5/5 COMPLETO</span>
     </div>
     <label class="item"><input type="checkbox" checked>
       <div class="item-body"><div class="item-text done">Scrubber de audio temado + fix StrictMode del player engine</div>
@@ -381,10 +381,38 @@
       <div class="item-body"><div class="item-text done">Cruel-critic del arco: load por VALOR del source + guard de slot false</div>
       <div class="item-note">PR #325 (merge 57a14192). GRAVE: RichAudioPlayer cargaba por identidad de objeto → cualquier re-render del padre reseteaba playback a 0 (y con autoPlay la re-arrancaba: ticks de streaming, polls de Resonance). Ahora keyea por valor (Blob por ref, url por string); probado live: draft siguió reproduciendo al abrir el dropdown ELEMENTO. IMPORTANT: slots del ComposerFrame trataban false como contenido (fila fantasma) — guard + test. Deuda registrada sin bloquear: key={i} en transcript (colapso se filtra entre conversaciones), error.message crudo en TurnErrorBanner, race de appends rápidos en useComposerAppend.</div></div>
       <span class="item-tag">#325</span></label>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Chip ELEMENTO + botón Resonance al footer del frame — matar la barra suelta y el chip huérfano</div>
-      <div class="item-note">Último paso del target: ELEMENTO como select del footer izquierdo (patrón model-picker de ChatGPT/AI Elements), Resonance como botón circular waveform junto al mic (patrón Gemini Live) — el estado de llamada solo aparece durante llamada activa. Con esto la zona queda en UNA sola superficie: banners de sistema + cola de audios como únicos elementos externos. El coagent quedó instruido para dictar el corte cuando Bernard dé el GO.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Chip ELEMENTO + botón Resonance al footer del frame — matar la barra suelta y el chip huérfano</div>
+      <div class="item-note">DONE 2026-07-09 (PR #335, merge). ComposerFrame ganó el slot footerStart que su propio docstring ya prometía ("tool chips left") pero el CSS negaba (justify-content:flex-end hardcodeado → 95% de riel muerto, medido 1306px con 66px de controles en staging). ELEMENTO + Resonance bajaron al footer izquierdo; Resonance es un MODO, no un banner: idle = chip outlined junto al mic, en llamada su equalizer + estado suben al header slot y el chip se vuelve "Colgar" rojo. La barra flotante og-resonance-bar (1308×46) murió. Bug de copy cazado: RESONANCE_LABEL mapeaba idle al label del propio botón → "Llamar (Resonance)  LLAMAR (RESONANCE)" duplicado. Retrocompat byte-idéntica (footerStart usa margin-right:auto, gana sobre justify-content sin cambiarlo — pinneado por test). BONUS del mismo PR: botón STOP real durante streaming (AgentHook.abort existía en fi-core, og118 tenía el AbortController, pero solo el watchdog de timeout lo llamaba — el usuario nunca podía cancelar; stop() conserva el texto parcial, paridad ChatGPT). 395/395 tests, 3 contratos mutation-tested, E2E en Chrome contra backend real (turno cancelado en 36/40, parcial preservado).</div></div>
       <span class="item-tag">composer-footer</span></label>
+  </div>
+
+  <!-- JORNADA 2026-07-10: og118 ES EL DAILY DRIVER -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Jornada 2026-07-09/10 — de staging a reemplazo real de ChatGPT</span>
+      <span class="section-badge badge-done">7 PRs · verificados en el artefacto desplegado</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Dominio de producción app.og118.ai — TLS válido, mismo backend, mismos chats</div>
+      <div class="item-note">Disparador: venció la suscripción Pro de ChatGPT de Bernard → og118 pasa a daily driver YA. Descubierto que "staging" ya ERA prod-capable (un solo Container App desde main + Azure Files share; sin base de datos). En vez de duplicar infra: CNAME app → SWA (Cloudflare DNS-only, apex landing intacto), az staticwebapp hostname set, CORS del backend actualizado en caliente (OG118_ALLOWED_ORIGINS), Auth0 callbacks +https://app.og118.ai (3 campos, vía tag-input con teclado real, staging preservado). VERIFICADO live: app.og118.ai HTTP 200 + TLS Microsoft (hasta 2026-11), sirve la APP (no la landing), login Auth0 sin "Callback URL mismatch", CORS access-control-allow-origin correcto, control negativo (evil.example.com → 400). Azure topó en 14 SWA Free → una sola SWA sirve app+staging (mejor arquitectura, $0). Gate 4 apex og118.ai sigue siendo tuyo.</div></div>
+      <span class="item-tag">prod-domain</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Instalable en iPhone como app standalone — sin Capacitor, sin manifest, $0</div>
+      <div class="item-note">PR #336 (merge). "La app de iPhone" NUNCA existió (cero Capacitor/Xcode/dep — barrido de repo + repos vecinos); era un item OPEN del roadmap. Dos trampas verificadas contra el HTML servido: (1) NO manifest.json a propósito — iOS usa su scope para mantener standalone, Auth0 es otro origen, así que con manifest el login sale a un navegador cuyo storage no comparte con la app y vuelve sin sesión; apple-mobile-web-app-capable da standalone sin scope. (2) Next ≥15 no emite ese tag desde appleWebApp.capable (PR vercel/next.js#70363 lo cambió por mobile-web-app-capable que Safari ignora) → emitido vía metadata.other. safe-area-inset-* en fi-glass para el notch. Micrófono en standalone OK (WebKit 185448 FIXED iOS 13.4). FALTA: instalar desde Safari iOS + round-trip Auth0 (átomo físico de Bernard; certeza PROBABLE, no confirmada).</div></div>
+      <span class="item-tag">iphone-pwa</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">EL PLAN EN VIVO por fin se ve — el diferenciador del producto estaba roto en 3 capas</div>
+      <div class="item-note">"nunca se ve su plan en vivo como promete" → cazado en capas. (1) BACKEND (PR #338): el CLI de Claude Code trae builtins TaskCreate/TaskUpdate que ECLIPSAN al MCP fi_core_task_tracker; el agente planeaba con esos, llegaban con server:None y _plan_events los tiraba en silencio (10 tool_calls, 0 planes). Fix: bloquearlos en COMPANION_BLOCKED_BUILTINS + strict_mcp_config:True (sin él un Runner heredaba los MCP del host y abrió 8 pestañas OAuth en el navegador de Bernard). El diagnóstico clave: el modelo MENTÍA con "los MCP aún se conectan" — pedirle la tool por nombre exacto probó que la tubería estaba bien, era competencia de herramientas. (2) SUPERFICIE (PR #339): el AgentPanel montaba pero og118 no pasaba agentPanelProps → classNames.card='' → el plan se dibujaba como texto desnudo (background transparent, border 0). (3) POSICIÓN (PR #339): el panel se dibujaba ENCIMA de la respuesta y el autoscroll lo enterraba (medido y=-2921px); ahora sticky con el panel+respuesta en un wrapper compartido (la respuesta ES la pista del sticky). Antes 0 plan/0 steps; después plan 0/3 con paso RUNNING + QUEUED, tool_calls fi_core_task_tracker, anclado durante 3800px de scroll (relY constante). Verificado live en Chrome. 400/402 tests.</div></div>
+      <span class="item-tag">glassbox-plan</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Pulido visual de fi-glass — 5 defectos medidos, 1 falso positivo descartado</div>
+      <div class="item-note">PRs #340 + #341. Cada uno medido en la superficie renderizada, no a ojo (un 6º candidato, "burbujas de usuario estiradas", medido y DESCARTADO: un "Hola" se encoge a 144px). (1) remark-breaks: un reply llegó con 155 saltos simples y 20 dobles; CommonMark fundía los simples → todo en un &lt;p&gt; con frases pegadas ("inaceptable.Quiero"); ahora el salto simple es &lt;br&gt; (como ChatGPT/Claude.ai). (2) Glassmorphism REAL: box-shadow para elevación + backdrop-filter blur — este último costó DOS PRs porque lightningcss (minificador de Next 16) deduplica backdrop-filter + -webkit- dejando SÓLO -webkit- (que Chrome ignora) → el "glass" computaba none en producción; fix en #341: escribir SOLO la estándar, lightningcss reañade el webkit. Verificado en el bundle SERVIDO por app.og118.ai (mi error previo: verifiqué mi build local, no el de CI — fake-green corregido). (3) scrollbar tematizada. (4) acciones copy/speak 20→26px + contraste. (5) links emerald distintos del código ámbar. 402/402 tests.</div></div>
+      <span class="item-tag">visual-polish</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Dedup: dos árboles gemelos de useChat en aurity → una implementación con shims</div>
+      <div class="item-note">PR #329 (merge, +43/-1541). Refactor de aurity (no toca fi-glass). Estaba 20 commits detrás de main tras la jornada → rebaseado con update-branch, checks re-corridos contra main de hoy (5/5 verdes), luego merge. Art. 6 en estado puro: una fuente de verdad por superficie.</div></div>
+      <span class="item-tag">aurity-dedup</span></label>
   </div>
 
   <!-- DAILY DRIVER -->
@@ -617,7 +645,7 @@
       <span class="item-tag">qa-pass-console</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 (CHECKLIST-RECONCILE-1) · UPDATE 2026-06-30: gateway susurro verificado vivo · UPDATE 2026-07-08: qa-tts-502/qa-stt-502 CERRADOS (round-trip live con JWT Auth0 real) + rediseño del composer 4/5 (#321 scrubber+StrictMode, #322 ComposerFrame, #323 draft-in-composer + refactor conversation-surface, #325 cruel-critic) — pendiente footer (ELEMENTO+Resonance); RC 46/47, único bloqueo = oídos de Bernard</footer>
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 · UPDATE 2026-06-30: gateway susurro vivo · UPDATE 2026-07-08: qa-tts/stt-502 CERRADOS + rediseño composer #321–#325 · <strong>UPDATE 2026-07-10: og118 = DAILY DRIVER — venció Pro de ChatGPT, 7 PRs lo volvieron su reemplazo. #335 composer footer completo (ELEMENTO+Resonance) + botón STOP · #336 iPhone standalone PWA · #338 el plan en vivo por fin se ve (harness eclipsaba el MCP) · #339 panel con superficie + anclado · #340/#341 pulido visual 5/5 + glassmorphism real (backdrop-filter que lightningcss tiraba) · #329 aurity dedup · app.og118.ai LIVE en prod. Único bloqueo restante = smoke humano de Bernard (oídos + daily-driver + install iPhone + apex cutover)</strong></footer>
 </div>
 
 <script>
