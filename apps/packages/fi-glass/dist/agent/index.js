@@ -1811,19 +1811,21 @@ function TranscriptMessages({
         )
       ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsx24(AgentPanel, { turn, ...agentPanelProps }),
-    isStreaming && turn.text && /* @__PURE__ */ jsx24(
-      MessageBubble,
-      {
-        role: "assistant",
-        className: resolveBubbleClass({
+    isStreaming && /* @__PURE__ */ jsxs18("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+      /* @__PURE__ */ jsx24("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx24(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx24(
+        MessageBubble,
+        {
           role: "assistant",
-          content: turn.text,
-          timestamp: ""
-        }),
-        children: /* @__PURE__ */ jsx24(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
-      }
-    )
+          className: resolveBubbleClass({
+            role: "assistant",
+            content: turn.text,
+            timestamp: ""
+          }),
+          children: /* @__PURE__ */ jsx24(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+        }
+      )
+    ] })
   ] });
 }
 
