@@ -34,9 +34,11 @@ import discord
 import structlog
 from discord.ext import tasks
 
+from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
 from khimeras_shared.attachments import process_attachments
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
+from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
@@ -61,6 +63,13 @@ SPEAK_EMOJI = "🔊"
 RESEARCH_DRAIN_SECONDS = 45.0
 RESEARCH_TIMEOUT_S = 360.0
 RESEARCH_MAX_RETRIES = 2
+
+# Standing agendas (the autonomy trigger): each persona checks its due agendas on
+# this cadence and, if there's something genuinely new, posts a finding UNPROMPTED
+# in its own voice. The per-agenda `cadence_hours` (not this interval) throttles
+# real frequency — this loop just wakes to see what's due.
+AGENDA_CHECK_SECONDS = 600.0
+AGENDA_TIMEOUT_S = 360.0
 
 # Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
 # `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
@@ -211,10 +220,12 @@ class PersonaClient(discord.Client):
             bot_name=str(self.user) if self.user else None,
             guilds=len(self.guilds),
         )
-        # Start THIS persona's durable-research drain loop (idempotent across
-        # reconnects — on_ready fires again after a gateway resume).
+        # Start THIS persona's durable-research drain loop + standing-agenda loop
+        # (idempotent across reconnects — on_ready fires again after a resume).
         if not self._research_drain.is_running():
             self._research_drain.start()
+        if not self._agenda_check.is_running():
+            self._agenda_check.start()
 
     @tasks.loop(seconds=RESEARCH_DRAIN_SECONDS)
     async def _research_drain(self) -> None:
@@ -297,6 +308,77 @@ class PersonaClient(discord.Client):
         except Exception:
             log.exception("research_job_deliver_failed", job_id=job_id, persona_id=self.persona.persona_id)
             await self.memory.mark_research_failed(job_id)
+
+    @tasks.loop(seconds=AGENDA_CHECK_SECONDS)
+    async def _agenda_check(self) -> None:
+        """The autonomy trigger: pursue THIS persona's due standing agendas and
+        post findings UNPROMPTED — the persona acting on its own goals without
+        being spoken to. Each agenda's `cadence_hours` throttles real frequency;
+        when the runner finds nothing new the persona stays QUIET (no spam)."""
+        import time as _t
+
+        try:
+            agendas = await self.memory.get_due_agendas(_t.time(), limit=2, persona_id=self.persona.persona_id)
+        except Exception:
+            log.exception("agenda_check_fetch_failed", persona_id=self.persona.persona_id)
+            return
+        for agenda in agendas:
+            await self._run_agenda(agenda)
+
+    async def _run_agenda(self, agenda: dict) -> None:
+        import time as _t
+
+        agenda_id = agenda["id"]
+        channel = self.get_channel(int(agenda["channel_id"]))
+        if channel is None:
+            log.warning("agenda_channel_gone", agenda_id=agenda_id, channel_id=agenda["channel_id"])
+            await self.memory.mark_agenda_ran(agenda_id, _t.time())
+            return
+        try:
+            resp = await self.agent_client.chat(
+                "",
+                [{"role": "user", "content": frame_agenda_prompt(agenda["goal"])}],
+                channel_id=f"agenda-{agenda_id}",
+                user_id=agenda["created_by"],
+                persona_id=self.persona.persona_id,
+                timeout_s=AGENDA_TIMEOUT_S,
+            )
+            finding = strip_agenda((resp.text or "").strip())
+        except Exception:
+            log.exception("agenda_run_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
+            # Do NOT mark ran on a transport failure — let it retry next cadence.
+            return
+        # Always mark ran (cadence advances); only POST when there's something new.
+        await self.memory.mark_agenda_ran(agenda_id, _t.time())
+        if is_nothing_new(finding):
+            log.info("agenda_nothing_new", agenda_id=agenda_id, persona_id=self.persona.persona_id)
+            return
+        try:
+            pieces = chunk(finding)
+            tag = f"\n-# {VERSION_TAG}"
+            if pieces and len(pieces[-1]) + len(tag) <= 2000:
+                pieces[-1] += tag
+            for piece in pieces:
+                await channel.send(piece)
+            await self.memory.store(
+                agenda["channel_id"],
+                str(self.user.id) if self.user else "0",
+                self.persona.display_name,
+                "assistant",
+                finding,
+                for_user_id=agenda["created_by"],
+                guild_id=agenda.get("guild_id"),
+                channel_name=None,
+                model_used=getattr(resp, "model_used", None),
+            )
+            log.info(
+                "agenda_finding_posted",
+                agenda_id=agenda_id,
+                persona_id=self.persona.persona_id,
+                chars=len(finding),
+            )
+        except Exception:
+            log.exception("agenda_deliver_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         """🔊 on one of THIS persona's own messages → speak it in the persona's
@@ -606,6 +688,33 @@ class PersonaClient(discord.Client):
                 # persona who over-promised once than a silent drop of the request.
                 log.exception(
                     "research_job_queue_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                )
+        # Standing agenda: the persona accepted a request to keep WATCHING something
+        # over time and emitted [AGENDA: ...]. Persist it (the agenda loop pursues it
+        # on its cadence and posts findings unprompted) and strip the marker.
+        agenda_goal = parse_agenda(text)
+        if agenda_goal:
+            text = strip_agenda(text)
+            try:
+                agenda_id = await self.memory.save_agenda(
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    guild_id=guild_id,
+                    created_by=user_id,
+                    goal=agenda_goal,
+                )
+                log.info(
+                    "agenda_saved",
+                    persona_id=self.persona.persona_id,
+                    agenda_id=agenda_id,
+                    channel_id=channel_id,
+                    goal_chars=len(agenda_goal),
+                )
+            except Exception:
+                log.exception(
+                    "agenda_save_failed",
                     persona_id=self.persona.persona_id,
                     channel_id=channel_id,
                 )

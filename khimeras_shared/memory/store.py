@@ -20,6 +20,7 @@ from __future__ import annotations
 from khimeras_shared.memory.connection import ConnectionManager
 from khimeras_shared.memory.context import build_context, format_relative_time
 from khimeras_shared.memory.repositories import (
+    AgendasRepository,
     ChannelSummariesRepository,
     DisclosureRepository,
     FactsRepository,
@@ -54,6 +55,7 @@ class MemoryStore:
         self._facts = FactsRepository(self._manager)
         self._reminders = RemindersRepository(self._manager)
         self._research_jobs = ResearchJobsRepository(self._manager)
+        self._agendas = AgendasRepository(self._manager)
         self._relational = RelationalStateRepository(self._manager)
         self._channels = ChannelSummariesRepository(self._manager)
         self._world_scans = WorldScansRepository(self._manager)
@@ -319,6 +321,29 @@ class MemoryStore:
 
     async def reset_stale_research_jobs(self, older_than_s: float) -> int:
         return await self._research_jobs.reset_stale_running(older_than_s)
+
+    async def save_agenda(
+        self,
+        persona_id: str | None,
+        channel_id: str,
+        guild_id: str | None,
+        created_by: str,
+        goal: str,
+        cadence_hours: float = 24.0,
+    ) -> int:
+        return await self._agendas.save_agenda(persona_id, channel_id, guild_id, created_by, goal, cadence_hours)
+
+    async def get_due_agendas(self, now: float, limit: int = 3, persona_id: str | None = None) -> list[dict]:
+        return await self._agendas.get_due_agendas(now, limit, persona_id)
+
+    async def mark_agenda_ran(self, agenda_id: int, now: float) -> None:
+        await self._agendas.mark_agenda_ran(agenda_id, now)
+
+    async def deactivate_agenda(self, agenda_id: int) -> None:
+        await self._agendas.deactivate_agenda(agenda_id)
+
+    async def get_channel_agendas(self, channel_id: str) -> list[dict]:
+        return await self._agendas.get_channel_agendas(channel_id)
 
     async def set_snooze_msg_id(self, reminder_id: int, msg_id: int) -> None:
         await self._reminders.set_snooze_msg_id(reminder_id, msg_id)

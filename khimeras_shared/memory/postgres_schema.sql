@@ -186,6 +186,23 @@ CREATE TABLE IF NOT EXISTS research_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_research_jobs_pending ON research_jobs(status, created_at);
 
+-- ─── agendas ───────────────────────────────────────────────────────────
+-- Standing, self-pursued goals: a persona works on its own on a cadence and
+-- posts genuine novelty back WITHOUT being spoken to (the autonomy trigger).
+CREATE TABLE IF NOT EXISTS agendas (
+    id             BIGSERIAL PRIMARY KEY,
+    persona_id     TEXT,
+    channel_id     TEXT,
+    guild_id       TEXT,
+    created_by     TEXT,
+    goal           TEXT,
+    cadence_hours  DOUBLE PRECISION DEFAULT 24,
+    last_run_at    DOUBLE PRECISION,
+    active         INTEGER DEFAULT 1,
+    created_at     DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_agendas_due ON agendas(active, last_run_at);
+
 -- ─── disclosure_log ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS disclosure_log (
     id                BIGSERIAL PRIMARY KEY,

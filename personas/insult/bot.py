@@ -23,6 +23,7 @@ from personas.insult.core.siesta.presence.discord import SiestaPresenceUpdater
 from personas.insult.tasks.health import build_health_check
 from personas.insult.tasks.proactive import build_proactive_task
 from personas.insult.tasks.reminders import build_reminder_tasks, handle_snooze_reaction
+from personas.insult.tasks.research_jobs import build_research_tasks
 from personas.insult.tasks.state import ProactiveState
 from personas.insult.tasks.summaries import build_summarize_channels_task
 from personas.insult.tasks.watchdog import GatewayWatchdog
@@ -43,6 +44,7 @@ def _build(container: Container):
     summarize_channels = build_summarize_channels_task(bot, container, memory)
     proactive = build_proactive_task(bot, container, memory, proactive_state)
     reminder_check, ack_overdue = build_reminder_tasks(bot, container, memory)
+    research_drain = build_research_tasks(bot, container, memory)
 
     # Start order is irrelevant (independent intervals); cancellation walks
     # the same list so shutdown can't miss a loop.
@@ -51,6 +53,7 @@ def _build(container: Container):
         watchdog.loop,
         reminder_check,
         ack_overdue,
+        research_drain,
         proactive,
         summarize_channels,
     ]

@@ -36,6 +36,7 @@ from khimeras_shared.corpus import (
     film_criticism_guidance,
 )
 from khimeras_shared.reactions import add_reactions, harvest_orphan_emojis, parse_reactions
+from khimeras_shared.research_marker import parse_research, strip_research
 from personas.insult.cogs.chat._arbiter import supervise_runner_turn
 from personas.insult.cogs.chat._failure import (
     Criticality,
@@ -1095,6 +1096,25 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
 
     ctx.reactions = result.reactions
     ctx.response_text = result.response_text
+
+    # Durable research job for the HOST (Insult): the model emitted [RESEARCH: ...].
+    # Queue it (the plumbing drain loop runs it via the runner and Insult posts the
+    # report back) and strip the marker so only the in-character ack is delivered.
+    # persona_id=None marks it Insult's — the gateway's per-persona loops skip it.
+    research_prompt = parse_research(ctx.raw_response_text)
+    if research_prompt:
+        ctx.response_text = strip_research(ctx.response_text)
+        try:
+            await ctx.deps.memory.save_research_job(
+                channel_id=ctx.channel_id,
+                guild_id=str(ctx.guild_id) if ctx.guild_id else None,
+                created_by=ctx.user_id,
+                prompt=research_prompt,
+                persona_id=None,
+            )
+            log.info("research_job_queued", channel_id=ctx.channel_id, prompt_chars=len(research_prompt))
+        except Exception:
+            log.exception("research_job_queue_failed", channel_id=ctx.channel_id)
 
     log.info(
         "stage_post_llm_done",

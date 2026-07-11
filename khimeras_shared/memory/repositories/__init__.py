@@ -5,6 +5,7 @@ Each repository owns one or a few related tables and inherits from
 The `MemoryStore` facade composes them and exposes the flat legacy API.
 """
 
+from khimeras_shared.memory.repositories.agendas import AgendasRepository
 from khimeras_shared.memory.repositories.channels import ChannelSummariesRepository
 from khimeras_shared.memory.repositories.disclosure import DisclosureRepository
 from khimeras_shared.memory.repositories.facts import FactsRepository
@@ -18,6 +19,7 @@ from khimeras_shared.memory.repositories.serenityops import SerenityOpsRepositor
 from khimeras_shared.memory.repositories.world_scans import WorldScansRepository
 
 __all__ = [
+    "AgendasRepository",
     "ChannelSummariesRepository",
     "DisclosureRepository",
     "FactsRepository",
