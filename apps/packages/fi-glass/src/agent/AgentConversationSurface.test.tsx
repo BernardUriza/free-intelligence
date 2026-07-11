@@ -37,6 +37,7 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
   ({
     messages: msgs,
     turn: idleTurn,
+    author: { id: 'og118', name: 'og118', symbol: 'og' },
     isStreaming: false,
     turnError: null,
     send: () => {},

@@ -29,14 +29,14 @@ export interface TranscriptRegionProps {
   /** The live conversation slice the transcript renders. */
   conversation: Pick<
     AgentConversation,
-    'messages' | 'turn' | 'isStreaming' | 'turnError' | 'retry' | 'dismissError'
+    'messages' | 'turn' | 'author' | 'isStreaming' | 'turnError' | 'retry' | 'dismissError'
   >;
   /** The fluid center cap (100% minus the responsive gutter). */
   contentInset: string;
 }
 
 export function TranscriptRegion({ surface, conversation, contentInset }: TranscriptRegionProps) {
-  const { messages, turn, isStreaming, turnError, retry, dismissError } = conversation;
+  const { messages, turn, author, isStreaming, turnError, retry, dismissError } = conversation;
   const {
     emptyState,
     agentPanelProps,
@@ -102,6 +102,7 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
             <TranscriptMessages
               messages={messages}
               turn={turn}
+              agentAuthor={author}
               isStreaming={isStreaming}
               showPersistedTrace={showPersistedTrace}
               agentPanelProps={agentPanelProps}

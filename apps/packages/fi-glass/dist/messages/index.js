@@ -343,8 +343,85 @@ var MessageBubble = memo3(function MessageBubble2({
   );
 });
 
+// src/messages/MessageAuthorHeader.tsx
+import { Fragment, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+var AVATAR = {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 10,
+  fontWeight: 600,
+  flexShrink: 0
+};
+function avatarToken(author) {
+  const symbol = author.symbol?.trim();
+  if (symbol) return symbol;
+  return author.name.trim().slice(0, 2) || "?";
+}
+function formatTime(iso, locale) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+}
+function MessageAuthorHeader({
+  author,
+  timestamp,
+  isUser = false,
+  locale
+}) {
+  const time = formatTime(timestamp, locale);
+  return /* @__PURE__ */ jsxs4(Fragment, { children: [
+    /* @__PURE__ */ jsx5(
+      "span",
+      {
+        "aria-hidden": true,
+        "data-fi-author-avatar": "",
+        style: {
+          ...AVATAR,
+          background: isUser ? "var(--fi-author-user-bg, rgba(124,58,237,0.8))" : "var(--fi-author-agent-bg, var(--og-accent, #34d399))",
+          color: isUser ? "var(--fi-author-user-fg, #fff)" : "var(--fi-author-agent-fg, #0a0f1e)"
+        },
+        children: avatarToken(author)
+      }
+    ),
+    /* @__PURE__ */ jsx5("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx5(
+      "span",
+      {
+        "data-fi-author-engine": "",
+        style: {
+          fontSize: 11,
+          padding: "1px 6px",
+          borderRadius: 9999,
+          border: "1px solid rgba(255,255,255,0.12)",
+          color: "#94a3b8"
+        },
+        children: author.engine
+      }
+    ),
+    time && /* @__PURE__ */ jsx5("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+  ] });
+}
+function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
+  const isUser = message.role === "user";
+  const author = message.author ?? (isUser ? userAuthor : agentAuthor);
+  return /* @__PURE__ */ jsx5(
+    MessageAuthorHeader,
+    {
+      author,
+      timestamp: message.timestamp,
+      isUser,
+      locale
+    }
+  );
+}
+
 // src/messages/MessageList.tsx
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -354,11 +431,11 @@ function MessageList({
   header,
   footer
 }) {
-  return /* @__PURE__ */ jsxs4("div", { className: containerClassName, children: [
+  return /* @__PURE__ */ jsxs5("div", { className: containerClassName, children: [
     header,
-    groups.map((group) => /* @__PURE__ */ jsxs4("div", { children: [
+    groups.map((group) => /* @__PURE__ */ jsxs5("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx5("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx6("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
@@ -366,9 +443,11 @@ function MessageList({
 export {
   CollapsibleText,
   CopyButton,
+  MessageAuthorHeader,
   MessageBubble,
   MessageContent,
   MessageList,
+  defaultMessageHeader,
   markdownStyles,
   messageStyles,
   normalizeStreamedMarkdown

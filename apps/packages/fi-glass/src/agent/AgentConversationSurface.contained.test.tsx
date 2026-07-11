@@ -47,6 +47,7 @@ const conversation = {
   retry: () => {},
   dismissError: () => {},
   newConversation: () => {},
+  author: { id: 'agent', name: 'og118', symbol: 'og' },
 } as unknown as AgentConversation;
 
 describe('<AgentConversationSurface> respects contained parent height (FG-1)', () => {

@@ -66,9 +66,13 @@ import {
   type AgentHook,
   type AgentTurnState,
   type ChatMessage,
+  type MessageAuthor,
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
+
+/** The speaker on the user's side when the app names no other. */
+export const DEFAULT_USER_AUTHOR: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
 
 /**
  * Predicate an app passes to CLAIM a specific error class as its own. When it
@@ -91,6 +95,17 @@ export interface TurnError {
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 
 export interface UseAgentConversationOptions {
+  /**
+   * WHO the agent is — REQUIRED. Every message this hook folds is stamped with an
+   * author: the turn's own speaker when the backend announced one (the `author`
+   * event — a selected persona/element), this identity otherwise. There is no
+   * anonymous fold, because a transcript that cannot say who spoke silently
+   * attributes every answer to the app (og118 labelled Yodo's answers "og118" for
+   * exactly as long as this was optional).
+   */
+  author: MessageAuthor;
+  /** WHO the human is. Defaults to {@link DEFAULT_USER_AUTHOR}. */
+  userAuthor?: MessageAuthor;
   /**
    * Controlled mode: when provided, the CONSUMER owns the visible thread. The
    * hook returns these verbatim as `conversation.messages` and stops folding —
@@ -133,6 +148,12 @@ export interface AgentConversation {
   /** The current/live turn's reduced state (for the in-flight glass-box). */
   turn: AgentTurnState;
   /**
+   * The agent's own identity — who the live turn is attributed to until the
+   * backend names a different speaker (`turn.author`). The surface reads it from
+   * here, so the consumer declares the author once, at the hook.
+   */
+  author: MessageAuthor;
+  /**
    * Whether a turn is actively streaming. This is the CONVERSATION's view, not
    * the transport's: once the watchdog declares a turn hung, this is false even
    * if the underlying `agent.isStreaming` is still stuck true — so the surface
@@ -167,9 +188,11 @@ export interface AgentConversation {
 
 export function useAgentConversation(
   agent: AgentHook,
-  options: UseAgentConversationOptions = {},
+  options: UseAgentConversationOptions,
 ): AgentConversation {
   const {
+    author,
+    userAuthor = DEFAULT_USER_AUTHOR,
     externalMessages,
     conversationId,
     initialMessages,
@@ -189,6 +212,13 @@ export function useAgentConversation(
   // Read the latest controlled flag inside effects without re-arming them on it.
   const controlledRef = useRef(controlled);
   controlledRef.current = controlled;
+  // The fold runs from an effect whose deps must not include the author (a new
+  // object literal every render would re-fire it). Refs keep both identities
+  // current for the stable send/fold closures — same pattern as controlledRef.
+  const authorRef = useRef(author);
+  authorRef.current = author;
+  const userAuthorRef = useRef(userAuthor);
+  userAuthorRef.current = userAuthor;
   const [turnError, setTurnError] = useState<TurnError | null>(null);
   // The conversation's own "the watchdog killed this turn" flag. Lets us drop
   // out of streaming even when the transport's isStreaming is stuck true.
@@ -252,7 +282,7 @@ export function useAgentConversation(
         // Uncontrolled: push the user message optimistically (and gate persist).
         // Controlled: the consumer's externalMessages already reflects the send.
         skipPersist.current = true; // the optimistic push is not a confirmed turn
-        setMessages((prev) => [...prev, makeUserMessage(t)]);
+        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current)]);
       }
       pending.current = true;
       // Hand the transport the confirmed thread (prior turns, NOT this message) so
@@ -325,7 +355,7 @@ export function useAgentConversation(
       // let persistence record user + assistant together (skipPersist stays
       // false through this settled emit).
       skipPersist.current = false;
-      setMessages((prev) => [...prev, foldAssistantTurn(agent.turn)]);
+      setMessages((prev) => [...prev, foldAssistantTurn(agent.turn, authorRef.current)]);
     }
     // Settle any awaited (sendAndAwait) turn with the assistant's final text.
     const resolver = awaitResolver.current;
@@ -407,6 +437,7 @@ export function useAgentConversation(
   return {
     messages: externalMessages ?? messages,
     turn: agent.turn,
+    author,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
     send,

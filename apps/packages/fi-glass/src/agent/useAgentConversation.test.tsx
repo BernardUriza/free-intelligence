@@ -21,12 +21,15 @@ import { useEffect, useState } from 'react';
 import type { AgentHook, AgentSendMeta, AgentTurnState, ChatMessage } from '@free-intelligence/core';
 import { useAgentConversation, type AgentConversation } from './useAgentConversation';
 
+const AGENT_AUTHOR = { id: 'og118', name: 'og118', symbol: 'og' };
+
 const thinkingTurn: AgentTurnState = {
   plan: null,
   steps: [],
   text: '',
   sources: [],
   meta: null,
+  author: null,
   status: 'thinking',
 };
 
@@ -76,12 +79,13 @@ function makeFakeAgent() {
 /** Mount the hook and expose the latest conversation + a re-render trigger. */
 function mountConversation(
   agent: AgentHook,
-  opts: Parameters<typeof useAgentConversation>[1] = {},
+  opts: Partial<Parameters<typeof useAgentConversation>[1]> = {},
 ) {
+  const options = { author: AGENT_AUTHOR, ...opts };
   const ref: { current: AgentConversation | null } = { current: null };
   let bump = () => {};
   function Harness() {
-    const conv = useAgentConversation(agent, opts);
+    const conv = useAgentConversation(agent, options);
     ref.current = conv;
     const [, setN] = useState(0);
     useEffect(() => {
@@ -368,7 +372,7 @@ describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => 
 function mountControlled(
   agent: AgentHook,
   seed: ChatMessage[],
-  opts: Omit<Parameters<typeof useAgentConversation>[1] & object, 'externalMessages'> = {},
+  opts: Partial<Omit<Parameters<typeof useAgentConversation>[1] & object, 'externalMessages'>> = {},
 ) {
   const ref: { current: AgentConversation | null } = { current: null };
   let setExternal: (m: ChatMessage[]) => void = () => {};
@@ -376,7 +380,11 @@ function mountControlled(
   function Harness() {
     const [external, setExt] = useState<ChatMessage[]>(seed);
     const [, setN] = useState(0);
-    const conv = useAgentConversation(agent, { ...opts, externalMessages: external });
+    const conv = useAgentConversation(agent, {
+      author: AGENT_AUTHOR,
+      ...opts,
+      externalMessages: external,
+    });
     ref.current = conv;
     useEffect(() => {
       setExternal = (m) => setExt(m);

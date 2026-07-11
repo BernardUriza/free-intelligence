@@ -56,6 +56,7 @@ const conversation = {
   retry: () => {},
   dismissError: () => {},
   newConversation: () => {},
+  author: { id: 'agent', name: 'og118', symbol: 'og' },
 } as unknown as AgentConversation;
 
 const renderShell = () =>

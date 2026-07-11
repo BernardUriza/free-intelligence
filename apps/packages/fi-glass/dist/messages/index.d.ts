@@ -1,5 +1,6 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
+import { MessageAuthor, ChatMessage } from '@free-intelligence/core';
 
 /**
  * fi-glass · message style configuration
@@ -169,6 +170,24 @@ interface MessageBubbleProps {
 }
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
 
+interface MessageAuthorHeaderProps {
+    author: MessageAuthor;
+    /** ISO timestamp; rendered as a short local time when parseable. */
+    timestamp?: string;
+    /** Drives the avatar palette (user vs assistant). */
+    isUser?: boolean;
+    /** BCP-47 locale for the time (defaults to the runtime's). */
+    locale?: string;
+}
+declare function MessageAuthorHeader({ author, timestamp, isUser, locale, }: MessageAuthorHeaderProps): react.JSX.Element;
+/**
+ * The header for a stored message. A message written BEFORE authorship was part
+ * of the contract carries none — it still gets attributed, from the side it sits
+ * on: the agent's identity for an assistant bubble, the human's for a user one.
+ * No bubble renders anonymous, ever.
+ */
+declare function defaultMessageHeader(message: ChatMessage, agentAuthor: MessageAuthor, userAuthor: MessageAuthor, locale?: string): react.JSX.Element;
+
 interface CollapsibleTextProps {
     children: ReactNode;
     /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
@@ -210,4 +229,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, markdownStyles, messageStyles, normalizeStreamedMarkdown };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };

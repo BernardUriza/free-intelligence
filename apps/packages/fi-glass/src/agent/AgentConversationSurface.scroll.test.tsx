@@ -32,6 +32,7 @@ const conversation = {
   retry: () => {},
   dismissError: () => {},
   newConversation: () => {},
+  author: { id: 'agent', name: 'og118', symbol: 'og' },
 } as unknown as AgentConversation;
 
 describe('<AgentConversationSurface> viewport scroll container (B3-FIGLASS-15)', () => {
