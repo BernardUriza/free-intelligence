@@ -73,7 +73,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from shared.logging_setup import configure_structlog
@@ -706,6 +706,101 @@ async def health() -> dict:
         "model": DEFAULT_MODEL,
         "open_sessions": len(_pool),
     }
+
+
+# The connectable window into what the agents build over time: authenticated,
+# read-only views of the persistent workspace so Bernard can SEE the files the
+# personas accumulate (the first slice of "log in and see the directory").
+_WORKSPACE_MAX_ENTRIES = 500
+_WORKSPACE_MAX_FILE_BYTES = 256 * 1024
+_WORKSPACE_SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv"}
+
+
+@app.get("/v1/workspace")
+async def workspace_list(authorization: str | None = Header(default=None)) -> dict:
+    """Authenticated, read-only listing of the agents' persistent workspace
+    (relative path + size + mtime per file) — the window into what the personas
+    have built. Capped at _WORKSPACE_MAX_ENTRIES; skips VCS/cache noise."""
+    _check_auth(authorization)
+    root = WORKSPACE_ROOT
+    entries: list[dict] = []
+    truncated = False
+    if root.exists():
+        for p in sorted(root.rglob("*")):
+            if p.is_dir():
+                continue
+            rel = p.relative_to(root)
+            if any(part in _WORKSPACE_SKIP_DIRS for part in rel.parts):
+                continue
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            entries.append({"path": str(rel), "bytes": st.st_size, "mtime": st.st_mtime})
+            if len(entries) >= _WORKSPACE_MAX_ENTRIES:
+                truncated = True
+                break
+    return {"root": str(root), "count": len(entries), "truncated": truncated, "files": entries}
+
+
+@app.get("/v1/workspace/file")
+async def workspace_file(
+    path: str = Query(..., description="workspace-relative file path"),
+    authorization: str | None = Header(default=None),
+) -> dict:
+    """Read ONE text file from the workspace, path-traversal safe: the resolved
+    target MUST stay under WORKSPACE_ROOT (a `..` escape is rejected). Read-only,
+    size-capped, binary-tolerant (decoded with replacement)."""
+    _check_auth(authorization)
+    root = WORKSPACE_ROOT.resolve()
+    target = (root / path).resolve()
+    if not target.is_relative_to(root):
+        raise HTTPException(400, "path escapes workspace")
+    if not target.is_file():
+        raise HTTPException(404, "not a file")
+    try:
+        raw = target.read_bytes()
+    except OSError as e:
+        raise HTTPException(500, f"read failed: {type(e).__name__}") from e
+    clipped = raw[:_WORKSPACE_MAX_FILE_BYTES]
+    return {
+        "path": path,
+        "bytes": len(clipped),
+        "truncated": len(raw) > _WORKSPACE_MAX_FILE_BYTES,
+        "content": clipped.decode("utf-8", errors="replace"),
+    }
+
+
+class RuleRequest(BaseModel):
+    rule: str
+
+
+_HOUSE_RULES_HEADER = "\n\n## House Rules (added live via /v1/workspace/rule)\n"
+
+
+@app.post("/v1/workspace/rule")
+async def workspace_add_rule(req: RuleRequest, authorization: str | None = Header(default=None)) -> dict:
+    """Append a house rule to the workspace CLAUDE.md the runner reads as project
+    context — Bernard connecting and adding rules to his agents, live. Append-only
+    (never overwrites existing content), under a clearly-marked section; takes
+    effect on the next fresh session (CLAUDE.md is re-read when a session opens)."""
+    _check_auth(authorization)
+    rule = (req.rule or "").strip()
+    if not rule:
+        raise HTTPException(400, "empty rule")
+    if len(rule) > 2000:
+        raise HTTPException(400, "rule too long")
+    claude_md = WORKSPACE_ROOT / "CLAUDE.md"
+    existing = claude_md.read_text(encoding="utf-8") if claude_md.exists() else ""
+    if _HOUSE_RULES_HEADER not in existing:
+        existing = existing.rstrip() + _HOUSE_RULES_HEADER
+    updated = existing.rstrip() + f"\n- {rule}\n"
+    try:
+        claude_md.write_text(updated, encoding="utf-8")
+    except OSError as e:
+        raise HTTPException(500, f"write failed: {type(e).__name__}") from e
+    log.info("workspace_rule_added", rule_chars=len(rule))
+    return {"ok": True, "rule": rule, "claude_md_bytes": len(updated)}
 
 
 @app.delete("/v1/session/{channel_id}")
