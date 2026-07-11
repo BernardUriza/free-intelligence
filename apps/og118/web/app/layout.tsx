@@ -42,14 +42,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: 'https://og118.ai/',
-    title: 'og118.ai',
-    description: 'soon. something radioactive here.',
+    title: 'og118',
+    description: 'Tu agente og118 — conversaciones, proyectos y voz.',
     images: [{ url: '/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'og118.ai',
-    description: 'soon. something radioactive here.',
+    title: 'og118',
+    description: 'Tu agente og118 — conversaciones, proyectos y voz.',
     images: ['/og-image.png'],
   },
 };
