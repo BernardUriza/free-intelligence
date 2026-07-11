@@ -15,13 +15,25 @@
  * "og118" answered while an element actually did.
  */
 
-import type { ChatMessage, MessageTrace } from '../chat/message';
+import type { ChatMessage, MessageImage, MessageTrace } from '../chat/message';
 import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
 
-/** A user message, ready to render optimistically the instant the user sends. */
-export function makeUserMessage(text: string, author: MessageAuthor): ChatMessage {
-  return { role: 'user', author, content: text, timestamp: new Date().toISOString() };
+/** A user message, ready to render optimistically the instant the user sends.
+ * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); empty/absent folds to
+ * the exact text-only shape every existing consumer produces. */
+export function makeUserMessage(
+  text: string,
+  author: MessageAuthor,
+  images?: MessageImage[],
+): ChatMessage {
+  return {
+    role: 'user',
+    author,
+    content: text,
+    timestamp: new Date().toISOString(),
+    ...(images && images.length > 0 ? { images } : {}),
+  };
 }
 
 /**

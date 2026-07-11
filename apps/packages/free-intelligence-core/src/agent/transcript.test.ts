@@ -126,4 +126,15 @@ describe('makeUserMessage', () => {
     expect(msg.author).toEqual(USER);
     expect(Number.isNaN(new Date(msg.timestamp).getTime())).toBe(false);
   });
+
+  it('attaches images when given (OG118-IMAGE-UPLOAD-1)', () => {
+    const images = [{ mediaType: 'image/jpeg', data: 'aGk=' }];
+    const msg = makeUserMessage('mira esto', USER, images);
+    expect(msg.images).toEqual(images);
+  });
+
+  it('omits the images field for empty/absent lists (text-only shape unchanged)', () => {
+    expect('images' in makeUserMessage('hola', USER)).toBe(false);
+    expect('images' in makeUserMessage('hola', USER, [])).toBe(false);
+  });
 });

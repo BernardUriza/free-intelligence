@@ -121,8 +121,14 @@ function applyAgentEvent(state, event) {
 }
 
 // src/agent/transcript.ts
-function makeUserMessage(text, author) {
-  return { role: "user", author, content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
+function makeUserMessage(text, author, images) {
+  return {
+    role: "user",
+    author,
+    content: text,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    ...images && images.length > 0 ? { images } : {}
+  };
 }
 function snapshotTrace(turn) {
   const hasPlan = turn.plan != null && turn.plan.steps.length > 0;
@@ -164,7 +170,12 @@ function sanitizeConversationMessage(message) {
     content: message.content,
     timestamp: message.timestamp,
     ...message.author ? { author: message.author } : {},
-    ...message.trace ? { trace: message.trace } : {}
+    ...message.trace ? { trace: message.trace } : {},
+    // Attached images are user-visible message CONTENT (OG118-IMAGE-UPLOAD-1),
+    // not metadata — dropping them would blank the picture on reload the way
+    // dropping `author` used to anonymize bubbles. Producers downscale before
+    // encoding, so the persisted base64 stays within the record size caps.
+    ...message.images && message.images.length > 0 ? { images: message.images.map((i) => ({ mediaType: i.mediaType, data: i.data })) } : {}
   };
 }
 function deriveConversationTitle(messages, max = TITLE_MAX) {

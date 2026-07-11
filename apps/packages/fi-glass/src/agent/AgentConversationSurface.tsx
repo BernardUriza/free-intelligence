@@ -20,6 +20,7 @@
 
 import { useState } from 'react';
 import { useTouchTargetStyle } from '../shell/touchTarget';
+import { useComposerImages } from '../composer/useComposerImages';
 import type { AgentConversationSurfaceProps } from './conversation-surface/types';
 import {
   useComposerFocus,
@@ -42,6 +43,9 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     onVoiceError,
     composerAppend,
     onComposerAppendConsumed,
+    imageAttachments = false,
+    maxAttachedImages,
+    onImageAttachmentError,
   } = props;
   const { messages, turn, author, isStreaming, turnError, send, stop, retry, dismissError, newConversation } =
     conversation;
@@ -58,12 +62,21 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     isStreaming,
     isTranscribing: dictation.isTranscribing,
   });
+  // OG118-IMAGE-UPLOAD-1: the surface owns the attachment state (like it owns
+  // the input string); the switch only gates the UI, so an app that never
+  // enables it renders byte-identically to before.
+  const images = useComposerImages({
+    maxImages: maxAttachedImages,
+    onError: onImageAttachmentError,
+  });
 
   const onSend = () => {
     const t = input.trim();
-    if (!t) return;
+    const attached = imageAttachments ? images.toMessageImages() : [];
+    if (!t && attached.length === 0) return;
     setInput('');
-    send(t);
+    images.clear();
+    send(t, attached.length > 0 ? attached : undefined);
   };
 
   return (
@@ -79,13 +92,16 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
           input,
           setInput,
           onSend,
-          canSend: input.trim().length > 0 && !isStreaming,
+          canSend:
+            (input.trim().length > 0 || (imageAttachments && images.drafts.length > 0)) &&
+            !isStreaming,
           inputRef,
           dictation,
           isStreaming,
           onStop: stop,
           hasThread: messages.length > 0 || isStreaming,
           newConversation,
+          images: imageAttachments ? images : null,
         }}
         contentInset={contentInset}
       />

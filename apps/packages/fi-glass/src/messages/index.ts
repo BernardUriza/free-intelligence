@@ -6,6 +6,8 @@ export { MessageContent, type MessageContentProps } from './MessageContent';
 export { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 export { CopyButton, type CopyButtonProps } from './CopyButton';
 export { MessageBubble, type MessageBubbleProps } from './MessageBubble';
+// OG118-IMAGE-UPLOAD-1: the images attached to a message, rendered in its bubble.
+export { MessageImages, type MessageImagesProps } from './MessageImages';
 // The default "who said this" row — rendered automatically off `message.author`.
 export {
   MessageAuthorHeader,

@@ -26,6 +26,21 @@ export interface MessageTrace {
 }
 
 /**
+ * MessageImage — one image attached to a user message (OG118-IMAGE-UPLOAD-1).
+ *
+ * Base64 by design: the shells are local-first (IndexedDB / JSON records), so
+ * the bytes ride inside the message instead of referencing a blob store nobody
+ * runs. Producers (the composer) downscale before encoding, so a persisted
+ * image stays small enough for the conversation-record size caps.
+ */
+export interface MessageImage {
+  /** MIME type of the encoded bytes, e.g. `image/jpeg`, `image/png`. */
+  mediaType: string;
+  /** Base64-encoded bytes — no `data:` URL prefix. */
+  data: string;
+}
+
+/**
  * ChatMessage — the material-agnostic shape of one chat message.
  *
  * Apps may use a richer message type (e.g. aurity's FIMessage with typed
@@ -46,8 +61,14 @@ export interface ChatMessage {
    * everything {@link foldAssistantTurn}/{@link makeUserMessage} builds has one.
    */
   author?: MessageAuthor;
-  /** The message text. */
+  /** The message text. May be empty on an image-only user message. */
   content: string;
+  /**
+   * Images attached to this message (user messages only) — rendered in the
+   * transcript and sent to the model as vision input. Absent on text-only
+   * messages, so the plain case stays byte-identical to before.
+   */
+  images?: MessageImage[];
   /** Optional model reasoning rendered before the content. */
   thinking?: string | null;
   /** ISO 8601 timestamp. */

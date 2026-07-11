@@ -165,15 +165,20 @@ export function useOg118Agent(
 
   const send = useCallback(async (message: string, meta?: AgentSendMeta) => {
     const text = message.trim();
-    if (!text || isStreaming) return;
+    // OG118-IMAGE-UPLOAD-1: an image-only send (empty text, ≥1 image) is valid —
+    // the picture IS the message. A truly empty send stays a no-op.
+    const images = meta?.images && meta.images.length > 0 ? meta.images : undefined;
+    if ((!text && !images) || isStreaming) return;
     const sid = sessionIdRef.current;
     if (!sid) return; // no active conversation yet — controlled no-op
 
     // og118 is local-first: the durable transcript lives in the browser (IndexedDB
     // via useConversationLibrary). We replay the confirmed thread on each turn so
     // continuity survives a recycled/redeployed backend with NO server-side store.
-    // Send ONLY role/content — never ids, timestamps, tool payloads, or audio
-    // metadata (privacy + the backend treats it as untrusted context, not auth).
+    // Send ONLY role/content — never ids, timestamps, tool payloads, audio
+    // metadata, or prior images (privacy + the backend treats it as untrusted
+    // context, not auth; the history fold is text-only, so a re-shown image is
+    // re-attached by the user, never silently re-uploaded).
     const history = (meta?.history ?? []).map((m) => ({ role: m.role, content: m.content }));
     const corpusId = corpusIdRef.current;
     const element = elementRef.current;
@@ -193,7 +198,15 @@ export function useOg118Agent(
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ message: text, session_id: sid, history, ...(corpusId ? { corpus_id: corpusId } : {}), ...(element ? { element } : {}) }),
+        body: JSON.stringify({
+          message: text,
+          session_id: sid,
+          history,
+          ...(corpusId ? { corpus_id: corpusId } : {}),
+          ...(element ? { element } : {}),
+          // Current-turn vision input, in the server's ChatImage shape.
+          ...(images ? { images: images.map((i) => ({ media_type: i.mediaType, data: i.data })) } : {}),
+        }),
         signal: controller.signal,
       });
       if (res.status === 401) {

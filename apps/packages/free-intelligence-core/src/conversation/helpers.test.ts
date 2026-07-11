@@ -86,6 +86,24 @@ describe('sanitizeConversationMessage — privacy by structure', () => {
     expect('metadata' in clean).toBe(false);
     expect(clean.trace?.sources).toEqual(['doc://safe']);
   });
+
+  it('preserves attached images with exactly mediaType + data (OG118-IMAGE-UPLOAD-1)', () => {
+    const withImage = {
+      role: 'user',
+      content: 'mira',
+      timestamp: NOW,
+      images: [{ mediaType: 'image/png', data: 'aGk=', extra: 'dropped' }],
+    } as unknown as ChatMessage;
+    const clean = sanitizeConversationMessage(withImage);
+    expect(clean.images).toEqual([{ mediaType: 'image/png', data: 'aGk=' }]);
+  });
+
+  it('omits the images field when absent or empty (text-only records unchanged)', () => {
+    expect('images' in sanitizeConversationMessage(msg('user', 'hola'))).toBe(false);
+    expect(
+      'images' in sanitizeConversationMessage(msg('user', 'hola', { images: [] })),
+    ).toBe(false);
+  });
 });
 
 describe('deriveConversationTitle', () => {

@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
-import { MessageAuthor, ChatMessage } from '@free-intelligence/core';
+import { MessageImage, MessageAuthor, ChatMessage } from '@free-intelligence/core';
 
 /**
  * fi-glass · message style configuration
@@ -170,6 +170,15 @@ interface MessageBubbleProps {
 }
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
 
+interface MessageImagesProps {
+    images: MessageImage[] | undefined;
+    className?: string;
+    imageClassName?: string;
+    /** alt-text prefix per image. Default: "Imagen adjunta". */
+    altLabel?: string;
+}
+declare function MessageImages({ images, className, imageClassName, altLabel, }: MessageImagesProps): react.JSX.Element | null;
+
 interface MessageAuthorHeaderProps {
     author: MessageAuthor;
     /** ISO timestamp; rendered as a short local time when parseable. */
@@ -229,4 +238,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageList, type MessageListGroup, type MessageListProps, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };

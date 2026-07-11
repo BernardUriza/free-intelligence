@@ -9,6 +9,8 @@ the core union (that mapping is the contract being validated from the consumer).
 
 from __future__ import annotations
 
+import base64
+import binascii
 import dataclasses
 import hmac
 import json
@@ -21,7 +23,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from fi_runner.auth import (
     AuthConfig,
@@ -252,6 +254,45 @@ class HistoryMessage(BaseModel):
     content: str
 
 
+# Vision input caps (OG118-IMAGE-UPLOAD-1). Anthropic's per-image API limit is
+# 5 MB decoded; the composer downscales before encoding, so a compliant client
+# never hits these — they exist for the hostile/buggy one. base64 inflates 4/3,
+# so the string cap is the decoded cap ×4/3 (plus padding slack).
+MAX_IMAGES_PER_MESSAGE = 4
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_MAX_IMAGE_B64_CHARS = (MAX_IMAGE_BYTES * 4) // 3 + 4
+ALLOWED_IMAGE_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
+
+
+class ChatImage(BaseModel):
+    """One image attached to the current turn (base64, no data: prefix).
+    Validated at the boundary so a bad payload dies as a 422 here, never as an
+    opaque upstream engine error mid-stream."""
+
+    media_type: str
+    data: str
+
+    @field_validator("media_type")
+    @classmethod
+    def _known_media_type(cls, v: str) -> str:
+        if v not in ALLOWED_IMAGE_MEDIA_TYPES:
+            raise ValueError(f"unsupported image media_type {v!r}; use one of {sorted(ALLOWED_IMAGE_MEDIA_TYPES)}")
+        return v
+
+    @field_validator("data")
+    @classmethod
+    def _bounded_base64(cls, v: str) -> str:
+        if not v:
+            raise ValueError("image data is empty")
+        if len(v) > _MAX_IMAGE_B64_CHARS:
+            raise ValueError(f"image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit")
+        try:
+            base64.b64decode(v, validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("image data is not valid base64") from None
+        return v
+
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
@@ -271,6 +312,11 @@ class ChatRequest(BaseModel):
     # element swaps the persona (Vultur for Oxígeno), nothing else. Absent/unknown/
     # non-active → the base og118 companion persona.
     element: str | None = None
+    # Images attached to THIS turn's message (OG118-IMAGE-UPLOAD-1): vision input,
+    # current-turn only — history replay is a text fold and never carries them.
+    # An image-only send (empty message) is valid; each image is validated by
+    # ChatImage at the boundary, and the count is capped here.
+    images: list[ChatImage] | None = Field(default=None, max_length=MAX_IMAGES_PER_MESSAGE)
 
 
 class TTSRequest(BaseModel):
@@ -372,6 +418,21 @@ async def chat_stream(
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
+            # The external-engine proxy is a text contract — it has no channel
+            # for image blocks. Refuse LOUD (an in-stream error the shell shows)
+            # instead of silently answering without the picture.
+            if req.images:
+                yield _sse(
+                    {
+                        "type": "error",
+                        "message": (
+                            f"El elemento {element.display_name} corre en un motor externo "
+                            "y todavía no acepta imágenes. Quita la imagen o cambia de elemento."
+                        ),
+                    }
+                )
+                yield _sse({"type": "done"})
+                return
             user_id = None if principal.is_legacy_bearer else principal.sub
             async for ev in stream_external_turn(
                 persona_id=element.engine_binding.persona_id,
@@ -385,12 +446,14 @@ async def chat_stream(
             return
         try:
             context = {"corpus_id": req.corpus_id} if req.corpus_id else None
+            images = [i.model_dump() for i in req.images] if req.images else None
             async for event in runner.run_stream(
                 req.message,
                 session_id=req.session_id,
                 request_id=request_id,
                 history=history,
                 context=context,
+                images=images,
             ):
                 yield _sse(event)
         except Exception as exc:  # surface as a stream event, never a 500 mid-stream
@@ -660,8 +723,10 @@ async def upload_project_document(
 
 # Hard ceiling on one persisted conversation (sanitized transcript JSON). A
 # runaway thread gets rejected loud instead of growing an unbounded file on the
-# single-replica volume.
-MAX_CONVERSATION_BYTES = 4 * 1024 * 1024
+# single-replica volume. 16 MB (was 4): attached images persist base64-inline in
+# the record (OG118-IMAGE-UPLOAD-1) — the composer downscales each to a few
+# hundred KB, so this holds dozens of images before a thread hits the wall.
+MAX_CONVERSATION_BYTES = 16 * 1024 * 1024
 
 
 class ConversationRecordRequest(BaseModel):

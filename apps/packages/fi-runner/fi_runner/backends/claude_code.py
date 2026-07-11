@@ -43,7 +43,15 @@ from collections.abc import AsyncIterator
 from dataclasses import replace
 from typing import Any
 
-from ..backend import MCPServerSpec, ToolCall, ToolPolicy, TurnResult, mcp_server_token, mcp_tool_id
+from ..backend import (
+    MCPServerSpec,
+    ToolCall,
+    ToolPolicy,
+    TurnImage,
+    TurnResult,
+    mcp_server_token,
+    mcp_tool_id,
+)
 
 
 class ClaudeCodeBackend:
@@ -137,6 +145,53 @@ class ClaudeCodeBackend:
         return ClaudeAgentOptions(**kwargs)
 
     @staticmethod
+    def build_query_input(
+        user_message: str, images: list[TurnImage] | None
+    ) -> str | list[dict[str, Any]]:
+        """The ``client.query()`` input for this turn — SDK-free and unit-testable.
+
+        Text-only turns stay a plain string (byte-identical to before). A turn
+        with images needs the SDK's STREAMING INPUT mode: a user message whose
+        ``content`` is a block list — base64 image blocks first (Anthropic's
+        recommended image-before-text ordering), then the text block (skipped
+        when the message is empty: an image-only send is valid, the picture IS
+        the message)."""
+        if not images:
+            return user_message
+        content: list[dict[str, Any]] = [
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": img.media_type, "data": img.data},
+            }
+            for img in images
+        ]
+        if user_message and user_message.strip():
+            content.append({"type": "text", "text": user_message})
+        return content
+
+    @staticmethod
+    async def _query(client: Any, user_message: str, images: list[TurnImage] | None) -> None:
+        """Send the turn's user message. Plain string for text-only turns; for
+        image turns, the SDK's streaming-input mode (an async iterable yielding
+        one user message dict whose content carries the image blocks — the
+        string mode does not support attachments). ``session_id`` is left to the
+        SDK default so pooled stateful clients behave exactly as with a string
+        query."""
+        payload = ClaudeCodeBackend.build_query_input(user_message, images)
+        if isinstance(payload, str):
+            await client.query(payload)
+            return
+
+        async def _messages() -> AsyncIterator[dict[str, Any]]:
+            yield {
+                "type": "user",
+                "message": {"role": "user", "content": payload},
+                "parent_tool_use_id": None,
+            }
+
+        await client.query(_messages())
+
+    @staticmethod
     async def _collect(
         client: Any,
     ) -> tuple[str, dict[str, Any] | None, str | None, list[ToolCall]]:
@@ -210,6 +265,7 @@ class ClaudeCodeBackend:
         tool_policy: ToolPolicy,
         model: str | None = None,
         session_id: str | None = None,
+        images: list[TurnImage] | None = None,
     ) -> TurnResult:
         try:
             from claude_agent_sdk import ClaudeSDKClient
@@ -229,7 +285,7 @@ class ClaudeCodeBackend:
         # One-shot: fresh client, no continuity.
         if session_id is None:
             async with ClaudeSDKClient(options=options) as client:
-                await client.query(user_message)
+                await self._query(client, user_message, images)
                 text, usage, sess, tools = await self._collect(client)
                 return TurnResult(text=text, usage=usage, session_id=sess, tool_calls=tools)
 
@@ -242,7 +298,7 @@ class ClaudeCodeBackend:
                 self._pool[session_id] = client
             lock = self._session_locks.setdefault(session_id, asyncio.Lock())
         async with lock:  # serialize turns on the same client (not concurrency-safe)
-            await client.query(user_message)
+            await self._query(client, user_message, images)
             text, usage, sess, tools = await self._collect(client)
             return TurnResult(text=text, usage=usage, session_id=sess or session_id, tool_calls=tools)
 
@@ -319,6 +375,7 @@ class ClaudeCodeBackend:
         tool_policy: ToolPolicy,
         model: str | None = None,
         session_id: str | None = None,
+        images: list[TurnImage] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming counterpart of :meth:`run_turn`: yields tool_call / text
         events as the turn unfolds, then a final result event. run_turn is
@@ -334,7 +391,7 @@ class ClaudeCodeBackend:
         )
         if session_id is None:
             async with ClaudeSDKClient(options=options) as client:
-                await client.query(user_message)
+                await self._query(client, user_message, images)
                 async for event in self._iter_events(client):
                     yield event
             return
@@ -347,7 +404,7 @@ class ClaudeCodeBackend:
                 self._pool[session_id] = client
             lock = self._session_locks.setdefault(session_id, asyncio.Lock())
         async with lock:
-            await client.query(user_message)
+            await self._query(client, user_message, images)
             async for event in self._iter_events(client):
                 if event.get("type") == "result" and event["result"].session_id is None:
                     event = {"type": "result", "result": replace(event["result"], session_id=session_id)}

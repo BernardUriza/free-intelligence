@@ -1,5 +1,6 @@
 import * as react from 'react';
-import { CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
+import { ClipboardEventHandler, CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
+import { MessageImage } from '@free-intelligence/core';
 
 interface ComposerProps {
     /** Current message value */
@@ -22,6 +23,12 @@ interface ComposerProps {
     onMessageChange: (value: string) => void;
     /** Called on Enter (without Shift) */
     onSend: () => void;
+    /**
+     * Paste hook on the textarea (OG118-IMAGE-UPLOAD-1): the surface intercepts
+     * pasted image files here (calling `preventDefault` itself); plain-text paste
+     * is untouched. Omit for the previous behavior.
+     */
+    onPaste?: ClipboardEventHandler<HTMLTextAreaElement>;
     /** Max rows before the textarea scrolls */
     maxRows?: number;
     /** Class for the outer area wrapper */
@@ -47,7 +54,7 @@ interface ComposerProps {
      */
     textareaRef?: Ref<HTMLTextAreaElement>;
 }
-declare function Composer({ message, loading, disabled, placeholder, onMessageChange, onSend, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, id, name, textareaRef, }: ComposerProps): react.JSX.Element;
+declare function Composer({ message, loading, disabled, placeholder, onMessageChange, onSend, onPaste, maxRows, areaClassName, wrapperClassName, wrapperStyle, textareaClassName, id, name, textareaRef, }: ComposerProps): react.JSX.Element;
 
 interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     /** Max rows before scrolling */
@@ -98,4 +105,65 @@ interface ComposerFrameProps {
 }
 declare function ComposerFrame({ children, header, footer, footerStart, className, style, headerClassName, footerClassName, footerStyle, footerStartClassName, }: ComposerFrameProps): react.JSX.Element;
 
-export { AutoResizeTextarea, type AutoResizeTextareaProps, Composer, ComposerFrame, type ComposerFrameProps, type ComposerProps, ensureComposerFrameStyle, useComposerFrameStyle };
+/** Media types the pipeline accepts end-to-end (mirrors the server allowlist). */
+declare const COMPOSER_IMAGE_MEDIA_TYPES: readonly ["image/jpeg", "image/png", "image/webp", "image/gif"];
+/** Picker filter string for the file input. */
+declare const COMPOSER_IMAGE_ACCEPT: string;
+/** Default maximum images per message (mirrors the server cap). */
+declare const DEFAULT_MAX_IMAGES = 4;
+/** One attached image, preview-ready (`dataUrl`) and wire-ready (`data`). */
+interface ComposerImageDraft extends MessageImage {
+    /** Stable id for chip rendering/removal. */
+    id: string;
+    /** `data:<mediaType>;base64,<data>` — feed straight into an <img src>. */
+    dataUrl: string;
+    /** Original file name (chip title/alt). */
+    name: string;
+}
+interface UseComposerImagesOptions {
+    /** Max images attachable to one message. Default {@link DEFAULT_MAX_IMAGES}. */
+    maxImages?: number;
+    /** Surfaced with a human-readable message when a file is rejected. */
+    onError?: (message: string) => void;
+}
+interface ComposerImages {
+    /** The images currently attached to the message being composed. */
+    drafts: ComposerImageDraft[];
+    /** Validate + encode picked/dropped/pasted files into drafts. */
+    addFiles: (files: Iterable<File>) => Promise<void>;
+    /** Detach one image. */
+    remove: (id: string) => void;
+    /** Detach all (called by the surface after a send). */
+    clear: () => void;
+    /** The drafts as wire-ready MessageImages. */
+    toMessageImages: () => MessageImage[];
+    /** Extract + add image files from a paste event. True if any were taken. */
+    handlePaste: (event: {
+        clipboardData: DataTransfer | null;
+    }) => boolean;
+}
+declare function useComposerImages(options?: UseComposerImagesOptions): ComposerImages;
+
+interface ComposerImageChipsProps {
+    drafts: ComposerImageDraft[];
+    onRemove: (id: string) => void;
+    /** Disable removal (e.g. while a turn streams). */
+    disabled?: boolean;
+    className?: string;
+    /** aria-label template for a chip's remove button. Default: "Quitar imagen". */
+    removeLabel?: string;
+}
+declare function ComposerImageChips({ drafts, onRemove, disabled, className, removeLabel, }: ComposerImageChipsProps): react.JSX.Element | null;
+interface AttachImageButtonProps {
+    /** Called with the picked files (hand them to `useComposerImages.addFiles`). */
+    onFiles: (files: File[]) => void;
+    /** Disable the trigger (composer disabled / attachment cap reached). */
+    disabled?: boolean;
+    className?: string;
+    iconClassName?: string;
+    /** aria-label. Default: "Adjuntar imagen". */
+    label?: string;
+}
+declare function AttachImageButton({ onFiles, disabled, className, iconClassName, label, }: AttachImageButtonProps): react.JSX.Element;
+
+export { AttachImageButton, type AttachImageButtonProps, AutoResizeTextarea, type AutoResizeTextareaProps, COMPOSER_IMAGE_ACCEPT, COMPOSER_IMAGE_MEDIA_TYPES, Composer, ComposerFrame, type ComposerFrameProps, ComposerImageChips, type ComposerImageChipsProps, type ComposerImageDraft, type ComposerImages, type ComposerProps, DEFAULT_MAX_IMAGES, type UseComposerImagesOptions, ensureComposerFrameStyle, useComposerFrameStyle, useComposerImages };

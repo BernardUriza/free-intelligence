@@ -67,6 +67,7 @@ import {
   type AgentTurnState,
   type ChatMessage,
   type MessageAuthor,
+  type MessageImage,
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
@@ -162,8 +163,10 @@ export interface AgentConversation {
   isStreaming: boolean;
   /** A recoverable failure of the last turn (timeout/stream), or null. */
   turnError: TurnError | null;
-  /** Send a message: pushes it optimistically, then drives the agent turn. */
-  send: (text: string) => void;
+  /** Send a message: pushes it optimistically, then drives the agent turn.
+   * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
+   * (empty text, ≥1 image) is valid — the picture IS the message. */
+  send: (text: string, images?: MessageImage[]) => void;
   /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
   sendAndAwait: (text: string) => Promise<string>;
   /**
@@ -240,8 +243,8 @@ export function useAgentConversation(
   // (apps often pass a fresh arrow each render).
   const appHandledRef = useRef(isAppHandledError);
   appHandledRef.current = isAppHandledError;
-  // Last text the user sent — replayed by retry().
-  const lastSent = useRef<string | null>(null);
+  // Last send (text + any attached images) — replayed by retry().
+  const lastSent = useRef<{ text: string; images?: MessageImage[] } | null>(null);
   // Latest seed, read without retriggering the hydration effect on array identity.
   const initialRef = useRef(initialMessages);
   initialRef.current = initialMessages;
@@ -272,17 +275,20 @@ export function useAgentConversation(
   const awaitResolver = useRef<{ resolve: (t: string) => void; reject: (e: unknown) => void } | null>(null);
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, images?: MessageImage[]) => {
       const t = text.trim();
-      if (!t || agent.isStreaming) return;
-      lastSent.current = t;
+      const imgs = images && images.length > 0 ? images : undefined;
+      // An image-only send is valid (the picture IS the message); a truly empty
+      // send is still a no-op.
+      if ((!t && !imgs) || agent.isStreaming) return;
+      lastSent.current = { text: t, images: imgs };
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
         // Uncontrolled: push the user message optimistically (and gate persist).
         // Controlled: the consumer's externalMessages already reflects the send.
         skipPersist.current = true; // the optimistic push is not a confirmed turn
-        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current)]);
+        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current, imgs)]);
       }
       pending.current = true;
       // Hand the transport the confirmed thread (prior turns, NOT this message) so
@@ -290,7 +296,7 @@ export function useAgentConversation(
       // it forwards it; one that doesn't ignores `meta`. messagesRef is the thread
       // BEFORE the optimistic push above (same render's state), so the current
       // message is never duplicated into history.
-      void agent.send(t, { history: messagesRef.current });
+      void agent.send(t, { history: messagesRef.current, ...(imgs ? { images: imgs } : {}) });
     },
     [agent, controlled],
   );
@@ -317,7 +323,7 @@ export function useAgentConversation(
   }, []);
 
   const retry = useCallback(() => {
-    if (lastSent.current) send(lastSent.current);
+    if (lastSent.current) send(lastSent.current.text, lastSent.current.images);
   }, [send]);
 
   const dismissError = useCallback(() => {
