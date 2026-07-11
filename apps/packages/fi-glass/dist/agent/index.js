@@ -2597,7 +2597,16 @@ function AgentWorkspaceShell({
     flexDirection: "column",
     height: "100dvh",
     minHeight: 0,
-    overflow: "hidden"
+    overflow: "hidden",
+    // B3-FIGLASS-MOBILE-NATIVE-1: on an installed iOS PWA running
+    // `apple-mobile-web-app-status-bar-style: black-translucent`, the web view is
+    // full-bleed UNDER the clock. Pad the top by the safe-area inset so the
+    // content (sidebar top, header) sits below the status bar while the BACKGROUND
+    // still reaches the physical top edge — the native look. box-sizing keeps the
+    // padding inside the 100dvh so nothing overflows the bottom. env() resolves to
+    // 0 everywhere else, so desktop and non-translucent installs are unchanged.
+    boxSizing: "border-box",
+    paddingTop: "env(safe-area-inset-top, 0px)"
   };
   const mainStyle = {
     display: "grid",
@@ -2649,7 +2658,11 @@ function AgentWorkspaceShell({
     transition: "transform 0.24s ease",
     willChange: "transform",
     containerType: "inline-size",
-    containerName: "fi-sidebar"
+    containerName: "fi-sidebar",
+    // The drawer is fixed to the physical top, so its own content also needs
+    // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
+    boxSizing: "border-box",
+    paddingTop: "env(safe-area-inset-top, 0px)"
   } : {
     width: widthCss,
     flexShrink: 0,
