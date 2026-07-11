@@ -346,10 +346,26 @@ async def chat_stream(
     async def generate() -> AsyncIterator[str]:
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
-        # Surface the active element so the glass-box trace shows WHO answered
-        # (the ADR's E2E criterion). Absent when no active element is selected.
+        # Announce WHO answers BEFORE the first token, so the client attributes
+        # the bubble from its first character (fi-glass folds it into
+        # ChatMessage.author). The parts ride alongside the composed label: the
+        # UI needs the name and the symbol separately, and re-parsing
+        # "53 · I · Yodo" client-side would be a contract nobody declared.
+        # Absent when no element is selected — the base og118 persona answers,
+        # and the shell attributes the turn to its own default author.
         if element is not None:
-            yield _sse({"type": "element", "element": {"id": element.id, "label": element.display_label}})
+            yield _sse(
+                {
+                    "type": "element",
+                    "element": {
+                        "id": element.id,
+                        "label": element.display_label,
+                        "name": element.display_name,
+                        "symbol": element.symbol,
+                        "engine": element.engine_label,
+                    },
+                }
+            )
         # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
         # og118's runner. Proxy the turn and surface the answer (single-shot, no
         # local plan/step trace). og118's session_id keys the engine's context.
