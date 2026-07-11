@@ -22,6 +22,7 @@ export type {
   ToolCall,
   GuardRejection,
   AgentMeta,
+  MessageAuthor,
 } from './agent/events';
 export type {
   PlanStep,

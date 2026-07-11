@@ -253,3 +253,20 @@ describe('resolveConversationTitle — persist preserves a rename', () => {
     ).toBe('derive fallback');
   });
 });
+
+describe('sanitizeConversationMessage — the author survives persistence', () => {
+  it('keeps the author (a reloaded thread must still say who spoke)', () => {
+    const clean = sanitizeConversationMessage(
+      msg('assistant', 'hola', {
+        author: { id: 'element-053-i-yodo', name: 'Yodo', symbol: 'I' },
+        metadata: { token: 'Bearer xyz' },
+      }),
+    );
+    expect(clean.author).toEqual({ id: 'element-053-i-yodo', name: 'Yodo', symbol: 'I' });
+    expect('metadata' in clean).toBe(false);
+  });
+
+  it('omits author when the message has none', () => {
+    expect('author' in sanitizeConversationMessage(msg('user', 'hola'))).toBe(false);
+  });
+});

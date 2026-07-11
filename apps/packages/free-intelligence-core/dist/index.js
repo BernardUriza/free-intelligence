@@ -6,6 +6,7 @@ function initialAgentTurnState() {
     text: "",
     sources: [],
     meta: null,
+    author: null,
     status: "thinking"
   };
 }
@@ -106,6 +107,8 @@ function applyAgentEvent(state, event) {
         status: "done"
       };
     }
+    case "author":
+      return { ...state, author: event.author };
     case "meta":
       return { ...state, meta: event.meta };
     case "error":
@@ -118,8 +121,8 @@ function applyAgentEvent(state, event) {
 }
 
 // src/agent/transcript.ts
-function makeUserMessage(text) {
-  return { role: "user", content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
+function makeUserMessage(text, author) {
+  return { role: "user", author, content: text, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
 }
 function snapshotTrace(turn) {
   const hasPlan = turn.plan != null && turn.plan.steps.length > 0;
@@ -132,11 +135,12 @@ function snapshotTrace(turn) {
     ...hasSources ? { sources: turn.sources } : {}
   };
 }
-function foldAssistantTurn(turn) {
+function foldAssistantTurn(turn, defaultAuthor) {
   const model = turn.meta?.model;
   const trace = snapshotTrace(turn);
   return {
     role: "assistant",
+    author: turn.author ?? defaultAuthor,
     content: turn.text,
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     ...model ? { metadata: { model } } : {},
@@ -159,6 +163,7 @@ function sanitizeConversationMessage(message) {
     role: message.role,
     content: message.content,
     timestamp: message.timestamp,
+    ...message.author ? { author: message.author } : {},
     ...message.trace ? { trace: message.trace } : {}
   };
 }

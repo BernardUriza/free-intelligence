@@ -7,14 +7,21 @@
  * shell (fi-glass and beyond) can keep a visible transcript without re-deriving
  * the mapping. Moved here from the og118 consumer (DD-002-LESSON): a reusable
  * primitive belongs in the framework, not the app wrapper.
+ *
+ * NO TEXT WITHOUT AN AUTHOR: both helpers take the speaker as a REQUIRED
+ * argument. A shell whose user can swap the answering persona must never fold a
+ * bubble the transcript cannot attribute — the alternative (an optional author
+ * the consumer may forget) is exactly how og118 spent every turn claiming
+ * "og118" answered while an element actually did.
  */
 
 import type { ChatMessage, MessageTrace } from '../chat/message';
+import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
 
 /** A user message, ready to render optimistically the instant the user sends. */
-export function makeUserMessage(text: string): ChatMessage {
-  return { role: 'user', content: text, timestamp: new Date().toISOString() };
+export function makeUserMessage(text: string, author: MessageAuthor): ChatMessage {
+  return { role: 'user', author, content: text, timestamp: new Date().toISOString() };
 }
 
 /**
@@ -44,12 +51,21 @@ function snapshotTrace(turn: AgentTurnState): MessageTrace | undefined {
  * execution, not just the result" differentiator survives the fold. A plain
  * conversational turn (no plan/tools/sources) folds with no `trace`, unchanged.
  * Model provenance also survives: `turn.meta.model` lands in `metadata.model`.
+ *
+ * Authorship comes from the turn itself when the backend named a speaker (the
+ * `author` event — the resolved persona/element); `defaultAuthor` is the agent's
+ * own identity, used when it did not. Required, so the folded message always
+ * knows who spoke.
  */
-export function foldAssistantTurn(turn: AgentTurnState): ChatMessage {
+export function foldAssistantTurn(
+  turn: AgentTurnState,
+  defaultAuthor: MessageAuthor,
+): ChatMessage {
   const model = turn.meta?.model;
   const trace = snapshotTrace(turn);
   return {
     role: 'assistant',
+    author: turn.author ?? defaultAuthor,
     content: turn.text,
     timestamp: new Date().toISOString(),
     ...(model ? { metadata: { model } } : {}),

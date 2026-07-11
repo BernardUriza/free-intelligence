@@ -180,3 +180,33 @@ describe('plan_completed / plan_failed — stamp outcome, never lie about step s
     expect(run({ type: 'plan_failed' }).plan).toBeNull();
   });
 });
+
+describe('author — the backend names WHO answers', () => {
+  it('starts anonymous: a fresh turn has no speaker yet', () => {
+    expect(initialAgentTurnState().author).toBeNull();
+  });
+
+  it('binds the announced speaker to the turn', () => {
+    const s = run({
+      type: 'author',
+      author: { id: 'element-053-i-yodo', name: 'Yodo', symbol: 'I', engine: 'Insult' },
+    });
+    expect(s.author).toEqual({
+      id: 'element-053-i-yodo',
+      name: 'Yodo',
+      symbol: 'I',
+      engine: 'Insult',
+    });
+  });
+
+  it('survives the rest of the turn (text, plan, result)', () => {
+    const s = run(
+      { type: 'author', author: { id: 'yodo', name: 'Yodo' } },
+      plan3,
+      { type: 'text', delta: 'hola' },
+      { type: 'result', text: 'hola' },
+    );
+    expect(s.author?.name).toBe('Yodo');
+    expect(s.status).toBe('done');
+  });
+});

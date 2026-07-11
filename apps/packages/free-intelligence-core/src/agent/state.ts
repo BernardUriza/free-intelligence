@@ -11,6 +11,7 @@ import type {
   AgentStreamEvent,
   AgentMeta,
   GuardRejection,
+  MessageAuthor,
   ToolCall,
   StepStatus,
 } from './events';
@@ -52,6 +53,13 @@ export interface AgentTurnState {
   /** Evidence references (e.g. source URLs). App-agnostic name. */
   sources: string[];
   meta: AgentMeta | null;
+  /**
+   * WHO is answering this turn, once the backend announces it (`author` event).
+   * null means the backend never named a speaker — the shell then attributes the
+   * turn to the agent's default author, which it must supply. See
+   * {@link MessageAuthor}.
+   */
+  author: MessageAuthor | null;
   status: AgentTurnStatus;
   errorMessage?: string;
 }
@@ -64,6 +72,7 @@ export function initialAgentTurnState(): AgentTurnState {
     text: '',
     sources: [],
     meta: null,
+    author: null,
     status: 'thinking',
   };
 }
@@ -240,6 +249,9 @@ export function applyAgentEvent(
         status: 'done',
       };
     }
+
+    case 'author':
+      return { ...state, author: event.author };
 
     case 'meta':
       return { ...state, meta: event.meta };

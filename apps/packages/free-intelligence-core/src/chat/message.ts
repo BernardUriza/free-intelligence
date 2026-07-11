@@ -1,5 +1,5 @@
 import type { AgentPlan } from '../agent/state';
-import type { ToolCall } from '../agent/events';
+import type { MessageAuthor, ToolCall } from '../agent/events';
 
 /**
  * MessageTrace — the persisted glass-box snapshot of a finished agentic turn.
@@ -35,8 +35,17 @@ export interface MessageTrace {
 export interface ChatMessage {
   /** Stable id (optional for transient/streaming messages). */
   id?: string;
-  /** Who authored the message. */
+  /** Which side of the conversation the message sits on. */
   role: 'user' | 'assistant';
+  /**
+   * WHO said it — the named speaker, not merely the side. A shell with a persona
+   * switch (og118's elementos) must attribute each bubble to the persona that
+   * actually produced it, and that attribution has to survive a reload, so it is
+   * a first-class field (preserved by `sanitizeConversationMessage`, unlike
+   * `metadata`). Optional only for messages authored outside the agent contract;
+   * everything {@link foldAssistantTurn}/{@link makeUserMessage} builds has one.
+   */
+  author?: MessageAuthor;
   /** The message text. */
   content: string;
   /** Optional model reasoning rendered before the content. */
