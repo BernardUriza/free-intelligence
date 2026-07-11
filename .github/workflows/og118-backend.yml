@@ -207,6 +207,30 @@ jobs:
               "OG118_STT_DEPLOYMENT=$STT_DEPLOYMENT" \
               "OG118_STT_API_VERSION=${STT_API_VERSION:-2024-06-01}"
 
+      - name: Wire the external persona engine (only when configured — else no-op)
+        # The elementos that run on a live FI engine (Oxígeno→Vultur, Aluminio→ALICE,
+        # Yodo→Insult) reach it through OG118_EXTERNAL_RUNNER_URL/TOKEN. Those two
+        # were set BY HAND on the live Container App and existed nowhere in the
+        # repo — the exact drift the STT step above was written to end. Same
+        # additive/idempotent/merge-only shape: unset ⇒ clean no-op, and a turn on
+        # an external element fails with a typed "external engine not configured"
+        # instead of a mystery 500. Token is a secret (secretref); URL a plain var.
+        env:
+          RUNNER_URL: ${{ vars.OG118_EXTERNAL_RUNNER_URL }}
+          RUNNER_TOKEN: ${{ secrets.OG118_EXTERNAL_RUNNER_TOKEN }}
+        run: |
+          if [ -z "$RUNNER_URL" ] || [ -z "$RUNNER_TOKEN" ]; then
+            echo "External engine not configured (OG118_EXTERNAL_RUNNER_URL/TOKEN unset)."
+            echo "Skipping — elements bound to an external engine will report it, not 500."
+            exit 0
+          fi
+          az containerapp secret set -n "$APP" -g "$RG" \
+            --secrets "og118-external-runner-token=$RUNNER_TOKEN"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_EXTERNAL_RUNNER_URL=$RUNNER_URL" \
+              "OG118_EXTERNAL_RUNNER_TOKEN=secretref:og118-external-runner-token"
+
       - name: Ensure AcrPull for the app's managed identity (idempotent)
         # --registry-identity system wires the pull, but the role assignment can
         # lag on first create. Assign it explicitly (needs Owner on og118-rg, per
