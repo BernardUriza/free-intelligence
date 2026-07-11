@@ -73,12 +73,22 @@ class TurnResultPayload(BaseModel):
 
 
 class ElementPayload(BaseModel):
-    """Which persona/element answered this turn."""
+    """Which persona/element answered this turn.
+
+    ``label`` is the composed one-liner ("53 · I · Yodo"); the parts ride
+    alongside it so a UI can attribute a bubble without re-parsing that string —
+    ``name`` is the speaker's name, ``symbol`` the avatar token, ``engine`` the
+    persona/engine behind it. Optional: a runner that only knows an id/label
+    still emits a valid frame.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     id: str
     label: str
+    name: str | None = None
+    symbol: str | None = None
+    engine: str | None = None
 
 
 class OpenEvent(BaseModel):
