@@ -163,14 +163,26 @@ def test_derive_emits_plan_cancelled_for_cancel_plan():
 
 
 def test_derive_emits_plan_completed_for_finalize_plan_without_observer():
-    # No observer: default to plan_completed (finalize means "ship as-is").
+    # No observer: default to plan_completed (finalize means "ship as-is"), and
+    # the counters STILL ship — zeroed, never absent. An omitted counter reached
+    # the client as `undefined` and got coerced to 0, so "no failures" and
+    # "nobody counted" were indistinguishable on the wire. The contract
+    # (fi_runner.events.PlanTerminalData) requires them on every terminal frame.
     tc = ToolCall.make(
         "mcp__fi_core_task_tracker__finalize_plan",
         input={"plan_id": "p1"},
         id="t10",
     )
     [ev] = _derive_plan_events(tc, session_id="s1")
-    assert ev == {"type": "plan_completed", "data": {"plan_id": "p1"}}
+    assert ev == {
+        "type": "plan_completed",
+        "data": {
+            "plan_id": "p1",
+            "completed_count": 0,
+            "failed_count": 0,
+            "cancelled_count": 0,
+        },
+    }
 
 
 def test_derive_emits_plan_failed_when_observer_saw_a_failure():

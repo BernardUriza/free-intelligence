@@ -1,0 +1,870 @@
+{
+  "$defs": {
+    "DoneEvent": {
+      "additionalProperties": false,
+      "description": "Last frame of a healthy stream.",
+      "properties": {
+        "type": {
+          "const": "done",
+          "default": "done",
+          "type": "string"
+        }
+      },
+      "title": "DoneEvent",
+      "type": "object"
+    },
+    "ElementEvent": {
+      "additionalProperties": false,
+      "description": "Announces WHO is answering, before any token arrives.",
+      "properties": {
+        "type": {
+          "const": "element",
+          "default": "element",
+          "type": "string"
+        },
+        "element": {
+          "$ref": "#/$defs/ElementPayload"
+        }
+      },
+      "required": [
+        "element"
+      ],
+      "title": "ElementEvent",
+      "type": "object"
+    },
+    "ElementPayload": {
+      "additionalProperties": false,
+      "description": "Which persona/element answered this turn.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "ElementPayload",
+      "type": "object"
+    },
+    "ErrorEvent": {
+      "additionalProperties": false,
+      "description": "The turn died. Terminal \u2014 no ``done`` follows a fatal error.",
+      "properties": {
+        "type": {
+          "const": "error",
+          "default": "error",
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "ErrorEvent",
+      "type": "object"
+    },
+    "GuardMatch": {
+      "additionalProperties": true,
+      "properties": {
+        "index": {
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "label"
+      ],
+      "title": "GuardMatch",
+      "type": "object"
+    },
+    "OpenEvent": {
+      "additionalProperties": false,
+      "description": "First frame of every stream. Carries the id a UI keys concurrent turns on.",
+      "properties": {
+        "type": {
+          "const": "open",
+          "default": "open",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "OpenEvent",
+      "type": "object"
+    },
+    "PlanAmendedData": {
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "action": {
+          "enum": [
+            "insert",
+            "replan"
+          ],
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "PlanAmendedData",
+      "type": "object"
+    },
+    "PlanAmendedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "plan_amended",
+          "default": "plan_amended",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanAmendedData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanAmendedEvent",
+      "type": "object"
+    },
+    "PlanCancelledData": {
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "default": "",
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "PlanCancelledData",
+      "type": "object"
+    },
+    "PlanCancelledEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "plan_cancelled",
+          "default": "plan_cancelled",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanCancelledData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanCancelledEvent",
+      "type": "object"
+    },
+    "PlanCompletedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "plan_completed",
+          "default": "plan_completed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanTerminalData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanCompletedEvent",
+      "type": "object"
+    },
+    "PlanData": {
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "title": "PlanData",
+      "type": "object"
+    },
+    "PlanEvent": {
+      "additionalProperties": false,
+      "description": "The agent declared its plan. ``steps`` is the checklist a UI renders.",
+      "properties": {
+        "type": {
+          "const": "plan",
+          "default": "plan",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanEvent",
+      "type": "object"
+    },
+    "PlanFailedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "plan_failed",
+          "default": "plan_failed",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanTerminalData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanFailedEvent",
+      "type": "object"
+    },
+    "PlanRejectedData": {
+      "additionalProperties": false,
+      "description": "A plan guard refused the declared plan before any step ran.",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "matched": {
+          "items": {
+            "$ref": "#/$defs/GuardMatch"
+          },
+          "type": "array"
+        },
+        "reinforcement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "guard": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "PlanRejectedData",
+      "type": "object"
+    },
+    "PlanRejectedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "plan_rejected",
+          "default": "plan_rejected",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanRejectedData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PlanRejectedEvent",
+      "type": "object"
+    },
+    "PlanTerminalData": {
+      "additionalProperties": false,
+      "description": "Counters for the terminal plan frame.\n\nThey default to ``0`` rather than being optional on purpose: a consumer must\nnever receive ``undefined`` here and coerce it silently. The emitter fills\nreal counts whenever the observer ran.",
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "completed_count": {
+          "default": 0,
+          "type": "integer"
+        },
+        "failed_count": {
+          "default": 0,
+          "type": "integer"
+        },
+        "cancelled_count": {
+          "default": 0,
+          "type": "integer"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "PlanTerminalData",
+      "type": "object"
+    },
+    "ResultEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "result",
+          "default": "result",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/TurnResultPayload"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "ResultEvent",
+      "type": "object"
+    },
+    "StepDoneData": {
+      "additionalProperties": false,
+      "description": "``summary`` accompanies a ``done`` step; ``error`` a failed/cancelled one.",
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "step_index": {
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "done",
+            "failed",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "step_index",
+        "status"
+      ],
+      "title": "StepDoneData",
+      "type": "object"
+    },
+    "StepDoneEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "step_done",
+          "default": "step_done",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/StepDoneData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "StepDoneEvent",
+      "type": "object"
+    },
+    "StepNotedData": {
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "step_index": {
+          "type": "integer"
+        },
+        "note": {
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "step_index",
+        "note"
+      ],
+      "title": "StepNotedData",
+      "type": "object"
+    },
+    "StepNotedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "step_noted",
+          "default": "step_noted",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/StepNotedData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "StepNotedEvent",
+      "type": "object"
+    },
+    "StepStartedData": {
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "step_index": {
+          "type": "integer"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "step_index"
+      ],
+      "title": "StepStartedData",
+      "type": "object"
+    },
+    "StepStartedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "step_started",
+          "default": "step_started",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/StepStartedData"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "StepStartedEvent",
+      "type": "object"
+    },
+    "TextEvent": {
+      "additionalProperties": false,
+      "description": "A token delta. Consumers append; they never replace.",
+      "properties": {
+        "type": {
+          "const": "text",
+          "default": "text",
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TextEvent",
+      "type": "object"
+    },
+    "ToolCallEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "tool_call",
+          "default": "tool_call",
+          "type": "string"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolCallPayload"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolCallEvent",
+      "type": "object"
+    },
+    "ToolCallPayload": {
+      "additionalProperties": false,
+      "description": "One tool invocation, mirroring :class:`fi_runner.backend.ToolCall`.\n\n``input`` may carry PHI and is never placed in telemetry; it stays on the\nwire only because the glass-box panel renders it for the operator.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "server": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "is_error": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "duration_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ToolCallPayload",
+      "type": "object"
+    },
+    "TurnResultPayload": {
+      "additionalProperties": false,
+      "description": "The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "guard_outcomes": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "tool_calls": {
+          "items": {
+            "$ref": "#/$defs/ToolCallPayload"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TurnResultPayload",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "done": "#/$defs/DoneEvent",
+      "element": "#/$defs/ElementEvent",
+      "error": "#/$defs/ErrorEvent",
+      "open": "#/$defs/OpenEvent",
+      "plan": "#/$defs/PlanEvent",
+      "plan_amended": "#/$defs/PlanAmendedEvent",
+      "plan_cancelled": "#/$defs/PlanCancelledEvent",
+      "plan_completed": "#/$defs/PlanCompletedEvent",
+      "plan_failed": "#/$defs/PlanFailedEvent",
+      "plan_rejected": "#/$defs/PlanRejectedEvent",
+      "result": "#/$defs/ResultEvent",
+      "step_done": "#/$defs/StepDoneEvent",
+      "step_noted": "#/$defs/StepNotedEvent",
+      "step_started": "#/$defs/StepStartedEvent",
+      "text": "#/$defs/TextEvent",
+      "tool_call": "#/$defs/ToolCallEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/OpenEvent"
+    },
+    {
+      "$ref": "#/$defs/ElementEvent"
+    },
+    {
+      "$ref": "#/$defs/TextEvent"
+    },
+    {
+      "$ref": "#/$defs/ToolCallEvent"
+    },
+    {
+      "$ref": "#/$defs/ResultEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanEvent"
+    },
+    {
+      "$ref": "#/$defs/StepStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/StepDoneEvent"
+    },
+    {
+      "$ref": "#/$defs/StepNotedEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanAmendedEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanCancelledEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanFailedEvent"
+    },
+    {
+      "$ref": "#/$defs/PlanRejectedEvent"
+    },
+    {
+      "$ref": "#/$defs/ErrorEvent"
+    },
+    {
+      "$ref": "#/$defs/DoneEvent"
+    }
+  ],
+  "title": "AgentStreamEvent",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-schema-version": "1.0.0",
+  "description": "The fi-runner agent stream contract. Generated from fi_runner/events.py \u2014 do not edit by hand."
+}
