@@ -170,6 +170,22 @@ CREATE INDEX IF NOT EXISTS idx_reminders_snooze_msg ON reminders(snooze_msg_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_ack_pending
     ON reminders(requires_ack, ack_received, ack_retry_count, delivered_at);
 
+-- ─── research_jobs ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS research_jobs (
+    id            BIGSERIAL PRIMARY KEY,
+    channel_id    TEXT NOT NULL,
+    guild_id      TEXT,
+    created_by    TEXT NOT NULL,
+    persona_id    TEXT,
+    prompt        TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'queued',
+    result        TEXT,
+    retry_count   INTEGER NOT NULL DEFAULT 0,
+    created_at    DOUBLE PRECISION NOT NULL,
+    delivered_at  DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_research_jobs_pending ON research_jobs(status, created_at);
+
 -- ─── disclosure_log ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS disclosure_log (
     id                BIGSERIAL PRIMARY KEY,

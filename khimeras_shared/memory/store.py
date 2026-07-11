@@ -28,6 +28,7 @@ from khimeras_shared.memory.repositories import (
     ProfilesRepository,
     RelationalStateRepository,
     RemindersRepository,
+    ResearchJobsRepository,
     SerenityOpsRepository,
     WorldScansRepository,
 )
@@ -52,6 +53,7 @@ class MemoryStore:
         self._profiles = ProfilesRepository(self._manager)
         self._facts = FactsRepository(self._manager)
         self._reminders = RemindersRepository(self._manager)
+        self._research_jobs = ResearchJobsRepository(self._manager)
         self._relational = RelationalStateRepository(self._manager)
         self._channels = ChannelSummariesRepository(self._manager)
         self._world_scans = WorldScansRepository(self._manager)
@@ -289,6 +291,34 @@ class MemoryStore:
 
     async def delete_reminder(self, reminder_id: int) -> bool:
         return await self._reminders.delete_reminder(reminder_id)
+
+    async def save_research_job(
+        self,
+        channel_id: str,
+        guild_id: str | None,
+        created_by: str,
+        prompt: str,
+        persona_id: str | None = None,
+    ) -> int:
+        return await self._research_jobs.save_job(channel_id, guild_id, created_by, prompt, persona_id)
+
+    async def get_pending_research_jobs(self, limit: int = 3, persona_id: str | None = None) -> list[dict]:
+        return await self._research_jobs.get_pending_jobs(limit, persona_id)
+
+    async def mark_research_running(self, job_id: int) -> None:
+        await self._research_jobs.mark_running(job_id)
+
+    async def mark_research_done(self, job_id: int, result: str) -> None:
+        await self._research_jobs.mark_done(job_id, result)
+
+    async def mark_research_failed(self, job_id: int) -> None:
+        await self._research_jobs.mark_failed(job_id)
+
+    async def requeue_research_job(self, job_id: int) -> None:
+        await self._research_jobs.requeue(job_id)
+
+    async def reset_stale_research_jobs(self, older_than_s: float) -> int:
+        return await self._research_jobs.reset_stale_running(older_than_s)
 
     async def set_snooze_msg_id(self, reminder_id: int, msg_id: int) -> None:
         await self._reminders.set_snooze_msg_id(reminder_id, msg_id)

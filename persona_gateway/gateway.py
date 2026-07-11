@@ -32,11 +32,13 @@ from collections.abc import Iterable
 
 import discord
 import structlog
+from discord.ext import tasks
 
 from khimeras_shared.attachments import process_attachments
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
+from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.tts import (
     DEFAULT_SUSURRO_URL,
@@ -51,6 +53,14 @@ from shared.personas import Persona, gateway_personas
 from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
 
 SPEAK_EMOJI = "🔊"
+
+# Durable research jobs: how often each persona-bot drains its queued jobs, and
+# the generous read timeout a deep-research runner turn gets (WebSearch + long
+# reasoning) — the job IS the heavy case, so it does not share the interactive
+# 120s default.
+RESEARCH_DRAIN_SECONDS = 45.0
+RESEARCH_TIMEOUT_S = 360.0
+RESEARCH_MAX_RETRIES = 2
 
 # Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
 # `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
@@ -201,6 +211,92 @@ class PersonaClient(discord.Client):
             bot_name=str(self.user) if self.user else None,
             guilds=len(self.guilds),
         )
+        # Start THIS persona's durable-research drain loop (idempotent across
+        # reconnects — on_ready fires again after a gateway resume).
+        if not self._research_drain.is_running():
+            self._research_drain.start()
+
+    @tasks.loop(seconds=RESEARCH_DRAIN_SECONDS)
+    async def _research_drain(self) -> None:
+        """Drain THIS persona's queued research jobs: run each on the runner
+        (WebSearch, long reasoning) and post the report back in this persona's own
+        voice — the deferred "te lo dejo aquí" made real. Crash-survivable: rows
+        persist, a job stuck 'running' after a restart is recovered by the stale
+        sweep below; the loop never overlaps itself (discord.ext.tasks)."""
+        try:
+            await self.memory.reset_stale_research_jobs(RESEARCH_TIMEOUT_S * 2)
+            jobs = await self.memory.get_pending_research_jobs(limit=2, persona_id=self.persona.persona_id)
+        except Exception:
+            log.exception("research_drain_fetch_failed", persona_id=self.persona.persona_id)
+            return
+        for job in jobs:
+            await self._run_research_job(job)
+
+    async def _run_research_job(self, job: dict) -> None:
+        job_id = job["id"]
+        await self.memory.mark_research_running(job_id)
+        channel = self.get_channel(int(job["channel_id"]))
+        if channel is None:
+            log.warning("research_job_channel_gone", job_id=job_id, channel_id=job["channel_id"])
+            await self.memory.mark_research_failed(job_id)
+            return
+        try:
+            framing = (
+                "TAREA DE INVESTIGACIÓN DIFERIDA que TÚ aceptaste hace un rato en este canal. "
+                "Investígala a fondo AHORA (usa WebSearch/WebFetch si te sirve) y entrega el reporte "
+                "COMPLETO, en tu propia voz, como quien vuelve de la madriguera con lo que fue a buscar. "
+                "Este ES el 'después' que prometiste: NO vuelvas a diferir, NO prometas traerlo luego, "
+                "entrega el contenido ya. Petición original del usuario:\n\n"
+                f"{job['prompt']}"
+            )
+            resp = await self.agent_client.chat(
+                "",
+                [{"role": "user", "content": framing}],
+                # Isolated SDK session so the deep job never pollutes the channel's
+                # live interactive thread; the result still posts to the real channel.
+                channel_id=f"research-job-{job_id}",
+                user_id=job["created_by"],
+                persona_id=self.persona.persona_id,
+                timeout_s=RESEARCH_TIMEOUT_S,
+            )
+            result = strip_research((resp.text or "").strip())
+            if not result:
+                raise RuntimeError("empty research result")
+        except Exception:
+            log.exception("research_job_run_failed", job_id=job_id, persona_id=self.persona.persona_id)
+            if job.get("retry_count", 0) < RESEARCH_MAX_RETRIES:
+                await self.memory.requeue_research_job(job_id)
+            else:
+                await self.memory.mark_research_failed(job_id)
+            return
+        try:
+            pieces = chunk(result)
+            tag = f"\n-# {VERSION_TAG}"
+            if pieces and len(pieces[-1]) + len(tag) <= 2000:
+                pieces[-1] += tag
+            for piece in pieces:
+                await channel.send(piece)
+            await self.memory.store(
+                job["channel_id"],
+                str(self.user.id) if self.user else "0",
+                self.persona.display_name,
+                "assistant",
+                result,
+                for_user_id=job["created_by"],
+                guild_id=job.get("guild_id"),
+                channel_name=None,
+                model_used=getattr(resp, "model_used", None),
+            )
+            await self.memory.mark_research_done(job_id, result)
+            log.info(
+                "research_job_delivered",
+                job_id=job_id,
+                persona_id=self.persona.persona_id,
+                chars=len(result),
+            )
+        except Exception:
+            log.exception("research_job_deliver_failed", job_id=job_id, persona_id=self.persona.persona_id)
+            await self.memory.mark_research_failed(job_id)
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         """🔊 on one of THIS persona's own messages → speak it in the persona's
@@ -481,6 +577,37 @@ class PersonaClient(discord.Client):
                     persona_id=self.persona.persona_id,
                     emojis=reactions,
                     turn_kind=turn_kind,
+                )
+        # Durable research job: the persona accepted a heavy research request and
+        # emitted [RESEARCH: ...]. Queue it (the drain loop runs it later and posts
+        # the report back in THIS persona's voice) and strip the marker so only the
+        # in-character ack ("va, me meto a la madriguera y te lo dejo aquí") is sent.
+        # The ack is now HONEST — the promise is backed by a real durable worker.
+        research_prompt = parse_research(text)
+        if research_prompt:
+            text = strip_research(text)
+            try:
+                job_id = await self.memory.save_research_job(
+                    channel_id=channel_id,
+                    guild_id=guild_id,
+                    created_by=user_id,
+                    prompt=research_prompt,
+                    persona_id=self.persona.persona_id,
+                )
+                log.info(
+                    "research_job_queued",
+                    persona_id=self.persona.persona_id,
+                    job_id=job_id,
+                    channel_id=channel_id,
+                    prompt_chars=len(research_prompt),
+                )
+            except Exception:
+                # The ack text still sends; the job just didn't queue. Better a
+                # persona who over-promised once than a silent drop of the request.
+                log.exception(
+                    "research_job_queue_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
                 )
         if not text:
             return

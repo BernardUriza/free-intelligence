@@ -13,6 +13,7 @@ from khimeras_shared.memory.repositories.messages import MessagesRepository
 from khimeras_shared.memory.repositories.profiles import ProfilesRepository
 from khimeras_shared.memory.repositories.relational import RelationalStateRepository
 from khimeras_shared.memory.repositories.reminders import RemindersRepository
+from khimeras_shared.memory.repositories.research_jobs import ResearchJobsRepository
 from khimeras_shared.memory.repositories.serenityops import SerenityOpsRepository
 from khimeras_shared.memory.repositories.world_scans import WorldScansRepository
 
@@ -25,6 +26,7 @@ __all__ = [
     "ProfilesRepository",
     "RelationalStateRepository",
     "RemindersRepository",
+    "ResearchJobsRepository",
     "SerenityOpsRepository",
     "WorldScansRepository",
 ]
