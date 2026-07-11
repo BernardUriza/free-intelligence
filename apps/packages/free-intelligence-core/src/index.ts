@@ -34,6 +34,31 @@ export { initialAgentTurnState, applyAgentEvent } from './agent/state';
 export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
 export type { AgentHook, AgentSendMeta } from './agent/hook';
 
+// The RAW WIRE frames, generated from the fi-runner contract (the SSOT lives in
+// apps/packages/fi-runner/fi_runner/events.py). A transport hook parses SSE into
+// these, then maps them to the normalized AgentStreamEvent above. Exported so a
+// consumer's mapEvent types its input instead of guessing at
+// Record<string, unknown> — the guesswork is what let frames drift silently.
+export type {
+  AgentStreamEvent as AgentWireEvent,
+  OpenEvent as WireOpenEvent,
+  ElementEvent as WireElementEvent,
+  TextEvent as WireTextEvent,
+  ToolCallEvent as WireToolCallEvent,
+  ResultEvent as WireResultEvent,
+  PlanEvent as WirePlanEvent,
+  StepStartedEvent as WireStepStartedEvent,
+  StepDoneEvent as WireStepDoneEvent,
+  StepNotedEvent as WireStepNotedEvent,
+  PlanAmendedEvent as WirePlanAmendedEvent,
+  PlanCancelledEvent as WirePlanCancelledEvent,
+  PlanCompletedEvent as WirePlanCompletedEvent,
+  PlanFailedEvent as WirePlanFailedEvent,
+  PlanRejectedEvent as WirePlanRejectedEvent,
+  ErrorEvent as WireErrorEvent,
+  DoneEvent as WireDoneEvent,
+} from './agent/wire.generated';
+
 // Conversation library contract (DD-002B1). Local-first transcript persistence:
 // record/summary types, the ConversationLibrary storage contract, and pure
 // helpers (title/preview derivation + privacy-by-structure sanitization).

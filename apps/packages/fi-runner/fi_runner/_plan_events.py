@@ -176,15 +176,21 @@ def _derive_plan_events(
         # back to ``plan_completed`` since finalize without prior failures
         # means "ship as-is".
         plan_id = inp.get("plan_id")
-        if observer is not None:
-            snap = observer.snapshot(plan_id)
-            return [{"type": _final_plan_status(snap), "data": _data(
-                plan_id=plan_id,
-                completed_count=snap["done"],
-                failed_count=snap["failed"],
-                cancelled_count=snap["cancelled"],
-            )}]
-        return [{"type": "plan_completed", "data": _data(plan_id=plan_id)}]
+        snap = observer.snapshot(plan_id) if observer is not None else {
+            "done": 0,
+            "failed": 0,
+            "cancelled": 0,
+        }
+        # The counters ship on EVERY terminal frame, observer or not. The
+        # no-observer branch used to omit them, so a client coerced the missing
+        # values to 0 and could not tell "no failures" from "nobody counted".
+        # See fi_runner.events.PlanTerminalData — the contract requires them.
+        return [{"type": _final_plan_status(snap), "data": _data(
+            plan_id=plan_id,
+            completed_count=snap["done"],
+            failed_count=snap["failed"],
+            cancelled_count=snap["cancelled"],
+        )}]
 
     return []
 

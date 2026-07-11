@@ -55,10 +55,19 @@ auth = [
     "pyjwt[crypto]>=2.8,<3",
     "cryptography>=42",
 ]
+# The agent stream contract (fi_runner.events) — the SSOT of the wire frames
+# every consumer (web, iOS, CLI) validates and codegens against. Opt-in so the
+# Runner's runtime stays zero-dep: it keeps yielding plain dicts and never
+# imports this module on its hot path. Consumers that already run FastAPI get
+# pydantic for free; the contract tests and the schema exporter need this extra.
+contract = [
+    "pydantic>=2.7,<3",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.11",
+    "pydantic>=2.7,<3",
 ]
 # CLI shell-out surface (`fi-runner exec ...`). Typer only — the backends still
 # pull their own harness SDK lazily. Importing `fi_runner` stays dep-free; only
