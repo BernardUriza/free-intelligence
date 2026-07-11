@@ -158,7 +158,7 @@ interface AgentMeta {
  * from RAG or web-search). Apps extract them however they like (insult_ai parses
  * a "Receipts" markdown tail in its own hook — app-specific, stays there).
  */
-type AgentStreamEvent = {
+type AgentStreamEvent$1 = {
     type: 'open';
     sessionId?: string;
     requestId?: string;
@@ -272,7 +272,7 @@ declare function initialAgentTurnState(): AgentTurnState;
  * transport produces. Unknown/transport-only events (`open`) pass through
  * untouched.
  */
-declare function applyAgentEvent(state: AgentTurnState, event: AgentStreamEvent): AgentTurnState;
+declare function applyAgentEvent(state: AgentTurnState, event: AgentStreamEvent$1): AgentTurnState;
 
 /**
  * MessageTrace — the persisted glass-box snapshot of a finished agentic turn.
@@ -441,6 +441,208 @@ interface AgentHook {
 }
 
 /**
+ * DO NOT EDIT — generated from the fi-runner event contract.
+ *
+ * Source of truth: apps/packages/fi-runner/fi_runner/events.py
+ * Schema:          apps/packages/fi-runner/contracts/agent-events.schema.json
+ * Regenerate:      pnpm --filter @free-intelligence/core gen:events
+ *
+ * These are the RAW WIRE frames as fi-runner emits them (snake_case, three
+ * envelope shapes). They are NOT the core AgentStreamEvent — that one is the
+ * normalized, camelCase contract the reducer consumes. The translation between
+ * them lives in the consumer's mapEvent, and now it maps FROM a typed wire
+ * frame instead of from `Record<string, unknown>` guesswork.
+ */
+/**
+ * The fi-runner agent stream contract. Generated from fi_runner/events.py — do not edit by hand.
+ */
+type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | DoneEvent;
+/**
+ * First frame of every stream. Carries the id a UI keys concurrent turns on.
+ */
+interface OpenEvent {
+    type?: 'open';
+    request_id?: string | null;
+}
+/**
+ * Announces WHO is answering, before any token arrives.
+ */
+interface ElementEvent {
+    type?: 'element';
+    element: ElementPayload;
+}
+/**
+ * Which persona/element answered this turn.
+ */
+interface ElementPayload {
+    id: string;
+    label: string;
+}
+/**
+ * A token delta. Consumers append; they never replace.
+ */
+interface TextEvent {
+    type?: 'text';
+    text: string;
+}
+interface ToolCallEvent {
+    type?: 'tool_call';
+    tool: ToolCallPayload;
+}
+/**
+ * One tool invocation, mirroring :class:`fi_runner.backend.ToolCall`.
+ *
+ * ``input`` may carry PHI and is never placed in telemetry; it stays on the
+ * wire only because the glass-box panel renders it for the operator.
+ */
+interface ToolCallPayload {
+    name: string;
+    server?: string | null;
+    input?: {
+        [k: string]: unknown;
+    } | null;
+    id?: string | null;
+    is_error?: boolean | null;
+    duration_ms?: number | null;
+}
+interface ResultEvent {
+    type?: 'result';
+    result: TurnResultPayload;
+}
+/**
+ * The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.
+ */
+interface TurnResultPayload {
+    text: string;
+    usage?: {
+        [k: string]: unknown;
+    } | null;
+    session_id?: string | null;
+    guard_outcomes?: {
+        [k: string]: unknown;
+    };
+    tool_calls?: ToolCallPayload[];
+}
+/**
+ * The agent declared its plan. ``steps`` is the checklist a UI renders.
+ */
+interface PlanEvent {
+    type?: 'plan';
+    data: PlanData;
+}
+interface PlanData {
+    steps: string[];
+    session_id?: string | null;
+    request_id?: string | null;
+}
+interface StepStartedEvent {
+    type?: 'step_started';
+    data: StepStartedData;
+}
+interface StepStartedData {
+    plan_id?: string | null;
+    step_index: number;
+    request_id?: string | null;
+}
+interface StepDoneEvent {
+    type?: 'step_done';
+    data: StepDoneData;
+}
+/**
+ * ``summary`` accompanies a ``done`` step; ``error`` a failed/cancelled one.
+ */
+interface StepDoneData {
+    plan_id?: string | null;
+    step_index: number;
+    status: 'done' | 'failed' | 'cancelled';
+    summary?: string | null;
+    error?: string | null;
+    request_id?: string | null;
+}
+interface StepNotedEvent {
+    type?: 'step_noted';
+    data: StepNotedData;
+}
+interface StepNotedData {
+    plan_id?: string | null;
+    step_index: number;
+    note: string;
+    request_id?: string | null;
+}
+interface PlanAmendedEvent {
+    type?: 'plan_amended';
+    data: PlanAmendedData;
+}
+interface PlanAmendedData {
+    plan_id?: string | null;
+    action: 'insert' | 'replan';
+    request_id?: string | null;
+}
+interface PlanCancelledEvent {
+    type?: 'plan_cancelled';
+    data: PlanCancelledData;
+}
+interface PlanCancelledData {
+    plan_id?: string | null;
+    reason?: string;
+    request_id?: string | null;
+}
+interface PlanCompletedEvent {
+    type?: 'plan_completed';
+    data: PlanTerminalData;
+}
+/**
+ * Counters for the terminal plan frame.
+ *
+ * They default to ``0`` rather than being optional on purpose: a consumer must
+ * never receive ``undefined`` here and coerce it silently. The emitter fills
+ * real counts whenever the observer ran.
+ */
+interface PlanTerminalData {
+    plan_id?: string | null;
+    completed_count?: number;
+    failed_count?: number;
+    cancelled_count?: number;
+    request_id?: string | null;
+}
+interface PlanFailedEvent {
+    type?: 'plan_failed';
+    data: PlanTerminalData;
+}
+interface PlanRejectedEvent {
+    type?: 'plan_rejected';
+    data: PlanRejectedData;
+}
+/**
+ * A plan guard refused the declared plan before any step ran.
+ */
+interface PlanRejectedData {
+    reason: string;
+    matched?: GuardMatch[];
+    reinforcement?: string | null;
+    guard?: string | null;
+    request_id?: string | null;
+}
+interface GuardMatch {
+    index: number;
+    label: string;
+    [k: string]: unknown;
+}
+/**
+ * The turn died. Terminal — no ``done`` follows a fatal error.
+ */
+interface ErrorEvent {
+    type?: 'error';
+    message: string;
+}
+/**
+ * Last frame of a healthy stream.
+ */
+interface DoneEvent {
+    type?: 'done';
+}
+
+/**
  * ConversationRecord — the persisted shape of one local-first conversation.
  *
  * DD-002B1: og118 (and every future fi-glass shell) needs the transcript to
@@ -572,4 +774,4 @@ declare function renameConversationRecord(record: ConversationRecord, rawTitle: 
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };

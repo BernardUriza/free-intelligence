@@ -23,9 +23,11 @@
   "scripts": {
     "build": "tsup",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:events": "node scripts/gen-wire-events.mjs"
   },
   "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
     "tsup": "^8.5.1"
   }
 }
