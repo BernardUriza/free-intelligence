@@ -22,14 +22,15 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://og118.ai'),
   alternates: { canonical: '/' },
   icons: { icon: '/favicon.png', apple: '/apple-touch-icon.png' },
-  // `black` keeps the status bar opaque and the web view below it. The
-  // `black-translucent` variant renders full-bleed UNDER the clock, which would
-  // need a verified top safe-area inset in the shell — not something to ship
-  // unverified on a device I cannot see.
+  // `black-translucent` renders the web view FULL-BLEED under the status bar —
+  // the native look (ChatGPT does this). Safe now that the shell pads its top by
+  // env(safe-area-inset-top) (B3-FIGLASS-MOBILE-NATIVE-1), so the clock overlays
+  // the background, not the content. og118's page is dark, so the white
+  // status-bar glyphs stay legible.
   appleWebApp: {
     capable: true,
     title: 'og118',
-    statusBarStyle: 'black',
+    statusBarStyle: 'black-translucent',
   },
   // `appleWebApp.capable` does NOT emit `apple-mobile-web-app-capable` on
   // Next >= 15: PR vercel/next.js#70363 swapped it for the unprefixed

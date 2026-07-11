@@ -174,6 +174,23 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+/* B3-FIGLASS-MOBILE-NATIVE-1: on a phone, messages span the FULL width. The
+   85%-cap + left/right alignment is a human-messaging idiom (WhatsApp/iMessage);
+   og118 is an AI, so ChatGPT/Claude.ai-style full-width reads right. Role is
+   still legible by tint (emerald user vs slate assistant), and the notch corner
+   drops to a uniform radius since there is no left/right "tail" to point. The
+   768px breakpoint matches the shell's drawer/mobile query. */
+@media (max-width: 768px) {
+  .glass-chat-bubble-user,
+  .glass-chat-bubble-assistant {
+    max-width: 100%;
+    width: auto;
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 14px;
+  }
+}
+
 /* Gradient CTA (start-screen primary action). */
 .glass-chat-cta {
   background-image: linear-gradient(
