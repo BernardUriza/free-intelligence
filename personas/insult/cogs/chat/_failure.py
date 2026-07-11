@@ -312,16 +312,6 @@ async def send_with_reaction_fallback(
     return "silent"
 
 
-def spawn_typing_indicator(
-    channel: discord.abc.Messageable,
-    spawn_task,
-) -> None:
-    """Convenience wrapper: schedule ``emit_typing_safe`` via the cog's
-    task spawner so it's tracked for graceful shutdown without blocking
-    the caller's critical path."""
-    spawn_task(emit_typing_safe(channel), name="typing_indicator")
-
-
 # Discord's typing indicator times out at ~10s, so we re-fire every TYPING_KEEPALIVE_S
 # while the LLM is in flight. 7s gives a 3s safety margin against drift.
 TYPING_KEEPALIVE_S = 7.0
@@ -373,7 +363,6 @@ __all__ = [
     "decide_failover",
     "emit_typing_safe",
     "send_with_reaction_fallback",
-    "spawn_typing_indicator",
     "spawn_typing_keepalive",
 ]
 

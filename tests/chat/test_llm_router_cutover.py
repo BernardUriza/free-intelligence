@@ -269,6 +269,20 @@ def test_stage_is_registered_after_memory_store():
     assert names.index("llm_router_cutover") < names.index("ensure_not_trivial")
 
 
+def test_emit_typing_runs_after_the_router_so_insult_never_types_on_a_routed_turn():
+    """Regression guard (2026-07-11): ``emit_typing`` must come AFTER the router
+    (and the triviality gate). It used to sit at position 2 — BEFORE routing — so
+    on an implicit turn the DeMux would resolve to a sibling (ALICE) while Insult
+    had ALREADY fired a typing indicator during the router's ~1-4s deliberation.
+    The user saw Insult "typing", then ALICE appear, then Insult's indicator time
+    out: the exact smell Bernard caught. A sibling-routed or trivial turn StageStops
+    above, so emit_typing must sit below both gates to never fire for a turn Insult
+    won't answer."""
+    names = [s.name for s in stages.DEFAULT_STAGES]
+    assert names.index("emit_typing") > names.index("llm_router_cutover")
+    assert names.index("emit_typing") > names.index("ensure_not_trivial")
+
+
 def test_builder_off_by_default_returns_none():
     assert build_llm_router_cutover_route(SimpleNamespace(llm_router_cutover_enabled=False)) is None
 

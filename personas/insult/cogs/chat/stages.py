@@ -46,7 +46,6 @@ from personas.insult.cogs.chat._failure import (
     classify_discord_exception,
     decide_failover,
     send_with_reaction_fallback,
-    spawn_typing_indicator,
     spawn_typing_keepalive,
 )
 from personas.insult.cogs.chat.capability_ports import OutputMutationPort, RetrievalPort, S1bPolicyPort
@@ -1382,11 +1381,16 @@ async def _stage_spawn_fact_extraction(ctx: TurnCtx) -> None:
 
 DEFAULT_STAGES: list[Stage] = [
     Stage("bind_identity", Criticality.BUSINESS, _stage_bind_identity),
-    Stage("emit_typing", Criticality.BACKGROUND, _stage_emit_typing),
     Stage("process_attachments", Criticality.BUSINESS, _stage_process_attachments),
     Stage("memory_store", Criticality.BUSINESS, _stage_memory_store),
     Stage("llm_router_cutover", Criticality.BUSINESS, _stage_llm_router_cutover),
     Stage("ensure_not_trivial", Criticality.BUSINESS, _stage_ensure_not_trivial),
+    # Typing fires ONLY after routing + triviality gates — so Insult never shows
+    # a typing indicator for a turn the DeMux hands to a sibling (the 2026-07-11
+    # smell: Insult "typing" during the router's deliberation on an implicit turn
+    # that resolves to ALICE). A sibling-routed or trivial turn StageStops above
+    # and this never runs.
+    Stage("emit_typing", Criticality.BACKGROUND, _stage_emit_typing),
     Stage("build_context", Criticality.BUSINESS, _stage_build_context),
     Stage("load_facts", Criticality.BUSINESS, _stage_load_facts),
     Stage("scan_disclosure", Criticality.BUSINESS, _stage_scan_disclosure),
@@ -1408,9 +1412,3 @@ DEFAULT_STAGES: list[Stage] = [
         _stage_spawn_fact_extraction,
     ),
 ]
-
-
-# We keep ``spawn_typing_indicator`` import alive even though emit_typing
-# is now a stage — other callers (e.g. CLI smoke tests) can still spawn
-# typing without going through the pipeline.
-_ = spawn_typing_indicator
