@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
 /**
@@ -170,6 +170,17 @@ interface TurnError {
 declare const DEFAULT_TURN_TIMEOUT_MS = 60000;
 interface UseAgentConversationOptions {
     /**
+     * WHO the agent is — REQUIRED. Every message this hook folds is stamped with an
+     * author: the turn's own speaker when the backend announced one (the `author`
+     * event — a selected persona/element), this identity otherwise. There is no
+     * anonymous fold, because a transcript that cannot say who spoke silently
+     * attributes every answer to the app (og118 labelled Yodo's answers "og118" for
+     * exactly as long as this was optional).
+     */
+    author: MessageAuthor;
+    /** WHO the human is. Defaults to {@link DEFAULT_USER_AUTHOR}. */
+    userAuthor?: MessageAuthor;
+    /**
      * Controlled mode: when provided, the CONSUMER owns the visible thread. The
      * hook returns these verbatim as `conversation.messages` and stops folding —
      * `send` drives `agent.send(text)` but pushes no optimistic message and folds
@@ -210,6 +221,12 @@ interface AgentConversation {
     /** The current/live turn's reduced state (for the in-flight glass-box). */
     turn: AgentTurnState;
     /**
+     * The agent's own identity — who the live turn is attributed to until the
+     * backend names a different speaker (`turn.author`). The surface reads it from
+     * here, so the consumer declares the author once, at the hook.
+     */
+    author: MessageAuthor;
+    /**
      * Whether a turn is actively streaming. This is the CONVERSATION's view, not
      * the transport's: once the watchdog declares a turn hung, this is false even
      * if the underlying `agent.isStreaming` is still stuck true — so the surface
@@ -241,7 +258,7 @@ interface AgentConversation {
     /** Clear the whole thread and reset the underlying turn/session. */
     newConversation: () => void;
 }
-declare function useAgentConversation(agent: AgentHook, options?: UseAgentConversationOptions): AgentConversation;
+declare function useAgentConversation(agent: AgentHook, options: UseAgentConversationOptions): AgentConversation;
 
 /**
  * fi-glass · conversation-surface/types — the public contract of

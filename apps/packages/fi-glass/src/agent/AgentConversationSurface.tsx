@@ -43,7 +43,7 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     composerAppend,
     onComposerAppendConsumed,
   } = props;
-  const { messages, turn, isStreaming, turnError, send, stop, retry, dismissError, newConversation } =
+  const { messages, turn, author, isStreaming, turnError, send, stop, retry, dismissError, newConversation } =
     conversation;
   const [input, setInput] = useState('');
   // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
@@ -70,7 +70,7 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     <div style={rootStyle}>
       <TranscriptRegion
         surface={props}
-        conversation={{ messages, turn, isStreaming, turnError, retry, dismissError }}
+        conversation={{ messages, turn, author, isStreaming, turnError, retry, dismissError }}
         contentInset={contentInset}
       />
       <ComposerRegion

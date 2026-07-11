@@ -32,24 +32,28 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * Reduce a ChatMessage to the fields safe to persist: role, content, timestamp,
- * plus the glass-box `trace` when present (B3-FIGLASS-TRACE-PERSISTENCE-1).
+ * Reduce a ChatMessage to the fields safe to persist: role, author, content,
+ * timestamp, plus the glass-box `trace` when present (B3-FIGLASS-TRACE-
+ * PERSISTENCE-1).
  *
  * Privacy by structure: `metadata` is DROPPED on purpose — apps stuff secrets
  * there (a `Bearer` token, tool payloads), so it must never reach durable
- * storage. `trace` is the deliberate exception, not a hole in that boundary: it
- * carries only non-sensitive, already-user-visible execution provenance —
+ * storage. `trace` and `author` are the deliberate exceptions, not holes in that
+ * boundary: both carry only non-sensitive, already-user-visible provenance —
  * plan-step labels/summaries (model-authored, rendered live), tool NAMES (core's
- * ToolCall is {id,name,server,isError} — no arguments/payloads) and source URLs.
- * Persisting what the live turn already showed leaks nothing new. Included only
- * when present, so a plain message stays the minimal {role, content, timestamp};
- * id, thinking and metadata are still dropped by construction.
+ * ToolCall is {id,name,server,isError} — no arguments/payloads), source URLs,
+ * and the public name of the persona that spoke. Persisting what the live turn
+ * already showed leaks nothing new — and dropping the author would re-anonymize
+ * every bubble on reload, which is the bug the contract exists to prevent.
+ * Included only when present, so a plain message stays minimal; id, thinking and
+ * metadata are still dropped by construction.
  */
 export function sanitizeConversationMessage(message: ChatMessage): ChatMessage {
   return {
     role: message.role,
     content: message.content,
     timestamp: message.timestamp,
+    ...(message.author ? { author: message.author } : {}),
     ...(message.trace ? { trace: message.trace } : {}),
   };
 }

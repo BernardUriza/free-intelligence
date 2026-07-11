@@ -48,6 +48,31 @@ export interface GuardRejection {
   guard: string | null;
 }
 
+/**
+ * MessageAuthor — WHO produced a message. Part of the contract, not app wiring.
+ *
+ * A shell that lets the user switch the answering persona (og118's elementos,
+ * aurity's personas) renders a transcript where every bubble must say who spoke;
+ * an assistant bubble with no author silently attributes the answer to the app
+ * itself. That is a lie the framework must not be able to express — so the fold
+ * ({@link foldAssistantTurn}) and the user capsule ({@link makeUserMessage})
+ * both REQUIRE an author, and a turn can rebind it mid-stream via the `author`
+ * event (the backend announces the persona it resolved for the turn).
+ *
+ * Only `id` and `name` are load-bearing; `symbol` and `engine` are optional
+ * enrichment a shell may render as an avatar token / provenance chip.
+ */
+export interface MessageAuthor {
+  /** Stable identifier of the speaker (element id, persona id, 'user'). */
+  id: string;
+  /** Human name shown as the author ("Yodo", "og118", "Tú"). */
+  name: string;
+  /** Short avatar/badge token ("I", "og"). */
+  symbol?: string | null;
+  /** The engine/persona behind the answer ("Vultur", "ALICE"). */
+  engine?: string | null;
+}
+
 /** Per-turn observability. All optional; each app fills what it has. */
 export interface AgentMeta {
   requestId?: string | null;
@@ -115,6 +140,10 @@ export type AgentStreamEvent =
     }
   | { type: 'tool_call'; call: ToolCall }
   | { type: 'text'; delta: string }
+  // The backend resolved WHO answers this turn (a persona/element the user
+  // selected). Emitted before the first text delta, so the live bubble is
+  // attributed from its first character — not re-labelled after the fold.
+  | { type: 'author'; author: MessageAuthor }
   | { type: 'result'; text: string; sources?: string[]; meta?: AgentMeta }
   | { type: 'meta'; meta: AgentMeta }
   | { type: 'error'; message: string }

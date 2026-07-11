@@ -34,13 +34,46 @@
     },
     "ElementPayload": {
       "additionalProperties": false,
-      "description": "Which persona/element answered this turn.",
+      "description": "Which persona/element answered this turn.\n\n``label`` is the composed one-liner (\"53 \u00b7 I \u00b7 Yodo\"); the parts ride\nalongside it so a UI can attribute a bubble without re-parsing that string \u2014\n``name`` is the speaker's name, ``symbol`` the avatar token, ``engine`` the\npersona/engine behind it. Optional: a runner that only knows an id/label\nstill emits a valid frame.",
       "properties": {
         "id": {
           "type": "string"
         },
         "label": {
           "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [

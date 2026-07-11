@@ -20,12 +20,16 @@ const turn = (over: Partial<AgentTurnState> = {}): AgentTurnState => ({
   text: 'respondiendo',
   sources: [],
   meta: null,
+  author: null,
   status: 'thinking',
   ...over,
 });
 
+const AGENT_AUTHOR = { id: 'og118', name: 'og118', symbol: 'og' };
+
 const base = {
   turn: turn(),
+  agentAuthor: AGENT_AUTHOR,
   showPersistedTrace: true,
   showCopyAction: false,
   resolveBubbleClass: () => undefined,
@@ -82,5 +86,54 @@ describe('<TranscriptMessages> live glass-box rail', () => {
     render(<TranscriptMessages {...base} messages={[message]} isStreaming={false} />);
     expect(liveRail()).toBeNull();
     expect(document.body.textContent).toContain('paso viejo');
+  });
+});
+
+describe('<TranscriptMessages> authorship — the bubble names WHO spoke', () => {
+  afterEach(cleanup);
+
+  const YODO = { id: 'element-053-i-yodo', name: 'Yodo', symbol: 'I', engine: 'Insult' };
+
+  it('renders the message author, not the app name (the og118 bug)', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        isStreaming={false}
+        messages={[
+          {
+            role: 'assistant',
+            author: YODO,
+            content: 'respuesta de Yodo',
+            timestamp: '2026-07-11T04:00:00Z',
+          },
+        ]}
+      />,
+    );
+    expect(document.body.textContent).toContain('Yodo');
+    expect(document.body.textContent).not.toContain('og118');
+  });
+
+  it('attributes the LIVE streaming bubble to the announced speaker', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        turn={turn({ author: YODO, text: 'escribiendo…' })}
+        isStreaming
+        messages={[]}
+      />,
+    );
+    expect(document.body.textContent).toContain('Yodo');
+  });
+
+  it('falls back to the agent identity when no speaker was announced', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        turn={turn({ author: null, text: 'hola' })}
+        isStreaming
+        messages={[]}
+      />,
+    );
+    expect(document.body.textContent).toContain('og118');
   });
 });

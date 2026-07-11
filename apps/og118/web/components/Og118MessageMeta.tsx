@@ -1,70 +1,23 @@
 'use client';
 
 /**
- * Og118MessageMeta — header (avatar + author + time) and model badge for the
- * transcript, filling the MessageBubble slots og118 left empty.
+ * Og118MessageMeta — the model badge for the transcript.
  *
- * Pure app-specific wiring (framework-first-canary: branding/copy/identity
- * belong to the consumer): the slots (`header`, `badge`) and their layout have
- * lived in fi-glass MessageBubble since Plutonio; og118 simply never passed
- * renderHeader/renderBadge. The badge's model provenance comes from
- * `message.metadata.model`, persisted by core's foldAssistantTurn.
+ * The AUTHOR row (avatar + name + time) used to live here as a `renderHeader`
+ * that hardcoded the strings "og118"/"o1", so every bubble claimed the app had
+ * answered even when a selected element (Yodo, Oxígeno) actually did. Authorship
+ * is a property of the message, not of a consumer render slot, so it moved into
+ * the contract (`ChatMessage.author`) and fi-glass renders it automatically —
+ * framework-first-canary: the canary's pain rose to the framework instead of
+ * being patched in the wrapper. What stays here is genuinely app-specific: the
+ * model-provenance chip, off `message.metadata.model`.
  */
 
 import { Sparkles } from 'lucide-react';
-import type { ChatMessage } from '@free-intelligence/core';
+import type { ChatMessage, MessageAuthor } from '@free-intelligence/core';
 
-// Deliberately UNANNOTATED (no React.CSSProperties): CI resolves two csstype
-// versions (3.1.x and 3.2.x), and a CSSProperties object from one is not
-// assignable to a style prop typed by the other. Inference sidesteps the
-// duplicate-csstype clash entirely; `as const` keeps literal types spreadable.
-const AVATAR_BASE = {
-  width: 22,
-  height: 22,
-  borderRadius: 6,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 10,
-  fontWeight: 600,
-  flexShrink: 0,
-} as const;
-
-/** "14:32" in the user's locale; empty for unparseable/missing timestamps. */
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-}
-
-export function Og118MessageHeader({ message }: { message: ChatMessage }) {
-  const isUser = message.role === 'user';
-  const time = formatTime(message.timestamp);
-  return (
-    <>
-      <span
-        aria-hidden
-        style={{
-          ...AVATAR_BASE,
-          background: isUser ? 'rgba(124,58,237,0.8)' : 'var(--og-accent, #34d399)',
-          color: isUser ? '#fff' : '#0a0f1e',
-        }}
-      >
-        {isUser ? 'Tú' : 'o1'}
-      </span>
-      <span style={{ fontSize: 13, fontWeight: 500, color: '#cbd5e1' }}>
-        {isUser ? 'Tú' : 'og118'}
-      </span>
-      {time && (
-        <span
-          style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}
-        >
-          {time}
-        </span>
-      )}
-    </>
-  );
-}
+/** og118 itself — the speaker when no element is selected (base companion). */
+export const OG118_AUTHOR: MessageAuthor = { id: 'og118', name: 'og118', symbol: 'og' };
 
 /** "Powered by <model>" chip — assistant messages with persisted provenance only. */
 export function Og118ModelBadge({ message }: { message: ChatMessage }) {

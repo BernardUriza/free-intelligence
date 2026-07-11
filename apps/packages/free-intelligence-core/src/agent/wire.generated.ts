@@ -49,10 +49,19 @@ export interface ElementEvent {
 }
 /**
  * Which persona/element answered this turn.
+ *
+ * ``label`` is the composed one-liner ("53 · I · Yodo"); the parts ride
+ * alongside it so a UI can attribute a bubble without re-parsing that string —
+ * ``name`` is the speaker's name, ``symbol`` the avatar token, ``engine`` the
+ * persona/engine behind it. Optional: a runner that only knows an id/label
+ * still emits a valid frame.
  */
 export interface ElementPayload {
   id: string;
   label: string;
+  name?: string | null;
+  symbol?: string | null;
+  engine?: string | null;
 }
 /**
  * A token delta. Consumers append; they never replace.

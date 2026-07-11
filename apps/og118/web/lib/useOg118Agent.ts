@@ -12,6 +12,7 @@
  *
  * Mapping surface (fi-runner → core), documented in VALIDATION_REPORT:
  *   {type:'text', text}                  → {type:'text', delta}
+ *   {type:'element', element:{id,label,name,symbol,engine}} → {type:'author', author}
  *   {type:'tool_call', tool:{id,name,server,is_error}} → {type:'tool_call', call:{id,name,server,isError}}
  *   {type:'plan', data:{steps}}          → {type:'plan', steps}
  *   {type:'step_started', data:{step_index}} → {type:'step_started', index}
@@ -43,6 +44,25 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
       return { type: 'open' };
     case 'text':
       return { type: 'text', delta: String(ev.text ?? '') };
+    case 'element': {
+      // WHO is answering. The backend has always emitted this frame; this mapper
+      // used to DROP it (default → null), so every bubble fell back to the app's
+      // own name and an answer from the Yodo element was rendered as "og118".
+      const el = (ev.element ?? {}) as Record<string, unknown>;
+      const id = String(el.id ?? '');
+      if (!id) return null;
+      const label = String(el.label ?? '');
+      return {
+        type: 'author',
+        author: {
+          id,
+          // `label` is the composed "53 · I · Yodo"; prefer the plain name.
+          name: String(el.name ?? '') || label || id,
+          symbol: (el.symbol as string | null) ?? null,
+          engine: (el.engine as string | null) ?? null,
+        },
+      };
+    }
     case 'tool_call': {
       const t = (ev.tool ?? ev.call ?? {}) as Record<string, unknown>;
       return {

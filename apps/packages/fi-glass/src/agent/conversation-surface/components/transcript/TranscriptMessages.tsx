@@ -12,8 +12,13 @@
  */
 
 import { Fragment, type ReactNode } from 'react';
-import type { AgentTurnState, ChatMessage } from '@free-intelligence/core';
+import type { AgentTurnState, ChatMessage, MessageAuthor } from '@free-intelligence/core';
 import { MessageContent, MessageBubble, CopyButton } from '../../../../messages';
+import {
+  MessageAuthorHeader,
+  defaultMessageHeader,
+} from '../../../../messages/MessageAuthorHeader';
+import { DEFAULT_USER_AUTHOR } from '../../../useAgentConversation';
 import { AgentPanel, type AgentPanelProps } from '../../../AgentPanel';
 import { persistedTraceTurn } from '../../persistedTraceTurn';
 
@@ -21,6 +26,10 @@ export interface TranscriptMessagesProps {
   messages: ChatMessage[];
   turn: AgentTurnState;
   isStreaming: boolean;
+  /** The agent's own identity — attributes the live turn until it names itself. */
+  agentAuthor: MessageAuthor;
+  /** The human's identity. Defaults to the framework's. */
+  userAuthor?: MessageAuthor;
   showPersistedTrace: boolean;
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
   showCopyAction: boolean;
@@ -39,6 +48,8 @@ export function TranscriptMessages({
   messages,
   turn,
   isStreaming,
+  agentAuthor,
+  userAuthor,
   showPersistedTrace,
   agentPanelProps,
   showCopyAction,
@@ -66,7 +77,14 @@ export function TranscriptMessages({
             {traceTurn && <AgentPanel turn={traceTurn} {...agentPanelProps} />}
             <MessageBubble
               role={m.role}
-              header={renderHeader?.(m)}
+              // The framework attributes the bubble off `message.author`;
+              // `renderHeader` is the consumer's escape hatch, not the only path
+              // to a header (og118's hardcoded "og118" row was exactly that bug).
+              header={
+                renderHeader
+                  ? renderHeader(m)
+                  : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR)
+              }
               badge={renderBadge?.(m)}
               actions={
                 renderActions?.(m) ??
@@ -115,6 +133,10 @@ export function TranscriptMessages({
           {turn.text && (
             <MessageBubble
               role="assistant"
+              // Attributed from its FIRST character: the backend announces the
+              // speaker (`author` event) before any token, so the streaming
+              // bubble already says "Yodo" — it is never re-labelled on fold.
+              header={<MessageAuthorHeader author={turn.author ?? agentAuthor} />}
               className={resolveBubbleClass({
                 role: 'assistant',
                 content: turn.text,

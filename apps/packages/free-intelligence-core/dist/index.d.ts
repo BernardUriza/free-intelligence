@@ -136,6 +136,30 @@ interface GuardRejection {
     /** Guard identifier (app-defined), or null. */
     guard: string | null;
 }
+/**
+ * MessageAuthor — WHO produced a message. Part of the contract, not app wiring.
+ *
+ * A shell that lets the user switch the answering persona (og118's elementos,
+ * aurity's personas) renders a transcript where every bubble must say who spoke;
+ * an assistant bubble with no author silently attributes the answer to the app
+ * itself. That is a lie the framework must not be able to express — so the fold
+ * ({@link foldAssistantTurn}) and the user capsule ({@link makeUserMessage})
+ * both REQUIRE an author, and a turn can rebind it mid-stream via the `author`
+ * event (the backend announces the persona it resolved for the turn).
+ *
+ * Only `id` and `name` are load-bearing; `symbol` and `engine` are optional
+ * enrichment a shell may render as an avatar token / provenance chip.
+ */
+interface MessageAuthor {
+    /** Stable identifier of the speaker (element id, persona id, 'user'). */
+    id: string;
+    /** Human name shown as the author ("Yodo", "og118", "Tú"). */
+    name: string;
+    /** Short avatar/badge token ("I", "og"). */
+    symbol?: string | null;
+    /** The engine/persona behind the answer ("Vultur", "ALICE"). */
+    engine?: string | null;
+}
 /** Per-turn observability. All optional; each app fills what it has. */
 interface AgentMeta {
     requestId?: string | null;
@@ -204,6 +228,9 @@ type AgentStreamEvent$1 = {
     type: 'text';
     delta: string;
 } | {
+    type: 'author';
+    author: MessageAuthor;
+} | {
     type: 'result';
     text: string;
     sources?: string[];
@@ -260,6 +287,13 @@ interface AgentTurnState {
     /** Evidence references (e.g. source URLs). App-agnostic name. */
     sources: string[];
     meta: AgentMeta | null;
+    /**
+     * WHO is answering this turn, once the backend announces it (`author` event).
+     * null means the backend never named a speaker — the shell then attributes the
+     * turn to the agent's default author, which it must supply. See
+     * {@link MessageAuthor}.
+     */
+    author: MessageAuthor | null;
     status: AgentTurnStatus;
     errorMessage?: string;
 }
@@ -307,8 +341,17 @@ interface MessageTrace {
 interface ChatMessage {
     /** Stable id (optional for transient/streaming messages). */
     id?: string;
-    /** Who authored the message. */
+    /** Which side of the conversation the message sits on. */
     role: 'user' | 'assistant';
+    /**
+     * WHO said it — the named speaker, not merely the side. A shell with a persona
+     * switch (og118's elementos) must attribute each bubble to the persona that
+     * actually produced it, and that attribution has to survive a reload, so it is
+     * a first-class field (preserved by `sanitizeConversationMessage`, unlike
+     * `metadata`). Optional only for messages authored outside the agent contract;
+     * everything {@link foldAssistantTurn}/{@link makeUserMessage} builds has one.
+     */
+    author?: MessageAuthor;
     /** The message text. */
     content: string;
     /** Optional model reasoning rendered before the content. */
@@ -383,10 +426,16 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
  * shell (fi-glass and beyond) can keep a visible transcript without re-deriving
  * the mapping. Moved here from the og118 consumer (DD-002-LESSON): a reusable
  * primitive belongs in the framework, not the app wrapper.
+ *
+ * NO TEXT WITHOUT AN AUTHOR: both helpers take the speaker as a REQUIRED
+ * argument. A shell whose user can swap the answering persona must never fold a
+ * bubble the transcript cannot attribute — the alternative (an optional author
+ * the consumer may forget) is exactly how og118 spent every turn claiming
+ * "og118" answered while an element actually did.
  */
 
 /** A user message, ready to render optimistically the instant the user sends. */
-declare function makeUserMessage(text: string): ChatMessage;
+declare function makeUserMessage(text: string, author: MessageAuthor): ChatMessage;
 /**
  * Fold a finished turn's answer into an assistant message. The answer text is
  * the message content; the agentic provenance (declared plan + per-step
@@ -395,8 +444,13 @@ declare function makeUserMessage(text: string): ChatMessage;
  * execution, not just the result" differentiator survives the fold. A plain
  * conversational turn (no plan/tools/sources) folds with no `trace`, unchanged.
  * Model provenance also survives: `turn.meta.model` lands in `metadata.model`.
+ *
+ * Authorship comes from the turn itself when the backend named a speaker (the
+ * `author` event — the resolved persona/element); `defaultAuthor` is the agent's
+ * own identity, used when it did not. Required, so the folded message always
+ * knows who spoke.
  */
-declare function foldAssistantTurn(turn: AgentTurnState): ChatMessage;
+declare function foldAssistantTurn(turn: AgentTurnState, defaultAuthor: MessageAuthor): ChatMessage;
 
 /**
  * Per-send metadata the conversation layer may hand the transport. Optional and
@@ -473,10 +527,19 @@ interface ElementEvent {
 }
 /**
  * Which persona/element answered this turn.
+ *
+ * ``label`` is the composed one-liner ("53 · I · Yodo"); the parts ride
+ * alongside it so a UI can attribute a bubble without re-parsing that string —
+ * ``name`` is the speaker's name, ``symbol`` the avatar token, ``engine`` the
+ * persona/engine behind it. Optional: a runner that only knows an id/label
+ * still emits a valid frame.
  */
 interface ElementPayload {
     id: string;
     label: string;
+    name?: string | null;
+    symbol?: string | null;
+    engine?: string | null;
 }
 /**
  * A token delta. Consumers append; they never replace.
@@ -725,18 +788,21 @@ interface ConversationLibrary {
 /** Schema version stamped on every record created here. */
 declare const CONVERSATION_SCHEMA_VERSION = 1;
 /**
- * Reduce a ChatMessage to the fields safe to persist: role, content, timestamp,
- * plus the glass-box `trace` when present (B3-FIGLASS-TRACE-PERSISTENCE-1).
+ * Reduce a ChatMessage to the fields safe to persist: role, author, content,
+ * timestamp, plus the glass-box `trace` when present (B3-FIGLASS-TRACE-
+ * PERSISTENCE-1).
  *
  * Privacy by structure: `metadata` is DROPPED on purpose — apps stuff secrets
  * there (a `Bearer` token, tool payloads), so it must never reach durable
- * storage. `trace` is the deliberate exception, not a hole in that boundary: it
- * carries only non-sensitive, already-user-visible execution provenance —
+ * storage. `trace` and `author` are the deliberate exceptions, not holes in that
+ * boundary: both carry only non-sensitive, already-user-visible provenance —
  * plan-step labels/summaries (model-authored, rendered live), tool NAMES (core's
- * ToolCall is {id,name,server,isError} — no arguments/payloads) and source URLs.
- * Persisting what the live turn already showed leaks nothing new. Included only
- * when present, so a plain message stays the minimal {role, content, timestamp};
- * id, thinking and metadata are still dropped by construction.
+ * ToolCall is {id,name,server,isError} — no arguments/payloads), source URLs,
+ * and the public name of the persona that spoke. Persisting what the live turn
+ * already showed leaks nothing new — and dropping the author would re-anonymize
+ * every bubble on reload, which is the bug the contract exists to prevent.
+ * Included only when present, so a plain message stays minimal; id, thinking and
+ * metadata are still dropped by construction.
  */
 declare function sanitizeConversationMessage(message: ChatMessage): ChatMessage;
 /** Title from the first non-empty user message; `DEFAULT_TITLE` otherwise. */
@@ -774,4 +840,4 @@ declare function renameConversationRecord(record: ConversationRecord, rawTitle: 
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
