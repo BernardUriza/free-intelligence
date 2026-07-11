@@ -25,7 +25,7 @@ from __future__ import annotations
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.research_marker import strip_research
+from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.version import VERSION_TAG
 
 log = structlog.get_logger()
@@ -87,7 +87,7 @@ async def _run_research_job(bot, container, memory, job: dict) -> None:
             persona_id=None,
             timeout_s=RESEARCH_TIMEOUT_S,
         )
-        result = strip_research((resp.text or "").strip())
+        result = strip_delivery_markers((resp.text or "").strip())
         if not result:
             raise RuntimeError("empty research result")
     except Exception:

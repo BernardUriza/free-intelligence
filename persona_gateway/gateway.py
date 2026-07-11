@@ -36,6 +36,7 @@ from discord.ext import tasks
 
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
 from khimeras_shared.attachments import process_attachments
+from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
@@ -270,7 +271,9 @@ class PersonaClient(discord.Client):
                 persona_id=self.persona.persona_id,
                 timeout_s=RESEARCH_TIMEOUT_S,
             )
-            result = strip_research((resp.text or "").strip())
+            # Deferred delivery: strip EVERY marker (a [REACT:] here has no live
+            # message to act on and would leak as raw text — 2026-07-11 bug).
+            result = strip_delivery_markers((resp.text or "").strip())
             if not result:
                 raise RuntimeError("empty research result")
         except Exception:
@@ -343,7 +346,7 @@ class PersonaClient(discord.Client):
                 persona_id=self.persona.persona_id,
                 timeout_s=AGENDA_TIMEOUT_S,
             )
-            finding = strip_agenda((resp.text or "").strip())
+            finding = strip_delivery_markers((resp.text or "").strip())
         except Exception:
             log.exception("agenda_run_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
             # Do NOT mark ran on a transport failure — let it retry next cadence.
