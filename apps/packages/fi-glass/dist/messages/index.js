@@ -456,8 +456,46 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   );
 }
 
-// src/messages/MessageList.tsx
+// src/messages/MessageModelBadge.tsx
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
+function MessageModelBadge({
+  model,
+  title = "Generado por {model}",
+  label = "Powered by"
+}) {
+  return /* @__PURE__ */ jsxs5(
+    "span",
+    {
+      "data-fi-model-badge": "",
+      title: title.replace("{model}", model),
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 8px",
+        borderRadius: 9999,
+        border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(15,23,42,0.5)",
+        fontSize: 11,
+        color: "#94a3b8"
+      },
+      children: [
+        label,
+        " ",
+        /* @__PURE__ */ jsx7("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+      ]
+    }
+  );
+}
+function defaultMessageBadge(message) {
+  if (message.role !== "assistant") return void 0;
+  const model = message.trace?.model?.trim();
+  if (!model) return void 0;
+  return /* @__PURE__ */ jsx7(MessageModelBadge, { model });
+}
+
+// src/messages/MessageList.tsx
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -467,11 +505,11 @@ function MessageList({
   header,
   footer
 }) {
-  return /* @__PURE__ */ jsxs5("div", { className: containerClassName, children: [
+  return /* @__PURE__ */ jsxs6("div", { className: containerClassName, children: [
     header,
-    groups.map((group) => /* @__PURE__ */ jsxs5("div", { children: [
+    groups.map((group) => /* @__PURE__ */ jsxs6("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx7("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx8("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
@@ -484,6 +522,8 @@ export {
   MessageContent,
   MessageImages,
   MessageList,
+  MessageModelBadge,
+  defaultMessageBadge,
   defaultMessageHeader,
   markdownStyles,
   messageStyles,

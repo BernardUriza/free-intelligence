@@ -125,3 +125,12 @@ async def stream_external_turn(
         yield {"type": "error", "message": "external engine returned an empty answer"}
         return
     yield {"type": "text", "text": text}
+    # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
+    # with a `result` so that provenance reaches the client the same way the local
+    # path delivers it — the answer says what produced it, on both routes. The text
+    # is repeated (the reducer replaces, never appends), and usage/session stay out:
+    # the frontend has no use for them and they are not the UI's business.
+    yield {
+        "type": "result",
+        "result": {"text": text, "model": data.get("model")},
+    }

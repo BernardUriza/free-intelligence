@@ -18,6 +18,7 @@ import {
   MessageAuthorHeader,
   defaultMessageHeader,
 } from '../../../../messages/MessageAuthorHeader';
+import { defaultMessageBadge } from '../../../../messages/MessageModelBadge';
 import { DEFAULT_USER_AUTHOR } from '../../../useAgentConversation';
 import { AgentPanel, type AgentPanelProps } from '../../../AgentPanel';
 import { persistedTraceTurn } from '../../persistedTraceTurn';
@@ -85,7 +86,10 @@ export function TranscriptMessages({
                   ? renderHeader(m)
                   : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR)
               }
-              badge={renderBadge?.(m)}
+              // Model provenance, off the persisted trace — the framework shows
+              // it without the consumer wiring a badge (og118's own chip read a
+              // field nothing ever wrote, so it never rendered once).
+              badge={renderBadge ? renderBadge(m) : defaultMessageBadge(m)}
               actions={
                 renderActions?.(m) ??
                 (showCopyAction ? <CopyButton content={m.content} /> : undefined)

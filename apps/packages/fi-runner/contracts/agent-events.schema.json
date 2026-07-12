@@ -779,7 +779,7 @@
     },
     "TurnResultPayload": {
       "additionalProperties": false,
-      "description": "The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.",
+      "description": "The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.\n\n``model`` is the model that ACTUALLY ran (the retry loop may escalate to the\nfallback), so a UI shows the answer's real provenance instead of guessing at\nthe configured default.",
       "properties": {
         "text": {
           "type": "string"
@@ -797,6 +797,17 @@
           "default": null
         },
         "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
           "anyOf": [
             {
               "type": "string"

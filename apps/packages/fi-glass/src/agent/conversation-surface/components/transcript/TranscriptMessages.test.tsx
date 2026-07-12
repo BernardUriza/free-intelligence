@@ -137,3 +137,46 @@ describe('<TranscriptMessages> authorship — the bubble names WHO spoke', () =>
     expect(document.body.textContent).toContain('og118');
   });
 });
+
+describe('<TranscriptMessages> model provenance — the chip the consumer never got to show', () => {
+  afterEach(cleanup);
+
+  it('renders "powered by <model>" off the persisted trace', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        isStreaming={false}
+        messages={[
+          {
+            role: 'assistant',
+            author: AGENT_AUTHOR,
+            content: 'hola',
+            timestamp: '2026-07-11T04:00:00Z',
+            trace: { model: 'claude-sonnet-4-6' },
+          },
+        ]}
+      />,
+    );
+    const badge = document.querySelector('[data-fi-model-badge]');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain('claude-sonnet-4-6');
+  });
+
+  it('shows no chip when the turn recorded no model', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        isStreaming={false}
+        messages={[
+          {
+            role: 'assistant',
+            author: AGENT_AUTHOR,
+            content: 'hola',
+            timestamp: '2026-07-11T04:00:00Z',
+          },
+        ]}
+      />,
+    );
+    expect(document.querySelector('[data-fi-model-badge]')).toBeNull();
+  });
+});

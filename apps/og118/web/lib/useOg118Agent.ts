@@ -17,7 +17,7 @@
  *   {type:'plan', data:{steps}}          → {type:'plan', steps}
  *   {type:'step_started', data:{step_index}} → {type:'step_started', index}
  *   {type:'step_done', data:{step_index,status,summary?,error?}} → {type:'step_done', index, status, ...}
- *   {type:'result', result:{text,...}}   → {type:'result', text}
+ *   {type:'result', result:{text,model,…}} → {type:'result', text, meta:{model}}
  *   open / done                          → pass-through
  *   step_noted / plan_amended / plan_cancelled / plan_completed / plan_failed
  *                                        → mapped (core v1.1.0 models them)
@@ -122,8 +122,17 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
         cancelledCount: Number(data.cancelled_count ?? 0),
       };
     case 'result': {
+      // The settled turn carries WHICH model produced it (fi-runner stamps the
+      // model that actually ran — the retry loop may have escalated). It lands
+      // in the turn's meta, the fold persists it in the trace, and fi-glass
+      // renders the provenance chip. Previously dropped: the chip never showed.
       const r = (ev.result ?? {}) as Record<string, unknown>;
-      return { type: 'result', text: String(r.text ?? '') };
+      const model = typeof r.model === 'string' && r.model.trim() ? r.model : null;
+      return {
+        type: 'result',
+        text: String(r.text ?? ''),
+        ...(model ? { meta: { model } } : {}),
+      };
     }
     case 'error':
       return { type: 'error', message: String(ev.message ?? 'error') };

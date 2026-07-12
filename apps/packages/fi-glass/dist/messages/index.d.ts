@@ -197,6 +197,16 @@ declare function MessageAuthorHeader({ author, timestamp, isUser, locale, }: Mes
  */
 declare function defaultMessageHeader(message: ChatMessage, agentAuthor: MessageAuthor, userAuthor: MessageAuthor, locale?: string): react.JSX.Element;
 
+interface MessageModelBadgeProps {
+    model: string;
+    /** Copy for the tooltip; `{model}` is substituted. */
+    title?: string;
+    label?: string;
+}
+declare function MessageModelBadge({ model, title, label, }: MessageModelBadgeProps): react.JSX.Element;
+/** The badge for a stored message; nothing when the turn recorded no model. */
+declare function defaultMessageBadge(message: ChatMessage): react.JSX.Element | undefined;
+
 interface CollapsibleTextProps {
     children: ReactNode;
     /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
@@ -238,4 +248,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, defaultMessageBadge, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };
