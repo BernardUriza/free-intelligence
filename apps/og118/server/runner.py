@@ -45,10 +45,17 @@ def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = N
     core. Chief among them: the runtime is stateless, so the persona must never
     promise background/async work it cannot do."""
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
+    model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
     return Runner(
-        backend=ClaudeCodeBackend(
-            default_model=os.getenv("OG118_MODEL", "claude-sonnet-4-5"),
-        ),
+        backend=ClaudeCodeBackend(default_model=model),
+        # The Runner must KNOW the model, not just the backend: it is the Runner
+        # that stamps the answer's provenance (TurnResult.model → the "powered by"
+        # chip). Configured only on the backend, `Runner.model` stayed None and the
+        # local route shipped answers that could not say what produced them — while
+        # the external-engine route, which reports its own model, could.
+        # `chosen_model = model or self.default_model` in the backend, so naming it
+        # here changes WHO KNOWS the model, never WHICH model runs.
+        model=model,
         persona=f"{base_persona}\n\n{load_prompt(COMPANION_CONSTRAINTS_PATH)}",
         # task_tracker → plan/step glass-box events. rag_store → the agent can
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
