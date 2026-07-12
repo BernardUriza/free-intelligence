@@ -64,15 +64,35 @@ async def test_unconfigured_yields_clean_error(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_happy_path_yields_text(monkeypatch) -> None:
+async def test_happy_path_yields_text_then_result_with_model(monkeypatch) -> None:
+    """The answer AND its provenance: the engine reports which model ran, and the
+    turn settles with a `result` carrying it — the same shape the local runner
+    emits, so the client renders the model chip on both routes."""
     _configure(monkeypatch)
     monkeypatch.setattr(
-        external_engine.httpx, "AsyncClient", _client_factory(resp=_FakeResp(200, {"text": "  Soy Vultur.  "}))
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "  Soy Vultur.  ", "model": "claude-sonnet-4-6"})),
     )
     evs = await _collect(
         external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid="s", user_id="u")
     )
-    assert evs == [{"type": "text", "text": "Soy Vultur."}]
+    assert evs == [
+        {"type": "text", "text": "Soy Vultur."},
+        {"type": "result", "result": {"text": "Soy Vultur.", "model": "claude-sonnet-4-6"}},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_result_model_is_none_when_the_engine_does_not_report_one(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx, "AsyncClient", _client_factory(resp=_FakeResp(200, {"text": "hola"}))
+    )
+    evs = await _collect(
+        external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid="s", user_id="u")
+    )
+    assert evs[-1] == {"type": "result", "result": {"text": "hola", "model": None}}
 
 
 @pytest.mark.asyncio

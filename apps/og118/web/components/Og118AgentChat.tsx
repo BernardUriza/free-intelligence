@@ -49,7 +49,7 @@ import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
-import { OG118_AUTHOR, Og118ModelBadge } from './Og118MessageMeta';
+import { OG118_AUTHOR } from './Og118MessageMeta';
 import { Og118AuthBanner } from './Og118AuthBanner';
 import { Og118VoiceErrorBanner } from './Og118VoiceErrorBanner';
 
@@ -355,7 +355,6 @@ export function Og118AgentChat() {
           // Header (avatar + author + time) and model badge fill the
           // MessageBubble slots that were sitting empty — app-specific
           // identity/branding, so the wiring lives here, not in fi-glass.
-          renderBadge={(m) => <Og118ModelBadge message={m} />}
           // The glass-box is the product's differentiator, and it was rendering
           // as bare text: AgentPanel defaults `classNames.card` to '', so the
           // plan drew with background rgba(0,0,0,0), border 0, padding 0 —
