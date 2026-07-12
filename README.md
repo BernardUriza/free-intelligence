@@ -8,13 +8,18 @@ Un servidor HTTP que envuelve el [Claude Agent SDK](https://code.claude.com/docs
 y **refleja** el transcript de cada sesión hacia **tu** base de datos. El contenedor
 es desechable; la memoria es tuya y sobrevive.
 
-```
-POST /projects/avatar/messages
+```http
+POST /projects/avatar/sessions/manuscrito/messages
+Authorization: Bearer <token>
+
 { "prompt": "escribe el capítulo 2" }
 ```
 
-Y el capítulo 2 se acuerda del capítulo 1 — aunque el contenedor que escribió el
-capítulo 1 lleve tres días muerto.
+Te responde con un stream SSE, evento por evento. Y el capítulo 2 se acuerda del
+capítulo 1 — aunque el contenedor que escribió el capítulo 1 lleve tres días muerto.
+
+Desde un cron, desde TypeScript, desde un botón, desde tu teléfono. Nadie necesita
+Python, ni saber que el SDK existe.
 
 ## El nombre es la arquitectura
 

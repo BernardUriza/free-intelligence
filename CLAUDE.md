@@ -30,15 +30,42 @@ Si vas a contradecir algo de aquí, verifícalo primero de la misma forma.
 - **La suite de conformance**: `from claude_agent_sdk.testing import run_session_store_conformance`
   — 14 contratos, viene dentro del paquete. Córrela contra cualquier store.
 
+## El contrato HTTP
+
+Lo que el server oficial (`claude-cookbooks/hosting/server.py`) **ya expone**, verificado
+leyendo su código:
+
+```http
+GET  /health
+POST /sessions/{session_id}/messages
+     Authorization: Bearer <AGENT_AUTH_TOKEN>    # sí tiene auth: _require_token + compare_digest
+     { "prompt": "..." }
+     → text/event-stream  (event: message … event: done)
+```
+
+Lo que **AIRE** expone, abriendo el eje que al cookbook le falta (tiene `cwd="/app"`
+hardcodeado → un solo proyecto):
+
+```http
+POST /projects/{project}/sessions/{session}/messages
+```
+
+Mapea 1:1 al `SessionKey` del SDK: `{project_key, session_id}`. El SDK exige que
+`session_id` sea **UUID** (lo valida), pero **sí deja fijarlo** → derívalo determinísticamente
+del nombre con `uuid5(NS, "avatar/manuscrito")`: nombres legibles afuera, UUIDs adentro,
+sin tabla de mapeo.
+
 ## Lo que SÍ hay que escribir (~150 líneas)
 
 Es lo que el cookbook oficial **no** trae:
 
-1. Cablear `session_store=` en las `ClaudeAgentOptions` (el cookbook no lo hace).
-2. `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` por proyecto (el cookbook tiene `cwd="/app"` hardcodeado).
-3. Auth (el server oficial no tiene; dice "ponlo detrás de un gateway").
-4. Aislamiento multi-tenant: `setting_sources=[]`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
-5. Manejar el evento `mirror_error` y deduplicar por `entry.uuid` en `append()`.
+1. Cablear `session_store=` en las `ClaudeAgentOptions` (el cookbook no lo hace: mira
+   su `_build_options()`).
+2. `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` por proyecto (tiene `cwd="/app"` hardcodeado).
+3. Aislamiento multi-tenant: `setting_sources=[]`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
+4. Manejar el evento `mirror_error` y deduplicar por `entry.uuid` en `append()`.
+5. Tirar su `_remember()` / `hosting_session_map.json` (el dict en RAM): con `session_id`
+   fijable + `uuid5`, no hace falta mapeo alguno.
 
 ## Hechos verificados del SDK (no los re-descubras)
 
