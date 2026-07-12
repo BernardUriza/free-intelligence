@@ -60,6 +60,14 @@ export interface AgentTurnState {
    * {@link MessageAuthor}.
    */
   author: MessageAuthor | null;
+  /**
+   * How many signs of life the backend has sent while the turn was QUIET (bare
+   * `ping` frames). A shell's idle watchdog re-arms on this: a healthy turn can
+   * be silent for a long time (a proxied engine answers in one shot; a model
+   * thinks before its first token), and killing it throws away what the user
+   * wrote. A counter, not a timestamp — the reducer stays pure.
+   */
+  heartbeats: number;
   status: AgentTurnStatus;
   errorMessage?: string;
 }
@@ -73,6 +81,7 @@ export function initialAgentTurnState(): AgentTurnState {
     sources: [],
     meta: null,
     author: null,
+    heartbeats: 0,
     status: 'thinking',
   };
 }
@@ -252,6 +261,11 @@ export function applyAgentEvent(
 
     case 'author':
       return { ...state, author: event.author };
+
+    case 'ping':
+      // Carries nothing; its ARRIVAL is the payload. A NEW object every time, on
+      // purpose: that is what tells a watchdog watching this turn to re-arm.
+      return { ...state, heartbeats: state.heartbeats + 1 };
 
     case 'meta':
       return { ...state, meta: event.meta };

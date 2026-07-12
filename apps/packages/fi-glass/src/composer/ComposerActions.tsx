@@ -1,37 +1,28 @@
 'use client';
 
 /**
- * fi-glass · ComposerActions — the "+" that opens what you can attach.
+ * fi-glass · ComposerActions — the composer's "+" : one trigger for everything
+ * the user can ADD to a turn.
  *
- * ONE trigger for every "add something to this turn" capability, instead of one
- * icon button per capability. og118 grew an `ImagePlus` button the day it gained
- * vision; aurity had already grown a `⋮` overflow with "Adjuntar archivo" inside
- * — two composers, two ad-hoc affordances, in a framework whose whole point is
- * that the shell is shared. A composer with N capabilities does not want N
- * buttons crowding the rail: it wants the ChatGPT "+".
+ * It does not implement a menu. It renders aurity's menu (`ActionMenu`) — the
+ * framework's SSOT, portaled and opening upward — with a `+` trigger instead of
+ * aurity's `⋮`. og118 grew an `ImagePlus` button the day it gained vision, blind
+ * to the fact that the shell already had this exact affordance; the fix is not a
+ * second menu, it is consuming the first one.
  *
- * The menu opens UPWARD (the composer sits at the bottom of the viewport) and is
- * dismissed by Escape, by an outside click, or by choosing an action. Consumers
- * inject the actions; the framework owns the affordance.
+ * Attaching an image is contributed by the framework as an ACTION; the app
+ * appends its own (upload a document to the active project, …). A new capability
+ * lands in the menu instead of crowding the rail with another icon.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
+import { ActionMenu, type MenuAction } from '../menu/ActionMenu';
 
-export interface ComposerAction {
-  /** Stable id (also the React key). */
-  id: string;
-  /** What the user reads in the menu ("Adjuntar imagen"). */
-  label: string;
-  /** Leading icon. */
-  icon?: ReactNode;
-  onSelect: () => void;
-  disabled?: boolean;
-}
+export type ComposerAction = MenuAction;
 
 export interface ComposerActionsProps {
   actions: ComposerAction[];
-  /** Disable the whole trigger (streaming, composer disabled). */
+  /** Disable the trigger (a turn is streaming, the composer is disabled). */
   disabled?: boolean;
   /** aria-label/title of the trigger. Default: "Añadir". */
   label?: string;
@@ -50,113 +41,27 @@ export function ComposerActions({
   menuClassName,
   itemClassName,
 }: ComposerActionsProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const onClick = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onClick);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClick);
-    };
-  }, [open]);
-
-  if (actions.length === 0) return null;
-
   return (
-    <div ref={rootRef} style={{ position: 'relative', display: 'inline-flex' }}>
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className={`fi-touch-target ${className ?? ''}`.trim()}
-        data-fi-composer-actions=""
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-          border: 'none',
-          cursor: disabled ? 'default' : 'pointer',
-          opacity: disabled ? 0.5 : 1,
-          padding: '0.375rem',
-          color: 'inherit',
-        }}
-      >
-        <Plus size={18} aria-hidden className={iconClassName} />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          data-fi-composer-actions-menu=""
-          className={menuClassName}
-          style={
-            menuClassName
-              ? { position: 'absolute', bottom: '100%', left: 0, zIndex: 20 }
-              : {
-                  position: 'absolute',
-                  bottom: '100%',
-                  left: 0,
-                  marginBottom: '0.5rem',
-                  zIndex: 20,
-                  minWidth: '13rem',
-                  padding: '0.35rem',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  background: 'rgba(15,23,42,0.98)',
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
-                }
-          }
-        >
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              role="menuitem"
-              disabled={action.disabled}
-              onClick={() => {
-                setOpen(false);
-                action.onSelect();
-              }}
-              className={itemClassName}
-              style={
-                itemClassName
-                  ? undefined
-                  : {
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      width: '100%',
-                      padding: '0.5rem 0.65rem',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: 'transparent',
-                      color: action.disabled ? '#64748b' : '#e2e8f0',
-                      fontSize: '0.875rem',
-                      textAlign: 'left',
-                      cursor: action.disabled ? 'default' : 'pointer',
-                    }
-              }
-            >
-              {action.icon}
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <ActionMenu
+      actions={actions}
+      trigger={<Plus size={18} aria-hidden className={iconClassName} />}
+      triggerLabel={label}
+      triggerClassName={`fi-touch-target ${className ?? ''}`.trim()}
+      triggerStyle={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
+        border: 'none',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        padding: '0.375rem',
+        color: 'inherit',
+      }}
+      disabled={disabled}
+      menuClassName={menuClassName}
+      itemClassName={itemClassName}
+      triggerAttribute="data-fi-composer-actions"
+    />
   );
 }

@@ -13,7 +13,7 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 import { ComposerActions, type ComposerAction } from './ComposerActions';
 
 const trigger = () => document.querySelector('[data-fi-composer-actions]') as HTMLButtonElement;
-const menu = () => document.querySelector('[data-fi-composer-actions-menu]');
+const menu = () => document.querySelector('[data-fi-action-menu]');
 const items = () => Array.from(document.querySelectorAll('[role="menuitem"]'));
 
 const action = (over: Partial<ComposerAction> = {}): ComposerAction => ({
@@ -83,11 +83,23 @@ describe('<ComposerActions>', () => {
     expect(menu()).toBeNull();
   });
 
-  it('an outside click dismisses the menu', () => {
+  it("an outside click dismisses the menu (aurity's backdrop)", () => {
     render(<ComposerActions actions={[action()]} />);
     fireEvent.click(trigger());
-    fireEvent.mouseDown(document.body);
+    const backdrop = document.querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop);
     expect(menu()).toBeNull();
+  });
+
+  it("renders aurity's anatomy: portaled to body, opening upward", () => {
+    render(<ComposerActions actions={[action()]} />);
+    fireEvent.click(trigger());
+    const m = menu() as HTMLElement;
+    // Portaled OUT of the composer (which clips with overflow:hidden).
+    expect(m.closest('[data-fi-composer-actions]')).toBeNull();
+    expect(document.body.contains(m)).toBe(true);
+    expect(m.style.transform).toBe('translateY(-100%)');
   });
 
   it('the trigger is disabled while a turn streams', () => {

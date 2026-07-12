@@ -18,7 +18,7 @@
  * the conversation slice, the composing state, the layout inset.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTouchTargetStyle } from '../shell/touchTarget';
 import { useComposerImages } from '../composer/useComposerImages';
 import type { AgentConversationSurfaceProps } from './conversation-surface/types';
@@ -61,9 +61,21 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     retry,
     dismissError,
     newConversation,
+    unsentText,
+    clearUnsentText,
   } =
     conversation;
   const [input, setInput] = useState('');
+
+  // A failed turn hands back what the user wrote (the watchdog used to revert it
+  // out of the thread and destroy it). Put it back in the box — the framework
+  // does it, so no consumer can forget and cost the user their prompt. An input
+  // the user has since typed into wins: never clobber live typing.
+  useEffect(() => {
+    if (!unsentText) return;
+    setInput((current) => (current.trim() ? current : unsentText));
+    clearUnsentText();
+  }, [unsentText, clearUnsentText]);
   // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
   // composed send button (and any other fi-glass control on the surface) gets its
   // 44×44 mobile minimum even if no other control mounted it first.

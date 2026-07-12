@@ -45,6 +45,8 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
     retry: () => {},
     dismissError: () => {},
     persistError: null,
+    unsentText: null,
+    clearUnsentText: () => {},
     retryPersist: () => {},
     dismissPersistError: () => {},
     newConversation: () => {},

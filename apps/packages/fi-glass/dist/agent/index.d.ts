@@ -2,7 +2,7 @@ import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
-import { a as ComposerAction } from '../ComposerActions-DHODkCT4.js';
+import { b as ComposerAction } from '../ComposerActions-HOiu1DmD.js';
 
 /**
  * Tool classification + live-status helpers for the Steps audit trail.
@@ -268,6 +268,14 @@ interface AgentConversation {
     retryPersist: () => void;
     /** Clear the persist error without retrying (the thread stays unsaved). */
     dismissPersistError: () => void;
+    /**
+     * The text of a turn that FAILED, reverted out of the thread — the shell puts
+     * it back in the composer so the user does not lose what they wrote. Null when
+     * nothing is pending recovery.
+     */
+    unsentText: string | null;
+    /** Called by the shell once it has restored `unsentText` into the composer. */
+    clearUnsentText: () => void;
     /** Send a message: pushes it optimistically, then drives the agent turn.
      * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
      * (empty text, ≥1 image) is valid — the picture IS the message. */

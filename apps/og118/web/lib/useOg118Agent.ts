@@ -18,7 +18,7 @@
  *   {type:'step_started', data:{step_index}} → {type:'step_started', index}
  *   {type:'step_done', data:{step_index,status,summary?,error?}} → {type:'step_done', index, status, ...}
  *   {type:'result', result:{text,model,…}} → {type:'result', text, meta:{model}}
- *   open / done                          → pass-through
+ *   open / ping / done                   → pass-through
  *   step_noted / plan_amended / plan_cancelled / plan_completed / plan_failed
  *                                        → mapped (core v1.1.0 models them)
  */
@@ -136,6 +136,11 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
     }
     case 'error':
       return { type: 'error', message: String(ev.message ?? 'error') };
+    case 'ping':
+      // Sign of life while the turn is quiet — it re-arms the idle watchdog so a
+      // slow-but-healthy turn is not killed (and the user's message not thrown
+      // away) just because the backend had nothing to say yet.
+      return { type: 'ping' };
     case 'done':
       return { type: 'done' };
     default:

@@ -410,6 +410,7 @@ function useAgentConversation(agent, options) {
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
   const [persistError, setPersistError] = useState2(null);
+  const [unsentText, setUnsentText] = useState2(null);
   const unsaved = useRef(null);
   const runPersist = useCallback(async (thread) => {
     if (!onMessagesChangeRef.current) return;
@@ -432,6 +433,7 @@ function useAgentConversation(agent, options) {
     void runPersist(thread);
   }, [runPersist]);
   const dismissPersistError = useCallback(() => setPersistError(null), []);
+  const clearUnsentText = useCallback(() => setUnsentText(null), []);
   const pending = useRef(false);
   const messagesRef = useRef(messages);
   messagesRef.current = externalMessages ?? messages;
@@ -446,10 +448,11 @@ function useAgentConversation(agent, options) {
   const mounted = useRef(false);
   const revertOptimistic = useCallback(() => {
     if (controlledRef.current) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      return last?.role === "user" ? prev.slice(0, -1) : prev;
-    });
+    const thread = messagesRef.current;
+    const last = thread[thread.length - 1];
+    if (last?.role !== "user") return;
+    setUnsentText(last.content);
+    setMessages((prev) => prev[prev.length - 1]?.role === "user" ? prev.slice(0, -1) : prev);
   }, []);
   const awaitResolver = useRef(null);
   const send = useCallback(
@@ -458,6 +461,7 @@ function useAgentConversation(agent, options) {
       const imgs = images && images.length > 0 ? images : void 0;
       if (!t && !imgs || agent.isStreaming) return;
       lastSent.current = { text: t, images: imgs };
+      setUnsentText(null);
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
@@ -573,6 +577,8 @@ function useAgentConversation(agent, options) {
     persistError,
     retryPersist,
     dismissPersistError,
+    unsentText,
+    clearUnsentText,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : void 0,
@@ -583,7 +589,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useState as useState18 } from "react";
+import { useEffect as useEffect19, useState as useState18 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -2093,6 +2099,7 @@ function persistedTraceTurn(message) {
     sources: trace.sources ?? [],
     meta: null,
     author: message.author ?? null,
+    heartbeats: 0,
     status: "done"
   };
 }
@@ -2644,9 +2651,151 @@ function useImagePicker(onFiles) {
 }
 
 // src/composer/ComposerActions.tsx
-import { useEffect as useEffect18, useRef as useRef14, useState as useState17 } from "react";
 import { Plus } from "lucide-react";
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+
+// src/menu/ActionMenu.tsx
+import { Fragment as Fragment5, useEffect as useEffect18, useRef as useRef14, useState as useState17 } from "react";
+import { createPortal } from "react-dom";
+import { Fragment as Fragment6, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+function ActionMenu({
+  actions,
+  trigger,
+  triggerLabel,
+  triggerClassName,
+  triggerStyle,
+  disabled = false,
+  menuClassName,
+  itemClassName,
+  dividerClassName,
+  triggerAttribute
+}) {
+  const [open, setOpen] = useState17(false);
+  const triggerRef = useRef14(null);
+  const [position, setPosition] = useState17({ top: 0, left: 0 });
+  useEffect18(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({ top: rect.top - 8, left: rect.left });
+    }
+  }, [open]);
+  useEffect18(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  if (actions.length === 0) return null;
+  const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
+  return /* @__PURE__ */ jsxs26(Fragment6, { children: [
+    /* @__PURE__ */ jsx34(
+      "button",
+      {
+        ref: triggerRef,
+        type: "button",
+        onClick: () => setOpen((v) => !v),
+        className: triggerClassName,
+        style: triggerStyle,
+        title: triggerLabel,
+        "aria-label": triggerLabel,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        disabled,
+        ...triggerProps,
+        children: trigger
+      }
+    ),
+    open && typeof document !== "undefined" && createPortal(
+      /* @__PURE__ */ jsxs26(Fragment6, { children: [
+        /* @__PURE__ */ jsx34(
+          "div",
+          {
+            className: "fixed inset-0 z-[9998]",
+            onClick: () => setOpen(false),
+            "aria-hidden": "true"
+          }
+        ),
+        /* @__PURE__ */ jsx34(
+          "div",
+          {
+            role: "menu",
+            "data-fi-action-menu": "",
+            className: menuClassName,
+            style: {
+              position: "fixed",
+              top: position.top,
+              left: position.left,
+              // Grow UPWARD from the anchor — the composer is at the bottom.
+              transform: "translateY(-100%)",
+              zIndex: 9999,
+              ...menuClassName ? {} : {
+                minWidth: "13rem",
+                padding: "0.35rem",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(15,23,42,0.98)",
+                boxShadow: "0 12px 32px rgba(0,0,0,0.45)"
+              }
+            },
+            children: actions.map((action) => {
+              const item = /* @__PURE__ */ jsxs26(
+                "button",
+                {
+                  type: "button",
+                  role: "menuitem",
+                  disabled: action.disabled,
+                  onClick: () => {
+                    setOpen(false);
+                    action.onSelect();
+                  },
+                  className: action.className ?? itemClassName,
+                  style: action.className ?? itemClassName ? void 0 : {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    width: "100%",
+                    padding: "0.5rem 0.65rem",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "transparent",
+                    color: action.disabled ? "#64748b" : "#e2e8f0",
+                    fontSize: "0.875rem",
+                    textAlign: "left",
+                    cursor: action.disabled ? "default" : "pointer"
+                  },
+                  children: [
+                    action.icon,
+                    /* @__PURE__ */ jsx34("span", { children: action.label })
+                  ]
+                },
+                action.id
+              );
+              const divider = action.dividerBefore ? /* @__PURE__ */ jsx34(
+                "div",
+                {
+                  className: dividerClassName,
+                  style: dividerClassName ? void 0 : { height: 1, margin: "0.25rem 0", background: "rgba(255,255,255,0.08)" }
+                }
+              ) : null;
+              return action.wrapperClassName ? /* @__PURE__ */ jsxs26("div", { className: action.wrapperClassName, children: [
+                divider,
+                item
+              ] }, action.id) : /* @__PURE__ */ jsxs26(Fragment5, { children: [
+                divider,
+                item
+              ] }, action.id);
+            })
+          }
+        )
+      ] }),
+      document.body
+    )
+  ] });
+}
+
+// src/composer/ComposerActions.tsx
+import { jsx as jsx35 } from "react/jsx-runtime";
 function ComposerActions({
   actions,
   disabled = false,
@@ -2656,105 +2805,30 @@ function ComposerActions({
   menuClassName,
   itemClassName
 }) {
-  const [open, setOpen] = useState17(false);
-  const rootRef = useRef14(null);
-  useEffect18(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    const onClick = (e) => {
-      if (!rootRef.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClick);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClick);
-    };
-  }, [open]);
-  if (actions.length === 0) return null;
-  return /* @__PURE__ */ jsxs26("div", { ref: rootRef, style: { position: "relative", display: "inline-flex" }, children: [
-    /* @__PURE__ */ jsx34(
-      "button",
-      {
-        type: "button",
-        "aria-label": label,
-        title: label,
-        "aria-haspopup": "menu",
-        "aria-expanded": open,
-        disabled,
-        onClick: () => setOpen((v) => !v),
-        className: `fi-touch-target ${className ?? ""}`.trim(),
-        "data-fi-composer-actions": "",
-        style: {
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "transparent",
-          border: "none",
-          cursor: disabled ? "default" : "pointer",
-          opacity: disabled ? 0.5 : 1,
-          padding: "0.375rem",
-          color: "inherit"
-        },
-        children: /* @__PURE__ */ jsx34(Plus, { size: 18, "aria-hidden": true, className: iconClassName })
-      }
-    ),
-    open && /* @__PURE__ */ jsx34(
-      "div",
-      {
-        role: "menu",
-        "data-fi-composer-actions-menu": "",
-        className: menuClassName,
-        style: menuClassName ? { position: "absolute", bottom: "100%", left: 0, zIndex: 20 } : {
-          position: "absolute",
-          bottom: "100%",
-          left: 0,
-          marginBottom: "0.5rem",
-          zIndex: 20,
-          minWidth: "13rem",
-          padding: "0.35rem",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(15,23,42,0.98)",
-          boxShadow: "0 12px 32px rgba(0,0,0,0.45)"
-        },
-        children: actions.map((action) => /* @__PURE__ */ jsxs26(
-          "button",
-          {
-            type: "button",
-            role: "menuitem",
-            disabled: action.disabled,
-            onClick: () => {
-              setOpen(false);
-              action.onSelect();
-            },
-            className: itemClassName,
-            style: itemClassName ? void 0 : {
-              display: "flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              width: "100%",
-              padding: "0.5rem 0.65rem",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: action.disabled ? "#64748b" : "#e2e8f0",
-              fontSize: "0.875rem",
-              textAlign: "left",
-              cursor: action.disabled ? "default" : "pointer"
-            },
-            children: [
-              action.icon,
-              /* @__PURE__ */ jsx34("span", { children: action.label })
-            ]
-          },
-          action.id
-        ))
-      }
-    )
-  ] });
+  return /* @__PURE__ */ jsx35(
+    ActionMenu,
+    {
+      actions,
+      trigger: /* @__PURE__ */ jsx35(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
+      triggerLabel: label,
+      triggerClassName: `fi-touch-target ${className ?? ""}`.trim(),
+      triggerStyle: {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "transparent",
+        border: "none",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        padding: "0.375rem",
+        color: "inherit"
+      },
+      disabled,
+      menuClassName,
+      itemClassName,
+      triggerAttribute: "data-fi-composer-actions"
+    }
+  );
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
@@ -2762,7 +2836,7 @@ import { ImagePlus } from "lucide-react";
 
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader212, Square as Square5 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -2782,8 +2856,8 @@ function ComposerControls({
   stopButtonClassName
 }) {
   const stopping = isStreaming && onStop != null;
-  return /* @__PURE__ */ jsxs27(Fragment5, { children: [
-    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx35(
+  return /* @__PURE__ */ jsxs27(Fragment7, { children: [
+    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx36(
       AudioVisualizer,
       {
         levels: dictation.bands,
@@ -2794,7 +2868,7 @@ function ComposerControls({
         barClassName: voiceVisualizerBarClassName
       }
     ),
-    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx35(
+    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx36(
       ComposerMicSlot,
       {
         available: true,
@@ -2813,7 +2887,7 @@ function ComposerControls({
     // While streaming, a transport that can abort turns this into a live
     // STOP button — the primary control must never be a spinner the user
     // can only watch. Without abort support it falls back to that spinner.
-    /* @__PURE__ */ jsx35(
+    /* @__PURE__ */ jsx36(
       "button",
       {
         type: "button",
@@ -2826,22 +2900,22 @@ function ComposerControls({
           sendButtonClassName,
           stopping ? stopButtonClassName : void 0
         ].filter(Boolean).join(" "),
-        children: stopping ? /* @__PURE__ */ jsx35(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx35(
+        children: stopping ? /* @__PURE__ */ jsx36(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx36(
           Loader212,
           {
             className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
             "aria-hidden": true
           }
-        ) : /* @__PURE__ */ jsx35(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+        ) : /* @__PURE__ */ jsx36(Send, { className: sendButtonIconClassName, "aria-hidden": true })
       }
     )
   ] });
 }
 
 // src/agent/conversation-surface/components/composer/NewChatButton.tsx
-import { jsx as jsx36 } from "react/jsx-runtime";
+import { jsx as jsx37 } from "react/jsx-runtime";
 function NewChatButton({ onClick, disabled, label = "New chat" }) {
-  return /* @__PURE__ */ jsx36("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx36(
+  return /* @__PURE__ */ jsx37("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx37(
     "button",
     {
       onClick,
@@ -2862,7 +2936,7 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
-import { Fragment as Fragment6, jsx as jsx37, jsxs as jsxs28 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx38, jsxs as jsxs28 } from "react/jsx-runtime";
 function ComposerRegion({ surface, state, contentInset }) {
   const {
     input,
@@ -2909,7 +2983,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     attachImageButtonClassName,
     imageChipsClassName
   } = surface;
-  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx37(
+  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx38(
     ComposerImageChips,
     {
       drafts: images.drafts,
@@ -2924,15 +2998,15 @@ function ComposerRegion({ surface, state, contentInset }) {
       {
         id: "attach-image",
         label: attachImageLabel ?? "Adjuntar imagen",
-        icon: /* @__PURE__ */ jsx37(ImagePlus, { size: 16, "aria-hidden": true }),
+        icon: /* @__PURE__ */ jsx38(ImagePlus, { size: 16, "aria-hidden": true }),
         onSelect: imagePicker.open
       }
     ] : [],
     ...composerActions ?? []
   ];
-  const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs28(Fragment6, { children: [
+  const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
     images ? imagePicker.input : null,
-    /* @__PURE__ */ jsx37(
+    /* @__PURE__ */ jsx38(
       ComposerActions,
       {
         actions,
@@ -2944,15 +3018,15 @@ function ComposerRegion({ surface, state, contentInset }) {
       }
     )
   ] }) : null;
-  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs28(Fragment6, { children: [
+  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
     imageChips,
     composerHeader
   ] }) : void 0;
-  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs28(Fragment6, { children: [
+  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
     attachButton,
     composerFooterStart
   ] }) : void 0;
-  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx37(
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx38(
     ComposerControls,
     {
       dictation,
@@ -2973,7 +3047,7 @@ function ComposerRegion({ surface, state, contentInset }) {
       stopButtonClassName
     }
   ) : null;
-  return /* @__PURE__ */ jsx37(
+  return /* @__PURE__ */ jsx38(
     "div",
     {
       style: {
@@ -2987,9 +3061,9 @@ function ComposerRegion({ surface, state, contentInset }) {
         borderTop: "1px solid rgba(255,255,255,0.06)"
       },
       children: /* @__PURE__ */ jsxs28("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx37(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-        aboveComposer && /* @__PURE__ */ jsx37("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsx37(
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx38(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx38("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx38(
           ComposerFrame,
           {
             className: composerBoxClassName,
@@ -2999,7 +3073,7 @@ function ComposerRegion({ surface, state, contentInset }) {
             footerStart,
             footerStartClassName: composerFooterStartClassName,
             footer,
-            children: /* @__PURE__ */ jsx37(
+            children: /* @__PURE__ */ jsx38(
               Composer,
               {
                 message: input,
@@ -3024,7 +3098,7 @@ function ComposerRegion({ surface, state, contentInset }) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx38, jsxs as jsxs29 } from "react/jsx-runtime";
+import { jsx as jsx39, jsxs as jsxs29 } from "react/jsx-runtime";
 function AgentConversationSurface(props) {
   const {
     conversation,
@@ -3050,9 +3124,16 @@ function AgentConversationSurface(props) {
     stop,
     retry,
     dismissError,
-    newConversation
+    newConversation,
+    unsentText,
+    clearUnsentText
   } = conversation;
   const [input, setInput] = useState18("");
+  useEffect19(() => {
+    if (!unsentText) return;
+    setInput((current) => current.trim() ? current : unsentText);
+    clearUnsentText();
+  }, [unsentText, clearUnsentText]);
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
@@ -3074,7 +3155,7 @@ function AgentConversationSurface(props) {
     send(t, attached.length > 0 ? attached : void 0);
   };
   return /* @__PURE__ */ jsxs29("div", { style: rootStyle, children: [
-    /* @__PURE__ */ jsx38(
+    /* @__PURE__ */ jsx39(
       TranscriptRegion,
       {
         surface: props,
@@ -3093,7 +3174,7 @@ function AgentConversationSurface(props) {
         contentInset
       }
     ),
-    /* @__PURE__ */ jsx38(
+    /* @__PURE__ */ jsx39(
       ComposerRegion,
       {
         surface: props,
@@ -3119,13 +3200,13 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect20,
+  useEffect as useEffect21,
   useState as useState19
 } from "react";
 import { Menu } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect19 } from "react";
+import { useEffect as useEffect20 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
 var CSS2 = `
 .fi-agent-workspace {
@@ -3171,13 +3252,13 @@ function ensureDensityStyle() {
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect19(() => {
+  useEffect20(() => {
     ensureDensityStyle();
   }, []);
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx39, jsxs as jsxs30 } from "react/jsx-runtime";
+import { jsx as jsx40, jsxs as jsxs30 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -3225,10 +3306,10 @@ function AgentWorkspaceShell({
   const open = useCallback12(() => setIsOpen(true), []);
   const close = useCallback12(() => setIsOpen(false), []);
   const toggle = useCallback12(() => setIsOpen((v) => !v), []);
-  useEffect20(() => {
+  useEffect21(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect20(() => {
+  useEffect21(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3241,7 +3322,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect20(() => {
+  useEffect21(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -3284,12 +3365,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx39("header", { "data-fi-slot": "header", children: header }),
+        header != null && /* @__PURE__ */ jsx40("header", { "data-fi-slot": "header", children: header }),
         /* @__PURE__ */ jsxs30("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx39("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx39("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+          /* @__PURE__ */ jsx40("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx40("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx39("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx40("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -3329,7 +3410,7 @@ function AgentWorkspaceShell({
       "data-fi-workspace": "agent-with-sidebar",
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx39(
+        /* @__PURE__ */ jsx40(
           "nav",
           {
             "data-fi-slot": "sidebar",
@@ -3340,7 +3421,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx39(
+        drawerMode && /* @__PURE__ */ jsx40(
           "div",
           {
             onClick: close,
@@ -3356,7 +3437,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx39(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx40(
           "button",
           {
             type: "button",
@@ -3365,7 +3446,7 @@ function AgentWorkspaceShell({
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
             style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
-            children: /* @__PURE__ */ jsx39(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx40(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -3382,7 +3463,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect21 } from "react";
+import { useEffect as useEffect22 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -3499,13 +3580,13 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect21(() => {
+  useEffect22(() => {
     ensureSidebarItemStyle();
   }, []);
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment7, jsx as jsx40, jsxs as jsxs31 } from "react/jsx-runtime";
+import { Fragment as Fragment9, jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -3520,7 +3601,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx40(
+  return /* @__PURE__ */ jsx41(
     "button",
     {
       type: "button",
@@ -3536,7 +3617,7 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx40(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx41(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState20(false);
@@ -3603,7 +3684,7 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !selected && !editing;
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx40("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx41("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
   return /* @__PURE__ */ jsxs31(
     "div",
     {
@@ -3627,8 +3708,8 @@ function AgentSidebarItem({
       children: [
         /* @__PURE__ */ jsxs31("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx40("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx40("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx41("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx41("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -3652,7 +3733,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx40(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx41(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -3660,7 +3741,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx40(
+  return /* @__PURE__ */ jsx41(
     AgentSidebarItem,
     {
       selected,
@@ -3671,8 +3752,8 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs31(Fragment7, { children: [
-        /* @__PURE__ */ jsx40(
+      actions: !rename.editing && /* @__PURE__ */ jsxs31(Fragment9, { children: [
+        /* @__PURE__ */ jsx41(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -3688,7 +3769,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect22 } from "react";
+import { useEffect as useEffect23 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -3747,13 +3828,13 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect22(() => {
+  useEffect23(() => {
     ensureSidebarSectionStyle();
   }, []);
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx41, jsxs as jsxs32 } from "react/jsx-runtime";
+import { jsx as jsx42, jsxs as jsxs32 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -3772,7 +3853,7 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx41("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx42("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
@@ -3792,8 +3873,8 @@ function AgentSidebarSection({
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx41("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx41("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx42("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx42("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );
