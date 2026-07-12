@@ -302,6 +302,21 @@ class ErrorEvent(BaseModel):
     message: str
 
 
+class PingEvent(BaseModel):
+    """A sign of life while the turn is QUIET.
+
+    A client's idle watchdog cannot tell "the model is thinking" from "the
+    backend hung" — both look like silence. And silence is normal here: a turn
+    proxied to an external engine emits NOTHING until the whole answer lands
+    (up to 95s), while a local turn can think far longer than a token gap.
+    Without this frame the client kills healthy turns and throws away what the
+    user wrote. The ping carries nothing; its arrival IS the signal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["ping"] = "ping"
+
+
 class DoneEvent(BaseModel):
     """Last frame of a healthy stream."""
 
@@ -327,6 +342,7 @@ AgentStreamEvent = Annotated[
         PlanFailedEvent,
         PlanRejectedEvent,
         ErrorEvent,
+        PingEvent,
         DoneEvent,
     ],
     Field(discriminator="type"),
@@ -395,6 +411,7 @@ __all__ = [
     "SCHEMA_VERSION",
     "AgentStreamEvent",
     "AgentStreamEventAdapter",
+    "PingEvent",
     "DoneEvent",
     "ElementEvent",
     "ElementPayload",

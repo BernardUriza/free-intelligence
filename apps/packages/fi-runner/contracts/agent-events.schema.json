@@ -143,6 +143,19 @@
       "title": "OpenEvent",
       "type": "object"
     },
+    "PingEvent": {
+      "additionalProperties": false,
+      "description": "A sign of life while the turn is QUIET.\n\nA client's idle watchdog cannot tell \"the model is thinking\" from \"the\nbackend hung\" \u2014 both look like silence. And silence is normal here: a turn\nproxied to an external engine emits NOTHING until the whole answer lands\n(up to 95s), while a local turn can think far longer than a token gap.\nWithout this frame the client kills healthy turns and throws away what the\nuser wrote. The ping carries nothing; its arrival IS the signal.",
+      "properties": {
+        "type": {
+          "const": "ping",
+          "default": "ping",
+          "type": "string"
+        }
+      },
+      "title": "PingEvent",
+      "type": "object"
+    },
     "PlanAmendedData": {
       "additionalProperties": false,
       "properties": {
@@ -842,6 +855,7 @@
       "element": "#/$defs/ElementEvent",
       "error": "#/$defs/ErrorEvent",
       "open": "#/$defs/OpenEvent",
+      "ping": "#/$defs/PingEvent",
       "plan": "#/$defs/PlanEvent",
       "plan_amended": "#/$defs/PlanAmendedEvent",
       "plan_cancelled": "#/$defs/PlanCancelledEvent",
@@ -902,6 +916,9 @@
     },
     {
       "$ref": "#/$defs/ErrorEvent"
+    },
+    {
+      "$ref": "#/$defs/PingEvent"
     },
     {
       "$ref": "#/$defs/DoneEvent"

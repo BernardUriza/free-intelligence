@@ -25,6 +25,7 @@ export function persistedTraceTurn(message: ChatMessage): AgentTurnState | null 
     sources: trace.sources ?? [],
     meta: null,
     author: message.author ?? null,
+    heartbeats: 0,
     status: 'done',
   };
 }

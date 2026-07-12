@@ -410,6 +410,7 @@ function useAgentConversation(agent, options) {
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
   const [persistError, setPersistError] = useState2(null);
+  const [unsentText, setUnsentText] = useState2(null);
   const unsaved = useRef(null);
   const runPersist = useCallback(async (thread) => {
     if (!onMessagesChangeRef.current) return;
@@ -432,6 +433,7 @@ function useAgentConversation(agent, options) {
     void runPersist(thread);
   }, [runPersist]);
   const dismissPersistError = useCallback(() => setPersistError(null), []);
+  const clearUnsentText = useCallback(() => setUnsentText(null), []);
   const pending = useRef(false);
   const messagesRef = useRef(messages);
   messagesRef.current = externalMessages ?? messages;
@@ -446,10 +448,11 @@ function useAgentConversation(agent, options) {
   const mounted = useRef(false);
   const revertOptimistic = useCallback(() => {
     if (controlledRef.current) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      return last?.role === "user" ? prev.slice(0, -1) : prev;
-    });
+    const thread = messagesRef.current;
+    const last = thread[thread.length - 1];
+    if (last?.role !== "user") return;
+    setUnsentText(last.content);
+    setMessages((prev) => prev[prev.length - 1]?.role === "user" ? prev.slice(0, -1) : prev);
   }, []);
   const awaitResolver = useRef(null);
   const send = useCallback(
@@ -458,6 +461,7 @@ function useAgentConversation(agent, options) {
       const imgs = images && images.length > 0 ? images : void 0;
       if (!t && !imgs || agent.isStreaming) return;
       lastSent.current = { text: t, images: imgs };
+      setUnsentText(null);
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
@@ -573,6 +577,8 @@ function useAgentConversation(agent, options) {
     persistError,
     retryPersist,
     dismissPersistError,
+    unsentText,
+    clearUnsentText,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : void 0,
@@ -583,7 +589,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useState as useState18 } from "react";
+import { useEffect as useEffect19, useState as useState18 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -2093,6 +2099,7 @@ function persistedTraceTurn(message) {
     sources: trace.sources ?? [],
     meta: null,
     author: message.author ?? null,
+    heartbeats: 0,
     status: "done"
   };
 }
@@ -3117,9 +3124,16 @@ function AgentConversationSurface(props) {
     stop,
     retry,
     dismissError,
-    newConversation
+    newConversation,
+    unsentText,
+    clearUnsentText
   } = conversation;
   const [input, setInput] = useState18("");
+  useEffect19(() => {
+    if (!unsentText) return;
+    setInput((current) => current.trim() ? current : unsentText);
+    clearUnsentText();
+  }, [unsentText, clearUnsentText]);
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
@@ -3186,13 +3200,13 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect20,
+  useEffect as useEffect21,
   useState as useState19
 } from "react";
 import { Menu } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect19 } from "react";
+import { useEffect as useEffect20 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
 var CSS2 = `
 .fi-agent-workspace {
@@ -3238,7 +3252,7 @@ function ensureDensityStyle() {
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect19(() => {
+  useEffect20(() => {
     ensureDensityStyle();
   }, []);
 }
@@ -3292,10 +3306,10 @@ function AgentWorkspaceShell({
   const open = useCallback12(() => setIsOpen(true), []);
   const close = useCallback12(() => setIsOpen(false), []);
   const toggle = useCallback12(() => setIsOpen((v) => !v), []);
-  useEffect20(() => {
+  useEffect21(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect20(() => {
+  useEffect21(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3308,7 +3322,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect20(() => {
+  useEffect21(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -3449,7 +3463,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect21 } from "react";
+import { useEffect as useEffect22 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -3566,7 +3580,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect21(() => {
+  useEffect22(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -3755,7 +3769,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect22 } from "react";
+import { useEffect as useEffect23 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -3814,7 +3828,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect22(() => {
+  useEffect23(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

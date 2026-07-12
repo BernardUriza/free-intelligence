@@ -31,6 +31,7 @@ export type AgentStreamEvent =
   | PlanFailedEvent
   | PlanRejectedEvent
   | ErrorEvent
+  | PingEvent
   | DoneEvent;
 
 /**
@@ -224,6 +225,19 @@ export interface GuardMatch {
 export interface ErrorEvent {
   type?: 'error';
   message: string;
+}
+/**
+ * A sign of life while the turn is QUIET.
+ *
+ * A client's idle watchdog cannot tell "the model is thinking" from "the
+ * backend hung" — both look like silence. And silence is normal here: a turn
+ * proxied to an external engine emits NOTHING until the whole answer lands
+ * (up to 95s), while a local turn can think far longer than a token gap.
+ * Without this frame the client kills healthy turns and throws away what the
+ * user wrote. The ping carries nothing; its arrival IS the signal.
+ */
+export interface PingEvent {
+  type?: 'ping';
 }
 /**
  * Last frame of a healthy stream.

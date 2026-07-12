@@ -30,6 +30,7 @@ const thinkingTurn: AgentTurnState = {
   sources: [],
   meta: null,
   author: null,
+  heartbeats: 0,
   status: 'thinking',
 };
 
@@ -631,5 +632,91 @@ describe('persist failure — a save that fails may NOT fail in silence', () => 
     });
     await foldOneTurn(ref, state, rerender);
     expect(ref.current!.persistError).toBeNull();
+  });
+});
+
+describe('P0 — a slow turn is not a dead turn, and a failed turn does not eat the prompt', () => {
+  afterEach(cleanup);
+
+  it('a heartbeat re-arms the watchdog: a quiet-but-alive turn survives past the timeout', () => {
+    vi.useFakeTimers();
+    const { hook, state, abort } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+
+    act(() => ref.current!.send('hola'));
+    rerender();
+
+    // 900ms of silence… then the backend says "still here" (a `ping` bumps
+    // heartbeats). This is the case that was killing healthy turns: an external
+    // element answers in ONE shot after up to 95s and says nothing until then.
+    act(() => {
+      vi.advanceTimersByTime(900);
+      state.turn = { ...state.turn, heartbeats: state.turn.heartbeats + 1 };
+    });
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    rerender();
+
+    // Past the raw 1000ms budget, but the turn is ALIVE: no timeout, no abort,
+    // and the user's message is still in the thread.
+    expect(ref.current!.turnError).toBeNull();
+    expect(abort).not.toHaveBeenCalled();
+    expect(ref.current!.messages).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it('silence with NO heartbeat still times out (a hung backend is still caught)', () => {
+    vi.useFakeTimers();
+    const { hook, abort } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+    act(() => ref.current!.send('hola'));
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    rerender();
+    expect(ref.current!.turnError?.kind).toBe('timeout');
+    expect(abort).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('a failed turn HANDS BACK what the user wrote (it used to destroy it)', () => {
+    vi.useFakeTimers();
+    const { hook } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+
+    act(() => ref.current!.send('un prompt que me costó escribir'));
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    rerender();
+
+    // Reverted out of the thread, yes — but NOT lost: the shell puts it back in
+    // the composer.
+    expect(ref.current!.messages).toHaveLength(0);
+    expect(ref.current!.unsentText).toBe('un prompt que me costó escribir');
+    vi.useRealTimers();
+  });
+
+  it('sending again clears the pending recovery', () => {
+    vi.useFakeTimers();
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+    act(() => ref.current!.send('primero'));
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    rerender();
+    expect(ref.current!.unsentText).toBe('primero');
+
+    state.isStreaming = false;
+    act(() => ref.current!.send('segundo'));
+    rerender();
+    expect(ref.current!.unsentText).toBeNull();
+    vi.useRealTimers();
   });
 });

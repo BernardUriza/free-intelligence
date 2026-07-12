@@ -200,6 +200,14 @@ export interface AgentConversation {
   retryPersist: () => void;
   /** Clear the persist error without retrying (the thread stays unsaved). */
   dismissPersistError: () => void;
+  /**
+   * The text of a turn that FAILED, reverted out of the thread — the shell puts
+   * it back in the composer so the user does not lose what they wrote. Null when
+   * nothing is pending recovery.
+   */
+  unsentText: string | null;
+  /** Called by the shell once it has restored `unsentText` into the composer. */
+  clearUnsentText: () => void;
   /** Send a message: pushes it optimistically, then drives the agent turn.
    * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
    * (empty text, ≥1 image) is valid — the picture IS the message. */
@@ -266,6 +274,9 @@ export function useAgentConversation(
   // out of streaming even when the transport's isStreaming is stuck true.
   const [timedOut, setTimedOut] = useState(false);
   const [persistError, setPersistError] = useState<PersistError | null>(null);
+  // What the user wrote on a turn that failed: reverted from the thread, handed
+  // back so the composer can put it back in the box instead of losing it.
+  const [unsentText, setUnsentText] = useState<string | null>(null);
   // The thread whose save failed, kept so retryPersist can re-attempt exactly it
   // (not whatever the thread has become since).
   const unsaved = useRef<ChatMessage[] | null>(null);
@@ -295,6 +306,7 @@ export function useAgentConversation(
   }, [runPersist]);
 
   const dismissPersistError = useCallback(() => setPersistError(null), []);
+  const clearUnsentText = useCallback(() => setUnsentText(null), []);
 
   // True while a turn we optimistically pushed is still in flight; gates the fold.
   const pending = useRef(false);
@@ -330,10 +342,19 @@ export function useAgentConversation(
   const revertOptimistic = useCallback(() => {
     // Controlled mode never pushed an optimistic message — nothing to revert.
     if (controlledRef.current) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      return last?.role === 'user' ? prev.slice(0, -1) : prev;
-    });
+    const thread = messagesRef.current;
+    const last = thread[thread.length - 1];
+    if (last?.role !== 'user') return;
+    // Reverting used to DESTROY what the user wrote: the message left the thread
+    // and existed nowhere else, so a turn the watchdog killed took the prompt
+    // with it. Hand it back so the composer can restore it — a failed turn must
+    // never cost the user their words.
+    //
+    // Read from the ref and set BOTH states here: setUnsentText inside the
+    // setMessages updater made it a side-effect of a reducer, which React may
+    // re-run — and a re-run resurrected the text after the next send had cleared it.
+    setUnsentText(last.content);
+    setMessages((prev) => (prev[prev.length - 1]?.role === 'user' ? prev.slice(0, -1) : prev));
   }, []);
 
   // RESONANCE: the voice loop submits a transcript and awaits the assistant's
@@ -351,6 +372,8 @@ export function useAgentConversation(
       // send is still a no-op.
       if ((!t && !imgs) || agent.isStreaming) return;
       lastSent.current = { text: t, images: imgs };
+      // A new send supersedes any prompt still waiting to be recovered.
+      setUnsentText(null);
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
@@ -518,6 +541,8 @@ export function useAgentConversation(
     persistError,
     retryPersist,
     dismissPersistError,
+    unsentText,
+    clearUnsentText,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : undefined,

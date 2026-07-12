@@ -53,6 +53,8 @@ const makeConversation = (over: Partial<AgentConversation> = {}): AgentConversat
     retry: () => {},
     dismissError: () => {},
     persistError: null,
+    unsentText: null,
+    clearUnsentText: () => {},
     retryPersist: () => {},
     dismissPersistError: () => {},
     newConversation: () => {},

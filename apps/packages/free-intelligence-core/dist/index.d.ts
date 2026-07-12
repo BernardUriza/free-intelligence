@@ -242,6 +242,8 @@ type AgentStreamEvent$1 = {
     type: 'error';
     message: string;
 } | {
+    type: 'ping';
+} | {
     type: 'done';
 };
 
@@ -294,6 +296,14 @@ interface AgentTurnState {
      * {@link MessageAuthor}.
      */
     author: MessageAuthor | null;
+    /**
+     * How many signs of life the backend has sent while the turn was QUIET (bare
+     * `ping` frames). A shell's idle watchdog re-arms on this: a healthy turn can
+     * be silent for a long time (a proxied engine answers in one shot; a model
+     * thinks before its first token), and killing it throws away what the user
+     * wrote. A counter, not a timestamp — the reducer stays pure.
+     */
+    heartbeats: number;
     status: AgentTurnStatus;
     errorMessage?: string;
 }
@@ -549,7 +559,7 @@ interface AgentHook {
 /**
  * The fi-runner agent stream contract. Generated from fi_runner/events.py — do not edit by hand.
  */
-type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | DoneEvent;
+type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | PingEvent | DoneEvent;
 /**
  * First frame of every stream. Carries the id a UI keys concurrent turns on.
  */
@@ -741,6 +751,19 @@ interface GuardMatch {
 interface ErrorEvent {
     type?: 'error';
     message: string;
+}
+/**
+ * A sign of life while the turn is QUIET.
+ *
+ * A client's idle watchdog cannot tell "the model is thinking" from "the
+ * backend hung" — both look like silence. And silence is normal here: a turn
+ * proxied to an external engine emits NOTHING until the whole answer lands
+ * (up to 95s), while a local turn can think far longer than a token gap.
+ * Without this frame the client kills healthy turns and throws away what the
+ * user wrote. The ping carries nothing; its arrival IS the signal.
+ */
+interface PingEvent {
+    type?: 'ping';
 }
 /**
  * Last frame of a healthy stream.

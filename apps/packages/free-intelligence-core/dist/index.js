@@ -7,6 +7,7 @@ function initialAgentTurnState() {
     sources: [],
     meta: null,
     author: null,
+    heartbeats: 0,
     status: "thinking"
   };
 }
@@ -109,6 +110,8 @@ function applyAgentEvent(state, event) {
     }
     case "author":
       return { ...state, author: event.author };
+    case "ping":
+      return { ...state, heartbeats: state.heartbeats + 1 };
     case "meta":
       return { ...state, meta: event.meta };
     case "error":

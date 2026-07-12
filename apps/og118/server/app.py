@@ -9,6 +9,7 @@ the core union (that mapping is the contract being validated from the consumer).
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import dataclasses
@@ -374,6 +375,51 @@ def _to_jsonable(value: object) -> object:
     return value
 
 
+# How long the turn may go quiet before the backend says "still alive". Well under
+# the client's idle watchdog, so a healthy-but-slow turn re-arms it several times.
+HEARTBEAT_INTERVAL_S = 15.0
+
+
+async def _with_heartbeat(
+    events: AsyncIterator[dict], interval: float = HEARTBEAT_INTERVAL_S
+) -> AsyncIterator[dict]:
+    """Yield the turn's events, injecting a `ping` whenever it goes quiet.
+
+    A client's idle watchdog cannot tell "thinking" from "hung": both are silence.
+    And silence is NORMAL here — an external element answers in ONE shot after up
+    to 95s (external_engine._TIMEOUT), and a local turn can think far longer than
+    a token gap. og118 shipped with no sign of life at all, so the browser killed
+    healthy turns at 60s, DISCARDED what the user had written, and showed "la
+    respuesta tardó demasiado" while the backend was still working. The ping
+    carries nothing; its arrival is the whole point.
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+    done = object()
+
+    async def pump() -> None:
+        try:
+            async for event in events:
+                await queue.put(event)
+        except Exception as exc:  # surface as a stream event, never a dead generator
+            await queue.put({"type": "error", "message": str(exc)})
+        finally:
+            await queue.put(done)
+
+    pump_task = asyncio.create_task(pump())
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval)
+            except asyncio.TimeoutError:
+                yield {"type": "ping"}
+                continue
+            if item is done:
+                return
+            yield item
+    finally:
+        pump_task.cancel()
+
+
 def _sse(event: dict) -> str:
     payload = {k: _to_jsonable(v) for k, v in event.items()}
     return f"data: {json.dumps(payload, default=str)}\n\n"
@@ -474,12 +520,17 @@ async def chat_stream(
                 yield _sse({"type": "done"})
                 return
             user_id = None if principal.is_legacy_bearer else principal.sub
-            async for ev in stream_external_turn(
-                persona_id=element.engine_binding.persona_id,
-                user_text=req.message,
-                session_uuid=req.session_id,
-                user_id=user_id,
-                history=history,
+            # The proxy is single-shot: it yields NOTHING until the whole answer
+            # lands (up to 95s). Without a sign of life the browser's watchdog
+            # killed the turn at 60s and threw away the user's message.
+            async for ev in _with_heartbeat(
+                stream_external_turn(
+                    persona_id=element.engine_binding.persona_id,
+                    user_text=req.message,
+                    session_uuid=req.session_id,
+                    user_id=user_id,
+                    history=history,
+                )
             ):
                 yield _sse(ev)
             yield _sse({"type": "done"})
@@ -487,13 +538,15 @@ async def chat_stream(
         try:
             context = {"corpus_id": req.corpus_id} if req.corpus_id else None
             images = [i.model_dump() for i in req.images] if req.images else None
-            async for event in runner.run_stream(
-                req.message,
-                session_id=req.session_id,
-                request_id=request_id,
-                history=history,
-                context=context,
-                images=images,
+            async for event in _with_heartbeat(
+                runner.run_stream(
+                    req.message,
+                    session_id=req.session_id,
+                    request_id=request_id,
+                    history=history,
+                    context=context,
+                    images=images,
+                )
             ):
                 yield _sse(event)
         except Exception as exc:  # surface as a stream event, never a 500 mid-stream

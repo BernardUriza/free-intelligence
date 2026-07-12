@@ -147,4 +147,10 @@ export type AgentStreamEvent =
   | { type: 'result'; text: string; sources?: string[]; meta?: AgentMeta }
   | { type: 'meta'; meta: AgentMeta }
   | { type: 'error'; message: string }
+  // A sign of life while the turn is QUIET. An idle watchdog cannot tell
+  // "thinking" from "hung" — both are silence — and silence is NORMAL here: a
+  // turn proxied to an external engine emits nothing until the whole answer
+  // lands. The ping carries nothing; its ARRIVAL is the signal, and the reducer
+  // stamps it so a watchdog watching the turn re-arms.
+  | { type: 'ping' }
   | { type: 'done' };
