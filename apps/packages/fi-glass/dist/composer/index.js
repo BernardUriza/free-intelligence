@@ -334,8 +334,8 @@ function useComposerImages(options = {}) {
 
 // src/composer/ComposerImageAttachments.tsx
 import { useRef as useRef3 } from "react";
-import { ImagePlus, X } from "lucide-react";
-import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { X } from "lucide-react";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 function ComposerImageChips({
   drafts,
   onRemove,
@@ -396,40 +396,71 @@ function ComposerImageChips({
     }
   );
 }
-function AttachImageButton({
-  onFiles,
+function useImagePicker(onFiles) {
+  const inputRef = useRef3(null);
+  const input = /* @__PURE__ */ jsx4(
+    "input",
+    {
+      ref: inputRef,
+      type: "file",
+      accept: COMPOSER_IMAGE_ACCEPT,
+      multiple: true,
+      style: { display: "none" },
+      "data-fi-image-input": "",
+      onChange: (e) => {
+        const files = Array.from(e.target.files ?? []);
+        e.target.value = "";
+        if (files.length > 0) onFiles(files);
+      }
+    }
+  );
+  return { input, open: () => inputRef.current?.click() };
+}
+
+// src/composer/ComposerActions.tsx
+import { useEffect as useEffect3, useRef as useRef4, useState as useState3 } from "react";
+import { Plus } from "lucide-react";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function ComposerActions({
+  actions,
   disabled = false,
+  label = "A\xF1adir",
   className,
   iconClassName,
-  label = "Adjuntar imagen"
+  menuClassName,
+  itemClassName
 }) {
-  const inputRef = useRef3(null);
-  return /* @__PURE__ */ jsxs3(Fragment, { children: [
-    /* @__PURE__ */ jsx4(
-      "input",
-      {
-        ref: inputRef,
-        type: "file",
-        accept: COMPOSER_IMAGE_ACCEPT,
-        multiple: true,
-        style: { display: "none" },
-        onChange: (e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = "";
-          if (files.length > 0) onFiles(files);
-        }
-      }
-    ),
-    /* @__PURE__ */ jsx4(
+  const [open, setOpen] = useState3(false);
+  const rootRef = useRef4(null);
+  useEffect3(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const onClick = (e) => {
+      if (!rootRef.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [open]);
+  if (actions.length === 0) return null;
+  return /* @__PURE__ */ jsxs4("div", { ref: rootRef, style: { position: "relative", display: "inline-flex" }, children: [
+    /* @__PURE__ */ jsx5(
       "button",
       {
         type: "button",
         "aria-label": label,
         title: label,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
         disabled,
-        onClick: () => inputRef.current?.click(),
+        onClick: () => setOpen((v) => !v),
         className: `fi-touch-target ${className ?? ""}`.trim(),
-        "data-fi-attach-image": "",
+        "data-fi-composer-actions": "",
         style: {
           display: "inline-flex",
           alignItems: "center",
@@ -441,22 +472,76 @@ function AttachImageButton({
           padding: "0.375rem",
           color: "inherit"
         },
-        children: /* @__PURE__ */ jsx4(ImagePlus, { size: 18, "aria-hidden": true, className: iconClassName })
+        children: /* @__PURE__ */ jsx5(Plus, { size: 18, "aria-hidden": true, className: iconClassName })
+      }
+    ),
+    open && /* @__PURE__ */ jsx5(
+      "div",
+      {
+        role: "menu",
+        "data-fi-composer-actions-menu": "",
+        className: menuClassName,
+        style: menuClassName ? { position: "absolute", bottom: "100%", left: 0, zIndex: 20 } : {
+          position: "absolute",
+          bottom: "100%",
+          left: 0,
+          marginBottom: "0.5rem",
+          zIndex: 20,
+          minWidth: "13rem",
+          padding: "0.35rem",
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(15,23,42,0.98)",
+          boxShadow: "0 12px 32px rgba(0,0,0,0.45)"
+        },
+        children: actions.map((action) => /* @__PURE__ */ jsxs4(
+          "button",
+          {
+            type: "button",
+            role: "menuitem",
+            disabled: action.disabled,
+            onClick: () => {
+              setOpen(false);
+              action.onSelect();
+            },
+            className: itemClassName,
+            style: itemClassName ? void 0 : {
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              width: "100%",
+              padding: "0.5rem 0.65rem",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: action.disabled ? "#64748b" : "#e2e8f0",
+              fontSize: "0.875rem",
+              textAlign: "left",
+              cursor: action.disabled ? "default" : "pointer"
+            },
+            children: [
+              action.icon,
+              /* @__PURE__ */ jsx5("span", { children: action.label })
+            ]
+          },
+          action.id
+        ))
       }
     )
   ] });
 }
 export {
-  AttachImageButton,
   AutoResizeTextarea,
   COMPOSER_IMAGE_ACCEPT,
   COMPOSER_IMAGE_MEDIA_TYPES,
   Composer,
+  ComposerActions,
   ComposerFrame,
   ComposerImageChips,
   DEFAULT_MAX_IMAGES,
   ensureComposerFrameStyle,
   useComposerFrameStyle,
-  useComposerImages
+  useComposerImages,
+  useImagePicker
 };
 //# sourceMappingURL=index.js.map

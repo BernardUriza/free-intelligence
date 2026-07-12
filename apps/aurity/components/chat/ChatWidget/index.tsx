@@ -38,6 +38,7 @@ import type { ChatHook } from '@aurity-standalone/types/chat';
 import { useChatPreferences } from './useChatPreferences';
 import { useVoiceInput } from './useVoiceInput';
 import { useFileUploadState } from './useFileUploadState';
+import { ChatInstructionsPrompt } from '../ChatInstructionsPrompt';
 import { PersonaSelectorPanel } from '../PersonaSelectorPanel';
 import { HistorySearch, type InteractionResult } from '../HistorySearch';
 import { ChatWidgetMessages } from '../ChatWidgetMessages';
@@ -238,6 +239,19 @@ export function ChatWidget({
       uploadStatus={fileUpload.status}
       isUploadActive={fileUpload.isActive}
       onAttach={fileUpload.openPicker}
+      // The staged step the migration to the monorepo left unwired:
+      // ChatInstructionsPrompt existed, nothing mounted it, so setInstructions was
+      // never called and every upload parked in `pending_instructions` — indexing
+      // never started and the chip span "Procesando…" with no way out.
+      uploadPrompt={
+        fileUpload.isPending && fileUpload.file ? (
+          <ChatInstructionsPrompt
+            filename={fileUpload.file.name}
+            onSelect={(instruction) => void fileUpload.setInstructions(instruction)}
+            onCancel={fileUpload.cancel}
+          />
+        ) : undefined
+      }
       onCancelUpload={fileUpload.cancel}
       onCopyCurl={handleCopyCurl}
       personaSelector={

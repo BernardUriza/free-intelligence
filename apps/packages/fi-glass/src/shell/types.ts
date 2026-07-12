@@ -116,6 +116,18 @@ export interface ChatWidgetProps<TMessage = ChatMessage, TNode = unknown> {
   isUploadActive?: boolean;
   onAttach?: () => void;
   onCancelUpload?: () => void;
+  /**
+   * What the app asks the user AFTER a document lands and BEFORE it is indexed —
+   * aurity's "¿cómo debe usarlo la persona?" (reference / quote verbatim /
+   * background context). Rendered under the file preview while the upload sits
+   * in `pending_instructions`.
+   *
+   * Without this slot the step had nowhere to render: aurity's
+   * ChatInstructionsPrompt was never mounted by anyone, so `setInstructions` was
+   * never called, indexing never started, and the file chip span "Procesando…"
+   * forever. A staged flow needs its stage.
+   */
+  uploadPrompt?: ReactNode;
 
   // ---- Conversation start screen ----
   isStartingConversation?: boolean;
@@ -194,6 +206,8 @@ export interface ChatContentProps {
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
   onAttach?: () => void;
+  /** The staged "how should the persona use this document?" step (see above). */
+  uploadPrompt?: ReactNode;
   onCancelUpload?: () => void;
   onCopyCurl?: () => void;
 

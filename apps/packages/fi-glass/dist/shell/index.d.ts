@@ -184,6 +184,18 @@ interface ChatWidgetProps<TMessage = ChatMessage, TNode = unknown> {
     isUploadActive?: boolean;
     onAttach?: () => void;
     onCancelUpload?: () => void;
+    /**
+     * What the app asks the user AFTER a document lands and BEFORE it is indexed —
+     * aurity's "¿cómo debe usarlo la persona?" (reference / quote verbatim /
+     * background context). Rendered under the file preview while the upload sits
+     * in `pending_instructions`.
+     *
+     * Without this slot the step had nowhere to render: aurity's
+     * ChatInstructionsPrompt was never mounted by anyone, so `setInstructions` was
+     * never called, indexing never started, and the file chip span "Procesando…"
+     * forever. A staged flow needs its stage.
+     */
+    uploadPrompt?: ReactNode;
     isStartingConversation?: boolean;
     onStartConversation?: () => void;
     /** PersonaSelectorPanel (uses @/components/ui/select) — lives in the app. */
@@ -242,6 +254,8 @@ interface ChatContentProps {
     onVoiceStart?: () => void;
     onVoiceStop?: () => void;
     onAttach?: () => void;
+    /** The staged "how should the persona use this document?" step (see above). */
+    uploadPrompt?: ReactNode;
     onCancelUpload?: () => void;
     onCopyCurl?: () => void;
     personaSelector?: ReactNode;
@@ -253,7 +267,7 @@ interface ChatContentProps {
     }) => ReactNode;
 }
 
-declare function ChatWidget<TMessage = ChatMessage, TNode = unknown>({ chatHook, config: customConfig, user, isAuthenticated, onLogin, onNavigate, isMobile: isMobileProp, initialOpen, initialMode, embedded, message, onMessageChange, onSend, responseMode, selectedPersona, personaName, showThinking, onResponseModeToggle, onShowThinkingToggle, onPersonaChange, onClearConversation, voiceState, onVoiceStart, onVoiceStop, uploadFile, uploadStatus, isUploadActive, onAttach, onCancelUpload, isStartingConversation, onStartConversation, personaSelector, renderHistory, renderMessages, onCopyCurl, }: ChatWidgetProps<TMessage, TNode>): react.JSX.Element | null;
+declare function ChatWidget<TMessage = ChatMessage, TNode = unknown>({ chatHook, config: customConfig, user, isAuthenticated, onLogin, onNavigate, isMobile: isMobileProp, initialOpen, initialMode, embedded, message, onMessageChange, onSend, responseMode, selectedPersona, personaName, showThinking, onResponseModeToggle, onShowThinkingToggle, onPersonaChange, onClearConversation, voiceState, onVoiceStart, onVoiceStop, uploadFile, uploadStatus, isUploadActive, onAttach, uploadPrompt, onCancelUpload, isStartingConversation, onStartConversation, personaSelector, renderHistory, renderMessages, onCopyCurl, }: ChatWidgetProps<TMessage, TNode>): react.JSX.Element | null;
 
 /**
  * Same surface as ChatWidget minus the launcher/view-mode knobs, which
@@ -262,7 +276,7 @@ declare function ChatWidget<TMessage = ChatMessage, TNode = unknown>({ chatHook,
 type ChatSurfaceProps<TMessage = ChatMessage, TNode = unknown> = Omit<ChatWidgetProps<TMessage, TNode>, 'initialOpen' | 'embedded' | 'initialMode'>;
 declare function ChatSurface<TMessage = ChatMessage, TNode = unknown>(props: ChatSurfaceProps<TMessage, TNode>): react.JSX.Element;
 
-declare function ChatContent({ config, embedded, isAuthenticated, userName, viewMode, isHistoryOpen, isStartingConversation, messageCount, loading, isTyping, loadingInitial, customEmptyState, customQuickReplies, message, responseMode, selectedPersona, personaName, showThinking, voiceState, uploadFile, uploadStatus, isUploadActive, onNavigate, onModeChange, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistoryOpen, onHistoryClose, onStartConversation, onLogin, onMessageChange, onSend, onResponseModeToggle, onShowThinkingToggle, onPersonaChange: _onPersonaChange, onClearConversation, onVoiceStart, onVoiceStop, onAttach, onCancelUpload, onCopyCurl, personaSelector, renderHistory, renderMessages, }: ChatContentProps): react.JSX.Element;
+declare function ChatContent({ config, embedded, isAuthenticated, userName, viewMode, isHistoryOpen, isStartingConversation, messageCount, loading, isTyping, loadingInitial, customEmptyState, customQuickReplies, message, responseMode, selectedPersona, personaName, showThinking, voiceState, uploadFile, uploadStatus, isUploadActive, uploadPrompt, onNavigate, onModeChange, onMinimize, onMaximize, onToggleDenseMode, onClose, onHistoryOpen, onHistoryClose, onStartConversation, onLogin, onMessageChange, onSend, onResponseModeToggle, onShowThinkingToggle, onPersonaChange: _onPersonaChange, onClearConversation, onVoiceStart, onVoiceStop, onAttach, onCancelUpload, onCopyCurl, personaSelector, renderHistory, renderMessages, }: ChatContentProps): react.JSX.Element;
 
 interface ChatWidgetContainerProps {
     /** Current view mode */

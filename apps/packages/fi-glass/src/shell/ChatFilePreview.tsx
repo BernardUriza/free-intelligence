@@ -63,7 +63,12 @@ export function ChatFilePreview({
   const isCompleted = status === 'indexed';
   const isError = status === 'error';
   const isUploading = status === 'uploading';
-  const isProcessing = status === 'processing' || status === 'pending_instructions';
+  // `pending_instructions` is NOT processing: nothing is running, the flow is
+  // WAITING FOR THE USER to say how the document should be used. Calling it
+  // "Procesando…" spun a loader forever AND hid the cancel button (see below),
+  // so an upload that stalled here could not even be dismissed.
+  const isProcessing = status === 'processing';
+  const isAwaitingUser = status === 'pending_instructions';
 
   return (
     <div className={`
@@ -112,6 +117,12 @@ export function ChatFilePreview({
               </span>
             </>
           )}
+          {isAwaitingUser && (
+            <>
+              <span>-</span>
+              <span className="fi-text-primary">Elige cómo usarlo</span>
+            </>
+          )}
           {isProcessing && (
             <>
               <span>-</span>
@@ -145,7 +156,8 @@ export function ChatFilePreview({
         )}
       </div>
 
-      {/* Cancel Button */}
+      {/* Cancel Button — available whenever the user could be stuck, which
+          includes waiting-for-instructions (it did NOT before). */}
       {!isCompleted && !isProcessing && (
         <button
           type="button"
