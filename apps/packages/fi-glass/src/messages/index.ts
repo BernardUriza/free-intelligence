@@ -12,6 +12,12 @@ export {
   defaultMessageHeader,
   type MessageAuthorHeaderProps,
 } from './MessageAuthorHeader';
+// The default "powered by <model>" chip — rendered off the persisted trace.
+export {
+  MessageModelBadge,
+  defaultMessageBadge,
+  type MessageModelBadgeProps,
+} from './MessageModelBadge';
 // B3-FIGLASS-12: ChatGPT-style "show more" disclosure clamp for long content.
 export { CollapsibleText, type CollapsibleTextProps } from './CollapsibleText';
 export {

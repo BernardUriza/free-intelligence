@@ -435,8 +435,46 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   );
 }
 
-// src/messages/MessageList.tsx
+// src/messages/MessageModelBadge.tsx
 import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+function MessageModelBadge({
+  model,
+  title = "Generado por {model}",
+  label = "Powered by"
+}) {
+  return /* @__PURE__ */ jsxs5(
+    "span",
+    {
+      "data-fi-model-badge": "",
+      title: title.replace("{model}", model),
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 8px",
+        borderRadius: 9999,
+        border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(15,23,42,0.5)",
+        fontSize: 11,
+        color: "#94a3b8"
+      },
+      children: [
+        label,
+        " ",
+        /* @__PURE__ */ jsx6("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+      ]
+    }
+  );
+}
+function defaultMessageBadge(message) {
+  if (message.role !== "assistant") return void 0;
+  const model = message.trace?.model?.trim();
+  if (!model) return void 0;
+  return /* @__PURE__ */ jsx6(MessageModelBadge, { model });
+}
+
+// src/messages/MessageList.tsx
+import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -446,11 +484,11 @@ function MessageList({
   header,
   footer
 }) {
-  return /* @__PURE__ */ jsxs5("div", { className: containerClassName, children: [
+  return /* @__PURE__ */ jsxs6("div", { className: containerClassName, children: [
     header,
-    groups.map((group) => /* @__PURE__ */ jsxs5("div", { children: [
+    groups.map((group) => /* @__PURE__ */ jsxs6("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx6("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx7("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
@@ -465,7 +503,7 @@ import {
   useRef as useRef2,
   useState as useState3
 } from "react";
-import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   value,
   onChange,
@@ -505,8 +543,8 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   const charCount = typeof value === "string" ? value.length : 0;
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
-  return /* @__PURE__ */ jsxs6("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
-    /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsxs7("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
+    /* @__PURE__ */ jsx8(
       "textarea",
       {
         ref: textareaRef,
@@ -523,7 +561,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
         ...props
       }
     ),
-    showCounter && maxLength && /* @__PURE__ */ jsxs6("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
+    showCounter && maxLength && /* @__PURE__ */ jsxs7("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
       charCount,
       "/",
       maxLength
@@ -532,7 +570,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
 });
 
 // src/composer/Composer.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
+import { jsx as jsx9 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
@@ -556,7 +594,7 @@ function Composer({
       onSend();
     }
   };
-  return /* @__PURE__ */ jsx8("div", { className: areaClassName, children: /* @__PURE__ */ jsx8(
+  return /* @__PURE__ */ jsx9("div", { className: areaClassName, children: /* @__PURE__ */ jsx9(
     AutoResizeTextarea,
     {
       ref: textareaRef,
@@ -578,7 +616,7 @@ function Composer({
 
 // src/composer/ComposerFrame.tsx
 import { useEffect as useEffect4 } from "react";
-import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
+import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
 var CSS = `
 [data-fi-composer-slot="header"] {
@@ -631,17 +669,17 @@ function ComposerFrame({
   footerStartClassName
 }) {
   useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs7("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx9("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+  return /* @__PURE__ */ jsxs8("div", { className, style, "data-fi-composer-frame": "", children: [
+    filled(header) && /* @__PURE__ */ jsx10("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs7(
+    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs8(
       "div",
       {
         className: footerClassName,
         style: footerStyle,
         "data-fi-composer-slot": "footer",
         children: [
-          filled(footerStart) && /* @__PURE__ */ jsx9("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          filled(footerStart) && /* @__PURE__ */ jsx10("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
           footer
         ]
       }
@@ -735,7 +773,7 @@ var STATUS_TEXT_EN = {
 };
 
 // src/voice/recording/RecordingButton.tsx
-import { jsx as jsx10 } from "react/jsx-runtime";
+import { jsx as jsx11 } from "react/jsx-runtime";
 var RecordingButton = forwardRef2(
   function RecordingButton2({
     size = "md",
@@ -752,7 +790,7 @@ var RecordingButton = forwardRef2(
   }, ref) {
     const sizeConfig = BUTTON_SIZES[size];
     const DisplayIcon = iconSpin ? Loader2 : Icon;
-    return /* @__PURE__ */ jsx10(
+    return /* @__PURE__ */ jsx11(
       "button",
       {
         ref,
@@ -760,7 +798,7 @@ var RecordingButton = forwardRef2(
         disabled,
         "aria-label": ariaLabel,
         className: `fi-recording-btn-base ${sizeConfig.button} ${bgColor} ${borderStyle} ${animate} ${disabled ? "rec-btn-disabled" : "rec-btn-enabled"} ${className}`,
-        children: /* @__PURE__ */ jsx10(
+        children: /* @__PURE__ */ jsx11(
           DisplayIcon,
           {
             className: `${sizeConfig.icon} ${iconColor} ${iconSpin ? "rec-icon-spin" : ""}`
@@ -773,17 +811,17 @@ var RecordingButton = forwardRef2(
 
 // src/voice/recording/PulseRings.tsx
 import { motion } from "framer-motion";
-import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 function PingRings({ color = "yellow-500" }) {
   const bgClass = `rec-pulse-bg-${color}`;
-  return /* @__PURE__ */ jsxs8(Fragment2, { children: [
-    /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsxs9(Fragment2, { children: [
+    /* @__PURE__ */ jsx12(
       "div",
       {
         className: `rec-pulse-ping-primary ${bgClass}`
       }
     ),
-    /* @__PURE__ */ jsx11(
+    /* @__PURE__ */ jsx12(
       "div",
       {
         className: `rec-pulse-ping-secondary ${bgClass}`,
@@ -799,7 +837,7 @@ function ConcentricRings({ color = "yellow-500" }) {
     { scale: 1.5, opacity: 0.3, delay: 0.2 },
     { scale: 1.7, opacity: 0.2, delay: 0.4 }
   ];
-  return /* @__PURE__ */ jsx11(Fragment2, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsx12(Fragment2, { children: rings.map((ring, i) => /* @__PURE__ */ jsx12(
     motion.div,
     {
       className: `rec-pulse-concentric ${borderClass}`,
@@ -829,7 +867,7 @@ function VADRings({
     { baseScale: 1.4, opacityBase: 0.4 },
     { baseScale: 1.6, opacityBase: 0.2 }
   ];
-  return /* @__PURE__ */ jsx11(Fragment2, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsx12(Fragment2, { children: rings.map((ring, i) => /* @__PURE__ */ jsx12(
     motion.div,
     {
       className: "rec-pulse-vad",
@@ -855,16 +893,16 @@ function PulseRings({
   className = ""
 }) {
   if (style === "none") return null;
-  return /* @__PURE__ */ jsxs8("div", { className: `rec-pulse-container ${className}`, children: [
-    style === "ping" && /* @__PURE__ */ jsx11(PingRings, { color }),
-    style === "rings" && /* @__PURE__ */ jsx11(ConcentricRings, { color }),
-    style === "vad" && /* @__PURE__ */ jsx11(VADRings, { audioLevel, isSilent })
+  return /* @__PURE__ */ jsxs9("div", { className: `rec-pulse-container ${className}`, children: [
+    style === "ping" && /* @__PURE__ */ jsx12(PingRings, { color }),
+    style === "rings" && /* @__PURE__ */ jsx12(ConcentricRings, { color }),
+    style === "vad" && /* @__PURE__ */ jsx12(VADRings, { audioLevel, isSilent })
   ] });
 }
 
 // src/voice/recording/RecordingTimer.tsx
 import { motion as motion2 } from "framer-motion";
-import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function formatRecordingTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -885,8 +923,8 @@ function RecordingTimer({
   className = ""
 }) {
   if (!visible || time <= 0) return null;
-  return /* @__PURE__ */ jsxs9("div", { className: `rec-timer-wrap ${SIZE_CLASSES[size]} ${className}`, children: [
-    showDot && /* @__PURE__ */ jsx12(
+  return /* @__PURE__ */ jsxs10("div", { className: `rec-timer-wrap ${SIZE_CLASSES[size]} ${className}`, children: [
+    showDot && /* @__PURE__ */ jsx13(
       motion2.div,
       {
         className: `rec-timer-dot ${dotColor}`,
@@ -898,14 +936,14 @@ function RecordingTimer({
         }
       }
     ),
-    /* @__PURE__ */ jsx12("span", { className: `${textColor} rec-timer-value`, children: formatRecordingTime(time) })
+    /* @__PURE__ */ jsx13("span", { className: `${textColor} rec-timer-value`, children: formatRecordingTime(time) })
   ] });
 }
 
 // src/voice/recording/StatusText.tsx
 import { Loader2 as Loader22 } from "lucide-react";
 import { motion as motion3 } from "framer-motion";
-import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 function StatusText({
   text,
   color = "rec-status-color-default",
@@ -913,12 +951,12 @@ function StatusText({
   animate = false,
   className = ""
 }) {
-  const content = /* @__PURE__ */ jsxs10("div", { className: `rec-status-wrap ${color} ${className}`, children: [
-    showLoader && /* @__PURE__ */ jsx13(Loader22, { className: "rec-status-loader" }),
-    /* @__PURE__ */ jsx13("p", { className: "rec-status-text", children: text })
+  const content = /* @__PURE__ */ jsxs11("div", { className: `rec-status-wrap ${color} ${className}`, children: [
+    showLoader && /* @__PURE__ */ jsx14(Loader22, { className: "rec-status-loader" }),
+    /* @__PURE__ */ jsx14("p", { className: "rec-status-text", children: text })
   ] });
   if (animate) {
-    return /* @__PURE__ */ jsx13(
+    return /* @__PURE__ */ jsx14(
       motion3.div,
       {
         initial: { opacity: 0.7 },
@@ -934,7 +972,7 @@ function StatusText({
 // src/voice/VoiceMicButton.tsx
 import { Mic, Square, Loader2 as Loader23 } from "lucide-react";
 import { motion as motion4 } from "framer-motion";
-import { jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+import { jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 function deriveState(isRecording, isTranscribing) {
   if (isTranscribing && !isRecording) return "processing";
   if (isRecording) return "recording";
@@ -970,9 +1008,9 @@ function VoiceMicButton({
   };
   const icon = isTranscribing ? Loader23 : isRecording ? Square : Mic;
   const iconColor = state === "idle" ? "text-gray-700 dark:text-gray-200" : "text-white";
-  return /* @__PURE__ */ jsxs11("div", { className: `relative inline-flex items-center gap-3 ${className}`, children: [
-    /* @__PURE__ */ jsxs11("div", { className: "relative", children: [
-      isRecording && /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs12("div", { className: `relative inline-flex items-center gap-3 ${className}`, children: [
+    /* @__PURE__ */ jsxs12("div", { className: "relative", children: [
+      isRecording && /* @__PURE__ */ jsx15(
         PulseRings,
         {
           style: "vad",
@@ -980,7 +1018,7 @@ function VoiceMicButton({
           isSilent
         }
       ),
-      /* @__PURE__ */ jsx14(
+      /* @__PURE__ */ jsx15(
         motion4.div,
         {
           animate: {
@@ -991,7 +1029,7 @@ function VoiceMicButton({
             repeat: isRecording && !isSilent ? Infinity : 0,
             ease: "easeInOut"
           },
-          children: /* @__PURE__ */ jsx14(
+          children: /* @__PURE__ */ jsx15(
             RecordingButton,
             {
               size: "md",
@@ -1008,13 +1046,13 @@ function VoiceMicButton({
         }
       )
     ] }),
-    isRecording && /* @__PURE__ */ jsx14(
+    isRecording && /* @__PURE__ */ jsx15(
       motion4.div,
       {
         initial: { opacity: 0, x: -10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 },
-        children: /* @__PURE__ */ jsx14(
+        children: /* @__PURE__ */ jsx15(
           RecordingTimer,
           {
             time: recordingTime,
@@ -1025,7 +1063,7 @@ function VoiceMicButton({
         )
       }
     ),
-    isTranscribing && !isRecording && /* @__PURE__ */ jsx14(
+    isTranscribing && !isRecording && /* @__PURE__ */ jsx15(
       motion4.div,
       {
         initial: { opacity: 0 },
@@ -1039,7 +1077,7 @@ function VoiceMicButton({
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
-import { jsx as jsx15 } from "react/jsx-runtime";
+import { jsx as jsx16 } from "react/jsx-runtime";
 var ICON_SIZE = { xs: "w-3 h-3", sm: "w-3.5 h-3.5", md: "w-4 h-4" };
 var PAD_SIZE = { xs: "p-1", sm: "p-1.5", md: "p-2" };
 function formatVoiceName(voiceId) {
@@ -1065,7 +1103,7 @@ function SpeakButton({
   const voiceDisplay = formatVoiceName(voice);
   const icon = iconClassName ?? ICON_SIZE[size];
   const label = busy ? busyTitle : cached ? cachedTitle : title ?? `Escuchar (${voiceDisplay})`;
-  return /* @__PURE__ */ jsx15(
+  return /* @__PURE__ */ jsx16(
     "button",
     {
       type: "button",
@@ -1077,7 +1115,7 @@ function SpeakButton({
       className: `${FI_TOUCH_TARGET_CLASS} ${className ?? PAD_SIZE[size]}`,
       title: label,
       "aria-label": busy ? busyTitle : cached ? cachedTitle : `Escuchar mensaje con voz ${voiceDisplay}`,
-      children: busy ? /* @__PURE__ */ jsx15(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx15(Play, { className: icon }) : /* @__PURE__ */ jsx15(Volume2, { className: icon })
+      children: busy ? /* @__PURE__ */ jsx16(Loader24, { className: `${icon} animate-spin` }) : cached ? /* @__PURE__ */ jsx16(Play, { className: icon }) : /* @__PURE__ */ jsx16(Volume2, { className: icon })
     }
   );
 }
@@ -1325,7 +1363,7 @@ function useAudioPlayer(opts = {}) {
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
 import { useEffect as useEffect6 } from "react";
-import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
 function AudioPlayer({
@@ -1347,8 +1385,8 @@ function AudioPlayer({
   const hasSource = currentSrc !== null;
   const btnClass = buttonClassName ?? BTN;
   const iconClass = iconClassName ?? ICON;
-  return /* @__PURE__ */ jsxs12("div", { className, "data-fi-audio-player": "", children: [
-    /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsxs13("div", { className, "data-fi-audio-player": "", children: [
+    /* @__PURE__ */ jsx17(
       "button",
       {
         type: "button",
@@ -1357,10 +1395,10 @@ function AudioPlayer({
         "aria-pressed": isPlaying,
         "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
         className: btnClass,
-        children: isLoading ? /* @__PURE__ */ jsx16(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx16(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx16(Play2, { className: iconClass, "aria-hidden": true })
+        children: isLoading ? /* @__PURE__ */ jsx17(Loader25, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx17(Pause, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx17(Play2, { className: iconClass, "aria-hidden": true })
       }
     ),
-    /* @__PURE__ */ jsx16(
+    /* @__PURE__ */ jsx17(
       "button",
       {
         type: "button",
@@ -1368,11 +1406,11 @@ function AudioPlayer({
         disabled: !hasSource,
         "aria-label": "Detener audio",
         className: btnClass,
-        children: /* @__PURE__ */ jsx16(Square2, { className: iconClass, "aria-hidden": true })
+        children: /* @__PURE__ */ jsx17(Square2, { className: iconClass, "aria-hidden": true })
       }
     ),
-    error ? /* @__PURE__ */ jsxs12("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
-      /* @__PURE__ */ jsx16(AlertCircle, { className: iconClass, "aria-hidden": true }),
+    error ? /* @__PURE__ */ jsxs13("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
+      /* @__PURE__ */ jsx17(AlertCircle, { className: iconClass, "aria-hidden": true }),
       "Error de audio"
     ] }) : null
   ] });
@@ -1389,7 +1427,7 @@ import {
   RotateCw
 } from "lucide-react";
 import { useEffect as useEffect7 } from "react";
-import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
   if (typeof document === "undefined") return;
@@ -1504,7 +1542,7 @@ function RichAudioPlayer({
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
   )}`;
-  return /* @__PURE__ */ jsxs13(
+  return /* @__PURE__ */ jsxs14(
     "div",
     {
       className,
@@ -1512,7 +1550,7 @@ function RichAudioPlayer({
       role: "group",
       "aria-label": "Controles de reproducci\xF3n de audio",
       children: [
-        /* @__PURE__ */ jsx17(
+        /* @__PURE__ */ jsx18(
           "button",
           {
             type: "button",
@@ -1520,10 +1558,10 @@ function RichAudioPlayer({
             disabled: !canSeek,
             "aria-label": `Retroceder ${skipSeconds} segundos`,
             className: btnClass,
-            children: /* @__PURE__ */ jsx17(RotateCcw, { className: iconClass, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx18(RotateCcw, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx17(
+        /* @__PURE__ */ jsx18(
           "button",
           {
             type: "button",
@@ -1532,10 +1570,10 @@ function RichAudioPlayer({
             "aria-pressed": isPlaying,
             "aria-label": isPlaying ? "Pausar audio" : "Reproducir audio",
             className: btnClass,
-            children: isLoading ? /* @__PURE__ */ jsx17(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx17(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx17(Play3, { className: iconClass, "aria-hidden": true })
+            children: isLoading ? /* @__PURE__ */ jsx18(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx18(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx18(Play3, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx17(
+        /* @__PURE__ */ jsx18(
           "button",
           {
             type: "button",
@@ -1543,10 +1581,10 @@ function RichAudioPlayer({
             disabled: !hasSource,
             "aria-label": "Detener audio",
             className: btnClass,
-            children: /* @__PURE__ */ jsx17(Square3, { className: iconClass, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx18(Square3, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx17(
+        /* @__PURE__ */ jsx18(
           "button",
           {
             type: "button",
@@ -1554,10 +1592,10 @@ function RichAudioPlayer({
             disabled: !canSeek,
             "aria-label": `Avanzar ${skipSeconds} segundos`,
             className: btnClass,
-            children: /* @__PURE__ */ jsx17(RotateCw, { className: iconClass, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx18(RotateCw, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx17(
+        /* @__PURE__ */ jsx18(
           "input",
           {
             type: "range",
@@ -1574,9 +1612,9 @@ function RichAudioPlayer({
             "data-fi-audio-progress": ""
           }
         ),
-        showTime ? /* @__PURE__ */ jsx17("span", { "data-fi-audio-time": "", "aria-hidden": true, className: "text-xs tabular-nums", children: positionLabel }) : null,
-        error ? /* @__PURE__ */ jsxs13("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
-          /* @__PURE__ */ jsx17(AlertCircle2, { className: iconClass, "aria-hidden": true }),
+        showTime ? /* @__PURE__ */ jsx18("span", { "data-fi-audio-time": "", "aria-hidden": true, className: "text-xs tabular-nums", children: positionLabel }) : null,
+        error ? /* @__PURE__ */ jsxs14("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
+          /* @__PURE__ */ jsx18(AlertCircle2, { className: iconClass, "aria-hidden": true }),
           "Error de audio"
         ] }) : null
       ]
@@ -1585,7 +1623,7 @@ function RichAudioPlayer({
 }
 
 // src/voice/AudioVisualizer.tsx
-import { jsx as jsx18 } from "react/jsx-runtime";
+import { jsx as jsx19 } from "react/jsx-runtime";
 var MIN_BAR_PCT = 4;
 function normalizeLevels(levels) {
   return levels.map(
@@ -1620,7 +1658,7 @@ function AudioVisualizer({
   if (variant === "pulse") {
     const peak = active && normalized.length ? Math.max(...normalized) : 0;
     const scale = 1 + peak;
-    return /* @__PURE__ */ jsx18(
+    return /* @__PURE__ */ jsx19(
       "div",
       {
         role: "img",
@@ -1628,7 +1666,7 @@ function AudioVisualizer({
         className,
         "data-fi-audio-visualizer": "pulse",
         "data-active": active ? "" : void 0,
-        children: /* @__PURE__ */ jsx18(
+        children: /* @__PURE__ */ jsx19(
           "span",
           {
             "data-fi-pulse-core": "",
@@ -1644,7 +1682,7 @@ function AudioVisualizer({
   }
   const count = barCount && barCount > 0 ? barCount : normalized.length;
   const bars = resampleLevels(normalized, count);
-  return /* @__PURE__ */ jsx18(
+  return /* @__PURE__ */ jsx19(
     "div",
     {
       role: "img",
@@ -1655,7 +1693,7 @@ function AudioVisualizer({
       style: { display: "inline-flex", alignItems: "flex-end" },
       children: bars.map((level, i) => {
         const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
-        return /* @__PURE__ */ jsx18(
+        return /* @__PURE__ */ jsx19(
           "span",
           {
             "data-fi-audio-bar": "",
@@ -1671,7 +1709,7 @@ function AudioVisualizer({
 
 // src/voice/ComposerMicSlot.tsx
 import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "lucide-react";
-import { jsx as jsx19 } from "react/jsx-runtime";
+import { jsx as jsx20 } from "react/jsx-runtime";
 var ICON3 = "w-4 h-4";
 var BTN3 = "p-2 disabled:opacity-40";
 function ComposerMicSlot({
@@ -1699,7 +1737,7 @@ function ComposerMicSlot({
     else onStart?.();
   };
   const Icon = !available ? MicOff : busy ? Loader27 : recording ? Square4 : Mic2;
-  return /* @__PURE__ */ jsx19("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx19(
+  return /* @__PURE__ */ jsx20("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx20(
     "button",
     {
       type: "button",
@@ -1710,7 +1748,7 @@ function ComposerMicSlot({
       "aria-label": label,
       title: !available ? unavailableLabel : void 0,
       className: btnClass,
-      children: /* @__PURE__ */ jsx19(
+      children: /* @__PURE__ */ jsx20(
         Icon,
         {
           className: busy ? `${iconClass} animate-spin` : iconClass,
@@ -2910,25 +2948,25 @@ import {
   Trash2,
   FileAudio
 } from "lucide-react";
-import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
+import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 function StateIcon({ state }) {
   const base = "w-4 h-4 shrink-0";
   switch (state) {
     case "recording":
-      return /* @__PURE__ */ jsx20(Mic3, { className: `${base} text-red-400 animate-pulse` });
+      return /* @__PURE__ */ jsx21(Mic3, { className: `${base} text-red-400 animate-pulse` });
     case "paused":
-      return /* @__PURE__ */ jsx20(PauseCircle, { className: `${base} text-yellow-400` });
+      return /* @__PURE__ */ jsx21(PauseCircle, { className: `${base} text-yellow-400` });
     case "stopping":
-      return /* @__PURE__ */ jsx20(Loader28, { className: `${base} text-amber-400 animate-spin` });
+      return /* @__PURE__ */ jsx21(Loader28, { className: `${base} text-amber-400 animate-spin` });
     case "transcribed":
-      return /* @__PURE__ */ jsx20(CheckCircle2, { className: `${base} text-green-400` });
+      return /* @__PURE__ */ jsx21(CheckCircle2, { className: `${base} text-green-400` });
     case "failed":
-      return /* @__PURE__ */ jsx20(AlertCircle3, { className: `${base} text-red-400` });
+      return /* @__PURE__ */ jsx21(AlertCircle3, { className: `${base} text-red-400` });
     case "transcribing":
     case "uploading":
-      return /* @__PURE__ */ jsx20(Loader28, { className: `${base} text-blue-400 animate-spin` });
+      return /* @__PURE__ */ jsx21(Loader28, { className: `${base} text-blue-400 animate-spin` });
     default:
-      return /* @__PURE__ */ jsx20(FileAudio, { className: `${base} text-gray-400` });
+      return /* @__PURE__ */ jsx21(FileAudio, { className: `${base} text-gray-400` });
   }
 }
 function AudioQueueItem({
@@ -2968,41 +3006,41 @@ function AudioQueueItem({
   const canRetry = artifact.state === "failed";
   const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && artifact.state !== "recording" && artifact.state !== "paused";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
-  return /* @__PURE__ */ jsxs14(
+  return /* @__PURE__ */ jsxs15(
     "div",
     {
       className: `flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10 ${className}`,
       children: [
-        /* @__PURE__ */ jsx20(StateIcon, { state: artifact.state }),
-        /* @__PURE__ */ jsxs14("div", { className: "flex-1 min-w-0 space-y-0.5", children: [
-          /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-2 text-xs", children: [
-            /* @__PURE__ */ jsx20("span", { className: "font-medium text-white/80", children: artifactLabel(artifact.state) }),
-            /* @__PURE__ */ jsx20("span", { className: "text-white/40", children: "\xB7" }),
-            /* @__PURE__ */ jsx20("span", { className: "text-white/50", children: formatArtifactDuration(artifact.durationMs) }),
-            /* @__PURE__ */ jsx20("span", { className: "text-white/40", children: "\xB7" }),
-            /* @__PURE__ */ jsx20("span", { className: "text-white/50", children: formatArtifactSize(artifact.size) })
+        /* @__PURE__ */ jsx21(StateIcon, { state: artifact.state }),
+        /* @__PURE__ */ jsxs15("div", { className: "flex-1 min-w-0 space-y-0.5", children: [
+          /* @__PURE__ */ jsxs15("div", { className: "flex items-center gap-2 text-xs", children: [
+            /* @__PURE__ */ jsx21("span", { className: "font-medium text-white/80", children: artifactLabel(artifact.state) }),
+            /* @__PURE__ */ jsx21("span", { className: "text-white/40", children: "\xB7" }),
+            /* @__PURE__ */ jsx21("span", { className: "text-white/50", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx21("span", { className: "text-white/40", children: "\xB7" }),
+            /* @__PURE__ */ jsx21("span", { className: "text-white/50", children: formatArtifactSize(artifact.size) })
           ] }),
-          artifact.state === "transcribed" && artifact.transcript && /* @__PURE__ */ jsx20("p", { className: "text-xs text-white/60 truncate", children: artifact.transcript }),
-          artifact.state === "failed" && artifact.errorMessage && /* @__PURE__ */ jsx20("p", { className: "text-xs text-red-400/80 truncate", children: artifact.errorMessage }),
-          /* @__PURE__ */ jsx20("p", { className: "text-[10px] text-white/30", children: new Date(artifact.createdAt).toLocaleString("es-MX", {
+          artifact.state === "transcribed" && artifact.transcript && /* @__PURE__ */ jsx21("p", { className: "text-xs text-white/60 truncate", children: artifact.transcript }),
+          artifact.state === "failed" && artifact.errorMessage && /* @__PURE__ */ jsx21("p", { className: "text-xs text-red-400/80 truncate", children: artifact.errorMessage }),
+          /* @__PURE__ */ jsx21("p", { className: "text-[10px] text-white/30", children: new Date(artifact.createdAt).toLocaleString("es-MX", {
             hour: "2-digit",
             minute: "2-digit",
             day: "numeric",
             month: "short"
           }) })
         ] }),
-        /* @__PURE__ */ jsxs14("div", { className: "flex items-center gap-1 shrink-0", children: [
-          canPlay && /* @__PURE__ */ jsx20(
+        /* @__PURE__ */ jsxs15("div", { className: "flex items-center gap-1 shrink-0", children: [
+          canPlay && /* @__PURE__ */ jsx21(
             "button",
             {
               onClick: handlePlay,
               disabled: isBusy,
               className: "p-1.5 rounded-md hover:bg-white/10 text-white/50 hover:text-white/80 transition-colors",
               "aria-label": playing ? "Pausar" : "Reproducir",
-              children: /* @__PURE__ */ jsx20(Play4, { className: "w-3.5 h-3.5" })
+              children: /* @__PURE__ */ jsx21(Play4, { className: "w-3.5 h-3.5" })
             }
           ),
-          canTranscribe && onTranscribe && /* @__PURE__ */ jsx20(
+          canTranscribe && onTranscribe && /* @__PURE__ */ jsx21(
             "button",
             {
               onClick: () => onTranscribe(artifact.id),
@@ -3011,33 +3049,33 @@ function AudioQueueItem({
               children: "Transcribir"
             }
           ),
-          canRetry && onRetry && /* @__PURE__ */ jsx20(
+          canRetry && onRetry && /* @__PURE__ */ jsx21(
             "button",
             {
               onClick: () => onRetry(artifact.id),
               className: "p-1.5 rounded-md hover:bg-white/10 text-yellow-400/70 hover:text-yellow-400 transition-colors",
               "aria-label": "Reintentar transcripci\xF3n",
-              children: /* @__PURE__ */ jsx20(RotateCcw2, { className: "w-3.5 h-3.5" })
+              children: /* @__PURE__ */ jsx21(RotateCcw2, { className: "w-3.5 h-3.5" })
             }
           ),
-          artifact.state === "transcribed" && onArchive && /* @__PURE__ */ jsx20(
+          artifact.state === "transcribed" && onArchive && /* @__PURE__ */ jsx21(
             "button",
             {
               onClick: () => onArchive(artifact.id),
               className: "fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors",
               "aria-label": "Marcar como enviado al chat",
               title: "Marcar como enviado al chat",
-              children: /* @__PURE__ */ jsx20(CheckCheck, { className: "w-3.5 h-3.5" })
+              children: /* @__PURE__ */ jsx21(CheckCheck, { className: "w-3.5 h-3.5" })
             }
           ),
-          onDelete && artifact.state !== "recording" && artifact.state !== "paused" && /* @__PURE__ */ jsx20(
+          onDelete && artifact.state !== "recording" && artifact.state !== "paused" && /* @__PURE__ */ jsx21(
             "button",
             {
               onClick: () => onDelete(artifact.id),
               disabled: isBusy,
               className: "p-1.5 rounded-md hover:bg-white/10 text-white/30 hover:text-red-400 transition-colors",
               "aria-label": "Eliminar audio",
-              children: /* @__PURE__ */ jsx20(Trash2, { className: "w-3.5 h-3.5" })
+              children: /* @__PURE__ */ jsx21(Trash2, { className: "w-3.5 h-3.5" })
             }
           )
         ] })
@@ -3047,7 +3085,7 @@ function AudioQueueItem({
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var DEFAULT_PRIVACY_NOTICE = "Tu audio se guarda localmente hasta que lo transcribas o elimines. No se env\xEDa al servidor hasta que lo solicites.";
 var DEFAULT_PRIVACY_NOTICE_MS = 35e3;
 function AudioQueuePanel({
@@ -3081,40 +3119,40 @@ function AudioQueuePanel({
   const hasTranscribed = visible.some((a) => a.state === "transcribed");
   const visibleBytes = visible.reduce((s, a) => s + a.size, 0);
   if (isLoading) {
-    return /* @__PURE__ */ jsx21("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx21(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
+    return /* @__PURE__ */ jsx22("div", { className: `flex items-center justify-center p-4 ${className}`, children: /* @__PURE__ */ jsx22(Loader29, { className: "w-4 h-4 text-white/40 animate-spin" }) });
   }
   if (visible.length === 0) return null;
-  return /* @__PURE__ */ jsxs15("div", { className: `space-y-2 ${className}`, children: [
-    showNotice && /* @__PURE__ */ jsxs15("div", { className: "fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20", children: [
-      /* @__PURE__ */ jsx21(Info, { className: "w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" }),
-      /* @__PURE__ */ jsx21("p", { className: "text-[11px] text-blue-200/70 leading-relaxed", children: privacyNotice })
+  return /* @__PURE__ */ jsxs16("div", { className: `space-y-2 ${className}`, children: [
+    showNotice && /* @__PURE__ */ jsxs16("div", { className: "fi-audio-queue-notice flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20", children: [
+      /* @__PURE__ */ jsx22(Info, { className: "w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ jsx22("p", { className: "text-[11px] text-blue-200/70 leading-relaxed", children: privacyNotice })
     ] }),
-    /* @__PURE__ */ jsxs15("div", { className: "flex items-center justify-between px-1", children: [
-      /* @__PURE__ */ jsxs15("span", { className: "text-xs text-white/50", children: [
+    /* @__PURE__ */ jsxs16("div", { className: "flex items-center justify-between px-1", children: [
+      /* @__PURE__ */ jsxs16("span", { className: "text-xs text-white/50", children: [
         visible.length,
         " audio",
         visible.length !== 1 ? "s" : "",
         " \xB7 ",
         formatArtifactSize(visibleBytes)
       ] }),
-      hasTranscribed && /* @__PURE__ */ jsxs15(
+      hasTranscribed && /* @__PURE__ */ jsxs16(
         "button",
         {
           onClick: clearTranscribed,
           className: "flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors",
           children: [
-            /* @__PURE__ */ jsx21(Trash22, { className: "w-3 h-3" }),
+            /* @__PURE__ */ jsx22(Trash22, { className: "w-3 h-3" }),
             "Limpiar transcritos"
           ]
         }
       )
     ] }),
-    /* @__PURE__ */ jsx21(
+    /* @__PURE__ */ jsx22(
       "div",
       {
         className: "space-y-1.5 overflow-y-auto",
         style: { maxHeight: `${maxVisible * 68}px` },
-        children: visible.map((artifact) => /* @__PURE__ */ jsx21(
+        children: visible.map((artifact) => /* @__PURE__ */ jsx22(
           AudioQueueItem,
           {
             artifact,
@@ -3134,7 +3172,7 @@ function AudioQueuePanel({
 // src/voice/AudioDraftPlayer.tsx
 import { useState as useState12, useEffect as useEffect12 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
-import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 function AudioDraftPlayer({
   artifact,
   onGetPlaybackUrl,
@@ -3175,7 +3213,7 @@ function AudioDraftPlayer({
       setPlaybackUrl(null);
     };
   }, [artifact.id, hasBlob, onGetPlaybackUrl]);
-  return /* @__PURE__ */ jsxs16(
+  return /* @__PURE__ */ jsxs17(
     "div",
     {
       className: variant === "row" ? `fi-audio-draft fi-audio-draft--row flex items-center gap-3 px-2 py-1.5 ${className}` : `fi-audio-draft flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.07] border border-white/[0.14] backdrop-blur-xl shadow-lg shadow-black/30 ${className}`,
@@ -3186,15 +3224,15 @@ function AudioDraftPlayer({
           // Paused with the recorded-so-far WAV in hand: play it back through
           // the SAME primitive the TTS player uses. The pulsing dot keeps
           // signalling that the recording session is still open.
-          /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
-            /* @__PURE__ */ jsx22(
+          /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx23(
               "span",
               {
                 className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
                 "aria-hidden": "true"
               }
             ),
-            /* @__PURE__ */ jsx22(
+            /* @__PURE__ */ jsx23(
               RichAudioPlayer,
               {
                 source: pausedPreview,
@@ -3204,24 +3242,24 @@ function AudioDraftPlayer({
                 progressClassName: "flex-1 min-w-0 text-amber-400 cursor-pointer disabled:cursor-not-allowed"
               }
             ),
-            /* @__PURE__ */ jsx22("span", { className: "hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0", children: "En pausa" })
+            /* @__PURE__ */ jsx23("span", { className: "hidden sm:inline text-xs font-medium text-amber-300/80 shrink-0", children: "En pausa" })
           ] })
         ) : isPaused ? (
           // Paused but the preview WAV is still being spliced (or the consumer
           // didn't wire one): honest status, never a dead play control.
-          /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
-            /* @__PURE__ */ jsx22(
+          /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-2.5 flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsx23(
               "span",
               {
                 className: "fi-audio-draft-pauseddot shrink-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse",
                 "aria-hidden": "true"
               }
             ),
-            /* @__PURE__ */ jsx22("span", { className: "text-sm tabular-nums text-white/80", children: formatArtifactDuration(artifact.durationMs) }),
-            /* @__PURE__ */ jsx22("span", { className: "text-xs font-medium text-amber-300/80", children: "Grabaci\xF3n en pausa" })
+            /* @__PURE__ */ jsx23("span", { className: "text-sm tabular-nums text-white/80", children: formatArtifactDuration(artifact.durationMs) }),
+            /* @__PURE__ */ jsx23("span", { className: "text-xs font-medium text-amber-300/80", children: "Grabaci\xF3n en pausa" })
           ] })
-        ) : /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsx22(
+        ) : /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-2 flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsx23(
             RichAudioPlayer,
             {
               source: playbackUrl ? { url: playbackUrl } : null,
@@ -3231,28 +3269,28 @@ function AudioDraftPlayer({
               progressClassName: "flex-1 min-w-0 text-emerald-400 cursor-pointer disabled:cursor-not-allowed"
             }
           ),
-          /* @__PURE__ */ jsxs16("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
-            artifact.size > 0 && /* @__PURE__ */ jsx22("span", { children: formatArtifactSize(artifact.size) }),
-            isSaving && /* @__PURE__ */ jsxs16("span", { className: "inline-flex items-center gap-1 text-amber-400/70", children: [
-              /* @__PURE__ */ jsx22(Loader210, { className: "w-3.5 h-3.5 animate-spin", "aria-hidden": true }),
+          /* @__PURE__ */ jsxs17("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
+            artifact.size > 0 && /* @__PURE__ */ jsx23("span", { children: formatArtifactSize(artifact.size) }),
+            isSaving && /* @__PURE__ */ jsxs17("span", { className: "inline-flex items-center gap-1 text-amber-400/70", children: [
+              /* @__PURE__ */ jsx23(Loader210, { className: "w-3.5 h-3.5 animate-spin", "aria-hidden": true }),
               "Guardando\u2026"
             ] }),
-            isBusy && /* @__PURE__ */ jsx22("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" })
+            isBusy && /* @__PURE__ */ jsx23("span", { className: "text-blue-400/70", children: "Transcribiendo\u2026" })
           ] }),
-          isFailed && artifact.errorMessage && /* @__PURE__ */ jsx22("span", { role: "alert", className: "text-xs text-red-400/80 truncate shrink min-w-0", children: artifact.errorMessage })
+          isFailed && artifact.errorMessage && /* @__PURE__ */ jsx23("span", { role: "alert", className: "text-xs text-red-400/80 truncate shrink min-w-0", children: artifact.errorMessage })
         ] }),
-        /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-1 shrink-0", children: [
-          onDiscard && !isBusy && /* @__PURE__ */ jsx22(
+        /* @__PURE__ */ jsxs17("div", { className: "flex items-center gap-1 shrink-0", children: [
+          onDiscard && !isBusy && /* @__PURE__ */ jsx23(
             "button",
             {
               type: "button",
               onClick: () => onDiscard(artifact.id),
               "aria-label": "Descartar grabaci\xF3n",
               className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-discard p-2 rounded-xl text-white/35 hover:text-red-400 hover:bg-white/10 transition-colors`,
-              children: /* @__PURE__ */ jsx22(Trash23, { className: "w-4 h-4" })
+              children: /* @__PURE__ */ jsx23(Trash23, { className: "w-4 h-4" })
             }
           ),
-          onResume ? /* @__PURE__ */ jsxs16(
+          onResume ? /* @__PURE__ */ jsxs17(
             "button",
             {
               type: "button",
@@ -3260,20 +3298,20 @@ function AudioDraftPlayer({
               "aria-label": "Reanudar grabaci\xF3n",
               className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-resume flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-all active:scale-95`,
               children: [
-                /* @__PURE__ */ jsx22(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
+                /* @__PURE__ */ jsx23(Play5, { className: "w-3.5 h-3.5 ml-0.5" }),
                 "Reanudar"
               ]
             }
-          ) : isFailed && onRetry ? /* @__PURE__ */ jsx22(
+          ) : isFailed && onRetry ? /* @__PURE__ */ jsx23(
             "button",
             {
               type: "button",
               onClick: () => onRetry(artifact.id),
               "aria-label": "Reintentar",
               className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-retry p-2 rounded-xl text-amber-400/80 hover:text-amber-400 hover:bg-white/10 transition-colors`,
-              children: /* @__PURE__ */ jsx22(RotateCcw3, { className: "w-4 h-4" })
+              children: /* @__PURE__ */ jsx23(RotateCcw3, { className: "w-4 h-4" })
             }
-          ) : onPrimary && /* @__PURE__ */ jsxs16(
+          ) : onPrimary && /* @__PURE__ */ jsxs17(
             "button",
             {
               type: "button",
@@ -3281,7 +3319,7 @@ function AudioDraftPlayer({
               disabled: isSaving || isBusy,
               className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
               children: [
-                /* @__PURE__ */ jsx22(ArrowUp, { className: "w-3.5 h-3.5" }),
+                /* @__PURE__ */ jsx23(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel
               ]
             }
@@ -4123,12 +4161,12 @@ var CHAT_BREAKPOINTS = {
 
 // src/shell/FloatingButton.tsx
 import { MessageCircle } from "lucide-react";
-import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 function FloatingButton({ onClick, isMobile }) {
   const buttonSize = isMobile ? "w-16 h-16" : "w-14 h-14";
   const iconSize = isMobile ? "h-7 w-7" : "h-6 w-6";
   const buttonPosition = isMobile ? "bottom-4 right-4" : "bottom-6 right-6";
-  return /* @__PURE__ */ jsxs17(
+  return /* @__PURE__ */ jsxs18(
     "button",
     {
       onClick,
@@ -4138,9 +4176,9 @@ function FloatingButton({ onClick, isMobile }) {
       `,
       "aria-label": "Chat with Free Intelligence",
       children: [
-        /* @__PURE__ */ jsx23(MessageCircle, { className: `${iconSize} text-white` }),
-        /* @__PURE__ */ jsx23("span", { className: "fi-dot-pulse-red" }),
-        !isMobile && /* @__PURE__ */ jsx23("div", { className: "fi-tooltip-right", children: "Habla con Free Intelligence" })
+        /* @__PURE__ */ jsx24(MessageCircle, { className: `${iconSize} text-white` }),
+        /* @__PURE__ */ jsx24("span", { className: "fi-dot-pulse-red" }),
+        !isMobile && /* @__PURE__ */ jsx24("div", { className: "fi-tooltip-right", children: "Habla con Free Intelligence" })
       ]
     }
   );
@@ -4151,7 +4189,7 @@ import { Loader2 as Loader213 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -4159,10 +4197,10 @@ function ChatWidgetContainer(props) {
   });
   const effectiveMode = mode === "minimized" ? "minimized" : isMobile ? mode === "dense" ? "dense" : "fullscreen" : isTablet && (mode === "normal" || mode === "expanded") ? "expanded" : mode;
   if (effectiveMode === "minimized") {
-    return /* @__PURE__ */ jsxs18("div", { className: "chat-container-minimized", onClick: () => onModeChange("normal"), children: [
-      /* @__PURE__ */ jsx24(MessageCircle2, { className: "chat-container-minimized-icon" }),
-      /* @__PURE__ */ jsx24("span", { className: "chat-container-minimized-title", children: title }),
-      /* @__PURE__ */ jsx24(
+    return /* @__PURE__ */ jsxs19("div", { className: "chat-container-minimized", onClick: () => onModeChange("normal"), children: [
+      /* @__PURE__ */ jsx25(MessageCircle2, { className: "chat-container-minimized-icon" }),
+      /* @__PURE__ */ jsx25("span", { className: "chat-container-minimized-title", children: title }),
+      /* @__PURE__ */ jsx25(
         "button",
         {
           onClick: (e) => {
@@ -4171,15 +4209,15 @@ function ChatWidgetContainer(props) {
           },
           className: "ml-2 fi-hover-ghost",
           "aria-label": "Expand chat",
-          children: /* @__PURE__ */ jsx24("div", { className: "chat-container-minimized-pulse" })
+          children: /* @__PURE__ */ jsx25("div", { className: "chat-container-minimized-pulse" })
         }
       )
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs18(Fragment3, { children: [
-      /* @__PURE__ */ jsx24("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
-      /* @__PURE__ */ jsx24(
+    return /* @__PURE__ */ jsxs19(Fragment3, { children: [
+      /* @__PURE__ */ jsx25("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
+      /* @__PURE__ */ jsx25(
         "div",
         {
           className: "chat-container-expanded-tablet",
@@ -4190,7 +4228,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded") {
-    return /* @__PURE__ */ jsx24(
+    return /* @__PURE__ */ jsx25(
       "div",
       {
         className: "chat-container-expanded",
@@ -4205,20 +4243,20 @@ function ChatWidgetContainer(props) {
     );
   }
   if (embedded && (effectiveMode === "fullscreen" || effectiveMode === "dense")) {
-    return /* @__PURE__ */ jsx24("div", { className: "chat-container-embedded", children });
+    return /* @__PURE__ */ jsx25("div", { className: "chat-container-embedded", children });
   }
   if (effectiveMode === "dense") {
-    return /* @__PURE__ */ jsx24("div", { className: "chat-container-dense", children });
+    return /* @__PURE__ */ jsx25("div", { className: "chat-container-dense", children });
   }
   if (effectiveMode === "fullscreen") {
-    return /* @__PURE__ */ jsx24("div", { className: "chat-container-fullscreen", children });
+    return /* @__PURE__ */ jsx25("div", { className: "chat-container-fullscreen", children });
   }
-  return /* @__PURE__ */ jsx24("div", { className: "chat-container-normal", children });
+  return /* @__PURE__ */ jsx25("div", { className: "chat-container-normal", children });
 }
 
 // src/shell/ChatWidgetHeader.tsx
 import { X, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -4235,9 +4273,9 @@ function ChatWidgetHeader({
   onClose,
   onHistorySearch
 }) {
-  return /* @__PURE__ */ jsxs19("div", { className: `${backgroundClass} chat-header`, children: [
-    /* @__PURE__ */ jsxs19("div", { className: "flex items-center gap-3 min-w-0", children: [
-      /* @__PURE__ */ jsx25(
+  return /* @__PURE__ */ jsxs20("div", { className: `${backgroundClass} chat-header`, children: [
+    /* @__PURE__ */ jsxs20("div", { className: "flex items-center gap-3 min-w-0", children: [
+      /* @__PURE__ */ jsx26(
         "button",
         {
           type: "button",
@@ -4245,27 +4283,27 @@ function ChatWidgetHeader({
           className: "chat-header-icon",
           title: "Abrir chat completo",
           "aria-label": "Abrir chat completo",
-          children: /* @__PURE__ */ jsx25(MessageCircle3, { className: "h-5 w-5 text-white" })
+          children: /* @__PURE__ */ jsx26(MessageCircle3, { className: "h-5 w-5 text-white" })
         }
       ),
-      /* @__PURE__ */ jsxs19("div", { className: "min-w-0", children: [
-        /* @__PURE__ */ jsx25("h3", { className: "chat-header-title", children: title }),
-        subtitle && /* @__PURE__ */ jsx25("p", { className: "chat-header-subtitle", children: subtitle })
+      /* @__PURE__ */ jsxs20("div", { className: "min-w-0", children: [
+        /* @__PURE__ */ jsx26("h3", { className: "chat-header-title", children: title }),
+        subtitle && /* @__PURE__ */ jsx26("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx25("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs19(Fragment4, { children: [
-      showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx25("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx25(Search, { className: "h-4 w-4" }) }),
-      mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx25("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs19("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx25("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
-        /* @__PURE__ */ jsx25("path", { d: "M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z" })
+    /* @__PURE__ */ jsx26("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs20(Fragment4, { children: [
+      showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx26("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx26(Search, { className: "h-4 w-4" }) }),
+      mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx26("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs20("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
+        /* @__PURE__ */ jsx26("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
+        /* @__PURE__ */ jsx26("path", { d: "M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z" })
       ] }) }),
-      mode === "dense" && onToggleDenseMode && /* @__PURE__ */ jsx25("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo expandido", title: "Modo expandido (con controles)", type: "button", children: /* @__PURE__ */ jsxs19("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx25("path", { d: "M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" }),
-        /* @__PURE__ */ jsx25("path", { d: "M6.5 4.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zM8 8.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5zm3-4a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zm0 6a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5z" })
+      mode === "dense" && onToggleDenseMode && /* @__PURE__ */ jsx26("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo expandido", title: "Modo expandido (con controles)", type: "button", children: /* @__PURE__ */ jsxs20("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
+        /* @__PURE__ */ jsx26("path", { d: "M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" }),
+        /* @__PURE__ */ jsx26("path", { d: "M6.5 4.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zM8 8.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5zm3-4a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zm0 6a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5z" })
       ] }) }),
-      mode === "expanded" && /* @__PURE__ */ jsx25("button", { onClick: onMinimize, className: HEADER_BTN_CLASS, "aria-label": "Restaurar tama\xF1o", title: "Restaurar a tama\xF1o normal", type: "button", children: /* @__PURE__ */ jsx25(Minimize2, { className: "h-4 w-4" }) }),
-      mode === "normal" && /* @__PURE__ */ jsx25("button", { onClick: onMaximize, className: HEADER_BTN_CLASS, "aria-label": "Expandir", title: "Expandir (60% m\xE1s grande)", type: "button", children: /* @__PURE__ */ jsx25(Maximize2, { className: "h-4 w-4" }) }),
-      /* @__PURE__ */ jsx25("button", { onClick: onClose, className: HEADER_BTN_CLASS, "aria-label": "Close", title: "Cerrar", type: "button", children: /* @__PURE__ */ jsx25(X, { className: "h-5 w-5" }) })
+      mode === "expanded" && /* @__PURE__ */ jsx26("button", { onClick: onMinimize, className: HEADER_BTN_CLASS, "aria-label": "Restaurar tama\xF1o", title: "Restaurar a tama\xF1o normal", type: "button", children: /* @__PURE__ */ jsx26(Minimize2, { className: "h-4 w-4" }) }),
+      mode === "normal" && /* @__PURE__ */ jsx26("button", { onClick: onMaximize, className: HEADER_BTN_CLASS, "aria-label": "Expandir", title: "Expandir (60% m\xE1s grande)", type: "button", children: /* @__PURE__ */ jsx26(Maximize2, { className: "h-4 w-4" }) }),
+      /* @__PURE__ */ jsx26("button", { onClick: onClose, className: HEADER_BTN_CLASS, "aria-label": "Close", title: "Cerrar", type: "button", children: /* @__PURE__ */ jsx26(X, { className: "h-5 w-5" }) })
     ] }) })
   ] });
 }
@@ -4274,7 +4312,7 @@ function ChatWidgetHeader({
 import { useState as useState15, useRef as useRef9, useEffect as useEffect14 } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
 function ChatToolbar({
   showAttach = true,
   showLanguage = true,
@@ -4318,11 +4356,11 @@ function ChatToolbar({
   }, [overflowOpen]);
   const buttonBaseClass = "chat-toolbar-btn";
   const iconClass = "chat-toolbar-icon";
-  return /* @__PURE__ */ jsxs20("div", { className: "chat-toolbar", children: [
-    /* @__PURE__ */ jsxs20("div", { className: "fi-flex-gap-sm", children: [
+  return /* @__PURE__ */ jsxs21("div", { className: "chat-toolbar", children: [
+    /* @__PURE__ */ jsxs21("div", { className: "fi-flex-gap-sm", children: [
       showPersonaSelector && personaSelector,
-      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs20("div", { className: "relative", children: [
-        /* @__PURE__ */ jsx26(
+      (showAttach || showLanguage || showFormatting) && /* @__PURE__ */ jsxs21("div", { className: "relative", children: [
+        /* @__PURE__ */ jsx27(
           "button",
           {
             ref: overflowButtonRef,
@@ -4330,12 +4368,12 @@ function ChatToolbar({
             className: buttonBaseClass,
             title: "M\xE1s opciones",
             "aria-label": "M\xE1s opciones",
-            children: /* @__PURE__ */ jsx26(MoreVertical, { className: iconClass })
+            children: /* @__PURE__ */ jsx27(MoreVertical, { className: iconClass })
           }
         ),
         overflowOpen && createPortal(
-          /* @__PURE__ */ jsxs20(Fragment5, { children: [
-            /* @__PURE__ */ jsx26(
+          /* @__PURE__ */ jsxs21(Fragment5, { children: [
+            /* @__PURE__ */ jsx27(
               "div",
               {
                 className: "fixed inset-0 z-[9998]",
@@ -4343,7 +4381,7 @@ function ChatToolbar({
                 "aria-hidden": "true"
               }
             ),
-            /* @__PURE__ */ jsxs20(
+            /* @__PURE__ */ jsxs21(
               "div",
               {
                 className: "chat-dropdown",
@@ -4353,7 +4391,7 @@ function ChatToolbar({
                   transform: "translateY(-100%)"
                 },
                 children: [
-                  showAttach && /* @__PURE__ */ jsxs20(
+                  showAttach && /* @__PURE__ */ jsxs21(
                     "button",
                     {
                       onClick: () => {
@@ -4362,12 +4400,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx26(Paperclip, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx26("span", { children: "Adjuntar archivo" })
+                        /* @__PURE__ */ jsx27(Paperclip, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx27("span", { children: "Adjuntar archivo" })
                       ]
                     }
                   ),
-                  showLanguage && /* @__PURE__ */ jsxs20(
+                  showLanguage && /* @__PURE__ */ jsxs21(
                     "button",
                     {
                       onClick: () => {
@@ -4376,12 +4414,12 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx26(Globe, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx26("span", { children: "Cambiar idioma" })
+                        /* @__PURE__ */ jsx27(Globe, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx27("span", { children: "Cambiar idioma" })
                       ]
                     }
                   ),
-                  showFormatting && /* @__PURE__ */ jsxs20(
+                  showFormatting && /* @__PURE__ */ jsxs21(
                     "button",
                     {
                       onClick: () => {
@@ -4390,14 +4428,14 @@ function ChatToolbar({
                       },
                       className: "chat-dropdown-item",
                       children: [
-                        /* @__PURE__ */ jsx26(Type, { className: "fi-icon-sm" }),
-                        /* @__PURE__ */ jsx26("span", { children: "Formato de texto" })
+                        /* @__PURE__ */ jsx27(Type, { className: "fi-icon-sm" }),
+                        /* @__PURE__ */ jsx27("span", { children: "Formato de texto" })
                       ]
                     }
                   ),
-                  showCopyCurl && /* @__PURE__ */ jsxs20(Fragment5, { children: [
-                    /* @__PURE__ */ jsx26("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs20(
+                  showCopyCurl && /* @__PURE__ */ jsxs21(Fragment5, { children: [
+                    /* @__PURE__ */ jsx27("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs21(
                       "button",
                       {
                         onClick: () => {
@@ -4406,15 +4444,15 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300",
                         children: [
-                          /* @__PURE__ */ jsx26(Terminal, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx26("span", { children: "Copiar plantilla curl" })
+                          /* @__PURE__ */ jsx27(Terminal, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx27("span", { children: "Copiar plantilla curl" })
                         ]
                       }
                     )
                   ] }),
-                  showThinkingToggle && /* @__PURE__ */ jsxs20("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx26("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs20(
+                  showThinkingToggle && /* @__PURE__ */ jsxs21("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx27("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs21(
                       "button",
                       {
                         onClick: () => {
@@ -4423,15 +4461,15 @@ function ChatToolbar({
                         },
                         className: `chat-dropdown-item ${showThinking ? "fi-text-purple hover:bg-purple-900/20" : ""}`,
                         children: [
-                          /* @__PURE__ */ jsx26(Sparkles, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx26("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
+                          /* @__PURE__ */ jsx27(Sparkles, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx27("span", { children: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento" })
                         ]
                       }
                     )
                   ] }),
-                  showClear && /* @__PURE__ */ jsxs20("div", { className: "@md:hidden", children: [
-                    /* @__PURE__ */ jsx26("div", { className: "chat-dropdown-divider" }),
-                    /* @__PURE__ */ jsxs20(
+                  showClear && /* @__PURE__ */ jsxs21("div", { className: "@md:hidden", children: [
+                    /* @__PURE__ */ jsx27("div", { className: "chat-dropdown-divider" }),
+                    /* @__PURE__ */ jsxs21(
                       "button",
                       {
                         onClick: () => {
@@ -4440,8 +4478,8 @@ function ChatToolbar({
                         },
                         className: "chat-dropdown-item-danger",
                         children: [
-                          /* @__PURE__ */ jsx26(Trash, { className: "fi-icon-sm" }),
-                          /* @__PURE__ */ jsx26("span", { children: "Limpiar conversaci\xF3n" })
+                          /* @__PURE__ */ jsx27(Trash, { className: "fi-icon-sm" }),
+                          /* @__PURE__ */ jsx27("span", { children: "Limpiar conversaci\xF3n" })
                         ]
                       }
                     )
@@ -4454,38 +4492,38 @@ function ChatToolbar({
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxs20("div", { className: "fi-flex-gap-sm", children: [
-      showClear && /* @__PURE__ */ jsx26(
+    /* @__PURE__ */ jsxs21("div", { className: "fi-flex-gap-sm", children: [
+      showClear && /* @__PURE__ */ jsx27(
         "button",
         {
           onClick: () => onClearConversation?.(),
           className: `${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`,
           title: "Limpiar conversaci\xF3n",
           "aria-label": "Limpiar conversaci\xF3n",
-          children: /* @__PURE__ */ jsx26(Trash, { className: iconClass })
+          children: /* @__PURE__ */ jsx27(Trash, { className: iconClass })
         }
       ),
-      showThinkingToggle && /* @__PURE__ */ jsx26(
+      showThinkingToggle && /* @__PURE__ */ jsx27(
         "button",
         {
           onClick: onShowThinkingToggle,
           className: `${buttonBaseClass} hidden @md:flex ${showThinking ? "chat-toolbar-btn-active" : ""}`,
           title: showThinking ? "Razonamiento visible (click para ocultar)" : "Razonamiento oculto (click para mostrar)",
           "aria-label": showThinking ? "Ocultar razonamiento del modelo" : "Mostrar razonamiento del modelo",
-          children: /* @__PURE__ */ jsx26(Sparkles, { className: iconClass })
+          children: /* @__PURE__ */ jsx27(Sparkles, { className: iconClass })
         }
       ),
-      showResponseMode && /* @__PURE__ */ jsx26(
+      showResponseMode && /* @__PURE__ */ jsx27(
         "button",
         {
           onClick: onResponseModeToggle,
           className: `${buttonBaseClass} ${responseMode === "concise" ? "fi-text-info hover:text-cyan-300" : "chat-toolbar-btn-success"}`,
           title: responseMode === "explanatory" ? "Modo: Explicativo (detallado)" : "Modo: Conciso (breve)",
           "aria-label": responseMode === "explanatory" ? "Cambiar a modo conciso" : "Cambiar a modo explicativo",
-          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx26(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx26(Zap, { className: iconClass })
+          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx27(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx27(Zap, { className: iconClass })
         }
       ),
-      showVoice && /* @__PURE__ */ jsx26(
+      showVoice && /* @__PURE__ */ jsx27(
         VoiceMicButton,
         {
           isRecording: voiceRecording?.isRecording || false,
@@ -4499,14 +4537,14 @@ function ChatToolbar({
           })
         }
       ),
-      /* @__PURE__ */ jsx26(
+      /* @__PURE__ */ jsx27(
         "button",
         {
           onClick: onSend,
           disabled: !canSend,
           className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
           "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx26(Loader211, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx26(Send, { className: "h-4 w-4" })
+          children: sendLoading ? /* @__PURE__ */ jsx27(Loader211, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx27(Send, { className: "h-4 w-4" })
         }
       )
     ] })
@@ -4524,7 +4562,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -4557,37 +4595,37 @@ function ChatFilePreview({
   const isError = status === "error";
   const isUploading = status === "uploading";
   const isProcessing = status === "processing" || status === "pending_instructions";
-  return /* @__PURE__ */ jsxs21("div", { className: `
+  return /* @__PURE__ */ jsxs22("div", { className: `
       flex items-center gap-3 p-3 rounded-xl border
       ${isError ? "bg-red-900/20 border-red-700/50" : isCompleted ? "bg-emerald-900/20 border-emerald-700/50" : "bg-slate-800/80 border-slate-700/50"}
       transition-colors duration-200
     `, children: [
-    /* @__PURE__ */ jsx27("div", { className: `
+    /* @__PURE__ */ jsx28("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx27(Loader212, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx27(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx27(AlertCircle4, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx27(FileIcon, { className: "w-5 h-5 fi-text" }) }),
-    /* @__PURE__ */ jsxs21("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx27("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs21("div", { className: "flex items-center gap-2 fi-text-xs", children: [
-        /* @__PURE__ */ jsx27("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs21(Fragment6, { children: [
-          /* @__PURE__ */ jsx27("span", { children: "-" }),
-          /* @__PURE__ */ jsx27("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+      `, children: isProcessing ? /* @__PURE__ */ jsx28(Loader212, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx28(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx28(AlertCircle4, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx28(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+    /* @__PURE__ */ jsxs22("div", { className: "flex-1 min-w-0", children: [
+      /* @__PURE__ */ jsx28("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs22("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+        /* @__PURE__ */ jsx28("span", { children: formatFileSize(file.size) }),
+        isUploading && /* @__PURE__ */ jsxs22(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs21(Fragment6, { children: [
-          /* @__PURE__ */ jsx27("span", { children: "-" }),
-          /* @__PURE__ */ jsx27("span", { className: "fi-text-primary", children: "Procesando..." })
+        isProcessing && /* @__PURE__ */ jsxs22(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs21(Fragment6, { children: [
-          /* @__PURE__ */ jsx27("span", { children: "-" }),
-          /* @__PURE__ */ jsx27("span", { className: "chat-file-status-indexed", children: "Indexado" })
+        isCompleted && /* @__PURE__ */ jsxs22(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs21(Fragment6, { children: [
-          /* @__PURE__ */ jsx27("span", { children: "-" }),
-          /* @__PURE__ */ jsx27("span", { className: "fi-text-error truncate", title: error, children: error })
+        isError && error && /* @__PURE__ */ jsxs22(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
       ] }),
-      isUploading && /* @__PURE__ */ jsx27("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx27(
+      isUploading && /* @__PURE__ */ jsx28("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx28(
         "div",
         {
           className: "fi-progress-bar duration-300",
@@ -4595,7 +4633,7 @@ function ChatFilePreview({
         }
       ) })
     ] }),
-    !isCompleted && !isProcessing && /* @__PURE__ */ jsx27(
+    !isCompleted && !isProcessing && /* @__PURE__ */ jsx28(
       "button",
       {
         type: "button",
@@ -4603,7 +4641,7 @@ function ChatFilePreview({
         className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
         "aria-label": "Cancelar",
         title: "Cancelar",
-        children: /* @__PURE__ */ jsx27(X2, { className: "h-4 w-4" })
+        children: /* @__PURE__ */ jsx28(X2, { className: "h-4 w-4" })
       }
     )
   ] });
@@ -4611,7 +4649,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -4621,59 +4659,59 @@ function ChatStartScreen({
   isLoading = false
 }) {
   if (!isAuthenticated) {
-    return /* @__PURE__ */ jsx28("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs22("div", { className: "chat-start-container", children: [
-      /* @__PURE__ */ jsx28("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx28("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx28(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
-      /* @__PURE__ */ jsxs22("div", { className: "fi-stack-sm", children: [
-        /* @__PURE__ */ jsx28("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
-        /* @__PURE__ */ jsx28("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
+    return /* @__PURE__ */ jsx29("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs23("div", { className: "chat-start-container", children: [
+      /* @__PURE__ */ jsx29("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx29("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx29(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
+      /* @__PURE__ */ jsxs23("div", { className: "fi-stack-sm", children: [
+        /* @__PURE__ */ jsx29("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
+        /* @__PURE__ */ jsx29("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
       ] }),
-      /* @__PURE__ */ jsxs22(
+      /* @__PURE__ */ jsxs23(
         "button",
         {
           type: "button",
           onClick: () => onNavigate?.("downloads"),
           className: "chat-start-btn-login",
           children: [
-            /* @__PURE__ */ jsx28(Download, { className: "fi-icon-md" }),
+            /* @__PURE__ */ jsx29(Download, { className: "fi-icon-md" }),
             "Ir a Descargas"
           ]
         }
       ),
-      /* @__PURE__ */ jsx28("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
+      /* @__PURE__ */ jsx29("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
     ] }) });
   }
-  return /* @__PURE__ */ jsx28("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs22("div", { className: "chat-start-container", children: [
-    /* @__PURE__ */ jsx28("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx28("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx28(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
-    /* @__PURE__ */ jsxs22("div", { className: "fi-stack-sm", children: [
-      /* @__PURE__ */ jsxs22("h3", { className: "chat-start-title-large", children: [
+  return /* @__PURE__ */ jsx29("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs23("div", { className: "chat-start-container", children: [
+    /* @__PURE__ */ jsx29("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx29("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx29(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
+    /* @__PURE__ */ jsxs23("div", { className: "fi-stack-sm", children: [
+      /* @__PURE__ */ jsxs23("h3", { className: "chat-start-title-large", children: [
         "Hola, ",
         userName?.split(" ")[0] || "Doctor"
       ] }),
-      /* @__PURE__ */ jsx28("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
+      /* @__PURE__ */ jsx29("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
     ] }),
-    /* @__PURE__ */ jsxs22("div", { className: "chat-start-features", children: [
-      /* @__PURE__ */ jsxs22("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx28(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
-        /* @__PURE__ */ jsx28("span", { children: "Conversaci\xF3n privada y segura" })
+    /* @__PURE__ */ jsxs23("div", { className: "chat-start-features", children: [
+      /* @__PURE__ */ jsxs23("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx29(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
+        /* @__PURE__ */ jsx29("span", { children: "Conversaci\xF3n privada y segura" })
       ] }),
-      /* @__PURE__ */ jsxs22("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx28(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
-        /* @__PURE__ */ jsx28("span", { children: "Datos encriptados localmente" })
+      /* @__PURE__ */ jsxs23("div", { className: "chat-start-feature", children: [
+        /* @__PURE__ */ jsx29(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
+        /* @__PURE__ */ jsx29("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx28("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs22(Fragment7, { children: [
-      /* @__PURE__ */ jsx28("div", { className: "chat-start-spinner" }),
+    /* @__PURE__ */ jsx29("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs23(Fragment7, { children: [
+      /* @__PURE__ */ jsx29("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs22(Fragment7, { children: [
-      /* @__PURE__ */ jsx28(MessageSquareText, { className: "w-5 h-5" }),
+    ] }) : /* @__PURE__ */ jsxs23(Fragment7, { children: [
+      /* @__PURE__ */ jsx29(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
-    /* @__PURE__ */ jsx28("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
+    /* @__PURE__ */ jsx29("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
   ] }) });
 }
 
 // src/shell/ChatContent.tsx
-import { jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
+import { jsx as jsx30, jsxs as jsxs24 } from "react/jsx-runtime";
 function ChatContent({
   config,
   embedded,
@@ -4729,8 +4767,8 @@ function ChatContent({
   const showThinkingToggle = typeof onShowThinkingToggle === "function";
   const showClear = typeof onClearConversation === "function";
   const showPersonaSelector = personaSelector != null;
-  return /* @__PURE__ */ jsxs23("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
-    !isHistoryOpen && /* @__PURE__ */ jsxs23(
+  return /* @__PURE__ */ jsxs24("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
+    !isHistoryOpen && /* @__PURE__ */ jsxs24(
       ChatWidgetContainer,
       {
         mode: viewMode,
@@ -4738,7 +4776,7 @@ function ChatContent({
         embedded,
         onModeChange,
         children: [
-          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx29(
+          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx30(
             ChatWidgetHeader,
             {
               title: config.title,
@@ -4754,7 +4792,7 @@ function ChatContent({
               onHistorySearch: onHistoryOpen
             }
           ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx29("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx29(Loader213, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx29(
+          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx30("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx30(Loader213, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx30(
             ChatStartScreen,
             {
               isAuthenticated,
@@ -4766,8 +4804,8 @@ function ChatContent({
             }
           ) : renderMessages?.({ viewMode }),
           customQuickReplies,
-          viewMode !== "dense" && /* @__PURE__ */ jsx29("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs23("div", { className: "chat-input-floating-box", children: [
-            isUploadActive && uploadFile && /* @__PURE__ */ jsx29(
+          viewMode !== "dense" && /* @__PURE__ */ jsx30("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs24("div", { className: "chat-input-floating-box", children: [
+            isUploadActive && uploadFile && /* @__PURE__ */ jsx30(
               ChatFilePreview,
               {
                 file: uploadFile,
@@ -4776,7 +4814,7 @@ function ChatContent({
                 })
               }
             ),
-            /* @__PURE__ */ jsx29(
+            /* @__PURE__ */ jsx30(
               Composer,
               {
                 message,
@@ -4790,7 +4828,7 @@ function ChatContent({
                 textareaClassName: "chat-textarea"
               }
             ),
-            /* @__PURE__ */ jsx29(
+            /* @__PURE__ */ jsx30(
               ChatToolbar,
               {
                 responseMode,
@@ -4828,7 +4866,7 @@ function ChatContent({
 }
 
 // src/shell/ChatWidget.tsx
-import { jsx as jsx30 } from "react/jsx-runtime";
+import { jsx as jsx31 } from "react/jsx-runtime";
 function ChatWidget({
   chatHook,
   config: customConfig,
@@ -4883,9 +4921,9 @@ function ChatWidget({
   }, [widgetState, messageCount]);
   if (!widgetState.isOpen) {
     if (embedded) return null;
-    return /* @__PURE__ */ jsx30(FloatingButton, { onClick: handleOpen, isMobile });
+    return /* @__PURE__ */ jsx31(FloatingButton, { onClick: handleOpen, isMobile });
   }
-  return /* @__PURE__ */ jsx30(
+  return /* @__PURE__ */ jsx31(
     ChatContent,
     {
       config,
@@ -4940,9 +4978,9 @@ function ChatWidget({
 }
 
 // src/shell/ChatSurface.tsx
-import { jsx as jsx31 } from "react/jsx-runtime";
+import { jsx as jsx32 } from "react/jsx-runtime";
 function ChatSurface(props) {
-  return /* @__PURE__ */ jsx31(
+  return /* @__PURE__ */ jsx32(
     ChatWidget,
     {
       ...props,
@@ -4963,7 +5001,7 @@ import {
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment8, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -5067,11 +5105,11 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx32(Fragment8, { children: renderLoading() }) : /* @__PURE__ */ jsx32("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx33(Fragment8, { children: renderLoading() }) : /* @__PURE__ */ jsx33("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
-  const content = isOpen ? /* @__PURE__ */ jsxs24(
+  const content = isOpen ? /* @__PURE__ */ jsxs25(
     "div",
     {
       ref: contentRef,
@@ -5097,7 +5135,7 @@ function PersonaSelector({
           const badge = renderPersonaBadge?.(persona, ctx);
           const meta = renderPersonaMeta?.(persona);
           const description = getPersonaDescription?.(persona);
-          return /* @__PURE__ */ jsxs24(
+          return /* @__PURE__ */ jsxs25(
             "div",
             {
               role: "option",
@@ -5110,19 +5148,19 @@ function PersonaSelector({
               onKeyDown: handleOptionKeyDown,
               className: `${ITEM_BASE} hover:bg-slate-700/60 ${isSelected ? "bg-purple-500/20 border-purple-500/50 border" : "bg-slate-700/30 border border-transparent"}`,
               children: [
-                /* @__PURE__ */ jsxs24("div", { className: "flex items-center gap-2 mb-1", children: [
+                /* @__PURE__ */ jsxs25("div", { className: "flex items-center gap-2 mb-1", children: [
                   renderPersonaIcon?.(persona, ctx),
-                  /* @__PURE__ */ jsx32(
+                  /* @__PURE__ */ jsx33(
                     "span",
                     {
                       className: `font-medium text-sm ${isSelected ? "text-purple-200" : "text-slate-200"}`,
                       children: getPersonaLabel?.(persona) ?? id
                     }
                   ),
-                  isSelected && /* @__PURE__ */ jsx32(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
+                  isSelected && /* @__PURE__ */ jsx33(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
                 ] }),
-                description && /* @__PURE__ */ jsx32("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
-                (badge || meta) && /* @__PURE__ */ jsxs24("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                description && /* @__PURE__ */ jsx33("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
+                (badge || meta) && /* @__PURE__ */ jsxs25("div", { className: "flex items-center gap-2 flex-wrap", children: [
                   badge,
                   meta
                 ] })
@@ -5135,8 +5173,8 @@ function PersonaSelector({
       ]
     }
   ) : null;
-  return /* @__PURE__ */ jsxs24("div", { className, "data-persona-root": true, children: [
-    /* @__PURE__ */ jsxs24(
+  return /* @__PURE__ */ jsxs25("div", { className, "data-persona-root": true, children: [
+    /* @__PURE__ */ jsxs25(
       "button",
       {
         ref: triggerRef,
@@ -5150,7 +5188,7 @@ function PersonaSelector({
         className: triggerClassName ?? TRIGGER_DEFAULT,
         children: [
           triggerInner,
-          /* @__PURE__ */ jsx32(
+          /* @__PURE__ */ jsx33(
             ChevronDown,
             {
               className: `h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`
@@ -5194,6 +5232,7 @@ export {
   MessageBubble,
   MessageContent,
   MessageList,
+  MessageModelBadge,
   PersonaSelector,
   PulseRings,
   RESONANCE_INITIAL_STATE,
@@ -5215,6 +5254,7 @@ export {
   defaultAnimationConfig,
   defaultBehavior,
   defaultChatConfig,
+  defaultMessageBadge,
   defaultMessageHeader,
   defaultTheme,
   defaultTimestampConfig,

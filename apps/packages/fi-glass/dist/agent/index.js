@@ -1836,8 +1836,46 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   );
 }
 
-// src/messages/MessageList.tsx
+// src/messages/MessageModelBadge.tsx
 import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+function MessageModelBadge({
+  model,
+  title = "Generado por {model}",
+  label = "Powered by"
+}) {
+  return /* @__PURE__ */ jsxs18(
+    "span",
+    {
+      "data-fi-model-badge": "",
+      title: title.replace("{model}", model),
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 8px",
+        borderRadius: 9999,
+        border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(15,23,42,0.5)",
+        fontSize: 11,
+        color: "#94a3b8"
+      },
+      children: [
+        label,
+        " ",
+        /* @__PURE__ */ jsx24("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+      ]
+    }
+  );
+}
+function defaultMessageBadge(message) {
+  if (message.role !== "assistant") return void 0;
+  const model = message.trace?.model?.trim();
+  if (!model) return void 0;
+  return /* @__PURE__ */ jsx24(MessageModelBadge, { model });
+}
+
+// src/messages/MessageList.tsx
+import { jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 
 // src/agent/conversation-surface/persistedTraceTurn.ts
 function persistedTraceTurn(message) {
@@ -1857,7 +1895,7 @@ function persistedTraceTurn(message) {
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
-import { jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -1877,20 +1915,20 @@ function TranscriptMessages({
   showLessLabel,
   collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+  return /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
-      return /* @__PURE__ */ jsxs19(Fragment4, { children: [
-        traceTurn && /* @__PURE__ */ jsx25(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-        /* @__PURE__ */ jsx25(
+      return /* @__PURE__ */ jsxs20(Fragment4, { children: [
+        traceTurn && /* @__PURE__ */ jsx26(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsx26(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
-            badge: renderBadge?.(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx25(CopyButton, { content: m.content }) : void 0),
+            badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
             className: resolveBubbleClass(m),
-            children: /* @__PURE__ */ jsx25(
+            children: /* @__PURE__ */ jsx26(
               MessageContent,
               {
                 isUser: m.role === "user",
@@ -1906,19 +1944,19 @@ function TranscriptMessages({
         )
       ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsxs19("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-      /* @__PURE__ */ jsx25("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx25(AgentPanel, { turn, ...agentPanelProps }) }),
-      turn.text && /* @__PURE__ */ jsx25(
+    isStreaming && /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+      /* @__PURE__ */ jsx26("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx26(
         MessageBubble,
         {
           role: "assistant",
-          header: /* @__PURE__ */ jsx25(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          header: /* @__PURE__ */ jsx26(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
           className: resolveBubbleClass({
             role: "assistant",
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx25(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx26(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
@@ -1926,7 +1964,7 @@ function TranscriptMessages({
 }
 
 // src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
 function TurnErrorBanner({
   error,
   onRetry,
@@ -1937,7 +1975,7 @@ function TurnErrorBanner({
   retryButtonClassName,
   dismissButtonClassName
 }) {
-  return /* @__PURE__ */ jsxs20(
+  return /* @__PURE__ */ jsxs21(
     "div",
     {
       role: "alert",
@@ -1954,8 +1992,8 @@ function TurnErrorBanner({
         gap: "0.75rem"
       },
       children: [
-        /* @__PURE__ */ jsx26("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx26(
+        /* @__PURE__ */ jsx27("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx27(
           "button",
           {
             type: "button",
@@ -1973,7 +2011,7 @@ function TurnErrorBanner({
             children: retryLabel
           }
         ),
-        /* @__PURE__ */ jsx26(
+        /* @__PURE__ */ jsx27(
           "button",
           {
             type: "button",
@@ -1997,7 +2035,7 @@ function TurnErrorBanner({
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
-import { jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+import { jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
 function TranscriptRegion({ surface, conversation, contentInset }) {
   const { messages, turn, author, isStreaming, turnError, retry, dismissError } = conversation;
   const {
@@ -2030,19 +2068,19 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
   return (
     // Relative anchor: hosts the scroll area + the floating jump-to-latest
     // button, so the button stays glued to the transcript's bottom edge.
-    /* @__PURE__ */ jsxs21("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-      /* @__PURE__ */ jsx27(
+    /* @__PURE__ */ jsxs22("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
+      /* @__PURE__ */ jsx28(
         "div",
         {
           ref: autoScroll ? stick.scrollRef : void 0,
           style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
-          children: /* @__PURE__ */ jsxs21(
+          children: /* @__PURE__ */ jsxs22(
             "div",
             {
               ref: autoScroll ? stick.contentRef : void 0,
               style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
               children: [
-                idle ? emptyState : /* @__PURE__ */ jsx27(
+                idle ? emptyState : /* @__PURE__ */ jsx28(
                   TranscriptMessages,
                   {
                     messages,
@@ -2063,7 +2101,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     collapseToggleClassName
                   }
                 ),
-                turnError && /* @__PURE__ */ jsx27(
+                turnError && /* @__PURE__ */ jsx28(
                   TurnErrorBanner,
                   {
                     error: turnError,
@@ -2081,7 +2119,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
           )
         }
       ),
-      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx27(
+      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx28(
         ScrollToBottomButton,
         {
           onClick: () => void stick.scrollToBottom(),
@@ -2103,7 +2141,7 @@ import {
   useRef as useRef11,
   useState as useState15
 } from "react";
-import { jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
+import { jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   value,
   onChange,
@@ -2143,8 +2181,8 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   const charCount = typeof value === "string" ? value.length : 0;
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
-  return /* @__PURE__ */ jsxs22("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
-    /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsxs23("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
+    /* @__PURE__ */ jsx29(
       "textarea",
       {
         ref: textareaRef,
@@ -2161,7 +2199,7 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
         ...props
       }
     ),
-    showCounter && maxLength && /* @__PURE__ */ jsxs22("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
+    showCounter && maxLength && /* @__PURE__ */ jsxs23("div", { className: isOverLimit ? "chat-char-counter-error" : isNearLimit ? "chat-char-counter-warning" : "chat-char-counter-ok", children: [
       charCount,
       "/",
       maxLength
@@ -2170,7 +2208,7 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
 });
 
 // src/composer/Composer.tsx
-import { jsx as jsx29 } from "react/jsx-runtime";
+import { jsx as jsx30 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
@@ -2194,7 +2232,7 @@ function Composer({
       onSend();
     }
   };
-  return /* @__PURE__ */ jsx29("div", { className: areaClassName, children: /* @__PURE__ */ jsx29(
+  return /* @__PURE__ */ jsx30("div", { className: areaClassName, children: /* @__PURE__ */ jsx30(
     AutoResizeTextarea,
     {
       ref: textareaRef,
@@ -2216,7 +2254,7 @@ function Composer({
 
 // src/composer/ComposerFrame.tsx
 import { useEffect as useEffect17 } from "react";
-import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
+import { jsx as jsx31, jsxs as jsxs24 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
 var CSS = `
 [data-fi-composer-slot="header"] {
@@ -2269,17 +2307,17 @@ function ComposerFrame({
   footerStartClassName
 }) {
   useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs23("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx30("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+  return /* @__PURE__ */ jsxs24("div", { className, style, "data-fi-composer-frame": "", children: [
+    filled(header) && /* @__PURE__ */ jsx31("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
-    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs23(
+    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs24(
       "div",
       {
         className: footerClassName,
         style: footerStyle,
         "data-fi-composer-slot": "footer",
         children: [
-          filled(footerStart) && /* @__PURE__ */ jsx30("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          filled(footerStart) && /* @__PURE__ */ jsx31("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
           footer
         ]
       }
@@ -2289,7 +2327,7 @@ function ComposerFrame({
 
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader212, Square as Square5 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx31, jsxs as jsxs24 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx32, jsxs as jsxs25 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -2309,8 +2347,8 @@ function ComposerControls({
   stopButtonClassName
 }) {
   const stopping = isStreaming && onStop != null;
-  return /* @__PURE__ */ jsxs24(Fragment5, { children: [
-    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx31(
+  return /* @__PURE__ */ jsxs25(Fragment5, { children: [
+    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx32(
       AudioVisualizer,
       {
         levels: dictation.bands,
@@ -2321,7 +2359,7 @@ function ComposerControls({
         barClassName: voiceVisualizerBarClassName
       }
     ),
-    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx31(
+    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx32(
       ComposerMicSlot,
       {
         available: true,
@@ -2340,7 +2378,7 @@ function ComposerControls({
     // While streaming, a transport that can abort turns this into a live
     // STOP button — the primary control must never be a spinner the user
     // can only watch. Without abort support it falls back to that spinner.
-    /* @__PURE__ */ jsx31(
+    /* @__PURE__ */ jsx32(
       "button",
       {
         type: "button",
@@ -2353,22 +2391,22 @@ function ComposerControls({
           sendButtonClassName,
           stopping ? stopButtonClassName : void 0
         ].filter(Boolean).join(" "),
-        children: stopping ? /* @__PURE__ */ jsx31(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx31(
+        children: stopping ? /* @__PURE__ */ jsx32(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx32(
           Loader212,
           {
             className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
             "aria-hidden": true
           }
-        ) : /* @__PURE__ */ jsx31(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+        ) : /* @__PURE__ */ jsx32(Send, { className: sendButtonIconClassName, "aria-hidden": true })
       }
     )
   ] });
 }
 
 // src/agent/conversation-surface/components/composer/NewChatButton.tsx
-import { jsx as jsx32 } from "react/jsx-runtime";
+import { jsx as jsx33 } from "react/jsx-runtime";
 function NewChatButton({ onClick, disabled, label = "New chat" }) {
-  return /* @__PURE__ */ jsx32("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx32(
+  return /* @__PURE__ */ jsx33("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx33(
     "button",
     {
       onClick,
@@ -2389,7 +2427,7 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
-import { jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 function ComposerRegion({ surface, state, contentInset }) {
   const {
     input,
@@ -2428,7 +2466,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     sendLabel = "Enviar mensaje",
     stopLabel = "Detener respuesta"
   } = surface;
-  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx33(
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx34(
     ComposerControls,
     {
       dictation,
@@ -2449,7 +2487,7 @@ function ComposerRegion({ surface, state, contentInset }) {
       stopButtonClassName
     }
   ) : null;
-  return /* @__PURE__ */ jsx33(
+  return /* @__PURE__ */ jsx34(
     "div",
     {
       style: {
@@ -2462,10 +2500,10 @@ function ComposerRegion({ surface, state, contentInset }) {
         paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
         borderTop: "1px solid rgba(255,255,255,0.06)"
       },
-      children: /* @__PURE__ */ jsxs25("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx33(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-        aboveComposer && /* @__PURE__ */ jsx33("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsx33(
+      children: /* @__PURE__ */ jsxs26("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx34(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx34("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx34(
           ComposerFrame,
           {
             className: composerBoxClassName,
@@ -2475,7 +2513,7 @@ function ComposerRegion({ surface, state, contentInset }) {
             footerStart: composerFooterStart,
             footerStartClassName: composerFooterStartClassName,
             footer,
-            children: /* @__PURE__ */ jsx33(
+            children: /* @__PURE__ */ jsx34(
               Composer,
               {
                 message: input,
@@ -2497,7 +2535,7 @@ function ComposerRegion({ surface, state, contentInset }) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+import { jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
 function AgentConversationSurface(props) {
   const {
     conversation,
@@ -2523,8 +2561,8 @@ function AgentConversationSurface(props) {
     setInput("");
     send(t);
   };
-  return /* @__PURE__ */ jsxs26("div", { style: rootStyle, children: [
-    /* @__PURE__ */ jsx34(
+  return /* @__PURE__ */ jsxs27("div", { style: rootStyle, children: [
+    /* @__PURE__ */ jsx35(
       TranscriptRegion,
       {
         surface: props,
@@ -2532,7 +2570,7 @@ function AgentConversationSurface(props) {
         contentInset
       }
     ),
-    /* @__PURE__ */ jsx34(
+    /* @__PURE__ */ jsx35(
       ComposerRegion,
       {
         surface: props,
@@ -2615,7 +2653,7 @@ function useDensityStyle() {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
+import { jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -2713,7 +2751,7 @@ function AgentWorkspaceShell({
     `fi-density-${density}`,
     className
   ].filter(Boolean).join(" ");
-  const content = /* @__PURE__ */ jsxs27(
+  const content = /* @__PURE__ */ jsxs28(
     "div",
     {
       "data-fi-workspace": "agent",
@@ -2722,12 +2760,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx35("header", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs27("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx35("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx35("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        header != null && /* @__PURE__ */ jsx36("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs28("main", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx36("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx36("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx35("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx36("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2761,13 +2799,13 @@ function AgentWorkspaceShell({
     containerType: "inline-size",
     containerName: "fi-sidebar"
   };
-  return /* @__PURE__ */ jsxs27(
+  return /* @__PURE__ */ jsxs28(
     "div",
     {
       "data-fi-workspace": "agent-with-sidebar",
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx35(
+        /* @__PURE__ */ jsx36(
           "nav",
           {
             "data-fi-slot": "sidebar",
@@ -2778,7 +2816,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx35(
+        drawerMode && /* @__PURE__ */ jsx36(
           "div",
           {
             onClick: close,
@@ -2794,7 +2832,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx35(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx36(
           "button",
           {
             type: "button",
@@ -2803,7 +2841,7 @@ function AgentWorkspaceShell({
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
             style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
-            children: /* @__PURE__ */ jsx35(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx36(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -2943,7 +2981,7 @@ function useSidebarItemStyle() {
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment6, jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx37, jsxs as jsxs29 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2958,7 +2996,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx36(
+  return /* @__PURE__ */ jsx37(
     "button",
     {
       type: "button",
@@ -2974,7 +3012,7 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx36(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx37(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState18(false);
@@ -3041,8 +3079,8 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !selected && !editing;
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx36("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
-  return /* @__PURE__ */ jsxs28(
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx37("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs29(
     "div",
     {
       className: joinClasses(
@@ -3063,10 +3101,10 @@ function AgentSidebarItem({
         }
       },
       children: [
-        /* @__PURE__ */ jsxs28("div", { className: FI_ITEM_BODY_CLASS, children: [
+        /* @__PURE__ */ jsxs29("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx36("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx36("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx37("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx37("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -3090,7 +3128,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx36(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx37(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -3098,7 +3136,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx36(
+  return /* @__PURE__ */ jsx37(
     AgentSidebarItem,
     {
       selected,
@@ -3109,8 +3147,8 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs28(Fragment6, { children: [
-        /* @__PURE__ */ jsx36(
+      actions: !rename.editing && /* @__PURE__ */ jsxs29(Fragment6, { children: [
+        /* @__PURE__ */ jsx37(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -3191,7 +3229,7 @@ function useSidebarSectionStyle() {
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx37, jsxs as jsxs29 } from "react/jsx-runtime";
+import { jsx as jsx38, jsxs as jsxs30 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -3210,13 +3248,13 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx37("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx38("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
     ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
   } : void 0;
-  return /* @__PURE__ */ jsxs29(
+  return /* @__PURE__ */ jsxs30(
     "section",
     {
       className: joinClasses2(
@@ -3226,12 +3264,12 @@ function AgentSidebarSection({
       ),
       "aria-label": ariaLabel,
       children: [
-        headerSlot ?? /* @__PURE__ */ jsxs29("div", { className: FI_SECTION_HEAD_CLASS, children: [
+        headerSlot ?? /* @__PURE__ */ jsxs30("div", { className: FI_SECTION_HEAD_CLASS, children: [
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx37("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx37("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx38("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx38("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );
