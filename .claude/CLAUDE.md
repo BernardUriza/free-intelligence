@@ -79,7 +79,12 @@ free-intelligence/
 │   ├── api/             # HTTP layer
 │   └── core/            # Legacy (DI refactor pending)
 ├── apps/
-│   ├── aurity/          # Next.js frontend
+│   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
+│   ├── packages/
+│   │   ├── fi-glass/    # the chat framework (aurity is its SSOT)
+│   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
+│   │   └── free-intelligence-core/
+│   ├── aurity/          # LEGACY (see below) — Next.js frontend
 │   ├── aurity-desktop/  # Tauri desktop app
 │   └── fi-monitor/      # Windows monitor app
 └── .claude/             # Documentation (Hong Kong standard)
@@ -89,10 +94,31 @@ free-intelligence/
 
 ## 🔗 Quick Links
 
-- **Production:** https://app.aurity.io
-- **Backend:** https://app.aurity.io/api/
+- **Production:** https://app.og118.ai — the app that actually ships today
 - **Full Docs:** [.claude/README.md](.claude/README.md)
 - **Setup Guide:** [.claude/quick-start/development-setup.md](.claude/quick-start/development-setup.md)
+
+---
+
+## 🪦 aurity does not SHIP — but it is not dead code (2026-07-11)
+
+**Read this before "NO LEGACY CODE" below sends you deleting it.** The two are not
+in conflict, because two different things are being called legacy:
+
+- **The DEPLOYMENT is dead, and stays dead.** aurity's Azure infrastructure NO
+  LONGER EXISTS — no Static Web App, no resource of any kind, a dead service
+  principal ("No subscriptions found") — and `app.aurity.io` answers nothing (its
+  DNS points at a DigitalOcean IP). Its pipeline (`deploy-azure.yml`) is now
+  **manual-only**: it used to run on every push and paint `main` red for something
+  nobody intends to ship, and a permanently-red pipeline is worse than none — it
+  teaches everyone to ignore red.
+- **The CODE is the SSOT of fi-glass, and stays.** aurity's chat anatomy — the
+  toolbar menu, the staged file-upload flow — is what the framework extracts and
+  what og118 renders. It is not "dead code kept for compatibility" (the thing the
+  rule below rightly forbids); it is the canonical shape the live app inherits.
+  **Read aurity when you need that shape. Do not try to run it. Do not delete it.**
+
+**The live app is og118** (`apps/og118`, https://app.og118.ai).
 
 ---
 

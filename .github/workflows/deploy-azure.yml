@@ -1,22 +1,28 @@
 name: Deploy to Azure (Container Apps)
 
 # =============================================================================
-# AURITY Azure Deployment Pipeline
+# AURITY Azure Deployment Pipeline — MANUAL ONLY (aurity is LEGACY)
 # =============================================================================
 # Backend: Azure Container Apps (serverless containers)
 # Frontend: Azure Static Web Apps
 # Database: Azure PostgreSQL Flexible Server
 # Secrets: Azure Key Vault (via Managed Identity)
+#
+# The `push` trigger is GONE on purpose. aurity is legacy (Bernard, 2026-07-11)
+# and its infrastructure NO LONGER EXISTS: `az staticwebapp list` returns no
+# aurity SWA, `az resource list` finds no aurity resource at all, the service
+# principal is dead ("No subscriptions found") and app.aurity.io answers nothing
+# (its DNS points at a DigitalOcean IP). So every push touching apps/aurity/** or
+# backend/** painted main RED for something nobody intends to deploy — and a
+# permanently-red pipeline is worse than none: it teaches everyone to ignore red.
+#
+# The pipeline is KEPT, not deleted: the day aurity comes back, recreate the SWA,
+# realign the Azure credentials, and run this by hand (or restore the trigger).
+# What is dead is the deployment, not the code — and fi-glass, the framework aurity
+# is the SSOT of, is very much alive.
 # =============================================================================
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/aurity/**'
-      - 'backend/**'
-      - '.github/workflows/deploy-azure.yml'
   workflow_dispatch:
     inputs:
       skip_frontend:
