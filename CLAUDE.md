@@ -3,6 +3,40 @@
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope. Servidor HTTP que envuelve
 el Claude Agent SDK y refleja el transcript de sesiones a Postgres.
 
+---
+
+## El espíritu (léelo antes que los hechos)
+
+> *Aire,*
+> *soñé por un momento que era*
+> *aire: oxígeno, nitrógeno y argón*
+> ***sin forma definida ni color.***
+> *Fui aire volador.*
+>
+> — Mecano, «Aire» (J. M. Cano, 1984)
+
+El acrónimo llegó después. **El nombre ya existía, y era mejor.** La canción de 1984
+resultó ser la especificación del proyecto, y no por casualidad — porque describe
+exactamente lo que descubrimos:
+
+| La canción | La arquitectura |
+|---|---|
+| ***«sin forma definida ni color»*** | El contenedor **no guarda nada**. El agente sin cuerpo. Es el tagline. |
+| ***«oxígeno, nitrógeno y argón»*** | Los tres: **la memoria** (Postgres), **la obra** (git), **el cuerpo** (el contenedor, prestado). |
+| ***«iba pasando, qué curioso, al estado gaseoso»*** | El día que nació esto: se empezó con una VM —cuerpo, disco, SSH, IP— y se fue desinflando hasta que no quedó materia. |
+| ***«este cuarto es muy pequeño para las cosas que sueño»*** | La pregunta original era *"¿qué diferencia hay entre EC2 y una VM de Azure?"*. El cuarto era esa pregunta. |
+| ***«me volví otra vez humano. No faltéis al funeral.»*** | **En la canción, recuperar el cuerpo es la muerte.** Y aquí igual: **AIRE muere el día que su memoria vuelve a depender de un cuerpo** — de un disco que se borra a los 30 días, de una máquina que hay que mantener viva, de una base que es de otro. |
+
+**Mientras siga siendo aire —sin forma, en la base del dueño, sin cuerpo que perder— no
+hay funeral.** Esa es la prueba de fuego de cualquier decisión de diseño en este repo:
+
+> *¿Esto le devuelve un cuerpo al agente? Entonces no.*
+
+Por eso murieron la VM efímera, la VM eterna, Managed Agents y el disco persistente. Todas
+eran cuerpos.
+
+---
+
 Todo lo de abajo fue **verificado contra el código fuente del SDK instalado**
 (`claude-agent-sdk` 0.2.116) o contra las docs oficiales — nunca contra memoria.
 Si vas a contradecir algo de aquí, verifícalo primero de la misma forma.
