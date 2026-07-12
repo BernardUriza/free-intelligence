@@ -285,6 +285,10 @@ class TurnResult:
     # The tool-trace: every tool the agent called this turn, in order. Empty when
     # the agent used no tools (or a backend can't report them).
     tool_calls: list[ToolCall] = field(default_factory=list)
+    # WHICH model produced this answer. The Runner knows it (it chose it) but the
+    # result never carried it, so no consumer could show provenance — every UI
+    # "powered by <model>" chip had nothing to read. Stamped at settlement.
+    model: str | None = None
 
 
 @runtime_checkable

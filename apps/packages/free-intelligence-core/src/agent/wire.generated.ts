@@ -96,6 +96,10 @@ export interface ResultEvent {
 }
 /**
  * The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.
+ *
+ * ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
+ * fallback), so a UI shows the answer's real provenance instead of guessing at
+ * the configured default.
  */
 export interface TurnResultPayload {
   text: string;
@@ -103,6 +107,7 @@ export interface TurnResultPayload {
     [k: string]: unknown;
   } | null;
   session_id?: string | null;
+  model?: string | null;
   guard_outcomes?: {
     [k: string]: unknown;
   };
