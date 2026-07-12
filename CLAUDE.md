@@ -12,6 +12,18 @@ Si vas a contradecir algo de aquí, verifícalo primero de la misma forma.
 1. **AIRE es un SERVICIO, no una librería.** No se importa: se llama por HTTP. Así el
    SDK vive en un solo sitio, las credenciales de Postgres viven en un solo sitio, y
    cualquier lenguaje puede hablarle.
+0. **EL SERVIDOR ES LA INTERFAZ — SSR, no una API JSON.** Ésta es la tesis central y lo
+   que separa a AIRE de todo lo demás. Los otros exponen el SDK como API y te dejan
+   construir el frontend (agent-webkit = hooks de React; el cookbook = JSON sobre SSE).
+   AIRE **devuelve HTML renderizado en el servidor, que se va escribiendo solo** conforme
+   el agente piensa. `GET /projects/avatar` → una página, con el agente trabajando, en
+   vivo. Sin React, sin npm, sin build, sin frontend.
+   - Consecuencia gratis: la "página para ver mis sesiones" **no es otro proyecto** — es
+     el mismo servidor.
+   - Reto técnico real: un agente no responde en un request (piensa, usa herramientas,
+     corrige). Hace falta **HTML en streaming**: la página llega inmediata y los eventos
+     del SDK la van pintando. No es SSR clásico de un solo disparo.
+   - Por eso ninguno de los seis repos encontrados servía: todos son API-first.
 2. **Una sola base, un `project_key` por proyecto.** El `SessionKey` del SDK ya trae
    `project_key`; su docstring dice *"Multi-tenant deployments should set this."*
 3. **La memoria (transcript) va a Postgres. La obra (los archivos) va a git.** Separadas

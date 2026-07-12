@@ -2,11 +2,47 @@
 
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope
 
-> Tu agente se olvida de todo cuando se muere el contenedor. AIRE no.
+> Claude Code, expuesto como una página web. Sin frontend. Sin que se le olvide nada.
 
-Un servidor HTTP que envuelve el [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)
-y **refleja** el transcript de cada sesión hacia **tu** base de datos. El contenedor
-es desechable; la memoria es tuya y sobrevive.
+Un servidor que envuelve el [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
+**refleja** la memoria de cada sesión hacia **tu** base de datos, y **renderiza al agente
+trabajando — en el servidor.**
+
+Le pegas con el navegador y ahí está Claude, escribiendo. No construiste una UI.
+
+## La tesis: el servidor ES la interfaz
+
+Todos los demás exponen el SDK como una **API** y te dejan construir el frontend
+(agent-webkit te da hooks de React; el cookbook te da JSON sobre SSE). AIRE hace lo
+contrario: **devuelve HTML, renderizado en el servidor, que se va escribiendo solo**
+conforme el agente piensa.
+
+```
+GET /projects/avatar
+→ una página. Con el agente trabajando. En vivo.
+```
+
+Sin React. Sin npm. Sin build. Sin frontend. Es lo que ves en tu terminal cuando usas
+Claude Code — pero en un navegador, y sin haber escrito una línea de cliente.
+
+Y como consecuencia gratis: la página donde ves tus sesiones **no es otro proyecto**. Es
+el mismo servidor. La memoria es tuya, la tabla es tuya, el HTML es tuyo.
+
+## Y la escoba
+
+El SDK **nunca borra** de tu store, y Claude Code **sí borra del tuyo**: a los 30 días,
+en silencio, sin aviso ni recuperación
+([#59248](https://github.com/anthropics/claude-code/issues/59248) 👍13,
+[#62476](https://github.com/anthropics/claude-code/issues/62476) 👍11,
+[#61952](https://github.com/anthropics/claude-code/issues/61952): *"dos meses de trabajo
+que pagué, se fueron"*).
+
+Es una **Blackwall**: una pared en el día 30, y del otro lado no queda nada.
+
+> **Es tu basura, y tú decides cuándo se tira.**
+
+Retención que tú controlas. Sesiones que puedes fijar. Archivado en vez de destrucción.
+Backups. Nadie sirve esto: ni Anthropic, ni claude-mem (86k ⭐), ni mem0, ni Letta.
 
 ```http
 POST /projects/avatar/sessions/manuscrito/messages
