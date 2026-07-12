@@ -103,6 +103,35 @@ Es lo que el cookbook oficial **no** trae:
   en su código) y guarda el mapeo en un `Dict` en RAM → pierde el `resume` al reiniciar.
   Verificado leyendo `libs/agno/agno/agents/claude/agent.py`. Tiene el mismo agujero
   que AIRE viene a tapar.
+- **Adoptar ArcReel**: es **AGPL-3.0** (viral) y su `DbSessionStore` es una librería
+  interna de su producto, no un servicio. No se puede llamar desde otros proyectos.
+
+## El estado del arte (verificado leyendo código, julio 2026)
+
+**No es cierto que "nadie cablee el `session_store`"** — esa afirmación estuvo en este
+archivo y era **falsa**. La verdad, por ejes:
+
+| | Refleja a una DB | Servidor HTTP reutilizable | Housekeeping |
+|---|---|---|---|
+| `claude-cookbooks/hosting` (oficial) | ❌ dict en RAM + disco | ⚠️ un proyecto (`cwd="/app"`) | ❌ |
+| Agno (41k ⭐) | ❌ dict en RAM + disco | ✅ | ❌ |
+| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ `DbSessionStore`, SQLAlchemy (PG/SQLite) | ❌ lib interna | ❌ |
+| **AIRE** | ✅ | ✅ | ✅ |
+
+ArcReel es la prueba de que el caso de uso es real: su producto es novela → personajes →
+escenas → video, y llegaron a la misma solución. Pero **ninguno de los tres barre**: cero
+`ttl`/`retention`/`cleanup`/`archive` en su código.
+
+## El housekeeping es un pilar, no un extra
+
+El docstring del `SessionStore` **delega la retención al adapter, por escrito**:
+
+> *"The SDK **never deletes** from your store… Retention is the adapter's responsibility —
+> implement TTL, object-storage lifecycle policies, or scheduled cleanup according to your
+> compliance requirements (e.g. ZDR/HIPAA retention windows)."*
+
+Es decir: la memoria **acumula para siempre** por diseño, y limpiarla es trabajo del
+adapter. Nadie lo ha hecho. Ése es el hueco más limpio de AIRE.
 
 ## Cómo trabajar aquí
 
