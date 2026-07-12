@@ -97,6 +97,8 @@ export interface AgentConversationSurfaceProps {
    */
   showCopyAction?: boolean;
   /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
+  /** Copy for the "retry saving" button on the persist-failure banner. */
+  persistRetryLabel?: string;
   renderHeader?: (message: ChatMessage) => ReactNode;
   /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
   renderBadge?: (message: ChatMessage) => ReactNode;

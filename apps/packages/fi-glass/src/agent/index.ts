@@ -39,6 +39,7 @@ export {
   type AgentConversation,
   type UseAgentConversationOptions,
   type TurnError,
+  type PersistError,
   type AppHandledError,
   DEFAULT_TURN_TIMEOUT_MS,
 } from './useAgentConversation';

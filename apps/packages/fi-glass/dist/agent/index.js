@@ -382,6 +382,7 @@ import {
   foldAssistantTurn
 } from "@free-intelligence/core";
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
+var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
 function useAgentConversation(agent, options) {
   const {
@@ -404,8 +405,33 @@ function useAgentConversation(agent, options) {
   authorRef.current = author;
   const userAuthorRef = useRef(userAuthor);
   userAuthorRef.current = userAuthor;
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
   const [turnError, setTurnError] = useState2(null);
   const [timedOut, setTimedOut] = useState2(false);
+  const [persistError, setPersistError] = useState2(null);
+  const unsaved = useRef(null);
+  const runPersist = useCallback(async (thread) => {
+    if (!onMessagesChangeRef.current) return;
+    try {
+      await onMessagesChangeRef.current(thread);
+      unsaved.current = null;
+      setPersistError(null);
+    } catch (cause) {
+      unsaved.current = thread;
+      setPersistError({
+        message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
+        cause
+      });
+    }
+  }, []);
+  const retryPersist = useCallback(() => {
+    const thread = unsaved.current;
+    if (!thread) return;
+    setPersistError(null);
+    void runPersist(thread);
+  }, [runPersist]);
+  const dismissPersistError = useCallback(() => setPersistError(null), []);
   const pending = useRef(false);
   const messagesRef = useRef(messages);
   messagesRef.current = externalMessages ?? messages;
@@ -528,7 +554,7 @@ function useAgentConversation(agent, options) {
       skipPersist.current = false;
       return;
     }
-    onMessagesChange?.(messages);
+    void runPersist(messages);
   }, [messages]);
   const newConversation = useCallback(() => {
     skipPersist.current = true;
@@ -544,6 +570,9 @@ function useAgentConversation(agent, options) {
     author,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : void 0,
@@ -2214,7 +2243,18 @@ function TurnErrorBanner({
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
 import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function TranscriptRegion({ surface, conversation, contentInset }) {
-  const { messages, turn, author, isStreaming, turnError, retry, dismissError } = conversation;
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    retry,
+    dismissError,
+    persistError,
+    retryPersist,
+    dismissPersistError
+  } = conversation;
   const {
     emptyState,
     agentPanelProps,
@@ -2237,6 +2277,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     autoScroll = true,
     retryLabel = "Reintentar",
     dismissLabel = "Descartar",
+    persistRetryLabel = "Reintentar guardar",
     scrollToBottomLabel = "Ir al final"
   } = surface;
   const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
@@ -2286,6 +2327,19 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     onDismiss: dismissError,
                     className: errorClassName,
                     retryLabel,
+                    dismissLabel,
+                    retryButtonClassName,
+                    dismissButtonClassName
+                  }
+                ),
+                persistError && /* @__PURE__ */ jsx29(
+                  TurnErrorBanner,
+                  {
+                    error: persistError,
+                    onRetry: retryPersist,
+                    onDismiss: dismissPersistError,
+                    className: errorClassName,
+                    retryLabel: persistRetryLabel,
                     dismissLabel,
                     retryButtonClassName,
                     dismissButtonClassName
@@ -2874,7 +2928,21 @@ function AgentConversationSurface(props) {
     maxAttachedImages,
     onImageAttachmentError
   } = props;
-  const { messages, turn, author, isStreaming, turnError, send, stop, retry, dismissError, newConversation } = conversation;
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
+    send,
+    stop,
+    retry,
+    dismissError,
+    newConversation
+  } = conversation;
   const [input, setInput] = useState17("");
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
@@ -2901,7 +2969,18 @@ function AgentConversationSurface(props) {
       TranscriptRegion,
       {
         surface: props,
-        conversation: { messages, turn, author, isStreaming, turnError, retry, dismissError },
+        conversation: {
+          messages,
+          turn,
+          author,
+          isStreaming,
+          turnError,
+          retry,
+          dismissError,
+          persistError,
+          retryPersist,
+          dismissPersistError
+        },
         contentInset
       }
     ),

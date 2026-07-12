@@ -559,3 +559,77 @@ describe('useAgentConversation — client-supplied history for storeless continu
     expect(send).toHaveBeenCalledWith('primera', { history: [] });
   });
 });
+
+describe('persist failure — a save that fails may NOT fail in silence', () => {
+  afterEach(cleanup);
+
+  /** Drive one full turn (send → settled answer) so the fold triggers a persist. */
+  async function foldOneTurn(
+    ref: { current: AgentConversation | null },
+    state: { turn: AgentTurnState; isStreaming: boolean },
+    rerender: () => void,
+  ) {
+    await act(async () => {
+      ref.current!.send('hola');
+      rerender();
+      state.turn = doneTurn('respuesta');
+      state.isStreaming = false;
+      rerender();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      rerender();
+    });
+  }
+
+  it('surfaces a rejected persist as persistError instead of discarding the promise', async () => {
+    const { hook, state } = makeFakeAgent();
+    const onMessagesChange = vi.fn().mockRejectedValue(new Error('HTTP 413'));
+    const { ref, rerender } = mountConversation(hook, { onMessagesChange });
+
+    await foldOneTurn(ref, state, rerender);
+
+    expect(onMessagesChange).toHaveBeenCalled();
+    expect(ref.current!.persistError?.message).toBe('HTTP 413');
+    // The thread stays on screen: what failed is the WRITE, not the turn.
+    expect(ref.current!.messages).toHaveLength(2);
+    expect(ref.current!.turnError).toBeNull();
+  });
+
+  it('retryPersist re-attempts the FULL thread and clears the error on success', async () => {
+    const { hook, state } = makeFakeAgent();
+    // A flag, not mockRejectedValueOnce: the hook persists more than once per
+    // turn (optimistic user capsule, then the folded turn), so "fail the first
+    // call" would let a later one silently clear the error.
+    const failing = { yes: true };
+    const onMessagesChange = vi.fn(async () => {
+      if (failing.yes) throw new Error('HTTP 413');
+    });
+    const { ref, rerender } = mountConversation(hook, { onMessagesChange });
+
+    await foldOneTurn(ref, state, rerender);
+    expect(ref.current!.persistError?.message).toBe('HTTP 413');
+
+    failing.yes = false;
+    await act(async () => {
+      ref.current!.retryPersist();
+      await Promise.resolve();
+      rerender();
+    });
+
+    // It retried the whole confirmed thread (user + assistant), not a fragment.
+    const lastCall = onMessagesChange.mock.calls[onMessagesChange.mock.calls.length - 1];
+    expect(lastCall[0]).toHaveLength(2);
+    expect(ref.current!.persistError).toBeNull();
+  });
+
+  it('a successful persist leaves no error', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, {
+      onMessagesChange: vi.fn().mockResolvedValue(undefined),
+    });
+    await foldOneTurn(ref, state, rerender);
+    expect(ref.current!.persistError).toBeNull();
+  });
+});

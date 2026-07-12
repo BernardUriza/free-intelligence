@@ -166,6 +166,18 @@ interface TurnError {
     /** Human-readable, app-displayable reason. */
     message: string;
 }
+/**
+ * A failure to SAVE the thread (the turn itself succeeded). Distinct from
+ * {@link TurnError}: the answer is on screen and correct — what failed is the
+ * write, so the message the user must see is "this is not saved", not "the
+ * answer failed".
+ */
+interface PersistError {
+    /** Human-readable, app-displayable reason. */
+    message: string;
+    /** The underlying rejection, for the app to log/inspect. */
+    cause: unknown;
+}
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 declare const DEFAULT_TURN_TIMEOUT_MS = 60000;
 interface UseAgentConversationOptions {
@@ -198,8 +210,18 @@ interface UseAgentConversationOptions {
     conversationId?: string | null;
     /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
     initialMessages?: ChatMessage[];
-    /** Called when the thread changes from real activity (fold/revert) — a persist hook. (Not called in controlled mode.) */
-    onMessagesChange?: (messages: ChatMessage[]) => void;
+    /**
+     * Called when the thread changes from real activity (fold/revert) — a persist
+     * hook. (Not called in controlled mode.)
+     *
+     * MAY be async: the hook awaits what it returns and surfaces a rejection as
+     * {@link AgentConversation.persistError}. It used to be typed `=> void` while
+     * consumers passed an async persist, so the promise was DISCARDED and a failed
+     * save (a 413 for an oversized record, a dead network, a 500) died as an
+     * unhandled rejection — the user saw the thread on screen, believed it was
+     * saved, and lost it on reload. Silence is the one thing persistence may never do.
+     */
+    onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
     /**
      * Idle watchdog in ms: if the live turn's state does not change for this long
      * while streaming, the turn is declared failed (timeout). Measured since the
@@ -235,6 +257,16 @@ interface AgentConversation {
     isStreaming: boolean;
     /** A recoverable failure of the last turn (timeout/stream), or null. */
     turnError: TurnError | null;
+    /**
+     * The thread could not be SAVED (the turn itself succeeded), or null. A shell
+     * MUST surface this: the alternative is a user who trusts a thread that is not
+     * there. Recover with {@link retryPersist}.
+     */
+    persistError: PersistError | null;
+    /** Retry saving the current thread. No-op when there is nothing pending. */
+    retryPersist: () => void;
+    /** Clear the persist error without retrying (the thread stays unsaved). */
+    dismissPersistError: () => void;
     /** Send a message: pushes it optimistically, then drives the agent turn.
      * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
      * (empty text, ≥1 image) is valid — the picture IS the message. */
@@ -355,6 +387,8 @@ interface AgentConversationSurfaceProps {
      */
     showCopyAction?: boolean;
     /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
+    /** Copy for the "retry saving" button on the persist-failure banner. */
+    persistRetryLabel?: string;
     renderHeader?: (message: ChatMessage) => ReactNode;
     /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
     renderBadge?: (message: ChatMessage) => ReactNode;
@@ -714,4 +748,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
