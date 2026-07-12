@@ -330,6 +330,13 @@ interface MessageTrace {
     tools?: ToolCall[];
     /** Evidence references surfaced during the turn, if any. */
     sources?: string[];
+    /**
+     * The model that actually produced the answer. Provenance, like the plan and
+     * the tools — so it lives HERE, not in `metadata`, which persistence drops by
+     * design. A "powered by <model>" chip read from `metadata` shows on the live
+     * turn and vanishes on reload; read from the trace it survives.
+     */
+    model?: string;
 }
 /**
  * ChatMessage — the material-agnostic shape of one chat message.
@@ -441,9 +448,13 @@ declare function makeUserMessage(text: string, author: MessageAuthor): ChatMessa
  * the message content; the agentic provenance (declared plan + per-step
  * outcomes, tool calls, evidence) is snapshotted into `trace` so the durable
  * transcript re-renders the same glass-box the live turn showed — the "see the
- * execution, not just the result" differentiator survives the fold. A plain
- * conversational turn (no plan/tools/sources) folds with no `trace`, unchanged.
- * Model provenance also survives: `turn.meta.model` lands in `metadata.model`.
+ * execution, not just the result" differentiator survives the fold. A turn with
+ * no provenance at all folds with no `trace`, unchanged.
+ *
+ * Model provenance rides the TRACE, not `metadata`: persistence drops metadata
+ * by design (apps stash secrets there), so a model chip read from it showed on
+ * the live turn and vanished on reload — a badge that was never once seen after
+ * a refresh. It is provenance, and provenance persists.
  *
  * Authorship comes from the turn itself when the backend named a speaker (the
  * `author` event — the resolved persona/element); `defaultAuthor` is the agent's
@@ -574,6 +585,10 @@ interface ResultEvent {
 }
 /**
  * The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.
+ *
+ * ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
+ * fallback), so a UI shows the answer's real provenance instead of guessing at
+ * the configured default.
  */
 interface TurnResultPayload {
     text: string;
@@ -581,6 +596,7 @@ interface TurnResultPayload {
         [k: string]: unknown;
     } | null;
     session_id?: string | null;
+    model?: string | null;
     guard_outcomes?: {
         [k: string]: unknown;
     };

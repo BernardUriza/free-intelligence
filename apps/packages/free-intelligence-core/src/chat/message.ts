@@ -23,6 +23,13 @@ export interface MessageTrace {
   tools?: ToolCall[];
   /** Evidence references surfaced during the turn, if any. */
   sources?: string[];
+  /**
+   * The model that actually produced the answer. Provenance, like the plan and
+   * the tools — so it lives HERE, not in `metadata`, which persistence drops by
+   * design. A "powered by <model>" chip read from `metadata` shows on the live
+   * turn and vanishes on reload; read from the trace it survives.
+   */
+  model?: string;
 }
 
 /**

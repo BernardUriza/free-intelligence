@@ -128,22 +128,22 @@ function snapshotTrace(turn) {
   const hasPlan = turn.plan != null && turn.plan.steps.length > 0;
   const hasTools = turn.steps.length > 0;
   const hasSources = turn.sources.length > 0;
-  if (!hasPlan && !hasTools && !hasSources) return void 0;
+  const model = turn.meta?.model?.trim() || void 0;
+  if (!hasPlan && !hasTools && !hasSources && !model) return void 0;
   return {
     ...hasPlan ? { plan: turn.plan } : {},
     ...hasTools ? { tools: turn.steps } : {},
-    ...hasSources ? { sources: turn.sources } : {}
+    ...hasSources ? { sources: turn.sources } : {},
+    ...model ? { model } : {}
   };
 }
 function foldAssistantTurn(turn, defaultAuthor) {
-  const model = turn.meta?.model;
   const trace = snapshotTrace(turn);
   return {
     role: "assistant",
     author: turn.author ?? defaultAuthor,
     content: turn.text,
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    ...model ? { metadata: { model } } : {},
     ...trace ? { trace } : {}
   };
 }

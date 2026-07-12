@@ -61,13 +61,19 @@ class ToolCallPayload(BaseModel):
 
 
 class TurnResultPayload(BaseModel):
-    """The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`."""
+    """The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.
+
+    ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
+    fallback), so a UI shows the answer's real provenance instead of guessing at
+    the configured default.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     text: str
     usage: dict[str, Any] | None = None
     session_id: str | None = None
+    model: str | None = None
     guard_outcomes: dict[str, Any] = Field(default_factory=dict)
     tool_calls: list[ToolCallPayload] = Field(default_factory=list)
 

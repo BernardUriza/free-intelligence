@@ -325,7 +325,12 @@ class Runner:
         ``model`` is passed separately from ``setup.model`` because the retry
         loop may have escalated to the fallback model — ``turn_completed``
         reports what actually ran. Tool-trace telemetry is PHI-safe: only
-        name/server/status reach the event stream, never the tool input."""
+        name/server/status reach the event stream, never the tool input.
+
+        That same "what actually ran" is stamped onto the result, so the answer
+        carries its own model provenance downstream (the `result` frame → a UI's
+        model chip). Without it the Runner knew the model and nobody else did."""
+        result = replace(result, model=model)
         for i, call in enumerate(result.tool_calls):
             emit(
                 "tool_called",
