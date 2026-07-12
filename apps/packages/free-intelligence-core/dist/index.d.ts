@@ -339,6 +339,20 @@ interface MessageTrace {
     model?: string;
 }
 /**
+ * MessageImage — one image attached to a user message (OG118-IMAGE-UPLOAD-1).
+ *
+ * Base64 by design: the shells are local-first (IndexedDB / JSON records), so
+ * the bytes ride inside the message instead of referencing a blob store nobody
+ * runs. Producers (the composer) downscale before encoding, so a persisted
+ * image stays small enough for the conversation-record size caps.
+ */
+interface MessageImage {
+    /** MIME type of the encoded bytes, e.g. `image/jpeg`, `image/png`. */
+    mediaType: string;
+    /** Base64-encoded bytes — no `data:` URL prefix. */
+    data: string;
+}
+/**
  * ChatMessage — the material-agnostic shape of one chat message.
  *
  * Apps may use a richer message type (e.g. aurity's FIMessage with typed
@@ -359,8 +373,14 @@ interface ChatMessage {
      * everything {@link foldAssistantTurn}/{@link makeUserMessage} builds has one.
      */
     author?: MessageAuthor;
-    /** The message text. */
+    /** The message text. May be empty on an image-only user message. */
     content: string;
+    /**
+     * Images attached to this message (user messages only) — rendered in the
+     * transcript and sent to the model as vision input. Absent on text-only
+     * messages, so the plain case stays byte-identical to before.
+     */
+    images?: MessageImage[];
     /** Optional model reasoning rendered before the content. */
     thinking?: string | null;
     /** ISO 8601 timestamp. */
@@ -441,8 +461,10 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
  * "og118" answered while an element actually did.
  */
 
-/** A user message, ready to render optimistically the instant the user sends. */
-declare function makeUserMessage(text: string, author: MessageAuthor): ChatMessage;
+/** A user message, ready to render optimistically the instant the user sends.
+ * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); empty/absent folds to
+ * the exact text-only shape every existing consumer produces. */
+declare function makeUserMessage(text: string, author: MessageAuthor, images?: MessageImage[]): ChatMessage;
 /**
  * Fold a finished turn's answer into an assistant message. The answer text is
  * the message content; the agentic provenance (declared plan + per-step
@@ -477,6 +499,12 @@ interface AgentSendMeta {
      * as authorization.
      */
     history?: ChatMessage[];
+    /**
+     * Images attached to THIS send (OG118-IMAGE-UPLOAD-1) — vision input for the
+     * current turn. The transport forwards them to its backend as image content
+     * blocks; a transport that ignores `meta` behaves exactly as before.
+     */
+    images?: MessageImage[];
 }
 /**
  * AgentHook — the agentic-turn contract the fi-glass agent panels consume.
@@ -856,4 +884,4 @@ declare function renameConversationRecord(record: ConversationRecord, rawTitle: 
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };

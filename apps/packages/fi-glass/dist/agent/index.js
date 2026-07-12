@@ -427,18 +427,19 @@ function useAgentConversation(agent, options) {
   }, []);
   const awaitResolver = useRef(null);
   const send = useCallback(
-    (text) => {
+    (text, images) => {
       const t = text.trim();
-      if (!t || agent.isStreaming) return;
-      lastSent.current = t;
+      const imgs = images && images.length > 0 ? images : void 0;
+      if (!t && !imgs || agent.isStreaming) return;
+      lastSent.current = { text: t, images: imgs };
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
         skipPersist.current = true;
-        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current)]);
+        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current, imgs)]);
       }
       pending.current = true;
-      void agent.send(t, { history: messagesRef.current });
+      void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
     },
     [agent, controlled]
   );
@@ -459,7 +460,7 @@ function useAgentConversation(agent, options) {
     agentRef.current.abort?.();
   }, []);
   const retry = useCallback(() => {
-    if (lastSent.current) send(lastSent.current);
+    if (lastSent.current) send(lastSent.current.text, lastSent.current.images);
   }, [send]);
   const dismissError = useCallback(() => {
     setTurnError(null);
@@ -553,7 +554,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useState as useState16 } from "react";
+import { useState as useState17 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -587,12 +588,149 @@ function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
 
+// src/composer/useComposerImages.ts
+import { useCallback as useCallback2, useRef as useRef2, useState as useState3 } from "react";
+var COMPOSER_IMAGE_MEDIA_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif"
+];
+var COMPOSER_IMAGE_ACCEPT = COMPOSER_IMAGE_MEDIA_TYPES.join(",");
+var DEFAULT_MAX_IMAGES = 4;
+var PASSTHROUGH_BYTES = 15e5;
+var MAX_SIDE_PX = 2048;
+var JPEG_QUALITY = 0.85;
+var MAX_ENCODED_CHARS = 4 * 1024 * 1024;
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+function splitDataUrl(dataUrl) {
+  const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUrl);
+  return match ? { mediaType: match[1], data: match[2] } : null;
+}
+async function downscale(file) {
+  if (typeof document === "undefined" || typeof createImageBitmap !== "function") return null;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return null;
+  }
+  try {
+    const scale = Math.min(1, MAX_SIDE_PX / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+  } finally {
+    bitmap.close();
+  }
+}
+var nextDraftId = 0;
+function useComposerImages(options = {}) {
+  const { maxImages = DEFAULT_MAX_IMAGES, onError } = options;
+  const [drafts, setDrafts] = useState3([]);
+  const draftsRef = useRef2(drafts);
+  draftsRef.current = drafts;
+  const onErrorRef = useRef2(onError);
+  onErrorRef.current = onError;
+  const addFiles = useCallback2(
+    async (files) => {
+      let count = draftsRef.current.length;
+      for (const file of files) {
+        if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
+          onErrorRef.current?.(
+            "Solo im\xE1genes JPEG, PNG, WebP o GIF."
+          );
+          continue;
+        }
+        if (count >= maxImages) {
+          onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
+          return;
+        }
+        let dataUrl;
+        try {
+          if (file.size <= PASSTHROUGH_BYTES) {
+            dataUrl = await readAsDataUrl(file);
+          } else {
+            const scaled = await downscale(file);
+            if (!scaled) {
+              onErrorRef.current?.(
+                `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
+              );
+              continue;
+            }
+            dataUrl = scaled;
+          }
+        } catch {
+          onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
+          continue;
+        }
+        const parts = splitDataUrl(dataUrl);
+        if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
+          onErrorRef.current?.(
+            `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
+          );
+          continue;
+        }
+        const draft = {
+          id: `img-${++nextDraftId}`,
+          mediaType: parts.mediaType,
+          data: parts.data,
+          dataUrl,
+          name: file.name || "imagen"
+        };
+        count += 1;
+        setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
+      }
+    },
+    [maxImages]
+  );
+  const remove = useCallback2((id) => {
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+  const clear = useCallback2(() => setDrafts([]), []);
+  const toMessageImages = useCallback2(
+    () => draftsRef.current.map((d) => ({ mediaType: d.mediaType, data: d.data })),
+    []
+  );
+  const handlePaste = useCallback2(
+    (event) => {
+      const items = event.clipboardData?.items;
+      if (!items) return false;
+      const files = [];
+      for (const item of Array.from(items)) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length === 0) return false;
+      void addFiles(files);
+      return true;
+    },
+    [addFiles]
+  );
+  return { drafts, addFiles, remove, clear, toMessageImages, handlePaste };
+}
+
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
-import { useCallback as useCallback2, useEffect as useEffect4, useRef as useRef2 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect4, useRef as useRef3 } from "react";
 function useComposerFocus(options) {
   const { isStreaming, isTranscribing } = options;
-  const inputRef = useRef2(null);
-  const refocusComposer = useCallback2(() => {
+  const inputRef = useRef3(null);
+  const refocusComposer = useCallback3(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
     const active = document.activeElement;
@@ -600,12 +738,12 @@ function useComposerFocus(options) {
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  const wasStreaming = useRef2(false);
+  const wasStreaming = useRef3(false);
   useEffect4(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef2(false);
+  const wasTranscribing = useRef3(false);
   useEffect4(() => {
     if (wasTranscribing.current && !isTranscribing) refocusComposer();
     wasTranscribing.current = isTranscribing;
@@ -614,7 +752,7 @@ function useComposerFocus(options) {
 }
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
-import { useRef as useRef9 } from "react";
+import { useRef as useRef10 } from "react";
 
 // src/voice/recording/RecordingButton.tsx
 import { forwardRef } from "react";
@@ -704,7 +842,7 @@ import { Volume2, Loader2 as Loader25, Play } from "lucide-react";
 import { jsx as jsx10 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect5, useMemo, useRef as useRef3, useSyncExternalStore } from "react";
+import { useEffect as useEffect5, useMemo, useRef as useRef4, useSyncExternalStore } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader26, AlertCircle } from "lucide-react";
@@ -862,13 +1000,13 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef4, useState as useState3 } from "react";
+import { useCallback as useCallback4, useRef as useRef5, useState as useState4 } from "react";
 
 // src/voice/useDictation.ts
-import { useCallback as useCallback5, useState as useState6 } from "react";
+import { useCallback as useCallback6, useState as useState7 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState4, useRef as useRef5, useCallback as useCallback4 } from "react";
+import { useState as useState5, useRef as useRef6, useCallback as useCallback5 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -958,18 +1096,18 @@ function useRecorder(config) {
     externalStream = null,
     deviceId = null
   } = config;
-  const [isRecording, setIsRecording] = useState4(false);
-  const [recordingTime, setRecordingTime] = useState4(0);
-  const [fullAudioBlob, setFullAudioBlob] = useState4(null);
-  const [fullAudioUrl, setFullAudioUrl] = useState4(null);
-  const [currentStream, setCurrentStream] = useState4(null);
-  const recorderRef = useRef5(null);
-  const continuousRecorderRef = useRef5(null);
-  const currentStreamRef = useRef5(null);
-  const recordingTimerRef = useRef5(null);
-  const fullAudioUrlRef = useRef5(null);
-  const chunkNumberRef = useRef5(0);
-  const startRecording = useCallback4(async () => {
+  const [isRecording, setIsRecording] = useState5(false);
+  const [recordingTime, setRecordingTime] = useState5(0);
+  const [fullAudioBlob, setFullAudioBlob] = useState5(null);
+  const [fullAudioUrl, setFullAudioUrl] = useState5(null);
+  const [currentStream, setCurrentStream] = useState5(null);
+  const recorderRef = useRef6(null);
+  const continuousRecorderRef = useRef6(null);
+  const currentStreamRef = useRef6(null);
+  const recordingTimerRef = useRef6(null);
+  const fullAudioUrlRef = useRef6(null);
+  const chunkNumberRef = useRef6(0);
+  const startRecording = useCallback5(async () => {
     try {
       chunkNumberRef.current = 0;
       setRecordingTime(0);
@@ -1043,7 +1181,7 @@ function useRecorder(config) {
       }
     }
   }, [onChunk, onError, timeSlice, sampleRate, channels, externalStream, deviceId]);
-  const stopRecording = useCallback4(async () => {
+  const stopRecording = useCallback5(async () => {
     try {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
@@ -1123,7 +1261,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef6, useEffect as useEffect8 } from "react";
+import { useState as useState6, useRef as useRef7, useEffect as useEffect8 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1151,11 +1289,11 @@ function useAudioAnalysis(stream, config) {
     isActive,
     bandCount = 24
   } = config;
-  const [audioLevel, setAudioLevel] = useState5(0);
-  const [bands, setBands] = useState5([]);
-  const analyserRef = useRef6(null);
-  const audioContextRef = useRef6(null);
-  const animationFrameRef = useRef6(null);
+  const [audioLevel, setAudioLevel] = useState6(0);
+  const [bands, setBands] = useState6([]);
+  const analyserRef = useRef7(null);
+  const audioContextRef = useRef7(null);
+  const animationFrameRef = useRef7(null);
   const isSilent = audioLevel < silenceThreshold;
   useEffect8(() => {
     if (!stream || !isActive) {
@@ -1199,9 +1337,9 @@ function useAudioAnalysis(stream, config) {
 // src/voice/useDictation.ts
 function useDictation(adapter, opts = {}) {
   const { timeSliceMs = 3e4, deviceId = null, onTranscriptUpdate, onError } = opts;
-  const [liveTranscript, setLiveTranscript] = useState6("");
-  const [isTranscribing, setIsTranscribing] = useState6(false);
-  const handleChunk = useCallback5(
+  const [liveTranscript, setLiveTranscript] = useState7("");
+  const [isTranscribing, setIsTranscribing] = useState7(false);
+  const handleChunk = useCallback6(
     async (blob, chunkNumber) => {
       if (!adapter?.transcribe) return;
       setIsTranscribing(true);
@@ -1231,11 +1369,11 @@ function useDictation(adapter, opts = {}) {
   const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
     isActive: isRecording
   });
-  const start = useCallback5(async () => {
+  const start = useCallback6(async () => {
     setLiveTranscript("");
     await startRecording();
   }, [startRecording]);
-  const stop = useCallback5(async () => {
+  const stop = useCallback6(async () => {
     await stopRecording();
   }, [stopRecording]);
   return {
@@ -1264,17 +1402,17 @@ var AUDIO_QUEUE_DEFAULTS = {
 import { useMemo as useMemo2 } from "react";
 
 // src/voice/useDurableRecording.ts
-import { useState as useState7, useRef as useRef7, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState8, useRef as useRef8, useCallback as useCallback7, useEffect as useEffect9 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState8, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState9, useEffect as useEffect10, useCallback as useCallback8 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect11, useState as useState10 } from "react";
+import { useEffect as useEffect11, useState as useState11 } from "react";
 import { Loader2 as Loader210, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState9, useCallback as useCallback8 } from "react";
+import { useState as useState10, useCallback as useCallback9 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -1293,18 +1431,18 @@ import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState11, useEffect as useEffect12 } from "react";
+import { useState as useState12, useEffect as useEffect12 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader211, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef8, useState as useState12 } from "react";
+import { useCallback as useCallback10, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef9, useState as useState13 } from "react";
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
 function useSurfaceDictation(options) {
   const { voiceAdapter, input, setInput, onVoiceError } = options;
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef9("");
+  const baseInputRef = useRef10("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -1553,7 +1691,7 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect15, useId, useRef as useRef10, useState as useState13 } from "react";
+import { useEffect as useEffect15, useId, useRef as useRef11, useState as useState14 } from "react";
 import { jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
@@ -1566,9 +1704,9 @@ function CollapsibleText({
   toggleClassName
 }) {
   const contentId = useId();
-  const contentRef = useRef10(null);
-  const [expanded, setExpanded] = useState13(false);
-  const [overflowing, setOverflowing] = useState13(false);
+  const contentRef = useRef11(null);
+  const [expanded, setExpanded] = useState14(false);
+  const [overflowing, setOverflowing] = useState14(false);
   useEffect15(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -1685,7 +1823,7 @@ var MessageContent = memo(function MessageContent2({
 });
 
 // src/messages/CopyButton.tsx
-import { memo as memo2, useCallback as useCallback10, useState as useState14 } from "react";
+import { memo as memo2, useCallback as useCallback11, useState as useState15 } from "react";
 import { Copy, Check } from "lucide-react";
 import { jsx as jsx21 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
@@ -1699,14 +1837,14 @@ var CopyButton = memo2(function CopyButton2({
   copiedLabel = "Copiado",
   resetMs = 2e3
 }) {
-  const [copied, setCopied] = useState14(false);
+  const [copied, setCopied] = useState15(false);
   useTouchTargetStyle();
   const { actions } = messageStyles;
   const base = className ?? actions.button.base;
   const idle = idleClassName ?? actions.button.idle;
   const active = activeClassName ?? actions.button.active;
   const icon = iconClassName ?? actions.icon;
-  const handleCopy = useCallback10(async () => {
+  const handleCopy = useCallback11(async () => {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
@@ -1759,8 +1897,44 @@ var MessageBubble = memo3(function MessageBubble2({
   );
 });
 
+// src/messages/MessageImages.tsx
+import { jsx as jsx23 } from "react/jsx-runtime";
+function MessageImages({
+  images,
+  className,
+  imageClassName,
+  altLabel = "Imagen adjunta"
+}) {
+  if (!images || images.length === 0) return null;
+  return /* @__PURE__ */ jsx23(
+    "div",
+    {
+      className,
+      "data-fi-message-images": "",
+      style: { display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" },
+      children: images.map((img, i) => /* @__PURE__ */ jsx23(
+        "img",
+        {
+          src: `data:${img.mediaType};base64,${img.data}`,
+          alt: `${altLabel} ${i + 1}`,
+          loading: "lazy",
+          style: {
+            maxWidth: "min(100%, 20rem)",
+            maxHeight: "20rem",
+            borderRadius: "0.75rem",
+            display: "block",
+            objectFit: "contain"
+          },
+          className: imageClassName
+        },
+        i
+      ))
+    }
+  );
+}
+
 // src/messages/MessageAuthorHeader.tsx
-import { Fragment as Fragment3, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 var AVATAR = {
   width: 22,
   height: 22,
@@ -1791,7 +1965,7 @@ function MessageAuthorHeader({
 }) {
   const time = formatTime(timestamp, locale);
   return /* @__PURE__ */ jsxs17(Fragment3, { children: [
-    /* @__PURE__ */ jsx23(
+    /* @__PURE__ */ jsx24(
       "span",
       {
         "aria-hidden": true,
@@ -1804,8 +1978,8 @@ function MessageAuthorHeader({
         children: avatarToken(author)
       }
     ),
-    /* @__PURE__ */ jsx23("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
-    author.engine && /* @__PURE__ */ jsx23(
+    /* @__PURE__ */ jsx24("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx24(
       "span",
       {
         "data-fi-author-engine": "",
@@ -1819,13 +1993,13 @@ function MessageAuthorHeader({
         children: author.engine
       }
     ),
-    time && /* @__PURE__ */ jsx23("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+    time && /* @__PURE__ */ jsx24("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
   ] });
 }
 function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   const isUser = message.role === "user";
   const author = message.author ?? (isUser ? userAuthor : agentAuthor);
-  return /* @__PURE__ */ jsx23(
+  return /* @__PURE__ */ jsx24(
     MessageAuthorHeader,
     {
       author,
@@ -1837,7 +2011,7 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
 }
 
 // src/messages/MessageModelBadge.tsx
-import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function MessageModelBadge({
   model,
   title = "Generado por {model}",
@@ -1862,7 +2036,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx24("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+        /* @__PURE__ */ jsx25("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
       ]
     }
   );
@@ -1871,11 +2045,11 @@ function defaultMessageBadge(message) {
   if (message.role !== "assistant") return void 0;
   const model = message.trace?.model?.trim();
   if (!model) return void 0;
-  return /* @__PURE__ */ jsx24(MessageModelBadge, { model });
+  return /* @__PURE__ */ jsx25(MessageModelBadge, { model });
 }
 
 // src/messages/MessageList.tsx
-import { jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 
 // src/agent/conversation-surface/persistedTraceTurn.ts
 function persistedTraceTurn(message) {
@@ -1895,7 +2069,7 @@ function persistedTraceTurn(message) {
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
-import { jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -1919,44 +2093,47 @@ function TranscriptMessages({
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
       return /* @__PURE__ */ jsxs20(Fragment4, { children: [
-        traceTurn && /* @__PURE__ */ jsx26(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-        /* @__PURE__ */ jsx26(
+        traceTurn && /* @__PURE__ */ jsx27(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsxs20(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx26(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx27(CopyButton, { content: m.content }) : void 0),
             className: resolveBubbleClass(m),
-            children: /* @__PURE__ */ jsx26(
-              MessageContent,
-              {
-                isUser: m.role === "user",
-                content: m.content,
-                collapsible: collapseUserMessages && m.role === "user",
-                collapsedMaxHeight: collapseMaxHeight,
-                showMoreLabel,
-                showLessLabel,
-                collapseToggleClassName
-              }
-            )
+            children: [
+              /* @__PURE__ */ jsx27(MessageImages, { images: m.images }),
+              /* @__PURE__ */ jsx27(
+                MessageContent,
+                {
+                  isUser: m.role === "user",
+                  content: m.content,
+                  collapsible: collapseUserMessages && m.role === "user",
+                  collapsedMaxHeight: collapseMaxHeight,
+                  showMoreLabel,
+                  showLessLabel,
+                  collapseToggleClassName
+                }
+              )
+            ]
           }
         )
       ] }, `${m.timestamp}-${i}`);
     }),
     isStreaming && /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
-      /* @__PURE__ */ jsx26("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx26(AgentPanel, { turn, ...agentPanelProps }) }),
-      turn.text && /* @__PURE__ */ jsx26(
+      /* @__PURE__ */ jsx27("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx27(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx27(
         MessageBubble,
         {
           role: "assistant",
-          header: /* @__PURE__ */ jsx26(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          header: /* @__PURE__ */ jsx27(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
           className: resolveBubbleClass({
             role: "assistant",
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx26(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx27(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
@@ -1964,7 +2141,7 @@ function TranscriptMessages({
 }
 
 // src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+import { jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 function TurnErrorBanner({
   error,
   onRetry,
@@ -1992,8 +2169,8 @@ function TurnErrorBanner({
         gap: "0.75rem"
       },
       children: [
-        /* @__PURE__ */ jsx27("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx27(
+        /* @__PURE__ */ jsx28("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx28(
           "button",
           {
             type: "button",
@@ -2011,7 +2188,7 @@ function TurnErrorBanner({
             children: retryLabel
           }
         ),
-        /* @__PURE__ */ jsx27(
+        /* @__PURE__ */ jsx28(
           "button",
           {
             type: "button",
@@ -2035,7 +2212,7 @@ function TurnErrorBanner({
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
-import { jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
+import { jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function TranscriptRegion({ surface, conversation, contentInset }) {
   const { messages, turn, author, isStreaming, turnError, retry, dismissError } = conversation;
   const {
@@ -2069,7 +2246,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     // Relative anchor: hosts the scroll area + the floating jump-to-latest
     // button, so the button stays glued to the transcript's bottom edge.
     /* @__PURE__ */ jsxs22("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-      /* @__PURE__ */ jsx28(
+      /* @__PURE__ */ jsx29(
         "div",
         {
           ref: autoScroll ? stick.scrollRef : void 0,
@@ -2080,7 +2257,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
               ref: autoScroll ? stick.contentRef : void 0,
               style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
               children: [
-                idle ? emptyState : /* @__PURE__ */ jsx28(
+                idle ? emptyState : /* @__PURE__ */ jsx29(
                   TranscriptMessages,
                   {
                     messages,
@@ -2101,7 +2278,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     collapseToggleClassName
                   }
                 ),
-                turnError && /* @__PURE__ */ jsx28(
+                turnError && /* @__PURE__ */ jsx29(
                   TurnErrorBanner,
                   {
                     error: turnError,
@@ -2119,7 +2296,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
           )
         }
       ),
-      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx28(
+      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx29(
         ScrollToBottomButton,
         {
           onClick: () => void stick.scrollToBottom(),
@@ -2138,10 +2315,10 @@ import {
   useEffect as useEffect16,
   useId as useId2,
   useImperativeHandle,
-  useRef as useRef11,
-  useState as useState15
+  useRef as useRef12,
+  useState as useState16
 } from "react";
-import { jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
+import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   value,
   onChange,
@@ -2155,9 +2332,9 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   name,
   ...props
 }, ref) {
-  const textareaRef = useRef11(null);
+  const textareaRef = useRef12(null);
   useImperativeHandle(ref, () => textareaRef.current);
-  const [rows, setRows] = useState15(1);
+  const [rows, setRows] = useState16(1);
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
@@ -2182,7 +2359,7 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
   return /* @__PURE__ */ jsxs23("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
-    /* @__PURE__ */ jsx29(
+    /* @__PURE__ */ jsx30(
       "textarea",
       {
         ref: textareaRef,
@@ -2208,7 +2385,7 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
 });
 
 // src/composer/Composer.tsx
-import { jsx as jsx30 } from "react/jsx-runtime";
+import { jsx as jsx31 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
@@ -2216,6 +2393,7 @@ function Composer({
   placeholder = "Escribe tu mensaje...",
   onMessageChange,
   onSend,
+  onPaste,
   maxRows = 5,
   areaClassName,
   wrapperClassName,
@@ -2232,7 +2410,7 @@ function Composer({
       onSend();
     }
   };
-  return /* @__PURE__ */ jsx30("div", { className: areaClassName, children: /* @__PURE__ */ jsx30(
+  return /* @__PURE__ */ jsx31("div", { className: areaClassName, children: /* @__PURE__ */ jsx31(
     AutoResizeTextarea,
     {
       ref: textareaRef,
@@ -2241,6 +2419,7 @@ function Composer({
       value: message,
       onChange: (e) => onMessageChange(e.target.value),
       onKeyDown: handleKeyDown,
+      onPaste,
       placeholder,
       disabled,
       maxRows,
@@ -2254,7 +2433,7 @@ function Composer({
 
 // src/composer/ComposerFrame.tsx
 import { useEffect as useEffect17 } from "react";
-import { jsx as jsx31, jsxs as jsxs24 } from "react/jsx-runtime";
+import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
 var CSS = `
 [data-fi-composer-slot="header"] {
@@ -2308,7 +2487,7 @@ function ComposerFrame({
 }) {
   useComposerFrameStyle();
   return /* @__PURE__ */ jsxs24("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx31("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+    filled(header) && /* @__PURE__ */ jsx32("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
     children,
     (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs24(
       "div",
@@ -2317,7 +2496,7 @@ function ComposerFrame({
         style: footerStyle,
         "data-fi-composer-slot": "footer",
         children: [
-          filled(footerStart) && /* @__PURE__ */ jsx31("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
+          filled(footerStart) && /* @__PURE__ */ jsx32("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
           footer
         ]
       }
@@ -2325,9 +2504,124 @@ function ComposerFrame({
   ] });
 }
 
+// src/composer/ComposerImageAttachments.tsx
+import { useRef as useRef13 } from "react";
+import { ImagePlus, X } from "lucide-react";
+import { Fragment as Fragment5, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+function ComposerImageChips({
+  drafts,
+  onRemove,
+  disabled = false,
+  className,
+  removeLabel = "Quitar imagen"
+}) {
+  if (drafts.length === 0) return null;
+  return /* @__PURE__ */ jsx33(
+    "div",
+    {
+      className,
+      "data-fi-image-chips": "",
+      style: { display: "flex", flexWrap: "wrap", gap: "0.5rem" },
+      children: drafts.map((draft) => /* @__PURE__ */ jsxs25("div", { style: { position: "relative" }, children: [
+        /* @__PURE__ */ jsx33(
+          "img",
+          {
+            src: draft.dataUrl,
+            alt: draft.name,
+            title: draft.name,
+            style: {
+              width: "3.5rem",
+              height: "3.5rem",
+              objectFit: "cover",
+              borderRadius: "0.5rem",
+              display: "block"
+            }
+          }
+        ),
+        /* @__PURE__ */ jsx33(
+          "button",
+          {
+            type: "button",
+            "aria-label": `${removeLabel}: ${draft.name}`,
+            onClick: () => onRemove(draft.id),
+            disabled,
+            style: {
+              position: "absolute",
+              top: "-0.375rem",
+              right: "-0.375rem",
+              width: "1.25rem",
+              height: "1.25rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "9999px",
+              border: "none",
+              cursor: disabled ? "default" : "pointer",
+              background: "rgba(0,0,0,0.65)",
+              color: "#fff",
+              padding: 0
+            },
+            children: /* @__PURE__ */ jsx33(X, { size: 12, "aria-hidden": true })
+          }
+        )
+      ] }, draft.id))
+    }
+  );
+}
+function AttachImageButton({
+  onFiles,
+  disabled = false,
+  className,
+  iconClassName,
+  label = "Adjuntar imagen"
+}) {
+  const inputRef = useRef13(null);
+  return /* @__PURE__ */ jsxs25(Fragment5, { children: [
+    /* @__PURE__ */ jsx33(
+      "input",
+      {
+        ref: inputRef,
+        type: "file",
+        accept: COMPOSER_IMAGE_ACCEPT,
+        multiple: true,
+        style: { display: "none" },
+        onChange: (e) => {
+          const files = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          if (files.length > 0) onFiles(files);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx33(
+      "button",
+      {
+        type: "button",
+        "aria-label": label,
+        title: label,
+        disabled,
+        onClick: () => inputRef.current?.click(),
+        className: `fi-touch-target ${className ?? ""}`.trim(),
+        "data-fi-attach-image": "",
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+          border: "none",
+          cursor: disabled ? "default" : "pointer",
+          opacity: disabled ? 0.5 : 1,
+          padding: "0.375rem",
+          color: "inherit"
+        },
+        children: /* @__PURE__ */ jsx33(ImagePlus, { size: 18, "aria-hidden": true, className: iconClassName })
+      }
+    )
+  ] });
+}
+
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader212, Square as Square5 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx32, jsxs as jsxs25 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -2347,8 +2641,8 @@ function ComposerControls({
   stopButtonClassName
 }) {
   const stopping = isStreaming && onStop != null;
-  return /* @__PURE__ */ jsxs25(Fragment5, { children: [
-    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx32(
+  return /* @__PURE__ */ jsxs26(Fragment6, { children: [
+    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx34(
       AudioVisualizer,
       {
         levels: dictation.bands,
@@ -2359,7 +2653,7 @@ function ComposerControls({
         barClassName: voiceVisualizerBarClassName
       }
     ),
-    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx32(
+    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx34(
       ComposerMicSlot,
       {
         available: true,
@@ -2378,7 +2672,7 @@ function ComposerControls({
     // While streaming, a transport that can abort turns this into a live
     // STOP button — the primary control must never be a spinner the user
     // can only watch. Without abort support it falls back to that spinner.
-    /* @__PURE__ */ jsx32(
+    /* @__PURE__ */ jsx34(
       "button",
       {
         type: "button",
@@ -2391,22 +2685,22 @@ function ComposerControls({
           sendButtonClassName,
           stopping ? stopButtonClassName : void 0
         ].filter(Boolean).join(" "),
-        children: stopping ? /* @__PURE__ */ jsx32(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx32(
+        children: stopping ? /* @__PURE__ */ jsx34(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx34(
           Loader212,
           {
             className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
             "aria-hidden": true
           }
-        ) : /* @__PURE__ */ jsx32(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+        ) : /* @__PURE__ */ jsx34(Send, { className: sendButtonIconClassName, "aria-hidden": true })
       }
     )
   ] });
 }
 
 // src/agent/conversation-surface/components/composer/NewChatButton.tsx
-import { jsx as jsx33 } from "react/jsx-runtime";
+import { jsx as jsx35 } from "react/jsx-runtime";
 function NewChatButton({ onClick, disabled, label = "New chat" }) {
-  return /* @__PURE__ */ jsx33("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx33(
+  return /* @__PURE__ */ jsx35("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx35(
     "button",
     {
       onClick,
@@ -2427,7 +2721,7 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
 function ComposerRegion({ surface, state, contentInset }) {
   const {
     input,
@@ -2439,7 +2733,8 @@ function ComposerRegion({ surface, state, contentInset }) {
     isStreaming,
     onStop,
     hasThread,
-    newConversation
+    newConversation,
+    images
   } = state;
   const {
     aboveComposer,
@@ -2464,9 +2759,37 @@ function ComposerRegion({ surface, state, contentInset }) {
     newChatLabel = "New chat",
     showSendButton = true,
     sendLabel = "Enviar mensaje",
-    stopLabel = "Detener respuesta"
+    stopLabel = "Detener respuesta",
+    attachImageLabel = "Adjuntar imagen",
+    attachImageButtonClassName,
+    imageChipsClassName
   } = surface;
-  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx34(
+  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx36(
+    ComposerImageChips,
+    {
+      drafts: images.drafts,
+      onRemove: images.remove,
+      disabled: isStreaming,
+      className: imageChipsClassName
+    }
+  ) : null;
+  const attachButton = images ? /* @__PURE__ */ jsx36(
+    AttachImageButton,
+    {
+      onFiles: (files) => void images.addFiles(files),
+      label: attachImageLabel,
+      className: attachImageButtonClassName
+    }
+  ) : null;
+  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs27(Fragment7, { children: [
+    imageChips,
+    composerHeader
+  ] }) : void 0;
+  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs27(Fragment7, { children: [
+    attachButton,
+    composerFooterStart
+  ] }) : void 0;
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx36(
     ComposerControls,
     {
       dictation,
@@ -2487,7 +2810,7 @@ function ComposerRegion({ surface, state, contentInset }) {
       stopButtonClassName
     }
   ) : null;
-  return /* @__PURE__ */ jsx34(
+  return /* @__PURE__ */ jsx36(
     "div",
     {
       style: {
@@ -2500,20 +2823,20 @@ function ComposerRegion({ surface, state, contentInset }) {
         paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
         borderTop: "1px solid rgba(255,255,255,0.06)"
       },
-      children: /* @__PURE__ */ jsxs26("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx34(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-        aboveComposer && /* @__PURE__ */ jsx34("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsx34(
+      children: /* @__PURE__ */ jsxs27("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx36(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx36("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx36(
           ComposerFrame,
           {
             className: composerBoxClassName,
-            header: composerHeader,
+            header,
             headerClassName: composerHeaderClassName,
             footerClassName: composerControlsClassName,
-            footerStart: composerFooterStart,
+            footerStart,
             footerStartClassName: composerFooterStartClassName,
             footer,
-            children: /* @__PURE__ */ jsx34(
+            children: /* @__PURE__ */ jsx36(
               Composer,
               {
                 message: input,
@@ -2521,6 +2844,9 @@ function ComposerRegion({ surface, state, contentInset }) {
                 placeholder: composerPlaceholder,
                 onMessageChange: setInput,
                 onSend,
+                onPaste: images ? (e) => {
+                  if (images.handlePaste(e)) e.preventDefault();
+                } : void 0,
                 areaClassName: composerAreaClassName,
                 textareaClassName: composerTextareaClassName,
                 wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
@@ -2535,7 +2861,7 @@ function ComposerRegion({ surface, state, contentInset }) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
+import { jsx as jsx37, jsxs as jsxs28 } from "react/jsx-runtime";
 function AgentConversationSurface(props) {
   const {
     conversation,
@@ -2543,10 +2869,13 @@ function AgentConversationSurface(props) {
     voiceAdapter,
     onVoiceError,
     composerAppend,
-    onComposerAppendConsumed
+    onComposerAppendConsumed,
+    imageAttachments = false,
+    maxAttachedImages,
+    onImageAttachmentError
   } = props;
   const { messages, turn, author, isStreaming, turnError, send, stop, retry, dismissError, newConversation } = conversation;
-  const [input, setInput] = useState16("");
+  const [input, setInput] = useState17("");
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
@@ -2555,14 +2884,20 @@ function AgentConversationSurface(props) {
     isStreaming,
     isTranscribing: dictation.isTranscribing
   });
+  const images = useComposerImages({
+    maxImages: maxAttachedImages,
+    onError: onImageAttachmentError
+  });
   const onSend = () => {
     const t = input.trim();
-    if (!t) return;
+    const attached = imageAttachments ? images.toMessageImages() : [];
+    if (!t && attached.length === 0) return;
     setInput("");
-    send(t);
+    images.clear();
+    send(t, attached.length > 0 ? attached : void 0);
   };
-  return /* @__PURE__ */ jsxs27("div", { style: rootStyle, children: [
-    /* @__PURE__ */ jsx35(
+  return /* @__PURE__ */ jsxs28("div", { style: rootStyle, children: [
+    /* @__PURE__ */ jsx37(
       TranscriptRegion,
       {
         surface: props,
@@ -2570,7 +2905,7 @@ function AgentConversationSurface(props) {
         contentInset
       }
     ),
-    /* @__PURE__ */ jsx35(
+    /* @__PURE__ */ jsx37(
       ComposerRegion,
       {
         surface: props,
@@ -2578,13 +2913,14 @@ function AgentConversationSurface(props) {
           input,
           setInput,
           onSend,
-          canSend: input.trim().length > 0 && !isStreaming,
+          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !isStreaming,
           inputRef,
           dictation,
           isStreaming,
           onStop: stop,
           hasThread: messages.length > 0 || isStreaming,
-          newConversation
+          newConversation,
+          images: imageAttachments ? images : null
         },
         contentInset
       }
@@ -2594,9 +2930,9 @@ function AgentConversationSurface(props) {
 
 // src/agent/AgentWorkspaceShell.tsx
 import {
-  useCallback as useCallback11,
+  useCallback as useCallback12,
   useEffect as useEffect19,
-  useState as useState17
+  useState as useState18
 } from "react";
 import { Menu } from "lucide-react";
 
@@ -2653,7 +2989,7 @@ function useDensityStyle() {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
+import { jsx as jsx38, jsxs as jsxs29 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -2695,12 +3031,12 @@ function AgentWorkspaceShell({
 }) {
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
-  const [isOpen, setIsOpen] = useState17(false);
+  const [isOpen, setIsOpen] = useState18(false);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
-  const open = useCallback11(() => setIsOpen(true), []);
-  const close = useCallback11(() => setIsOpen(false), []);
-  const toggle = useCallback11(() => setIsOpen((v) => !v), []);
+  const open = useCallback12(() => setIsOpen(true), []);
+  const close = useCallback12(() => setIsOpen(false), []);
+  const toggle = useCallback12(() => setIsOpen((v) => !v), []);
   useEffect19(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
@@ -2751,7 +3087,7 @@ function AgentWorkspaceShell({
     `fi-density-${density}`,
     className
   ].filter(Boolean).join(" ");
-  const content = /* @__PURE__ */ jsxs28(
+  const content = /* @__PURE__ */ jsxs29(
     "div",
     {
       "data-fi-workspace": "agent",
@@ -2760,12 +3096,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx36("header", { "data-fi-slot": "header", children: header }),
-        /* @__PURE__ */ jsxs28("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx36("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx36("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        header != null && /* @__PURE__ */ jsx38("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs29("main", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx38("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx38("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx36("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx38("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -2799,13 +3135,13 @@ function AgentWorkspaceShell({
     containerType: "inline-size",
     containerName: "fi-sidebar"
   };
-  return /* @__PURE__ */ jsxs28(
+  return /* @__PURE__ */ jsxs29(
     "div",
     {
       "data-fi-workspace": "agent-with-sidebar",
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx36(
+        /* @__PURE__ */ jsx38(
           "nav",
           {
             "data-fi-slot": "sidebar",
@@ -2816,7 +3152,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx36(
+        drawerMode && /* @__PURE__ */ jsx38(
           "div",
           {
             onClick: close,
@@ -2832,7 +3168,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx36(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx38(
           "button",
           {
             type: "button",
@@ -2841,7 +3177,7 @@ function AgentWorkspaceShell({
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
             style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
-            children: /* @__PURE__ */ jsx36(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx38(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -2852,9 +3188,9 @@ function AgentWorkspaceShell({
 
 // src/agent/AgentSidebarItem.tsx
 import {
-  useCallback as useCallback12,
-  useRef as useRef12,
-  useState as useState18
+  useCallback as useCallback13,
+  useRef as useRef14,
+  useState as useState19
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
@@ -2981,7 +3317,7 @@ function useSidebarItemStyle() {
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment6, jsx as jsx37, jsxs as jsxs29 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx39, jsxs as jsxs30 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -2996,7 +3332,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx37(
+  return /* @__PURE__ */ jsx39(
     "button",
     {
       type: "button",
@@ -3012,22 +3348,22 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx37(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx39(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
-  const [editing, setEditing] = useState18(false);
-  const [draft, setDraft] = useState18("");
-  const cancelledRef = useRef12(false);
-  const start = useCallback12(() => {
+  const [editing, setEditing] = useState19(false);
+  const [draft, setDraft] = useState19("");
+  const cancelledRef = useRef14(false);
+  const start = useCallback13(() => {
     cancelledRef.current = false;
     setDraft(value);
     setEditing(true);
   }, [value]);
-  const cancel = useCallback12(() => {
+  const cancel = useCallback13(() => {
     cancelledRef.current = true;
     setEditing(false);
   }, []);
-  const commit = useCallback12(() => {
+  const commit = useCallback13(() => {
     if (cancelledRef.current) {
       cancelledRef.current = false;
       setEditing(false);
@@ -3079,8 +3415,8 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !selected && !editing;
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx37("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
-  return /* @__PURE__ */ jsxs29(
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx39("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs30(
     "div",
     {
       className: joinClasses(
@@ -3101,10 +3437,10 @@ function AgentSidebarItem({
         }
       },
       children: [
-        /* @__PURE__ */ jsxs29("div", { className: FI_ITEM_BODY_CLASS, children: [
+        /* @__PURE__ */ jsxs30("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx37("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx37("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx39("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx39("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -3128,7 +3464,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx37(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx39(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -3136,7 +3472,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx37(
+  return /* @__PURE__ */ jsx39(
     AgentSidebarItem,
     {
       selected,
@@ -3147,8 +3483,8 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs29(Fragment6, { children: [
-        /* @__PURE__ */ jsx37(
+      actions: !rename.editing && /* @__PURE__ */ jsxs30(Fragment8, { children: [
+        /* @__PURE__ */ jsx39(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -3229,7 +3565,7 @@ function useSidebarSectionStyle() {
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx38, jsxs as jsxs30 } from "react/jsx-runtime";
+import { jsx as jsx40, jsxs as jsxs31 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -3248,13 +3584,13 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx38("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx40("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
     ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
   } : void 0;
-  return /* @__PURE__ */ jsxs30(
+  return /* @__PURE__ */ jsxs31(
     "section",
     {
       className: joinClasses2(
@@ -3264,12 +3600,12 @@ function AgentSidebarSection({
       ),
       "aria-label": ariaLabel,
       children: [
-        headerSlot ?? /* @__PURE__ */ jsxs30("div", { className: FI_SECTION_HEAD_CLASS, children: [
+        headerSlot ?? /* @__PURE__ */ jsxs31("div", { className: FI_SECTION_HEAD_CLASS, children: [
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx38("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx38("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx40("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx40("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );

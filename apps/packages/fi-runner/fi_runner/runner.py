@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
-from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnResult
+from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnImage, TurnResult
 from .conversation import ConversationStore, Message, render_transcript, sanitize_history
 from .flow import Event
 from .guards import Guard
@@ -269,14 +269,24 @@ class Runner:
         request_id: str | None,
         history: Iterable[Any] | None,
         emit: Callable[[str, dict[str, Any]], None],
+        images: list[TurnImage] | None = None,
     ) -> _TurnSetup:
         """The shared turn preamble (see :class:`_TurnSetup`): validate, mint the
         request id, resolve MCP servers, route the model, fold continuity and
-        render the context binding. Raises ``ValueError`` on an empty message."""
-        if not user_message or not user_message.strip():
+        render the context binding. Raises ``ValueError`` on an empty message —
+        unless the turn carries ``images`` (an image-only send is a valid turn;
+        the picture IS the message)."""
+        if (not user_message or not user_message.strip()) and not images:
             raise ValueError("user_message must be non-empty")
         request_id = request_id or uuid.uuid4().hex[:12]
         t0 = time.perf_counter()
+        if images:
+            # Count + media types only — never the bytes (telemetry stays light
+            # and PHI-safe, same discipline as the tool-trace).
+            emit(
+                "images_attached",
+                {"request_id": request_id, "count": len(images), "media_types": [i.media_type for i in images]},
+            )
         mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
         model = self.model
         if self.model_router is not None:
@@ -389,6 +399,7 @@ class Runner:
         context: dict[str, Any] | None = None,
         request_id: str | None = None,
         history: Iterable[Any] | None = None,
+        images: Iterable[Any] | None = None,
     ) -> TurnResult:
         """Run the turn pipeline: backend → guards → retry → post-processors.
 
@@ -406,8 +417,14 @@ class Runner:
         model, mcp_count, guard levels) is emitted at the end, and
         ``guard_critical`` whenever a guard flags a CRITICAL outcome.
 
-        Raises ``ValueError`` on empty ``user_message`` and :class:`BackendError`
-        if the backend fails (the original exception is chained as ``__cause__``).
+        Pass ``images`` (``TurnImage``s or raw ``{media_type, data}`` mappings,
+        base64) to attach vision input to THIS turn's user message; an
+        image-only turn (empty text) is valid. Images are current-turn only —
+        history replay is a text fold and does not carry them.
+
+        Raises ``ValueError`` on empty ``user_message`` (unless images ride)
+        and :class:`BackendError` if the backend fails (the original exception
+        is chained as ``__cause__``).
         """
         # EVERY turn self-documents — observability is not opt-in. Mirror this
         # turn's events into a local buffer (local → safe under concurrent runs)
@@ -418,8 +435,9 @@ class Runner:
             turn_events.append((event, fields))
             self._emit(event, fields)
 
+        turn_images = [TurnImage.from_any(i) for i in images] if images else None
         setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, emit
+            user_message, session_id, context, request_id, history, emit, images=turn_images
         )
         request_id = setup.request_id
         attempts = max(1, self.retry_policy.max_attempts)
@@ -440,6 +458,11 @@ class Runner:
                         tool_policy=self.tool_policy,
                         model=model,
                         session_id=setup.backend_session_id,
+                        # Only image-carrying turns pass the kwarg: a text-only
+                        # turn stays byte-identical for every backend, and a
+                        # vision-less backend fails LOUD (TypeError → BackendError)
+                        # instead of silently answering without the picture.
+                        **({"images": turn_images} if turn_images else {}),
                     )
                 except BackendError:
                     raise  # already typed — don't double-wrap
@@ -502,6 +525,7 @@ class Runner:
         context: dict[str, Any] | None = None,
         request_id: str | None = None,
         history: Iterable[Any] | None = None,
+        images: Iterable[Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn: yields backend events AS THEY HAPPEN —
         ``{"type":"tool_call","tool":ToolCall}`` per tool call,
@@ -515,8 +539,9 @@ class Runner:
         Backends without ``run_turn_stream`` fall back to one result event. Telemetry
         (turn_completed, tool_called, guard_critical) still fires via on_event; the
         flow diagram + narration are run()-only (not produced for streamed turns)."""
+        turn_images = [TurnImage.from_any(i) for i in images] if images else None
         setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, self._emit
+            user_message, session_id, context, request_id, history, self._emit, images=turn_images
         )
         request_id = setup.request_id
 
@@ -532,6 +557,8 @@ class Runner:
                     system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
                     user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
                     tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
+                    # Same contract as run(): the kwarg exists only on image turns.
+                    **({"images": turn_images} if turn_images else {}),
                 ):
                     if event.get("type") == "result":
                         result = event["result"]
@@ -574,6 +601,7 @@ class Runner:
                     system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
                     user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
                     tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
+                    **({"images": turn_images} if turn_images else {}),
                 )
         except BackendError:
             raise

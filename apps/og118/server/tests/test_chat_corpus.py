@@ -25,7 +25,7 @@ class _SpyRunner:
         self.seen: dict = {}
 
     async def run_stream(
-        self, message, *, session_id=None, request_id=None, history=None, context=None
+        self, message, *, session_id=None, request_id=None, history=None, context=None, images=None
     ) -> AsyncIterator[dict]:  # noqa: ANN001
         self.seen = {"message": message, "context": context}
         yield {"type": "result", "result": {"text": "ok"}}

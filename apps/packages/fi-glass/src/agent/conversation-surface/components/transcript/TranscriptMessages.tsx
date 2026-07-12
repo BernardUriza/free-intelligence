@@ -13,7 +13,7 @@
 
 import { Fragment, type ReactNode } from 'react';
 import type { AgentTurnState, ChatMessage, MessageAuthor } from '@free-intelligence/core';
-import { MessageContent, MessageBubble, CopyButton } from '../../../../messages';
+import { MessageContent, MessageBubble, CopyButton, MessageImages } from '../../../../messages';
 import {
   MessageAuthorHeader,
   defaultMessageHeader,
@@ -96,6 +96,9 @@ export function TranscriptMessages({
               }
               className={resolveBubbleClass(m)}
             >
+              {/* Attached images render above the text (OG118-IMAGE-UPLOAD-1),
+                  never clamped — the picture is the point of the message. */}
+              <MessageImages images={m.images} />
               <MessageContent
                 isUser={m.role === 'user'}
                 content={m.content}

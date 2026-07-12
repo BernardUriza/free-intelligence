@@ -1,5 +1,5 @@
 import type { AgentTurnState } from './state';
-import type { ChatMessage } from '../chat/message';
+import type { ChatMessage, MessageImage } from '../chat/message';
 
 /**
  * Per-send metadata the conversation layer may hand the transport. Optional and
@@ -15,6 +15,12 @@ export interface AgentSendMeta {
    * as authorization.
    */
   history?: ChatMessage[];
+  /**
+   * Images attached to THIS send (OG118-IMAGE-UPLOAD-1) — vision input for the
+   * current turn. The transport forwards them to its backend as image content
+   * blocks; a transport that ignores `meta` behaves exactly as before.
+   */
+  images?: MessageImage[];
 }
 
 /**

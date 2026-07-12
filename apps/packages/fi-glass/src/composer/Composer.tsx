@@ -13,7 +13,12 @@
  * or to drop voice (there is none to drop here).
  */
 
-import { type CSSProperties, type KeyboardEvent, type Ref } from 'react';
+import {
+  type ClipboardEventHandler,
+  type CSSProperties,
+  type KeyboardEvent,
+  type Ref,
+} from 'react';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 export interface ComposerProps {
@@ -37,6 +42,12 @@ export interface ComposerProps {
   onMessageChange: (value: string) => void;
   /** Called on Enter (without Shift) */
   onSend: () => void;
+  /**
+   * Paste hook on the textarea (OG118-IMAGE-UPLOAD-1): the surface intercepts
+   * pasted image files here (calling `preventDefault` itself); plain-text paste
+   * is untouched. Omit for the previous behavior.
+   */
+  onPaste?: ClipboardEventHandler<HTMLTextAreaElement>;
   /** Max rows before the textarea scrolls */
   maxRows?: number;
   /** Class for the outer area wrapper */
@@ -70,6 +81,7 @@ export function Composer({
   placeholder = 'Escribe tu mensaje...',
   onMessageChange,
   onSend,
+  onPaste,
   maxRows = 5,
   areaClassName,
   wrapperClassName,
@@ -99,6 +111,7 @@ export function Composer({
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={onPaste}
         placeholder={placeholder}
         disabled={disabled}
         maxRows={maxRows}

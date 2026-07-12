@@ -17,6 +17,11 @@
 
 import type { ReactNode, RefObject } from 'react';
 import { Composer, ComposerFrame } from '../../../../composer';
+import {
+  AttachImageButton,
+  ComposerImageChips,
+} from '../../../../composer/ComposerImageAttachments';
+import type { ComposerImages } from '../../../../composer/useComposerImages';
 import type { AgentConversationSurfaceProps } from '../../types';
 import type { SurfaceDictation } from '../../hooks';
 import { ComposerControls } from './ComposerControls';
@@ -35,6 +40,9 @@ export interface SurfaceComposerState {
   onStop?: () => void;
   hasThread: boolean;
   newConversation: () => void;
+  /** Image-attachment state (OG118-IMAGE-UPLOAD-1) — null when the surface's
+   * `imageAttachments` switch is off, and the composer renders as before. */
+  images: ComposerImages | null;
 }
 
 export interface ComposerRegionProps {
@@ -57,6 +65,7 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     onStop,
     hasThread,
     newConversation,
+    images,
   } = state;
   const {
     aboveComposer,
@@ -82,7 +91,45 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     showSendButton = true,
     sendLabel = 'Enviar mensaje',
     stopLabel = 'Detener respuesta',
+    attachImageLabel = 'Adjuntar imagen',
+    attachImageButtonClassName,
+    imageChipsClassName,
   } = surface;
+
+  // OG118-IMAGE-UPLOAD-1: the chips are a preview OF the message being composed,
+  // so they live in the ComposerFrame HEADER (like the audio draft); the attach
+  // trigger is something the user sets before composing, so it leads the
+  // FOOTER-START rail (COMPOSER-FOOTER-ZONES-1), before the app's own chips.
+  const imageChips =
+    images && images.drafts.length > 0 ? (
+      <ComposerImageChips
+        drafts={images.drafts}
+        onRemove={images.remove}
+        disabled={isStreaming}
+        className={imageChipsClassName}
+      />
+    ) : null;
+  const attachButton = images ? (
+    <AttachImageButton
+      onFiles={(files) => void images.addFiles(files)}
+      label={attachImageLabel}
+      className={attachImageButtonClassName}
+    />
+  ) : null;
+  const header =
+    imageChips || composerHeader ? (
+      <>
+        {imageChips}
+        {composerHeader}
+      </>
+    ) : undefined;
+  const footerStart =
+    attachButton || composerFooterStart ? (
+      <>
+        {attachButton}
+        {composerFooterStart}
+      </>
+    ) : undefined;
 
   const footer: ReactNode =
     showSendButton || micSlotOverride != null || dictation.micAvailable ? (
@@ -137,10 +184,10 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
             header/body/footer slots. */}
         <ComposerFrame
           className={composerBoxClassName}
-          header={composerHeader}
+          header={header}
           headerClassName={composerHeaderClassName}
           footerClassName={composerControlsClassName}
-          footerStart={composerFooterStart}
+          footerStart={footerStart}
           footerStartClassName={composerFooterStartClassName}
           footer={footer}
         >
@@ -150,6 +197,15 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
             placeholder={composerPlaceholder}
             onMessageChange={setInput}
             onSend={onSend}
+            // Paste-an-image (ChatGPT parity): image files in the clipboard
+            // become attachment chips; plain-text paste falls through untouched.
+            onPaste={
+              images
+                ? (e) => {
+                    if (images.handlePaste(e)) e.preventDefault();
+                  }
+                : undefined
+            }
             areaClassName={composerAreaClassName}
             textareaClassName={composerTextareaClassName}
             // The input fills the composer area regardless of how the consumer

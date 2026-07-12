@@ -136,6 +136,25 @@ export interface AgentConversationSurfaceProps {
    * threading a new callback through the components").
    */
   voiceAdapter?: VoiceAdapter;
+  /**
+   * OG118-IMAGE-UPLOAD-1 — image attachments in the composer (ChatGPT parity).
+   * When true, the surface owns the whole capability: an attach button in the
+   * composer's footer rail (before `composerFooterStart`), paste-an-image into
+   * the textarea, thumbnail chips in the composer header, downscale + base64
+   * encoding, and sending the images with the message (`conversation.send`'s
+   * second argument). Default false — no consumer wiring beyond this switch.
+   */
+  imageAttachments?: boolean;
+  /** Max images attachable to one message. Default 4 (mirrors the server cap). */
+  maxAttachedImages?: number;
+  /** aria-label for the attach button. Default: "Adjuntar imagen". */
+  attachImageLabel?: string;
+  /** Class for the attach button. */
+  attachImageButtonClassName?: string;
+  /** Class for the attached-image chips row (composer header). */
+  imageChipsClassName?: string;
+  /** Called with a human-readable message when an image is rejected (type/size). */
+  onImageAttachmentError?: (message: string) => void;
   /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
   micSlotClassName?: string;
   /** Class for the dictation mic button. */

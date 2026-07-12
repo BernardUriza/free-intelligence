@@ -116,6 +116,9 @@ export function Og118AgentChat() {
     isAppHandledError: (t) => (t.errorMessage ?? '').startsWith(AUTH401),
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
+  // OG118-IMAGE-UPLOAD-1: a rejected attachment (wrong type / too big) surfaces
+  // here — same dismissable-banner pattern as voice errors, controlled string only.
+  const [attachError, setAttachError] = useState<string | null>(null);
   const { turn } = conversation;
   const activeElement = elements.elements.find((e) => e.slug === elements.selected);
 
@@ -167,6 +170,11 @@ export function Og118AgentChat() {
       message={composer.voiceErrorBanner}
       onDismiss={() => composer.setVoiceError(null)}
     />
+  ) : null;
+
+  // Attachment rejections reuse the same banner presentation (message + dismiss).
+  const attachErrorBanner = attachError ? (
+    <Og118VoiceErrorBanner message={attachError} onDismiss={() => setAttachError(null)} />
   ) : null;
 
   // Wait for the first hydration so we never send with a null session id nor
@@ -256,10 +264,16 @@ export function Og118AgentChat() {
             <>
               {authBanner}
               {voiceErrorBanner}
+              {attachErrorBanner}
               {composer.voiceBar}
               {composer.audioQueuePanel}
             </>
           }
+          // OG118-IMAGE-UPLOAD-1 (ChatGPT parity): the framework owns the whole
+          // capability — attach button, paste-an-image, chips, encoding, send.
+          // og118 only flips the switch and surfaces rejections in its banner.
+          imageAttachments
+          onImageAttachmentError={setAttachError}
           // The footer's left rail: element selector + the Resonance call
           // control. A call is a MODE, not a banner — idle it costs one icon,
           // and its live state rises into the composer header below.

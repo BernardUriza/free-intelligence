@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, VoiceAdapter } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 
 /**
@@ -235,8 +235,10 @@ interface AgentConversation {
     isStreaming: boolean;
     /** A recoverable failure of the last turn (timeout/stream), or null. */
     turnError: TurnError | null;
-    /** Send a message: pushes it optimistically, then drives the agent turn. */
-    send: (text: string) => void;
+    /** Send a message: pushes it optimistically, then drives the agent turn.
+     * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
+     * (empty text, ≥1 image) is valid — the picture IS the message. */
+    send: (text: string, images?: MessageImage[]) => void;
     /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
     sendAndAwait: (text: string) => Promise<string>;
     /**
@@ -392,6 +394,25 @@ interface AgentConversationSurfaceProps {
      * threading a new callback through the components").
      */
     voiceAdapter?: VoiceAdapter;
+    /**
+     * OG118-IMAGE-UPLOAD-1 — image attachments in the composer (ChatGPT parity).
+     * When true, the surface owns the whole capability: an attach button in the
+     * composer's footer rail (before `composerFooterStart`), paste-an-image into
+     * the textarea, thumbnail chips in the composer header, downscale + base64
+     * encoding, and sending the images with the message (`conversation.send`'s
+     * second argument). Default false — no consumer wiring beyond this switch.
+     */
+    imageAttachments?: boolean;
+    /** Max images attachable to one message. Default 4 (mirrors the server cap). */
+    maxAttachedImages?: number;
+    /** aria-label for the attach button. Default: "Adjuntar imagen". */
+    attachImageLabel?: string;
+    /** Class for the attach button. */
+    attachImageButtonClassName?: string;
+    /** Class for the attached-image chips row (composer header). */
+    imageChipsClassName?: string;
+    /** Called with a human-readable message when an image is rejected (type/size). */
+    onImageAttachmentError?: (message: string) => void;
     /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
     micSlotClassName?: string;
     /** Class for the dictation mic button. */

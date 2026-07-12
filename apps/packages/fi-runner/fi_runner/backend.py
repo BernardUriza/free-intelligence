@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
@@ -266,6 +267,40 @@ class ToolCall:
             is_error=is_error,
             duration_ms=duration_ms,
         )
+
+
+@dataclass(frozen=True)
+class TurnImage:
+    """One image attached to the CURRENT turn's user message (vision input).
+
+    ``data`` is base64-encoded bytes (no ``data:`` URL prefix); ``media_type``
+    is the MIME type (``image/jpeg``, ``image/png``, ``image/webp``,
+    ``image/gif``). Backend-agnostic data — a backend that supports vision
+    (ClaudeCodeBackend) folds these into image content blocks; one that does
+    not must reject the turn loudly rather than silently answer text-only.
+
+    Current-turn only by design: history replay (``sanitize_history`` →
+    ``render_transcript``) is a TEXT fold, so prior turns' images do not ride
+    along — the client re-attaches an image when it wants the model to see it
+    again."""
+
+    media_type: str
+    data: str
+
+    @classmethod
+    def from_any(cls, item: Any) -> TurnImage:
+        """Coerce a :class:`TurnImage` or a mapping (the raw JSON shape, either
+        ``media_type`` or ``mediaType``) into a TurnImage. Raises ``ValueError``
+        on anything else — an image the backend can't type is a client bug, not
+        something to drop silently."""
+        if isinstance(item, cls):
+            return item
+        if isinstance(item, Mapping):
+            media_type = item.get("media_type") or item.get("mediaType")
+            data = item.get("data")
+            if isinstance(media_type, str) and media_type and isinstance(data, str) and data:
+                return cls(media_type=media_type, data=data)
+        raise ValueError(f"cannot coerce {type(item).__name__} into TurnImage")
 
 
 @dataclass(frozen=True)

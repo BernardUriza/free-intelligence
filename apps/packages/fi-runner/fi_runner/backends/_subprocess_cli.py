@@ -29,7 +29,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
-from ..backend import BackendError, MCPServerSpec, ToolPolicy, TurnResult
+from ..backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage, TurnResult
 
 
 class SubprocessCLIBackend(ABC):
@@ -48,7 +48,16 @@ class SubprocessCLIBackend(ABC):
         tool_policy: ToolPolicy,
         model: str | None = None,
         session_id: str | None = None,
+        images: list[TurnImage] | None = None,
     ) -> TurnResult:
+        if images:
+            # A one-shot CLI invocation has no channel for image content blocks.
+            # Fail LOUD: silently answering without the picture is the lie the
+            # TurnImage contract forbids.
+            raise BackendError(
+                f"{type(self).__name__} does not support image input; "
+                "use a vision-capable backend (ClaudeCodeBackend)"
+            )
         binary = self._cli_binary()
         if shutil.which(binary) is None:
             raise BackendError(self._not_found_message())
@@ -74,6 +83,7 @@ class SubprocessCLIBackend(ABC):
         tool_policy: ToolPolicy,
         model: str | None = None,
         session_id: str | None = None,
+        images: list[TurnImage] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Result-only streaming: a CLI is invoked non-incrementally, so this yields
         a single final ``{"type":"result","result":TurnResult}`` — enough for a
@@ -81,7 +91,7 @@ class SubprocessCLIBackend(ABC):
         streaming (reading stdout as it's produced) is a per-backend v2 override."""
         result = await self.run_turn(
             system_prompt=system_prompt, user_message=user_message, mcp_servers=mcp_servers,
-            tool_policy=tool_policy, model=model, session_id=session_id,
+            tool_policy=tool_policy, model=model, session_id=session_id, images=images,
         )
         yield {"type": "result", "result": result}
 

@@ -343,8 +343,44 @@ var MessageBubble = memo3(function MessageBubble2({
   );
 });
 
+// src/messages/MessageImages.tsx
+import { jsx as jsx5 } from "react/jsx-runtime";
+function MessageImages({
+  images,
+  className,
+  imageClassName,
+  altLabel = "Imagen adjunta"
+}) {
+  if (!images || images.length === 0) return null;
+  return /* @__PURE__ */ jsx5(
+    "div",
+    {
+      className,
+      "data-fi-message-images": "",
+      style: { display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" },
+      children: images.map((img, i) => /* @__PURE__ */ jsx5(
+        "img",
+        {
+          src: `data:${img.mediaType};base64,${img.data}`,
+          alt: `${altLabel} ${i + 1}`,
+          loading: "lazy",
+          style: {
+            maxWidth: "min(100%, 20rem)",
+            maxHeight: "20rem",
+            borderRadius: "0.75rem",
+            display: "block",
+            objectFit: "contain"
+          },
+          className: imageClassName
+        },
+        i
+      ))
+    }
+  );
+}
+
 // src/messages/MessageAuthorHeader.tsx
-import { Fragment, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 var AVATAR = {
   width: 22,
   height: 22,
@@ -375,7 +411,7 @@ function MessageAuthorHeader({
 }) {
   const time = formatTime(timestamp, locale);
   return /* @__PURE__ */ jsxs4(Fragment, { children: [
-    /* @__PURE__ */ jsx5(
+    /* @__PURE__ */ jsx6(
       "span",
       {
         "aria-hidden": true,
@@ -388,8 +424,8 @@ function MessageAuthorHeader({
         children: avatarToken(author)
       }
     ),
-    /* @__PURE__ */ jsx5("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
-    author.engine && /* @__PURE__ */ jsx5(
+    /* @__PURE__ */ jsx6("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx6(
       "span",
       {
         "data-fi-author-engine": "",
@@ -403,13 +439,13 @@ function MessageAuthorHeader({
         children: author.engine
       }
     ),
-    time && /* @__PURE__ */ jsx5("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+    time && /* @__PURE__ */ jsx6("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
   ] });
 }
 function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   const isUser = message.role === "user";
   const author = message.author ?? (isUser ? userAuthor : agentAuthor);
-  return /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsx6(
     MessageAuthorHeader,
     {
       author,
@@ -421,7 +457,7 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
 }
 
 // src/messages/MessageModelBadge.tsx
-import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function MessageModelBadge({
   model,
   title = "Generado por {model}",
@@ -446,7 +482,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx6("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+        /* @__PURE__ */ jsx7("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
       ]
     }
   );
@@ -455,11 +491,11 @@ function defaultMessageBadge(message) {
   if (message.role !== "assistant") return void 0;
   const model = message.trace?.model?.trim();
   if (!model) return void 0;
-  return /* @__PURE__ */ jsx6(MessageModelBadge, { model });
+  return /* @__PURE__ */ jsx7(MessageModelBadge, { model });
 }
 
 // src/messages/MessageList.tsx
-import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -473,7 +509,7 @@ function MessageList({
     header,
     groups.map((group) => /* @__PURE__ */ jsxs6("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx7("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx8("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
@@ -484,6 +520,7 @@ export {
   MessageAuthorHeader,
   MessageBubble,
   MessageContent,
+  MessageImages,
   MessageList,
   MessageModelBadge,
   defaultMessageBadge,
