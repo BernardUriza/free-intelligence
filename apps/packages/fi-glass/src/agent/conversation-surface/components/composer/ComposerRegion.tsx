@@ -17,10 +17,12 @@
 
 import type { ReactNode, RefObject } from 'react';
 import { Composer, ComposerFrame } from '../../../../composer';
+import { ImagePlus } from 'lucide-react';
 import {
-  AttachImageButton,
+  useImagePicker,
   ComposerImageChips,
 } from '../../../../composer/ComposerImageAttachments';
+import { ComposerActions, type ComposerAction } from '../../../../composer/ComposerActions';
 import type { ComposerImages } from '../../../../composer/useComposerImages';
 import type { AgentConversationSurfaceProps } from '../../types';
 import type { SurfaceDictation } from '../../hooks';
@@ -92,6 +94,10 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
     sendLabel = 'Enviar mensaje',
     stopLabel = 'Detener respuesta',
     attachImageLabel = 'Adjuntar imagen',
+    composerActions,
+    composerActionsLabel,
+    composerActionsMenuClassName,
+    composerActionsItemClassName,
     attachImageButtonClassName,
     imageChipsClassName,
   } = surface;
@@ -109,13 +115,39 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
         className={imageChipsClassName}
       />
     ) : null;
-  const attachButton = images ? (
-    <AttachImageButton
-      onFiles={(files) => void images.addFiles(files)}
-      label={attachImageLabel}
-      className={attachImageButtonClassName}
-    />
-  ) : null;
+  // Every "add something to this turn" capability hangs off ONE "+": attaching an
+  // image is an action, not a button of its own (a button per capability is the
+  // crowding ComposerActions exists to prevent). The app can inject more actions
+  // — upload a document to the active project, and whatever comes next — and they
+  // land in the same menu instead of growing the rail.
+  const imagePicker = useImagePicker((files) => void (images && images.addFiles(files)));
+  const actions: ComposerAction[] = [
+    ...(images
+      ? [
+          {
+            id: 'attach-image',
+            label: attachImageLabel ?? 'Adjuntar imagen',
+            icon: <ImagePlus size={16} aria-hidden />,
+            onSelect: imagePicker.open,
+          },
+        ]
+      : []),
+    ...(composerActions ?? []),
+  ];
+  const attachButton =
+    actions.length > 0 ? (
+      <>
+        {images ? imagePicker.input : null}
+        <ComposerActions
+          actions={actions}
+          disabled={isStreaming}
+          label={composerActionsLabel}
+          className={attachImageButtonClassName}
+          menuClassName={composerActionsMenuClassName}
+          itemClassName={composerActionsItemClassName}
+        />
+      </>
+    ) : null;
   const header =
     imageChips || composerHeader ? (
       <>

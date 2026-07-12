@@ -38,17 +38,20 @@ const makeConversation = (msgs: ChatMessage[]): AgentConversation =>
   }) as AgentConversation;
 
 describe('<AgentConversationSurface> image attachments (OG118-IMAGE-UPLOAD-1)', () => {
-  it('renders the attach trigger only when imageAttachments is on', () => {
+  it('renders the shared "+" only when there is something to add', () => {
+    // No capabilities wired → no trigger at all (an empty "+" is worse than none).
     const off = renderToStaticMarkup(
       <AgentConversationSurface conversation={makeConversation([])} />,
     );
-    expect(off).not.toContain('data-fi-attach-image');
+    expect(off).not.toContain('data-fi-composer-actions');
 
+    // Images wired → the framework contributes "Adjuntar imagen" as an ACTION,
+    // reachable from the one "+" (not a button of its own).
     const on = renderToStaticMarkup(
       <AgentConversationSurface conversation={makeConversation([])} imageAttachments />,
     );
-    expect(on).toContain('data-fi-attach-image');
-    expect(on).toContain('Adjuntar imagen');
+    expect(on).toContain('data-fi-composer-actions');
+    expect(on).toContain('data-fi-image-input');
   });
 
   it('renders a message\'s attached images inside its bubble', () => {

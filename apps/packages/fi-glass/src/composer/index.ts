@@ -21,8 +21,14 @@ export {
   type UseComposerImagesOptions,
 } from './useComposerImages';
 export {
-  AttachImageButton,
+  useImagePicker,
   ComposerImageChips,
-  type AttachImageButtonProps,
+  type ImagePicker,
   type ComposerImageChipsProps,
 } from './ComposerImageAttachments';
+// The shared "+" — one trigger for every add-to-this-turn capability.
+export {
+  ComposerActions,
+  type ComposerAction,
+  type ComposerActionsProps,
+} from './ComposerActions';
