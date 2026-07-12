@@ -1,7 +1,7 @@
 import * as react from 'react';
 import { ClipboardEventHandler, CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
 import { MessageImage } from '@free-intelligence/core';
-export { a as ComposerAction, C as ComposerActions, b as ComposerActionsProps } from '../ComposerActions-DHODkCT4.js';
+export { b as ComposerAction, C as ComposerActions, c as ComposerActionsProps } from '../ComposerActions-HOiu1DmD.js';
 
 interface ComposerProps {
     /** Current message value */

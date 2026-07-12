@@ -2,7 +2,7 @@ import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
-import { a as ComposerAction } from '../ComposerActions-DHODkCT4.js';
+import { b as ComposerAction } from '../ComposerActions-HOiu1DmD.js';
 
 /**
  * Tool classification + live-status helpers for the Steps audit trail.

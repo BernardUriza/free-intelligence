@@ -418,9 +418,151 @@ function useImagePicker(onFiles) {
 }
 
 // src/composer/ComposerActions.tsx
-import { useEffect as useEffect3, useRef as useRef4, useState as useState3 } from "react";
 import { Plus } from "lucide-react";
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+
+// src/menu/ActionMenu.tsx
+import { Fragment, useEffect as useEffect3, useRef as useRef4, useState as useState3 } from "react";
+import { createPortal } from "react-dom";
+import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function ActionMenu({
+  actions,
+  trigger,
+  triggerLabel,
+  triggerClassName,
+  triggerStyle,
+  disabled = false,
+  menuClassName,
+  itemClassName,
+  dividerClassName,
+  triggerAttribute
+}) {
+  const [open, setOpen] = useState3(false);
+  const triggerRef = useRef4(null);
+  const [position, setPosition] = useState3({ top: 0, left: 0 });
+  useEffect3(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({ top: rect.top - 8, left: rect.left });
+    }
+  }, [open]);
+  useEffect3(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  if (actions.length === 0) return null;
+  const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
+  return /* @__PURE__ */ jsxs4(Fragment2, { children: [
+    /* @__PURE__ */ jsx5(
+      "button",
+      {
+        ref: triggerRef,
+        type: "button",
+        onClick: () => setOpen((v) => !v),
+        className: triggerClassName,
+        style: triggerStyle,
+        title: triggerLabel,
+        "aria-label": triggerLabel,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        disabled,
+        ...triggerProps,
+        children: trigger
+      }
+    ),
+    open && typeof document !== "undefined" && createPortal(
+      /* @__PURE__ */ jsxs4(Fragment2, { children: [
+        /* @__PURE__ */ jsx5(
+          "div",
+          {
+            className: "fixed inset-0 z-[9998]",
+            onClick: () => setOpen(false),
+            "aria-hidden": "true"
+          }
+        ),
+        /* @__PURE__ */ jsx5(
+          "div",
+          {
+            role: "menu",
+            "data-fi-action-menu": "",
+            className: menuClassName,
+            style: {
+              position: "fixed",
+              top: position.top,
+              left: position.left,
+              // Grow UPWARD from the anchor — the composer is at the bottom.
+              transform: "translateY(-100%)",
+              zIndex: 9999,
+              ...menuClassName ? {} : {
+                minWidth: "13rem",
+                padding: "0.35rem",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(15,23,42,0.98)",
+                boxShadow: "0 12px 32px rgba(0,0,0,0.45)"
+              }
+            },
+            children: actions.map((action) => {
+              const item = /* @__PURE__ */ jsxs4(
+                "button",
+                {
+                  type: "button",
+                  role: "menuitem",
+                  disabled: action.disabled,
+                  onClick: () => {
+                    setOpen(false);
+                    action.onSelect();
+                  },
+                  className: action.className ?? itemClassName,
+                  style: action.className ?? itemClassName ? void 0 : {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    width: "100%",
+                    padding: "0.5rem 0.65rem",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "transparent",
+                    color: action.disabled ? "#64748b" : "#e2e8f0",
+                    fontSize: "0.875rem",
+                    textAlign: "left",
+                    cursor: action.disabled ? "default" : "pointer"
+                  },
+                  children: [
+                    action.icon,
+                    /* @__PURE__ */ jsx5("span", { children: action.label })
+                  ]
+                },
+                action.id
+              );
+              const divider = action.dividerBefore ? /* @__PURE__ */ jsx5(
+                "div",
+                {
+                  className: dividerClassName,
+                  style: dividerClassName ? void 0 : { height: 1, margin: "0.25rem 0", background: "rgba(255,255,255,0.08)" }
+                }
+              ) : null;
+              return action.wrapperClassName ? /* @__PURE__ */ jsxs4("div", { className: action.wrapperClassName, children: [
+                divider,
+                item
+              ] }, action.id) : /* @__PURE__ */ jsxs4(Fragment, { children: [
+                divider,
+                item
+              ] }, action.id);
+            })
+          }
+        )
+      ] }),
+      document.body
+    )
+  ] });
+}
+
+// src/composer/ComposerActions.tsx
+import { jsx as jsx6 } from "react/jsx-runtime";
 function ComposerActions({
   actions,
   disabled = false,
@@ -430,105 +572,30 @@ function ComposerActions({
   menuClassName,
   itemClassName
 }) {
-  const [open, setOpen] = useState3(false);
-  const rootRef = useRef4(null);
-  useEffect3(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    const onClick = (e) => {
-      if (!rootRef.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClick);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClick);
-    };
-  }, [open]);
-  if (actions.length === 0) return null;
-  return /* @__PURE__ */ jsxs4("div", { ref: rootRef, style: { position: "relative", display: "inline-flex" }, children: [
-    /* @__PURE__ */ jsx5(
-      "button",
-      {
-        type: "button",
-        "aria-label": label,
-        title: label,
-        "aria-haspopup": "menu",
-        "aria-expanded": open,
-        disabled,
-        onClick: () => setOpen((v) => !v),
-        className: `fi-touch-target ${className ?? ""}`.trim(),
-        "data-fi-composer-actions": "",
-        style: {
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "transparent",
-          border: "none",
-          cursor: disabled ? "default" : "pointer",
-          opacity: disabled ? 0.5 : 1,
-          padding: "0.375rem",
-          color: "inherit"
-        },
-        children: /* @__PURE__ */ jsx5(Plus, { size: 18, "aria-hidden": true, className: iconClassName })
-      }
-    ),
-    open && /* @__PURE__ */ jsx5(
-      "div",
-      {
-        role: "menu",
-        "data-fi-composer-actions-menu": "",
-        className: menuClassName,
-        style: menuClassName ? { position: "absolute", bottom: "100%", left: 0, zIndex: 20 } : {
-          position: "absolute",
-          bottom: "100%",
-          left: 0,
-          marginBottom: "0.5rem",
-          zIndex: 20,
-          minWidth: "13rem",
-          padding: "0.35rem",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(15,23,42,0.98)",
-          boxShadow: "0 12px 32px rgba(0,0,0,0.45)"
-        },
-        children: actions.map((action) => /* @__PURE__ */ jsxs4(
-          "button",
-          {
-            type: "button",
-            role: "menuitem",
-            disabled: action.disabled,
-            onClick: () => {
-              setOpen(false);
-              action.onSelect();
-            },
-            className: itemClassName,
-            style: itemClassName ? void 0 : {
-              display: "flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              width: "100%",
-              padding: "0.5rem 0.65rem",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: action.disabled ? "#64748b" : "#e2e8f0",
-              fontSize: "0.875rem",
-              textAlign: "left",
-              cursor: action.disabled ? "default" : "pointer"
-            },
-            children: [
-              action.icon,
-              /* @__PURE__ */ jsx5("span", { children: action.label })
-            ]
-          },
-          action.id
-        ))
-      }
-    )
-  ] });
+  return /* @__PURE__ */ jsx6(
+    ActionMenu,
+    {
+      actions,
+      trigger: /* @__PURE__ */ jsx6(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
+      triggerLabel: label,
+      triggerClassName: `fi-touch-target ${className ?? ""}`.trim(),
+      triggerStyle: {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "transparent",
+        border: "none",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        padding: "0.375rem",
+        color: "inherit"
+      },
+      disabled,
+      menuClassName,
+      itemClassName,
+      triggerAttribute: "data-fi-composer-actions"
+    }
+  );
 }
 export {
   AutoResizeTextarea,

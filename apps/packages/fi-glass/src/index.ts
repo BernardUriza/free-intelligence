@@ -19,3 +19,7 @@ export * from './shell';
 // Californio (98): configurable optionals. Persona selector is also importable
 // via `fi-glass/persona-selector`; SpeakButton ships under `fi-glass/voice`.
 export * from './persona-selector';
+
+// The framework's ONE menu (extracted from aurity's toolbar — the SSOT of this
+// anatomy). Both the shell toolbar ("⋮") and the composer ("+") render it.
+export { ActionMenu, type MenuAction, type ActionMenuProps } from './menu/ActionMenu';

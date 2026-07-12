@@ -12,10 +12,9 @@
  * - voice mic → fi-glass/voice `VoiceMicButton`.
  */
 
-import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { ActionMenu } from '../menu/ActionMenu';
 import { VoiceMicButton } from '../voice';
 import type { ResponseMode, PersonaType, VoiceRecordingState } from './types';
 
@@ -81,22 +80,6 @@ export function ChatToolbar({
   canSend = false,
   sendLoading = false,
 }: ChatToolbarProps) {
-  // Overflow menu state
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const overflowButtonRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-
-  // Calculate dropdown position when opening
-  useEffect(() => {
-    if (overflowOpen && overflowButtonRef.current) {
-      const rect = overflowButtonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.top - 8, // 8px margin above button
-        left: rect.left,
-      });
-    }
-  }, [overflowOpen]);
-
   // Semantic classes from chat.css (Tailwind v4 migration)
   const buttonBaseClass = "chat-toolbar-btn";
   const iconClass = "chat-toolbar-icon";
@@ -107,135 +90,90 @@ export function ChatToolbar({
       <div className="fi-flex-gap-sm">
         {showPersonaSelector && personaSelector}
 
-        {/* Overflow menu for secondary actions */}
-        {(showAttach || showLanguage || showFormatting) && (
-          <div className="relative">
-            <button
-              ref={overflowButtonRef}
-              onClick={() => setOverflowOpen(!overflowOpen)}
-              className={buttonBaseClass}
-              title="Más opciones"
-              aria-label="Más opciones"
-            >
-              <MoreVertical className={iconClass} />
-            </button>
-
-            {overflowOpen && createPortal(
-              <>
-                {/* Backdrop */}
-                <div
-                  className="fixed inset-0 z-[9998]"
-                  onClick={() => setOverflowOpen(false)}
-                  aria-hidden="true"
-                />
-
-                {/* Dropdown Menu - Portal renders outside overflow:hidden container */}
-                <div
-                  className="chat-dropdown"
-                  style={{
-                    top: dropdownPosition.top,
-                    left: dropdownPosition.left,
-                    transform: 'translateY(-100%)',
-                  }}
-                >
-                  {/* Attach */}
-                  {showAttach && (
-                    <button
-                      onClick={() => {
-                        onAttach?.();
-                        setOverflowOpen(false);
-                      }}
-                      className="chat-dropdown-item"
-                    >
-                      <Paperclip className="fi-icon-sm" />
-                      <span>Adjuntar archivo</span>
-                    </button>
-                  )}
-
-                  {/* Language */}
-                  {showLanguage && (
-                    <button
-                      onClick={() => {
-                        onLanguage?.();
-                        setOverflowOpen(false);
-                      }}
-                      className="chat-dropdown-item"
-                    >
-                      <Globe className="fi-icon-sm" />
-                      <span>Cambiar idioma</span>
-                    </button>
-                  )}
-
-                  {/* Formatting */}
-                  {showFormatting && (
-                    <button
-                      onClick={() => {
-                        onFormatting?.();
-                        setOverflowOpen(false);
-                      }}
-                      className="chat-dropdown-item"
-                    >
-                      <Type className="fi-icon-sm" />
-                      <span>Formato de texto</span>
-                    </button>
-                  )}
-
-                  {/* Curl Template (Developer Tool) — app builds + copies + toasts */}
-                  {showCopyCurl && (
-                    <>
-                      <div className="chat-dropdown-divider" />
-                      <button
-                        onClick={() => {
-                          onCopyCurl?.();
-                          setOverflowOpen(false);
-                        }}
-                        className="chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300"
-                      >
-                        <Terminal className="fi-icon-sm" />
-                        <span>Copiar plantilla curl</span>
-                      </button>
-                    </>
-                  )}
-
-                  {/* Compact-only: ThinkingToggle (hidden when container is wider) */}
-                  {showThinkingToggle && (
-                    <div className="@md:hidden">
-                      <div className="chat-dropdown-divider" />
-                      <button
-                        onClick={() => {
-                          onShowThinkingToggle?.();
-                          setOverflowOpen(false);
-                        }}
-                        className={`chat-dropdown-item ${showThinking ? 'fi-text-purple hover:bg-purple-900/20' : ''}`}
-                      >
-                        <Sparkles className="fi-icon-sm" />
-                        <span>{showThinking ? 'Ocultar razonamiento' : 'Mostrar razonamiento'}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Compact-only: Clear conversation (hidden when container is wider) */}
-                  {showClear && (
-                    <div className="@md:hidden">
-                      <div className="chat-dropdown-divider" />
-                      <button
-                        onClick={() => {
-                          onClearConversation?.();
-                          setOverflowOpen(false);
-                        }}
-                        className="chat-dropdown-item-danger"
-                      >
-                        <Trash className="fi-icon-sm" />
-                        <span>Limpiar conversación</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>,
-              document.body
-            )}
-          </div>
-        )}
+        {/* Overflow menu for secondary actions — the framework's ActionMenu now,
+            not a second hand-written dropdown. Same trigger, same items, same
+            classes, same order: this toolbar IS the SSOT of that anatomy, so the
+            extraction had to preserve it exactly (dividers, per-item dress and
+            the compact-only gates included). */}
+        <ActionMenu
+          trigger={<MoreVertical className={iconClass} />}
+          triggerLabel="Más opciones"
+          triggerClassName={buttonBaseClass}
+          menuClassName="chat-dropdown"
+          itemClassName="chat-dropdown-item"
+          dividerClassName="chat-dropdown-divider"
+          actions={[
+            ...(showAttach
+              ? [
+                  {
+                    id: 'attach',
+                    label: 'Adjuntar archivo',
+                    icon: <Paperclip className="fi-icon-sm" />,
+                    onSelect: () => onAttach?.(),
+                  },
+                ]
+              : []),
+            ...(showLanguage
+              ? [
+                  {
+                    id: 'language',
+                    label: 'Cambiar idioma',
+                    icon: <Globe className="fi-icon-sm" />,
+                    onSelect: () => onLanguage?.(),
+                  },
+                ]
+              : []),
+            ...(showFormatting
+              ? [
+                  {
+                    id: 'formatting',
+                    label: 'Formato de texto',
+                    icon: <Type className="fi-icon-sm" />,
+                    onSelect: () => onFormatting?.(),
+                  },
+                ]
+              : []),
+            ...(showCopyCurl
+              ? [
+                  {
+                    id: 'curl',
+                    label: 'Copiar plantilla curl',
+                    icon: <Terminal className="fi-icon-sm" />,
+                    onSelect: () => onCopyCurl?.(),
+                    dividerBefore: true,
+                    className:
+                      'chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300',
+                  },
+                ]
+              : []),
+            ...(showThinkingToggle
+              ? [
+                  {
+                    id: 'thinking',
+                    label: showThinking ? 'Ocultar razonamiento' : 'Mostrar razonamiento',
+                    icon: <Sparkles className="fi-icon-sm" />,
+                    onSelect: () => onShowThinkingToggle?.(),
+                    dividerBefore: true,
+                    wrapperClassName: '@md:hidden',
+                    className: `chat-dropdown-item ${showThinking ? 'fi-text-purple hover:bg-purple-900/20' : ''}`,
+                  },
+                ]
+              : []),
+            ...(showClear
+              ? [
+                  {
+                    id: 'clear',
+                    label: 'Limpiar conversación',
+                    icon: <Trash className="fi-icon-sm" />,
+                    onSelect: () => onClearConversation?.(),
+                    dividerBefore: true,
+                    wrapperClassName: '@md:hidden',
+                    className: 'chat-dropdown-item-danger',
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       {/* Right side: Response Mode, Thinking Toggle & Voice */}
