@@ -31,6 +31,9 @@ const makeConversation = (msgs: ChatMessage[]): AgentConversation =>
     sendAndAwait: () => Promise.resolve(''),
     retry: () => {},
     dismissError: () => {},
+    persistError: null,
+    retryPersist: () => {},
+    dismissPersistError: () => {},
     newConversation: () => {},
   }) as AgentConversation;
 

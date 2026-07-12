@@ -92,6 +92,23 @@ export interface TurnError {
   message: string;
 }
 
+/**
+ * A failure to SAVE the thread (the turn itself succeeded). Distinct from
+ * {@link TurnError}: the answer is on screen and correct — what failed is the
+ * write, so the message the user must see is "this is not saved", not "the
+ * answer failed".
+ */
+export interface PersistError {
+  /** Human-readable, app-displayable reason. */
+  message: string;
+  /** The underlying rejection, for the app to log/inspect. */
+  cause: unknown;
+}
+
+/** Default copy when the persist rejection carries no usable message. */
+const DEFAULT_PERSIST_ERROR =
+  'No se pudo guardar esta conversación. Sigue en pantalla, pero podrías perderla al recargar.';
+
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 
@@ -125,8 +142,18 @@ export interface UseAgentConversationOptions {
   conversationId?: string | null;
   /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
   initialMessages?: ChatMessage[];
-  /** Called when the thread changes from real activity (fold/revert) — a persist hook. (Not called in controlled mode.) */
-  onMessagesChange?: (messages: ChatMessage[]) => void;
+  /**
+   * Called when the thread changes from real activity (fold/revert) — a persist
+   * hook. (Not called in controlled mode.)
+   *
+   * MAY be async: the hook awaits what it returns and surfaces a rejection as
+   * {@link AgentConversation.persistError}. It used to be typed `=> void` while
+   * consumers passed an async persist, so the promise was DISCARDED and a failed
+   * save (a 413 for an oversized record, a dead network, a 500) died as an
+   * unhandled rejection — the user saw the thread on screen, believed it was
+   * saved, and lost it on reload. Silence is the one thing persistence may never do.
+   */
+  onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
   /**
    * Idle watchdog in ms: if the live turn's state does not change for this long
    * while streaming, the turn is declared failed (timeout). Measured since the
@@ -163,6 +190,16 @@ export interface AgentConversation {
   isStreaming: boolean;
   /** A recoverable failure of the last turn (timeout/stream), or null. */
   turnError: TurnError | null;
+  /**
+   * The thread could not be SAVED (the turn itself succeeded), or null. A shell
+   * MUST surface this: the alternative is a user who trusts a thread that is not
+   * there. Recover with {@link retryPersist}.
+   */
+  persistError: PersistError | null;
+  /** Retry saving the current thread. No-op when there is nothing pending. */
+  retryPersist: () => void;
+  /** Clear the persist error without retrying (the thread stays unsaved). */
+  dismissPersistError: () => void;
   /** Send a message: pushes it optimistically, then drives the agent turn.
    * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
    * (empty text, ≥1 image) is valid — the picture IS the message. */
@@ -222,10 +259,42 @@ export function useAgentConversation(
   authorRef.current = author;
   const userAuthorRef = useRef(userAuthor);
   userAuthorRef.current = userAuthor;
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
   const [turnError, setTurnError] = useState<TurnError | null>(null);
   // The conversation's own "the watchdog killed this turn" flag. Lets us drop
   // out of streaming even when the transport's isStreaming is stuck true.
   const [timedOut, setTimedOut] = useState(false);
+  const [persistError, setPersistError] = useState<PersistError | null>(null);
+  // The thread whose save failed, kept so retryPersist can re-attempt exactly it
+  // (not whatever the thread has become since).
+  const unsaved = useRef<ChatMessage[] | null>(null);
+
+  // The ONE place the persist hook is called. Awaits it and turns a rejection
+  // into visible state — never a discarded promise (see `onMessagesChange`).
+  const runPersist = useCallback(async (thread: ChatMessage[]) => {
+    if (!onMessagesChangeRef.current) return;
+    try {
+      await onMessagesChangeRef.current(thread);
+      unsaved.current = null;
+      setPersistError(null);
+    } catch (cause) {
+      unsaved.current = thread;
+      setPersistError({
+        message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
+        cause,
+      });
+    }
+  }, []);
+
+  const retryPersist = useCallback(() => {
+    const thread = unsaved.current;
+    if (!thread) return;
+    setPersistError(null);
+    void runPersist(thread);
+  }, [runPersist]);
+
+  const dismissPersistError = useCallback(() => setPersistError(null), []);
 
   // True while a turn we optimistically pushed is still in flight; gates the fold.
   const pending = useRef(false);
@@ -424,7 +493,7 @@ export function useAgentConversation(
       skipPersist.current = false;
       return;
     }
-    onMessagesChange?.(messages);
+    void runPersist(messages);
     // onMessagesChange is read via latest closure; depend only on messages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
@@ -446,6 +515,9 @@ export function useAgentConversation(
     author,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : undefined,

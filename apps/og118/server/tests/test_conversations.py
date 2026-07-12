@@ -130,3 +130,27 @@ def test_upsert_replaces(client: TestClient, as_account) -> None:
     _put(client, _record("conv-1", title="v2"))
     assert client.get("/conversations/conv-1").json()["title"] == "v2"
     assert len(client.get("/conversations").json()["conversations"]) == 1
+
+
+def test_absurd_body_rejected_from_content_length_before_parsing(
+    client: TestClient, as_account
+) -> None:
+    """The outer wall (MAX_REQUEST_BODY_BYTES): a body that DECLARES a size past
+    the ceiling is refused from its header — the per-endpoint caps only run after
+    FastAPI has materialized and parsed the whole body, which is exactly what a
+    500 MB PUT must never get to do."""
+    response = client.put(
+        "/conversations/conv-1",
+        content=b'{"nope":1}',
+        headers={
+            "content-type": "application/json",
+            "content-length": str(app_module.MAX_REQUEST_BODY_BYTES + 1),
+        },
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "REQUEST_TOO_LARGE"
+
+
+def test_a_normal_body_passes_the_wall(client: TestClient, as_account) -> None:
+    """The wall cuts the absurd, never the legitimate: a real record still saves."""
+    assert _put(client, _record("conv-1")).status_code == 200

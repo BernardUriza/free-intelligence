@@ -47,7 +47,21 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     maxAttachedImages,
     onImageAttachmentError,
   } = props;
-  const { messages, turn, author, isStreaming, turnError, send, stop, retry, dismissError, newConversation } =
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
+    send,
+    stop,
+    retry,
+    dismissError,
+    newConversation,
+  } =
     conversation;
   const [input, setInput] = useState('');
   // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
@@ -83,7 +97,18 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     <div style={rootStyle}>
       <TranscriptRegion
         surface={props}
-        conversation={{ messages, turn, author, isStreaming, turnError, retry, dismissError }}
+        conversation={{
+          messages,
+          turn,
+          author,
+          isStreaming,
+          turnError,
+          retry,
+          dismissError,
+          persistError,
+          retryPersist,
+          dismissPersistError,
+        }}
         contentInset={contentInset}
       />
       <ComposerRegion

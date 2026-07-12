@@ -29,14 +29,34 @@ export interface TranscriptRegionProps {
   /** The live conversation slice the transcript renders. */
   conversation: Pick<
     AgentConversation,
-    'messages' | 'turn' | 'author' | 'isStreaming' | 'turnError' | 'retry' | 'dismissError'
+    | 'messages'
+    | 'turn'
+    | 'author'
+    | 'isStreaming'
+    | 'turnError'
+    | 'retry'
+    | 'dismissError'
+    | 'persistError'
+    | 'retryPersist'
+    | 'dismissPersistError'
   >;
   /** The fluid center cap (100% minus the responsive gutter). */
   contentInset: string;
 }
 
 export function TranscriptRegion({ surface, conversation, contentInset }: TranscriptRegionProps) {
-  const { messages, turn, author, isStreaming, turnError, retry, dismissError } = conversation;
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    retry,
+    dismissError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
+  } = conversation;
   const {
     emptyState,
     agentPanelProps,
@@ -59,6 +79,7 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
     autoScroll = true,
     retryLabel = 'Reintentar',
     dismissLabel = 'Descartar',
+    persistRetryLabel = 'Reintentar guardar',
     scrollToBottomLabel = 'Ir al final',
   } = surface;
 
@@ -128,6 +149,22 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
               onDismiss={dismissError}
               className={errorClassName}
               retryLabel={retryLabel}
+              dismissLabel={dismissLabel}
+              retryButtonClassName={retryButtonClassName}
+              dismissButtonClassName={dismissButtonClassName}
+            />
+          )}
+
+          {/* The turn succeeded but the thread could not be SAVED. The framework
+              surfaces it without the consumer opting in: a save that fails in
+              silence lets the user trust a conversation that is not there. */}
+          {persistError && (
+            <TurnErrorBanner
+              error={persistError}
+              onRetry={retryPersist}
+              onDismiss={dismissPersistError}
+              className={errorClassName}
+              retryLabel={persistRetryLabel}
               dismissLabel={dismissLabel}
               retryButtonClassName={retryButtonClassName}
               dismissButtonClassName={dismissButtonClassName}

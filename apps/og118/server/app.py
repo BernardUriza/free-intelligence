@@ -20,9 +20,9 @@ import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from fi_runner.auth import (
@@ -140,6 +140,46 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# The ceiling on ANY request body, enforced before the body is read.
+#
+# Every endpoint already caps what it accepts (a conversation record, an audio
+# blob, an uploaded file, the images on a turn) — but those caps run AFTER
+# FastAPI has materialized and parsed the whole body, so they protect the disk,
+# not the process: a 500 MB PUT was fully resident in memory before anything
+# rejected it. This is the missing outer wall.
+#
+# The value is the largest LEGITIMATE body the API has: one /chat/stream turn may
+# carry MAX_IMAGES_PER_MESSAGE (4) images of MAX_IMAGE_BYTES (5 MB) each, which
+# base64 inflates by ~4/3 → ~27 MB plus the JSON envelope. 32 MB clears that with
+# room to spare while still cutting the absurd early. Per-endpoint caps stay
+# authoritative for what each route actually allows.
+MAX_REQUEST_BODY_BYTES = 32 * 1024 * 1024
+
+
+@app.middleware("http")
+async def cap_request_body(request: Request, call_next):
+    """Reject an oversized body from its Content-Length, before reading it.
+
+    A client that omits Content-Length (chunked) still passes through — the
+    per-endpoint caps remain the authoritative check. This is a cheap outer wall
+    against the pathological case, not a replacement for them.
+    """
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_REQUEST_BODY_BYTES:
+        return JSONResponse(
+            status_code=413,
+            content={
+                "detail": {
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": (
+                        f"request body exceeds the "
+                        f"{MAX_REQUEST_BODY_BYTES // (1024 * 1024)} MB limit"
+                    ),
+                }
+            },
+        )
+    return await call_next(request)
 
 
 def get_principal(authorization: str | None = Header(default=None)) -> Principal:
