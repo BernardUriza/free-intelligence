@@ -358,3 +358,31 @@ describe('<AgentConversationSurface> composer header slot (COMPOSER-FRAME-2)', (
     expect(html).not.toContain('data-fi-composer-slot="header"');
   });
 });
+
+describe('<AgentConversationSurface> persist failure is SURFACED, never swallowed', () => {
+  it('renders the unsaved warning with retry/dismiss when the thread failed to save', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface
+        conversation={
+          {
+            ...makeConversation(),
+            persistError: {
+              message: 'conversation exceeds the 16 MB limit',
+              cause: new Error('HTTP 413'),
+            },
+          } as unknown as AgentConversation
+        }
+      />,
+    );
+    expect(html).toContain('conversation exceeds the 16 MB limit');
+    expect(html).toContain('Reintentar guardar');
+    expect(html).toContain('Descartar');
+  });
+
+  it('shows no warning when the thread saved fine', () => {
+    const html = renderToStaticMarkup(
+      <AgentConversationSurface conversation={makeConversation()} />,
+    );
+    expect(html).not.toContain('Reintentar guardar');
+  });
+});
