@@ -26,20 +26,23 @@ export function makeUserMessage(text: string, author: MessageAuthor): ChatMessag
 
 /**
  * Snapshot the turn's glass-box provenance for persistence (B3-FIGLASS-TRACE-
- * PERSISTENCE-1). Returns undefined for a plain conversational turn (no plan, no
- * tools, no sources) so those messages fold exactly as before — the trace is
+ * PERSISTENCE-1). Returns undefined for a plain conversational turn with no
+ * provenance at all, so those messages fold exactly as before — the trace is
  * opt-in, never bloating the simple case. The declared plan is kept even with
- * zero settled steps (the act of planning is itself the glass-box signal).
+ * zero settled steps (the act of planning is itself the glass-box signal), and
+ * the model is kept on its own: a plain answer still knows what produced it.
  */
 function snapshotTrace(turn: AgentTurnState): MessageTrace | undefined {
   const hasPlan = turn.plan != null && turn.plan.steps.length > 0;
   const hasTools = turn.steps.length > 0;
   const hasSources = turn.sources.length > 0;
-  if (!hasPlan && !hasTools && !hasSources) return undefined;
+  const model = turn.meta?.model?.trim() || undefined;
+  if (!hasPlan && !hasTools && !hasSources && !model) return undefined;
   return {
     ...(hasPlan ? { plan: turn.plan! } : {}),
     ...(hasTools ? { tools: turn.steps } : {}),
     ...(hasSources ? { sources: turn.sources } : {}),
+    ...(model ? { model } : {}),
   };
 }
 
@@ -48,9 +51,13 @@ function snapshotTrace(turn: AgentTurnState): MessageTrace | undefined {
  * the message content; the agentic provenance (declared plan + per-step
  * outcomes, tool calls, evidence) is snapshotted into `trace` so the durable
  * transcript re-renders the same glass-box the live turn showed — the "see the
- * execution, not just the result" differentiator survives the fold. A plain
- * conversational turn (no plan/tools/sources) folds with no `trace`, unchanged.
- * Model provenance also survives: `turn.meta.model` lands in `metadata.model`.
+ * execution, not just the result" differentiator survives the fold. A turn with
+ * no provenance at all folds with no `trace`, unchanged.
+ *
+ * Model provenance rides the TRACE, not `metadata`: persistence drops metadata
+ * by design (apps stash secrets there), so a model chip read from it showed on
+ * the live turn and vanished on reload — a badge that was never once seen after
+ * a refresh. It is provenance, and provenance persists.
  *
  * Authorship comes from the turn itself when the backend named a speaker (the
  * `author` event — the resolved persona/element); `defaultAuthor` is the agent's
@@ -61,14 +68,12 @@ export function foldAssistantTurn(
   turn: AgentTurnState,
   defaultAuthor: MessageAuthor,
 ): ChatMessage {
-  const model = turn.meta?.model;
   const trace = snapshotTrace(turn);
   return {
     role: 'assistant',
     author: turn.author ?? defaultAuthor,
     content: turn.text,
     timestamp: new Date().toISOString(),
-    ...(model ? { metadata: { model } } : {}),
     ...(trace ? { trace } : {}),
   };
 }

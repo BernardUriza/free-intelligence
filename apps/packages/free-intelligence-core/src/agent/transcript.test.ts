@@ -48,17 +48,27 @@ describe('foldAssistantTurn — authorship (no text without an author)', () => {
   });
 });
 
-describe('foldAssistantTurn — model provenance', () => {
-  it('persists turn.meta.model into metadata.model', () => {
+describe('foldAssistantTurn — model provenance rides the TRACE (it must survive a reload)', () => {
+  it('persists turn.meta.model into trace.model', () => {
     const msg = foldAssistantTurn(turnWith({ meta: { model: 'gpt-5.2-mini' } }), OG118);
     expect(msg.role).toBe('assistant');
-    expect(msg.metadata).toEqual({ model: 'gpt-5.2-mini' });
+    expect(msg.trace?.model).toBe('gpt-5.2-mini');
   });
 
-  it('omits metadata entirely when the turn has no model', () => {
-    expect(foldAssistantTurn(turnWith({ meta: null }), OG118).metadata).toBeUndefined();
+  it('never puts the model in metadata (persistence drops it — the badge would vanish)', () => {
+    const msg = foldAssistantTurn(turnWith({ meta: { model: 'claude-sonnet-4-6' } }), OG118);
+    expect(msg.metadata).toBeUndefined();
+  });
+
+  it('keeps the model on a plain answer (no plan, no tools) — provenance still counts', () => {
+    const msg = foldAssistantTurn(turnWith({ meta: { model: 'claude-sonnet-4-6' } }), OG118);
+    expect(msg.trace).toEqual({ model: 'claude-sonnet-4-6' });
+  });
+
+  it('omits the trace entirely when the turn has no model and no glass-box', () => {
+    expect(foldAssistantTurn(turnWith({ meta: null }), OG118).trace).toBeUndefined();
     expect(
-      foldAssistantTurn(turnWith({ meta: { latencyMs: 12 } }), OG118).metadata,
+      foldAssistantTurn(turnWith({ meta: { latencyMs: 12 } }), OG118).trace,
     ).toBeUndefined();
   });
 });
