@@ -2,6 +2,7 @@ import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
 import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
+import { a as ComposerAction } from '../ComposerActions-DHODkCT4.js';
 
 /**
  * Tool classification + live-status helpers for the Steps audit trail.
@@ -389,6 +390,17 @@ interface AgentConversationSurfaceProps {
     /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
     /** Copy for the "retry saving" button on the persist-failure banner. */
     persistRetryLabel?: string;
+    /**
+     * Extra actions for the composer's "+" menu — anything the app lets the user
+     * ADD to a turn (upload a document to the active project, …). Attaching an
+     * image is contributed by the framework when `images` is wired; these are
+     * appended after it, in one menu, so a new capability never grows the rail.
+     */
+    composerActions?: ComposerAction[];
+    /** aria-label/title of the "+" trigger. Default: "Añadir". */
+    composerActionsLabel?: string;
+    composerActionsMenuClassName?: string;
+    composerActionsItemClassName?: string;
     renderHeader?: (message: ChatMessage) => ReactNode;
     /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
     renderBadge?: (message: ChatMessage) => ReactNode;

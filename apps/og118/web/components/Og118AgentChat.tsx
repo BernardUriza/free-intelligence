@@ -26,7 +26,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { Phone, PhoneOff } from 'lucide-react';
+import { FileUp, Phone, PhoneOff } from 'lucide-react';
 import {
   AgentConversationSurface,
   AgentWorkspaceShell,
@@ -303,6 +303,22 @@ export function Og118AgentChat() {
                 </button>
               )}
             </>
+          }
+          // The "+" already carries "Adjuntar imagen" (contributed by fi-glass).
+          // Uploading a document to the ACTIVE project was reachable only from the
+          // sidebar — now it is where the user composes, in the same menu, which is
+          // exactly why the composer has one trigger instead of a button per feature.
+          composerActions={
+            projects.activeProjectId
+              ? [
+                  {
+                    id: 'upload-document',
+                    label: 'Subir documento al proyecto',
+                    icon: <FileUp size={16} aria-hidden />,
+                    onSelect: () => upload.openFilePicker(projects.activeProjectId!),
+                  },
+                ]
+              : []
           }
           composerFooterStartClassName="og-composer-rail"
           // The frosted preset goes on the BOX (textarea + controls row inside

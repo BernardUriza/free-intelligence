@@ -1,6 +1,7 @@
 import * as react from 'react';
 import { ClipboardEventHandler, CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
 import { MessageImage } from '@free-intelligence/core';
+export { a as ComposerAction, C as ComposerActions, b as ComposerActionsProps } from '../ComposerActions-DHODkCT4.js';
 
 interface ComposerProps {
     /** Current message value */
@@ -154,16 +155,17 @@ interface ComposerImageChipsProps {
     removeLabel?: string;
 }
 declare function ComposerImageChips({ drafts, onRemove, disabled, className, removeLabel, }: ComposerImageChipsProps): react.JSX.Element | null;
-interface AttachImageButtonProps {
-    /** Called with the picked files (hand them to `useComposerImages.addFiles`). */
-    onFiles: (files: File[]) => void;
-    /** Disable the trigger (composer disabled / attachment cap reached). */
-    disabled?: boolean;
-    className?: string;
-    iconClassName?: string;
-    /** aria-label. Default: "Adjuntar imagen". */
-    label?: string;
+interface ImagePicker {
+    /** Render this anywhere inside the composer — it is the hidden file input. */
+    input: ReactNode;
+    /** Open the OS file picker (wire it to a ComposerAction's onSelect). */
+    open: () => void;
 }
-declare function AttachImageButton({ onFiles, disabled, className, iconClassName, label, }: AttachImageButtonProps): react.JSX.Element;
+/**
+ * The image file-picker as a CAPABILITY, not a button: it hands back the hidden
+ * input to render and an `open()` for whatever affordance invokes it — today the
+ * shared "+" menu (ComposerActions).
+ */
+declare function useImagePicker(onFiles: (files: File[]) => void): ImagePicker;
 
-export { AttachImageButton, type AttachImageButtonProps, AutoResizeTextarea, type AutoResizeTextareaProps, COMPOSER_IMAGE_ACCEPT, COMPOSER_IMAGE_MEDIA_TYPES, Composer, ComposerFrame, type ComposerFrameProps, ComposerImageChips, type ComposerImageChipsProps, type ComposerImageDraft, type ComposerImages, type ComposerProps, DEFAULT_MAX_IMAGES, type UseComposerImagesOptions, ensureComposerFrameStyle, useComposerFrameStyle, useComposerImages };
+export { AutoResizeTextarea, type AutoResizeTextareaProps, COMPOSER_IMAGE_ACCEPT, COMPOSER_IMAGE_MEDIA_TYPES, Composer, ComposerFrame, type ComposerFrameProps, ComposerImageChips, type ComposerImageChipsProps, type ComposerImageDraft, type ComposerImages, type ComposerProps, DEFAULT_MAX_IMAGES, type ImagePicker, type UseComposerImagesOptions, ensureComposerFrameStyle, useComposerFrameStyle, useComposerImages, useImagePicker };

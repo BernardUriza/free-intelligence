@@ -6,15 +6,17 @@
  *   - ComposerImageChips — thumbnail chips of the images attached to the
  *     message being composed (ComposerFrame HEADER slot: a preview OF the
  *     draft, exactly like the recorded-audio draft), each with a remove button.
- *   - AttachImageButton — the picker trigger (ComposerFrame FOOTER-START rail:
- *     something the user sets before composing, per COMPOSER-FOOTER-ZONES-1).
+ *   - useImagePicker — the hidden file input + an `open()` to trigger it. Not a
+ *     button: attaching an image is ONE of the composer's capabilities, and they
+ *     all live behind the shared "+" (ComposerActions). A dedicated icon button
+ *     per capability is exactly the crowding the "+" exists to prevent.
  *
  * Presentation only — state lives in `useComposerImages`. Styling arrives via
  * className props; sensible inline defaults keep an unstyled consumer usable.
  */
 
-import { useRef } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 import type { ComposerImageDraft } from './useComposerImages';
 import { COMPOSER_IMAGE_ACCEPT } from './useComposerImages';
 
@@ -86,62 +88,35 @@ export function ComposerImageChips({
   );
 }
 
-export interface AttachImageButtonProps {
-  /** Called with the picked files (hand them to `useComposerImages.addFiles`). */
-  onFiles: (files: File[]) => void;
-  /** Disable the trigger (composer disabled / attachment cap reached). */
-  disabled?: boolean;
-  className?: string;
-  iconClassName?: string;
-  /** aria-label. Default: "Adjuntar imagen". */
-  label?: string;
+export interface ImagePicker {
+  /** Render this anywhere inside the composer — it is the hidden file input. */
+  input: ReactNode;
+  /** Open the OS file picker (wire it to a ComposerAction's onSelect). */
+  open: () => void;
 }
 
-export function AttachImageButton({
-  onFiles,
-  disabled = false,
-  className,
-  iconClassName,
-  label = 'Adjuntar imagen',
-}: AttachImageButtonProps) {
+/**
+ * The image file-picker as a CAPABILITY, not a button: it hands back the hidden
+ * input to render and an `open()` for whatever affordance invokes it — today the
+ * shared "+" menu (ComposerActions).
+ */
+export function useImagePicker(onFiles: (files: File[]) => void): ImagePicker {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={COMPOSER_IMAGE_ACCEPT}
-        multiple
-        style={{ display: 'none' }}
-        // Clearing value lets the same file be re-picked after removal.
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = '';
-          if (files.length > 0) onFiles(files);
-        }}
-      />
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        disabled={disabled}
-        onClick={() => inputRef.current?.click()}
-        className={`fi-touch-target ${className ?? ''}`.trim()}
-        data-fi-attach-image=""
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-          border: 'none',
-          cursor: disabled ? 'default' : 'pointer',
-          opacity: disabled ? 0.5 : 1,
-          padding: '0.375rem',
-          color: 'inherit',
-        }}
-      >
-        <ImagePlus size={18} aria-hidden className={iconClassName} />
-      </button>
-    </>
+  const input = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={COMPOSER_IMAGE_ACCEPT}
+      multiple
+      style={{ display: 'none' }}
+      data-fi-image-input=""
+      // Clearing value lets the same file be re-picked after removal.
+      onChange={(e) => {
+        const files = Array.from(e.target.files ?? []);
+        e.target.value = '';
+        if (files.length > 0) onFiles(files);
+      }}
+    />
   );
+  return { input, open: () => inputRef.current?.click() };
 }

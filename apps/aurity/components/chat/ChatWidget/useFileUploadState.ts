@@ -32,6 +32,15 @@ export interface UseFileUploadStateReturn {
   openPicker: () => void;
   handleFile: (file: File) => void;
   cancel: () => void;
+  /**
+   * Answer "how should the persona use this document?" — the step that ACTUALLY
+   * starts the indexing. `useChatUpload` has always exported it and this wrapper
+   * never surfaced it, so nothing in the app could call it: every upload parked
+   * in `pending_instructions` and never indexed.
+   */
+  setInstructions: (instructions: string) => Promise<void>;
+  /** True while the upload waits for that answer (renders the prompt). */
+  isPending: boolean;
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent) => void;
 }
@@ -48,6 +57,8 @@ export function useFileUploadState({
     handleFileSelect,
     cancel,
     reset,
+    setInstructions,
+    isPending,
   } = useChatUpload({
     persona,
     userId,
@@ -81,6 +92,8 @@ export function useFileUploadState({
     openPicker: openFilePicker,
     handleFile: handleFileSelect,
     cancel,
+    setInstructions,
+    isPending,
     handleDragOver,
     handleDrop,
   };

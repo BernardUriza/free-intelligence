@@ -42,6 +42,7 @@ export function ChatContent({
   uploadFile,
   uploadStatus,
   isUploadActive,
+  uploadPrompt,
   onNavigate,
   onModeChange,
   onMinimize,
@@ -143,6 +144,10 @@ export function ChatContent({
                       onCancel={onCancelUpload ?? (() => {})}
                     />
                   )}
+
+                  {/* The staged step: how should the persona USE this document?
+                      Answering it is what starts the indexing. */}
+                  {isUploadActive && uploadPrompt}
 
                   {/* Input ARRIBA - solo textarea */}
                   <Composer

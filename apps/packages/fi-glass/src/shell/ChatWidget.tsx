@@ -54,6 +54,7 @@ export function ChatWidget<TMessage = ChatMessage, TNode = unknown>({
   uploadStatus,
   isUploadActive,
   onAttach,
+  uploadPrompt,
   onCancelUpload,
   isStartingConversation = false,
   onStartConversation,
@@ -118,6 +119,7 @@ export function ChatWidget<TMessage = ChatMessage, TNode = unknown>({
       uploadFile={uploadFile}
       uploadStatus={uploadStatus}
       isUploadActive={isUploadActive}
+      uploadPrompt={uploadPrompt}
       onNavigate={onNavigate}
       onModeChange={widgetState.setViewMode}
       onMinimize={widgetState.minimize}
