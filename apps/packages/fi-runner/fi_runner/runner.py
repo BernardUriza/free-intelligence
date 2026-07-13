@@ -201,7 +201,31 @@ class Runner:
 
         When history folds, the backend stays stateless (``session_id`` → None):
         replay IS the continuity, so we never also resume a native session. Guards
-        still see the ORIGINAL ``user_message`` — only the BACKEND gets the fold."""
+        still see the ORIGINAL ``user_message`` — only the BACKEND gets the fold.
+
+        EXCEPT when the backend has its own durable memory (a wired
+        ``session_store``): the native transcript holds what replay cannot carry —
+        ``tool_use``/``tool_result`` blocks — and resuming it costs no per-turn
+        re-send, so it OUTRANKS the replay. The store is asked, never the pool:
+
+        - the session exists in the store → resume it, drop the fold entirely;
+        - the session does not exist yet → fold ONCE to SEED it (``session_id``
+          preserved, so the backend births the session with the replayed context
+          as its first exchange); every later turn resumes natively.
+
+        A backend without a store (Codex, fakes) never enters this branch —
+        behavior stays byte-identical."""
+        native = (
+            session_id is not None
+            and getattr(self.backend, "session_store", None) is not None
+            and callable(getattr(self.backend, "has_session", None))
+        )
+        if native and await self.backend.has_session(session_id):
+            emit(
+                "native_session_resumed",
+                {"request_id": request_id, "session_id": session_id},
+            )
+            return user_message, session_id
         folded: list[Message] | None = None
         source: str | None = None
         if history is not None:
@@ -225,7 +249,9 @@ class Runner:
                 "history_replayed",
                 {"request_id": request_id, "session_id": session_id, "messages": len(folded), "source": source},
             )
-        return render_transcript(folded, user_message), None
+        # Seeding a native session keeps the id (the backend births the session
+        # holding this fold); a stateless backend keeps getting None, as always.
+        return render_transcript(folded, user_message), (session_id if native else None)
 
     def _render_context_prompt(
         self,

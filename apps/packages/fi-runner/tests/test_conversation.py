@@ -372,3 +372,85 @@ async def test_redis_store_drives_runner_continuity_across_instances():
     b2 = _SpyBackend(reply="r2")
     await _runner(b2, store).run("otra", session_id="c1")  # different Runner instance
     assert "hola" in b2.seen_user[0] and "r1" in b2.seen_user[0]
+
+
+# --- native backend memory outranks replay ------------------------------------
+#
+# A backend with a wired session_store resumes its OWN durable transcript
+# (tool_use/tool_result blocks included) — re-sending the client history would
+# pay the context twice. The Runner asks the STORE (has_session), never the
+# pool: exists → resume (no fold); absent → fold ONCE to seed the born session
+# (session_id preserved); no store → byte-identical to the stateless contract.
+
+
+@dataclass
+class _NativeSpyBackend(_SpyBackend):
+    """A _SpyBackend that claims native durable memory (session_store wired)."""
+
+    session_store: object = "wired"
+    session_in_store: bool = False
+    asked: list[str] = field(default_factory=list)
+
+    async def has_session(self, session_id: str) -> bool:
+        self.asked.append(session_id)
+        return self.session_in_store
+
+
+@pytest.mark.asyncio
+async def test_native_session_resumes_without_folding_client_history():
+    events, sink = _event_sink()
+    backend = _NativeSpyBackend(session_in_store=True)
+    runner = _runner(backend, on_event=sink)
+    await runner.run("¿y antes?", session_id="c1", history=[Message("user", "hola"), Message("assistant", "buenas")])
+    # The original message, untouched — the SDK transcript carries the past.
+    assert backend.seen_user == ["¿y antes?"]
+    assert backend.seen_session == ["c1"]
+    assert backend.asked == ["c1"]  # decided by asking the store, not the pool
+    names = [e for e, _ in events]
+    assert "native_session_resumed" in names and "history_replayed" not in names
+
+
+@pytest.mark.asyncio
+async def test_native_seed_folds_history_once_and_keeps_the_session_id():
+    backend = _NativeSpyBackend(session_in_store=False)
+    runner = _runner(backend)
+    await runner.run("otra", session_id="c1", history=[Message("user", "hola"), Message("assistant", "buenas")])
+    # First sight of the session: the fold SEEDS it — transcript in the message,
+    # session_id preserved so the backend births the native session with it.
+    assert "hola" in backend.seen_user[0] and "buenas" in backend.seen_user[0]
+    assert backend.seen_session == ["c1"]
+
+
+@pytest.mark.asyncio
+async def test_native_backend_without_history_gets_the_session_born_clean():
+    backend = _NativeSpyBackend(session_in_store=False)
+    await _runner(backend).run("hola", session_id="c1")
+    assert backend.seen_user == ["hola"] and backend.seen_session == ["c1"]
+
+
+@pytest.mark.asyncio
+async def test_backend_without_store_is_byte_identical_under_history():
+    # has_session exists but session_store is None → the native branch never
+    # engages: fold + stateless backend, exactly the pre-store contract.
+    backend = _NativeSpyBackend(session_store=None, session_in_store=True)
+    runner = _runner(backend)
+    await runner.run("otra", session_id="c1", history=[Message("user", "hola")])
+    assert backend.asked == []  # the store was never consulted
+    assert "hola" in backend.seen_user[0]
+    assert backend.seen_session == [None]
+
+
+@pytest.mark.asyncio
+async def test_native_resume_applies_to_the_streaming_path_too():
+    @dataclass
+    class _NativeSpyStream(_SpyStreamBackend):
+        session_store: object = "wired"
+
+        async def has_session(self, session_id: str) -> bool:  # noqa: ARG002
+            return True
+
+    backend = _NativeSpyStream()
+    runner = _runner(backend)
+    async for _ in runner.run_stream("sigue", session_id="c1", history=[Message("user", "hola")]):
+        pass
+    assert backend.seen_user == ["sigue"] and backend.seen_session == ["c1"]
