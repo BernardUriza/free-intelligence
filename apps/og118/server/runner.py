@@ -59,11 +59,7 @@ def build_runner(
         # survives a recycled container and the per-turn re-send disappears.
         # None (the default, and today's deploy) keeps the turn byte-identical:
         # client history replay stays the continuity.
-        backend=ClaudeCodeBackend(
-            default_model=model,
-            session_store=session_store,
-            session_project_key="og118",
-        ),
+        backend=ClaudeCodeBackend(default_model=model, session_store=session_store),
         # The Runner must KNOW the model, not just the backend: it is the Runner
         # that stamps the answer's provenance (TurnResult.model → the "powered by"
         # chip). Configured only on the backend, `Runner.model` stayed None and the
