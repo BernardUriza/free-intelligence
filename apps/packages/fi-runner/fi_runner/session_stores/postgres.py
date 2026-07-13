@@ -290,6 +290,13 @@ class PostgresSessionStore(SessionStore):
         )
         return [r["subpath"] for r in rows]
 
+    async def close(self) -> None:
+        """Close the underlying pool. ADAPTED (not upstream, which never owns the
+        pool). Call it ONLY when the store owns its pool — i.e. it came from
+        :func:`create_postgres_session_store`; a deploy that handed in its own
+        pool closes that pool itself and must not call this."""
+        await self._pool.close()
+
 
 async def create_postgres_session_store(
     dsn: str,

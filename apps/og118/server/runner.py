@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from fi_runner import (
     ClaudeCodeBackend,
@@ -25,7 +26,11 @@ PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
 
 
-def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = None) -> Runner:
+def build_runner(
+    persona_path: Path = PERSONA_PATH,
+    persona_text: str | None = None,
+    session_store: Any | None = None,
+) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
     events (the glass-box stream og118's AgentHook maps onto core's
@@ -47,7 +52,18 @@ def build_runner(persona_path: Path = PERSONA_PATH, persona_text: str | None = N
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
     return Runner(
-        backend=ClaudeCodeBackend(default_model=model),
+        # session_store (og118-session-store wiring): the SDK's native durable
+        # memory, INJECTED by app.py's lifespan when OG118_SESSION_STORE_DSN is
+        # set (Postgres). With it, the Runner prefers resume= over re-folding the
+        # client's history replay — the transcript (tool_use/tool_result included)
+        # survives a recycled container and the per-turn re-send disappears.
+        # None (the default, and today's deploy) keeps the turn byte-identical:
+        # client history replay stays the continuity.
+        backend=ClaudeCodeBackend(
+            default_model=model,
+            session_store=session_store,
+            session_project_key="og118",
+        ),
         # The Runner must KNOW the model, not just the backend: it is the Runner
         # that stamps the answer's provenance (TurnResult.model → the "powered by"
         # chip). Configured only on the backend, `Runner.model` stayed None and the

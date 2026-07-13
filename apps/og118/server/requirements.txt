@@ -2,7 +2,9 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 httpx>=0.27          # TTS/STT provider HTTP client (tts.py, stt.py)
 python-multipart>=0.0.9  # /stt/transcribe multipart audio upload (UploadFile)
-# fi-runner (Claude Code backend + auth extras) is installed editable from the
-# monorepo path — see README. The `auth` extra ships PyJWT[crypto] for the Auth0
-# RS256/JWKS validation (fi_runner.auth), used in dual/auth0 modes:
-#   pip install -e ../../packages/fi-runner[claude,auth]
+# fi-runner (Claude Code backend + auth + postgres extras) is installed editable
+# from the monorepo path — see README. The `auth` extra ships PyJWT[crypto] for
+# the Auth0 RS256/JWKS validation (fi_runner.auth), used in dual/auth0 modes; the
+# `postgres` extra ships asyncpg for the native session store (only engaged when
+# OG118_SESSION_STORE_DSN is set):
+#   pip install -e ../../packages/fi-runner[claude,auth,postgres]

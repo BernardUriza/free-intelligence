@@ -330,12 +330,15 @@ class ClaudeCodeBackend:
                 session_id = getattr(message, "session_id", None) or session_id
         return "".join(parts), usage, session_id, tool_calls
 
-    async def _session_exists(self, session_id: str) -> bool:
+    async def has_session(self, session_id: str) -> bool:
         """Does the store already hold this session? `load()` returns None when it
         does not (SDK Protocol, types.py:1370). This is what decides born-vs-resume
         — the pool cannot answer it: an empty pool after a restart says nothing
         about whether the transcript survived, and that confusion is precisely the
-        bug (a `session_id=` on a continuation stomps the session)."""
+        bug (a `session_id=` on a continuation stomps the session).
+
+        PUBLIC on purpose: the Runner duck-types it (with ``session_store``) to
+        decide whether native memory outranks the history replay for a turn."""
         if self.session_store is None:
             return False
         entries = await self.session_store.load(self.session_key(session_id))
@@ -356,7 +359,7 @@ class ClaudeCodeBackend:
         async with self._pool_lock:
             client = self._pool.get(session_id)
             if client is None:
-                resuming = await self._session_exists(session_id)
+                resuming = await self.has_session(session_id)
                 client = ClaudeSDKClient(options=options_for(resuming))
                 await client.__aenter__()
                 self._pool[session_id] = client
