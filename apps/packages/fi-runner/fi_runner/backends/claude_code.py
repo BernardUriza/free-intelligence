@@ -67,7 +67,6 @@ class ClaudeCodeBackend:
         env: dict[str, str] | None = None,
         session_store: Any | None = None,
         session_store_flush: str = "eager",
-        session_project_key: str = "fi-runner",
     ) -> None:
         self.default_model = default_model
         self.cwd = cwd
@@ -93,8 +92,6 @@ class ClaudeCodeBackend:
         # window. A runner in a container gets recycled without warning, so eager is
         # our default, not the SDK's.
         self.session_store_flush = session_store_flush
-        # The store namespaces sessions by project; one key for this runner's fleet.
-        self.session_project_key = session_project_key
         # The pool is a HOT CACHE, not the truth. A hit skips re-spawning the CLI
         # subprocess (the fast path, unchanged). A miss no longer means the session
         # is gone — it is rebuilt from the store with `resume=`. That is the safety
@@ -123,9 +120,21 @@ class ClaudeCodeBackend:
         return str(uuid.uuid5(cls.SESSION_NAMESPACE, session_id))
 
     def session_key(self, session_id: str) -> dict[str, str]:
-        """The store's key for a session (`SessionKey`: project + session)."""
+        """The store's key for a session (`SessionKey`: project + session).
+
+        The ``project_key`` is NOT ours to invent: the SDK derives it from the
+        CLI's working directory (``project_key_for_directory``) when it WRITES
+        the transcript, so the read side must derive it the exact same way or
+        every ``load()`` misses. The first wiring shipped a made-up
+        ``session_project_key="fi-runner"`` and the live E2E caught it: writes
+        landed under ``-opt-fi-server`` (the deploy's cwd), ``has_session()``
+        asked under ``fi-runner``, and a recycled container could never resume.
+        Needs the SDK (imported lazily) — like every store-touching path here.
+        """
+        from claude_agent_sdk import project_key_for_directory
+
         return {
-            "project_key": self.session_project_key,
+            "project_key": project_key_for_directory(self.cwd),
             "session_id": self.sdk_session_uuid(session_id),
         }
 

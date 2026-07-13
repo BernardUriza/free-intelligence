@@ -29,13 +29,19 @@ def test_build_runner_default_has_no_store() -> None:
     assert runner.backend.session_store is None
 
 
-def test_build_runner_injects_the_store_and_namespaces_og118() -> None:
+def test_build_runner_injects_the_store_with_the_sdk_derived_key() -> None:
+    from claude_agent_sdk import project_key_for_directory
+
     sentinel = object()
     runner = build_runner(session_store=sentinel)
     assert runner.backend.session_store is sentinel
-    # The store may serve a fleet of runners — og118's sessions live under its
-    # own project key, never the fi-runner default.
-    assert runner.backend.session_project_key == "og118"
+    # The read key must be EXACTLY what the SDK derives when it writes (from
+    # the CLI's cwd) — a runner-invented name ("og118") shipped once and every
+    # load() missed: writes landed under the deploy's cwd key instead.
+    assert (
+        runner.backend.session_key("conv-1")["project_key"]
+        == project_key_for_directory(None)
+    )
 
 
 class _FakeStore:

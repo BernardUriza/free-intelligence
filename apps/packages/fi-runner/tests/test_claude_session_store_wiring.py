@@ -116,7 +116,16 @@ class _FakeSDKClient:
         sid = getattr(self.options, "session_id", None) or getattr(self.options, "resume", None)
         if store is None or sid is None:
             return
-        key = {"project_key": "fi-runner", "session_id": sid}
+        # The key the REAL SDK writes under: project_key derived from the CLI's
+        # cwd, never a name the runner invents. The first version of this fake
+        # mirrored fi-runner's made-up "fi-runner" key instead — which is
+        # exactly how the read/write project_key mismatch shipped green.
+        key = {
+            "project_key": claude_agent_sdk.project_key_for_directory(
+                getattr(self.options, "cwd", None)
+            ),
+            "session_id": sid,
+        }
         # What the SDK mirrors: the real transcript, tool blocks and all.
         await store.append(
             key,
@@ -206,7 +215,10 @@ def test_the_tool_trace_survives_a_restart(
         assert born.session_store_flush == "eager", "a container dies without warning"
 
         # The trace is in the durable store — the blocks plain text cannot carry.
-        entries = await store.load({"project_key": "fi-runner", "session_id": sdk_uuid})
+        # Loaded through the backend's OWN key derivation: this is the read path
+        # that must agree with what the SDK wrote, and the assertion that would
+        # have caught the project_key mismatch.
+        entries = await store.load(backend.session_key(session))
         blocks = [
             b
             for e in entries
@@ -277,3 +289,17 @@ def test_the_session_uuid_is_deterministic_and_valid() -> None:
     assert a == b, "the same caller id MUST resolve to the same session, forever"
     assert a != c
     assert uuid.UUID(a).version == 5
+
+
+def test_session_key_uses_the_sdk_project_key_derivation(tmp_path) -> None:
+    """The read key is the SDK's derivation from the backend's cwd — never a
+    name fi-runner invents. This is the unit pin for the live-E2E finding."""
+    backend = ClaudeCodeBackend(cwd=str(tmp_path))
+    key = backend.session_key("conv-1")
+    assert key["project_key"] == claude_agent_sdk.project_key_for_directory(str(tmp_path))
+    assert key["session_id"] == ClaudeCodeBackend.sdk_session_uuid("conv-1")
+    # No cwd on the backend → the SDK defaults to the process cwd; so must we.
+    assert (
+        ClaudeCodeBackend().session_key("conv-1")["project_key"]
+        == claude_agent_sdk.project_key_for_directory(None)
+    )
