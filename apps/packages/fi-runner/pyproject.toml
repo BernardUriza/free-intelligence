@@ -36,6 +36,14 @@ dependencies = [
 claude = [
     "claude-agent-sdk>=0.1,<1.0",
 ]
+# Postgres-backed SessionStore — the SDK's durable transcript for the Claude
+# backend (see fi_runner/session_stores/postgres.py, Anthropic's official
+# reference adapter). OPTIONAL: fi-runner never imports asyncpg at import time,
+# and a deploy that has no Postgres simply does not wire a store — the backend
+# falls back to the in-RAM pool + the text history-replay, exactly as before.
+postgres = [
+    "asyncpg>=0.29",
+]
 # Codex backend — OpenAI Codex headless CLI (`codex exec --json`). It drives the
 # `codex` BINARY as a subprocess, so there is NO Python dependency: install the
 # CLI separately (`npm i -g @openai/codex`) and sign in (or set a provider key
