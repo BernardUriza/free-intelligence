@@ -34,7 +34,7 @@ COPY apps/packages/fi-runner /opt/fi/packages/fi-runner
 # (FI_RAG_BACKEND=pgvector) and needs its own extra + a DB.
 RUN pip install --no-cache-dir \
       "/opt/fi/packages/fi-core[mcp,stores-hdf5]" \
-      "/opt/fi/packages/fi-runner[claude,auth]"
+      "/opt/fi/packages/fi-runner[claude,auth,postgres]"
 
 # The FastAPI app itself.
 COPY apps/og118/server /opt/fi/server
