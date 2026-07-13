@@ -16,6 +16,24 @@ terceros en subprocess): AIRE es un servidor persistente — sin spawn por turno
 con estado y procesos inspeccionables en vivo. La observabilidad no es un stream
 que el runner emite, sino una propiedad del servidor mismo.
 
+## La doctrina de las dos capas de storage (Bernard, dictado 2026-07-13)
+
+> "Vamos a tener dos tipos de storage: uno que sucede aquí — o sea, que haces tú
+> como aplicación — y otro totalmente crudo, totalmente agnóstico, al que no le
+> importas nada, pero que guarda sus propias transcripciones completas dentro de
+> sí mismo. Y ese es AIRE."
+
+- **Capa de aplicación:** curada, con identidad y producto — el ConversationStore
+  de og118, IndexedDB, lo que la UI enseña. Vive en el consumidor.
+- **Capa cruda (AIRE):** el motor guarda sus transcripciones íntegras DENTRO de
+  sí mismo, agnóstico al consumidor — no sabe quién eres ni le importa. No es un
+  espejo hacia una base externa: es propiedad del motor, como los JSONL locales
+  de Claude Code pero en un servidor persistente y consultable.
+
+Esto explica por qué el session_store (#358/#359) se desactivó: era Anthropic
+espejeando SU capa cruda hacia nuestra base — un puente. AIRE elimina el puente
+porque el motor propio ES el dueño de su capa cruda.
+
 Contexto del mismo día: el session_store de og118 (PR #358/#359) se DESACTIVÓ
 tras verificarse E2E — duplicaba la conversación y Bernard decidió que la
 persistencia/continuidad vivirá en AIRE, no en el espejo del SDK de Anthropic.
