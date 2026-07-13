@@ -1,12 +1,4 @@
-__pycache__/
-*.py[cod]
 .venv/
-venv/
-.env
-.env.*
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.ruff_cache/
-.DS_Store
+workspaces/
+__pycache__/
+*.pyc
