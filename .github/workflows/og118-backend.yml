@@ -207,6 +207,28 @@ jobs:
               "OG118_STT_DEPLOYMENT=$STT_DEPLOYMENT" \
               "OG118_STT_API_VERSION=${STT_API_VERSION:-2024-06-01}"
 
+      - name: Wire the session store DSN (only when configured — else no-op)
+        # og118-session-store wiring: the SDK's native durable memory. When the
+        # OG118_SESSION_STORE_DSN secret exists, the app's lifespan builds a
+        # PostgresSessionStore from it and the agent's transcript (tool blocks
+        # included) survives container recycles. Unset ⇒ clean no-op and the
+        # runtime stays byte-identical (history replay is the continuity). Same
+        # additive/idempotent/merge-only shape as the TTS/STT/engine steps. The
+        # DSN carries credentials, so it is a secret (secretref), never a var.
+        env:
+          SESSION_STORE_DSN: ${{ secrets.OG118_SESSION_STORE_DSN }}
+        run: |
+          if [ -z "$SESSION_STORE_DSN" ]; then
+            echo "Session store not configured (OG118_SESSION_STORE_DSN unset)."
+            echo "Skipping — continuity stays on client history replay."
+            exit 0
+          fi
+          az containerapp secret set -n "$APP" -g "$RG" \
+            --secrets "og118-session-store-dsn=$SESSION_STORE_DSN"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_SESSION_STORE_DSN=secretref:og118-session-store-dsn"
+
       - name: Wire the external persona engine (only when configured — else no-op)
         # The elementos that run on a live FI engine (Oxígeno→Vultur, Aluminio→ALICE,
         # Yodo→Insult) reach it through OG118_EXTERNAL_RUNNER_URL/TOKEN. Those two
