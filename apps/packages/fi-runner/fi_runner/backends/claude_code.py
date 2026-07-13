@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+import uuid
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from typing import Any
@@ -64,6 +65,9 @@ class ClaudeCodeBackend:
         cwd: str | None = None,
         setting_sources: list[str] | None = None,
         env: dict[str, str] | None = None,
+        session_store: Any | None = None,
+        session_store_flush: str = "eager",
+        session_project_key: str = "fi-runner",
     ) -> None:
         self.default_model = default_model
         self.cwd = cwd
@@ -72,11 +76,58 @@ class ClaudeCodeBackend:
         # e.g. {"ANTHROPIC_API_KEY": "..."} for API mode, or
         # {"CLAUDE_CODE_USE_BEDROCK": "1"} for Bedrock. None = ambient env only.
         self.env = env
+        # The SDK's own durable transcript (SessionStore, SDK >= 0.1.64). INJECTED,
+        # never constructed here: the deploy owns the DSN, the credentials and the
+        # lifetime — fi-runner owns neither, exactly like `Runner(conversation_store=)`.
+        #
+        # Why it matters: without it the ONLY memory is `self._pool` (a dict in RAM,
+        # gone the moment the process restarts) plus the text history-replay, which
+        # persists `Message(role, content)` — PLAIN TEXT. That type cannot represent
+        # a `tool_use` or a `tool_result`, so every tool the agent ran is reported in
+        # the TurnResult and then thrown away: on the next turn it re-reads its own
+        # prose but does NOT remember that it already ran the bash, nor what came
+        # back. The native store keeps the real transcript, blocks included.
+        self.session_store = session_store
+        # "batched" (the SDK default) coalesces writes and can LOSE entries if the
+        # process dies mid-turn. "eager" writes each entry as it arrives — no loss
+        # window. A runner in a container gets recycled without warning, so eager is
+        # our default, not the SDK's.
+        self.session_store_flush = session_store_flush
+        # The store namespaces sessions by project; one key for this runner's fleet.
+        self.session_project_key = session_project_key
+        # The pool is a HOT CACHE, not the truth. A hit skips re-spawning the CLI
+        # subprocess (the fast path, unchanged). A miss no longer means the session
+        # is gone — it is rebuilt from the store with `resume=`. That is the safety
+        # net this backend never had.
         self._pool: dict[str, Any] = {}  # session_id -> entered ClaudeSDKClient
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._pool_lock = asyncio.Lock()
 
     # --- SDK-free builders (unit-testable without the SDK installed) ---------
+
+    #: Namespace for deriving the SDK's session UUID from fi-runner's session id.
+    #: Frozen: change it and every existing session becomes unreachable.
+    SESSION_NAMESPACE = uuid.UUID("6f1e6f4c-6f5a-5f4b-9c2a-5f1e6f4c6f5a")
+
+    @classmethod
+    def sdk_session_uuid(cls, session_id: str) -> str:
+        """fi-runner's session id → the UUID the SDK demands.
+
+        The SDK requires a valid UUID (`types.py:1649`), while a caller's session
+        id is an arbitrary string (og118 hands it a conversation id, insult a
+        channel id). uuid5 derives one DETERMINISTICALLY from the other: readable
+        names outside, UUIDs inside, and no mapping table to keep in sync — the
+        same id always resolves to the same session, including after a restart,
+        which is the whole point.
+        """
+        return str(uuid.uuid5(cls.SESSION_NAMESPACE, session_id))
+
+    def session_key(self, session_id: str) -> dict[str, str]:
+        """The store's key for a session (`SessionKey`: project + session)."""
+        return {
+            "project_key": self.session_project_key,
+            "session_id": self.sdk_session_uuid(session_id),
+        }
 
     def _allowlist(self, mcp_servers: list[MCPServerSpec], tool_policy: ToolPolicy) -> list[str]:
         allowed = list(tool_policy.builtin_allowed)
@@ -114,9 +165,24 @@ class ClaudeCodeBackend:
         mcp_servers: list[MCPServerSpec],
         tool_policy: ToolPolicy,
         model: str | None = None,
+        session_id: str | None = None,
+        resuming: bool = False,
     ) -> Any:
         """Build ``ClaudeAgentOptions``. The seam a pooled consumer (e.g. insult)
-        can call to construct options for its own long-lived client."""
+        can call to construct options for its own long-lived client.
+
+        When a ``session_store`` is wired, the turn also carries the session key —
+        and WHICH key is the trap the SDK sets for you (`types.py:1649`):
+
+            session_id=<uuid>  → PIN the id of a session being BORN.
+            resume=<uuid>      → RECOVER an existing session from the store.
+
+        They are mutually exclusive. Passing ``session_id=`` on a continuation does
+        NOT resume: it starts a fresh session that stomps the id, silently losing
+        the transcript you were trying to reach. So the caller says which one this
+        is (``resuming``), decided by ASKING THE STORE whether the session exists —
+        never by guessing from the pool, which is only a cache.
+        """
         from claude_agent_sdk import ClaudeAgentOptions
 
         kwargs: dict[str, Any] = {
@@ -142,6 +208,14 @@ class ClaudeCodeBackend:
             kwargs["setting_sources"] = list(self.setting_sources)
         if self.env is not None:
             kwargs["env"] = dict(self.env)  # SDK merges this over os.environ
+        if self.session_store is not None and session_id is not None:
+            kwargs["session_store"] = self.session_store
+            kwargs["session_store_flush"] = self.session_store_flush
+            sdk_uuid = self.sdk_session_uuid(session_id)
+            if resuming:
+                kwargs["resume"] = sdk_uuid
+            else:
+                kwargs["session_id"] = sdk_uuid
         return ClaudeAgentOptions(**kwargs)
 
     @staticmethod
@@ -256,6 +330,39 @@ class ClaudeCodeBackend:
                 session_id = getattr(message, "session_id", None) or session_id
         return "".join(parts), usage, session_id, tool_calls
 
+    async def _session_exists(self, session_id: str) -> bool:
+        """Does the store already hold this session? `load()` returns None when it
+        does not (SDK Protocol, types.py:1370). This is what decides born-vs-resume
+        — the pool cannot answer it: an empty pool after a restart says nothing
+        about whether the transcript survived, and that confusion is precisely the
+        bug (a `session_id=` on a continuation stomps the session)."""
+        if self.session_store is None:
+            return False
+        entries = await self.session_store.load(self.session_key(session_id))
+        return bool(entries)
+
+    async def _client_for(self, session_id: str, options_for: Any) -> Any:
+        """The pooled client for a session — rebuilt from the STORE on a miss.
+
+        Hit: the live client (fast path, unchanged — no re-spawn of the CLI).
+        Miss: the process restarted (or this replica never saw the session). With a
+        store wired, that is now recoverable: rebuild the client with `resume=`, and
+        the SDK materializes the transcript — tool_use and tool_result blocks
+        included — from the store. Without a store this stays exactly as before: a
+        miss means a fresh, amnesiac session.
+        """
+        from claude_agent_sdk import ClaudeSDKClient
+
+        async with self._pool_lock:
+            client = self._pool.get(session_id)
+            if client is None:
+                resuming = await self._session_exists(session_id)
+                client = ClaudeSDKClient(options=options_for(resuming))
+                await client.__aenter__()
+                self._pool[session_id] = client
+            lock = self._session_locks.setdefault(session_id, asyncio.Lock())
+        return client, lock
+
     async def run_turn(
         self,
         *,
@@ -275,28 +382,25 @@ class ClaudeCodeBackend:
                 "Install via: pip install 'fi-runner[claude]'"
             ) from exc
 
-        options = self.build_options(
-            system_prompt=system_prompt,
-            mcp_servers=mcp_servers,
-            tool_policy=tool_policy,
-            model=model,
-        )
+        def options_for(resuming: bool) -> Any:
+            return self.build_options(
+                system_prompt=system_prompt,
+                mcp_servers=mcp_servers,
+                tool_policy=tool_policy,
+                model=model,
+                session_id=session_id,
+                resuming=resuming,
+            )
 
-        # One-shot: fresh client, no continuity.
+        # One-shot: fresh client, no continuity (and nothing to resume).
         if session_id is None:
-            async with ClaudeSDKClient(options=options) as client:
+            async with ClaudeSDKClient(options=options_for(False)) as client:
                 await self._query(client, user_message, images)
                 text, usage, sess, tools = await self._collect(client)
                 return TurnResult(text=text, usage=usage, session_id=sess, tool_calls=tools)
 
-        # Stateful: reuse a pooled, long-lived client for this session.
-        async with self._pool_lock:
-            client = self._pool.get(session_id)
-            if client is None:
-                client = ClaudeSDKClient(options=options)
-                await client.__aenter__()
-                self._pool[session_id] = client
-            lock = self._session_locks.setdefault(session_id, asyncio.Lock())
+        # Stateful: the pooled client (hot cache) — or rebuilt from the store.
+        client, lock = await self._client_for(session_id, options_for)
         async with lock:  # serialize turns on the same client (not concurrency-safe)
             await self._query(client, user_message, images)
             text, usage, sess, tools = await self._collect(client)
@@ -386,23 +490,25 @@ class ClaudeCodeBackend:
             raise ImportError(
                 "ClaudeCodeBackend requires the Claude Agent SDK. Install via: pip install 'fi-runner[claude]'"
             ) from exc
-        options = self.build_options(
-            system_prompt=system_prompt, mcp_servers=mcp_servers, tool_policy=tool_policy, model=model
-        )
+        def options_for(resuming: bool) -> Any:
+            return self.build_options(
+                system_prompt=system_prompt,
+                mcp_servers=mcp_servers,
+                tool_policy=tool_policy,
+                model=model,
+                session_id=session_id,
+                resuming=resuming,
+            )
+
         if session_id is None:
-            async with ClaudeSDKClient(options=options) as client:
+            async with ClaudeSDKClient(options=options_for(False)) as client:
                 await self._query(client, user_message, images)
                 async for event in self._iter_events(client):
                     yield event
             return
-        # Stateful: reuse a pooled client (same pool + lock as run_turn).
-        async with self._pool_lock:
-            client = self._pool.get(session_id)
-            if client is None:
-                client = ClaudeSDKClient(options=options)
-                await client.__aenter__()
-                self._pool[session_id] = client
-            lock = self._session_locks.setdefault(session_id, asyncio.Lock())
+        # Stateful: pooled client (hot cache) — or rebuilt from the store on a miss,
+        # exactly as run_turn does. Same pool, same lock, same recovery.
+        client, lock = await self._client_for(session_id, options_for)
         async with lock:
             await self._query(client, user_message, images)
             async for event in self._iter_events(client):
