@@ -186,7 +186,7 @@
 <div class="container">
 
   <h1>og118 → Reemplazar ChatGPT</h1>
-  <p class="subtitle">Actualizado 2026-07-10 · <strong style="color:#34d399">og118 ES EL DAILY DRIVER</strong>: venció Pro de ChatGPT → 7 PRs en 2 días lo volvieron su reemplazo real. Dominio prod app.og118.ai (TLS, mismo backend/chats) · instalable en iPhone (standalone, sin manifest) · botón STOP real · EL PLAN EN VIVO por fin se ve (roto en 3 capas: harness eclipsaba el MCP #338, panel sin superficie + enterrado por scroll #339) · pulido visual 5/5 + glassmorphism real (#340/#341, backdrop-filter que lightningcss tiraba) · composer footer COMPLETO (#335 ELEMENTO+Resonance) · aurity useChat dedup (#329) · Antes (07-08): rediseño composer #321–#325, voz desbloqueada (susurro), GATE 3 Auth0 SHIPPED</p>
+  <p class="subtitle">Actualizado 2026-07-14 · <strong style="color:#34d399">og118 ES EL DAILY DRIVER</strong> (desde 07-10: venció Pro de ChatGPT, app.og118.ai LIVE). Jornada 07-11→07-14: <strong>27 PRs más</strong> — contrato de stream como SSOT cross-language (#345) + autoría en el bubble (#346) + provenance del modelo "Powered by" (#348/#350) · imágenes adjuntas (#349) + un solo "+" para adjuntar (#353) · móvil nativo: full-bleed shell (#344) + viewport reclaim 18.6%→7.5% (#363/#364) · organización de chats: fijar/archivar (#362) + búsqueda en sidebar + banner anti-zombi (#366) · Projects RAG con elementos externos: search-first (#367), rechazo LOUD→RAG server-side (#368/#370), deselect (#369) · P0 watchdog ya no mata turnos vivos ni se come el prompt (#355) · memoria nativa SDK cableada y desactivada el mismo día (#357–#359) · aurity oficialmente LEGACY, deploy manual-only (#354/#356) · NORTH.md (#371)</p>
 
   <div class="objective">
     <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
@@ -415,6 +415,46 @@
       <span class="item-tag">aurity-dedup</span></label>
   </div>
 
+  <!-- JORNADA 2026-07-11 → 07-14 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Jornada 2026-07-11 → 07-14 — contratos, móvil nativo, Projects con elementos externos</span>
+      <span class="section-badge badge-done">27 PRs · #343–#371</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Contrato de stream del agente como SSOT cross-language + autoría + provenance del modelo</div>
+      <div class="item-note">PR #345: el contrato de eventos fi-runner → schema → TS es una sola fuente de verdad entre lenguajes. PR #346: el bubble dice QUIÉN respondió — antes firmaba todo como "og118" aunque respondiera Yodo; MessageAuthor entra a core y el fold EXIGE autor. PRs #348/#350: el chip "Powered by &lt;modelo&gt;" nunca se había renderizado y la ruta local mandaba respuestas sin provenance — el Runner ahora CONOCE su modelo y la provenance entra al contrato.</div></div>
+      <span class="item-tag">#345/#346/#348/#350</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Adjuntos: imágenes en el chat + un solo "+" para adjuntar (y el upload de aurity, roto desde la migración)</div>
+      <div class="item-note">PR #349 (OG118-IMAGE-UPLOAD-1): soporte de imágenes adjuntas en el chat. PR #353: menú único "+" para adjuntar (ActionMenu SSOT desde aurity, consolidado en #355) y de paso el fix del upload de aurity.</div></div>
+      <span class="item-tag">#349/#353</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Móvil nativo: full-bleed shell + viewport reclaim — el contenido manda (CONV-MOBILE-RECLAIM-1)</div>
+      <div class="item-note">PR #344: shell mobile-native (status bar full-bleed + burbujas full-width). PR #363: el PWA @390×844 gastaba 18.6% del viewport en composer (157px) + 32px de indent muerto por mensaje → chrome no-contenido a 7.5% (composer idle 63px), gutters 12px, acciones por-mensaje tras tap en touch, textarea vacío = 1 fila SIEMPRE. PR #364 (cruel-critic del arco): Colgar alcanzable en llamada viva + una sola fila de acciones abierta a la vez. Regla registrada: .claude/rules/mobile-viewport-ux.md (presupuestos duros: chrome &lt;18%, targets ≥44px).</div></div>
+      <span class="item-tag">#344/#363/#364</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Organización de chats: fijar + archivar (fi-glass level) + búsqueda en el sidebar + banner anti-zombi</div>
+      <div class="item-note">PR #362 (CONV-ORGANIZE-1): secciones Fijados / Chats / Archivados como primitiva de framework. PR #366: búsqueda de chats en el sidebar + sesión honesta (banner cuando la conversación no está guardada; test del surface en #352). Paridad ChatGPT de gestión de threads.</div></div>
+      <span class="item-tag">#362/#366</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Projects RAG × elementos externos: search-first + RAG server-side + deselect</div>
+      <div class="item-note">PR #367 (PROJ-AUTOSEARCH-1): la persona busca el corpus activo SIN pedir permiso (search-first policy). OG118-EXTERNAL-CORPUS-GAP-1 en dos rutas: #368 (ruta 1, rechazo LOUD del Project activo por elemento externo) superseded el mismo arco por #370 (ruta 2, RAG server-side — los elementos externos SÍ ven los documentos del Project). PR #369 (PROJECT-DESELECT-1): click en el proyecto activo lo des-selecciona. PR #347: la config del engine externo (OG118_EXTERNAL_RUNNER_URL/TOKEN) vive en el repo como var+secret del workflow, no solo a mano en el Container App (mata el drift).</div></div>
+      <span class="item-tag">#347/#367–#370</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">P0: un turno lento no es un turno muerto — y un fallo no puede comerse tu prompt</div>
+      <div class="item-note">PR #355. El watchdog revertía turnos VIVOS: el silencio es normal (engine externo = single-shot hasta 95s; un turno agentic real tardó 99s) y el revert BORRABA el prompt del usuario. Fix: heartbeat ping cada 15s del server + al fallar, el texto vuelve al composer. PR #351: el cap del body se aplica ANTES de leerlo y un guardado fallido deja de fallar en silencio.</div></div>
+      <span class="item-tag">#351/#355</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Memoria nativa del SDK (session store): cableada E2E y DESACTIVADA el mismo día</div>
+      <div class="item-note">PRs #357/#358/#359: ClaudeCodeBackend gana session_store (la traza de tools sobrevive al reinicio) + og118 lo inyecta + fix del project_key (derivación del SDK, no nombre inventado). Apagada el mismo día: duplicaba la conversación (dos capas de storage: la de la app vs la cruda de AIRE). La capacidad queda en fi-runner env-gated; reactivar = secret + deploy. Backlog: AIREBACKEND-1 (#361) + OG118-SESSION-DELETE-CASCADE-1 (#360) + CONV-CONCURRENCY-1 (#365).</div></div>
+      <span class="item-tag">#357–#361/#365</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">aurity = LEGACY oficial: build re-verdecido, pipeline manual-only, docs que dicen la verdad</div>
+      <div class="item-note">PR #354: el build de aurity llevaba ROJO desde el 20 de junio (faltaba declarar remark-breaks). PR #356: su infra Azure ya no existe → deploy-azure.yml pasa a manual-only y los docs lo dicen. El CÓDIGO no se borra: es la SSOT de la anatomía que fi-glass extrae (léela, no la ejecutes). PR #343: la description OpenGraph/Twitter todavía decía "coming soon". PR #371: NORTH.md — el contrato emocional de FI (Into The Beyond, Echoberyl).</div></div>
+      <span class="item-tag">#343/#354/#356/#371</span></label>
+  </div>
+
   <!-- DAILY DRIVER -->
   <div class="section">
     <div class="section-header">
@@ -509,12 +549,12 @@
   <!-- CANARY REAL: PAPELERÍA + PROJECTS -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">Canary real — og118 en la papelería + Projects para el negocio de mamá</span>
-      <span class="section-badge badge-active">CANARY VIVO</span>
+      <span class="section-title">Canary real — Projects (el plan papelería quedó DESCARTADO)</span>
+      <span class="section-badge badge-pending">PAPELERÍA DROPPED 2026-06-23</span>
     </div>
     <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">Niños: tareas/investigaciones con Claude vía og118 staging (cuenta abierta, chat nuevo por tema)</div>
-      <div class="item-note">2026-06-19: la mamá de Bernard aceptó poner og118 staging en su papelería. ~2-3 investigaciones diarias = canary real de bajo volumen. Puro chat, CERO archivos → corre hoy sin tocar nada. Disciplina: chat nuevo por tema nuevo = sesiones limpias que destapan gaps de fi-glass en el mundo real.</div></div>
+      <div class="item-body"><div class="item-text done" style="text-decoration:line-through">Niños: tareas/investigaciones con Claude vía og118 staging (cuenta abierta, chat nuevo por tema)</div>
+      <div class="item-note">DROPPED 2026-06-23: og118 cloud autentica el modelo vía CLAUDE_CODE_OAUTH_TOKEN (suscripción Max de Bernard) = USO PERSONAL ONLY — servir a terceros por ese OAuth viola el ToS de Anthropic. La mamá usa su propia cuenta de Claude. El canary real es Bernard como daily driver. (Nota original 2026-06-19, superseded.)</div></div>
       <span class="item-tag">canary-kids</span></label>
 
     <label class="item"><input type="checkbox">
@@ -645,7 +685,7 @@
       <span class="item-tag">qa-pass-console</span></label>
   </div>
 
-  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 · UPDATE 2026-06-30: gateway susurro vivo · UPDATE 2026-07-08: qa-tts/stt-502 CERRADOS + rediseño composer #321–#325 · <strong>UPDATE 2026-07-10: og118 = DAILY DRIVER — venció Pro de ChatGPT, 7 PRs lo volvieron su reemplazo. #335 composer footer completo (ELEMENTO+Resonance) + botón STOP · #336 iPhone standalone PWA · #338 el plan en vivo por fin se ve (harness eclipsaba el MCP) · #339 panel con superficie + anclado · #340/#341 pulido visual 5/5 + glassmorphism real (backdrop-filter que lightningcss tiraba) · #329 aurity dedup · app.og118.ai LIVE en prod. Único bloqueo restante = smoke humano de Bernard (oídos + daily-driver + install iPhone + apex cutover)</strong></footer>
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 · UPDATE 2026-06-30: gateway susurro vivo · UPDATE 2026-07-08: qa-tts/stt-502 CERRADOS + rediseño composer #321–#325 · <strong>UPDATE 2026-07-10: og118 = DAILY DRIVER — venció Pro de ChatGPT, 7 PRs lo volvieron su reemplazo. #335 composer footer completo (ELEMENTO+Resonance) + botón STOP · #336 iPhone standalone PWA · #338 el plan en vivo por fin se ve (harness eclipsaba el MCP) · #339 panel con superficie + anclado · #340/#341 pulido visual 5/5 + glassmorphism real (backdrop-filter que lightningcss tiraba) · #329 aurity dedup · app.og118.ai LIVE en prod. Único bloqueo restante = smoke humano de Bernard (oídos + daily-driver + install iPhone + apex cutover)</strong> · <strong>UPDATE 2026-07-14: jornada 07-11→07-14, 27 PRs (#343–#371) — contratos SSOT (stream #345, autoría #346, provenance #348/#350) · adjuntos (imágenes #349, "+" único #353) · móvil nativo (#344) + viewport reclaim 7.5% (#363/#364) · fijar/archivar/buscar chats (#362/#366) · Projects × elementos externos con RAG server-side (#367–#370) · P0 watchdog (#355) · session store SDK cableado y apagado (#357–#359) · aurity LEGACY manual-only (#354/#356) · NORTH.md (#371). Papelería marcada DROPPED (ToS OAuth personal, 06-23)</strong></footer>
 </div>
 
 <script>
