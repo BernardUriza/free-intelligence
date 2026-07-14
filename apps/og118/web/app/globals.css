@@ -165,6 +165,19 @@ body {
     padding: 0;
   }
 }
+@container fi-composer (max-width: 420px) {
+  /* CONV-MOBILE-RECLAIM-1: the compact frame puts the textarea on one row with
+     the toggle/mic/send — the area sheds the tall paddings, and banners above
+     the composer tighten so idle chrome stays under the mobile budget. */
+  .og-composer-area {
+    padding: 0.5rem 0.55rem 0.3rem;
+  }
+  .og-auth-banner,
+  .og-voice-error-banner {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.6rem;
+  }
+}
 @container fi-composer (max-width: 340px) {
   /* Ultra-narrow (320px-class): the atomic-number badge yields so the persona
      name and every 44px control stay on as few tidy lines as possible. */
