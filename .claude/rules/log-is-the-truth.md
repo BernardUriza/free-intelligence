@@ -9,35 +9,14 @@ memory or its rendering, this law rules.
 The **append-only transcript** the `session_store` mirrors to Postgres is **THE ONLY
 SOURCE OF TRUTH**. Everything else —the SSR view, the in-RAM client pool, any cache—
 is **derived from the log**, never the other way around. This is not a design opinion:
-it is the consensus of modern data engineering.
+it is the consensus of modern data engineering (Kreps's "The Log", Helland's
+*"accountants don't use erasers"*, WAL/ARIES, Fowler's event sourcing — citations and
+the EC-GPS genesis in [`docs/genesis.md`](../../docs/genesis.md)).
 
-- **Jay Kreps, "The Log"** (creator of Kafka): the log is the simplest possible storage
-  abstraction —append-only, totally ordered— and **the table is a cache / derived view
-  of the log**.
-  <https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying>
-- **Pat Helland, "Immutability Changes Everything"** (ACM Queue / CIDR 2015):
-  *"accountants don't use erasers"*; **"the contents of the database are a caching of
-  the latest values in the logs."**
-  <https://queue.acm.org/detail.cfm?id=2884038>
-- **WAL / ARIES** (Postgres, Oracle, MySQL): durability is founded on a sequential
-  append-only log.
-- **Martin Fowler, Event Sourcing**: the append-only event store is the single source
-  of truth; state is a derived view (canonical example: version control).
-  <https://martinfowler.com/articles/201701-event-driven.html>
-
-## The genesis (why this shape, and no other)
-
-AIRE is, piece by piece, the **EC-GPS** machine (Carlos Feria Tapia): GPS receivers
-pushing over GPRS → a **Perl daemon** listening on a port → writing `gps_logs`
-(append-only) → a **PHP waiter** that only reads it and displays it. AIRE is the same
-thing with the parser turned into intelligence:
-
-- **The engine (`aire/engine.py`) is the listening daemon** — Reactor pattern / event
-  loop (the C10K problem, 1999). The listening socket is eternal; the only new thing
-  between the `accept()` and the `INSERT` is that the parser now reasons. **AI is the
-  *transform*, not the chassis.**
-- **`gps_logs` = the `session_store`.** The append-only table in Postgres.
-- **The PHP waiter = `render.py` / the SSR.** Reads the log and paints it. Replaceable.
+The mapping that follows from it: the engine (`aire/engine.py`) is the listening
+daemon (Reactor / C10K — the socket is eternal, AI is only the *transform*);
+`gps_logs` = the `session_store`; the PHP waiter = `render.py` / the SSR, which only
+reads and repaints. Replaceable.
 
 ## Prohibitions (what this law forbids)
 
