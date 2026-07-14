@@ -60,30 +60,105 @@ def test_chat_stream_corpus_is_optional(monkeypatch) -> None:
     assert (spy.seen["context"] or {}).get("corpus_id") is None
 
 
-def test_external_element_refuses_active_corpus_in_stream(monkeypatch, project_registry) -> None:
-    """OG118-EXTERNAL-CORPUS-GAP-1: the external engine has no rag_store tools and
-    the proxy carries no corpus, so an active project would be ignored SILENTLY.
-    The route must refuse LOUD (in-stream error) instead of proxying the turn."""
-    spy = _SpyRunner()
-    external_element = SimpleNamespace(
-        id="element-008-o-oxigeno",
-        display_label="8 · O · Oxígeno",
-        display_name="Oxígeno",
-        symbol="O",
-        engine_label="Vultur",
-        engine_binding=SimpleNamespace(is_external=True, persona_id="vultur"),
-    )
-    monkeypatch.setattr(app_module, "_runner_and_element", lambda token: (spy, external_element))
-    client = TestClient(app_module.app)
-    pid = project_registry.create("legacy-bearer", "P")["id"]
+_EXTERNAL_ELEMENT = SimpleNamespace(
+    id="element-008-o-oxigeno",
+    display_label="8 · O · Oxígeno",
+    display_name="Oxígeno",
+    symbol="O",
+    engine_label="Vultur",
+    engine_binding=SimpleNamespace(is_external=True, persona_id="vultur"),
+)
 
-    resp = client.post(
-        "/chat/stream",
-        json={"message": "¿cuánto cuesta el cuaderno?", "element": "oxigeno", "corpus_id": pid},
+
+class _SpyRag:
+    """Fakes RagStoreClient.search; records the query it received."""
+
+    def __init__(self, hits: list[dict] | None = None, error: bool = False) -> None:
+        self.hits = hits or []
+        self.error = error
+        self.seen: dict = {}
+
+    async def search(self, corpus_id, query, *, top_k=5, filters=None):  # noqa: ANN001
+        if self.error:
+            raise RuntimeError("store down")
+        self.seen = {"corpus_id": corpus_id, "query": query, "top_k": top_k}
+        return self.hits
+
+
+def _external_client(monkeypatch, rag: _SpyRag):
+    """TestClient wired to an external element + a fake rag store; captures the
+    user_text handed to stream_external_turn."""
+    spy_runner = _SpyRunner()
+    sent: dict = {}
+
+    async def fake_external_turn(*, persona_id, user_text, session_uuid, user_id, history=None):
+        sent.update({"persona_id": persona_id, "user_text": user_text})
+        yield {"type": "text", "text": "ok"}
+
+    monkeypatch.setattr(
+        app_module, "_runner_and_element", lambda token: (spy_runner, _EXTERNAL_ELEMENT)
     )
+    monkeypatch.setattr(app_module, "stream_external_turn", fake_external_turn)
+    app_module.app.dependency_overrides[app_module.get_rag_store] = lambda: rag
+    client = TestClient(app_module.app)
+    return client, spy_runner, sent
+
+
+def test_external_element_gets_server_side_rag_context(monkeypatch, project_registry) -> None:
+    """OG118-EXTERNAL-CORPUS-GAP-1 ruta 2: the external engine has no rag_store
+    tools, so the route retrieves the project's chunks and folds them into the
+    outbound text — the element sees the user's documents."""
+    rag = _SpyRag(hits=[{"text": "El cuaderno cuesta 12 pesos.", "similarity": 0.9, "doc_id": "lista"}])
+    client, spy_runner, sent = _external_client(monkeypatch, rag)
+    pid = project_registry.create("legacy-bearer", "P")["id"]
+    try:
+        resp = client.post(
+            "/chat/stream",
+            json={"message": "¿cuánto cuesta el cuaderno?", "element": "oxigeno", "corpus_id": pid},
+        )
+    finally:
+        app_module.app.dependency_overrides.pop(app_module.get_rag_store, None)
 
     assert resp.status_code == 200
-    body = resp.text
-    assert '"type": "error"' in body
-    assert "no puede ver los documentos" in body  # the human-readable refusal
-    assert spy.seen == {}  # neither the runner nor the external proxy ran
+    assert rag.seen["corpus_id"] == pid
+    assert rag.seen["query"] == "¿cuánto cuesta el cuaderno?"
+    assert "El cuaderno cuesta 12 pesos." in sent["user_text"]  # chunks folded in
+    assert "¿cuánto cuesta el cuaderno?" in sent["user_text"]  # original message preserved
+    assert spy_runner.seen == {}  # the local runner never ran
+
+
+def test_external_element_empty_corpus_passes_message_through(monkeypatch, project_registry) -> None:
+    rag = _SpyRag(hits=[])
+    client, _, sent = _external_client(monkeypatch, rag)
+    pid = project_registry.create("legacy-bearer", "P")["id"]
+    try:
+        resp = client.post(
+            "/chat/stream",
+            json={"message": "hola", "element": "oxigeno", "corpus_id": pid},
+        )
+    finally:
+        app_module.app.dependency_overrides.pop(app_module.get_rag_store, None)
+
+    assert resp.status_code == 200
+    assert sent["user_text"] == "hola"  # no hits → untouched outbound text
+
+
+def test_external_element_rag_failure_refuses_loud(monkeypatch, project_registry) -> None:
+    """A retrieval failure must NOT silently answer without the documents the
+    user believes are in play — in-stream error, turn not proxied."""
+    rag = _SpyRag(error=True)
+    client, spy_runner, sent = _external_client(monkeypatch, rag)
+    pid = project_registry.create("legacy-bearer", "P")["id"]
+    try:
+        resp = client.post(
+            "/chat/stream",
+            json={"message": "¿cuánto cuesta?", "element": "oxigeno", "corpus_id": pid},
+        )
+    finally:
+        app_module.app.dependency_overrides.pop(app_module.get_rag_store, None)
+
+    assert resp.status_code == 200
+    assert '"type": "error"' in resp.text
+    assert "No pude consultar los documentos" in resp.text
+    assert sent == {}  # the external proxy never ran
+    assert spy_runner.seen == {}

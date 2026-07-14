@@ -507,6 +507,7 @@ async def chat_stream(
     req: ChatRequest,
     principal: Principal = Depends(get_principal),
     registry: ProjectRegistry = Depends(get_project_registry),
+    rag: RagStoreClient = Depends(get_rag_store),
 ) -> StreamingResponse:
     # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
     # from client-asserted into server-validated (no cross-account corpus reads).
@@ -547,23 +548,35 @@ async def chat_stream(
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
-            # OG118-EXTERNAL-CORPUS-GAP-1: the external engine has no rag_store
-            # tools and the proxy carries no corpus, so an active project would
-            # be ignored SILENTLY — the user believes the persona sees their
-            # documents. Refuse LOUD instead (same pattern as images below).
+            # OG118-EXTERNAL-CORPUS-GAP-1 ruta 2: the external engine has no
+            # rag_store tools, so the server retrieves the active project's
+            # chunks HERE and folds them into the outbound text — the element
+            # sees the user's documents without the remote engine knowing og118.
+            # A retrieval failure refuses LOUD; answering without the documents
+            # the user believes are in play is the silent lie this kills.
+            outbound_text = req.message
             if req.corpus_id:
-                yield _sse(
-                    {
-                        "type": "error",
-                        "message": (
-                            f"El elemento {element.display_name} corre en un motor externo "
-                            "y no puede ver los documentos de tu proyecto. Quita el "
-                            "proyecto activo o cambia de elemento."
-                        ),
-                    }
-                )
-                yield _sse({"type": "done"})
-                return
+                try:
+                    hits = await rag.search(req.corpus_id, req.message, top_k=4)
+                except Exception:
+                    yield _sse(
+                        {
+                            "type": "error",
+                            "message": (
+                                f"No pude consultar los documentos de tu proyecto para "
+                                f"{element.display_name}. Reintenta, o quita el proyecto activo."
+                            ),
+                        }
+                    )
+                    yield _sse({"type": "done"})
+                    return
+                if hits:
+                    context_block = "\n\n".join(h["text"] for h in hits)
+                    outbound_text = (
+                        "Contexto de los documentos del proyecto del usuario "
+                        "(recuperado por el sistema — fundamenta tu respuesta en él):\n"
+                        f"{context_block}\n---\n{req.message}"
+                    )
             # The external-engine proxy is a text contract — it has no channel
             # for image blocks. Refuse LOUD (an in-stream error the shell shows)
             # instead of silently answering without the picture.
@@ -586,7 +599,7 @@ async def chat_stream(
             async for ev in _with_heartbeat(
                 stream_external_turn(
                     persona_id=element.engine_binding.persona_id,
-                    user_text=req.message,
+                    user_text=outbound_text,
                     session_uuid=req.session_id,
                     user_id=user_id,
                     history=history,
