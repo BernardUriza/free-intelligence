@@ -70,7 +70,7 @@ from khimeras_shared.behavior.flows.model.types import (
     UserState,
 )
 from khimeras_shared.behavior.presets import classify_preset
-from persona_runner.model_routing import ModelChoice, OpusBudget, select_model
+from persona_runner.routing.model_routing import ModelChoice, OpusBudget, select_model
 
 log = structlog.get_logger()
 

@@ -13,24 +13,25 @@ import asyncio
 
 import pytest
 
-from persona_runner import runner
+from persona_runner.api import judge as judge_api
+from persona_runner.core import config as judge_config
 
 
 @pytest.fixture(autouse=True)
 def _reset_semaphore():
     """Each test starts with a fresh semaphore bound to the test's loop."""
-    runner._judge_semaphore = None
+    judge_api.reset_judge_semaphore()
     yield
-    runner._judge_semaphore = None
+    judge_api.reset_judge_semaphore()
 
 
 def test_semaphore_is_singleton_with_configured_bound():
     async def _check():
-        s1 = runner._get_judge_semaphore()
-        s2 = runner._get_judge_semaphore()
+        s1 = judge_api.get_judge_semaphore()
+        s2 = judge_api.get_judge_semaphore()
         assert s1 is s2
         # asyncio.Semaphore exposes its current value as _value when untouched
-        assert s1._value == runner.JUDGE_MAX_CONCURRENCY
+        assert s1._value == judge_config.JUDGE_MAX_CONCURRENCY
 
     asyncio.run(_check())
 
@@ -43,22 +44,22 @@ async def test_gate_serializes_concurrent_judges():
 
     async def worker():
         nonlocal concurrent, max_seen
-        async with runner._get_judge_semaphore():
+        async with judge_api.get_judge_semaphore():
             concurrent += 1
             max_seen = max(max_seen, concurrent)
             await asyncio.sleep(0.01)  # stand-in for the SDK call
             concurrent -= 1
 
     await asyncio.gather(*[worker() for _ in range(8)])
-    assert max_seen <= runner.JUDGE_MAX_CONCURRENCY
+    assert max_seen <= judge_config.JUDGE_MAX_CONCURRENCY
 
 
 async def test_locked_reports_true_under_contention():
     """`locked()` is what the handler uses to log `agent_runner_judge_queued`;
     confirm it reflects contention so the telemetry is truthful."""
-    sem = runner._get_judge_semaphore()
+    sem = judge_api.get_judge_semaphore()
     assert not sem.locked()
     async with sem:
         # with bound 1 the gate is now held → a second arrival would queue
-        if runner.JUDGE_MAX_CONCURRENCY == 1:
+        if judge_config.JUDGE_MAX_CONCURRENCY == 1:
             assert sem.locked()

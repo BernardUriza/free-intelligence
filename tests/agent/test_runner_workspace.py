@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import persona_runner.runner as runner
+from persona_runner.core import config as runner_config
 
 
 @pytest.fixture
@@ -21,8 +22,8 @@ def client(tmp_path, monkeypatch):
     gitdir = tmp_path / ".git"
     gitdir.mkdir()
     (gitdir / "config").write_text("skip me", encoding="utf-8")
-    monkeypatch.setattr(runner, "WORKSPACE_ROOT", tmp_path)
-    monkeypatch.setattr(runner, "RUNNER_AUTH_TOKEN", "secret")
+    monkeypatch.setattr(runner_config, "WORKSPACE_ROOT", tmp_path)
+    monkeypatch.setattr(runner_config, "RUNNER_AUTH_TOKEN", "secret")
     return TestClient(runner.app)
 
 

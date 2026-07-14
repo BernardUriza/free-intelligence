@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import pytest
 
-from persona_runner import runner
+from persona_runner.engine import options as runner_options
 
 
 @pytest.mark.asyncio
 async def test_runner_allowlist_includes_required_builtins():
-    options = await runner._build_options("test-persona")
+    options = await runner_options.build_options("test-persona")
     allowed = set(getattr(options, "allowed_tools", None) or [])
-    for tool in runner._REQUIRED_BUILTIN_TOOLS:
+    for tool in runner_options.REQUIRED_BUILTIN_TOOLS:
         assert tool in allowed, f"{tool} missing from runner allowlist: {sorted(allowed)}"
 
 
@@ -34,9 +34,9 @@ class _FakeOptions:
 def test_verify_required_tools_raises_when_missing():
     opts = _FakeOptions(["mcp__insult_db__get_user_facts"])  # no WebSearch/WebFetch
     with pytest.raises(RuntimeError, match="required built-in tools"):
-        runner._verify_required_tools(opts)
+        runner_options.verify_required_tools(opts)
 
 
 def test_verify_required_tools_passes_when_present():
-    opts = _FakeOptions([*runner._REQUIRED_BUILTIN_TOOLS, "mcp__insult_db__x"])
-    runner._verify_required_tools(opts)  # must not raise
+    opts = _FakeOptions([*runner_options.REQUIRED_BUILTIN_TOOLS, "mcp__insult_db__x"])
+    runner_options.verify_required_tools(opts)  # must not raise
