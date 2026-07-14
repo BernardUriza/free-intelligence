@@ -31,6 +31,7 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 | 12 | Git as a user-layer tool: an MCP configured from OUTSIDE via the API, with the user's own account (personal or work) — AIRE itself never touches git; only then does `Stop` hook → commit/push make sense | Idea |
 | 13 | Semantic search over the sessions (pgvector) | Idea |
 | 14 | PR to Agno: add `session_store` to their `ClaudeAgent` (41k ⭐, it's only a few lines) | Idea |
+| 15 | **The front repo** — the PHP of EC-GPS as a separate Next.js project: ALL database reads live there (see `.claude/rules/write-only-daemon.md`). First tenant: the monster (DFG view, evicted from this repo at `f40e21a`, parked in `~/Documents/aire-front-seed/`) | Proposed |
 
 ---
 

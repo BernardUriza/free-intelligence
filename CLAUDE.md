@@ -23,8 +23,9 @@ memory. To contradict anything here, verify it first the same way.
 0. **THE SERVER IS THE INTERFACE — SSR, not a JSON API.** The central thesis. AIRE
    **returns server-rendered HTML that keeps writing itself** as the agent thinks
    (streaming HTML, not one-shot SSR). `GET /projects/avatar` → a page, with the agent
-   working, live. No React, no npm, no build. The page to view your sessions is the
-   same server, not another project.
+   working, live. No React, no npm, no build. This covers the LIVE page — painted
+   from the engine's in-flight events, not from a database read. Browsing and
+   analyzing STORED sessions is the front repo's job (decision #5).
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
 3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE
@@ -34,6 +35,11 @@ memory. To contradict anything here, verify it first the same way.
    configured FROM OUTSIDE, at the user layer** — an MCP wired in via the API with the
    *user's own account* (personal or work), never as an identity baked into the server.
 4. **The container stores nothing.** `CLAUDE_CONFIG_DIR=/tmp`.
+5. **This repo is WRITE-ONLY toward the database.** Every read — rendering,
+   analytics, dashboards, session browsing — lives in a separate front repo (the
+   PHP of EC-GPS, planned as Next.js; backlog #15). The one sanctioned exception
+   is the SDK's `session_store.load()` for resume (the agent reading its own
+   memory). Full law: [`.claude/rules/write-only-daemon.md`](.claude/rules/write-only-daemon.md).
 
 ## Reuse, don't rewrite
 
