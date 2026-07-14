@@ -21,6 +21,7 @@
 
 import { useState } from 'react';
 import {
+  filterConversationSummaries,
   organizeConversationSummaries,
   type ConversationSummary,
 } from '@free-intelligence/core';
@@ -98,8 +99,16 @@ export function Og118Sidebar({
   // touch minimum; the rows inherit it from EditableResourceItem's action slots.
   useTouchTargetStyle();
   const [showArchived, setShowArchived] = useState(false);
+  const [query, setQuery] = useState('');
 
-  const { pinned, active, archived } = organizeConversationSummaries(conversations);
+  const searching = query.trim() !== '';
+  const { pinned, active, archived } = organizeConversationSummaries(
+    filterConversationSummaries(conversations, query),
+  );
+  const noResults = searching && pinned.length + active.length + archived.length === 0;
+  // While searching, an archived match must be VISIBLE, not hidden behind the
+  // collapsed section — the search overrides the collapse.
+  const archivedOpen = showArchived || searching;
 
   const chatRow = (c: ConversationSummary, isPinned: boolean) => (
     <EditableResourceItem
@@ -196,7 +205,20 @@ export function Og118Sidebar({
           </button>
         }
       >
+        {conversations.length > 0 && (
+          <input
+            type="search"
+            className="og-sidebar-search"
+            placeholder="Buscar chats…"
+            aria-label="Buscar chats"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        )}
         <nav className="og-sidebar-list">
+          {noResults && (
+            <p className="og-sidebar-noresults">Sin resultados para «{query.trim()}».</p>
+          )}
           {pinned.length > 0 && (
             <>
               <span className="og-sidebar-group-label">Fijados</span>
@@ -224,14 +246,14 @@ export function Og118Sidebar({
             <button
               className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-archive-toggle`}
               onClick={() => setShowArchived((v) => !v)}
-              aria-expanded={showArchived}
-              aria-label={showArchived ? 'Ocultar archivados' : 'Mostrar archivados'}
+              aria-expanded={archivedOpen}
+              aria-label={archivedOpen ? 'Ocultar archivados' : 'Mostrar archivados'}
             >
-              {showArchived ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {archivedOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
           }
         >
-          {showArchived && (
+          {archivedOpen && (
             <nav className="og-sidebar-list og-sidebar-archived-list">
               {archived.map(archivedRow)}
             </nav>

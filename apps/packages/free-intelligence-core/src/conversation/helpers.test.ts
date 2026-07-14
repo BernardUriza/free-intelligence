@@ -13,6 +13,7 @@ import {
   createConversationRecord,
   summarizeConversation,
   organizeConversationSummaries,
+  filterConversationSummaries,
   deriveConversationTitle,
   deriveConversationPreview,
   resolveConversationTitle,
@@ -347,5 +348,32 @@ describe('pin/archive transformers + organize (CONV-ORGANIZE-1)', () => {
     expect(pinned.map((s) => s.id)).toEqual(['pin-late', 'pin-early']);
     expect(active.map((s) => s.id)).toEqual(['active-new', 'active-old']);
     expect(archived.map((s) => s.id)).toEqual(['archived-2', 'archived-1']);
+  });
+});
+
+describe('filterConversationSummaries (CONV-SEARCH-1)', () => {
+  const sum = (id: string, title: string, preview = '') => ({
+    id, title, createdAt: NOW, updatedAt: NOW, preview,
+  });
+  const list = [
+    sum('a', 'Sistemas distribuidos', 'la red no es confiable'),
+    sum('b', 'Métodos de natación', 'entrenados en 25 metros'),
+    sum('c', 'Plan de comidas', 'menú semanal vegano'),
+  ];
+
+  it('matches case- and diacritic-insensitively over title and preview', () => {
+    expect(filterConversationSummaries(list, 'metodos').map((s) => s.id)).toEqual(['b']);
+    expect(filterConversationSummaries(list, 'MENÚ').map((s) => s.id)).toEqual(['c']);
+    expect(filterConversationSummaries(list, 'confiable').map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('requires every term to match (AND semantics)', () => {
+    expect(filterConversationSummaries(list, 'natacion metros').map((s) => s.id)).toEqual(['b']);
+    expect(filterConversationSummaries(list, 'natacion vegano')).toEqual([]);
+  });
+
+  it('returns the input untouched for an empty or whitespace query', () => {
+    expect(filterConversationSummaries(list, '')).toBe(list);
+    expect(filterConversationSummaries(list, '   ')).toBe(list);
   });
 });
