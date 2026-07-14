@@ -32,6 +32,25 @@ What provisioning leaves ready (the contract this deploy assumes):
   ```
 - Port **9099/tcp** reachable (for external devices) — or closed and
   `127.0.0.1`-only if only the local demo device runs.
+- `python3-asyncpg` installed and `/etc/aire/` created (`chmod 700`) — for the pen.
+
+### 1.5 The pen — Postgres credentials, out-of-band
+
+The listener mirrors every log line to an append-only `aire_log` table in Azure
+Postgres (`development-pg-n66dz`, database `aire`) when `AIRE_DATABASE_URL` is
+set. The DSN is a **secret and never enters the repo** (see the playbook's
+secrets-management rule): it lives on the box at `/etc/aire/env` (`chmod 600`),
+loaded by the unit via `EnvironmentFile=-/etc/aire/env`. The `-` makes it
+optional — without the file the listener runs in file-only mode.
+
+Set it once per box (the DSN is kept in `~/.secrets/aire-postgres.txt` on
+Bernard's machine):
+
+```bash
+ssh root@<droplet> 'umask 077; printf "AIRE_DATABASE_URL=%s\n" "<dsn>" > /etc/aire/env'
+```
+
+The Azure PG firewall must allow the droplet's IP (rule `aire-droplet-do`).
 
 ### 2. Continuous deploy — on every push
 

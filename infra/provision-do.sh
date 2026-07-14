@@ -105,9 +105,12 @@ $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' <<'REM
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-echo "    [remote] base packages (git, python3)…"
+echo "    [remote] base packages (git, python3, asyncpg for the pen)…"
 apt-get update -qq
-apt-get install -y -qq git python3 >/dev/null
+apt-get install -y -qq git python3 python3-asyncpg >/dev/null
+
+echo "    [remote] /etc/aire (out-of-band secrets, e.g. AIRE_DATABASE_URL)…"
+install -d -m 700 /etc/aire
 
 echo "    [remote] repo at $REMOTE_DIR…"
 if [[ -d "$REMOTE_DIR/.git" ]]; then

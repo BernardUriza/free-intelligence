@@ -10,6 +10,7 @@ WorkingDirectory=/opt/aire
 Environment=AIRE_LOG=/opt/aire/aire.log
 Environment=AIRE_PORT=9099
 Environment=AIRE_HOST=0.0.0.0
+EnvironmentFile=-/etc/aire/env
 ExecStart=/usr/bin/python3 -m aire.listener
 Restart=always
 RestartSec=2
