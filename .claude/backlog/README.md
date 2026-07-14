@@ -11,9 +11,9 @@
 
 | # | Item | Status |
 |---|------|--------|
-| 3 | Deploy to Azure Container Apps (image + secret + ingress). Runbook written, never run. | Proposed |
+| 3 | Deploy to Azure Container Apps (image + secret + ingress). | **Done 2026-07-13** — [live](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io), `insult-rg` / `prod-env` / `insultacr`, scales to zero |
 | 4 | `claude_session_store` will not be readable as a flat table — the `entry` column is JSONB holding the SDK's transcript. When the engine wakes and the table appears, it needs a real view: the conversation, rendered, not a grid of blobs. This is `aire-server`'s `render.transcript()`, re-implemented on the read side. | Proposed |
-| 5 | Auth. There is none. The console exposes the whole database to anyone who reaches it — fine on localhost, **not fine with public ingress**. Blocking for #3. | Proposed |
+| **5** | **Auth. There is none, and the ingress is PUBLIC.** Anyone with the URL reads the whole database. Acceptable today (one table of simulated GPS heartbeats); **a data leak the day `claude_session_store` lands**, because that table is the transcript of real conversations. **This blocks the engine phase, not the other way around.** | **Proposed — blocking** |
 | 6 | Sessions browser: list by `project_key`, open one, read it. Depends on #4. | Idea |
 | 7 | The monster over a million rows: it currently pulls the entire log into memory to build the DFG. At `aire_log`'s current growth (~1 row/s) that is fine for months and wrong eventually — the counting belongs in SQL (`lag()` over the classified events). | Idea |
 

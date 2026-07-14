@@ -1,11 +1,18 @@
 # AIRE front
 
 **The waiter** — a phpMyAdmin for the database [AIRE](../aire-server) writes.
-Read-only, server-rendered, deployable to Azure Container Apps.
+Read-only, server-rendered, live on Azure Container Apps:
+
+**https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io**
 
 > EC-GPS had a Perl daemon that only wrote and a PHP console that only read, and
 > it printed money for two decades. `aire-server` is the daemon. This is the
 > console.
+
+> ⚠️ **That URL is public and has no authentication.** Anyone who finds it reads
+> the whole database. It cannot write — but the day `claude_session_store` lands,
+> an open console over real transcripts is a leak with a URL. Auth is
+> [backlog #5](.claude/backlog/README.md) and it blocks the engine phase.
 
 ## What it does
 

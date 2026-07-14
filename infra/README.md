@@ -1,8 +1,12 @@
 # Infra — the waiter on Azure Container Apps
 
-Nothing new is provisioned. The registry, the environment and the resource group
-already exist and already hold the database this app reads — reusing them is both
-cheaper and faster (same region, so the Postgres round trip never leaves East US 2).
+**LIVE:** https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io
+(deployed 2026-07-13, `--ingress external`, scales to zero)
+
+Nothing new was provisioned. The registry, the environment and the resource group
+already existed and already hold the database this app reads — reusing them is
+both cheaper and faster (same region, so the Postgres round trip never leaves
+East US 2).
 
 | Thing | Value | Why this one |
 |---|---|---|
@@ -12,17 +16,27 @@ cheaper and faster (same region, so the Postgres round trip never leaves East US
 | App name | `aire-front` | — |
 | Secret | `aire-database-url` | injected at runtime, never in an image layer |
 
-## Before you run any of this — read this line
+## The console is PUBLIC and has NO authentication
 
-**The console has no authentication.** With public ingress, anyone who finds the
-URL can read the entire database. It cannot *write* (see
+Stated plainly rather than buried: **anyone who finds that URL can read the entire
+database** — every line the daemon has ever appended, and every table it creates
+from now on. It cannot *write* (see
 [`../.claude/rules/read-only-waiter.md`](../.claude/rules/read-only-waiter.md)),
-but reading is exactly what it is for.
+but reading is precisely what a console is for.
 
-Ship it with `--ingress internal` (reachable only from inside the Container Apps
-environment), or put auth in front of it first (backlog #5). The commands below
-default to **internal** on purpose. Flipping to `external` is a deliberate act,
-not a default.
+This was a deliberate call by Bernard on 2026-07-13 ("external — lo quiero ver
+ya") on a database that today holds one table of simulated GPS heartbeats. **It
+stops being an acceptable trade the moment `claude_session_store` appears**: that
+table is the transcript of real agent conversations, and an unauthenticated
+`/sql` console over it is a data leak with a URL.
+
+**Auth is backlog #5, and it is a blocker for the engine phase, not a nice-to-have.**
+Until it lands, either keep the database boring or flip the ingress:
+
+```bash
+az containerapp ingress enable -n aire-front -g insult-rg \
+  --type internal --target-port 3000 --transport auto
+```
 
 ## Build the image
 
